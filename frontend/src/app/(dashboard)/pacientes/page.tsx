@@ -1,0 +1,325 @@
+'use client';
+
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { Patient, SEXO_LABELS, PREVISION_LABELS } from '@/types';
+import { useAuthStore } from '@/stores/auth-store';
+import { FiPlus, FiSearch, FiUser, FiChevronRight, FiCalendar, FiFileText, FiFilter, FiDownload, FiChevronDown } from 'react-icons/fi';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import toast from 'react-hot-toast';
+
+const SEXO_OPTIONS = [
+  { value: '', label: 'Todos' },
+  { value: 'MASCULINO', label: 'Masculino' },
+  { value: 'FEMENINO', label: 'Femenino' },
+  { value: 'OTRO', label: 'Otro' },
+  { value: 'PREFIERE_NO_DECIR', label: 'Prefiere no decir' },
+];
+
+const PREVISION_OPTIONS = [
+  { value: '', label: 'Todas' },
+  { value: 'FONASA', label: 'Fonasa' },
+  { value: 'ISAPRE', label: 'Isapre' },
+  { value: 'OTRA', label: 'Otra' },
+  { value: 'DESCONOCIDA', label: 'Desconocida' },
+];
+
+const SORT_OPTIONS = [
+  { value: 'createdAt', label: 'Fecha de registro' },
+  { value: 'nombre', label: 'Nombre' },
+  { value: 'edad', label: 'Edad' },
+  { value: 'updatedAt', label: 'Última actualización' },
+];
+
+export default function PacientesPage() {
+  return (
+    <Suspense fallback={
+      <div className="animate-fade-in">
+        <div className="h-8 skeleton rounded w-48 mb-6" />
+        <div className="card"><div className="space-y-4">{[...Array(5)].map((_, i) => (<div key={i} className="h-16 skeleton rounded-lg" />))}</div></div>
+      </div>
+    }>
+      <PacientesContent />
+    </Suspense>
+  );
+}
+
+function PacientesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { canCreatePatient, canCreateEncounter, user } = useAuthStore();
+  const canCreate = canCreatePatient();
+  const canCreateEncounterAllowed = canCreateEncounter();
+  const search = searchParams.get('search') || '';
+  const [page, setPage] = useState(1);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({ sexo: '', prevision: '', edadMin: '', edadMax: '', sortBy: 'createdAt', sortOrder: 'desc' });
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['patients', search, page, filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      params.set('page', page.toString());
+      params.set('limit', '10');
+      if (filters.sexo) params.set('sexo', filters.sexo);
+      if (filters.prevision) params.set('prevision', filters.prevision);
+      if (filters.edadMin) params.set('edadMin', filters.edadMin);
+      if (filters.edadMax) params.set('edadMax', filters.edadMax);
+      if (filters.sortBy) params.set('sortBy', filters.sortBy);
+      if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
+      const response = await api.get(`/patients?${params}`);
+      return response.data;
+    },
+  });
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    router.push(`/pacientes?search=${encodeURIComponent(search)}`);
+  };
+
+  return (
+    <div className="animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Pacientes</h1>
+          <p className="text-slate-600">Gestiona el registro de pacientes</p>
+        </div>
+        {canCreate && data?.data?.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/pacientes/nuevo" className="btn btn-primary flex items-center gap-2">
+              <FiPlus className="w-4 h-4" />
+              Nuevo Paciente
+            </Link>
+            {canCreateEncounterAllowed && (
+              <Link href="/atenciones/nueva" className="btn btn-secondary flex items-center gap-2">
+                <FiFileText className="w-4 h-4" />
+                Nueva Atención
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="mb-4">
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 font-medium mb-2"
+        >
+          <FiFilter className="w-4 h-4" />
+          Filtros avanzados
+          <FiChevronDown className={`w-3 h-3 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+        </button>
+
+        {showFilters && (
+          <div className="card p-4 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Sexo</label>
+                <select
+                  className="input w-full text-sm"
+                  value={filters.sexo}
+                  onChange={(e) => { setFilters(f => ({ ...f, sexo: e.target.value })); setPage(1); }}
+                >
+                  {SEXO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Previsión</label>
+                <select
+                  className="input w-full text-sm"
+                  value={filters.prevision}
+                  onChange={(e) => { setFilters(f => ({ ...f, prevision: e.target.value })); setPage(1); }}
+                >
+                  {PREVISION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Edad mín</label>
+                <input
+                  type="number"
+                  className="input w-full text-sm"
+                  value={filters.edadMin}
+                  onChange={(e) => { setFilters(f => ({ ...f, edadMin: e.target.value })); setPage(1); }}
+                  placeholder="0"
+                  min={0}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Edad máx</label>
+                <input
+                  type="number"
+                  className="input w-full text-sm"
+                  value={filters.edadMax}
+                  onChange={(e) => { setFilters(f => ({ ...f, edadMax: e.target.value })); setPage(1); }}
+                  placeholder="120"
+                  min={0}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Ordenar</label>
+                <select
+                  className="input w-full text-sm"
+                  value={filters.sortBy}
+                  onChange={(e) => { setFilters(f => ({ ...f, sortBy: e.target.value })); setPage(1); }}
+                >
+                  {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Orden</label>
+                <select
+                  className="input w-full text-sm"
+                  value={filters.sortOrder}
+                  onChange={(e) => { setFilters(f => ({ ...f, sortOrder: e.target.value })); setPage(1); }}
+                >
+                  <option value="asc">Ascendente</option>
+                  <option value="desc">Descendente</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 mt-3">
+              <button
+                className="text-xs text-primary-600 hover:underline"
+                onClick={() => { setFilters({ sexo: '', prevision: '', edadMin: '', edadMax: '', sortBy: 'createdAt', sortOrder: 'desc' }); setPage(1); }}
+              >
+                Limpiar filtros
+              </button>
+              {user?.isAdmin && (
+                <button
+                  className="flex items-center gap-1 text-xs text-slate-600 hover:text-primary-600"
+                  onClick={async () => {
+                    try {
+                      const res = await api.get('/patients/export/csv', { responseType: 'blob' });
+                      const url = URL.createObjectURL(new Blob([res.data]));
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `pacientes_${new Date().toISOString().slice(0, 10)}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      toast.success('CSV descargado');
+                    } catch { toast.error('Error al exportar'); }
+                  }}
+                >
+                  <FiDownload className="w-3.5 h-3.5" />
+                  Exportar CSV
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Error state */}
+      {error && (
+        <div className="card mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+          Error al cargar pacientes. Intente recargar la página.
+        </div>
+      )}
+
+      {/* Patient list */}
+      <div className="card transition-all duration-300">
+        {isLoading ? (
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4 p-4 border-b border-slate-100">
+                <div className="w-12 h-12 skeleton rounded-full" />
+                <div className="flex-1">
+                  <div className="h-4 skeleton rounded w-1/3 mb-2" />
+                  <div className="h-3 skeleton rounded w-1/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : data?.data?.length > 0 ? (
+          <>
+            <div className="divide-y divide-slate-100">
+              {data.data.map((patient: Patient) => (
+                <Link
+                  key={patient.id}
+                  href={`/pacientes/${patient.id}`}
+                  className="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors group"
+                >
+                  <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <FiUser className="w-6 h-6 text-primary-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-medium text-slate-900 truncate group-hover:text-primary-600">
+                        {patient.nombre}
+                      </h3>
+                      <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">
+                        {patient.edad} años
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-slate-500">
+                      {patient.rut && <span>{patient.rut}</span>}
+                      <span>{SEXO_LABELS[patient.sexo]}</span>
+                      <span>{PREVISION_LABELS[patient.prevision]}</span>
+                      {patient._count && (
+                        <span className="flex items-center gap-1">
+                          <FiCalendar className="w-3 h-3" />
+                          {patient._count.encounters} atenciones
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <FiChevronRight className="w-5 h-5 text-slate-400 group-hover:text-primary-600" />
+                </Link>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {data.pagination && data.pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between p-4 border-t border-slate-100">
+                <p className="text-sm text-slate-600">
+                  Mostrando {(page - 1) * 10 + 1} - {Math.min(page * 10, data.pagination.total)} de{' '}
+                  {data.pagination.total} pacientes
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="btn btn-secondary text-sm"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    onClick={() => setPage((p) => Math.min(data.pagination.totalPages, p + 1))}
+                    disabled={page === data.pagination.totalPages}
+                    className="btn btn-secondary text-sm"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="p-12 text-center">
+            <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-6 transition-transform hover:scale-110">
+              <FiUser className="w-10 h-10 text-primary-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">No hay pacientes</h3>
+            <p className="text-slate-500 mb-8 max-w-sm mx-auto">
+              {search ? 'No se encontraron pacientes que coincidan con tu búsqueda.' : 'Aún no has registrado ningún paciente. Comienza agregando uno para gestionar su historial médico.'}
+            </p>
+            {canCreate && !search && (
+              <Link href="/pacientes/nuevo" className="btn btn-primary btn-lg shadow-lg shadow-primary-500/20">
+                <FiPlus className="w-5 h-5 mr-2" />
+                Registrar primer paciente
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

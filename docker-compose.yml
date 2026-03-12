@@ -1,0 +1,75 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: fichas-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fichas_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-fichas_secure_password}
+      POSTGRES_DB: fichas_clinicas
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fichas_user -d fichas_clinicas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fichas-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://fichas_user:${DB_PASSWORD:-fichas_secure_password}@postgres:5432/fichas_clinicas?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change_this_in_production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_this_refresh_secret_too}
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      PORT: 4444
+      CORS_ORIGIN: http://localhost:5555
+    ports:
+      - "4444:4444"
+    volumes:
+      - uploads_data:/app/uploads
+    healthcheck:
+      test:
+        ["CMD", "wget", "-q", "--spider", "http://localhost:4444/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:4444/api
+    container_name: fichas-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:4444/api
+      PORT: 5555
+    ports:
+      - "5555:5555"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5555"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+  uploads_data:

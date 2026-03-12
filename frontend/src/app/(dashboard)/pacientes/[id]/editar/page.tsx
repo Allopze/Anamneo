@@ -1,0 +1,406 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { api, getErrorMessage } from '@/lib/api';
+import { Patient } from '@/types';
+import { useAuthStore } from '@/stores/auth-store';
+import { ErrorAlert } from '@/components/common/ErrorAlert';
+import { FiArrowLeft, FiSave } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import clsx from 'clsx';
+
+type EditForm = {
+  edad: number;
+  sexo: 'MASCULINO' | 'FEMENINO' | 'OTRO' | 'PREFIERE_NO_DECIR';
+  prevision: 'FONASA' | 'ISAPRE' | 'OTRA' | 'DESCONOCIDA';
+  trabajo?: string;
+  domicilio?: string;
+  nombre?: string;
+  rut?: string;
+  rutExempt?: boolean;
+  rutExemptReason?: string;
+};
+
+export default function EditarPacientePage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { user, isMedico, canEditPatientAdmin } = useAuthStore();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const isDoctor = isMedico();
+
+  const canEditAdminFields = canEditPatientAdmin();
+
+  useEffect(() => {
+    if (!user) return;
+    if (!canEditAdminFields) {
+      router.push(`/pacientes/${id}`);
+    }
+  }, [user, canEditAdminFields, router, id]);
+
+  const editSchema = useMemo(() => {
+    const base = z.object({
+      edad: z.number().min(0).max(150),
+      sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR']),
+      prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA']),
+      trabajo: z.string().optional(),
+      domicilio: z.string().optional(),
+    });
+
+    if (!isDoctor) return base;
+
+    return base
+      .extend({
+        nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+        rut: z.string().optional(),
+        rutExempt: z.boolean().default(false),
+        rutExemptReason: z.string().optional(),
+      })
+      .superRefine((val, ctx) => {
+        const anyVal = val as EditForm;
+        if (anyVal.rutExempt) {
+          if (!anyVal.rutExemptReason || anyVal.rutExemptReason.trim().length === 0) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['rutExemptReason'],
+              message: 'Debe indicar el motivo de exencion de RUT',
+            });
+          }
+        }
+      });
+  }, [isDoctor]);
+
+  const editForm = useForm<EditForm>({
+    resolver: zodResolver(editSchema),
+    defaultValues: {
+      edad: 0,
+      sexo: 'MASCULINO',
+      prevision: 'FONASA',
+      trabajo: '',
+      domicilio: '',
+      nombre: '',
+      rut: '',
+      rutExempt: false,
+      rutExemptReason: '',
+    },
+  });
+
+  const { data: patient, isLoading, error: loadError } = useQuery({
+    queryKey: ['patient', id],
+    queryFn: async () => {
+      const response = await api.get(`/patients/${id}`);
+      return response.data as Patient;
+    },
+  });
+
+  useEffect(() => {
+    if (!patient) return;
+
+    editForm.reset({
+      edad: patient.edad ?? 0,
+      sexo: patient.sexo,
+      prevision: patient.prevision,
+      trabajo: patient.trabajo ?? '',
+      domicilio: patient.domicilio ?? '',
+      nombre: patient.nombre ?? '',
+      rut: patient.rut ?? '',
+      rutExempt: Boolean(patient.rutExempt),
+      rutExemptReason: patient.rutExemptReason ?? '',
+    });
+  }, [patient, editForm]);
+
+  const updateAdminMutation = useMutation({
+    mutationFn: (payload: Pick<EditForm, 'edad' | 'sexo' | 'prevision' | 'trabajo' | 'domicilio'>) =>
+      api.put(`/patients/${id}/admin`, payload),
+    onSuccess: () => {
+      toast.success('Paciente actualizado');
+      queryClient.invalidateQueries({ queryKey: ['patient', id] });
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      router.push(`/pacientes/${id}`);
+    },
+    onError: (err) => {
+      const msg = getErrorMessage(err);
+      setErrorMsg(msg);
+      toast.error(msg);
+    },
+  });
+
+  const updateFullMutation = useMutation({
+    mutationFn: (payload: Partial<EditForm>) => api.put(`/patients/${id}`, payload),
+    onSuccess: () => {
+      toast.success('Paciente actualizado');
+      queryClient.invalidateQueries({ queryKey: ['patient', id] });
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      router.push(`/pacientes/${id}`);
+    },
+    onError: (err) => {
+      const msg = getErrorMessage(err);
+      setErrorMsg(msg);
+      toast.error(msg);
+    },
+  });
+
+  const onSubmit = editForm.handleSubmit((data) => {
+    setErrorMsg(null);
+
+    const common = {
+      edad: data.edad,
+      sexo: data.sexo,
+      prevision: data.prevision,
+      trabajo: data.trabajo ?? '',
+      domicilio: data.domicilio ?? '',
+    };
+
+    if (isDoctor) {
+      const payload: Partial<EditForm> = {
+        ...common,
+        nombre: data.nombre,
+        rutExempt: Boolean(data.rutExempt),
+        rutExemptReason: data.rutExemptReason,
+      };
+
+      if (!payload.rutExempt) {
+        const rutVal = (data.rut ?? '').trim();
+        if (rutVal.length > 0) payload.rut = rutVal;
+      }
+
+      updateFullMutation.mutate(payload);
+      return;
+    }
+
+    updateAdminMutation.mutate(common);
+  });
+
+  if (isLoading) {
+    return (
+      <div className="max-w-3xl mx-auto animate-pulse">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-10 h-10 skeleton rounded-lg" />
+          <div>
+            <div className="h-6 skeleton rounded w-48 mb-2" />
+            <div className="h-4 skeleton rounded w-32" />
+          </div>
+        </div>
+        <div className="card space-y-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-4 skeleton rounded w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError || !patient) {
+    return (
+      <div className="max-w-3xl mx-auto animate-fade-in">
+        <div className="flex items-center gap-4 mb-6">
+          <Link
+            href={`/pacientes/${id}`}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <FiArrowLeft className="w-5 h-5 text-slate-600" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Editar paciente</h1>
+            <p className="text-slate-600">No se pudo cargar el paciente</p>
+          </div>
+        </div>
+        <ErrorAlert message={getErrorMessage(loadError ?? new Error('Paciente no encontrado'))} />
+      </div>
+    );
+  }
+
+  const rutExempt = editForm.watch('rutExempt');
+
+  return (
+    <div className="max-w-3xl mx-auto animate-fade-in pb-12">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <Link
+            href={`/pacientes/${id}`}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <FiArrowLeft className="w-5 h-5 text-slate-600" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Editar paciente</h1>
+            <p className="text-slate-600">
+              Actualiza los datos de <span className="font-semibold">{patient.nombre}</span>
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link href={`/pacientes/${id}`} className="btn btn-secondary text-sm">
+            Cancelar
+          </Link>
+          <button
+            type="submit"
+            form="edit-paciente-form"
+            disabled={updateAdminMutation.isPending || updateFullMutation.isPending}
+            className="btn btn-primary text-sm flex items-center gap-2"
+          >
+            {updateAdminMutation.isPending || updateFullMutation.isPending ? (
+              <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+            ) : (
+              <FiSave className="w-4 h-4" />
+            )}
+            Guardar cambios
+          </button>
+        </div>
+      </div>
+
+      {!isDoctor && (
+        <div className="mb-6 p-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-sm">
+          Solo puedes editar datos administrativos del paciente.
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="mb-6">
+          <ErrorAlert message={errorMsg} />
+        </div>
+      )}
+
+      <form id="edit-paciente-form" onSubmit={onSubmit} className="card space-y-6">
+        {isDoctor && (
+          <>
+            <div>
+              <label className="form-label">Nombre completo</label>
+              <input
+                className={clsx('form-input', editForm.formState.errors.nombre && 'form-input-error')}
+                {...editForm.register('nombre')}
+              />
+              {editForm.formState.errors.nombre && (
+                <p className="form-error">{String(editForm.formState.errors.nombre.message || '')}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="form-label">RUT</label>
+              <div className="space-y-2">
+                <input
+                  className={clsx('form-input', editForm.formState.errors.rut && 'form-input-error')}
+                  disabled={Boolean(rutExempt)}
+                  placeholder="Ej: 12.345.678-9"
+                  {...editForm.register('rut')}
+                />
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                    {...editForm.register('rutExempt')}
+                  />
+                  <span className="text-sm text-slate-600">Paciente sin RUT</span>
+                </label>
+                {Boolean(rutExempt) && (
+                  <>
+                    <input
+                      className={clsx(
+                        'form-input',
+                        editForm.formState.errors.rutExemptReason && 'form-input-error'
+                      )}
+                      placeholder="Motivo de exencion (ej: extranjero, recien nacido)"
+                      {...editForm.register('rutExemptReason')}
+                    />
+                    {editForm.formState.errors.rutExemptReason && (
+                      <p className="form-error">
+                        {String(editForm.formState.errors.rutExemptReason.message || '')}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="form-label">Edad</label>
+            <input
+              type="number"
+              min={0}
+              max={150}
+              className={clsx('form-input', editForm.formState.errors.edad && 'form-input-error')}
+              {...editForm.register('edad', { valueAsNumber: true })}
+            />
+            {editForm.formState.errors.edad && (
+              <p className="form-error">{editForm.formState.errors.edad.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="form-label">Sexo</label>
+            <select
+              className={clsx('form-input', editForm.formState.errors.sexo && 'form-input-error')}
+              {...editForm.register('sexo')}
+            >
+              <option value="MASCULINO">Masculino</option>
+              <option value="FEMENINO">Femenino</option>
+              <option value="OTRO">Otro</option>
+              <option value="PREFIERE_NO_DECIR">Prefiere no decir</option>
+            </select>
+            {editForm.formState.errors.sexo && (
+              <p className="form-error">{editForm.formState.errors.sexo.message}</p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="form-label">Prevision</label>
+          <select
+            className={clsx('form-input', editForm.formState.errors.prevision && 'form-input-error')}
+            {...editForm.register('prevision')}
+          >
+            <option value="FONASA">FONASA</option>
+            <option value="ISAPRE">ISAPRE</option>
+            <option value="OTRA">Otra</option>
+            <option value="DESCONOCIDA">Desconocida</option>
+          </select>
+          {editForm.formState.errors.prevision && (
+            <p className="form-error">{editForm.formState.errors.prevision.message}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="form-label">Trabajo / Ocupacion</label>
+          <input className="form-input" {...editForm.register('trabajo')} />
+        </div>
+
+        <div>
+          <label className="form-label">Domicilio</label>
+          <input className="form-input" {...editForm.register('domicilio')} />
+        </div>
+
+        <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+          <Link href={`/pacientes/${id}`} className="btn btn-secondary">
+            Cancelar
+          </Link>
+          <button
+            type="submit"
+            disabled={updateAdminMutation.isPending || updateFullMutation.isPending}
+            className="btn btn-primary"
+          >
+            {updateAdminMutation.isPending || updateFullMutation.isPending ? (
+              <span className="flex items-center gap-2">
+                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                Guardando...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <FiSave className="w-4 h-4" />
+                Guardar
+              </span>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
