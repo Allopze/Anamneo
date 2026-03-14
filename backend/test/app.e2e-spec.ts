@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
 import * as cookieParser from 'cookie-parser';
+import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import { ConfigModule } from '@nestjs/config';
@@ -14,36 +15,39 @@ import { ConditionsModule } from '../src/conditions/conditions.module';
 import { AttachmentsModule } from '../src/attachments/attachments.module';
 import { AuditModule } from '../src/audit/audit.module';
 import { HealthController } from '../src/health.controller';
-import { PrismaService } from '../src/prisma/prisma.service';
 
 // ── Test database setup ─────────────────────────────────────────────
-const DEFAULT_TEST_DATABASE_URL = 'postgresql://postgres:postgres@127.0.0.1:5432/pacientes_test?schema=public';
-const TEST_SCHEMA = `e2e_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-function buildTestDatabaseUrl(baseUrl: string, schema: string) {
-  const url = new URL(baseUrl);
-  url.searchParams.set('schema', schema);
-  return url.toString();
-}
+const TEST_DB_FILENAME = `test-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`;
+const DEFAULT_TEST_DATABASE_URL = `file:./${TEST_DB_FILENAME}`;
 
 function resolveBaseTestDatabaseUrl() {
   const explicitTestUrl = process.env.TEST_DATABASE_URL;
-  if (explicitTestUrl?.startsWith('postgresql://') || explicitTestUrl?.startsWith('postgres://')) {
+  if (explicitTestUrl?.startsWith('file:')) {
     return explicitTestUrl;
-  }
-
-  const currentDatabaseUrl = process.env.DATABASE_URL;
-  if (currentDatabaseUrl?.startsWith('postgresql://') || currentDatabaseUrl?.startsWith('postgres://')) {
-    return currentDatabaseUrl;
   }
 
   return DEFAULT_TEST_DATABASE_URL;
 }
 
+function resolveSqliteFilePath(databaseUrl: string): string | null {
+  if (!databaseUrl.startsWith('file:')) {
+    return null;
+  }
+
+  const rawPath = databaseUrl.slice('file:'.length);
+  if (rawPath.startsWith('/')) {
+    return rawPath;
+  }
+
+  const prismaDirectory = path.join(__dirname, '..', 'prisma');
+  const normalizedRelativePath = rawPath.replace(/^\.\//, '');
+  return path.resolve(prismaDirectory, normalizedRelativePath);
+}
+
 describe('Application E2E Tests', () => {
   let app: INestApplication;
-  let prisma: PrismaService;
   let httpServer: any;
+  let testDatabaseFilePath: string | null = null;
 
   // Stored IDs used across tests
   let adminUserId: string;
@@ -56,7 +60,12 @@ describe('Application E2E Tests', () => {
   let medicoCookies: string[] = [];
 
   beforeAll(async () => {
-    const testDatabaseUrl = buildTestDatabaseUrl(resolveBaseTestDatabaseUrl(), TEST_SCHEMA);
+    const testDatabaseUrl = resolveBaseTestDatabaseUrl();
+    testDatabaseFilePath = resolveSqliteFilePath(testDatabaseUrl);
+
+    if (testDatabaseFilePath && fs.existsSync(testDatabaseFilePath)) {
+      fs.rmSync(testDatabaseFilePath, { force: true });
+    }
 
     // Set env vars for test
     process.env.DATABASE_URL = testDatabaseUrl;
@@ -107,17 +116,21 @@ describe('Application E2E Tests', () => {
     );
     await app.init();
 
-    prisma = app.get(PrismaService);
     httpServer = app.getHttpServer();
   }, 30_000);
 
   afterAll(async () => {
-    if (prisma) {
-      await prisma.cleanDatabase();
-      await prisma.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${TEST_SCHEMA}" CASCADE`);
-    }
     if (app) {
       await app.close();
+    }
+
+    if (testDatabaseFilePath) {
+      for (const suffix of ['', '-journal', '-wal', '-shm']) {
+        const candidatePath = `${testDatabaseFilePath}${suffix}`;
+        if (fs.existsSync(candidatePath)) {
+          fs.rmSync(candidatePath, { force: true });
+        }
+      }
     }
   });
 

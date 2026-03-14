@@ -4,6 +4,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export declare class UsersService {
     private prisma;
     constructor(prisma: PrismaService);
+    private assertNotLeavingSystemWithoutAdmin;
     countUsers(): Promise<number>;
     create(createUserDto: CreateUserDto & {
         isAdmin?: boolean;
@@ -48,8 +49,8 @@ export declare class UsersService {
         nombre: string;
         role: string;
         medicoId: string | null;
-        passwordHash: string;
         isAdmin: boolean;
+        passwordHash: string;
     } | null>;
     update(id: string, updateUserDto: UpdateUserDto): Promise<{
         id: string;

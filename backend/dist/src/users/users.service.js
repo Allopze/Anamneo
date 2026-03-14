@@ -18,6 +18,24 @@ let UsersService = class UsersService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    async assertNotLeavingSystemWithoutAdmin(user, changes) {
+        const willLoseAdminAccess = user.isAdmin
+            && user.active
+            && (changes.active === false || (changes.role !== undefined && changes.role !== 'ADMIN'));
+        if (!willLoseAdminAccess) {
+            return;
+        }
+        const remainingActiveAdmins = await this.prisma.user.count({
+            where: {
+                isAdmin: true,
+                active: true,
+                NOT: { id: user.id },
+            },
+        });
+        if (remainingActiveAdmins === 0) {
+            throw new common_1.ConflictException('Debe existir al menos un administrador activo en el sistema');
+        }
+    }
     async countUsers() {
         return this.prisma.user.count();
     }
@@ -125,6 +143,10 @@ let UsersService = class UsersService {
             }
         }
         const nextRole = (updateUserDto.role ?? user.role);
+        await this.assertNotLeavingSystemWithoutAdmin(user, {
+            active: updateUserDto.active,
+            role: nextRole,
+        });
         if (nextRole === 'ADMIN') {
             data.isAdmin = true;
             data.medicoId = null;
@@ -171,6 +193,7 @@ let UsersService = class UsersService {
         if (!user) {
             throw new common_1.NotFoundException('Usuario no encontrado');
         }
+        await this.assertNotLeavingSystemWithoutAdmin(user, { active: false });
         return this.prisma.user.update({
             where: { id },
             data: { active: false },
@@ -228,7 +251,6 @@ let UsersService = class UsersService {
         if (!user) {
             throw new common_1.NotFoundException('Usuario no encontrado');
         }
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
         const normalizedPassword = temporaryPassword.trim();
         if (normalizedPassword.length < 8) {
             throw new common_1.ConflictException('La contraseña temporal debe tener al menos 8 caracteres');

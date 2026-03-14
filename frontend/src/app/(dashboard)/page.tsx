@@ -12,6 +12,7 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import clsx from 'clsx';
+import { getFirstName } from '@/lib/utils';
 
 interface DashboardData {
   counts: { enProgreso: number; completado: number; cancelado: number; total: number };
@@ -46,7 +47,7 @@ export default function DashboardPage() {
       {/* Welcome */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">
-          ¡Hola, {user?.nombre?.split(' ')[0]}!
+          ¡Hola, {getFirstName(user?.nombre)}!
         </h1>
         <p className="text-slate-600 mt-1">Resumen de actividad clínica</p>
       </div>

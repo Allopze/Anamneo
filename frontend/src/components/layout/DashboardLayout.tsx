@@ -20,8 +20,10 @@ import {
   FiBookmark,
 } from 'react-icons/fi';
 import clsx from 'clsx';
+import { getNameInitial } from '@/lib/utils';
 import OfflineBanner from '@/components/common/OfflineBanner';
 import CommandPalette from '@/components/common/CommandPalette';
+import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -39,7 +41,7 @@ const baseNavigation = [
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, hasHydrated, login, logout } = useAuthStore();
   const navigation = [
     ...baseNavigation,
     ...(user?.isAdmin
@@ -54,16 +56,54 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [authCheckComplete, setAuthCheckComplete] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (mounted && !isAuthenticated) {
-      router.push('/login');
+    if (!mounted || !hasHydrated || authCheckComplete) {
+      return;
     }
-  }, [mounted, isAuthenticated, router]);
+
+    if (isAuthenticated) {
+      setAuthCheckComplete(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    const bootstrapSession = async () => {
+      try {
+        const response = await api.get('/auth/me');
+        if (cancelled) return;
+
+        login({
+          id: response.data.id,
+          email: response.data.email,
+          nombre: response.data.nombre,
+          role: response.data.role as 'MEDICO' | 'ASISTENTE' | 'ADMIN',
+          isAdmin: !!response.data.isAdmin,
+          medicoId: response.data.medicoId ?? null,
+        });
+      } catch {
+        if (cancelled) return;
+        logout();
+        router.replace('/login');
+      } finally {
+        if (!cancelled) {
+          setAuthCheckComplete(true);
+        }
+      }
+    };
+
+    void bootstrapSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authCheckComplete, hasHydrated, isAuthenticated, login, logout, mounted, router]);
 
   // F9: ⌘K / Ctrl+K keyboard shortcut to open search
   useEffect(() => {
@@ -84,12 +124,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       // Clear local state even if server call fails
     }
     logout();
-    router.push('/login');
+    router.replace('/login');
   };
 
 
 
-  if (!mounted || !isAuthenticated) {
+  if (!mounted || !hasHydrated || !authCheckComplete || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent" />
@@ -119,27 +159,30 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-              <FiFileText className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-semibold text-slate-900">Fichas Clínicas</span>
+            <AnamneoLogo
+              className="gap-2.5"
+              iconClassName="h-8 w-8"
+              textClassName="text-lg font-semibold text-slate-900"
+            />
           </Link>
           <button
             className="lg:hidden p-2 text-slate-500 hover:text-slate-700"
             onClick={() => setSidebarOpen(false)}
+            aria-label="Cerrar menú"
           >
             <FiX className="w-5 h-5" />
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1">
+        <nav className="p-4 space-y-1" aria-label="Navegación principal">
           {navigation.map((item) => {
             const isActive = (item as any).exact ? pathname === item.href : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.name}
                 href={item.href}
+                aria-current={isActive ? 'page' : undefined}
                 className={clsx(
                   'flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-colors',
                   isActive
@@ -147,7 +190,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 )}
               >
-                <item.icon className="w-5 h-5" />
+                <item.icon className="w-5 h-5" aria-hidden="true" />
                 {item.name}
               </Link>
             );
@@ -159,7 +202,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
               <span className="text-primary-700 font-semibold">
-                {user?.nombre?.charAt(0).toUpperCase()}
+                {getNameInitial(user?.nombre)}
               </span>
             </div>
             <div className="flex-1 min-w-0">
@@ -185,6 +228,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <button
               className="lg:hidden p-2 text-slate-500 hover:text-slate-700"
               onClick={() => setSidebarOpen(true)}
+              aria-label="Abrir menú de navegación"
             >
               <FiMenu className="w-6 h-6" />
             </button>
@@ -208,10 +252,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50"
+                  aria-label="Menú de usuario"
+                  aria-expanded={userMenuOpen}
+                  aria-haspopup="true"
                 >
                   <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
                     <span className="text-primary-700 font-semibold text-sm">
-                      {user?.nombre?.charAt(0).toUpperCase()}
+                      {getNameInitial(user?.nombre)}
                     </span>
                   </div>
                   <FiChevronDown className="w-4 h-4 text-slate-500" />
@@ -223,7 +270,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       className="fixed inset-0 z-10"
                       onClick={() => setUserMenuOpen(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20">
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20" role="menu">
                       <div className="px-4 py-2 border-b border-slate-200">
                         <p className="text-sm font-medium text-slate-900">{user?.nombre}</p>
                         <p className="text-xs text-slate-500">{user?.email}</p>

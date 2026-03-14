@@ -55,9 +55,40 @@ function PacientesContent() {
   const canCreate = canCreatePatient();
   const canCreateEncounterAllowed = canCreateEncounter();
   const search = searchParams.get('search') || '';
-  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState(search);
+  const page = Number(searchParams.get('page') || '1');
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({ sexo: '', prevision: '', edadMin: '', edadMax: '', sortBy: 'createdAt', sortOrder: 'desc' });
+
+  // Read filters from URL searchParams
+  const filters = {
+    sexo: searchParams.get('sexo') || '',
+    prevision: searchParams.get('prevision') || '',
+    edadMin: searchParams.get('edadMin') || '',
+    edadMax: searchParams.get('edadMax') || '',
+    sortBy: searchParams.get('sortBy') || 'createdAt',
+    sortOrder: searchParams.get('sortOrder') || 'desc',
+  };
+
+  const buildUrl = (overrides: Record<string, string>) => {
+    const next = new URLSearchParams();
+    const merged = { search, ...filters, page: String(page), ...overrides };
+    Object.entries(merged).forEach(([k, v]) => { if (v && v !== '' && !(k === 'page' && v === '1') && !(k === 'sortBy' && v === 'createdAt') && !(k === 'sortOrder' && v === 'desc')) next.set(k, v); });
+    const qs = next.toString();
+    return `/pacientes${qs ? `?${qs}` : ''}`;
+  };
+
+  const setPage = (p: number | ((prev: number) => number)) => {
+    const nextPage = typeof p === 'function' ? p(page) : p;
+    router.push(buildUrl({ page: String(nextPage) }));
+  };
+
+  const setFilter = (key: string, value: string) => {
+    router.push(buildUrl({ [key]: value, page: '1' }));
+  };
+
+  const clearFilters = () => {
+    router.push(buildUrl({ sexo: '', prevision: '', edadMin: '', edadMax: '', sortBy: 'createdAt', sortOrder: 'desc', page: '1' }));
+  };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['patients', search, page, filters],
@@ -79,8 +110,8 @@ function PacientesContent() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setPage(1);
-    router.push(`/pacientes?search=${encodeURIComponent(search)}`);
+    const trimmed = searchInput.trim();
+    router.push(buildUrl({ search: trimmed, page: '1' }));
   };
 
   return (
@@ -107,6 +138,20 @@ function PacientesContent() {
         )}
       </div>
 
+      {/* Search */}
+      <form onSubmit={handleSearch} className="mb-4">
+        <div className="relative">
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Buscar por nombre, RUT o correo…"
+            className="form-input pl-10 w-full"
+          />
+        </div>
+      </form>
+
       {/* Filters */}
       <div className="mb-4">
         <button
@@ -126,7 +171,7 @@ function PacientesContent() {
                 <select
                   className="input w-full text-sm"
                   value={filters.sexo}
-                  onChange={(e) => { setFilters(f => ({ ...f, sexo: e.target.value })); setPage(1); }}
+                  onChange={(e) => setFilter('sexo', e.target.value)}
                 >
                   {SEXO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -136,7 +181,7 @@ function PacientesContent() {
                 <select
                   className="input w-full text-sm"
                   value={filters.prevision}
-                  onChange={(e) => { setFilters(f => ({ ...f, prevision: e.target.value })); setPage(1); }}
+                  onChange={(e) => setFilter('prevision', e.target.value)}
                 >
                   {PREVISION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -147,7 +192,7 @@ function PacientesContent() {
                   type="number"
                   className="input w-full text-sm"
                   value={filters.edadMin}
-                  onChange={(e) => { setFilters(f => ({ ...f, edadMin: e.target.value })); setPage(1); }}
+                  onChange={(e) => setFilter('edadMin', e.target.value)}
                   placeholder="0"
                   min={0}
                 />
@@ -158,7 +203,7 @@ function PacientesContent() {
                   type="number"
                   className="input w-full text-sm"
                   value={filters.edadMax}
-                  onChange={(e) => { setFilters(f => ({ ...f, edadMax: e.target.value })); setPage(1); }}
+                  onChange={(e) => setFilter('edadMax', e.target.value)}
                   placeholder="120"
                   min={0}
                 />
@@ -168,7 +213,7 @@ function PacientesContent() {
                 <select
                   className="input w-full text-sm"
                   value={filters.sortBy}
-                  onChange={(e) => { setFilters(f => ({ ...f, sortBy: e.target.value })); setPage(1); }}
+                  onChange={(e) => setFilter('sortBy', e.target.value)}
                 >
                   {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -178,7 +223,7 @@ function PacientesContent() {
                 <select
                   className="input w-full text-sm"
                   value={filters.sortOrder}
-                  onChange={(e) => { setFilters(f => ({ ...f, sortOrder: e.target.value })); setPage(1); }}
+                  onChange={(e) => setFilter('sortOrder', e.target.value)}
                 >
                   <option value="asc">Ascendente</option>
                   <option value="desc">Descendente</option>
@@ -188,7 +233,7 @@ function PacientesContent() {
             <div className="flex items-center gap-3 mt-3">
               <button
                 className="text-xs text-primary-600 hover:underline"
-                onClick={() => { setFilters({ sexo: '', prevision: '', edadMin: '', edadMax: '', sortBy: 'createdAt', sortOrder: 'desc' }); setPage(1); }}
+                onClick={clearFilters}
               >
                 Limpiar filtros
               </button>

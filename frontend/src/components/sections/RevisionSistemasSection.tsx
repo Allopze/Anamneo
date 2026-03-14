@@ -68,6 +68,9 @@ export default function RevisionSistemasSection({ data, onChange, readOnly }: Pr
                 type="button"
                 onClick={() => handleToggle(key)}
                 disabled={readOnly}
+                role="checkbox"
+                aria-checked={systemData.checked}
+                aria-label={label}
                 className={clsx(
                   'w-6 h-6 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors',
                   systemData.checked
@@ -75,7 +78,7 @@ export default function RevisionSistemasSection({ data, onChange, readOnly }: Pr
                     : 'border-slate-300 hover:border-primary-400'
                 )}
               >
-                {systemData.checked && <FiCheck className="w-4 h-4" />}
+                {systemData.checked && <FiCheck className="w-4 h-4" aria-hidden="true" />}
               </button>
               
               <div className="flex-1">

@@ -31,8 +31,8 @@ export declare class AuthService {
         nombre: string;
         role: string;
         medicoId: string | null;
-        passwordHash: string;
         isAdmin: boolean;
+        passwordHash: string;
     } | null>;
     login(loginDto: LoginDto): Promise<AuthTokens>;
     refreshTokens(refreshToken: string): Promise<AuthTokens>;

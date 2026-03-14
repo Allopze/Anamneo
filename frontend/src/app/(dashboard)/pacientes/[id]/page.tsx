@@ -26,6 +26,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -33,6 +34,7 @@ export default function PatientDetailPage() {
   const queryClient = useQueryClient();
   const { isMedico, canEditAntecedentes, canEditPatientAdmin, canCreateEncounter } = useAuthStore();
   const [conflictEncounters, setConflictEncounters] = useState<InProgressEncounterSummary[] | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const canEditAdminFields = canEditPatientAdmin();
   const canCreateEncounterAllowed = canCreateEncounter();
@@ -79,9 +81,12 @@ export default function PatientDetailPage() {
   });
 
   const handleDelete = () => {
-    if (confirm('¿Estás seguro de eliminar este paciente? Esta acción no se puede deshacer.')) {
-      deleteMutation.mutate();
-    }
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    setShowDeleteConfirm(false);
+    deleteMutation.mutate();
   };
 
   if (isLoading) {
@@ -419,6 +424,16 @@ export default function PatientDetailPage() {
         </div>
       </div>
 
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDelete}
+        title="Eliminar paciente"
+        message="¿Estás seguro de eliminar este paciente? Se eliminarán todos sus datos, atenciones y adjuntos. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar paciente"
+        variant="danger"
+        loading={deleteMutation.isPending}
+      />
     </div>
   );
 }

@@ -1,11 +1,11 @@
 {
-  "name": "fichas-clinicas-frontend",
+  "name": "anamneo-frontend",
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 5555",
+    "dev": "next dev -H 0.0.0.0 -p 5555",
     "build": "next build",
-    "start": "next start -p 5555",
+    "start": "next start -H 0.0.0.0 -p 5555",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch"

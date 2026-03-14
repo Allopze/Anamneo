@@ -24,6 +24,12 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import {
+  canCompleteEncounter as canCompleteEncounterPermission,
+  canEditEncounter,
+  canUploadAttachments as canUploadAttachmentsPermission,
+  canViewMedicoOnlySections,
+} from '@/lib/permissions';
 
 // Section components
 import IdentificacionSection from '@/components/sections/IdentificacionSection';
@@ -37,6 +43,9 @@ import TratamientoSection from '@/components/sections/TratamientoSection';
 import RespuestaTratamientoSection from '@/components/sections/RespuestaTratamientoSection';
 import ObservacionesSection from '@/components/sections/ObservacionesSection';
 import ClinicalAlerts from '@/components/ClinicalAlerts';
+import TemplateSelector from '@/components/TemplateSelector';
+
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 const SECTION_COMPONENTS: Record<SectionKey, React.ComponentType<any>> = {
   IDENTIFICACION: IdentificacionSection,
@@ -59,6 +68,49 @@ const MEDICO_ONLY_SECTIONS: SectionKey[] = [
   'TRATAMIENTO',
   'RESPUESTA_TRATAMIENTO',
 ];
+
+const TEMPLATE_FIELD_BY_SECTION: Partial<Record<SectionKey, string>> = {
+  MOTIVO_CONSULTA: 'texto',
+  ANAMNESIS_PROXIMA: 'relatoAmpliado',
+  TRATAMIENTO: 'plan',
+  RESPUESTA_TRATAMIENTO: 'evolucion',
+  OBSERVACIONES: 'observaciones',
+};
+
+const SECTION_STATUS_META = {
+  idle: {
+    label: 'Sin cambios',
+    badgeClassName: 'bg-slate-100 text-slate-600',
+    dotClassName: 'bg-slate-300',
+  },
+  dirty: {
+    label: 'Pendiente',
+    badgeClassName: 'bg-amber-100 text-amber-800',
+    dotClassName: 'bg-amber-500',
+  },
+  saving: {
+    label: 'Guardando',
+    badgeClassName: 'bg-blue-100 text-blue-700',
+    dotClassName: 'bg-blue-500',
+  },
+  saved: {
+    label: 'Guardada',
+    badgeClassName: 'bg-emerald-100 text-emerald-700',
+    dotClassName: 'bg-emerald-500',
+  },
+  completed: {
+    label: 'Completa',
+    badgeClassName: 'bg-clinical-100 text-clinical-700',
+    dotClassName: 'bg-clinical-500',
+  },
+  error: {
+    label: 'Error',
+    badgeClassName: 'bg-red-100 text-red-700',
+    dotClassName: 'bg-red-500',
+  },
+} as const;
+
+type SectionUiState = keyof typeof SECTION_STATUS_META;
 
 const formatFileSize = (bytes: number) => {
   if (!Number.isFinite(bytes)) return '-';
@@ -83,13 +135,19 @@ export default function EncounterWizardPage() {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [savingSectionKey, setSavingSectionKey] = useState<SectionKey | null>(null);
+  const [savedSectionKey, setSavedSectionKey] = useState<SectionKey | null>(null);
+  const [errorSectionKey, setErrorSectionKey] = useState<SectionKey | null>(null);
   const lastSavedRef = useRef<string>('');
   const formDataRef = useRef<Record<string, any>>({});
   const activeSectionKeyRef = useRef<SectionKey | null>(null);
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const saveStatusTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isAttachmentsOpen, setIsAttachmentsOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
+  const [showDeleteAttachment, setShowDeleteAttachment] = useState<string | null>(null);
 
   // Fetch encounter data
   const { data: encounter, isLoading, error } = useQuery({
@@ -100,13 +158,17 @@ export default function EncounterWizardPage() {
     },
   });
   const isDoctor = isMedico();
-  const isEncounterCreator = encounter?.createdBy?.id === user?.id;
-  const canEdit = encounter?.status === 'EN_PROGRESO' && (isDoctor || isEncounterCreator);
-  const canUpload = canUploadAttachments();
+  const canEdit = canEditEncounter(user ?? null, encounter);
+  const canUpload = canUploadAttachmentsPermission(user ?? null);
   const allSections = encounter?.sections || [];
-  const sections = isDoctor
+  const sections = canViewMedicoOnlySections(user ?? null)
     ? allSections
     : allSections.filter((section) => !MEDICO_ONLY_SECTIONS.includes(section.sectionKey));
+  const currentSection = sections[currentSectionIndex];
+
+  useEffect(() => {
+    activeSectionKeyRef.current = currentSection?.sectionKey ?? null;
+  }, [currentSection]);
 
   // Save section mutation
   const saveSectionMutation = useMutation({
@@ -123,6 +185,15 @@ export default function EncounterWizardPage() {
         data,
         completed,
       });
+    },
+    onMutate: (variables) => {
+      if (saveStatusTimerRef.current) {
+        clearTimeout(saveStatusTimerRef.current);
+      }
+      setSavingSectionKey(variables.sectionKey);
+      setSavedSectionKey(null);
+      setErrorSectionKey(null);
+      setSaveStatus('saving');
     },
     onSuccess: (response, variables) => {
       let savedSnapshot: Record<string, any> = {};
@@ -162,10 +233,21 @@ export default function EncounterWizardPage() {
         setHasUnsavedChanges(false);
       }
 
+      setSavingSectionKey(null);
+      setSavedSectionKey(variables.sectionKey);
+      setErrorSectionKey(null);
       setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
+      saveStatusTimerRef.current = setTimeout(() => {
+        setSaveStatus('idle');
+        setSavedSectionKey((current) => (
+          current === variables.sectionKey ? null : current
+        ));
+      }, 2000);
     },
-    onError: (err) => {
+    onError: (err, variables) => {
+      setSavingSectionKey(null);
+      setSavedSectionKey(null);
+      setErrorSectionKey(variables.sectionKey);
       setSaveStatus('error');
       toast.error('Error al guardar: ' + getErrorMessage(err));
     },
@@ -233,6 +315,14 @@ export default function EncounterWizardPage() {
   }, [isAttachmentsOpen]);
 
   useEffect(() => {
+    return () => {
+      if (saveStatusTimerRef.current) {
+        clearTimeout(saveStatusTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     formDataRef.current = formData;
   }, [formData]);
 
@@ -270,29 +360,29 @@ export default function EncounterWizardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounter]);
 
-  // Autosave logic
+  // Autosave logic — uses refs to avoid stale closures
   const saveCurrentSection = useCallback(() => {
     if (!canEdit) return;
     if (!encounter?.sections) return;
     
-    const currentSection = sections[currentSectionIndex];
-    if (!currentSection) return;
-    const currentData = formData[currentSection.sectionKey];
+    const sectionKey = activeSectionKeyRef.current;
+    if (!sectionKey) return;
+    const currentData = formDataRef.current[sectionKey];
     
     // Compare the current section's data against its snapshot
     let savedSnapshot: Record<string, any> = {};
     try { savedSnapshot = JSON.parse(lastSavedRef.current || '{}'); } catch { /* ignore */ }
-    const savedSectionData = JSON.stringify(savedSnapshot[currentSection.sectionKey]);
+    const savedSectionData = JSON.stringify(savedSnapshot[sectionKey]);
     const currentSectionData = JSON.stringify(currentData);
 
     if (currentSectionData !== savedSectionData) {
       setSaveStatus('saving');
       saveSectionMutation.mutate({
-        sectionKey: currentSection.sectionKey,
+        sectionKey,
         data: currentData,
       });
     }
-  }, [canEdit, currentSectionIndex, formData, saveSectionMutation, sections]);
+  }, [canEdit, encounter?.sections, saveSectionMutation]);
 
   // Set up autosave timer
   useEffect(() => {
@@ -330,11 +420,75 @@ export default function EncounterWizardPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
+  // Keyboard shortcuts: Ctrl/⌘+S save, Ctrl/⌘+←/→ navigate sections
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+
+      if (e.key === 's') {
+        e.preventDefault();
+        saveCurrentSection();
+      } else if (e.key === 'ArrowLeft' && currentSectionIndex > 0) {
+        e.preventDefault();
+        saveCurrentSection();
+        setCurrentSectionIndex((i) => i - 1);
+      } else if (e.key === 'ArrowRight' && currentSectionIndex < sections.length - 1) {
+        e.preventDefault();
+        saveCurrentSection();
+        setCurrentSectionIndex((i) => i + 1);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [saveCurrentSection, currentSectionIndex, sections.length]);
+
   const handleSectionDataChange = (sectionKey: SectionKey, data: any) => {
     if (!canEdit) return;
     setFormData((prev) => ({ ...prev, [sectionKey]: data }));
-    setHasUnsavedChanges(true);
+    setErrorSectionKey((current) => (
+      current === sectionKey ? null : current
+    ));
     setSaveStatus('idle');
+  };
+
+  useEffect(() => {
+    if (!currentSection) {
+      setHasUnsavedChanges(false);
+      return;
+    }
+
+    let savedSnapshot: Record<string, any> = {};
+    try {
+      savedSnapshot = JSON.parse(lastSavedRef.current || '{}');
+    } catch {
+      savedSnapshot = {};
+    }
+
+    const currentData = JSON.stringify(formData[currentSection.sectionKey] ?? {});
+    const savedData = JSON.stringify(savedSnapshot[currentSection.sectionKey] ?? {});
+    setHasUnsavedChanges(currentData !== savedData);
+  }, [currentSection, formData]);
+
+  const insertTemplateIntoCurrentSection = (content: string) => {
+    if (!currentSection || !canEdit) return;
+
+    const targetField = TEMPLATE_FIELD_BY_SECTION[currentSection.sectionKey];
+    if (!targetField) return;
+
+    const currentData = formData[currentSection.sectionKey] || {};
+    const existingValue = typeof currentData[targetField] === 'string'
+      ? currentData[targetField].trim()
+      : '';
+    const nextValue = existingValue
+      ? `${existingValue}\n\n${content}`.trim()
+      : content;
+
+    handleSectionDataChange(currentSection.sectionKey, {
+      ...currentData,
+      [targetField]: nextValue,
+    });
+    toast.success('Plantilla insertada en la sección actual');
   };
 
   const handleNavigate = (direction: 'prev' | 'next') => {
@@ -343,15 +497,14 @@ export default function EncounterWizardPage() {
 
     if (direction === 'prev' && currentSectionIndex > 0) {
       setCurrentSectionIndex(currentSectionIndex - 1);
-    } else if (direction === 'next' && encounter?.sections && currentSectionIndex < encounter.sections.length - 1) {
+    } else if (direction === 'next' && currentSectionIndex < sections.length - 1) {
       setCurrentSectionIndex(currentSectionIndex + 1);
     }
   };
 
   const handleMarkComplete = () => {
     if (!canEdit) return;
-    if (!encounter?.sections) return;
-    const currentSection = encounter.sections[currentSectionIndex];
+    if (!currentSection) return;
     
     saveSectionMutation.mutate({
       sectionKey: currentSection.sectionKey,
@@ -363,6 +516,11 @@ export default function EncounterWizardPage() {
   const handleComplete = () => {
     if (!canEdit) return;
     saveCurrentSection();
+    setShowCompleteConfirm(true);
+  };
+
+  const confirmComplete = () => {
+    setShowCompleteConfirm(false);
     completeMutation.mutate();
   };
 
@@ -388,15 +546,35 @@ export default function EncounterWizardPage() {
     );
   }
 
-  const currentSection = sections[currentSectionIndex];
   const SectionComponent = currentSection ? SECTION_COMPONENTS[currentSection.sectionKey] : null;
   const completedCount = sections.filter((s) => s.completed).length;
-  const canComplete = isDoctor && encounter.status === 'EN_PROGRESO';
+  const canComplete = canCompleteEncounterPermission(user ?? null, encounter);
   const attachments = attachmentsQuery.data ?? [];
+  const supportsTemplates = Boolean(currentSection && TEMPLATE_FIELD_BY_SECTION[currentSection.sectionKey]);
 
-  useEffect(() => {
-    activeSectionKeyRef.current = currentSection?.sectionKey ?? null;
-  }, [currentSection]);
+  let savedSnapshot: Record<string, any> = {};
+  try {
+    savedSnapshot = JSON.parse(lastSavedRef.current || '{}');
+  } catch {
+    savedSnapshot = {};
+  }
+
+  const getSectionUiState = (section: NonNullable<Encounter['sections']>[number]): SectionUiState => {
+    if (section.sectionKey === savingSectionKey) return 'saving';
+    if (section.sectionKey === errorSectionKey) return 'error';
+
+    const currentData = JSON.stringify(formData[section.sectionKey] ?? {});
+    const savedData = JSON.stringify(savedSnapshot[section.sectionKey] ?? {});
+    const isDirty = currentData !== savedData;
+
+    if (isDirty) return 'dirty';
+    if (section.completed) return 'completed';
+    if (section.sectionKey === savedSectionKey) return 'saved';
+    return 'idle';
+  };
+
+  const currentSectionState = currentSection ? getSectionUiState(currentSection) : 'idle';
+  const currentSectionStatusMeta = SECTION_STATUS_META[currentSectionState];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -423,7 +601,7 @@ export default function EncounterWizardPage() {
           <div className="flex items-center gap-3 flex-wrap">
             {/* Save status */}
             {canEdit && (
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-sm" aria-live="polite" role="status">
                 {saveStatus === 'saving' && (
                   <span className="flex items-center gap-1 text-slate-500">
                     <FiLoader className="w-4 h-4 animate-spin" />
@@ -500,39 +678,79 @@ export default function EncounterWizardPage() {
         {/* Sidebar stepper */}
         <aside className="hidden lg:block w-72 min-h-[calc(100vh-4rem)] bg-white border-r border-slate-200">
           <nav className="p-4 space-y-1">
-            {sections.map((section, index) => (
-              <button
-                key={section.id}
-                onClick={() => {
-                  saveCurrentSection();
-                  setCurrentSectionIndex(index);
-                }}
-                className={clsx(
-                  'stepper-item w-full text-left',
-                  index === currentSectionIndex && 'stepper-item-active',
-                  index !== currentSectionIndex && section.completed && 'stepper-item-completed',
-                  index !== currentSectionIndex && !section.completed && 'stepper-item-pending'
-                )}
-              >
-                <span
+            {sections.map((section, index) => {
+              const sectionState = getSectionUiState(section);
+              const sectionStatusMeta = SECTION_STATUS_META[sectionState];
+
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => {
+                    saveCurrentSection();
+                    setCurrentSectionIndex(index);
+                  }}
                   className={clsx(
-                    'stepper-dot',
-                    index === currentSectionIndex && 'stepper-dot-active',
-                    index !== currentSectionIndex && section.completed && 'stepper-dot-completed',
-                    index !== currentSectionIndex && !section.completed && 'stepper-dot-pending'
+                    'stepper-item w-full text-left',
+                    index === currentSectionIndex && 'stepper-item-active',
+                    index !== currentSectionIndex && section.completed && 'stepper-item-completed',
+                    index !== currentSectionIndex && !section.completed && 'stepper-item-pending'
                   )}
                 >
-                  {section.completed ? <FiCheck className="w-3 h-3" /> : index + 1}
-                </span>
-                <span className="text-sm truncate">{section.label}</span>
-              </button>
-            ))}
+                  <span
+                    className={clsx(
+                      'stepper-dot',
+                      index === currentSectionIndex && 'stepper-dot-active',
+                      index !== currentSectionIndex && section.completed && 'stepper-dot-completed',
+                      index !== currentSectionIndex && !section.completed && 'stepper-dot-pending'
+                    )}
+                  >
+                    {section.completed ? <FiCheck className="w-3 h-3" /> : index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm truncate block">{section.label}</span>
+                    <span
+                      className={clsx(
+                        'mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                        sectionStatusMeta.badgeClassName,
+                      )}
+                    >
+                      <span className={clsx('w-1.5 h-1.5 rounded-full', sectionStatusMeta.dotClassName)} />
+                      {sectionStatusMeta.label}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </nav>
         </aside>
 
         {/* Main content */}
         <main className="flex-1 p-6">
           <div className="max-w-4xl mx-auto">
+            {/* Mobile section selector */}
+            <div className="lg:hidden mb-4">
+              <label htmlFor="mobile-section-select" className="sr-only">Seleccionar sección</label>
+              <select
+                id="mobile-section-select"
+                value={currentSectionIndex}
+                onChange={(e) => {
+                  saveCurrentSection();
+                  setCurrentSectionIndex(Number(e.target.value));
+                }}
+                className="form-input text-sm"
+              >
+                {sections.map((section, index) => {
+                  const state = getSectionUiState(section);
+                  const statusLabel = SECTION_STATUS_META[state].label;
+                  return (
+                    <option key={section.id} value={index}>
+                      {index + 1}. {section.label} — {statusLabel}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
             {/* Clinical Alerts */}
             {encounter.patientId && (
               <ClinicalAlerts patientId={encounter.patientId} />
@@ -548,8 +766,24 @@ export default function EncounterWizardPage() {
                     Completada
                   </span>
                 )}
+                <span
+                  className={clsx(
+                    'text-xs px-2 py-0.5 rounded-full',
+                    currentSectionStatusMeta.badgeClassName,
+                  )}
+                >
+                  {currentSectionStatusMeta.label}
+                </span>
               </div>
               <h2 className="text-2xl font-bold text-slate-900">{currentSection?.label}</h2>
+              {canEdit && supportsTemplates && currentSection && (
+                <div className="mt-3">
+                  <TemplateSelector
+                    sectionKey={currentSection.sectionKey}
+                    onInsert={insertTemplateIntoCurrentSection}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Section form */}
@@ -605,7 +839,7 @@ export default function EncounterWizardPage() {
             className="absolute inset-0 bg-slate-900/50"
             onClick={() => setIsAttachmentsOpen(false)}
           />
-          <div className="relative w-full max-w-2xl bg-white rounded-xl shadow-xl border border-slate-200">
+          <div className="relative w-full max-w-2xl bg-white rounded-xl shadow-xl border border-slate-200" role="dialog" aria-modal="true" aria-label="Adjuntos de la atención">
             <div className="p-5 border-b border-slate-200 flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Adjuntos de la atencion</h2>
@@ -693,11 +927,7 @@ export default function EncounterWizardPage() {
                           {isDoctor && (
                             <button
                               type="button"
-                              onClick={() => {
-                                if (confirm('¿Eliminar este archivo?')) {
-                                  deleteMutation.mutate(attachment.id);
-                                }
-                              }}
+                              onClick={() => setShowDeleteAttachment(attachment.id)}
                               disabled={deleteMutation.isPending}
                               className="btn btn-danger text-sm flex items-center gap-2"
                             >
@@ -715,6 +945,33 @@ export default function EncounterWizardPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showCompleteConfirm}
+        onClose={() => setShowCompleteConfirm(false)}
+        onConfirm={confirmComplete}
+        title="Completar atención"
+        message="¿Estás seguro de completar esta atención? Una vez completada, las secciones no podrán editarse."
+        confirmLabel="Completar atención"
+        variant="warning"
+        loading={completeMutation.isPending}
+      />
+
+      <ConfirmModal
+        isOpen={!!showDeleteAttachment}
+        onClose={() => setShowDeleteAttachment(null)}
+        onConfirm={() => {
+          if (showDeleteAttachment) {
+            deleteMutation.mutate(showDeleteAttachment);
+            setShowDeleteAttachment(null);
+          }
+        }}
+        title="Eliminar archivo"
+        message="¿Estás seguro de eliminar este archivo adjunto? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        variant="danger"
+        loading={deleteMutation.isPending}
+      />
     </div>
   );
 }

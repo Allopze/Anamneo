@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { SEXO_LABELS, PREVISION_LABELS, IdentificacionData } from '@/types';
-import { validateRut } from '@/lib/validate-rut';
+import { validateRut } from '@/lib/rut';
 
 interface Props {
   data: IdentificacionData;
@@ -54,8 +54,10 @@ export default function IdentificacionSection({ data, onChange, readOnly }: Prop
             disabled={readOnly}
             className={`form-input ${rutError ? 'border-red-400' : ''}`}
             placeholder={data.rutExempt ? 'Sin RUT' : '12.345.678-5'}
+            aria-invalid={!!rutError}
+            aria-describedby={rutError ? 'rut-error' : undefined}
           />
-          {rutError && <p className="text-xs text-red-500 mt-1">{rutError}</p>}
+          {rutError && <p id="rut-error" className="text-xs text-red-500 mt-1" role="alert">{rutError}</p>}
           {data.rutExempt && data.rutExemptReason && (
             <p className="text-sm text-slate-500 mt-1">Motivo: {data.rutExemptReason}</p>
           )}

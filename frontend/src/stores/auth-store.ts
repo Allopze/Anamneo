@@ -1,5 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import {
+  canCreateEncounter as canCreateEncounterPermission,
+  canCreatePatient as canCreatePatientPermission,
+  canEditAntecedentes as canEditAntecedentesPermission,
+  canEditPatientAdmin as canEditPatientAdminPermission,
+  canUploadAttachments as canUploadAttachmentsPermission,
+  isAssistantUser,
+  isMedicoUser,
+} from '@/lib/permissions';
 
 export interface User {
   id: string;
@@ -13,7 +22,9 @@ export interface User {
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  hasHydrated: boolean;
   setUser: (user: User) => void;
+  setHasHydrated: (value: boolean) => void;
   login: (user: User) => void;
   logout: () => void;
   isMedico: () => boolean;
@@ -31,8 +42,11 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       isAuthenticated: false,
+      hasHydrated: false,
 
       setUser: (user) => set({ user }),
+
+      setHasHydrated: (value) => set({ hasHydrated: value }),
 
       login: (user) =>
         set({
@@ -46,41 +60,21 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
         }),
 
-      isMedico: () => get().user?.role === 'MEDICO',
+      isMedico: () => isMedicoUser(get().user),
 
-      isAsistente: () => get().user?.role === 'ASISTENTE',
+      isAsistente: () => isAssistantUser(get().user),
 
       isAdmin: () => !!get().user?.isAdmin,
 
-      canCreatePatient: () => {
-        const user = get().user;
-        if (!user) return false;
-        return user.role === 'MEDICO' || (user.role === 'ASISTENTE' && !!user.medicoId);
-      },
+      canCreatePatient: () => canCreatePatientPermission(get().user),
 
-      canCreateEncounter: () => {
-        const user = get().user;
-        if (!user) return false;
-        return user.role === 'MEDICO' || (user.role === 'ASISTENTE' && !!user.medicoId);
-      },
+      canCreateEncounter: () => canCreateEncounterPermission(get().user),
 
-      canEditPatientAdmin: () => {
-        const user = get().user;
-        if (!user) return false;
-        return user.role === 'MEDICO' || (user.role === 'ASISTENTE' && !!user.medicoId);
-      },
+      canEditPatientAdmin: () => canEditPatientAdminPermission(get().user),
 
-      canUploadAttachments: () => {
-        const user = get().user;
-        if (!user) return false;
-        return user.role === 'MEDICO' || (user.role === 'ASISTENTE' && !!user.medicoId);
-      },
+      canUploadAttachments: () => canUploadAttachmentsPermission(get().user),
 
-      canEditAntecedentes: () => {
-        const user = get().user;
-        if (!user) return false;
-        return user.role === 'MEDICO' || user.role === 'ASISTENTE';
-      },
+      canEditAntecedentes: () => canEditAntecedentesPermission(get().user),
     }),
     {
       name: 'auth-storage',
@@ -88,6 +82,9 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
+import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
 import { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiUserPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -79,12 +80,11 @@ export default function RegisterPage() {
       {/* Left side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary-600 via-primary-700 to-clinical-800 p-12 flex-col justify-between">
         <div>
-          <div className="flex items-center gap-3 text-white">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-              <span className="text-2xl">🏥</span>
-            </div>
-            <span className="text-2xl font-bold">Fichas Clínicas</span>
-          </div>
+          <AnamneoLogo
+            iconClassName="h-12 w-12"
+            textClassName="text-3xl font-bold text-white"
+            priority
+          />
         </div>
 
         <div className="text-white">
@@ -117,7 +117,7 @@ export default function RegisterPage() {
         </div>
 
         <p className="text-primary-200 text-sm">
-          © {new Date().getFullYear()} Fichas Clínicas. Sistema de gestión médica.
+          © {new Date().getFullYear()} Anamneo. Sistema de gestión médica.
         </p>
       </div>
 
@@ -125,12 +125,12 @@ export default function RegisterPage() {
       <div className="flex-1 flex items-center justify-center p-8 bg-slate-50">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="lg:hidden flex items-center justify-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
-                <span className="text-2xl">🏥</span>
-              </div>
-              <span className="text-2xl font-bold text-slate-900">Fichas Clínicas</span>
-            </div>
+            <AnamneoLogo
+              className="justify-center mb-6 lg:hidden"
+              iconClassName="h-10 w-10"
+              textClassName="text-2xl font-bold text-slate-900"
+              priority
+            />
             <h2 className="text-2xl font-bold text-slate-900">Crear cuenta</h2>
             <p className="text-slate-600 mt-2">Completa tus datos para registrarte</p>
           </div>

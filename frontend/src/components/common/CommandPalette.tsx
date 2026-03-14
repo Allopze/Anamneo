@@ -134,7 +134,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
-        <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden">
+        <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden" role="dialog" aria-modal="true" aria-label="Búsqueda rápida">
           {/* Search input */}
           <div className="flex items-center gap-3 px-4 border-b border-slate-200">
             <FiSearch className="w-5 h-5 text-slate-400 shrink-0" />
@@ -145,6 +145,10 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
               onChange={(e) => handleChange(e.target.value)}
               placeholder="Buscar pacientes, atenciones..."
               className="w-full py-4 text-base outline-none placeholder:text-slate-400"
+              aria-label="Buscar"
+              aria-autocomplete="list"
+              role="combobox"
+              aria-expanded={results.length > 0}
             />
             <kbd className="hidden sm:inline-flex px-2 py-0.5 text-xs font-medium text-slate-400 bg-slate-100 border border-slate-200 rounded">
               ESC
@@ -166,7 +170,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
             )}
 
             {!loading && results.length > 0 && (
-              <ul className="py-2">
+              <ul className="py-2" role="listbox">
                 {results.map((result, index) => (
                   <li key={`${result.type}-${result.id}`}>
                     <button

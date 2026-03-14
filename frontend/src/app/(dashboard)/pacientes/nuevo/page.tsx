@@ -33,7 +33,7 @@ const basePatientSchema = basePatientObject.superRefine((val, ctx) => {
       message: 'Debe indicar el motivo de exencion de RUT',
     });
   }
-  if (!val.rutExempt && val.rut && val.rut.trim().length > 0 && !validateRut(val.rut)) {
+  if (!val.rutExempt && val.rut && val.rut.trim().length > 0 && !validateRut(val.rut).valid) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['rut'],

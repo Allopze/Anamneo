@@ -26,7 +26,7 @@ interface AdminUserRow {
 export default function AdminUsuariosPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { isAdmin } = useAuthStore();
+  const { isAdmin, user } = useAuthStore();
 
   const [createForm, setCreateForm] = useState({
     nombre: '',
@@ -95,6 +95,17 @@ export default function AdminUsuariosPage() {
   const medicos = useMemo(() => {
     return (users || []).filter((u) => u.role === 'MEDICO' && u.active);
   }, [users]);
+
+  const activeAdminCount = useMemo(() => (
+    (users || []).filter((candidate) => candidate.isAdmin && candidate.active).length
+  ), [users]);
+
+  const assistantGroups = useMemo(() => {
+    return medicos.map((medico) => ({
+      medico,
+      assistants: (users || []).filter((candidate) => candidate.role === 'ASISTENTE' && candidate.medicoId === medico.id),
+    }));
+  }, [medicos, users]);
 
   const createUserMutation = useMutation({
     mutationFn: async () => {
@@ -178,6 +189,17 @@ export default function AdminUsuariosPage() {
       medicoId: user.medicoId || '',
       active: user.active,
     });
+  };
+
+  const prefillAssistantForMedico = (medico: AdminUserRow) => {
+    setCreateForm({
+      nombre: '',
+      email: '',
+      password: '',
+      role: 'ASISTENTE',
+      medicoId: medico.id,
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (!isAdmin()) {
@@ -278,6 +300,48 @@ export default function AdminUsuariosPage() {
         </div>
       </div>
 
+      <div className="card mb-6">
+        <h2 className="font-semibold text-slate-900 mb-4">Asignación de asistentes</h2>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {assistantGroups.map(({ medico, assistants }) => (
+            <div key={medico.id} className="rounded-xl border border-slate-200 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-medium text-slate-900">{medico.nombre}</h3>
+                  <p className="text-sm text-slate-500">{medico.email}</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {assistants.length} asistente{assistants.length === 1 ? '' : 's'} asignado{assistants.length === 1 ? '' : 's'}
+                  </p>
+                </div>
+                <button
+                  className="btn btn-secondary text-sm"
+                  onClick={() => prefillAssistantForMedico(medico)}
+                >
+                  Crear asistente
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                {assistants.length > 0 ? assistants.map((assistant) => (
+                  <button
+                    key={assistant.id}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-left hover:border-primary-300 hover:bg-primary-50 transition-colors"
+                    onClick={() => startEdit(assistant)}
+                  >
+                    <div className="font-medium text-slate-900">{assistant.nombre}</div>
+                    <div className="text-sm text-slate-500">{assistant.email}</div>
+                  </button>
+                )) : (
+                  <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
+                    Sin asistentes asignados.
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Edit */}
       {editingUser && (
         <div className="card mb-6 border-primary-200">
@@ -353,9 +417,15 @@ export default function AdminUsuariosPage() {
                   type="checkbox"
                   checked={editForm.active}
                   onChange={(e) => setEditForm((p) => ({ ...p, active: e.target.checked }))}
+                  disabled={editingUser.isAdmin && editingUser.active && activeAdminCount === 1}
                 />
                 Usuario activo
               </label>
+              {editingUser.isAdmin && editingUser.active && activeAdminCount === 1 && (
+                <p className="mt-2 text-xs text-amber-700">
+                  Este es el último administrador activo y no puede desactivarse.
+                </p>
+              )}
             </div>
           </div>
 
@@ -443,11 +513,19 @@ export default function AdminUsuariosPage() {
                   <button
                     className={u.active ? 'btn btn-danger' : 'btn btn-secondary'}
                     onClick={() => toggleActiveMutation.mutate(u)}
-                    disabled={toggleActiveMutation.isPending}
+                    disabled={toggleActiveMutation.isPending || (u.isAdmin && u.active && activeAdminCount === 1)}
                   >
                     {u.active ? 'Desactivar' : 'Activar'}
                   </button>
                 </div>
+                {u.isAdmin && u.active && activeAdminCount === 1 && (
+                  <p className="text-xs text-amber-700">
+                    Último administrador activo.
+                  </p>
+                )}
+                {user?.id === u.id && (
+                  <p className="text-xs text-slate-400">Sesión actual</p>
+                )}
               </div>
             ))}
           </div>

@@ -1,13 +1,13 @@
-# Fichas Clínicas
+# Anamneo
 
 Sistema de gestión de fichas clínicas para atención médica.
 
 ## Requisitos
 
-- Docker y Docker Compose
-- Node.js 20+ (solo para desarrollo local)
+- Node.js 20+ y npm (desarrollo local)
+- Docker y Docker Compose (opcional)
 
-## Inicio Rápido con Docker
+## Inicio Rápido en Desarrollo
 
 1. **Clonar el repositorio y entrar al directorio:**
 
@@ -15,40 +15,78 @@ Sistema de gestión de fichas clínicas para atención médica.
    cd pacientes
    ```
 
-2. **Configurar variables de entorno:**
+2. **Instalar dependencias:**
+
+   ```bash
+   npm run install:all
+   ```
+
+3. **Configurar variables de entorno:**
 
    ```bash
    cp .env.example .env
+   # Editar .env y reemplazar JWT_* por valores reales
+   # DATABASE_URL ya viene configurado para SQLite (backend/prisma/dev.db)
    ```
 
-3. **Iniciar los servicios:**
+4. **Inicializar base de datos (primera vez):**
+
+   ```bash
+   npm run db:migrate
+   npm run db:seed
+   ```
+
+5. **Iniciar en modo desarrollo:**
+
+   ```bash
+   npm run dev
+   ```
+
+6. **Acceder a la aplicación:**
+   - Frontend: http://localhost:5555
+   - API: http://localhost:4444/api
+
+## Inicio Rápido con Docker (Opcional)
+
+1. **Configurar variables de entorno:**
+
+   ```bash
+   cp .env.example .env
+   # Editar .env y reemplazar JWT_* por valores reales
+   ```
+
+2. **Iniciar los servicios:**
 
    ```bash
    docker-compose up -d
    ```
 
-4. **Ejecutar migraciones y seed (primera vez):**
+3. **Ejecutar migraciones y seed (primera vez):**
 
    ```bash
-   docker-compose exec backend npx prisma migrate deploy
-   docker-compose exec backend npx prisma db seed
+   docker-compose exec backend npx prisma db push
+   docker-compose exec backend npm run prisma:seed
    ```
 
-5. **Acceder a la aplicación:**
+4. **Acceder a la aplicación:**
    - Frontend: http://localhost:5555
    - API: http://localhost:4444/api
 
 ## Desarrollo Local
+
+El comando `npm run dev` en la raíz levanta backend y frontend con un supervisor que escucha señales de cierre (`SIGINT`, `SIGTERM`, `SIGHUP`) para detener ambos procesos de forma automática al cerrar la terminal/IDE.
 
 ### Backend
 
 ```bash
 npm --prefix backend install
 cp .env.example .env
-# Editar .env con tu configuración de PostgreSQL
-npm run db:migrate
-npm run db:seed
-npm run dev:backend
+# Editar .env con tus secretos JWT y CORS reales
+# DATABASE_URL debe usar formato file:... (SQLite)
+npm --prefix backend run prisma:generate
+npm --prefix backend exec prisma db push
+npm --prefix backend run prisma:seed
+npm --prefix backend run start:dev
 ```
 
 ### Frontend

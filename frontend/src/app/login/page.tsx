@@ -8,8 +8,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
-import { FiFileText, FiMail, FiLock } from 'react-icons/fi';
+import { FiMail, FiLock } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
+import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
 import toast from 'react-hot-toast';
 
 const loginSchema = z.object({
@@ -48,7 +49,7 @@ export default function LoginPage() {
         id: userResponse.data.id,
         email: userResponse.data.email,
         nombre: userResponse.data.nombre,
-        role: userResponse.data.role as 'MEDICO' | 'ASISTENTE',
+        role: userResponse.data.role as 'MEDICO' | 'ASISTENTE' | 'ADMIN',
         isAdmin: !!userResponse.data.isAdmin,
         medicoId: userResponse.data.medicoId ?? null,
       });
@@ -67,12 +68,12 @@ export default function LoginPage() {
       {/* Left side - branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary-600 to-primary-800 p-12 items-center justify-center">
         <div className="max-w-md text-white">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <FiFileText className="w-7 h-7" />
-            </div>
-            <h1 className="text-3xl font-bold">Fichas Clínicas</h1>
-          </div>
+          <AnamneoLogo
+            className="mb-8"
+            iconClassName="h-12 w-12"
+            textClassName="text-3xl font-bold text-white"
+            priority
+          />
           <p className="text-xl text-primary-100 mb-6">
             Sistema integral para la gestión de fichas clínicas y atención de pacientes.
           </p>
@@ -100,12 +101,12 @@ export default function LoginPage() {
       {/* Right side - login form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center">
-              <FiFileText className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900">Fichas Clínicas</h1>
-          </div>
+          <AnamneoLogo
+            className="justify-center mb-8 lg:hidden"
+            iconClassName="h-10 w-10"
+            textClassName="text-2xl font-bold text-slate-900"
+            priority
+          />
 
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-slate-900">Iniciar sesión</h2>
@@ -131,10 +132,12 @@ export default function LoginPage() {
                   autoComplete="email"
                   className={`form-input pl-10 ${errors.email ? 'form-input-error' : ''}`}
                   placeholder="tu@email.com"
+                  aria-invalid={!!errors.email}
+                  aria-describedby={errors.email ? 'email-error' : undefined}
                   {...register('email')}
                 />
               </div>
-              {errors.email && <p className="form-error">{errors.email.message}</p>}
+              {errors.email && <p id="email-error" className="form-error" role="alert">{errors.email.message}</p>}
             </div>
 
             <div>
@@ -149,10 +152,12 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   className={`form-input pl-10 ${errors.password ? 'form-input-error' : ''}`}
                   placeholder="••••••••"
+                  aria-invalid={!!errors.password}
+                  aria-describedby={errors.password ? 'password-error' : undefined}
                   {...register('password')}
                 />
               </div>
-              {errors.password && <p className="form-error">{errors.password.message}</p>}
+              {errors.password && <p id="password-error" className="form-error" role="alert">{errors.password.message}</p>}
             </div>
 
             <button

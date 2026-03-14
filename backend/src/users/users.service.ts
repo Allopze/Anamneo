@@ -10,6 +10,32 @@ const BCRYPT_ROUNDS = 12;
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
+  private async assertNotLeavingSystemWithoutAdmin(user: {
+    id: string;
+    isAdmin: boolean;
+    active: boolean;
+  }, changes: { active?: boolean; role?: string }) {
+    const willLoseAdminAccess = user.isAdmin
+      && user.active
+      && (changes.active === false || (changes.role !== undefined && changes.role !== 'ADMIN'));
+
+    if (!willLoseAdminAccess) {
+      return;
+    }
+
+    const remainingActiveAdmins = await this.prisma.user.count({
+      where: {
+        isAdmin: true,
+        active: true,
+        NOT: { id: user.id },
+      },
+    });
+
+    if (remainingActiveAdmins === 0) {
+      throw new ConflictException('Debe existir al menos un administrador activo en el sistema');
+    }
+  }
+
   async countUsers() {
     return this.prisma.user.count();
   }
@@ -137,6 +163,10 @@ export class UsersService {
     }
 
     const nextRole = (updateUserDto.role ?? user.role) as string;
+    await this.assertNotLeavingSystemWithoutAdmin(user, {
+      active: updateUserDto.active,
+      role: nextRole,
+    });
 
     if (nextRole === 'ADMIN') {
       data.isAdmin = true;
@@ -191,6 +221,8 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
+
+    await this.assertNotLeavingSystemWithoutAdmin(user, { active: false });
 
     // Soft delete - just deactivate
     return this.prisma.user.update({
@@ -259,7 +291,6 @@ export class UsersService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
     const normalizedPassword = temporaryPassword.trim();
     if (normalizedPassword.length < 8) {
       throw new ConflictException('La contraseña temporal debe tener al menos 8 caracteres');

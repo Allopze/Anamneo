@@ -26,8 +26,8 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
 
-# Create uploads directory
-RUN mkdir -p uploads
+# Create writable data directories
+RUN mkdir -p uploads data
 
 # Security: run as non-root
 RUN addgroup -g 1001 -S nodejs && \
