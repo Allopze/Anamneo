@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RegisterDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
-const REGISTERABLE_ROLES = ['MEDICO'];
+const types_1 = require("../../common/types");
 class RegisterDto {
 }
 exports.RegisterDto = RegisterDto;
@@ -39,7 +39,7 @@ __decorate([
     __metadata("design:type", String)
 ], RegisterDto.prototype, "nombre", void 0);
 __decorate([
-    (0, class_validator_1.IsIn)([...REGISTERABLE_ROLES], { message: 'Rol inválido. Solo se permite: MEDICO' }),
+    (0, class_validator_1.IsIn)(types_1.ROLES, { message: 'Rol inválido. Debe ser ADMIN, MEDICO o ASISTENTE' }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "role", void 0);

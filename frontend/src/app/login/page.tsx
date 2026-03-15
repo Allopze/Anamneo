@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import axios from 'axios';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { FiMail, FiLock } from 'react-icons/fi';
@@ -57,7 +58,11 @@ export default function LoginPage() {
       toast.success('¡Bienvenido!');
       router.push('/pacientes');
     } catch (err) {
-      setError(getErrorMessage(err));
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        setError('Credenciales incorrectas. Verifica tu correo y contraseña.');
+      } else {
+        setError(getErrorMessage(err));
+      }
     } finally {
       setIsLoading(false);
     }

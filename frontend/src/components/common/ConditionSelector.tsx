@@ -90,6 +90,7 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
             <FiTag className="w-3 h-3" />
             {item}
             <button
+              type="button"
               onClick={() => handleRemove(item)}
               className="p-0.5 hover:bg-primary-200 rounded-full transition-colors"
             >
@@ -124,12 +125,18 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
 
         {/* Dropdown */}
         {isOpen && (query.trim() || suggestions.length > 0) && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+          <div className="absolute z-50 w-full mt-2 dropdown-surface max-h-64 overflow-y-auto">
+            {suggestions.length > 0 && (
+              <div className="dropdown-header py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sugerencias</p>
+              </div>
+            )}
             {suggestions.map((condition) => (
               <button
+                type="button"
                 key={condition.id}
                 onClick={() => handleAdd(condition.name)}
-                className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center justify-between transition-colors"
+                className="dropdown-item justify-between py-3"
               >
                 <div>
                   <p className="font-medium text-slate-900">{condition.name}</p>
@@ -150,8 +157,9 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
             {/* Manual add option */}
             {query.trim() && !suggestions.some(s => s.name.toLowerCase() === query.trim().toLowerCase()) && (
               <button
+                type="button"
                 onClick={() => handleAdd(query.trim())}
-                className="w-full text-left px-4 py-3 hover:bg-primary-50 text-primary-700 flex items-center gap-2 border-t border-slate-100 transition-colors"
+                className="dropdown-item py-3 text-primary-700 bg-primary-50/50 border-t border-slate-100"
               >
                 <FiPlus className="w-4 h-4" />
                 <span>Agregar manualmente: <strong>"{query.trim()}"</strong></span>

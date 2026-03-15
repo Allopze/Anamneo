@@ -26,22 +26,33 @@ let AuthService = class AuthService {
         if (existingUser) {
             throw new common_1.ConflictException('Ya existe un usuario con este email');
         }
-        const userCount = await this.usersService.countUsers();
         const requestedRole = registerDto.role || 'ASISTENTE';
+        if (requestedRole === 'ADMIN') {
+            const adminCount = await this.usersService.countActiveAdmins();
+            if (adminCount > 0) {
+                throw new common_1.ConflictException('Ya existe un administrador registrado. Use MEDICO o ASISTENTE');
+            }
+        }
         const user = await this.usersService.create({
             email: registerDto.email,
             password: registerDto.password,
             nombre: registerDto.nombre,
-            role: userCount === 0 ? 'ADMIN' : requestedRole,
-            ...(userCount === 0 ? { isAdmin: true } : {}),
+            role: requestedRole,
+            ...(requestedRole === 'ASISTENTE' ? { allowUnassignedAssistant: true } : {}),
         });
         return this.generateTokens(user);
     }
     async getBootstrapState() {
         const userCount = await this.usersService.countUsers();
+        const adminCount = await this.usersService.countActiveAdmins();
+        const hasAdmin = adminCount > 0;
         return {
             userCount,
             isEmpty: userCount === 0,
+            hasAdmin,
+            registerableRoles: hasAdmin
+                ? ['MEDICO', 'ASISTENTE']
+                : ['ADMIN', 'MEDICO', 'ASISTENTE'],
         };
     }
     async validateUser(email, password) {

@@ -71,6 +71,10 @@ export class EncountersService {
               throw new ForbiddenException('No tiene permisos para crear una atención para este paciente');
             }
 
+            if (patient.archivedAt) {
+              throw new BadRequestException('No se puede crear una atención para un paciente archivado');
+            }
+
             const inProgress = await tx.encounter.findMany({
               where: {
                 patientId,
@@ -194,7 +198,10 @@ export class EncountersService {
     const skip = (page - 1) * limit;
 
     const where: any = {
-      patient: { medicoId: effectiveMedicoId },
+      patient: {
+        medicoId: effectiveMedicoId,
+        archivedAt: null,
+      },
     };
 
     if (status && ['EN_PROGRESO', 'COMPLETADO', 'CANCELADO'].includes(status)) {
@@ -284,7 +291,10 @@ export class EncountersService {
     const encounters = await this.prisma.encounter.findMany({
       where: {
         patientId,
-        patient: { medicoId: effectiveMedicoId },
+        patient: {
+          medicoId: effectiveMedicoId,
+          archivedAt: null,
+        },
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -487,7 +497,14 @@ export class EncountersService {
   async getDashboard(user: RequestUser) {
     const medicoId = getEffectiveMedicoId(user);
 
-    const where = medicoId ? { patient: { medicoId } } : {};
+    const where = medicoId
+      ? {
+          patient: {
+            medicoId,
+            archivedAt: null,
+          },
+        }
+      : {};
 
     const [enProgreso, completado, cancelado, recent] = await Promise.all([
       this.prisma.encounter.count({ where: { ...where, status: 'EN_PROGRESO' } }),

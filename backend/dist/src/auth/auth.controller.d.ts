@@ -23,6 +23,8 @@ export declare class AuthController {
     bootstrap(): Promise<{
         userCount: number;
         isEmpty: boolean;
+        hasAdmin: boolean;
+        registerableRoles: readonly ["MEDICO", "ASISTENTE"] | readonly ["ADMIN", "MEDICO", "ASISTENTE"];
     }>;
     register(registerDto: RegisterDto, res: Response): Promise<{
         message: string;

@@ -151,6 +151,7 @@ export class PatientsService {
 
     const where: any = {
       medicoId: effectiveMedicoId,
+      archivedAt: null,
       ...(search
         ? {
             OR: [
@@ -201,6 +202,7 @@ export class PatientsService {
 
   async exportCsv() {
     const patients = await this.prisma.patient.findMany({
+      where: { archivedAt: null },
       orderBy: { nombre: 'asc' },
       include: { _count: { select: { encounters: true } } },
     });
@@ -245,7 +247,7 @@ export class PatientsService {
       throw new NotFoundException('Paciente no encontrado');
     }
 
-    if (patient.medicoId !== effectiveMedicoId) {
+    if (patient.medicoId !== effectiveMedicoId || patient.archivedAt) {
       throw new NotFoundException('Paciente no encontrado');
     }
 
@@ -261,6 +263,10 @@ export class PatientsService {
 
     if (existingPatient.medicoId !== userId) {
       throw new ForbiddenException('No tiene permisos para editar este paciente');
+    }
+
+    if (existingPatient.archivedAt) {
+      throw new BadRequestException('No se puede editar un paciente archivado');
     }
 
     // Prepare update data
@@ -360,6 +366,10 @@ export class PatientsService {
       throw new NotFoundException('Paciente no encontrado');
     }
 
+    if (existingPatient.archivedAt) {
+      throw new BadRequestException('No se puede editar un paciente archivado');
+    }
+
     const updateData: Prisma.PatientUpdateInput = {};
     if (dto.edad !== undefined) updateData.edad = dto.edad;
     if (dto.sexo !== undefined) updateData.sexo = dto.sexo;
@@ -407,6 +417,10 @@ export class PatientsService {
 
     if (patient.medicoId !== effectiveMedicoId) {
       throw new NotFoundException('Paciente no encontrado');
+    }
+
+    if (patient.archivedAt) {
+      throw new BadRequestException('No se puede editar el historial de un paciente archivado');
     }
 
     const previousHistory = patient.history;
@@ -459,16 +473,42 @@ export class PatientsService {
       throw new ForbiddenException('No tiene permisos para eliminar este paciente');
     }
 
-    await this.prisma.patient.delete({ where: { id } });
+    if (patient.archivedAt) {
+      return { message: 'El paciente ya se encuentra archivado' };
+    }
+
+    const archivedAt = new Date();
+    await this.prisma.$transaction([
+      this.prisma.encounter.updateMany({
+        where: {
+          patientId: id,
+          status: 'EN_PROGRESO',
+        },
+        data: {
+          status: 'CANCELADO',
+        },
+      }),
+      this.prisma.patient.update({
+        where: { id },
+        data: {
+          archivedAt,
+          archivedById: userId,
+        },
+      }),
+    ]);
 
     await this.auditService.log({
       entityType: 'Patient',
       entityId: id,
       userId,
-      action: 'DELETE',
-      diff: { deleted: patient },
+      action: 'UPDATE',
+      diff: {
+        archivedAt: archivedAt.toISOString(),
+        archivedById: userId,
+        previousStatus: patient,
+      },
     });
 
-    return { message: 'Paciente eliminado correctamente' };
+    return { message: 'Paciente archivado correctamente' };
   }
 }

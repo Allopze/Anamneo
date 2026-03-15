@@ -47,6 +47,8 @@ model Patient {
   trabajo         String?
   prevision       String
   domicilio       String?
+  archivedAt      DateTime? @map("archived_at")
+  archivedById    String?   @map("archived_by_id")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
@@ -55,6 +57,7 @@ model Patient {
   encounters      Encounter[]
 
   @@index([medicoId])
+  @@index([medicoId, archivedAt])
   @@map("patients")
 }
 

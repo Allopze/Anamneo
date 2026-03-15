@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -12,16 +12,35 @@ import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
 import { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiUserPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
+type RegisterRole = 'ADMIN' | 'MEDICO' | 'ASISTENTE';
+
+const ROLE_OPTIONS: Record<RegisterRole, { label: string; description: string }> = {
+  ADMIN: {
+    label: 'Administrador',
+    description: 'Acceso administrativo completo del sistema',
+  },
+  MEDICO: {
+    label: 'Médico',
+    description: 'Atención clínica, atenciones y pacientes',
+  },
+  ASISTENTE: {
+    label: 'Asistente',
+    description: 'Apoyo clínico y gestión operativa',
+  },
+};
+
 const registerSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   email: z.string().email('Ingrese un email válido'),
   password: z.string()
     .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .max(72, 'La contraseña no puede exceder 72 caracteres')
     .regex(/[A-Z]/, 'Debe contener al menos una mayúscula')
     .regex(/[a-z]/, 'Debe contener al menos una minúscula')
-    .regex(/[0-9]/, 'Debe contener al menos un número'),
+    .regex(/[0-9]/, 'Debe contener al menos un número')
+    .regex(/^[A-Za-z\d@$!%*?&]+$/, 'Solo se permiten letras, números y @$!%*?&'),
   confirmPassword: z.string(),
-  role: z.enum(['MEDICO']),
+  role: z.enum(['ADMIN', 'MEDICO', 'ASISTENTE']),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Las contraseñas no coinciden',
   path: ['confirmPassword'],
@@ -34,10 +53,13 @@ export default function RegisterPage() {
   const { login } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [availableRoles, setAvailableRoles] = useState<RegisterRole[]>(['MEDICO', 'ASISTENTE']);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
@@ -45,6 +67,45 @@ export default function RegisterPage() {
       role: 'MEDICO',
     },
   });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadBootstrapState = async () => {
+      try {
+        const response = await api.get('/auth/bootstrap');
+        if (cancelled) {
+          return;
+        }
+
+        const rawRoles = response.data?.registerableRoles;
+        const parsedRoles = Array.isArray(rawRoles)
+          ? rawRoles.filter((role: unknown): role is RegisterRole => (
+            role === 'ADMIN' || role === 'MEDICO' || role === 'ASISTENTE'
+          ))
+          : [];
+
+        const nextRoles = parsedRoles.length > 0 ? parsedRoles : (['MEDICO', 'ASISTENTE'] as RegisterRole[]);
+        setAvailableRoles(nextRoles);
+        setValue('role', nextRoles[0]);
+      } catch {
+        if (!cancelled) {
+          setAvailableRoles(['MEDICO', 'ASISTENTE']);
+          setValue('role', 'MEDICO');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingRoles(false);
+        }
+      }
+    };
+
+    void loadBootstrapState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [setValue]);
 
   const onSubmit = async (data: RegisterForm) => {
     try {
@@ -181,22 +242,31 @@ export default function RegisterPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Rol
               </label>
-              <div className="grid gap-3 grid-cols-1">
-                <label className="relative">
-                  <input
-                    type="radio"
-                    value="MEDICO"
-                    {...register('role')}
-                    className="peer sr-only"
-                  />
-                  <div className="p-3 border-2 border-slate-200 rounded-lg cursor-pointer text-center transition-all peer-checked:border-primary-500 peer-checked:bg-primary-50">
-                    <span className="text-sm font-medium">Médico</span>
+              {isLoadingRoles ? (
+                <p className="text-xs text-slate-500">Cargando opciones de rol...</p>
+              ) : (
+                <>
+                  <div className="grid gap-3 grid-cols-1">
+                    {availableRoles.map((role) => (
+                      <label key={role} className="relative">
+                        <input
+                          type="radio"
+                          value={role}
+                          {...register('role')}
+                          className="peer sr-only"
+                        />
+                        <div className="p-3 border-2 border-slate-200 rounded-lg cursor-pointer transition-all peer-checked:border-primary-500 peer-checked:bg-primary-50">
+                          <p className="text-sm font-medium text-slate-900">{ROLE_OPTIONS[role].label}</p>
+                          <p className="text-xs text-slate-600 mt-1">{ROLE_OPTIONS[role].description}</p>
+                        </div>
+                      </label>
+                    ))}
                   </div>
-                </label>
-              </div>
-              <p className="text-xs text-slate-500 mt-2">
-                La primera cuenta del sistema se promociona automáticamente a administradora.
-              </p>
+                  <p className="text-xs text-slate-500 mt-2">
+                    La opción Administrador solo aparece mientras no exista una cuenta administradora activa.
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Password */}
@@ -258,7 +328,7 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isLoadingRoles}
               className="btn btn-primary w-full flex items-center justify-center gap-2"
             >
               {isSubmitting ? (

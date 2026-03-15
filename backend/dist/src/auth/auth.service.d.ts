@@ -21,6 +21,8 @@ export declare class AuthService {
     getBootstrapState(): Promise<{
         userCount: number;
         isEmpty: boolean;
+        hasAdmin: boolean;
+        registerableRoles: readonly ["MEDICO", "ASISTENTE"] | readonly ["ADMIN", "MEDICO", "ASISTENTE"];
     }>;
     validateUser(email: string, password: string): Promise<{
         id: string;

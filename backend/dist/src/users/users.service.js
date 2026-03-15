@@ -39,6 +39,14 @@ let UsersService = class UsersService {
     async countUsers() {
         return this.prisma.user.count();
     }
+    async countActiveAdmins() {
+        return this.prisma.user.count({
+            where: {
+                isAdmin: true,
+                active: true,
+            },
+        });
+    }
     async create(createUserDto) {
         const existingUser = await this.prisma.user.findUnique({
             where: { email: createUserDto.email },
@@ -49,10 +57,11 @@ let UsersService = class UsersService {
         const passwordHash = await bcrypt.hash(createUserDto.password, BCRYPT_ROUNDS);
         const role = (createUserDto.role ?? 'ASISTENTE');
         const isAdmin = role === 'ADMIN' ? true : (createUserDto.isAdmin ?? false);
+        const allowUnassignedAssistant = !!createUserDto.allowUnassignedAssistant;
         if (role === 'ADMIN' && createUserDto.medicoId) {
             throw new common_1.ConflictException('Un administrador no puede tener medicoId asignado');
         }
-        if (role === 'ASISTENTE' && !createUserDto.medicoId && !isAdmin) {
+        if (role === 'ASISTENTE' && !createUserDto.medicoId && !isAdmin && !allowUnassignedAssistant) {
             throw new common_1.ConflictException('Un asistente debe estar asignado a un médico');
         }
         if (role === 'MEDICO' && createUserDto.medicoId) {

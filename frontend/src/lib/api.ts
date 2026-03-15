@@ -2,6 +2,50 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/stores/auth-store';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+const REFRESH_ENDPOINT = '/auth/refresh';
+const LOGOUT_ENDPOINT = '/auth/logout';
+
+let refreshPromise: Promise<void> | null = null;
+let loginRedirectInProgress = false;
+
+function shouldSkipRefresh(url?: string): boolean {
+  if (!url) return false;
+
+  return (
+    url.includes('/auth/login')
+    || url.includes('/auth/register')
+    || url.includes(REFRESH_ENDPOINT)
+    || url.includes(LOGOUT_ENDPOINT)
+  );
+}
+
+async function refreshSession(): Promise<void> {
+  if (!refreshPromise) {
+    refreshPromise = axios
+      .post(`${API_URL}${REFRESH_ENDPOINT}`, {}, { withCredentials: true })
+      .then(() => undefined)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+
+  return refreshPromise;
+}
+
+async function clearSessionAndRedirectToLogin(): Promise<void> {
+  useAuthStore.getState().logout();
+
+  try {
+    await axios.post(`${API_URL}${LOGOUT_ENDPOINT}`, {}, { withCredentials: true });
+  } catch {
+    // Ignore network/API logout failures; local session is already cleared.
+  }
+
+  if (typeof window !== 'undefined' && !loginRedirectInProgress) {
+    loginRedirectInProgress = true;
+    window.location.replace('/login');
+  }
+}
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -15,22 +59,30 @@ export const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
+
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    const skipRefresh = shouldSkipRefresh(originalRequest.url);
 
     // If 401 and not already retried, try silent refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && !skipRefresh) {
       originalRequest._retry = true;
 
       try {
-        // refresh_token cookie is sent automatically
-        await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
+        await refreshSession();
         // Retry original request — new access_token cookie is set
         return api(originalRequest);
       } catch (refreshError) {
-        useAuthStore.getState().logout();
-        window.location.href = '/login';
+        await clearSessionAndRedirectToLogin();
         return Promise.reject(refreshError);
       }
+    }
+
+    if (error.response?.status === 401 && !skipRefresh) {
+      await clearSessionAndRedirectToLogin();
     }
 
     return Promise.reject(error);

@@ -20,6 +20,7 @@ const passwordSchema = z
     newPassword: z
       .string()
       .min(8, 'Mínimo 8 caracteres')
+      .max(72, 'Máximo 72 caracteres')
       .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Debe contener mayúscula, minúscula y número'),
     confirmPassword: z.string().min(1, 'Requerido'),
   })

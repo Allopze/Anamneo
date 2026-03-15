@@ -19,7 +19,9 @@ let PrismaService = class PrismaService extends client_1.PrismaClient {
             log: process.env.NODE_ENV === 'development'
                 ? ['query', 'info', 'warn', 'error']
                 : ['error'],
-            ...(process.env.DATABASE_URL ? { datasourceUrl: (0, resolve_database_url_1.resolveDatabaseUrl)(process.env.DATABASE_URL) } : {}),
+            ...(process.env.DATABASE_URL
+                ? { datasources: { db: { url: (0, resolve_database_url_1.resolveDatabaseUrl)(process.env.DATABASE_URL) } } }
+                : {}),
         });
     }
     async onModuleInit() {

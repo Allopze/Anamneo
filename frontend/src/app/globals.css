@@ -40,15 +40,71 @@ body {
 
 /* Form styles */
 @layer components {
-  .form-input {
+  .form-input,
+  .input {
     @apply w-full px-4 py-2.5 border border-slate-300 rounded-lg 
            focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
            bg-white text-slate-900 placeholder:text-slate-400
            transition-all duration-200;
   }
 
-  .form-input:disabled {
+  .form-input:disabled,
+  .input:disabled {
     @apply bg-slate-100 text-slate-500 cursor-not-allowed;
+  }
+
+  select.form-input,
+  select.input,
+  select.form-select {
+    @apply appearance-none cursor-pointer pr-10;
+    background-image:
+      linear-gradient(45deg, transparent 50%, #64748b 50%),
+      linear-gradient(135deg, #64748b 50%, transparent 50%);
+    background-position:
+      calc(100% - 18px) calc(50% + 1px),
+      calc(100% - 13px) calc(50% + 1px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
+
+  select.form-input:focus,
+  select.input:focus,
+  select.form-select:focus {
+    background-image:
+      linear-gradient(45deg, transparent 50%, #2563eb 50%),
+      linear-gradient(135deg, #2563eb 50%, transparent 50%);
+  }
+
+  select.form-input:disabled,
+  select.input:disabled,
+  select.form-select:disabled {
+    @apply cursor-not-allowed;
+  }
+
+  .dropdown-surface {
+    @apply bg-white rounded-xl border border-slate-200 shadow-xl shadow-slate-900/10;
+    animation: dropdown-in 0.16s ease-out;
+    transform-origin: top right;
+  }
+
+  .dropdown-header {
+    @apply px-4 py-2.5 border-b border-slate-100;
+  }
+
+  .dropdown-item {
+    @apply w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 transition-colors;
+  }
+
+  .dropdown-item:hover {
+    @apply bg-slate-50 text-slate-900;
+  }
+
+  .dropdown-item-danger {
+    @apply text-red-600;
+  }
+
+  .dropdown-item-danger:hover {
+    @apply bg-red-50 text-red-700;
   }
 
   .form-input-error {
@@ -180,8 +236,25 @@ body {
   }
 }
 
+@keyframes dropdown-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .skeleton {
   @apply bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200;
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropdown-surface {
+    animation: none;
+  }
 }

@@ -54,12 +54,14 @@ function AtencionesListContent() {
           <h1 className="text-2xl font-bold text-slate-900">Atenciones</h1>
           <p className="text-slate-600">Historial de atenciones médicas</p>
         </div>
-        {hasData && canCreate && (
+        {(canCreate || canCreatePatientAllowed) && (
           <div className="flex flex-wrap items-center gap-2">
-            <Link href="/atenciones/nueva" className="btn btn-primary flex items-center gap-2">
-              <FiPlus className="w-4 h-4" />
-              Nueva Atención
-            </Link>
+            {canCreate && (
+              <Link href="/atenciones/nueva" className="btn btn-primary flex items-center gap-2">
+                <FiPlus className="w-4 h-4" />
+                Nueva Atención
+              </Link>
+            )}
             {canCreatePatientAllowed && (
               <Link href="/pacientes/nuevo" className="btn btn-secondary flex items-center gap-2">
                 <FiUser className="w-4 h-4" />

@@ -122,12 +122,14 @@ function PacientesContent() {
           <h1 className="text-2xl font-bold text-slate-900">Pacientes</h1>
           <p className="text-slate-600">Gestiona el registro de pacientes</p>
         </div>
-        {canCreate && data?.data?.length > 0 && (
+        {(canCreate || canCreateEncounterAllowed) && (
           <div className="flex flex-wrap items-center gap-2">
-            <Link href="/pacientes/nuevo" className="btn btn-primary flex items-center gap-2">
-              <FiPlus className="w-4 h-4" />
-              Nuevo Paciente
-            </Link>
+            {canCreate && (
+              <Link href="/pacientes/nuevo" className="btn btn-primary flex items-center gap-2">
+                <FiPlus className="w-4 h-4" />
+                Nuevo Paciente
+              </Link>
+            )}
             {canCreateEncounterAllowed && (
               <Link href="/atenciones/nueva" className="btn btn-secondary flex items-center gap-2">
                 <FiFileText className="w-4 h-4" />

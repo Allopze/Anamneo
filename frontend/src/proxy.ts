@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const publicRoutes = ['/login', '/register'];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Check for auth cookie (HttpOnly — presence check only)
@@ -15,11 +15,6 @@ export function middleware(request: NextRequest) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('from', pathname);
     return NextResponse.redirect(loginUrl);
-  }
-
-  // Redirect authenticated users away from login/register
-  if (isPublicRoute && hasSession) {
-    return NextResponse.redirect(new URL('/pacientes', request.url));
   }
 
   return NextResponse.next();

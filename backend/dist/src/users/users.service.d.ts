@@ -6,8 +6,10 @@ export declare class UsersService {
     constructor(prisma: PrismaService);
     private assertNotLeavingSystemWithoutAdmin;
     countUsers(): Promise<number>;
+    countActiveAdmins(): Promise<number>;
     create(createUserDto: CreateUserDto & {
         isAdmin?: boolean;
+        allowUnassignedAssistant?: boolean;
     }): Promise<{
         id: string;
         active: boolean;

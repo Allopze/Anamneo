@@ -3,7 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
 const resolve_database_url_1 = require("../src/prisma/resolve-database-url");
 const prisma = new client_1.PrismaClient({
-    ...(process.env.DATABASE_URL ? { datasourceUrl: (0, resolve_database_url_1.resolveDatabaseUrl)(process.env.DATABASE_URL) } : {}),
+    ...(process.env.DATABASE_URL
+        ? { datasources: { db: { url: (0, resolve_database_url_1.resolveDatabaseUrl)(process.env.DATABASE_URL) } } }
+        : {}),
 });
 const conditions = [
     { name: 'Dolor de cabeza', synonyms: ['cefalea', 'jaqueca', 'dolor cabeza', 'migraña'], tags: ['neurológico', 'dolor'] },

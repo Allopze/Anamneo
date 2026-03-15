@@ -11,6 +11,9 @@ function assertSafeConfig(configService: ConfigService) {
   const databaseUrl = configService.get<string>('DATABASE_URL');
   const jwtSecret = configService.get<string>('JWT_SECRET');
   const jwtRefreshSecret = configService.get<string>('JWT_REFRESH_SECRET');
+  const nodeEnv = configService.get<string>('NODE_ENV', 'development');
+  const isProduction = nodeEnv === 'production';
+  const allowSqliteInProduction = configService.get<string>('ALLOW_SQLITE_IN_PRODUCTION', 'false') === 'true';
   const placeholderValues = new Set([
     'replace-with-a-secure-random-secret',
     'replace-with-a-different-secure-random-secret',
@@ -22,12 +25,13 @@ function assertSafeConfig(configService: ConfigService) {
     throw new Error('DATABASE_URL is required');
   }
 
-  if (!databaseUrl.startsWith('file:')) {
-    throw new Error('DATABASE_URL must use SQLite file URL format (file:...)');
+  if (databaseUrl.includes('change-me') || databaseUrl.includes('replace-with')) {
+    throw new Error('DATABASE_URL must not contain placeholder values');
   }
 
-  if (databaseUrl.includes('change-me')) {
-    throw new Error('DATABASE_URL must not contain placeholder values');
+  const isSqlite = databaseUrl.startsWith('file:');
+  if (isProduction && isSqlite && !allowSqliteInProduction) {
+    throw new Error('SQLite in production requires ALLOW_SQLITE_IN_PRODUCTION=true. Prefer PostgreSQL for production.');
   }
 
   if (!jwtSecret || placeholderValues.has(jwtSecret)) {

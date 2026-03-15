@@ -28,6 +28,7 @@ describe('AuthService', () => {
     usersService = {
       findByEmail: jest.fn(),
       countUsers: jest.fn(),
+      countActiveAdmins: jest.fn(),
       create: jest.fn(),
       findById: jest.fn(),
     };
@@ -54,21 +55,21 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    it('should register first user as ADMIN', async () => {
+    it('should register ADMIN when no active admins exist', async () => {
       (usersService.findByEmail as jest.Mock).mockResolvedValue(null);
-      (usersService.countUsers as jest.Mock).mockResolvedValue(0);
+      (usersService.countActiveAdmins as jest.Mock).mockResolvedValue(0);
       (usersService.create as jest.Mock).mockResolvedValue(mockUser);
 
       const result = await service.register({
         email: 'test@example.com',
         password: 'Password1',
         nombre: 'Test User',
+        role: 'ADMIN',
       });
 
       expect(usersService.create).toHaveBeenCalledWith(
         expect.objectContaining({
           role: 'ADMIN',
-          isAdmin: true,
         }),
       );
       expect(result).toHaveProperty('accessToken');
@@ -93,10 +94,24 @@ describe('AuthService', () => {
         }),
       );
       expect(usersService.create).toHaveBeenCalledWith(
-        expect.not.objectContaining({
-          isAdmin: true,
-        }),
+        expect.not.objectContaining({ isAdmin: true }),
       );
+    });
+
+    it('should throw ConflictException if ADMIN is requested and an active admin already exists', async () => {
+      (usersService.findByEmail as jest.Mock).mockResolvedValue(null);
+      (usersService.countActiveAdmins as jest.Mock).mockResolvedValue(1);
+
+      await expect(
+        service.register({
+          email: 'test3@example.com',
+          password: 'Password1',
+          nombre: 'Test User 3',
+          role: 'ADMIN',
+        }),
+      ).rejects.toThrow(ConflictException);
+
+      expect(usersService.create).not.toHaveBeenCalled();
     });
 
     it('should throw ConflictException for duplicate email', async () => {
@@ -189,18 +204,30 @@ describe('AuthService', () => {
   describe('getBootstrapState', () => {
     it('should return isEmpty true when no users exist', async () => {
       (usersService.countUsers as jest.Mock).mockResolvedValue(0);
+      (usersService.countActiveAdmins as jest.Mock).mockResolvedValue(0);
 
       const result = await service.getBootstrapState();
 
-      expect(result).toEqual({ userCount: 0, isEmpty: true });
+      expect(result).toEqual({
+        userCount: 0,
+        isEmpty: true,
+        hasAdmin: false,
+        registerableRoles: ['ADMIN', 'MEDICO', 'ASISTENTE'],
+      });
     });
 
     it('should return isEmpty false when users exist', async () => {
       (usersService.countUsers as jest.Mock).mockResolvedValue(3);
+      (usersService.countActiveAdmins as jest.Mock).mockResolvedValue(1);
 
       const result = await service.getBootstrapState();
 
-      expect(result).toEqual({ userCount: 3, isEmpty: false });
+      expect(result).toEqual({
+        userCount: 3,
+        isEmpty: false,
+        hasAdmin: true,
+        registerableRoles: ['MEDICO', 'ASISTENTE'],
+      });
     });
   });
 });

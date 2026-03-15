@@ -2,7 +2,9 @@ import { PrismaClient } from '@prisma/client';
 import { resolveDatabaseUrl } from '../src/prisma/resolve-database-url';
 
 const prisma = new PrismaClient({
-  ...(process.env.DATABASE_URL ? { datasourceUrl: resolveDatabaseUrl(process.env.DATABASE_URL) } : {}),
+  ...(process.env.DATABASE_URL
+    ? { datasources: { db: { url: resolveDatabaseUrl(process.env.DATABASE_URL) } } }
+    : {}),
 });
 
 // 30+ medical conditions in Spanish with synonyms

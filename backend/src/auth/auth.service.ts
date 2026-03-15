@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -33,17 +33,22 @@ export class AuthService {
       throw new ConflictException('Ya existe un usuario con este email');
     }
 
-    const userCount = await this.usersService.countUsers();
-    const requestedRole = registerDto.role || 'ASISTENTE';
+    const requestedRole: Role = registerDto.role || 'ASISTENTE';
+
+    if (requestedRole === 'ADMIN') {
+      const adminCount = await this.usersService.countActiveAdmins();
+      if (adminCount > 0) {
+        throw new ConflictException('Ya existe un administrador registrado. Use MEDICO o ASISTENTE');
+      }
+    }
 
     // Create user (users service handles password hashing)
     const user = await this.usersService.create({
       email: registerDto.email,
       password: registerDto.password,
       nombre: registerDto.nombre,
-      role: userCount === 0 ? 'ADMIN' : requestedRole,
-      // First registered user becomes admin automatically
-      ...(userCount === 0 ? { isAdmin: true } : {}),
+      role: requestedRole,
+      ...(requestedRole === 'ASISTENTE' ? { allowUnassignedAssistant: true } : {}),
     });
 
     // Generate and return tokens
@@ -52,9 +57,15 @@ export class AuthService {
 
   async getBootstrapState() {
     const userCount = await this.usersService.countUsers();
+    const adminCount = await this.usersService.countActiveAdmins();
+    const hasAdmin = adminCount > 0;
     return {
       userCount,
       isEmpty: userCount === 0,
+      hasAdmin,
+      registerableRoles: hasAdmin
+        ? (['MEDICO', 'ASISTENTE'] as const)
+        : (['ADMIN', 'MEDICO', 'ASISTENTE'] as const),
     };
   }
 

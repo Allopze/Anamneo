@@ -49,7 +49,7 @@ describe('DTO Validation', () => {
       expect(errors.some((e) => e.property === 'password')).toBe(true);
     });
 
-    it('should reject ADMIN role', async () => {
+    it('should accept ADMIN role', async () => {
       const dto = plainToInstance(RegisterDto, {
         email: 'test@example.com',
         password: 'Password1',
@@ -57,10 +57,10 @@ describe('DTO Validation', () => {
         role: 'ADMIN',
       });
       const errors = await validate(dto);
-      expect(errors.some((e) => e.property === 'role')).toBe(true);
+      expect(errors.some((e) => e.property === 'role')).toBe(false);
     });
 
-    it('should accept MEDICO role only', async () => {
+    it('should accept MEDICO role', async () => {
       const dto = plainToInstance(RegisterDto, {
         email: 'test@example.com',
         password: 'Password1',
@@ -71,12 +71,23 @@ describe('DTO Validation', () => {
       expect(errors.filter((e) => e.property === 'role').length).toBe(0);
     });
 
-    it('should reject ASISTENTE role', async () => {
+    it('should accept ASISTENTE role', async () => {
       const dto = plainToInstance(RegisterDto, {
         email: 'test@example.com',
         password: 'Password1',
         nombre: 'Test User',
         role: 'ASISTENTE',
+      });
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'role')).toBe(false);
+    });
+
+    it('should reject unknown role', async () => {
+      const dto = plainToInstance(RegisterDto, {
+        email: 'test@example.com',
+        password: 'Password1',
+        nombre: 'Test User',
+        role: 'ENFERMERO',
       });
       const errors = await validate(dto);
       expect(errors.some((e) => e.property === 'role')).toBe(true);

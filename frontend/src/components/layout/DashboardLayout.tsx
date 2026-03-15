@@ -251,7 +251,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="relative">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50"
+                  className={clsx(
+                    'flex items-center gap-2 p-2 rounded-xl border transition-all',
+                    userMenuOpen
+                      ? 'bg-primary-50 border-primary-200 text-primary-700 shadow-sm'
+                      : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200 text-slate-700'
+                  )}
                   aria-label="Menú de usuario"
                   aria-expanded={userMenuOpen}
                   aria-haspopup="true"
@@ -261,7 +266,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       {getNameInitial(user?.nombre)}
                     </span>
                   </div>
-                  <FiChevronDown className="w-4 h-4 text-slate-500" />
+                  <FiChevronDown
+                    className={clsx(
+                      'w-4 h-4 transition-transform',
+                      userMenuOpen ? 'rotate-180 text-primary-600' : 'text-slate-500'
+                    )}
+                  />
                 </button>
 
                 {userMenuOpen && (
@@ -270,14 +280,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       className="fixed inset-0 z-10"
                       onClick={() => setUserMenuOpen(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20" role="menu">
-                      <div className="px-4 py-2 border-b border-slate-200">
+                    <div className="absolute right-0 mt-2 w-56 dropdown-surface py-1.5 z-20" role="menu">
+                      <div className="dropdown-header">
                         <p className="text-sm font-medium text-slate-900">{user?.nombre}</p>
                         <p className="text-xs text-slate-500">{user?.email}</p>
                       </div>
                       <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        className="dropdown-item dropdown-item-danger"
                       >
                         <FiLogOut className="w-4 h-4" />
                         Cerrar sesión

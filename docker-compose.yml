@@ -9,7 +9,8 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      DATABASE_URL: file:/app/data/dev.db
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      ALLOW_SQLITE_IN_PRODUCTION: ${ALLOW_SQLITE_IN_PRODUCTION:-false}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
       JWT_EXPIRES_IN: 15m
@@ -19,7 +20,7 @@ services:
     ports:
       - "4444:4444"
     volumes:
-      - sqlite_data:/app/data
+      - db_data:/app/data
       - uploads_data:/app/uploads
     healthcheck:
       test:
@@ -51,5 +52,5 @@ services:
       retries: 3
 
 volumes:
-  sqlite_data:
+  db_data:
   uploads_data:

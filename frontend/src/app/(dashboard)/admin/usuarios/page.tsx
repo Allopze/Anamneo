@@ -48,11 +48,27 @@ export default function AdminUsuariosPage() {
 
   // Validation helpers
   const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const getPasswordError = (password: string, required: boolean) => {
+    const value = password;
+
+    if (!required && value.trim().length === 0) return null;
+    if (value.length < 8) return 'Contraseña debe tener al menos 8 caracteres';
+    if (value.length > 72) return 'Contraseña no puede exceder 72 caracteres';
+    if (!/[A-Z]/.test(value) || !/[a-z]/.test(value) || !/[0-9]/.test(value)) {
+      return 'Contraseña debe contener mayúscula, minúscula y número';
+    }
+
+    return null;
+  };
+
   const getCreateErrors = useCallback(() => {
     const errors: string[] = [];
     if (createForm.nombre.trim().length < 2) errors.push('Nombre debe tener al menos 2 caracteres');
     if (!isValidEmail(createForm.email)) errors.push('Email inválido');
-    if (createForm.password.length < 8) errors.push('Contraseña debe tener al menos 8 caracteres');
+
+    const passwordError = getPasswordError(createForm.password, true);
+    if (passwordError) errors.push(passwordError);
+
     return errors;
   }, [createForm]);
   const createErrors = getCreateErrors();
@@ -61,7 +77,10 @@ export default function AdminUsuariosPage() {
     const errors: string[] = [];
     if (editForm.nombre.trim().length < 2) errors.push('Nombre debe tener al menos 2 caracteres');
     if (!isValidEmail(editForm.email)) errors.push('Email inválido');
-    if (editForm.password && editForm.password.length < 8) errors.push('Contraseña debe tener al menos 8 caracteres');
+
+    const passwordError = getPasswordError(editForm.password, false);
+    if (passwordError) errors.push(passwordError);
+
     return errors;
   }, [editForm]);
   const editErrors = getEditErrors();
@@ -500,9 +519,16 @@ export default function AdminUsuariosPage() {
                         if (!temporaryPassword) {
                           return;
                         }
+
+                        const temporaryPasswordError = getPasswordError(temporaryPassword.trim(), true);
+                        if (temporaryPasswordError) {
+                          toast.error(temporaryPasswordError);
+                          return;
+                        }
+
                         resetPasswordMutation.mutate({
                           userId: u.id,
-                          temporaryPassword,
+                          temporaryPassword: temporaryPassword.trim(),
                         });
                       }
                     }}
