@@ -227,10 +227,10 @@ export default function AdminUsuariosPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Administración de usuarios</h1>
-          <p className="text-slate-600">Crea médicos/asistentes y asigna asistentes a un médico</p>
+          <h1 className="page-header-title">Administración de usuarios</h1>
+          <p className="page-header-description">Crea médicos y asistentes, y administra sus relaciones operativas.</p>
         </div>
       </div>
 
@@ -240,11 +240,12 @@ export default function AdminUsuariosPage() {
         </div>
       )}
 
-      {/* Create */}
       <div className="card mb-6">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="panel-header">
+          <div className="flex items-center gap-2">
           <FiPlus className="w-4 h-4 text-primary-600" />
-          <h2 className="font-semibold text-slate-900">Crear usuario</h2>
+          <h2 className="panel-title">Crear usuario</h2>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -320,7 +321,9 @@ export default function AdminUsuariosPage() {
       </div>
 
       <div className="card mb-6">
-        <h2 className="font-semibold text-slate-900 mb-4">Asignación de asistentes</h2>
+        <div className="panel-header">
+          <h2 className="panel-title">Asignación de asistentes</h2>
+        </div>
         <div className="grid gap-4 lg:grid-cols-2">
           {assistantGroups.map(({ medico, assistants }) => (
             <div key={medico.id} className="rounded-xl border border-slate-200 p-4">
@@ -364,10 +367,10 @@ export default function AdminUsuariosPage() {
       {/* Edit */}
       {editingUser && (
         <div className="card mb-6 border-primary-200">
-          <div className="flex items-center justify-between mb-4">
+          <div className="panel-header">
             <div className="flex items-center gap-2">
               <FiEdit2 className="w-4 h-4 text-primary-600" />
-              <h2 className="font-semibold text-slate-900">Editar usuario</h2>
+              <h2 className="panel-title">Editar usuario</h2>
             </div>
             <button className="btn btn-secondary" onClick={() => setEditingUser(null)}>
               Cerrar
@@ -464,9 +467,10 @@ export default function AdminUsuariosPage() {
         </div>
       )}
 
-      {/* List */}
       <div className="card">
-        <h2 className="font-semibold text-slate-900 mb-4">Usuarios</h2>
+        <div className="panel-header">
+          <h2 className="panel-title">Usuarios</h2>
+        </div>
 
         {isLoading ? (
           <div className="space-y-3">
@@ -477,21 +481,21 @@ export default function AdminUsuariosPage() {
         ) : users && users.length > 0 ? (
           <div className="divide-y divide-slate-100">
             {users.map((u) => (
-              <div key={u.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">
+              <div key={u.id} className="group list-row flex-col sm:flex-row sm:items-center">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-slate-900 truncate">{u.nombre}</span>
                     {u.isAdmin && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-primary-100 text-primary-700">
+                      <span className="list-chip bg-primary-100 text-primary-700">
                         Admin
                       </span>
                     )}
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                    <span className="list-chip bg-slate-100 text-slate-700">
                       {u.role === 'MEDICO' ? 'Médico' : 'Asistente'}
                     </span>
                     <span
                       className={
-                        'text-xs px-2 py-0.5 rounded-full ' +
+                        'list-chip ' +
                         (u.active ? 'bg-clinical-100 text-clinical-700' : 'bg-slate-100 text-slate-500')
                       }
                     >
@@ -556,7 +560,13 @@ export default function AdminUsuariosPage() {
             ))}
           </div>
         ) : (
-          <div className="p-10 text-center text-slate-500">No hay usuarios</div>
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <FiUsers className="h-10 w-10 text-primary-400" />
+            </div>
+            <h3 className="empty-state-title">Sin usuarios cargados</h3>
+            <p className="empty-state-description">No hay usuarios registrados todavía en esta instancia.</p>
+          </div>
         )}
       </div>
     </div>

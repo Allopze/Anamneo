@@ -8,10 +8,10 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="text-center max-w-md mx-auto px-6">
-        <div className="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <span className="text-3xl">⚠️</span>
+    <div className="status-shell">
+      <div className="status-card">
+        <div className="status-icon bg-red-100">
+          <span className="text-3xl font-semibold text-red-600">!</span>
         </div>
         <h1 className="text-2xl font-bold text-slate-900 mb-2">Algo salió mal</h1>
         <p className="text-slate-600 mb-6">

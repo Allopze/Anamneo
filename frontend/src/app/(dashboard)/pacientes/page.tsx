@@ -108,6 +108,11 @@ function PacientesContent() {
     },
   });
 
+  const hasPatients = data?.data?.length > 0;
+  const showEmptyCreatePatientCta = canCreate && !search && !isLoading && !error && !hasPatients;
+  const showHeaderNewPatient = canCreate && !showEmptyCreatePatientCta;
+  const showHeaderActions = showHeaderNewPatient || canCreateEncounterAllowed;
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = searchInput.trim();
@@ -116,15 +121,14 @@ function PacientesContent() {
 
   return (
     <div className="animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Pacientes</h1>
-          <p className="text-slate-600">Gestiona el registro de pacientes</p>
+          <h1 className="page-header-title">Pacientes</h1>
+          <p className="page-header-description">Gestiona el registro longitudinal de pacientes.</p>
         </div>
-        {(canCreate || canCreateEncounterAllowed) && (
+        {showHeaderActions && (
           <div className="flex flex-wrap items-center gap-2">
-            {canCreate && (
+            {showHeaderNewPatient && (
               <Link href="/pacientes/nuevo" className="btn btn-primary flex items-center gap-2">
                 <FiPlus className="w-4 h-4" />
                 Nuevo Paciente
@@ -140,7 +144,6 @@ function PacientesContent() {
         )}
       </div>
 
-      {/* Search */}
       <form onSubmit={handleSearch} className="mb-4">
         <div className="relative">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -154,7 +157,6 @@ function PacientesContent() {
         </div>
       </form>
 
-      {/* Filters */}
       <div className="mb-4">
         <button
           onClick={() => setShowFilters(!showFilters)}
@@ -166,7 +168,7 @@ function PacientesContent() {
         </button>
 
         {showFilters && (
-          <div className="card p-4 mb-4">
+          <div className="filter-surface">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Sexo</label>
@@ -264,14 +266,12 @@ function PacientesContent() {
         )}
       </div>
 
-      {/* Error state */}
       {error && (
         <div className="card mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
           Error al cargar pacientes. Intente recargar la página.
         </div>
       )}
 
-      {/* Patient list */}
       <div className="card transition-all duration-300">
         {isLoading ? (
           <div className="space-y-4">
@@ -285,16 +285,16 @@ function PacientesContent() {
               </div>
             ))}
           </div>
-        ) : data?.data?.length > 0 ? (
+        ) : hasPatients ? (
           <>
             <div className="divide-y divide-slate-100">
               {data.data.map((patient: Patient) => (
                 <Link
                   key={patient.id}
                   href={`/pacientes/${patient.id}`}
-                  className="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors group"
+                  className="group list-row"
                 >
-                  <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="list-row-icon h-12 w-12 bg-primary-100 text-primary-600">
                     <FiUser className="w-6 h-6 text-primary-600" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -302,7 +302,7 @@ function PacientesContent() {
                       <h3 className="font-medium text-slate-900 truncate group-hover:text-primary-600">
                         {patient.nombre}
                       </h3>
-                      <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">
+                      <span className="list-chip bg-slate-100 text-slate-600">
                         {patient.edad} años
                       </span>
                     </div>
@@ -350,16 +350,16 @@ function PacientesContent() {
             )}
           </>
         ) : (
-          <div className="p-12 text-center">
-            <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-6 transition-transform hover:scale-110">
+          <div className="empty-state">
+            <div className="empty-state-icon">
               <FiUser className="w-10 h-10 text-primary-400" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">No hay pacientes</h3>
-            <p className="text-slate-500 mb-8 max-w-sm mx-auto">
+            <h3 className="empty-state-title">No hay pacientes</h3>
+            <p className="empty-state-description">
               {search ? 'No se encontraron pacientes que coincidan con tu búsqueda.' : 'Aún no has registrado ningún paciente. Comienza agregando uno para gestionar su historial médico.'}
             </p>
-            {canCreate && !search && (
-              <Link href="/pacientes/nuevo" className="btn btn-primary btn-lg shadow-lg shadow-primary-500/20">
+            {showEmptyCreatePatientCta && (
+              <Link href="/pacientes/nuevo" className="empty-state-cta">
                 <FiPlus className="w-5 h-5 mr-2" />
                 Registrar primer paciente
               </Link>

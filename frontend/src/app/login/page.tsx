@@ -69,43 +69,41 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary-600 to-primary-800 p-12 items-center justify-center">
-        <div className="max-w-md text-white">
+    <div className="auth-shell">
+      <div className="auth-hero">
+        <div className="max-w-md">
           <AnamneoLogo
             className="mb-8"
             iconClassName="h-12 w-12"
             textClassName="text-3xl font-bold text-white"
             priority
           />
-          <p className="text-xl text-primary-100 mb-6">
-            Sistema integral para la gestión de fichas clínicas y atención de pacientes.
+          <p className="mb-8 text-xl text-primary-100">
+            Flujo clínico continuo para consultas, seguimiento y documentación médica.
           </p>
-          <ul className="space-y-3 text-primary-100">
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-primary-300 rounded-full" />
+          <ul className="space-y-4">
+            <li className="auth-bullet">
+              <span className="auth-bullet-dot">1</span>
               Registro completo de atenciones médicas
             </li>
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-primary-300 rounded-full" />
+            <li className="auth-bullet">
+              <span className="auth-bullet-dot">2</span>
               Historial clínico por paciente
             </li>
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-primary-300 rounded-full" />
+            <li className="auth-bullet">
+              <span className="auth-bullet-dot">3</span>
               Sugerencias automáticas de afecciones
             </li>
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-primary-300 rounded-full" />
+            <li className="auth-bullet">
+              <span className="auth-bullet-dot">4</span>
               Exportación a PDF
             </li>
           </ul>
         </div>
       </div>
 
-      {/* Right side - login form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
+      <div className="flex items-center justify-center bg-slate-50 p-8">
+        <div className="auth-card">
           <AnamneoLogo
             className="justify-center mb-8 lg:hidden"
             iconClassName="h-10 w-10"
@@ -113,7 +111,7 @@ export default function LoginPage() {
             priority
           />
 
-          <div className="text-center mb-8">
+          <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-slate-900">Iniciar sesión</h2>
             <p className="text-slate-600 mt-2">Ingresa tus credenciales para acceder</p>
           </div>

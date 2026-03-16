@@ -14,6 +14,8 @@ export interface Patient {
   updatedAt: string;
   history?: PatientHistory;
   encounters?: Encounter[];
+  problems?: PatientProblem[];
+  tasks?: PatientTask[];
   _count?: {
     encounters: number;
   };
@@ -64,6 +66,9 @@ export interface Encounter {
   patientId: string;
   createdById: string;
   status: 'EN_PROGRESO' | 'COMPLETADO' | 'CANCELADO';
+  reviewStatus?: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO';
+  reviewRequestedAt?: string | null;
+  reviewedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   patient?: Patient;
@@ -72,11 +77,57 @@ export interface Encounter {
     nombre: string;
     email?: string;
   };
+  reviewedBy?: {
+    id: string;
+    nombre: string;
+  } | null;
   sections?: EncounterSection[];
+  attachments?: Attachment[];
+  tasks?: PatientTask[];
   progress?: {
     completed: number;
     total: number;
   };
+}
+
+export interface PatientProblem {
+  id: string;
+  patientId: string;
+  encounterId?: string | null;
+  label: string;
+  status: 'ACTIVO' | 'CRONICO' | 'EN_ESTUDIO' | 'RESUELTO';
+  notes?: string | null;
+  severity?: string | null;
+  onsetDate?: string | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  encounter?: {
+    id: string;
+    createdAt: string;
+    status: string;
+  } | null;
+}
+
+export interface PatientTask {
+  id: string;
+  patientId: string;
+  encounterId?: string | null;
+  title: string;
+  details?: string | null;
+  type: 'SEGUIMIENTO' | 'EXAMEN' | 'DERIVACION' | 'TRAMITE';
+  priority: 'ALTA' | 'MEDIA' | 'BAJA';
+  status: 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADA' | 'CANCELADA';
+  dueDate?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  isOverdue?: boolean;
+  createdBy?: {
+    id: string;
+    nombre: string;
+  };
+  patient?: Pick<Patient, 'id' | 'nombre' | 'rut'>;
 }
 
 // Condition types
@@ -103,6 +154,11 @@ export interface Attachment {
   originalName: string;
   mime: string;
   size: number;
+  category?: string | null;
+  description?: string | null;
+  linkedOrderType?: 'EXAMEN' | 'DERIVACION' | null;
+  linkedOrderId?: string | null;
+  linkedOrderLabel?: string | null;
   uploadedAt: string;
   uploadedBy?: {
     nombre: string;
@@ -214,6 +270,9 @@ export interface TratamientoData {
   receta?: string;
   examenes?: string;
   derivaciones?: string;
+  medicamentosEstructurados?: StructuredMedication[];
+  examenesEstructurados?: StructuredOrder[];
+  derivacionesEstructuradas?: StructuredOrder[];
 }
 
 export interface RespuestaTratamientoData {
@@ -226,6 +285,23 @@ export interface RespuestaTratamientoData {
 export interface ObservacionesData {
   observaciones?: string;
   notasInternas?: string;
+}
+
+export interface StructuredMedication {
+  id: string;
+  nombre: string;
+  dosis?: string;
+  frecuencia?: string;
+  duracion?: string;
+  indicacion?: string;
+}
+
+export interface StructuredOrder {
+  id: string;
+  nombre: string;
+  indicacion?: string;
+  estado?: 'PENDIENTE' | 'RECIBIDO' | 'REVISADO';
+  resultado?: string;
 }
 
 /** Union of all section data shapes */
@@ -276,4 +352,31 @@ export const STATUS_LABELS: Record<string, string> = {
   EN_PROGRESO: 'En progreso',
   COMPLETADO: 'Completado',
   CANCELADO: 'Cancelado',
+};
+
+export const REVIEW_STATUS_LABELS: Record<string, string> = {
+  NO_REQUIERE_REVISION: 'Sin revisión pendiente',
+  LISTA_PARA_REVISION: 'Pendiente de revisión médica',
+  REVISADA_POR_MEDICO: 'Revisada por médico',
+};
+
+export const TASK_STATUS_LABELS: Record<string, string> = {
+  PENDIENTE: 'Pendiente',
+  EN_PROCESO: 'En proceso',
+  COMPLETADA: 'Completada',
+  CANCELADA: 'Cancelada',
+};
+
+export const TASK_TYPE_LABELS: Record<string, string> = {
+  SEGUIMIENTO: 'Seguimiento',
+  EXAMEN: 'Examen',
+  DERIVACION: 'Derivación',
+  TRAMITE: 'Trámite',
+};
+
+export const PROBLEM_STATUS_LABELS: Record<string, string> = {
+  ACTIVO: 'Activo',
+  CRONICO: 'Crónico',
+  EN_ESTUDIO: 'En estudio',
+  RESUELTO: 'Resuelto',
 };

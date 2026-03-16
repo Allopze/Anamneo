@@ -5,8 +5,18 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
-import { Attachment, Encounter, SectionKey } from '@/types';
+import {
+  Attachment,
+  Encounter,
+  REVIEW_STATUS_LABELS,
+  SectionKey,
+  StructuredOrder,
+  TASK_STATUS_LABELS,
+  TASK_TYPE_LABELS,
+  TratamientoData,
+} from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
+import { buildGeneratedClinicalSummary } from '@/lib/clinical';
 import {
   FiArrowLeft,
   FiCheck,
@@ -21,6 +31,7 @@ import {
   FiDownload,
   FiTrash2,
   FiFileText,
+  FiClipboard,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -61,6 +72,10 @@ const SECTION_COMPONENTS: Record<SectionKey, React.ComponentType<any>> = {
 };
 
 const AUTOSAVE_DELAY = 10000; // 10 seconds
+const LINKABLE_ATTACHMENT_LABELS = {
+  EXAMEN: 'Examen',
+  DERIVACION: 'Derivación',
+} as const;
 
 // Sections only visible to doctors
 const MEDICO_ONLY_SECTIONS: SectionKey[] = [
@@ -129,7 +144,7 @@ export default function EncounterWizardPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, isMedico, canUploadAttachments, canEditAntecedentes } = useAuthStore();
+  const { user, isMedico, canEditAntecedentes } = useAuthStore();
 
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -146,8 +161,15 @@ export default function EncounterWizardPage() {
   const [isAttachmentsOpen, setIsAttachmentsOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadMeta, setUploadMeta] = useState({
+    category: 'GENERAL',
+    description: '',
+    linkedOrderType: '',
+    linkedOrderId: '',
+  });
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showDeleteAttachment, setShowDeleteAttachment] = useState<string | null>(null);
+  const [quickTask, setQuickTask] = useState({ title: '', type: 'SEGUIMIENTO', dueDate: '' });
 
   // Fetch encounter data
   const { data: encounter, isLoading, error } = useQuery({
@@ -273,13 +295,20 @@ export default function EncounterWizardPage() {
       const response = await api.get(`/attachments/encounter/${id}`);
       return response.data as Attachment[];
     },
-    enabled: isAttachmentsOpen,
+    enabled: isAttachmentsOpen || currentSection?.sectionKey === 'TRATAMIENTO',
+    staleTime: 30_000,
   });
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('category', uploadMeta.category);
+      formData.append('description', uploadMeta.description);
+      if (uploadMeta.linkedOrderType && uploadMeta.linkedOrderId) {
+        formData.append('linkedOrderType', uploadMeta.linkedOrderType);
+        formData.append('linkedOrderId', uploadMeta.linkedOrderId);
+      }
       return api.post(`/attachments/encounter/${id}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -287,6 +316,7 @@ export default function EncounterWizardPage() {
     onSuccess: () => {
       toast.success('Archivo adjuntado');
       setSelectedFile(null);
+      setUploadMeta({ category: 'GENERAL', description: '', linkedOrderType: '', linkedOrderId: '' });
       queryClient.invalidateQueries({ queryKey: ['attachments', id] });
     },
     onError: (err) => {
@@ -307,10 +337,42 @@ export default function EncounterWizardPage() {
     },
   });
 
+  const reviewStatusMutation = useMutation({
+    mutationFn: async (reviewStatus: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO') =>
+      api.put(`/encounters/${id}/review-status`, { reviewStatus }),
+    onSuccess: () => {
+      toast.success('Estado de revisión actualizado');
+      queryClient.invalidateQueries({ queryKey: ['encounter', id] });
+      queryClient.invalidateQueries({ queryKey: ['patient', encounter?.patientId] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: async () =>
+      api.post(`/patients/${encounter?.patientId}/tasks`, {
+        ...quickTask,
+        encounterId: id,
+        dueDate: quickTask.dueDate || undefined,
+      }),
+    onSuccess: () => {
+      toast.success('Seguimiento creado');
+      setQuickTask({ title: '', type: 'SEGUIMIENTO', dueDate: '' });
+      queryClient.invalidateQueries({ queryKey: ['encounter', id] });
+      queryClient.invalidateQueries({ queryKey: ['patient', encounter?.patientId] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
   useEffect(() => {
     if (!isAttachmentsOpen) {
       setSelectedFile(null);
       setUploadError(null);
+      setUploadMeta({ category: 'GENERAL', description: '', linkedOrderType: '', linkedOrderId: '' });
     }
   }, [isAttachmentsOpen]);
 
@@ -550,7 +612,43 @@ export default function EncounterWizardPage() {
   const completedCount = sections.filter((s) => s.completed).length;
   const canComplete = canCompleteEncounterPermission(user ?? null, encounter);
   const attachments = attachmentsQuery.data ?? [];
+  const tratamientoData = (formData.TRATAMIENTO ?? encounter.sections?.find((section) => section.sectionKey === 'TRATAMIENTO')?.data ?? {}) as TratamientoData;
+  const examenesEstructurados = Array.isArray(tratamientoData.examenesEstructurados)
+    ? tratamientoData.examenesEstructurados
+    : [];
+  const derivacionesEstructuradas = Array.isArray(tratamientoData.derivacionesEstructuradas)
+    ? tratamientoData.derivacionesEstructuradas
+    : [];
+  const currentLinkedOrderType = uploadMeta.category === 'EXAMEN'
+    ? 'EXAMEN'
+    : uploadMeta.category === 'DERIVACION'
+    ? 'DERIVACION'
+    : '';
+  const currentLinkableOrders: StructuredOrder[] = currentLinkedOrderType === 'EXAMEN'
+    ? examenesEstructurados
+    : currentLinkedOrderType === 'DERIVACION'
+    ? derivacionesEstructuradas
+    : [];
+  const linkedAttachmentsByOrderId = attachments.reduce<Record<string, Attachment[]>>((acc, attachment) => {
+    if (!attachment.linkedOrderId) {
+      return acc;
+    }
+
+    if (!acc[attachment.linkedOrderId]) {
+      acc[attachment.linkedOrderId] = [];
+    }
+
+    acc[attachment.linkedOrderId].push(attachment);
+    return acc;
+  }, {});
   const supportsTemplates = Boolean(currentSection && TEMPLATE_FIELD_BY_SECTION[currentSection.sectionKey]);
+  const generatedSummary = buildGeneratedClinicalSummary({
+    ...encounter,
+    sections: sections.map((section) => ({
+      ...section,
+      data: formData[section.sectionKey] ?? section.data,
+    })),
+  } as Encounter);
 
   let savedSnapshot: Record<string, any> = {};
   try {
@@ -575,6 +673,17 @@ export default function EncounterWizardPage() {
 
   const currentSectionState = currentSection ? getSectionUiState(currentSection) : 'idle';
   const currentSectionStatusMeta = SECTION_STATUS_META[currentSectionState];
+  const handleStartLinkedAttachment = (type: 'EXAMEN' | 'DERIVACION', orderId: string) => {
+    setUploadError(null);
+    setSelectedFile(null);
+    setUploadMeta((prev) => ({
+      ...prev,
+      category: type,
+      linkedOrderType: type,
+      linkedOrderId: orderId,
+    }));
+    setIsAttachmentsOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -630,34 +739,16 @@ export default function EncounterWizardPage() {
                 className="btn btn-secondary flex items-center gap-2"
               >
                 <FiSave className="w-4 h-4" />
-                Guardar
+                Guardar ahora
               </button>
             )}
-
-            {canEditAntecedentes() && (
-              <Link
-                href={`/pacientes/${encounter.patientId}/historial`}
-                className="btn btn-secondary flex items-center gap-2"
-              >
-                <FiFileText className="w-4 h-4" />
-                Historial
-              </Link>
-            )}
-
-            <button
-              onClick={() => setIsAttachmentsOpen(true)}
-              className="btn btn-secondary flex items-center gap-2"
-            >
-              <FiPaperclip className="w-4 h-4" />
-              {canUpload ? 'Adjuntar archivo' : 'Archivos'}
-            </button>
 
             <Link
               href={`/atenciones/${id}/ficha`}
               className="btn btn-secondary flex items-center gap-2"
             >
               <FiEye className="w-4 h-4" />
-              Vista previa
+              Ficha clínica
             </Link>
 
             {canComplete && (
@@ -667,7 +758,7 @@ export default function EncounterWizardPage() {
                 className="btn btn-success flex items-center gap-2"
               >
                 <FiCheck className="w-4 h-4" />
-                Completar
+                Finalizar atención
               </button>
             )}
           </div>
@@ -755,6 +846,157 @@ export default function EncounterWizardPage() {
             {encounter.patientId && (
               <ClinicalAlerts patientId={encounter.patientId} />
             )}
+
+            <div className="card mb-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Revisión clínica</p>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    {REVIEW_STATUS_LABELS[encounter.reviewStatus || 'NO_REQUIERE_REVISION']}
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    {encounter.reviewedAt
+                      ? `Última revisión: ${new Date(encounter.reviewedAt).toLocaleString('es-CL')}`
+                      : encounter.reviewRequestedAt
+                      ? `Solicitada: ${new Date(encounter.reviewRequestedAt).toLocaleString('es-CL')}`
+                      : 'Sin revisión pendiente'}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {!isDoctor && encounter.reviewStatus !== 'LISTA_PARA_REVISION' && (
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => reviewStatusMutation.mutate('LISTA_PARA_REVISION')}
+                      disabled={reviewStatusMutation.isPending}
+                    >
+                      Enviar a revisión médica
+                    </button>
+                  )}
+                  {isDoctor && encounter.reviewStatus !== 'REVISADA_POR_MEDICO' && (
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => reviewStatusMutation.mutate('REVISADA_POR_MEDICO')}
+                      disabled={reviewStatusMutation.isPending}
+                    >
+                      Marcar revisada
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr,1fr]">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-2 flex items-center gap-2 text-slate-700">
+                    <FiFileText className="h-4 w-4" />
+                    <span className="text-sm font-medium">Resumen clínico generado</span>
+                  </div>
+                  <p className="text-sm text-slate-700">
+                    {generatedSummary || 'Completa más secciones para generar un resumen clínico automático.'}
+                  </p>
+                  {canEdit && generatedSummary && (
+                    <button
+                      type="button"
+                      className="mt-3 text-sm font-medium text-primary-600 hover:text-primary-700"
+                      onClick={() => {
+                        const existing = formData.OBSERVACIONES || {};
+                        handleSectionDataChange('OBSERVACIONES', {
+                          ...existing,
+                          observaciones: existing.observaciones
+                            ? `${existing.observaciones}\n\n${generatedSummary}`
+                            : generatedSummary,
+                        });
+                        toast.success('Resumen agregado a observaciones');
+                      }}
+                    >
+                      Insertar en observaciones
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <div className="mb-3 flex items-center gap-2 text-slate-700">
+                      <FiPaperclip className="h-4 w-4" />
+                      <span className="text-sm font-medium">Herramientas rápidas</span>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                      <button
+                        type="button"
+                        className="btn btn-secondary w-full justify-center"
+                        onClick={() => setIsAttachmentsOpen(true)}
+                      >
+                        Adjuntos de la atención
+                      </button>
+                      {canEditAntecedentes() && (
+                        <Link
+                          href={`/pacientes/${encounter.patientId}/historial`}
+                          className="btn btn-secondary w-full justify-center"
+                        >
+                          Antecedentes del paciente
+                        </Link>
+                      )}
+                    </div>
+                    <p className="mt-3 text-xs text-slate-500">
+                      Mantuvimos estas acciones fuera del encabezado para dejar más claro qué botones avanzan la atención y cuáles son de apoyo.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <div className="mb-3 flex items-center gap-2 text-slate-700">
+                      <FiClipboard className="h-4 w-4" />
+                      <span className="text-sm font-medium">Seguimiento rápido</span>
+                    </div>
+                    <div className="space-y-2">
+                      <input
+                        className="form-input"
+                        value={quickTask.title}
+                        onChange={(e) => setQuickTask((prev) => ({ ...prev, title: e.target.value }))}
+                        placeholder="Ej: revisar examen en 48 h"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          className="form-input"
+                          value={quickTask.type}
+                          onChange={(e) => setQuickTask((prev) => ({ ...prev, type: e.target.value }))}
+                        >
+                          {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
+                            <option key={value} value={value}>{label}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="date"
+                          className="form-input"
+                          value={quickTask.dueDate}
+                          onChange={(e) => setQuickTask((prev) => ({ ...prev, dueDate: e.target.value }))}
+                        />
+                      </div>
+                      <button
+                        className="btn btn-secondary w-full"
+                        onClick={() => createTaskMutation.mutate()}
+                        disabled={!quickTask.title.trim() || createTaskMutation.isPending}
+                      >
+                        Crear seguimiento
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {encounter.tasks && encounter.tasks.length > 0 && (
+                <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
+                  {encounter.tasks.slice(0, 4).map((task) => (
+                    <div key={task.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                      <div>
+                        <div className="font-medium text-slate-800">{task.title}</div>
+                        <div className="text-xs text-slate-500">
+                          {TASK_TYPE_LABELS[task.type]} · {TASK_STATUS_LABELS[task.status]}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             {/* Section header */}
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-2">
@@ -794,6 +1036,8 @@ export default function EncounterWizardPage() {
                   onChange={(data: any) => handleSectionDataChange(currentSection.sectionKey, data)}
                   encounter={encounter}
                   readOnly={!canEdit}
+                  linkedAttachmentsByOrderId={linkedAttachmentsByOrderId}
+                  onRequestAttachToOrder={handleStartLinkedAttachment}
                 />
               )}
             </div>
@@ -816,7 +1060,7 @@ export default function EncounterWizardPage() {
                   className="btn btn-success flex items-center gap-2"
                 >
                   <FiCheck className="w-4 h-4" />
-                  Marcar como completada
+                  Completar sección
                 </button>
               )}
 
@@ -842,8 +1086,8 @@ export default function EncounterWizardPage() {
           <div className="relative w-full max-w-2xl bg-white rounded-xl shadow-xl border border-slate-200" role="dialog" aria-modal="true" aria-label="Adjuntos de la atención">
             <div className="p-5 border-b border-slate-200 flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Adjuntos de la atencion</h2>
-                <p className="text-sm text-slate-600">Archivos vinculados a esta atencion.</p>
+                <h2 className="text-lg font-semibold text-slate-900">Adjuntos de la atención</h2>
+                <p className="text-sm text-slate-600">Archivos vinculados a esta atención.</p>
               </div>
               <button
                 className="btn btn-secondary"
@@ -867,7 +1111,7 @@ export default function EncounterWizardPage() {
                   }}
                   className="flex flex-col sm:flex-row gap-3 items-start sm:items-end"
                 >
-                  <div className="flex-1 w-full">
+                  <div className="flex-1 w-full space-y-3">
                     <label className="form-label">Archivo</label>
                     <input
                       type="file"
@@ -877,6 +1121,61 @@ export default function EncounterWizardPage() {
                         setSelectedFile(e.target.files?.[0] ?? null);
                       }}
                     />
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <select
+                        className="form-input"
+                        value={uploadMeta.category}
+                        onChange={(e) => {
+                          const nextCategory = e.target.value;
+                          const nextLinkedOrderType = nextCategory === 'EXAMEN'
+                            ? 'EXAMEN'
+                            : nextCategory === 'DERIVACION'
+                            ? 'DERIVACION'
+                            : '';
+                          setUploadMeta((prev) => ({
+                            ...prev,
+                            category: nextCategory,
+                            linkedOrderType: nextLinkedOrderType,
+                            linkedOrderId: '',
+                          }));
+                        }}
+                      >
+                        <option value="GENERAL">General</option>
+                        <option value="EXAMEN">Resultado de examen</option>
+                        <option value="RECETA">Receta</option>
+                        <option value="DERIVACION">Derivación</option>
+                        <option value="IMAGEN">Imagen clínica</option>
+                      </select>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={uploadMeta.description}
+                        onChange={(e) => setUploadMeta((prev) => ({ ...prev, description: e.target.value }))}
+                        placeholder="Descripción breve"
+                      />
+                    </div>
+                    {currentLinkedOrderType && (
+                      <div className="space-y-1">
+                        <select
+                          className="form-input"
+                          value={uploadMeta.linkedOrderId}
+                          onChange={(e) => setUploadMeta((prev) => ({ ...prev, linkedOrderId: e.target.value }))}
+                        >
+                          <option value="">Sin vincular a un item específico</option>
+                          {currentLinkableOrders.map((order) => (
+                            <option key={order.id} value={order.id}>
+                              {order.nombre}
+                              {order.estado ? ` · ${order.estado}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-slate-500">
+                          {currentLinkableOrders.length > 0
+                            ? `Puedes asociar este archivo a un ${LINKABLE_ATTACHMENT_LABELS[currentLinkedOrderType]} estructurado para seguir resultados con mayor contexto.`
+                            : `No hay ${currentLinkedOrderType === 'EXAMEN' ? 'exámenes' : 'derivaciones'} estructurados disponibles en esta atención todavía.`}
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <button
                     type="submit"
@@ -914,6 +1213,16 @@ export default function EncounterWizardPage() {
                             {new Date(attachment.uploadedAt).toLocaleString('es-CL')}
                             {attachment.uploadedBy?.nombre ? ` · ${attachment.uploadedBy.nombre}` : ''}
                           </p>
+                          {(attachment.category || attachment.description) && (
+                            <p className="text-xs text-slate-500">
+                              {[attachment.category, attachment.description].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
+                          {attachment.linkedOrderType && attachment.linkedOrderLabel && (
+                            <p className="text-xs text-primary-700">
+                              Vinculado a {LINKABLE_ATTACHMENT_LABELS[attachment.linkedOrderType]}: {attachment.linkedOrderLabel}
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <button
@@ -950,9 +1259,9 @@ export default function EncounterWizardPage() {
         isOpen={showCompleteConfirm}
         onClose={() => setShowCompleteConfirm(false)}
         onConfirm={confirmComplete}
-        title="Completar atención"
-        message="¿Estás seguro de completar esta atención? Una vez completada, las secciones no podrán editarse."
-        confirmLabel="Completar atención"
+        title="Finalizar atención"
+        message="¿Estás seguro de finalizar esta atención? Una vez finalizada, las secciones no podrán editarse."
+        confirmLabel="Finalizar atención"
         variant="warning"
         loading={completeMutation.isPending}
       />

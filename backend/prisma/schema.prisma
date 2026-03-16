@@ -12,32 +12,36 @@ datasource db {
 
 // Models
 model User {
-  id           String      @id @default(uuid())
-  email        String      @unique
-  passwordHash String      @map("password_hash")
-  nombre       String
-  role         String      @default("ASISTENTE")
-  isAdmin      Boolean     @default(false) @map("is_admin")
-  medicoId     String?     @map("medico_id")
-  active       Boolean     @default(true)
-  createdAt    DateTime    @default(now()) @map("created_at")
-  updatedAt    DateTime    @updatedAt @map("updated_at")
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  passwordHash        String   @map("password_hash")
+  nombre              String
+  role                String   @default("ASISTENTE")
+  isAdmin             Boolean  @default(false) @map("is_admin")
+  medicoId            String?  @map("medico_id")
+  active              Boolean  @default(true)
+  refreshTokenVersion Int      @default(0) @map("refresh_token_version")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
-  medico       User?       @relation("MedicoAssistants", fields: [medicoId], references: [id])
-  assistants   User[]      @relation("MedicoAssistants")
+  medico     User?  @relation("MedicoAssistants", fields: [medicoId], references: [id])
+  assistants User[] @relation("MedicoAssistants")
 
-  patients     Patient[]
-  encounters   Encounter[]
-  attachments  Attachment[]
+  patients              Patient[]
+  encounters            Encounter[]
+  reviewedEncounters    Encounter[]             @relation("EncounterReviewedBy")
+  attachments           Attachment[]
+  sessions              UserSession[]
   conditionCatalogLocal ConditionCatalogLocal[]
-  textTemplates TextTemplate[]
+  textTemplates         TextTemplate[]
+  encounterTasks        EncounterTask[]
 
   @@map("users")
 }
 
 model Patient {
   id              String    @id @default(uuid())
-  medicoId         String    @map("medico_id")
+  medicoId        String    @map("medico_id")
   rut             String?   @unique
   rutExempt       Boolean   @default(false) @map("rut_exempt")
   rutExemptReason String?   @map("rut_exempt_reason")
@@ -52,9 +56,11 @@ model Patient {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  medico          User      @relation(fields: [medicoId], references: [id])
-  history         PatientHistory?
-  encounters      Encounter[]
+  medico     User             @relation(fields: [medicoId], references: [id])
+  history    PatientHistory?
+  encounters Encounter[]
+  problems   PatientProblem[]
+  tasks      EncounterTask[]
 
   @@index([medicoId])
   @@index([medicoId, archivedAt])
@@ -62,40 +68,47 @@ model Patient {
 }
 
 model PatientHistory {
-  id                          String   @id @default(uuid())
-  patientId                   String   @unique @map("patient_id")
-  antecedentesMedicos         String?  @map("antecedentes_medicos")
-  antecedentesQuirurgicos     String?  @map("antecedentes_quirurgicos")
-  antecedentesGinecoobstetricos String? @map("antecedentes_ginecoobstetricos")
-  antecedentesFamiliares      String?  @map("antecedentes_familiares")
-  habitos                     String?
-  medicamentos                String?
-  alergias                    String?
-  inmunizaciones              String?
-  antecedentesSociales        String?  @map("antecedentes_sociales")
-  antecedentesPersonales      String?  @map("antecedentes_personales")
-  updatedAt                   DateTime @updatedAt @map("updated_at")
+  id                            String   @id @default(uuid())
+  patientId                     String   @unique @map("patient_id")
+  antecedentesMedicos           String?  @map("antecedentes_medicos")
+  antecedentesQuirurgicos       String?  @map("antecedentes_quirurgicos")
+  antecedentesGinecoobstetricos String?  @map("antecedentes_ginecoobstetricos")
+  antecedentesFamiliares        String?  @map("antecedentes_familiares")
+  habitos                       String?
+  medicamentos                  String?
+  alergias                      String?
+  inmunizaciones                String?
+  antecedentesSociales          String?  @map("antecedentes_sociales")
+  antecedentesPersonales        String?  @map("antecedentes_personales")
+  updatedAt                     DateTime @updatedAt @map("updated_at")
 
-  patient                     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@map("patient_histories")
 }
 
 model Encounter {
-  id            String    @id @default(uuid())
-  patientId     String    @map("patient_id")
-  createdById   String    @map("created_by_id")
-  status        String    @default("EN_PROGRESO")
-  completedAt   DateTime? @map("completed_at")
-  completedById String?   @map("completed_by_id")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id                String    @id @default(uuid())
+  patientId         String    @map("patient_id")
+  createdById       String    @map("created_by_id")
+  status            String    @default("EN_PROGRESO")
+  reviewStatus      String    @default("NO_REQUIERE_REVISION") @map("review_status")
+  reviewRequestedAt DateTime? @map("review_requested_at")
+  reviewedAt        DateTime? @map("reviewed_at")
+  reviewedById      String?   @map("reviewed_by_id")
+  completedAt       DateTime? @map("completed_at")
+  completedById     String?   @map("completed_by_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  patient     Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  createdBy   User      @relation(fields: [createdById], references: [id])
+  patient     Patient                  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdBy   User                     @relation(fields: [createdById], references: [id])
+  reviewedBy  User?                    @relation("EncounterReviewedBy", fields: [reviewedById], references: [id])
   sections    EncounterSection[]
   suggestions ConditionSuggestionLog[]
   attachments Attachment[]
+  tasks       EncounterTask[]
+  problems    PatientProblem[]
 
   @@map("encounters")
 }
@@ -108,7 +121,7 @@ model EncounterSection {
   completed   Boolean  @default(false)
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  encounter   Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
 
   @@unique([encounterId, sectionKey])
   @@map("encounter_sections")
@@ -129,22 +142,22 @@ model ConditionCatalog {
 }
 
 model ConditionCatalogLocal {
-  id               String   @id @default(uuid())
-  medicoId         String   @map("medico_id")
-  baseConditionId  String?  @map("base_condition_id")
-  name             String
-  synonyms         String   @default("[]")
-  tags             String   @default("[]")
-  active           Boolean  @default(true)
-  hidden           Boolean  @default(false)
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(uuid())
+  medicoId        String   @map("medico_id")
+  baseConditionId String?  @map("base_condition_id")
+  name            String
+  synonyms        String   @default("[]")
+  tags            String   @default("[]")
+  active          Boolean  @default(true)
+  hidden          Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  medico          User             @relation(fields: [medicoId], references: [id])
-  baseCondition   ConditionCatalog? @relation(fields: [baseConditionId], references: [id])
+  medico        User              @relation(fields: [medicoId], references: [id])
+  baseCondition ConditionCatalog? @relation(fields: [baseConditionId], references: [id])
 
-  @@index([medicoId])
   @@unique([medicoId, baseConditionId])
+  @@index([medicoId])
   @@map("condition_catalog_local")
 }
 
@@ -157,7 +170,7 @@ model ConditionSuggestionLog {
   chosenMode        String   @map("chosen_mode")
   createdAt         DateTime @default(now()) @map("created_at")
 
-  encounter         Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
 
   @@map("condition_suggestion_logs")
 }
@@ -189,12 +202,76 @@ model Attachment {
   uploadedById String   @map("uploaded_by_id")
   category     String?
   description  String?
+  linkedOrderType  String?  @map("linked_order_type")
+  linkedOrderId    String?  @map("linked_order_id")
+  linkedOrderLabel String?  @map("linked_order_label")
   uploadedAt   DateTime @default(now()) @map("uploaded_at")
 
-  encounter    Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
-  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+  encounter  Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  uploadedBy User      @relation(fields: [uploadedById], references: [id])
 
+  @@index([encounterId, linkedOrderType, linkedOrderId])
   @@map("attachments")
+}
+
+model PatientProblem {
+  id          String    @id @default(uuid())
+  patientId   String    @map("patient_id")
+  encounterId String?   @map("encounter_id")
+  label       String
+  status      String    @default("ACTIVO")
+  notes       String?
+  severity    String?
+  onsetDate   DateTime? @map("onset_date")
+  resolvedAt  DateTime? @map("resolved_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  patient   Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounter Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+
+  @@index([patientId, status])
+  @@map("patient_problems")
+}
+
+model EncounterTask {
+  id          String    @id @default(uuid())
+  patientId   String    @map("patient_id")
+  encounterId String?   @map("encounter_id")
+  createdById String    @map("created_by_id")
+  title       String
+  details     String?
+  type        String    @default("SEGUIMIENTO")
+  priority    String    @default("MEDIA")
+  status      String    @default("PENDIENTE")
+  dueDate     DateTime? @map("due_date")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  patient   Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounter Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  createdBy User       @relation(fields: [createdById], references: [id])
+
+  @@index([patientId, status, dueDate])
+  @@index([encounterId])
+  @@map("encounter_tasks")
+}
+
+model UserSession {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  tokenVersion Int       @default(0) @map("token_version")
+  userAgent    String?   @map("user_agent")
+  ipAddress    String?   @map("ip_address")
+  lastUsedAt   DateTime  @default(now()) @map("last_used_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  revokedAt    DateTime? @map("revoked_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@map("user_sessions")
 }
 
 model TextTemplate {
@@ -207,7 +284,7 @@ model TextTemplate {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  medico     User     @relation(fields: [medicoId], references: [id])
+  medico User @relation(fields: [medicoId], references: [id])
 
   @@index([medicoId])
   @@map("text_templates")

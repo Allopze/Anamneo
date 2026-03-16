@@ -1,5 +1,5 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Get, Patch, UseGuards, Res, UnauthorizedException } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -60,6 +60,18 @@ export class AuthController {
     res.clearCookie('refresh_token', opts);
   }
 
+  private getSessionContext(req: Request) {
+    const forwardedFor = req.headers['x-forwarded-for'];
+    const forwardedIp = Array.isArray(forwardedFor)
+      ? forwardedFor[0]
+      : (forwardedFor?.split(',')[0]?.trim() ?? null);
+
+    return {
+      userAgent: req.get('user-agent') ?? null,
+      ipAddress: forwardedIp || req.ip || null,
+    };
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: CurrentUserData) {
@@ -75,7 +87,8 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @Throttle({ short: { limit: 3, ttl: 60000 } })
   async register(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.register(registerDto);
+    const sessionContext = this.getSessionContext(res.req as Request);
+    const result = await this.authService.register(registerDto, sessionContext);
     this.setAuthCookies(res, result);
     return { message: 'Registro exitoso' };
   }
@@ -84,7 +97,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: 5, ttl: 60000 } })
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const tokens = await this.authService.login(loginDto);
+    const sessionContext = this.getSessionContext(res.req as Request);
+    const tokens = await this.authService.login(loginDto, sessionContext);
     this.setAuthCookies(res, tokens);
     return { message: 'Inicio de sesión exitoso' };
   }
@@ -93,13 +107,13 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async refresh(@Res({ passthrough: true }) res: Response, @Body() body?: RefreshTokenDto) {
     // Try cookie first, fallback to body (backward compat)
-    const rawCookies = (res.req as any)?.cookies;
-    const refreshToken = rawCookies?.refresh_token || body?.refreshToken;
+    const req = res.req as Request & { cookies?: Record<string, string> };
+    const refreshToken = req.cookies?.refresh_token || body?.refreshToken;
     if (!refreshToken) {
       this.clearAuthCookies(res);
       throw new UnauthorizedException('Token de refresco no proporcionado');
     }
-    const tokens = await this.authService.refreshTokens(refreshToken);
+    const tokens = await this.authService.refreshTokens(refreshToken, this.getSessionContext(req));
     this.setAuthCookies(res, tokens);
     return { message: 'Tokens actualizados' };
   }
@@ -113,14 +127,27 @@ export class AuthController {
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async changePassword(@CurrentUser() user: CurrentUserData, @Body() dto: ChangePasswordDto) {
+  async changePassword(
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: ChangePasswordDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     await this.usersService.changePassword(user.id, dto.currentPassword, dto.newPassword);
+    await this.authService.revokeUserSessions(user.id);
+    this.clearAuthCookies(res);
     return { message: 'Contraseña actualizada correctamente' };
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@Res({ passthrough: true }) res: Response) {
+  async logout(@Res({ passthrough: true }) res: Response, @Body() body?: RefreshTokenDto) {
+    const req = res.req as Request & { cookies?: Record<string, string> };
+    const refreshToken = req.cookies?.refresh_token || body?.refreshToken;
+
+    if (refreshToken) {
+      await this.authService.revokeByRefreshToken(refreshToken);
+    }
+
     this.clearAuthCookies(res);
     return { message: 'Sesión cerrada' };
   }

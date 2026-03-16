@@ -7,8 +7,8 @@ export function validateRut(rut: string): { valid: boolean; formatted: string | 
     return { valid: false, formatted: null };
   }
 
-  // Remove dots and hyphens, convert to uppercase
-  const cleanRut = rut.replace(/[.\-]/g, '').toUpperCase();
+  // Remove dots, hyphens, and spaces, then convert to uppercase
+  const cleanRut = rut.replace(/[.\-\s]/g, '').toUpperCase();
 
   // Check minimum length
   if (cleanRut.length < 2) {

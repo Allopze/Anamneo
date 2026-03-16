@@ -10,9 +10,9 @@ export default function DashboardError({
   reset: () => void;
 }) {
   return (
-    <div className="text-center py-16">
-      <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-        <span className="text-2xl">⚠️</span>
+    <div className="status-card mx-auto my-12">
+      <div className="status-icon h-16 w-16 bg-red-100">
+        <span className="text-2xl font-semibold text-red-600">!</span>
       </div>
       <h2 className="text-xl font-bold text-slate-900 mb-2">Ocurrió un error</h2>
       <p className="text-slate-600 mb-6 max-w-sm mx-auto">

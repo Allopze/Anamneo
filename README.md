@@ -64,13 +64,79 @@ Sistema de gestión de fichas clínicas para atención médica.
 3. **Ejecutar migraciones y seed (primera vez):**
 
    ```bash
-   docker-compose exec backend npx prisma db push
+   docker-compose exec backend npm run prisma:migrate:prod
    docker-compose exec backend npm run prisma:seed
    ```
 
 4. **Acceder a la aplicación:**
    - Frontend: http://localhost:5555
    - API: http://localhost:4444/api
+
+## Operacion SQLite en Produccion
+
+Cuando se mantiene SQLite en produccion, aplicar esta base operativa:
+
+1. Usar ruta persistente de base de datos (por ejemplo con volumen Docker):
+
+   ```env
+   DATABASE_URL=file:./data/prod.db
+   ALLOW_SQLITE_IN_PRODUCTION=true
+   SQLITE_SYNCHRONOUS=NORMAL
+   SQLITE_BUSY_TIMEOUT_MS=5000
+   SQLITE_WAL_AUTOCHECKPOINT_PAGES=1000
+   SQLITE_BACKUP_DIR=/app/data/backups
+   SQLITE_BACKUP_RETENTION_DAYS=14
+   SQLITE_BACKUP_MAX_AGE_HOURS=24
+   SQLITE_WAL_WARN_SIZE_MB=128
+   SQLITE_RESTORE_DRILL_FREQUENCY_DAYS=7
+   SQLITE_NOTIFY_POLICY=on-failure
+   SQLITE_ALERT_SERVICE_NAME=anamneo-backend
+   SQLITE_ALERT_WEBHOOK_URL=https://tu-endpoint-alertas
+   ```
+
+2. Ejecutar respaldo consistente de SQLite:
+
+   ```bash
+   npm run db:backup
+   ```
+
+3. Ejecutar simulacro de restore (sin tocar la DB activa):
+
+   ```bash
+   npm run db:restore:drill
+   ```
+
+4. Verificar monitoreo operativo (falla con codigo != 0 en modo estricto):
+
+   ```bash
+   npm run db:monitor
+   ```
+
+5. Endpoints operativos de salud:
+   - `GET /api/health` valida conectividad DB para readiness.
+   - `GET /api/health/sqlite` expone estado WAL/backup y warnings operativos.
+
+6. Ejecutar runner unificado (backup + restore drill por cadencia + monitor estricto + alerta webhook opcional):
+
+   ```bash
+   npm run db:ops
+   ```
+
+7. Verificacion rapida (solo monitor estricto con alerta en falla):
+
+   ```bash
+   npm run db:ops:monitor
+   ```
+
+### Ejemplo de cron (host o job scheduler)
+
+```cron
+# Ciclo operacional cada 6 horas (backup + drill segun cadencia + monitor + webhook si aplica)
+0 */6 * * * cd /ruta/pacientes && npm run db:ops >> /var/log/anamneo-sqlite-ops.log 2>&1
+
+# Monitor cada 10 minutos para deteccion temprana de degradacion
+*/10 * * * * cd /ruta/pacientes && npm run db:ops:monitor >> /var/log/anamneo-sqlite-monitor.log 2>&1
+```
 
 ## Desarrollo Local
 
@@ -84,7 +150,7 @@ cp .env.example .env
 # Editar .env con tus secretos JWT y CORS reales
 # DATABASE_URL debe usar formato file:... (SQLite)
 npm --prefix backend run prisma:generate
-npm --prefix backend exec prisma db push
+npm --prefix backend run prisma:migrate
 npm --prefix backend run prisma:seed
 npm --prefix backend run start:dev
 ```
@@ -132,6 +198,19 @@ pacientes/
 - ✅ Vista de ficha clínica para impresión
 - ✅ Control de acceso por roles
 - ✅ Auditoría de cambios
+- ✅ Seguimientos clínicos accionables por paciente y atención
+- ✅ Problemas clínicos persistentes y revisión médico/asistente
+- ✅ Órdenes estructuradas para medicamentos, exámenes y derivaciones
+- ✅ Adjuntos enlazados a exámenes o derivaciones estructuradas
+- ✅ Tendencias clínicas básicas y resumen longitudinal del paciente
+- ✅ Bandeja dedicada de seguimientos para pendientes y atrasados
+- ✅ Dictado por voz y resumen clínico reutilizable
+
+## Operacion y Release
+
+- Checklist de salida: [RELEASE_CHECKLIST.md](/home/allopze/dev/pacientes/RELEASE_CHECKLIST.md)
+- Deploy Prisma + SQLite existente: [PRISMA_SQLITE_DEPLOY.md](/home/allopze/dev/pacientes/PRISMA_SQLITE_DEPLOY.md)
+- Roadmap de afinaciones clinicas: [TODO_FUNCIONALIDADES_MEDICAS.md](/home/allopze/dev/pacientes/TODO_FUNCIONALIDADES_MEDICAS.md)
 
 ## Licencia
 

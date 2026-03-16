@@ -18,6 +18,9 @@ import { CreatePatientQuickDto } from './dto/create-patient-quick.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { UpdatePatientAdminDto } from './dto/update-patient-admin.dto';
 import { UpdatePatientHistoryDto } from './dto/update-patient-history.dto';
+import { UpsertPatientProblemDto } from './dto/upsert-patient-problem.dto';
+import { UpsertPatientTaskDto } from './dto/upsert-patient-task.dto';
+import { UpdatePatientTaskStatusDto } from './dto/update-patient-task-status.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
@@ -78,6 +81,26 @@ export class PatientsController {
     });
   }
 
+  @Get('tasks')
+  findTasks(
+    @CurrentUser() user: CurrentUserData,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('type') type?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('overdueOnly') overdueOnly?: string,
+  ) {
+    return this.patientsService.findTasks(user, {
+      search,
+      status,
+      type,
+      page: page || 1,
+      limit: limit || 20,
+      overdueOnly: overdueOnly === 'true',
+    });
+  }
+
   @Get(':id')
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
@@ -115,6 +138,46 @@ export class PatientsController {
     return this.patientsService.updateHistory(user, id, updateHistoryDto);
   }
 
+  @Post(':id/problems')
+  @Roles('MEDICO', 'ASISTENTE')
+  createProblem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpsertPatientProblemDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.patientsService.createProblem(user, id, dto);
+  }
+
+  @Put('problems/:problemId')
+  @Roles('MEDICO', 'ASISTENTE')
+  updateProblem(
+    @Param('problemId', ParseUUIDPipe) problemId: string,
+    @Body() dto: Partial<UpsertPatientProblemDto>,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.patientsService.updateProblem(user, problemId, dto);
+  }
+
+  @Post(':id/tasks')
+  @Roles('MEDICO', 'ASISTENTE')
+  createTask(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpsertPatientTaskDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.patientsService.createTask(user, id, dto);
+  }
+
+  @Put('tasks/:taskId')
+  @Roles('MEDICO', 'ASISTENTE')
+  updateTaskStatus(
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Body() dto: UpdatePatientTaskStatusDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.patientsService.updateTaskStatus(user, taskId, dto);
+  }
+
   @Delete(':id')
   @Roles('MEDICO')
   remove(
@@ -122,5 +185,14 @@ export class PatientsController {
     @CurrentUser('id') userId: string,
   ) {
     return this.patientsService.remove(id, userId);
+  }
+
+  @Post(':id/restore')
+  @Roles('MEDICO')
+  restore(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.patientsService.restore(id, userId);
   }
 }

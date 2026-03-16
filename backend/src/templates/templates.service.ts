@@ -1,6 +1,44 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+const DEFAULT_TEMPLATE_PACK = [
+  {
+    name: 'Control crónico breve',
+    category: 'CONTROL_CRONICO',
+    sectionKey: 'ANAMNESIS_PROXIMA',
+    content:
+      'Paciente en control crónico. Refiere adherencia parcial/completa al tratamiento. Sin efectos adversos relevantes. Evaluar metas, adherencia y necesidad de ajustes.',
+  },
+  {
+    name: 'Plan de seguimiento estándar',
+    category: 'GENERAL',
+    sectionKey: 'RESPUESTA_TRATAMIENTO',
+    content:
+      'Control en 2 a 4 semanas según evolución. Reconsultar antes en caso de empeoramiento, fiebre persistente, dolor progresivo o aparición de signos de alarma.',
+  },
+  {
+    name: 'Derivación a especialista',
+    category: 'DERIVACION',
+    sectionKey: 'TRATAMIENTO',
+    content:
+      'Se deriva a especialista para evaluación complementaria. Adjuntar antecedentes clínicos relevantes, tratamientos previos y exámenes disponibles.',
+  },
+  {
+    name: 'Observación clínica breve',
+    category: 'GENERAL',
+    sectionKey: 'OBSERVACIONES',
+    content:
+      'Paciente comprende indicaciones y signos de alarma. Se explican riesgos, beneficios y plan de seguimiento.',
+  },
+  {
+    name: 'SOAP breve',
+    category: 'SOAP',
+    sectionKey: 'OBSERVACIONES',
+    content:
+      'S: \nO: \nA: \nP: ',
+  },
+];
+
 @Injectable()
 export class TemplatesService {
   constructor(private prisma: PrismaService) {}
@@ -35,5 +73,30 @@ export class TemplatesService {
     if (template.medicoId !== medicoId) throw new ForbiddenException('No tiene permisos para eliminar esta plantilla');
 
     return this.prisma.textTemplate.delete({ where: { id } });
+  }
+
+  async installDefaultPack(medicoId: string) {
+    const existing = await this.prisma.textTemplate.findMany({
+      where: { medicoId },
+      select: { name: true, sectionKey: true },
+    });
+
+    const existingKeys = new Set(existing.map((item) => `${item.name}::${item.sectionKey || ''}`));
+    const toCreate = DEFAULT_TEMPLATE_PACK.filter(
+      (template) => !existingKeys.has(`${template.name}::${template.sectionKey || ''}`),
+    );
+
+    if (toCreate.length === 0) {
+      return { created: 0 };
+    }
+
+    await this.prisma.textTemplate.createMany({
+      data: toCreate.map((template) => ({
+        medicoId,
+        ...template,
+      })),
+    });
+
+    return { created: toCreate.length };
   }
 }

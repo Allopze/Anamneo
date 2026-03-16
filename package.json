@@ -14,6 +14,11 @@
     "db:migrate": "npm --prefix backend run prisma:migrate",
     "db:seed": "npm --prefix backend run prisma:seed",
     "db:reset": "npm --prefix backend run db:reset",
+    "db:backup": "npm --prefix backend run db:sqlite:backup",
+    "db:restore:drill": "npm --prefix backend run db:sqlite:restore:drill",
+    "db:monitor": "npm --prefix backend run db:sqlite:monitor",
+    "db:ops": "npm --prefix backend run db:sqlite:ops",
+    "db:ops:monitor": "npm --prefix backend run db:sqlite:ops:monitor",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f"

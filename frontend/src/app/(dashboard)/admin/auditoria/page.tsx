@@ -28,7 +28,7 @@ interface AdminUserRow {
 
 const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   CREATE: { label: 'Creación', color: 'bg-green-100 text-green-700' },
-  UPDATE: { label: 'Actualización', color: 'bg-blue-100 text-blue-700' },
+  UPDATE: { label: 'Actualización', color: 'bg-primary-100 text-primary-700' },
   DELETE: { label: 'Eliminación', color: 'bg-red-100 text-red-700' },
 };
 
@@ -106,14 +106,14 @@ export default function AuditoriaPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Registro de auditoría</h1>
-          <p className="text-slate-600">Historial de cambios en el sistema</p>
+          <h1 className="page-header-title">Registro de auditoría</h1>
+          <p className="page-header-description">Historial de cambios críticos y trazabilidad operativa del sistema.</p>
         </div>
       </div>
 
-      <div className="card mb-6">
+      <div className="filter-surface">
         <div className="flex items-center gap-2 mb-4">
           <FiFilter className="w-4 h-4 text-primary-600" />
           <h2 className="font-semibold text-slate-900">Filtros operativos</h2>
@@ -202,15 +202,14 @@ export default function AuditoriaPage() {
         </div>
       )}
 
-      {/* Activity Summary (7.1) */}
       {logs.length > 0 && (
         <div className="grid grid-cols-3 gap-4 mb-6">
           {(['CREATE', 'UPDATE', 'DELETE'] as const).map((action) => {
             const count = logs.filter((l) => l.action === action).length;
             const info = ACTION_LABELS[action];
             return (
-              <div key={action} className="card p-4 flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${info.color}`}>
+              <div key={action} className="metric-card flex items-center gap-3">
+                <div className={`metric-icon ${info.color}`}>
                   <span className="text-lg font-bold">{count}</span>
                 </div>
                 <div>
@@ -319,9 +318,12 @@ export default function AuditoriaPage() {
             )}
           </>
         ) : (
-          <div className="p-12 text-center">
-            <FiShield className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-500">No hay registros de auditoría</p>
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <FiShield className="w-10 h-10 text-primary-400" />
+            </div>
+            <h3 className="empty-state-title">Sin registros de auditoría</h3>
+            <p className="empty-state-description">No hay movimientos que coincidan con los filtros actuales.</p>
           </div>
         )}
       </div>

@@ -22,6 +22,16 @@ describe('AuthService', () => {
     role: 'MEDICO',
     isAdmin: false,
     active: true,
+    refreshTokenVersion: 1,
+  };
+
+  const mockSession = {
+    id: 'session-1',
+    userId: 'user-1',
+    tokenVersion: 1,
+    userAgent: null,
+    ipAddress: null,
+    revokedAt: null,
   };
 
   beforeEach(async () => {
@@ -31,6 +41,16 @@ describe('AuthService', () => {
       countActiveAdmins: jest.fn(),
       create: jest.fn(),
       findById: jest.fn(),
+      findAuthById: jest.fn().mockResolvedValue(mockUser),
+      rotateRefreshTokenVersion: jest.fn().mockResolvedValue(2),
+      createSession: jest.fn().mockResolvedValue(mockSession),
+      findActiveSessionById: jest.fn().mockResolvedValue(mockSession),
+      rotateSessionTokenVersion: jest.fn().mockResolvedValue({
+        ...mockSession,
+        tokenVersion: 2,
+      }),
+      revokeSessionById: jest.fn(),
+      revokeAllSessionsForUser: jest.fn(),
     };
 
     jwtService = {
@@ -181,8 +201,18 @@ describe('AuthService', () => {
 
   describe('refreshTokens', () => {
     it('should return new tokens for valid refresh token', async () => {
-      (jwtService.verify as jest.Mock).mockReturnValue({ sub: 'user-1' });
-      (usersService.findById as jest.Mock).mockResolvedValue(mockUser);
+      (jwtService.verify as jest.Mock).mockReturnValue({
+        sub: 'user-1',
+        rv: 1,
+        sid: 'session-1',
+        sv: 1,
+      });
+      (usersService.findAuthById as jest.Mock).mockResolvedValue(mockUser);
+      (usersService.findActiveSessionById as jest.Mock).mockResolvedValue(mockSession);
+      (usersService.rotateSessionTokenVersion as jest.Mock).mockResolvedValue({
+        ...mockSession,
+        tokenVersion: 2,
+      });
 
       const result = await service.refreshTokens('valid-refresh-token');
 

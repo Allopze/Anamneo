@@ -28,6 +28,12 @@ export class TemplatesController {
     return this.templatesService.create(medicoId, dto);
   }
 
+  @Post('install-defaults')
+  installDefaults(@CurrentUser() user: CurrentUserData) {
+    const medicoId = getEffectiveMedicoId(user);
+    return this.templatesService.installDefaultPack(medicoId);
+  }
+
   @Put(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,

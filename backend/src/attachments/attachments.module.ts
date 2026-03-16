@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { BadRequestException, Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { diskStorage } from 'multer';
@@ -6,6 +6,15 @@ import { v4 as uuid } from 'uuid';
 import { extname } from 'path';
 import { AttachmentsService } from './attachments.service';
 import { AttachmentsController } from './attachments.controller';
+
+const ALLOWED_MIMES = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+]);
+
+const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.gif']);
 
 @Module({
   imports: [
@@ -24,16 +33,11 @@ import { AttachmentsController } from './attachments.controller';
           fileSize: configService.get<number>('UPLOAD_MAX_SIZE', 10 * 1024 * 1024), // 10MB default
         },
         fileFilter: (req, file, cb) => {
-          const allowedMimes = [
-            'application/pdf',
-            'image/jpeg',
-            'image/png',
-            'image/gif',
-          ];
-          if (allowedMimes.includes(file.mimetype)) {
+          const extension = extname(file.originalname || '').toLowerCase();
+          if (ALLOWED_MIMES.has(file.mimetype) && ALLOWED_EXTENSIONS.has(extension)) {
             cb(null, true);
           } else {
-            cb(new Error('Tipo de archivo no permitido'), false);
+            cb(new BadRequestException('Tipo de archivo no permitido'), false);
           }
         },
       }),

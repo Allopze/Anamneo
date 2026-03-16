@@ -14,6 +14,7 @@ import { EncountersModule } from '../src/encounters/encounters.module';
 import { ConditionsModule } from '../src/conditions/conditions.module';
 import { AttachmentsModule } from '../src/attachments/attachments.module';
 import { AuditModule } from '../src/audit/audit.module';
+import { SettingsModule } from '../src/settings/settings.module';
 import { HealthController } from '../src/health.controller';
 
 // ── Test database setup ─────────────────────────────────────────────
@@ -48,12 +49,16 @@ describe('Application E2E Tests', () => {
   let app: INestApplication;
   let httpServer: any;
   let testDatabaseFilePath: string | null = null;
+  let testSchemaSqlPath: string | null = null;
+  let testUploadsDirectory: string | null = null;
 
   // Stored IDs used across tests
-  let adminUserId: string;
   let medicoUserId: string;
   let patientId: string;
   let encounterId: string;
+  let patientProblemId: string;
+  let patientTaskId: string;
+  let attachmentId: string;
 
   // Cookie jars for different users
   let adminCookies: string[] = [];
@@ -62,9 +67,15 @@ describe('Application E2E Tests', () => {
   beforeAll(async () => {
     const testDatabaseUrl = resolveBaseTestDatabaseUrl();
     testDatabaseFilePath = resolveSqliteFilePath(testDatabaseUrl);
+    testSchemaSqlPath = path.join(__dirname, `schema-e2e-${Date.now()}.sql`);
+    testUploadsDirectory = path.join(__dirname, `uploads-e2e-${Date.now()}`);
 
     if (testDatabaseFilePath && fs.existsSync(testDatabaseFilePath)) {
       fs.rmSync(testDatabaseFilePath, { force: true });
+    }
+
+    if (testUploadsDirectory) {
+      fs.mkdirSync(testUploadsDirectory, { recursive: true });
     }
 
     // Set env vars for test
@@ -74,6 +85,7 @@ describe('Application E2E Tests', () => {
     process.env.JWT_EXPIRES_IN = '15m';
     process.env.JWT_REFRESH_EXPIRES_IN = '7d';
     process.env.NODE_ENV = 'test';
+    process.env.UPLOAD_DEST = testUploadsDirectory;
 
     execSync('npx prisma generate', {
       cwd: path.join(__dirname, '..'),
@@ -81,8 +93,16 @@ describe('Application E2E Tests', () => {
       stdio: 'pipe',
     });
 
-    // Push schema to test DB
-    execSync('npx prisma db push --skip-generate --accept-data-loss', {
+    // Build SQL from schema and execute it against the temporary SQLite DB.
+    const schemaSql = execSync('npx prisma migrate diff --from-empty --to-schema-datamodel ./prisma/schema.prisma --script', {
+      cwd: path.join(__dirname, '..'),
+      env: { ...process.env, DATABASE_URL: testDatabaseUrl },
+      stdio: 'pipe',
+    }).toString();
+
+    fs.writeFileSync(testSchemaSqlPath, schemaSql, 'utf8');
+
+    execSync(`npx prisma db execute --file "${testSchemaSqlPath}" --schema ./prisma/schema.prisma`, {
       cwd: path.join(__dirname, '..'),
       env: { ...process.env, DATABASE_URL: testDatabaseUrl },
       stdio: 'pipe',
@@ -99,6 +119,7 @@ describe('Application E2E Tests', () => {
         ConditionsModule,
         AttachmentsModule,
         AuditModule,
+        SettingsModule,
       ],
       controllers: [HealthController],
     }).compile();
@@ -132,6 +153,14 @@ describe('Application E2E Tests', () => {
         }
       }
     }
+
+    if (testSchemaSqlPath && fs.existsSync(testSchemaSqlPath)) {
+      fs.rmSync(testSchemaSqlPath, { force: true });
+    }
+
+    if (testUploadsDirectory && fs.existsSync(testUploadsDirectory)) {
+      fs.rmSync(testUploadsDirectory, { recursive: true, force: true });
+    }
   });
 
   // ── Helpers ─────────────────────────────────────────────────────────
@@ -157,6 +186,14 @@ describe('Application E2E Tests', () => {
       const res = await req().get('/api/health').expect(200);
       expect(res.body.status).toBe('ok');
     });
+
+    it('GET /api/health/sqlite → 200 with operational payload', async () => {
+      const res = await req().get('/api/health/sqlite').expect(200);
+      expect(['ok', 'degraded']).toContain(res.body.status);
+      expect(res.body.database?.status).toBe('ok');
+      expect(res.body.sqlite).toBeDefined();
+      expect(typeof res.body.sqlite.enabled).toBe('boolean');
+    });
   });
 
   // ── 2. Auth: Bootstrap ──────────────────────────────────────────────
@@ -179,7 +216,7 @@ describe('Application E2E Tests', () => {
           email: 'admin@test.com',
           password: 'Admin123',
           nombre: 'Admin Test',
-          role: 'MEDICO',
+          role: 'ADMIN',
         })
         .expect(201);
 
@@ -196,7 +233,6 @@ describe('Application E2E Tests', () => {
 
       expect(res.body.email).toBe('admin@test.com');
       expect(res.body.isAdmin).toBe(true);
-      adminUserId = res.body.id;
     });
   });
 
@@ -376,6 +412,40 @@ describe('Application E2E Tests', () => {
 
       expect(res.body.data.length).toBe(1);
     });
+
+    it('DELETE /api/patients/:id → archive patient', async () => {
+      const res = await req()
+        .delete(`/api/patients/${patientId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(res.body.message).toBe('Paciente archivado correctamente');
+    });
+
+    it('GET /api/patients/:id → 404 when patient is archived', async () => {
+      await req()
+        .get(`/api/patients/${patientId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(404);
+    });
+
+    it('POST /api/patients/:id/restore → restore archived patient', async () => {
+      const res = await req()
+        .post(`/api/patients/${patientId}/restore`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(201);
+
+      expect(res.body.message).toBe('Paciente restaurado correctamente');
+    });
+
+    it('GET /api/patients/:id → available again after restore', async () => {
+      const res = await req()
+        .get(`/api/patients/${patientId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(res.body.id).toBe(patientId);
+    });
   });
 
   // ── 9. Encounters ───────────────────────────────────────────────────
@@ -424,6 +494,189 @@ describe('Application E2E Tests', () => {
 
       expect(res.body.sectionKey).toBe('MOTIVO_CONSULTA');
       expect(res.body.completed).toBe(true);
+    });
+
+    it('PUT /api/encounters/:id/sections/TRATAMIENTO → store structured exam orders', async () => {
+      const res = await req()
+        .put(`/api/encounters/${encounterId}/sections/TRATAMIENTO`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: {
+            plan: 'Solicitar examenes y reevaluar.',
+            examenesEstructurados: [
+              {
+                id: 'exam-hemograma',
+                nombre: 'Hemograma completo',
+                indicacion: 'Control de anemia',
+                estado: 'PENDIENTE',
+              },
+            ],
+          },
+          completed: true,
+        })
+        .expect(200);
+
+      expect(res.body.sectionKey).toBe('TRATAMIENTO');
+      expect(res.body.completed).toBe(true);
+    });
+
+    it('POST /api/patients/:id/problems → create patient problem', async () => {
+      const res = await req()
+        .post(`/api/patients/${patientId}/problems`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          label: 'Hipertension arterial',
+          notes: 'Control pendiente',
+          status: 'ACTIVO',
+          encounterId,
+        })
+        .expect(201);
+
+      expect(res.body.label).toBe('Hipertension arterial');
+      patientProblemId = res.body.id;
+    });
+
+    it('PUT /api/patients/problems/:problemId → resolve patient problem', async () => {
+      const res = await req()
+        .put(`/api/patients/problems/${patientProblemId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          status: 'RESUELTO',
+        })
+        .expect(200);
+
+      expect(res.body.status).toBe('RESUELTO');
+    });
+
+    it('POST /api/patients/:id/tasks → create patient task', async () => {
+      const res = await req()
+        .post(`/api/patients/${patientId}/tasks`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          title: 'Revisar examen de control',
+          details: 'Llamar al paciente cuando llegue resultado',
+          type: 'EXAMEN',
+          dueDate: '2026-03-20',
+          encounterId,
+        })
+        .expect(201);
+
+      expect(res.body.title).toBe('Revisar examen de control');
+      patientTaskId = res.body.id;
+    });
+
+    it('GET /api/patients/tasks → list task inbox', async () => {
+      const res = await req()
+        .get('/api/patients/tasks?search=Revisar')
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(res.body.data.some((task: any) => task.id === patientTaskId)).toBe(true);
+    });
+
+    it('PUT /api/patients/tasks/:taskId → update patient task', async () => {
+      const res = await req()
+        .put(`/api/patients/tasks/${patientTaskId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          title: 'Revisar examen de control actualizado',
+          status: 'EN_PROCESO',
+        })
+        .expect(200);
+
+      expect(res.body.title).toBe('Revisar examen de control actualizado');
+      expect(res.body.status).toBe('EN_PROCESO');
+    });
+
+    it('POST /api/attachments/encounter/:id → upload exam result linked to structured order', async () => {
+      const pdfBuffer = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF');
+      const res = await req()
+        .post(`/api/attachments/encounter/${encounterId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .field('category', 'EXAMEN')
+        .field('description', 'Resultado recibido por laboratorio')
+        .field('linkedOrderType', 'EXAMEN')
+        .field('linkedOrderId', 'exam-hemograma')
+        .attach('file', pdfBuffer, {
+          filename: 'hemograma.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201);
+
+      expect(res.body.originalName).toBe('hemograma.pdf');
+      expect(res.body.linkedOrderType).toBe('EXAMEN');
+      expect(res.body.linkedOrderId).toBe('exam-hemograma');
+      expect(res.body.linkedOrderLabel).toBe('Hemograma completo');
+      attachmentId = res.body.id;
+    });
+
+    it('GET /api/attachments/encounter/:id → returns linked attachment metadata', async () => {
+      const res = await req()
+        .get(`/api/attachments/encounter/${encounterId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      const attachment = res.body.find((item: any) => item.id === attachmentId);
+      expect(attachment).toBeDefined();
+      expect(attachment.linkedOrderType).toBe('EXAMEN');
+      expect(attachment.linkedOrderLabel).toBe('Hemograma completo');
+    });
+
+    it('PUT /api/encounters/:id/review-status → update review status', async () => {
+      const res = await req()
+        .put(`/api/encounters/${encounterId}/review-status`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          reviewStatus: 'REVISADA_POR_MEDICO',
+        })
+        .expect(200);
+
+      expect(res.body.reviewStatus).toBe('REVISADA_POR_MEDICO');
+    });
+
+    it('GET /api/encounters?reviewStatus=REVISADA_POR_MEDICO → filter encounters by review status', async () => {
+      const res = await req()
+        .get('/api/encounters?reviewStatus=REVISADA_POR_MEDICO')
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(res.body.data.some((item: any) => item.id === encounterId)).toBe(true);
+    });
+
+    it('GET /api/encounters/:id/export/document/receta → returns PDF', async () => {
+      const res = await req()
+        .get(`/api/encounters/${encounterId}/export/document/receta`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(res.headers['content-type']).toContain('application/pdf');
+    });
+
+    it('GET /api/encounters/:id/export/document/ordenes → returns PDF', async () => {
+      const res = await req()
+        .get(`/api/encounters/${encounterId}/export/document/ordenes`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(res.headers['content-type']).toContain('application/pdf');
+    });
+
+    it('GET /api/encounters/:id/export/document/derivacion → returns PDF', async () => {
+      const res = await req()
+        .get(`/api/encounters/${encounterId}/export/document/derivacion`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(res.headers['content-type']).toContain('application/pdf');
+    });
+
+    it('POST /api/encounters/:id/complete → 400 when required sections are missing', async () => {
+      const res = await req()
+        .post(`/api/encounters/${encounterId}/complete`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(400);
+
+      expect(String(res.body.message)).toContain('secciones obligatorias');
     });
 
     it('PUT /api/encounters/:id/sections/INVALID → 400', async () => {
@@ -478,6 +731,20 @@ describe('Application E2E Tests', () => {
     it('GET /api/users → non-admin gets 403', async () => {
       await req()
         .get('/api/users')
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(403);
+    });
+
+    it('GET /api/settings → admin can read settings', async () => {
+      await req()
+        .get('/api/settings')
+        .set('Cookie', cookieHeader(adminCookies))
+        .expect(200);
+    });
+
+    it('GET /api/settings → non-admin gets 403', async () => {
+      await req()
+        .get('/api/settings')
         .set('Cookie', cookieHeader(medicoCookies))
         .expect(403);
     });

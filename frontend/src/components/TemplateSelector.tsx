@@ -47,9 +47,13 @@ export default function TemplateSelector({ sectionKey, onInsert }: TemplateSelec
     staleTime: 60_000,
   });
 
-  const filtered = templates?.filter(
-    (t) => !sectionKey || !t.sectionKey || t.sectionKey === sectionKey,
-  ) || [];
+  const filtered = useMemo(
+    () =>
+      templates?.filter(
+        (t) => !sectionKey || !t.sectionKey || t.sectionKey === sectionKey,
+      ) || [],
+    [sectionKey, templates],
+  );
 
   const previewTemplate = useMemo(() => {
     if (filtered.length === 0) return null;

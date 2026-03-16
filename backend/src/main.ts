@@ -41,6 +41,14 @@ function assertSafeConfig(configService: ConfigService) {
   if (!jwtRefreshSecret || placeholderValues.has(jwtRefreshSecret)) {
     throw new Error('JWT_REFRESH_SECRET must be configured with a non-placeholder value');
   }
+
+  if (jwtSecret === jwtRefreshSecret) {
+    throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be different values');
+  }
+
+  if (isProduction && (jwtSecret.length < 32 || jwtRefreshSecret.length < 32)) {
+    throw new Error('JWT secrets must be at least 32 characters in production');
+  }
 }
 
 async function bootstrap() {

@@ -3,6 +3,7 @@
 import { FiCheck } from 'react-icons/fi';
 import clsx from 'clsx';
 import { RevisionSistemasData } from '@/types';
+import { SectionBlock, SectionIntro } from '@/components/sections/SectionPrimitives';
 
 interface Props {
   data: RevisionSistemasData;
@@ -45,63 +46,63 @@ export default function RevisionSistemasSection({ data, onChange, readOnly }: Pr
   };
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-slate-600 mb-4">
-        Marque los sistemas con hallazgos positivos y agregue notas relevantes.
-      </p>
+    <div className="space-y-5">
+      <SectionIntro description="Marca los sistemas con hallazgos positivos y deja una nota breve solo cuando aporte contexto clínico." />
 
-      {SYSTEMS.map(({ key, label, examples }) => {
-        const systemData = data[key as keyof RevisionSistemasData] || { checked: false, notas: '' };
-        
-        return (
-          <div
-            key={key}
-            className={clsx(
-              'p-4 rounded-lg border transition-colors',
-              systemData.checked
-                ? 'border-primary-300 bg-primary-50'
-                : 'border-slate-200 bg-white'
-            )}
-          >
-            <div className="flex items-start gap-3">
-              <button
-                type="button"
-                onClick={() => handleToggle(key)}
-                disabled={readOnly}
-                role="checkbox"
-                aria-checked={systemData.checked}
-                aria-label={label}
+      <SectionBlock title="Revisión por sistemas" description="Cada sistema se activa solo si hay hallazgos o síntomas relevantes.">
+        <div className="space-y-3">
+          {SYSTEMS.map(({ key, label, examples }) => {
+            const systemData = data[key as keyof RevisionSistemasData] || { checked: false, notas: '' };
+
+            return (
+              <div
+                key={key}
                 className={clsx(
-                  'w-6 h-6 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors',
-                  systemData.checked
-                    ? 'bg-primary-500 border-primary-500 text-white'
-                    : 'border-slate-300 hover:border-primary-400'
+                  'section-item-card',
+                  systemData.checked && 'section-item-card-selected'
                 )}
               >
-                {systemData.checked && <FiCheck className="w-4 h-4" aria-hidden="true" />}
-              </button>
-              
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-slate-900">{label}</span>
-                  <span className="text-xs text-slate-500">{examples}</span>
-                </div>
-                
-                {systemData.checked && (
-                  <textarea
-                    value={systemData.notas || ''}
-                    onChange={(e) => handleNotasChange(key, e.target.value)}
+                <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleToggle(key)}
                     disabled={readOnly}
-                    rows={2}
-                    className="form-input mt-2 resize-none"
-                    placeholder="Describa los hallazgos..."
-                  />
-                )}
+                    role="checkbox"
+                    aria-checked={systemData.checked}
+                    aria-label={label}
+                    className={clsx(
+                      'mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded border-2 transition-colors',
+                      systemData.checked
+                        ? 'border-primary-500 bg-primary-500 text-white'
+                        : 'border-slate-300 hover:border-primary-400'
+                    )}
+                  >
+                    {systemData.checked && <FiCheck className="w-4 h-4" aria-hidden="true" />}
+                  </button>
+
+                  <div className="flex-1">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                      <span className="font-medium text-slate-900">{label}</span>
+                      <span className="text-xs text-slate-500">{examples}</span>
+                    </div>
+
+                    {systemData.checked && (
+                      <textarea
+                        value={systemData.notas || ''}
+                        onChange={(e) => handleNotasChange(key, e.target.value)}
+                        disabled={readOnly}
+                        rows={2}
+                        className="form-input mt-3 resize-none"
+                        placeholder="Describa los hallazgos..."
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      </SectionBlock>
     </div>
   );
 }

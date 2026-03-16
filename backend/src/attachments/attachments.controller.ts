@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Post,
@@ -30,12 +31,18 @@ export class AttachmentsController {
   upload(
     @Param('encounterId', ParseUUIDPipe) encounterId: string,
     @UploadedFile() file: Express.Multer.File,
+    @Body() body: {
+      category?: string;
+      description?: string;
+      linkedOrderType?: string;
+      linkedOrderId?: string;
+    },
     @CurrentUser() user: CurrentUserData,
   ) {
     if (!file) {
       throw new BadRequestException('Debe adjuntar un archivo');
     }
-    return this.attachmentsService.create(encounterId, file, user);
+    return this.attachmentsService.create(encounterId, file, user, body);
   }
 
   @Get('encounter/:encounterId')
@@ -54,8 +61,9 @@ export class AttachmentsController {
   ) {
     const file = await this.attachmentsService.getFile(id, user);
     res.setHeader('Content-Type', file.mime);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
-    res.sendFile(file.path, { root: '.' });
+    res.sendFile(file.path);
   }
 
   @Delete(':id')

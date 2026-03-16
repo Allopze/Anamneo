@@ -10,8 +10,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateEncounterDto } from './dto/create-encounter.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
-import { SectionKey, EncounterStatus, Role } from '../common/types';
+import { SectionKey, EncounterStatus } from '../common/types';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
+import { parseStoredJson } from '../common/utils/encounter-sections';
 
 // Section order for validation
 const SECTION_ORDER: SectionKey[] = [
@@ -40,12 +41,62 @@ const SECTION_LABELS: Record<SectionKey, string> = {
   OBSERVACIONES: 'Observaciones',
 };
 
+const REQUIRED_COMPLETION_SECTIONS: SectionKey[] = [
+  'IDENTIFICACION',
+  'MOTIVO_CONSULTA',
+  'EXAMEN_FISICO',
+  'SOSPECHA_DIAGNOSTICA',
+  'TRATAMIENTO',
+];
+
+const REQUIRED_SEMANTIC_SECTIONS: SectionKey[] = [
+  'MOTIVO_CONSULTA',
+  'EXAMEN_FISICO',
+  'SOSPECHA_DIAGNOSTICA',
+  'TRATAMIENTO',
+];
+
+function parseSectionData(rawData: unknown): unknown {
+  return parseStoredJson(rawData, null);
+}
+
+function hasMeaningfulContent(value: unknown): boolean {
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.some((item) => hasMeaningfulContent(item));
+  }
+
+  if (typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).some((item) => hasMeaningfulContent(item));
+  }
+
+  return false;
+}
+
 @Injectable()
 export class EncountersService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
   ) {}
+
+  private formatTask(task: any) {
+    return {
+      ...task,
+      createdBy: task.createdBy ? { id: task.createdBy.id, nombre: task.createdBy.nombre } : undefined,
+    };
+  }
 
   async create(patientId: string, createDto: CreateEncounterDto, user: RequestUser) {
     let result:
@@ -191,6 +242,7 @@ export class EncountersService {
     user: RequestUser,
     status: EncounterStatus | undefined,
     search: string | undefined,
+    reviewStatus: string | undefined,
     page = 1,
     limit = 15,
   ) {
@@ -206,6 +258,10 @@ export class EncountersService {
 
     if (status && ['EN_PROGRESO', 'COMPLETADO', 'CANCELADO'].includes(status)) {
       where.status = status;
+    }
+
+    if (reviewStatus && ['NO_REQUIERE_REVISION', 'LISTA_PARA_REVISION', 'REVISADA_POR_MEDICO'].includes(reviewStatus)) {
+      where.reviewStatus = reviewStatus;
     }
 
     const trimmedSearch = search?.trim();
@@ -225,6 +281,9 @@ export class EncountersService {
         include: {
           patient: true,
           createdBy: {
+            select: { id: true, nombre: true },
+          },
+          reviewedBy: {
             select: { id: true, nombre: true },
           },
           sections: {
@@ -266,16 +325,36 @@ export class EncountersService {
           orderBy: { sectionKey: 'asc' },
         },
         patient: {
-          include: { history: true },
+          include: {
+            history: true,
+            problems: {
+              orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
+            },
+            tasks: {
+              orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
+              include: {
+                createdBy: { select: { id: true, nombre: true } },
+              },
+            },
+          },
         },
         createdBy: {
           select: { id: true, nombre: true, email: true },
+        },
+        reviewedBy: {
+          select: { id: true, nombre: true },
         },
         suggestions: {
           orderBy: { createdAt: 'desc' },
           take: 1,
         },
         attachments: true,
+        tasks: {
+          orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
+          include: {
+            createdBy: { select: { id: true, nombre: true } },
+          },
+        },
       },
     });
 
@@ -388,15 +467,34 @@ export class EncountersService {
       throw new ForbiddenException('No tiene permisos para completar esta atención');
     }
 
-    // Check all required sections are completed
-    const incompleteSections = encounter.sections.filter(
-      (s) => !s.completed && ['IDENTIFICACION', 'MOTIVO_CONSULTA'].includes(s.sectionKey),
-    );
+    const sectionByKey = new Map(encounter.sections.map((section) => [section.sectionKey as SectionKey, section]));
+
+    const incompleteSections = REQUIRED_COMPLETION_SECTIONS.filter((key) => {
+      const section = sectionByKey.get(key);
+      return !section || !section.completed;
+    });
 
     if (incompleteSections.length > 0) {
       throw new BadRequestException(
         `Las siguientes secciones obligatorias no están completas: ${incompleteSections
-          .map((s) => SECTION_LABELS[s.sectionKey as SectionKey])
+          .map((key) => SECTION_LABELS[key])
+          .join(', ')}`,
+      );
+    }
+
+    const semanticallyIncompleteSections = REQUIRED_SEMANTIC_SECTIONS.filter((key) => {
+      const section = sectionByKey.get(key);
+      if (!section) {
+        return true;
+      }
+
+      return !hasMeaningfulContent(parseSectionData(section.data));
+    });
+
+    if (semanticallyIncompleteSections.length > 0) {
+      throw new BadRequestException(
+        `Las siguientes secciones obligatorias no tienen contenido clínico suficiente: ${semanticallyIncompleteSections
+          .map((key) => SECTION_LABELS[key])
           .join(', ')}`,
       );
     }
@@ -405,6 +503,9 @@ export class EncountersService {
       where: { id },
       data: {
         status: 'COMPLETADO',
+        reviewStatus: 'REVISADA_POR_MEDICO',
+        reviewedAt: new Date(),
+        reviewedById: userId,
         completedAt: new Date(),
         completedById: userId,
       },
@@ -412,6 +513,7 @@ export class EncountersService {
         sections: true,
         patient: true,
         createdBy: { select: { id: true, nombre: true } },
+        reviewedBy: { select: { id: true, nombre: true } },
       },
     });
 
@@ -443,6 +545,10 @@ export class EncountersService {
       where: { id },
       data: {
         status: 'EN_PROGRESO',
+        reviewStatus: 'NO_REQUIERE_REVISION',
+        reviewRequestedAt: null,
+        reviewedAt: null,
+        reviewedById: null,
         completedAt: null,
         completedById: null,
       },
@@ -450,6 +556,7 @@ export class EncountersService {
         sections: true,
         patient: true,
         createdBy: { select: { id: true, nombre: true } },
+        reviewedBy: { select: { id: true, nombre: true } },
       },
     });
 
@@ -494,8 +601,72 @@ export class EncountersService {
     return updated;
   }
 
+  async updateReviewStatus(
+    id: string,
+    user: RequestUser,
+    reviewStatus: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO',
+    note?: string,
+  ) {
+    const encounter = await this.prisma.encounter.findUnique({
+      where: { id },
+      include: {
+        patient: true,
+      },
+    });
+
+    if (!encounter) {
+      throw new NotFoundException('Atención no encontrada');
+    }
+
+    if (encounter.patient.medicoId !== getEffectiveMedicoId(user)) {
+      throw new ForbiddenException('No tiene permisos para actualizar la revisión de esta atención');
+    }
+
+    if (reviewStatus === 'REVISADA_POR_MEDICO' && user.role !== 'MEDICO') {
+      throw new ForbiddenException('Solo un médico puede marcar la atención como revisada');
+    }
+
+    if (reviewStatus === 'LISTA_PARA_REVISION' && user.role === 'MEDICO') {
+      throw new BadRequestException('La revisión por médico debe marcarse como revisada, no como pendiente');
+    }
+
+    const updated = await this.prisma.encounter.update({
+      where: { id },
+      data: {
+        reviewStatus,
+        reviewRequestedAt: reviewStatus === 'LISTA_PARA_REVISION' ? new Date() : null,
+        reviewedAt: reviewStatus === 'REVISADA_POR_MEDICO' ? new Date() : null,
+        reviewedById: reviewStatus === 'REVISADA_POR_MEDICO' ? user.id : null,
+      },
+      include: {
+        sections: true,
+        patient: true,
+        createdBy: { select: { id: true, nombre: true } },
+        reviewedBy: { select: { id: true, nombre: true } },
+        tasks: {
+          orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
+          include: { createdBy: { select: { id: true, nombre: true } } },
+        },
+      },
+    });
+
+    await this.auditService.log({
+      entityType: 'Encounter',
+      entityId: id,
+      userId: user.id,
+      action: 'UPDATE',
+      diff: {
+        reviewStatus,
+        note: note?.trim() || null,
+      },
+    });
+
+    return this.formatEncounter(updated);
+  }
+
   async getDashboard(user: RequestUser) {
     const medicoId = getEffectiveMedicoId(user);
+    const today = new Date();
 
     const where = medicoId
       ? {
@@ -506,10 +677,11 @@ export class EncountersService {
         }
       : {};
 
-    const [enProgreso, completado, cancelado, recent] = await Promise.all([
+    const [enProgreso, completado, cancelado, pendingReview, recent, upcomingTasks] = await Promise.all([
       this.prisma.encounter.count({ where: { ...where, status: 'EN_PROGRESO' } }),
       this.prisma.encounter.count({ where: { ...where, status: 'COMPLETADO' } }),
       this.prisma.encounter.count({ where: { ...where, status: 'CANCELADO' } }),
+      this.prisma.encounter.count({ where: { ...where, reviewStatus: 'LISTA_PARA_REVISION' } }),
       this.prisma.encounter.findMany({
         where,
         take: 5,
@@ -520,10 +692,41 @@ export class EncountersService {
           sections: { select: { sectionKey: true, completed: true } },
         },
       }),
+      this.prisma.encounterTask.findMany({
+        where: {
+          patient: {
+            medicoId,
+            archivedAt: null,
+          },
+          status: {
+            in: ['PENDIENTE', 'EN_PROCESO'],
+          },
+        },
+        take: 6,
+        orderBy: [
+          { dueDate: 'asc' },
+          { createdAt: 'desc' },
+        ],
+        include: {
+          patient: {
+            select: { id: true, nombre: true, rut: true },
+          },
+          createdBy: {
+            select: { id: true, nombre: true },
+          },
+        },
+      }),
     ]);
 
     return {
-      counts: { enProgreso, completado, cancelado, total: enProgreso + completado + cancelado },
+      counts: {
+        enProgreso,
+        completado,
+        cancelado,
+        pendingReview,
+        upcomingTasks: upcomingTasks.length,
+        total: enProgreso + completado + cancelado,
+      },
       recent: recent.map((enc) => ({
         id: enc.id,
         patientId: enc.patientId,
@@ -538,6 +741,17 @@ export class EncountersService {
           total: enc.sections.length,
         },
       })),
+      upcomingTasks: upcomingTasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        type: task.type,
+        priority: task.priority,
+        status: task.status,
+        dueDate: task.dueDate,
+        isOverdue: Boolean(task.dueDate && task.dueDate < today),
+        patient: task.patient,
+        createdBy: task.createdBy,
+      })),
     };
   }
 
@@ -549,8 +763,18 @@ export class EncountersService {
 
     return {
       ...encounter,
+      patient: encounter.patient
+        ? {
+            ...encounter.patient,
+            history: encounter.patient.history,
+            problems: (encounter.patient.problems || []).map((problem: any) => ({ ...problem })),
+            tasks: (encounter.patient.tasks || []).map((task: any) => this.formatTask(task)),
+          }
+        : encounter.patient,
+      tasks: (encounter.tasks || []).map((task: any) => this.formatTask(task)),
       sections: sortedSections.map((section: any) => ({
         ...section,
+        data: parseSectionData(section.data) ?? {},
         label: SECTION_LABELS[section.sectionKey as SectionKey],
         order: SECTION_ORDER.indexOf(section.sectionKey as SectionKey),
       })),

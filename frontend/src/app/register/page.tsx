@@ -12,6 +12,8 @@ import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
 import { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiUserPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
+const REGISTER_DRAFT_KEY = 'anamneo:draft:register';
+
 type RegisterRole = 'ADMIN' | 'MEDICO' | 'ASISTENTE';
 
 const ROLE_OPTIONS: Record<RegisterRole, { label: string; description: string }> = {
@@ -59,7 +61,9 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
+    getValues,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
@@ -67,6 +71,51 @@ export default function RegisterPage() {
       role: 'MEDICO',
     },
   });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const rawDraft = window.sessionStorage.getItem(REGISTER_DRAFT_KEY);
+    if (!rawDraft) {
+      return;
+    }
+
+    try {
+      const draft = JSON.parse(rawDraft) as Partial<RegisterForm>;
+      if (typeof draft.nombre === 'string') {
+        setValue('nombre', draft.nombre, { shouldValidate: false, shouldDirty: false });
+      }
+      if (typeof draft.email === 'string') {
+        setValue('email', draft.email, { shouldValidate: false, shouldDirty: false });
+      }
+      if (draft.role === 'ADMIN' || draft.role === 'MEDICO' || draft.role === 'ASISTENTE') {
+        setValue('role', draft.role, { shouldValidate: false, shouldDirty: false });
+      }
+    } catch {
+      window.sessionStorage.removeItem(REGISTER_DRAFT_KEY);
+    }
+  }, [setValue]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const subscription = watch((value) => {
+      const safeDraft = {
+        nombre: value.nombre,
+        email: value.email,
+        role: value.role,
+      };
+      window.sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify(safeDraft));
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [watch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,11 +136,19 @@ export default function RegisterPage() {
 
         const nextRoles = parsedRoles.length > 0 ? parsedRoles : (['MEDICO', 'ASISTENTE'] as RegisterRole[]);
         setAvailableRoles(nextRoles);
-        setValue('role', nextRoles[0]);
+        const currentRole = getValues('role');
+        const preferredRole = currentRole && nextRoles.includes(currentRole as RegisterRole)
+          ? (currentRole as RegisterRole)
+          : nextRoles[0];
+        setValue('role', preferredRole);
       } catch {
         if (!cancelled) {
           setAvailableRoles(['MEDICO', 'ASISTENTE']);
-          setValue('role', 'MEDICO');
+          const currentRole = getValues('role');
+          const preferredRole = currentRole === 'MEDICO' || currentRole === 'ASISTENTE'
+            ? currentRole
+            : 'MEDICO';
+          setValue('role', preferredRole);
         }
       } finally {
         if (!cancelled) {
@@ -105,7 +162,7 @@ export default function RegisterPage() {
     return () => {
       cancelled = true;
     };
-  }, [setValue]);
+  }, [getValues, setValue]);
 
   const onSubmit = async (data: RegisterForm) => {
     try {
@@ -129,6 +186,10 @@ export default function RegisterPage() {
         medicoId: userResponse.data.medicoId ?? null,
       });
 
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem(REGISTER_DRAFT_KEY);
+      }
+
       toast.success('¡Cuenta creada exitosamente!');
       router.push('/pacientes');
     } catch (err) {
@@ -137,9 +198,8 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary-600 via-primary-700 to-clinical-800 p-12 flex-col justify-between">
+    <div className="auth-shell">
+      <div className="auth-hero">
         <div>
           <AnamneoLogo
             iconClassName="h-12 w-12"
@@ -156,22 +216,16 @@ export default function RegisterPage() {
             Crea tu cuenta para comenzar a gestionar fichas clínicas de forma segura y eficiente.
           </p>
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                ✓
-              </div>
+            <div className="auth-bullet">
+              <div className="auth-bullet-dot">1</div>
               <span>Registro de pacientes completo</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                ✓
-              </div>
+            <div className="auth-bullet">
+              <div className="auth-bullet-dot">2</div>
               <span>Historial clínico detallado</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                ✓
-              </div>
+            <div className="auth-bullet">
+              <div className="auth-bullet-dot">3</div>
               <span>Sugerencias de diagnóstico con IA</span>
             </div>
           </div>
@@ -182,10 +236,9 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      {/* Right side - Register Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-slate-50">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
+      <div className="flex items-center justify-center bg-slate-50 p-8">
+        <div className="auth-card">
+          <div className="mb-8 text-center">
             <AnamneoLogo
               className="justify-center mb-6 lg:hidden"
               iconClassName="h-10 w-10"

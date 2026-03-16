@@ -37,4 +37,4 @@ USER nestjs
 
 EXPOSE 4444
 
-CMD ["npm", "run", "start:prod"]
+CMD ["npm", "run", "start:prod:migrate"]

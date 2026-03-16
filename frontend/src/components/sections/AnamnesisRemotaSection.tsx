@@ -3,6 +3,7 @@
 import { FiAlertCircle, FiEdit2 } from 'react-icons/fi';
 import { parseHistoryField } from '@/lib/utils';
 import { AnamnesisRemotaData } from '@/types';
+import { SectionBlock, SectionCallout, SectionIntro } from '@/components/sections/SectionPrimitives';
 
 interface Props {
   data: AnamnesisRemotaData;
@@ -23,6 +24,29 @@ const HISTORY_FIELDS = [
   { key: 'antecedentesPersonales', label: 'Antecedentes personales', placeholder: 'Otros datos relevantes del paciente...' },
 ];
 
+const HISTORY_GROUPS = [
+  {
+    title: 'Antecedentes clínicos',
+    description: 'Condiciones previas, cirugías y antecedentes familiares relevantes.',
+    fields: [
+      'antecedentesMedicos',
+      'antecedentesQuirurgicos',
+      'antecedentesGinecoobstetricos',
+      'antecedentesFamiliares',
+    ],
+  },
+  {
+    title: 'Medicaciones, alergias y hábitos',
+    description: 'Factores que impactan tratamiento, riesgo y conducta clínica.',
+    fields: ['habitos', 'medicamentos', 'alergias', 'inmunizaciones'],
+  },
+  {
+    title: 'Contexto personal y social',
+    description: 'Información útil para continuidad, adherencia y entorno del paciente.',
+    fields: ['antecedentesSociales', 'antecedentesPersonales'],
+  },
+] as const;
+
 export default function AnamnesisRemotaSection({ data, onChange, readOnly }: Props) {
   const isReadOnlyFromHistory = data.readonly === true;
   const effectiveReadOnly = readOnly || isReadOnlyFromHistory;
@@ -39,60 +63,84 @@ export default function AnamnesisRemotaSection({ data, onChange, readOnly }: Pro
     onChange({ ...data, readonly: false });
   };
 
+  const renderField = (key: string, label: string, placeholder: string) => {
+    const fieldKey = key as keyof AnamnesisRemotaData;
+    const rawVal = data[fieldKey];
+    const val = parseHistoryField(rawVal);
+    const hasItems = val?.items?.length > 0;
+
+    return (
+      <div key={key} className="space-y-2">
+        <label className="form-label">{label}</label>
+
+        {hasItems && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {val.items.map((item: string) => (
+              <span
+                key={item}
+                className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <textarea
+          value={typeof val === 'object' ? val?.texto || '' : val || ''}
+          onChange={(e) => handleChange(key, e.target.value)}
+          disabled={effectiveReadOnly}
+          rows={2}
+          className="form-input resize-none"
+          placeholder={placeholder}
+        />
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <SectionIntro description="Antecedentes remotos reutilizables desde el historial del paciente, con posibilidad de ajuste contextual en esta atención." />
+
       {isReadOnlyFromHistory && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
-          <FiAlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm text-amber-800">
+        <SectionCallout
+          tone="warning"
+          title="Información sincronizada con el historial"
+          actions={!readOnly ? (
+            <button
+              onClick={handleEnableEdit}
+              className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 hover:text-amber-800"
+            >
+              <FiEdit2 className="w-4 h-4" />
+              Editar historial
+            </button>
+          ) : undefined}
+        >
+          <div className="flex items-start gap-2">
+            <FiAlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <p>
               Esta información proviene del historial del paciente. Los cambios aquí
               actualizarán el historial permanente del paciente.
             </p>
-            {!readOnly && (
-              <button
-                onClick={handleEnableEdit}
-                className="mt-2 flex items-center gap-1 text-sm font-medium text-amber-700 hover:text-amber-800"
-              >
-                <FiEdit2 className="w-4 h-4" />
-                Editar historial
-              </button>
-            )}
           </div>
-        </div>
+        </SectionCallout>
       )}
 
-      {HISTORY_FIELDS.map(({ key, label, placeholder }) => {
-        const fieldKey = key as keyof AnamnesisRemotaData;
-        const rawVal = data[fieldKey];
-        const val = parseHistoryField(rawVal);
-        const hasItems = val?.items?.length > 0;
-        
-        return (
-          <div key={key} className="space-y-2">
-            <label className="form-label">{label}</label>
-            
-            {hasItems && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {val.items.map((item: string) => (
-                  <span key={item} className="inline-flex items-center px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs border border-slate-200">
-                    {item}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <textarea
-              value={typeof val === 'object' ? val?.texto || '' : val || ''}
-              onChange={(e) => handleChange(key, e.target.value)}
-              disabled={effectiveReadOnly}
-              rows={2}
-              className="form-input resize-none"
-              placeholder={placeholder}
-            />
+      {HISTORY_GROUPS.map((group) => (
+        <SectionBlock
+          key={group.title}
+          title={group.title}
+          description={group.description}
+        >
+          <div className="space-y-4">
+            {group.fields.map((fieldKey) => {
+              const field = HISTORY_FIELDS.find((item) => item.key === fieldKey);
+              if (!field) return null;
+              return renderField(field.key, field.label, field.placeholder);
+            })}
           </div>
-        );
-      })}
+        </SectionBlock>
+      ))}
     </div>
   );
 }

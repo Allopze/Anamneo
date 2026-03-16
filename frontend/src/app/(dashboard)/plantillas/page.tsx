@@ -68,6 +68,16 @@ export default function PlantillasPage() {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
+  const installDefaultsMutation = useMutation({
+    mutationFn: async () => api.post('/templates/install-defaults'),
+    onSuccess: (response) => {
+      const created = response.data?.created ?? 0;
+      toast.success(created > 0 ? `Se instalaron ${created} plantillas base` : 'Las plantillas base ya estaban instaladas');
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  });
+
   const resetForm = () => {
     setForm({ name: '', category: 'GENERAL', content: '', sectionKey: '' });
     setEditingId(null);
@@ -82,19 +92,28 @@ export default function PlantillasPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Plantillas de texto</h1>
-          <p className="text-slate-600">Crea plantillas reutilizables para tus atenciones</p>
+          <h1 className="page-header-title">Plantillas de texto</h1>
+          <p className="page-header-description">Bloques reutilizables para acelerar el registro clínico.</p>
         </div>
-        <button className="btn btn-primary flex items-center gap-2" onClick={() => { resetForm(); setShowForm(true); }}>
-          <FiPlus className="w-4 h-4" />
-          Nueva plantilla
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button className="btn btn-primary flex items-center gap-2" onClick={() => { resetForm(); setShowForm(true); }}>
+            <FiPlus className="w-4 h-4" />
+            Nueva plantilla
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => installDefaultsMutation.mutate()}
+            disabled={installDefaultsMutation.isPending}
+          >
+            {installDefaultsMutation.isPending ? 'Instalando...' : 'Instalar pack base'}
+          </button>
+        </div>
       </div>
 
       {showForm && (
-        <div className="card mb-6 border-primary-200">
+        <div className="filter-surface border-primary-200">
           <h2 className="font-semibold text-slate-900 mb-4">
             {editingId ? 'Editar plantilla' : 'Nueva plantilla'}
           </h2>
@@ -163,18 +182,18 @@ export default function PlantillasPage() {
         ) : templates && templates.length > 0 ? (
           <div className="divide-y divide-slate-100">
             {templates.map((t) => (
-              <div key={t.id} className="flex items-start gap-4 p-4 group">
-                <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div key={t.id} className="group list-row items-start">
+                <div className="list-row-icon mt-0.5 bg-primary-100 text-primary-600">
                   <FiFileText className="w-5 h-5 text-primary-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-medium text-slate-900">{t.name}</h3>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                    <span className="list-chip bg-slate-100 text-slate-600">
                       {CATEGORIES.find((c) => c.value === t.category)?.label || t.category}
                     </span>
                     {t.sectionKey && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-primary-50 text-primary-600">
+                      <span className="list-chip bg-primary-50 text-primary-600">
                         {SECTION_KEYS.find((s) => s.value === t.sectionKey)?.label || t.sectionKey}
                       </span>
                     )}
@@ -199,9 +218,12 @@ export default function PlantillasPage() {
             ))}
           </div>
         ) : (
-          <div className="p-12 text-center">
-            <FiFileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-500 mb-4">No tienes plantillas todavía</p>
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <FiFileText className="w-10 h-10 text-primary-400" />
+            </div>
+            <h3 className="empty-state-title">Sin plantillas todavía</h3>
+            <p className="empty-state-description">Crea una plantilla o instala el pack base para acelerar tus atenciones.</p>
             <button className="btn btn-primary" onClick={() => setShowForm(true)}>
               <FiPlus className="w-4 h-4 mr-2" />
               Crear primera plantilla

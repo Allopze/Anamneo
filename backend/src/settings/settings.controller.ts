@@ -19,6 +19,7 @@ export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
   @Get()
+  @Roles('ADMIN')
   getAll() {
     return this.settingsService.getAll();
   }

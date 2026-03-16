@@ -5,12 +5,28 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
-import { Patient, Encounter, SEXO_LABELS, PREVISION_LABELS, STATUS_LABELS } from '@/types';
+import {
+  Patient,
+  Encounter,
+  PatientProblem,
+  PatientTask,
+  PROBLEM_STATUS_LABELS,
+  REVIEW_STATUS_LABELS,
+  SEXO_LABELS,
+  PREVISION_LABELS,
+  STATUS_LABELS,
+  TASK_STATUS_LABELS,
+  TASK_TYPE_LABELS,
+} from '@/types';
 import { parseHistoryField } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
+import { buildEncounterSummary, extractVitalTrend } from '@/lib/clinical';
 import { InProgressEncounterConflictModal, InProgressEncounterSummary } from '@/components/common/InProgressEncounterConflictModal';
+import MiniTrendChart from '@/components/common/MiniTrendChart';
 import {
   FiArrowLeft,
+  FiCheckCircle,
+  FiClipboard,
   FiPlus,
   FiEdit2,
   FiTrash2,
@@ -21,6 +37,7 @@ import {
   FiEye,
   FiChevronRight,
   FiAlertCircle,
+  FiActivity,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -35,6 +52,10 @@ export default function PatientDetailPage() {
   const { isMedico, canEditAntecedentes, canEditPatientAdmin, canCreateEncounter } = useAuthStore();
   const [conflictEncounters, setConflictEncounters] = useState<InProgressEncounterSummary[] | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [newProblem, setNewProblem] = useState({ label: '', notes: '', status: 'ACTIVO' });
+  const [newTask, setNewTask] = useState({ title: '', details: '', type: 'SEGUIMIENTO', dueDate: '' });
+  const [editingProblemId, setEditingProblemId] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
   const canEditAdminFields = canEditPatientAdmin();
   const canCreateEncounterAllowed = canCreateEncounter();
@@ -50,7 +71,7 @@ export default function PatientDetailPage() {
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/patients/${id}`),
     onSuccess: () => {
-      toast.success('Paciente eliminado');
+      toast.success('Paciente archivado');
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       router.push('/pacientes');
     },
@@ -89,6 +110,54 @@ export default function PatientDetailPage() {
     deleteMutation.mutate();
   };
 
+  const createProblemMutation = useMutation({
+    mutationFn: async () => api.post(`/patients/${id}/problems`, newProblem),
+    onSuccess: () => {
+      toast.success('Problema agregado');
+      setNewProblem({ label: '', notes: '', status: 'ACTIVO' });
+      queryClient.invalidateQueries({ queryKey: ['patient', id] });
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  });
+
+  const updateProblemMutation = useMutation({
+    mutationFn: async ({ problemId, payload }: { problemId: string; payload: Record<string, string> }) =>
+      api.put(`/patients/problems/${problemId}`, payload),
+    onSuccess: () => {
+      toast.success('Problema actualizado');
+      setEditingProblemId(null);
+      setNewProblem({ label: '', notes: '', status: 'ACTIVO' });
+      queryClient.invalidateQueries({ queryKey: ['patient', id] });
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: async () =>
+      api.post(`/patients/${id}/tasks`, {
+        ...newTask,
+        dueDate: newTask.dueDate || undefined,
+      }),
+    onSuccess: () => {
+      toast.success('Seguimiento creado');
+      setNewTask({ title: '', details: '', type: 'SEGUIMIENTO', dueDate: '' });
+      queryClient.invalidateQueries({ queryKey: ['patient', id] });
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: async ({ taskId, payload }: { taskId: string; payload: Record<string, string> }) =>
+      api.put(`/patients/tasks/${taskId}`, payload),
+    onSuccess: () => {
+      toast.success('Seguimiento actualizado');
+      setEditingTaskId(null);
+      setNewTask({ title: '', details: '', type: 'SEGUIMIENTO', dueDate: '' });
+      queryClient.invalidateQueries({ queryKey: ['patient', id] });
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  });
+
   if (isLoading) {
     return (
       <div className="animate-fade-in">
@@ -122,6 +191,12 @@ export default function PatientDetailPage() {
       </div>
     );
   }
+
+  const vitalTrend = extractVitalTrend(patient.encounters);
+  const pendingTasks = (patient.tasks || []).filter((task) => task.status !== 'COMPLETADA' && task.status !== 'CANCELADA');
+  const activeProblems = (patient.problems || []).filter((problem) => problem.status !== 'RESUELTO');
+  const resolvedProblemsCount = (patient.problems || []).length - activeProblems.length;
+  const completedTasksCount = (patient.tasks || []).length - pendingTasks.length;
 
   return (
     <div className="animate-fade-in">
@@ -164,15 +239,6 @@ export default function PatientDetailPage() {
         </div>
         {(isMedico() || canEditAdminFields) && (
           <div className="flex items-center gap-3">
-            {canEditAntecedentes() && (
-              <Link
-                href={`/pacientes/${id}/historial`}
-                className="btn btn-secondary flex items-center gap-2"
-              >
-                <FiFileText className="w-4 h-4" />
-                Historial
-              </Link>
-            )}
             {canCreateEncounterAllowed && (
               <button
                 onClick={() => createEncounterMutation.mutate()}
@@ -201,6 +267,7 @@ export default function PatientDetailPage() {
                 className="btn btn-danger flex items-center gap-2"
               >
                 <FiTrash2 className="w-4 h-4" />
+                Archivar
               </button>
             )}
           </div>
@@ -301,6 +368,256 @@ export default function PatientDetailPage() {
               </div>
             </div>
           )}
+
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-slate-900">Problemas activos</h2>
+              <span className="text-xs text-slate-500">
+                {activeProblems.length} activos
+                {resolvedProblemsCount > 0 ? ` · ${resolvedProblemsCount} resueltos ocultos` : ''}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {activeProblems.length > 0 ? (
+                activeProblems.map((problem: PatientProblem) => (
+                  <div key={problem.id} className="rounded-xl border border-slate-200 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-slate-900">{problem.label}</p>
+                        <p className="text-xs text-slate-500">
+                          {PROBLEM_STATUS_LABELS[problem.status]}
+                          {problem.severity ? ` · ${problem.severity}` : ''}
+                        </p>
+                        {problem.notes && <p className="mt-1 text-sm text-slate-600">{problem.notes}</p>}
+                      </div>
+                      {problem.status !== 'RESUELTO' && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="text-xs text-slate-600 hover:text-slate-900"
+                            onClick={() => {
+                              setEditingProblemId(problem.id);
+                              setNewProblem({
+                                label: problem.label,
+                                notes: problem.notes || '',
+                                status: problem.status,
+                              });
+                            }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            className="text-xs text-primary-600 hover:text-primary-700"
+                            onClick={() => updateProblemMutation.mutate({ problemId: problem.id, payload: { status: 'RESUELTO' } })}
+                          >
+                            Resolver
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500">No hay problemas clínicos registrados.</p>
+              )}
+            </div>
+
+            <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
+              <input
+                className="form-input"
+                value={newProblem.label}
+                onChange={(e) => setNewProblem((prev) => ({ ...prev, label: e.target.value }))}
+                placeholder="Nuevo problema clínico"
+              />
+              <textarea
+                className="form-input resize-none"
+                rows={2}
+                value={newProblem.notes}
+                onChange={(e) => setNewProblem((prev) => ({ ...prev, notes: e.target.value }))}
+                placeholder="Notas o contexto"
+              />
+              <select
+                className="form-input"
+                value={newProblem.status}
+                onChange={(e) => setNewProblem((prev) => ({ ...prev, status: e.target.value }))}
+              >
+                {Object.entries(PROBLEM_STATUS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+              <button
+                className="btn btn-secondary w-full"
+                onClick={() => {
+                  if (editingProblemId) {
+                    updateProblemMutation.mutate({ problemId: editingProblemId, payload: newProblem });
+                    return;
+                  }
+                  createProblemMutation.mutate();
+                }}
+                disabled={!newProblem.label.trim() || createProblemMutation.isPending || updateProblemMutation.isPending}
+              >
+                {editingProblemId ? 'Actualizar problema' : 'Guardar problema'}
+              </button>
+              {editingProblemId && (
+                <button
+                  className="btn btn-secondary w-full"
+                  onClick={() => {
+                    setEditingProblemId(null);
+                    setNewProblem({ label: '', notes: '', status: 'ACTIVO' });
+                  }}
+                >
+                  Cancelar edición
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-slate-900">Seguimientos</h2>
+              <span className="text-xs text-slate-500">
+                {pendingTasks.length} pendientes
+                {completedTasksCount > 0 ? ` · ${completedTasksCount} cerrados ocultos` : ''}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {pendingTasks.length > 0 ? (
+                pendingTasks.map((task: PatientTask) => (
+                  <div key={task.id} className="rounded-xl border border-slate-200 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-slate-900">{task.title}</p>
+                        <p className="text-xs text-slate-500">
+                          {TASK_TYPE_LABELS[task.type]} · {TASK_STATUS_LABELS[task.status]}
+                          {task.dueDate ? ` · ${format(new Date(task.dueDate), 'd MMM yyyy', { locale: es })}` : ''}
+                        </p>
+                        {task.details && <p className="mt-1 text-sm text-slate-600">{task.details}</p>}
+                      </div>
+                      {task.status !== 'COMPLETADA' && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="text-xs text-slate-600 hover:text-slate-900"
+                            onClick={() => {
+                              setEditingTaskId(task.id);
+                              setNewTask({
+                                title: task.title,
+                                details: task.details || '',
+                                type: task.type,
+                                dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
+                              });
+                            }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            className="text-xs text-primary-600 hover:text-primary-700"
+                            onClick={() => updateTaskMutation.mutate({ taskId: task.id, payload: { status: 'COMPLETADA' } })}
+                          >
+                            Completar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500">No hay seguimientos registrados.</p>
+              )}
+            </div>
+
+            <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
+              <input
+                className="form-input"
+                value={newTask.title}
+                onChange={(e) => setNewTask((prev) => ({ ...prev, title: e.target.value }))}
+                placeholder="Nuevo seguimiento o tarea"
+              />
+              <textarea
+                className="form-input resize-none"
+                rows={2}
+                value={newTask.details}
+                onChange={(e) => setNewTask((prev) => ({ ...prev, details: e.target.value }))}
+                placeholder="Detalle clínico u operativo"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  className="form-input"
+                  value={newTask.type}
+                  onChange={(e) => setNewTask((prev) => ({ ...prev, type: e.target.value }))}
+                >
+                  {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={newTask.dueDate}
+                  onChange={(e) => setNewTask((prev) => ({ ...prev, dueDate: e.target.value }))}
+                />
+              </div>
+              <button
+                className="btn btn-secondary w-full"
+                onClick={() => {
+                  if (editingTaskId) {
+                    updateTaskMutation.mutate({ taskId: editingTaskId, payload: newTask });
+                    return;
+                  }
+                  createTaskMutation.mutate();
+                }}
+                disabled={!newTask.title.trim() || createTaskMutation.isPending || updateTaskMutation.isPending}
+              >
+                {editingTaskId ? 'Actualizar seguimiento' : 'Guardar seguimiento'}
+              </button>
+              {editingTaskId && (
+                <button
+                  className="btn btn-secondary w-full"
+                  onClick={() => {
+                    setEditingTaskId(null);
+                    setNewTask({ title: '', details: '', type: 'SEGUIMIENTO', dueDate: '' });
+                  }}
+                >
+                  Cancelar edición
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="flex items-center gap-2 mb-4">
+              <FiActivity className="w-5 h-5 text-primary-600" />
+              <h2 className="text-lg font-semibold text-slate-900">Tendencias clínicas</h2>
+            </div>
+            {vitalTrend.length > 0 ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Peso</p>
+                    <MiniTrendChart values={vitalTrend.map((item) => item.peso).filter((value): value is number => value !== null)} stroke="#0f766e" />
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">IMC</p>
+                    <MiniTrendChart values={vitalTrend.map((item) => item.imc).filter((value): value is number => value !== null)} stroke="#7c3aed" />
+                  </div>
+                </div>
+                {vitalTrend.slice(0, 5).map((item) => (
+                  <div key={item.encounterId} className="rounded-xl border border-slate-200 p-3 text-sm">
+                    <div className="font-medium text-slate-800">
+                      {format(new Date(item.createdAt), "d 'de' MMMM", { locale: es })}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-2 text-slate-600">
+                      {item.presionArterial && <span>PA {item.presionArterial}</span>}
+                      {item.peso !== null && <span>Peso {item.peso} kg</span>}
+                      {item.imc !== null && <span>IMC {item.imc}</span>}
+                      {item.temperatura !== null && <span>T° {item.temperatura}</span>}
+                      {item.saturacionOxigeno !== null && <span>SatO2 {item.saturacionOxigeno}%</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Aún no hay signos vitales suficientes para mostrar tendencias.</p>
+            )}
+          </div>
         </div>
 
         {/* Encounters timeline */}
@@ -321,7 +638,7 @@ export default function PatientDetailPage() {
                   {patient.encounters.map((encounter: Encounter) => {
                     const isCompleted = encounter.status === 'COMPLETADO';
                     const isInProgress = encounter.status === 'EN_PROGRESO';
-                    const actionLabel = isInProgress ? 'Continuar' : 'Abrir';
+                    const actionLabel = isInProgress ? 'Continuar' : 'Ver atención';
 
                     return (
                       <div key={encounter.id} className="relative pl-10">
@@ -371,12 +688,23 @@ export default function PatientDetailPage() {
                                   {format(new Date(encounter.createdAt), 'HH:mm')}
                                 </span>
                                 <span>Por {encounter.createdBy?.nombre || '—'}</span>
+                                {encounter.reviewStatus && (
+                                  <span>{REVIEW_STATUS_LABELS[encounter.reviewStatus]}</span>
+                                )}
                                 {encounter.progress && (
                                   <span>
                                     {encounter.progress.completed}/{encounter.progress.total} secciones
                                   </span>
                                 )}
                               </div>
+
+                              {buildEncounterSummary(encounter).length > 0 && (
+                                <div className="mt-3 space-y-1 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+                                  {buildEncounterSummary(encounter).map((line) => (
+                                    <p key={line}>{line}</p>
+                                  ))}
+                                </div>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-2 flex-shrink-0">
@@ -384,18 +712,31 @@ export default function PatientDetailPage() {
                                 {actionLabel}
                                 <FiChevronRight className="w-4 h-4 ml-1" />
                               </Link>
-
-                              {isCompleted && (
-                                <Link
-                                  href={`/atenciones/${encounter.id}/ficha`}
-                                  className="btn btn-secondary flex items-center gap-2"
-                                >
-                                  <FiEye className="w-4 h-4" />
-                                  Ficha
-                                </Link>
-                              )}
                             </div>
                           </div>
+
+                          {encounter.tasks && encounter.tasks.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                              {encounter.tasks.slice(0, 3).map((task) => (
+                                <span key={task.id} className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">
+                                  <FiClipboard className="mr-1 inline-block h-3 w-3" />
+                                  {task.title}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {isCompleted && (
+                            <div className="mt-3 border-t border-slate-100 pt-3">
+                              <Link
+                                href={`/atenciones/${encounter.id}/ficha`}
+                                className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 hover:text-primary-700"
+                              >
+                                <FiEye className="w-4 h-4" />
+                                Ver ficha clínica
+                              </Link>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -428,9 +769,9 @@ export default function PatientDetailPage() {
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={confirmDelete}
-        title="Eliminar paciente"
-        message="¿Estás seguro de eliminar este paciente? Se eliminarán todos sus datos, atenciones y adjuntos. Esta acción no se puede deshacer."
-        confirmLabel="Eliminar paciente"
+        title="Archivar paciente"
+        message="¿Estás seguro de archivar este paciente? Sus atenciones en progreso se cancelarán y dejará de aparecer en las búsquedas habituales, pero podrá restaurarse más adelante."
+        confirmLabel="Archivar paciente"
         variant="danger"
         loading={deleteMutation.isPending}
       />

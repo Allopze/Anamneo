@@ -5,6 +5,19 @@ function toPrismaFileUrl(dbPath: string): string {
   return `file:${dbPath.replace(/\\/g, '/')}`;
 }
 
+function pickExistingOrLikelyPath(candidates: string[]): string {
+  const existingPath = candidates.find((candidate) => fs.existsSync(candidate));
+  if (existingPath) {
+    return existingPath;
+  }
+
+  const candidateWithExistingDirectory = candidates.find((candidate) =>
+    fs.existsSync(path.dirname(candidate)),
+  );
+
+  return candidateWithExistingDirectory ?? candidates[0];
+}
+
 export function resolveDatabaseUrl(databaseUrl = process.env.DATABASE_URL): string | undefined {
   if (!databaseUrl || !databaseUrl.startsWith('file:')) {
     return databaseUrl;
@@ -17,18 +30,26 @@ export function resolveDatabaseUrl(databaseUrl = process.env.DATABASE_URL): stri
 
   const cwd = process.cwd();
   const parent = path.resolve(cwd, '..');
-  const trimmedBackendPrefix = rawPath.replace(/^\.\/backend\//, './');
   const normalizedRelativePath = rawPath.replace(/^\.\//, '');
+  const dbFileName = path.basename(normalizedRelativePath);
 
-  const candidates = [
+  const directCandidates = [
     path.resolve(cwd, rawPath),
     path.resolve(parent, rawPath),
-    path.resolve(cwd, trimmedBackendPrefix),
-    path.resolve(parent, trimmedBackendPrefix),
-    path.resolve(cwd, 'prisma', normalizedRelativePath),
-    path.resolve(parent, 'backend', 'prisma', normalizedRelativePath),
+    path.resolve(cwd, rawPath.replace(/^\.\/backend\//, './')),
+    path.resolve(parent, rawPath.replace(/^\.\/backend\//, './')),
   ];
 
-  const existingPath = candidates.find((candidate) => fs.existsSync(candidate));
-  return toPrismaFileUrl(existingPath ?? candidates[0]);
+  const prismaCandidates = [
+    path.resolve(cwd, 'prisma', dbFileName),
+    path.resolve(cwd, 'backend', 'prisma', dbFileName),
+    path.resolve(parent, 'backend', 'prisma', dbFileName),
+  ];
+
+  // "file:./dev.db" is intentionally resolved to the Prisma schema folder DB.
+  const candidates = dbFileName === 'dev.db'
+    ? [...prismaCandidates, ...directCandidates]
+    : [...directCandidates, ...prismaCandidates];
+
+  return toPrismaFileUrl(pickExistingOrLikelyPath(candidates));
 }

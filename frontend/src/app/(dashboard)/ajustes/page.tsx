@@ -35,6 +35,7 @@ type PasswordForm = z.infer<typeof passwordSchema>;
 export default function AjustesPage() {
   const { user, setUser } = useAuthStore();
   const queryClient = useQueryClient();
+  const isAdmin = !!user?.isAdmin;
   const [showPassword, setShowPassword] = useState(false);
   const [clinic, setClinic] = useState({ clinicName: '', clinicAddress: '', clinicPhone: '', clinicEmail: '' });
 
@@ -63,6 +64,7 @@ export default function AjustesPage() {
   const { data: settings } = useQuery({
     queryKey: ['settings'],
     queryFn: async () => (await api.get('/settings')).data as Record<string, string>,
+    enabled: isAdmin,
   });
 
   useEffect(() => {
@@ -113,11 +115,17 @@ export default function AjustesPage() {
 
   return (
     <div className="animate-fade-in max-w-2xl">
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Ajustes</h1>
+      <div className="page-header">
+        <div>
+          <h1 className="page-header-title">Ajustes</h1>
+          <p className="page-header-description">Perfil, seguridad y configuración general del centro.</p>
+        </div>
+      </div>
 
-      {/* Profile section */}
       <div className="card mb-6">
-        <h2 className="font-medium text-slate-900 mb-4">Datos personales</h2>
+        <div className="panel-header">
+          <h2 className="panel-title">Datos personales</h2>
+        </div>
         <form onSubmit={handleProfile((d) => profileMutation.mutate(d))} className="space-y-4">
           <div>
             <label htmlFor="nombre" className="block text-sm font-medium text-slate-700 mb-1">
@@ -162,9 +170,10 @@ export default function AjustesPage() {
         </form>
       </div>
 
-      {/* Password section */}
       <div className="card mb-6">
-        <h2 className="font-medium text-slate-900 mb-4">Cambiar contraseña</h2>
+        <div className="panel-header">
+          <h2 className="panel-title">Cambiar contraseña</h2>
+        </div>
         <form
           onSubmit={handlePassword((d) => passwordMutation.mutate(d))}
           className="space-y-4"
@@ -242,10 +251,11 @@ export default function AjustesPage() {
         </form>
       </div>
 
-      {/* Admin: Clinic Settings */}
       {user?.isAdmin && (
-        <div className="card mb-6 border-amber-200">
-          <h2 className="font-medium text-slate-900 mb-4">Datos del centro médico</h2>
+        <div className="card mb-6 border-primary-200">
+          <div className="panel-header">
+            <h2 className="panel-title">Datos del centro médico</h2>
+          </div>
           <p className="text-sm text-slate-500 mb-4">
             Esta información se usa en fichas impresas y exportaciones.
           </p>
@@ -304,9 +314,10 @@ export default function AjustesPage() {
         </div>
       )}
 
-      {/* System info */}
       <div className="card">
-        <h2 className="font-medium text-slate-900 mb-4">Información del sistema</h2>
+        <div className="panel-header">
+          <h2 className="panel-title">Información del sistema</h2>
+        </div>
         <div className="space-y-3 text-sm">
           <p>
             <strong>Versión:</strong> 1.0.0

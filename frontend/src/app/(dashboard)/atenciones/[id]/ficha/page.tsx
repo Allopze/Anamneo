@@ -4,8 +4,8 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { Encounter, SECTION_LABELS, SEXO_LABELS, PREVISION_LABELS, STATUS_LABELS } from '@/types';
-import { FiArrowLeft, FiFileText, FiPrinter, FiDownload } from 'react-icons/fi';
+import { Attachment, Encounter, SEXO_LABELS, PREVISION_LABELS, STATUS_LABELS, REVIEW_STATUS_LABELS } from '@/types';
+import { FiArrowLeft, FiFileText, FiPrinter, FiDownload, FiPaperclip } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -26,22 +26,48 @@ export default function FichaClinicaPage() {
     window.print();
   };
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadAttachment = async (attachment: Attachment) => {
     try {
-      const response = await api.get(`/encounters/${id}/export/pdf`, {
+      const response = await api.get(`/attachments/${attachment.id}/download`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], { type: attachment.mime });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachment.originalName || 'archivo';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Error al descargar el adjunto');
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    await handleDownloadDocument('pdf');
+  };
+
+  const handleDownloadDocument = async (kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') => {
+    try {
+      const endpoint = kind === 'pdf'
+        ? `/encounters/${id}/export/pdf`
+        : `/encounters/${id}/export/document/${kind}`;
+      const response = await api.get(endpoint, {
         responseType: 'blob',
       });
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `ficha_clinica_${(id as string).slice(0, 8)}.pdf`;
+      link.download = `${kind}_${(id as string).slice(0, 8)}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      toast.error('Error al generar el PDF');
+      toast.error('Error al generar el documento');
     }
   };
 
@@ -72,6 +98,58 @@ export default function FichaClinicaPage() {
   const tratamiento = sections.find((s) => s.sectionKey === 'TRATAMIENTO')?.data || {};
   const respuestaTratamiento = sections.find((s) => s.sectionKey === 'RESPUESTA_TRATAMIENTO')?.data || {};
   const observaciones = sections.find((s) => s.sectionKey === 'OBSERVACIONES')?.data || {};
+  const linkedAttachmentsByOrderId = (encounter.attachments || []).reduce<Record<string, Attachment[]>>((acc, attachment) => {
+    if (!attachment.linkedOrderId) {
+      return acc;
+    }
+
+    if (!acc[attachment.linkedOrderId]) {
+      acc[attachment.linkedOrderId] = [];
+    }
+
+    acc[attachment.linkedOrderId].push(attachment);
+    return acc;
+  }, {});
+
+  const renderLinkedAttachments = (orderId?: string) => {
+    if (!orderId) return null;
+
+    const attachments = linkedAttachmentsByOrderId[orderId] || [];
+    if (attachments.length === 0) return null;
+
+    return (
+      <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <div className="flex items-center gap-2 text-slate-700">
+          <FiPaperclip className="h-4 w-4" />
+          <span className="text-sm font-medium">Adjuntos vinculados</span>
+        </div>
+        <ul className="mt-2 space-y-2">
+          {attachments.map((attachment) => (
+            <li key={attachment.id} className="rounded-md bg-white px-3 py-2">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-800">{attachment.originalName}</p>
+                  <p className="text-xs text-slate-500">
+                    {[attachment.description, attachment.uploadedAt ? format(new Date(attachment.uploadedAt), "d MMM yyyy", { locale: es }) : null]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadAttachment(attachment)}
+                  className="no-print inline-flex items-center gap-1 text-xs font-medium text-primary-700 hover:text-primary-800"
+                >
+                  <FiDownload className="h-3.5 w-3.5" />
+                  Descargar
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -86,6 +164,18 @@ export default function FichaClinicaPage() {
             {encounter?.status === 'COMPLETADO' ? 'Volver al resumen' : 'Volver a edición'}
           </Link>
           <div className="flex items-center gap-2">
+            <button onClick={() => handleDownloadDocument('receta')} className="btn btn-secondary flex items-center gap-2">
+              <FiDownload className="w-4 h-4" />
+              Receta
+            </button>
+            <button onClick={() => handleDownloadDocument('ordenes')} className="btn btn-secondary flex items-center gap-2">
+              <FiDownload className="w-4 h-4" />
+              Órdenes
+            </button>
+            <button onClick={() => handleDownloadDocument('derivacion')} className="btn btn-secondary flex items-center gap-2">
+              <FiDownload className="w-4 h-4" />
+              Derivación
+            </button>
             <button onClick={handleDownloadPdf} className="btn btn-secondary flex items-center gap-2">
               <FiDownload className="w-4 h-4" />
               Descargar PDF
@@ -267,6 +357,42 @@ export default function FichaClinicaPage() {
             {tratamiento.receta && <p><strong>Receta:</strong> {tratamiento.receta}</p>}
             {tratamiento.examenes && <p><strong>Exámenes:</strong> {tratamiento.examenes}</p>}
             {tratamiento.derivaciones && <p><strong>Derivaciones:</strong> {tratamiento.derivaciones}</p>}
+            {tratamiento.medicamentosEstructurados?.length > 0 && (
+              <div>
+                <strong>Medicamentos estructurados:</strong>
+                <ul className="list-disc list-inside mt-1">
+                  {tratamiento.medicamentosEstructurados.map((item: any) => (
+                    <li key={item.id}>{[item.nombre, item.dosis, item.frecuencia, item.duracion].filter(Boolean).join(' · ')}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {tratamiento.examenesEstructurados?.length > 0 && (
+              <div>
+                <strong>Exámenes estructurados:</strong>
+                <ul className="mt-2 space-y-2">
+                  {tratamiento.examenesEstructurados.map((item: any) => (
+                    <li key={item.id} className="rounded-lg border border-slate-200 px-3 py-2">
+                      <div>{[item.nombre, item.indicacion, item.estado].filter(Boolean).join(' · ')}</div>
+                      {renderLinkedAttachments(item.id)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {tratamiento.derivacionesEstructuradas?.length > 0 && (
+              <div>
+                <strong>Derivaciones estructuradas:</strong>
+                <ul className="mt-2 space-y-2">
+                  {tratamiento.derivacionesEstructuradas.map((item: any) => (
+                    <li key={item.id} className="rounded-lg border border-slate-200 px-3 py-2">
+                      <div>{[item.nombre, item.indicacion, item.estado].filter(Boolean).join(' · ')}</div>
+                      {renderLinkedAttachments(item.id)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </section>
 
@@ -305,6 +431,9 @@ export default function FichaClinicaPage() {
             <p>
               <strong>Estado:</strong> {STATUS_LABELS[encounter.status]}
             </p>
+          </div>
+          <div className="mt-2 text-sm">
+            <strong>Revisión:</strong> {REVIEW_STATUS_LABELS[encounter.reviewStatus || 'NO_REQUIERE_REVISION']}
           </div>
           <div className="mt-8 flex justify-end">
             <div className="text-center">

@@ -6,7 +6,9 @@
     "dev": "next dev -H 0.0.0.0 -p 5555",
     "build": "node ./scripts/next-build.js",
     "start": "next start -H 0.0.0.0 -p 5555",
-    "lint": "next lint",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
     "test": "jest",
     "test:watch": "jest --watch"
   },

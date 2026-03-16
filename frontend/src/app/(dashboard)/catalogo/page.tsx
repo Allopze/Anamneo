@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
@@ -200,10 +199,10 @@ export default function CatalogoPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Catálogo de Afecciones</h1>
-          <p className="text-slate-600">Afecciones para sugerencias automáticas</p>
+          <h1 className="page-header-title">Catálogo de Afecciones</h1>
+          <p className="page-header-description">Base reutilizable para sugerencias y clasificación clínica.</p>
         </div>
         {isAdminUser ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -226,7 +225,7 @@ export default function CatalogoPage() {
 
       {isAdminUser && (
         <div id="import-csv" className="card mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="panel-header flex-col items-start gap-6 lg:flex-row lg:items-center">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Importar CSV global</h2>
               <p className="text-sm text-slate-600">
@@ -393,8 +392,7 @@ export default function CatalogoPage() {
         </div>
       )}
 
-      {/* Search */}
-      <div className="card mb-6">
+      <div className="filter-surface">
         <div className="relative">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
           <input
@@ -407,7 +405,6 @@ export default function CatalogoPage() {
         </div>
       </div>
 
-      {/* List */}
       <div className="card">
         {isLoading ? (
           <div className="space-y-4">
@@ -420,9 +417,9 @@ export default function CatalogoPage() {
             {conditions.map((condition) => (
               <div
                 key={condition.id}
-                className="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors group cursor-pointer"
+                className="group list-row cursor-pointer"
               >
-                <div className="w-10 h-10 bg-clinical-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="list-row-icon bg-clinical-100 text-clinical-600">
                   <FiTag className="w-5 h-5 text-clinical-600" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -433,7 +430,7 @@ export default function CatalogoPage() {
                       return (
                         <>
                           {synonyms.slice(0, 3).map((syn: string, i: number) => (
-                            <span key={i} className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full">
+                            <span key={i} className="list-chip bg-primary-100 text-primary-700">
                               {syn}
                             </span>
                           ))}
@@ -459,7 +456,7 @@ export default function CatalogoPage() {
                 ) : (
                   <div className="flex items-center gap-2">
                     {condition.scope && (
-                      <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                      <span className="list-chip bg-slate-100 text-slate-600 uppercase tracking-wide text-[10px]">
                         {condition.scope === 'GLOBAL' ? 'Global' : 'Local'}
                       </span>
                     )}
@@ -482,9 +479,12 @@ export default function CatalogoPage() {
             ))}
           </div>
         ) : (
-          <div className="p-12 text-center">
-            <FiTag className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-500">No hay afecciones en el catálogo</p>
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <FiTag className="w-10 h-10 text-primary-400" />
+            </div>
+            <h3 className="empty-state-title">Sin afecciones cargadas</h3>
+            <p className="empty-state-description">No hay afecciones disponibles en el catálogo para esta búsqueda.</p>
           </div>
         )}
       </div>

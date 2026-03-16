@@ -26,6 +26,8 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const patientResults = results.filter((result) => result.type === 'patient');
+  const encounterResults = results.filter((result) => result.type === 'encounter');
 
   // Focus input when opened
   useEffect(() => {
@@ -37,6 +39,14 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
     }
   }, [isOpen]);
 
+  const navigateTo = useCallback(
+    (result: SearchResult) => {
+      onClose();
+      router.push(result.href);
+    },
+    [onClose, router],
+  );
+
   // Keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
@@ -44,6 +54,8 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
+      } else if (results.length === 0) {
+        return;
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         setSelectedIndex((prev) => Math.min(prev + 1, results.length - 1));
@@ -58,15 +70,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, results, selectedIndex, onClose]);
-
-  const navigateTo = useCallback(
-    (result: SearchResult) => {
-      onClose();
-      router.push(result.href);
-    },
-    [onClose, router],
-  );
+  }, [isOpen, results, selectedIndex, onClose, navigateTo]);
 
   const search = useCallback(async (q: string) => {
     if (!q.trim()) {
@@ -124,6 +128,8 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
 
   if (!isOpen) return null;
 
+  let flatIndex = -1;
+
   return (
     <>
       {/* Backdrop */}
@@ -170,46 +176,66 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
             )}
 
             {!loading && results.length > 0 && (
-              <ul className="py-2" role="listbox">
-                {results.map((result, index) => (
-                  <li key={`${result.type}-${result.id}`}>
-                    <button
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                        index === selectedIndex
-                          ? 'bg-primary-50 text-primary-700'
-                          : 'hover:bg-slate-50'
-                      }`}
-                      onClick={() => navigateTo(result)}
-                      onMouseEnter={() => setSelectedIndex(index)}
-                    >
-                      <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                          result.type === 'patient'
-                            ? 'bg-blue-100 text-blue-600'
-                            : 'bg-emerald-100 text-emerald-600'
-                        }`}
-                      >
-                        {result.type === 'patient' ? (
-                          <FiUser className="w-4 h-4" />
-                        ) : (
-                          <FiFileText className="w-4 h-4" />
-                        )}
+              <div className="py-2">
+                {[
+                  { label: 'Pacientes', items: patientResults },
+                  { label: 'Atenciones', items: encounterResults },
+                ]
+                  .filter((group) => group.items.length > 0)
+                  .map((group) => (
+                    <div key={group.label}>
+                      <div className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                        {group.label}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{result.title}</p>
-                        <p className="text-xs text-slate-500 truncate">{result.subtitle}</p>
-                      </div>
-                      <FiArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                      <ul role="listbox">
+                        {group.items.map((result) => {
+                          const currentIndex = flatIndex + 1;
+                          flatIndex = currentIndex;
+                          const isSelected = currentIndex === selectedIndex;
+
+                          return (
+                            <li key={`${result.type}-${result.id}`}>
+                              <button
+                                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                                  isSelected
+                                    ? 'bg-primary-50 text-primary-700'
+                                    : 'hover:bg-slate-50'
+                                }`}
+                                onClick={() => navigateTo(result)}
+                                onMouseEnter={() => setSelectedIndex(currentIndex)}
+                              >
+                                <div
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                    result.type === 'patient'
+                                      ? 'bg-blue-100 text-blue-600'
+                                      : 'bg-emerald-100 text-emerald-600'
+                                  }`}
+                                >
+                                  {result.type === 'patient' ? (
+                                    <FiUser className="w-4 h-4" />
+                                  ) : (
+                                    <FiFileText className="w-4 h-4" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{result.title}</p>
+                                  <p className="text-xs text-slate-500 truncate">{result.subtitle}</p>
+                                </div>
+                                <FiArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+              </div>
             )}
 
             {!loading && !query.trim() && (
               <div className="px-4 py-6 text-center text-slate-400">
                 <p className="text-sm">Escribe para buscar pacientes y atenciones</p>
-                <p className="text-xs mt-1">Usa ↑↓ para navegar, Enter para seleccionar</p>
+                <p className="text-xs mt-1">Usa ↑↓ para navegar, Enter para seleccionar, Ctrl+K o ⌘K para abrir</p>
               </div>
             )}
           </div>

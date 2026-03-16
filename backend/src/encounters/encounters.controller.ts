@@ -16,6 +16,7 @@ import { EncountersService } from './encounters.service';
 import { EncountersPdfService } from './encounters-pdf.service';
 import { CreateEncounterDto } from './dto/create-encounter.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
+import { UpdateReviewStatusDto } from './dto/update-review-status.dto';
 import { ParseSectionKeyPipe } from '../common/parse-section-key.pipe';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -46,10 +47,11 @@ export class EncountersController {
     @CurrentUser() user: CurrentUserData,
     @Query('status') status?: EncounterStatus,
     @Query('search') search?: string,
+    @Query('reviewStatus') reviewStatus?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.encountersService.findAll(user, status, search, page || 1, limit || 15);
+    return this.encountersService.findAll(user, status, search, reviewStatus, page || 1, limit || 15);
   }
 
   @Get('stats/dashboard')
@@ -68,6 +70,27 @@ export class EncountersController {
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="ficha_clinica_${id.slice(0, 8)}.pdf"`,
+    );
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.end(pdfBuffer);
+  }
+
+  @Get(':id/export/document/:kind')
+  async exportFocusedPdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('kind') kind: 'receta' | 'ordenes' | 'derivacion',
+    @CurrentUser() user: CurrentUserData,
+    @Res() res: Response,
+  ) {
+    if (!['receta', 'ordenes', 'derivacion'].includes(kind)) {
+      throw new BadRequestException('Tipo de documento no soportado');
+    }
+
+    const pdfBuffer = await this.encountersPdfService.generateFocusedPdf(id, kind, user);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${kind}_${id.slice(0, 8)}.pdf"`,
     );
     res.setHeader('Content-Length', pdfBuffer.length);
     res.end(pdfBuffer);
@@ -130,5 +153,15 @@ export class EncountersController {
     @CurrentUser('id') userId: string,
   ) {
     return this.encountersService.cancel(id, userId);
+  }
+
+  @Put(':id/review-status')
+  @Roles('MEDICO', 'ASISTENTE')
+  updateReviewStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateReviewStatusDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.encountersService.updateReviewStatus(id, user, dto.reviewStatus, dto.note);
   }
 }

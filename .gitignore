@@ -11,14 +11,19 @@ frontend/node_modules/
 # Build artifacts
 backend/dist/
 frontend/.next/
+.next/
 frontend/out/
 coverage/
+*.tsbuildinfo
 
 # Local databases and runtime files
 backend/prisma/*.db
+backend/prisma/*.db.*
 backend/prisma/*.db-journal
 backend/prisma/*.db-shm
 backend/prisma/*.db-wal
+backend/prisma/C:/
+backend/prisma/backups/
 
 # Uploads / generated runtime data
 uploads/
@@ -33,3 +38,7 @@ pnpm-debug.log*
 # OS / editor
 .DS_Store
 .vscode/
+node_modules
+node_modules
+node_modules
+node_modules

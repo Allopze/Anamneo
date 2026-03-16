@@ -7,6 +7,20 @@ on:
     branches: [main]
 
 jobs:
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   backend:
     name: Backend Tests & Build
     runs-on: ubuntu-latest
@@ -23,6 +37,18 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
+        working-directory: backend
+
+      - name: Lint (backend)
+        run: npm run lint:check
+        working-directory: backend
+
+      - name: Typecheck (backend)
+        run: npm run typecheck
+        working-directory: backend
+
+      - name: Audit production deps (backend)
+        run: npm run audit:prod
         working-directory: backend
 
       - name: Run tests
@@ -53,6 +79,18 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        working-directory: frontend
+
+      - name: Lint (frontend)
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Typecheck (frontend)
+        run: npm run typecheck
+        working-directory: frontend
+
+      - name: Audit production deps (frontend)
+        run: npm run audit:prod
         working-directory: frontend
 
       - name: Build

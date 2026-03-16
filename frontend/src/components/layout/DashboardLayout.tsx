@@ -18,6 +18,7 @@ import {
   FiSearch,
   FiChevronDown,
   FiBookmark,
+  FiClipboard,
 } from 'react-icons/fi';
 import clsx from 'clsx';
 import { getNameInitial } from '@/lib/utils';
@@ -29,10 +30,14 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
-const baseNavigation = [
+const primaryNavigation = [
   { name: 'Inicio', href: '/', icon: FiHome, exact: true },
   { name: 'Pacientes', href: '/pacientes', icon: FiUsers },
   { name: 'Atenciones', href: '/atenciones', icon: FiFileText },
+  { name: 'Seguimientos', href: '/seguimientos', icon: FiClipboard },
+];
+
+const secondaryNavigation = [
   { name: 'Catálogo de afecciones', href: '/catalogo', icon: FiList },
   { name: 'Plantillas', href: '/plantillas', icon: FiBookmark },
   { name: 'Ajustes', href: '/ajustes', icon: FiSettings },
@@ -42,8 +47,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isAuthenticated, hasHydrated, login, logout } = useAuthStore();
-  const navigation = [
-    ...baseNavigation,
+  const primaryItems = primaryNavigation;
+  const secondaryItems = [
+    ...secondaryNavigation,
     ...(user?.isAdmin
       ? [
           { name: 'Administración', href: '/admin/usuarios', icon: FiShield },
@@ -175,26 +181,54 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1" aria-label="Navegación principal">
-          {navigation.map((item) => {
-            const isActive = (item as any).exact ? pathname === item.href : pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                aria-current={isActive ? 'page' : undefined}
-                className={clsx(
-                  'flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary-50/80 text-primary-700'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                )}
-              >
-                <item.icon className="w-5 h-5" aria-hidden="true" />
-                {item.name}
-              </Link>
-            );
-          })}
+        <nav className="p-4 space-y-4" aria-label="Navegación principal">
+          <div className="space-y-1">
+            {primaryItems.map((item) => {
+              const isActive = (item as any).exact ? pathname === item.href : pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={clsx(
+                    'flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-colors',
+                    isActive
+                      ? 'bg-primary-50/80 text-primary-700'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  )}
+                >
+                  <item.icon className="w-5 h-5" aria-hidden="true" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </div>
+          <div className="border-t border-slate-100 pt-4">
+            <p className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Configuración y apoyo
+            </p>
+            <div className="space-y-1">
+              {secondaryItems.map((item) => {
+                const isActive = (item as any).exact ? pathname === item.href : pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={clsx(
+                      'flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-colors',
+                      isActive
+                        ? 'bg-primary-50/80 text-primary-700'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    )}
+                  >
+                    <item.icon className="w-5 h-5" aria-hidden="true" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </nav>
 
         {/* User info at bottom */}
@@ -241,7 +275,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <FiSearch className="w-5 h-5" />
               <span className="text-sm">Buscar pacientes, atenciones...</span>
               <div className="ml-auto hidden md:flex items-center gap-1 px-1.5 py-0.5 border border-slate-200 rounded bg-slate-50 text-[10px] font-medium text-slate-400">
-                <span className="text-xs">⌘</span>K
+                <span>⌘K</span>
+                <span>/</span>
+                <span>Ctrl+K</span>
               </div>
             </button>
 

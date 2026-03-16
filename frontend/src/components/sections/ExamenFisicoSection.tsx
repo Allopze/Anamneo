@@ -1,6 +1,7 @@
 'use client';
 
 import { ExamenFisicoData } from '@/types';
+import { SectionBlock, SectionIntro } from '@/components/sections/SectionPrimitives';
 
 interface Props {
   data: ExamenFisicoData;
@@ -45,11 +46,11 @@ export default function ExamenFisicoSection({ data, onChange, readOnly }: Props)
   const signosVitales = data.signosVitales || {};
 
   return (
-    <div className="space-y-6">
-      {/* Vital Signs */}
-      <div>
-        <h3 className="font-medium text-slate-900 mb-4">Signos vitales</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="space-y-5">
+      <SectionIntro description="Registra signos vitales y hallazgos del examen segmentario usando el mismo orden en cada atención." />
+
+      <SectionBlock title="Signos vitales" description="Constantes fisiológicas y antropometría básica para seguimiento clínico.">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <div>
             <label className="form-label">PA (mmHg)</label>
             <input
@@ -151,11 +152,9 @@ export default function ExamenFisicoSection({ data, onChange, readOnly }: Props)
             />
           </div>
         </div>
-      </div>
+      </SectionBlock>
 
-      {/* Body parts examination */}
-      <div>
-        <h3 className="font-medium text-slate-900 mb-4">Examen segmentario</h3>
+      <SectionBlock title="Examen segmentario" description="Describe los hallazgos positivos o negativos relevantes por zona anatómica.">
         <div className="space-y-4">
           {BODY_PARTS.map(({ key, label }) => {
             const fieldKey = key as keyof ExamenFisicoData;
@@ -165,16 +164,16 @@ export default function ExamenFisicoSection({ data, onChange, readOnly }: Props)
                 <textarea
                   value={data[fieldKey] as string || ''}
                   onChange={(e) => handleChange(key, e.target.value)}
-                disabled={readOnly}
-                rows={2}
-                className="form-input resize-none"
-                placeholder={`Hallazgos del examen de ${label.toLowerCase()}...`}
-              />
-            </div>
+                  disabled={readOnly}
+                  rows={2}
+                  className="form-input resize-none"
+                  placeholder={`Hallazgos del examen de ${label.toLowerCase()}...`}
+                />
+              </div>
             );
           })}
         </div>
-      </div>
+      </SectionBlock>
     </div>
   );
 }
