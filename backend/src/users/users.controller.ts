@@ -11,11 +11,13 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { CreateUserInvitationDto } from './dto/create-user-invitation.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 
 class ResetPasswordDto {
   @IsString()
@@ -23,6 +25,9 @@ class ResetPasswordDto {
   @MaxLength(72, { message: 'La contraseña temporal no puede exceder 72 caracteres' })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
     message: 'La contraseña temporal debe contener mayúscula, minúscula y número',
+  })
+  @Matches(/^\S+$/, {
+    message: 'La contraseña temporal no puede contener espacios',
   })
   temporaryPassword: string;
 }
@@ -35,6 +40,14 @@ export class UsersController {
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
+  }
+
+  @Post('invitations')
+  createInvitation(
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: CreateUserInvitationDto,
+  ) {
+    return this.usersService.createInvitation(user.id, dto);
   }
 
   @Get()

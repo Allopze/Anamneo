@@ -15,24 +15,28 @@ export function isAssistantUser(user: PermissionUser | null | undefined) {
   return user?.role === 'ASISTENTE';
 }
 
+export function isAdminUser(user: PermissionUser | null | undefined) {
+  return user?.role === 'ADMIN' || user?.isAdmin === true;
+}
+
 export function hasAssignedMedico(user: PermissionUser | null | undefined) {
   return Boolean(user && isAssistantUser(user) && user.medicoId);
 }
 
 export function canCreatePatient(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
+  return Boolean(isMedicoUser(user) || hasAssignedMedico(user) || isAdminUser(user));
 }
 
 export function canCreateEncounter(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
+  return Boolean(isMedicoUser(user) || hasAssignedMedico(user) || isAdminUser(user));
 }
 
 export function canEditPatientAdmin(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
+  return Boolean(isMedicoUser(user) || hasAssignedMedico(user) || isAdminUser(user));
 }
 
 export function canUploadAttachments(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
+  return Boolean(isMedicoUser(user) || hasAssignedMedico(user) || isAdminUser(user));
 }
 
 export function canEditAntecedentes(user: PermissionUser | null | undefined) {
@@ -51,7 +55,7 @@ export function canEditEncounter(
     return false;
   }
 
-  return isMedicoUser(user) || encounter.createdBy?.id === user.id;
+  return isMedicoUser(user) || isAdminUser(user) || encounter.createdBy?.id === user.id;
 }
 
 export function canCompleteEncounter(

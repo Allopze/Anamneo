@@ -15,6 +15,9 @@ export class UpdateUserDto {
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
     message: 'La contraseña debe contener mayúscula, minúscula y número',
   })
+  @Matches(/^\S+$/, {
+    message: 'La contraseña no puede contener espacios',
+  })
   @IsOptional()
   password?: string;
 

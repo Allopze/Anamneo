@@ -21,9 +21,14 @@
     "db:ops:monitor": "npm --prefix backend run db:sqlite:ops:monitor",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
+    "docker:logs": "docker-compose logs -f",
+    "release": "bash scripts/release.sh",
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org alejandro-lopez-zelaya --project node-nestjs .next && sentry-cli sourcemaps upload --org alejandro-lopez-zelaya --project node-nestjs .next"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "@sentry/cli": "^2.58.5"
   }
 }

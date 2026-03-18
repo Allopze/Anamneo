@@ -39,7 +39,7 @@ export class EncountersPdfService {
     const encounter = await this.prisma.encounter.findFirst({
       where: {
         id: encounterId,
-        patient: { medicoId: effectiveMedicoId },
+        medicoId: effectiveMedicoId,
       },
       include: {
         sections: true,

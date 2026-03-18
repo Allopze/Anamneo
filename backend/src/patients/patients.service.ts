@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
@@ -17,6 +17,20 @@ export class PatientsService {
     private prisma: PrismaService,
     private auditService: AuditService,
   ) {}
+
+  private async findDuplicateRut(params: {
+    rut: string;
+    excludePatientId?: string;
+  }) {
+    const { rut, excludePatientId } = params;
+
+    return this.prisma.patient.findFirst({
+      where: {
+        rut,
+        ...(excludePatientId ? { id: { not: excludePatientId } } : {}),
+      },
+    });
+  }
 
   private formatTask(task: any) {
     return {
@@ -40,13 +54,25 @@ export class PatientsService {
 
   private async assertPatientAccess(user: RequestUser, patientId: string) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
+
     const patient = await this.prisma.patient.findUnique({
       where: { id: patientId },
       include: { history: true },
     });
 
-    if (!patient || patient.medicoId !== effectiveMedicoId || patient.archivedAt) {
+    if (!patient || patient.archivedAt) {
       throw new NotFoundException('Paciente no encontrado');
+    }
+
+    // Allow access if user created the patient or has encounters with them
+    if (!user.isAdmin && patient.createdById !== effectiveMedicoId) {
+      const hasEncounter = await this.prisma.encounter.findFirst({
+        where: { patientId, medicoId: effectiveMedicoId },
+        select: { id: true },
+      });
+      if (!hasEncounter) {
+        throw new NotFoundException('Paciente no encontrado');
+      }
     }
 
     return patient;
@@ -63,15 +89,16 @@ export class PatientsService {
         throw new BadRequestException('El RUT ingresado no es válido');
       }
 
-      // Check for duplicate RUT
-      const existingPatient = await this.prisma.patient.findUnique({
-        where: { rut: rutValidation.formatted ?? undefined },
+      const validatedRut = rutValidation.formatted as string;
+
+      const existingPatient = await this.findDuplicateRut({
+        rut: validatedRut,
       });
       if (existingPatient) {
         throw new ConflictException('Ya existe un paciente con este RUT');
       }
 
-      formattedRut = rutValidation.formatted ?? undefined;
+      formattedRut = validatedRut;
     }
 
     // If exempt, require reason
@@ -81,7 +108,7 @@ export class PatientsService {
 
     const patient = await this.prisma.patient.create({
       data: {
-        medicoId: userId,
+        createdById: userId,
         rut: createPatientDto.rutExempt ? null : (formattedRut || createPatientDto.rut || null),
         rutExempt: createPatientDto.rutExempt || false,
         rutExemptReason: trimmedRutExemptReason || null,
@@ -124,14 +151,16 @@ export class PatientsService {
         throw new BadRequestException('El RUT ingresado no es valido');
       }
 
-      const existingPatient = await this.prisma.patient.findUnique({
-        where: { rut: rutValidation.formatted ?? undefined },
+      const validatedRut = rutValidation.formatted as string;
+
+      const existingPatient = await this.findDuplicateRut({
+        rut: validatedRut,
       });
       if (existingPatient) {
         throw new ConflictException('Ya existe un paciente con este RUT');
       }
 
-      formattedRut = rutValidation.formatted ?? undefined;
+      formattedRut = validatedRut;
     }
 
     if (createPatientDto.rutExempt && !trimmedRutExemptReason) {
@@ -140,7 +169,7 @@ export class PatientsService {
 
     const patient = await this.prisma.patient.create({
       data: {
-        medicoId: effectiveMedicoId,
+        createdById: effectiveMedicoId,
         rut: createPatientDto.rutExempt ? null : (formattedRut || createPatientDto.rut || null),
         rutExempt: createPatientDto.rutExempt || false,
         rutExemptReason: trimmedRutExemptReason || null,
@@ -183,17 +212,31 @@ export class PatientsService {
       sortOrder?: 'asc' | 'desc';
     },
   ) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
     const skip = (page - 1) * limit;
+    const effectiveMedicoId = getEffectiveMedicoId(user);
+
+    // Scope: patients created by this medico OR with at least one encounter by them
+    const accessFilter: any = user.isAdmin
+      ? {}
+      : {
+          OR: [
+            { createdById: effectiveMedicoId },
+            { encounters: { some: { medicoId: effectiveMedicoId } } },
+          ],
+        };
 
     const where: any = {
-      medicoId: effectiveMedicoId,
       archivedAt: null,
+      ...accessFilter,
       ...(search
         ? {
-            OR: [
-              { nombre: { contains: search } },
-              { rut: { contains: search } },
+            AND: [
+              {
+                OR: [
+                  { nombre: { contains: search } },
+                  { rut: { contains: search } },
+                ],
+              },
             ],
           }
         : {}),
@@ -265,6 +308,7 @@ export class PatientsService {
 
   async findById(user: RequestUser, id: string) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
+
     const patient = await this.prisma.patient.findUnique({
       where: { id },
       include: {
@@ -307,12 +351,16 @@ export class PatientsService {
       },
     });
 
-    if (!patient) {
+    if (!patient || patient.archivedAt) {
       throw new NotFoundException('Paciente no encontrado');
     }
 
-    if (patient.medicoId !== effectiveMedicoId || patient.archivedAt) {
-      throw new NotFoundException('Paciente no encontrado');
+    // Verify access: user created patient or has encounters with them
+    if (!user.isAdmin && patient.createdById !== effectiveMedicoId) {
+      const hasEncounter = patient.encounters.some((e: any) => e.medicoId === effectiveMedicoId);
+      if (!hasEncounter) {
+        throw new NotFoundException('Paciente no encontrado');
+      }
     }
 
     return {
@@ -334,15 +382,23 @@ export class PatientsService {
       overdueOnly?: boolean;
     },
   ) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
     const page = filters?.page || 1;
     const limit = filters?.limit || 20;
     const skip = (page - 1) * limit;
 
+    const effectiveMedicoId = getEffectiveMedicoId(user);
+
     const where: Prisma.EncounterTaskWhereInput = {
       patient: {
-        medicoId: effectiveMedicoId,
         archivedAt: null,
+        ...(user.isAdmin
+          ? {}
+          : {
+              OR: [
+                { createdById: effectiveMedicoId },
+                { encounters: { some: { medicoId: effectiveMedicoId } } },
+              ],
+            }),
       },
     };
 
@@ -412,10 +468,6 @@ export class PatientsService {
       throw new NotFoundException('Paciente no encontrado');
     }
 
-    if (existingPatient.medicoId !== userId) {
-      throw new ForbiddenException('No tiene permisos para editar este paciente');
-    }
-
     if (existingPatient.archivedAt) {
       throw new BadRequestException('No se puede editar un paciente archivado');
     }
@@ -470,18 +522,18 @@ export class PatientsService {
         throw new BadRequestException('El RUT ingresado no es válido');
       }
 
-      const duplicateRut = await this.prisma.patient.findFirst({
-        where: {
-          rut: rutValidation.formatted ?? undefined,
-          id: { not: id },
-        },
+      const validatedRut = rutValidation.formatted as string;
+
+      const duplicateRut = await this.findDuplicateRut({
+        rut: validatedRut,
+        excludePatientId: id,
       });
 
       if (duplicateRut) {
         throw new ConflictException('Ya existe un paciente con este RUT');
       }
 
-      updateData.rut = rutValidation.formatted;
+      updateData.rut = validatedRut;
     }
 
     const patient = await this.prisma.patient.update({
@@ -505,15 +557,9 @@ export class PatientsService {
   }
 
   async updateAdminFields(user: RequestUser, patientId: string, dto: UpdatePatientAdminDto) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-
     const existingPatient = await this.prisma.patient.findUnique({ where: { id: patientId } });
 
     if (!existingPatient) {
-      throw new NotFoundException('Paciente no encontrado');
-    }
-
-    if (existingPatient.medicoId !== effectiveMedicoId) {
       throw new NotFoundException('Paciente no encontrado');
     }
 
@@ -556,17 +602,12 @@ export class PatientsService {
   }
 
   async updateHistory(user: RequestUser, patientId: string, dto: UpdatePatientHistoryDto) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
     const patient = await this.prisma.patient.findUnique({
       where: { id: patientId },
       include: { history: true },
     });
 
     if (!patient) {
-      throw new NotFoundException('Paciente no encontrado');
-    }
-
-    if (patient.medicoId !== effectiveMedicoId) {
       throw new NotFoundException('Paciente no encontrado');
     }
 
@@ -620,10 +661,6 @@ export class PatientsService {
       throw new NotFoundException('Paciente no encontrado');
     }
 
-    if (patient.medicoId !== userId) {
-      throw new ForbiddenException('No tiene permisos para eliminar este paciente');
-    }
-
     if (patient.archivedAt) {
       return { message: 'El paciente ya se encuentra archivado' };
     }
@@ -668,10 +705,6 @@ export class PatientsService {
 
     if (!patient) {
       throw new NotFoundException('Paciente no encontrado');
-    }
-
-    if (patient.medicoId !== userId) {
-      throw new ForbiddenException('No tiene permisos para restaurar este paciente');
     }
 
     if (!patient.archivedAt) {
@@ -777,7 +810,7 @@ export class PatientsService {
       },
     });
 
-    if (!problem || problem.patient.medicoId !== getEffectiveMedicoId(user) || problem.patient.archivedAt) {
+    if (!problem || problem.patient.archivedAt) {
       throw new NotFoundException('Problema clínico no encontrado');
     }
 
@@ -889,7 +922,7 @@ export class PatientsService {
       },
     });
 
-    if (!task || task.patient.medicoId !== getEffectiveMedicoId(user) || task.patient.archivedAt) {
+    if (!task || task.patient.archivedAt) {
       throw new NotFoundException('Seguimiento no encontrado');
     }
 

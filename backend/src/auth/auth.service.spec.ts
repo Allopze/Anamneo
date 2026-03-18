@@ -3,7 +3,9 @@ import { AuthService } from './auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
+import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
 jest.mock('bcrypt');
@@ -11,8 +13,17 @@ jest.mock('bcrypt');
 describe('AuthService', () => {
   let service: AuthService;
   let usersService: Partial<UsersService>;
+  let prismaService: {
+    loginAttempt: {
+      findUnique: jest.Mock;
+      upsert: jest.Mock;
+      update: jest.Mock;
+      deleteMany: jest.Mock;
+    };
+  };
   let jwtService: Partial<JwtService>;
   let configService: Partial<ConfigService>;
+  let auditService: { log: jest.Mock };
 
   const mockUser = {
     id: 'user-1',
@@ -42,6 +53,8 @@ describe('AuthService', () => {
       create: jest.fn(),
       findById: jest.fn(),
       findAuthById: jest.fn().mockResolvedValue(mockUser),
+      findInvitationByToken: jest.fn().mockResolvedValue(null),
+      acceptInvitation: jest.fn(),
       rotateRefreshTokenVersion: jest.fn().mockResolvedValue(2),
       createSession: jest.fn().mockResolvedValue(mockSession),
       findActiveSessionById: jest.fn().mockResolvedValue(mockSession),
@@ -53,6 +66,15 @@ describe('AuthService', () => {
       revokeAllSessionsForUser: jest.fn(),
     };
 
+    prismaService = {
+      loginAttempt: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        upsert: jest.fn(),
+        update: jest.fn(),
+        deleteMany: jest.fn(),
+      },
+    };
+
     jwtService = {
       sign: jest.fn().mockReturnValue('mock-jwt-token'),
       verify: jest.fn(),
@@ -62,12 +84,18 @@ describe('AuthService', () => {
       get: jest.fn().mockReturnValue('test-secret'),
     };
 
+    auditService = {
+      log: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
+        { provide: PrismaService, useValue: prismaService },
         { provide: UsersService, useValue: usersService },
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
+        { provide: AuditService, useValue: auditService },
       ],
     }).compile();
 
@@ -98,7 +126,15 @@ describe('AuthService', () => {
 
     it('should register subsequent users with requested role', async () => {
       (usersService.findByEmail as jest.Mock).mockResolvedValue(null);
-      (usersService.countUsers as jest.Mock).mockResolvedValue(1);
+      (usersService.countActiveAdmins as jest.Mock).mockResolvedValue(1);
+      (usersService.findInvitationByToken as jest.Mock).mockResolvedValue({
+        id: 'invite-1',
+        email: 'test2@example.com',
+        role: 'ASISTENTE',
+        medicoId: 'medico-1',
+        invitedById: 'admin-1',
+        expiresAt: new Date(Date.now() + 60_000),
+      });
       (usersService.create as jest.Mock).mockResolvedValue(mockUser);
 
       await service.register({
@@ -106,19 +142,19 @@ describe('AuthService', () => {
         password: 'Password1',
         nombre: 'Test User 2',
         role: 'ASISTENTE',
+        invitationToken: '0123456789abcdef0123456789abcdef',
       });
 
       expect(usersService.create).toHaveBeenCalledWith(
         expect.objectContaining({
           role: 'ASISTENTE',
+          medicoId: 'medico-1',
         }),
       );
-      expect(usersService.create).toHaveBeenCalledWith(
-        expect.not.objectContaining({ isAdmin: true }),
-      );
+      expect(usersService.acceptInvitation).toHaveBeenCalledWith('invite-1');
     });
 
-    it('should throw ConflictException if ADMIN is requested and an active admin already exists', async () => {
+    it('should throw ForbiddenException if ADMIN is requested and an active admin already exists', async () => {
       (usersService.findByEmail as jest.Mock).mockResolvedValue(null);
       (usersService.countActiveAdmins as jest.Mock).mockResolvedValue(1);
 
@@ -129,9 +165,46 @@ describe('AuthService', () => {
           nombre: 'Test User 3',
           role: 'ADMIN',
         }),
-      ).rejects.toThrow(ConflictException);
+      ).rejects.toThrow(ForbiddenException);
 
       expect(usersService.create).not.toHaveBeenCalled();
+    });
+
+    it('should block public registration without invitation once an admin exists', async () => {
+      (usersService.findByEmail as jest.Mock).mockResolvedValue(null);
+      (usersService.countActiveAdmins as jest.Mock).mockResolvedValue(1);
+
+      await expect(
+        service.register({
+          email: 'doctor@example.com',
+          password: 'Password1',
+          nombre: 'Doctor',
+          role: 'MEDICO',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should reject invitation role mismatch', async () => {
+      (usersService.findByEmail as jest.Mock).mockResolvedValue(null);
+      (usersService.countActiveAdmins as jest.Mock).mockResolvedValue(1);
+      (usersService.findInvitationByToken as jest.Mock).mockResolvedValue({
+        id: 'invite-1',
+        email: 'doctor@example.com',
+        role: 'ASISTENTE',
+        medicoId: 'medico-1',
+        invitedById: 'admin-1',
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+
+      await expect(
+        service.register({
+          email: 'doctor@example.com',
+          password: 'Password1',
+          nombre: 'Doctor',
+          role: 'MEDICO',
+          invitationToken: '0123456789abcdef0123456789abcdef',
+        }),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw ConflictException for duplicate email', async () => {
@@ -159,6 +232,9 @@ describe('AuthService', () => {
 
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
+      expect(prismaService.loginAttempt.deleteMany).toHaveBeenCalledWith({
+        where: { email: 'test@example.com' },
+      });
     });
 
     it('should throw UnauthorizedException for invalid credentials', async () => {
@@ -171,6 +247,12 @@ describe('AuthService', () => {
           password: 'WrongPassword1',
         }),
       ).rejects.toThrow(UnauthorizedException);
+
+      expect(prismaService.loginAttempt.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { email: 'test@example.com' },
+        }),
+      );
     });
 
     it('should throw UnauthorizedException for inactive user', async () => {
@@ -196,6 +278,24 @@ describe('AuthService', () => {
           password: 'Password1',
         }),
       ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should block login when the persisted lockout is still active', async () => {
+      const lockedUntil = new Date(Date.now() + 10 * 60 * 1000);
+      prismaService.loginAttempt.findUnique.mockResolvedValue({
+        email: 'test@example.com',
+        failedAttempts: 5,
+        lockedUntil,
+      });
+
+      await expect(
+        service.login({
+          email: 'test@example.com',
+          password: 'Password1',
+        }),
+      ).rejects.toThrow('Cuenta bloqueada temporalmente');
+
+      expect(usersService.findByEmail).not.toHaveBeenCalled();
     });
   });
 
@@ -242,7 +342,7 @@ describe('AuthService', () => {
         userCount: 0,
         isEmpty: true,
         hasAdmin: false,
-        registerableRoles: ['ADMIN', 'MEDICO', 'ASISTENTE'],
+        registerableRoles: ['ADMIN'],
       });
     });
 
@@ -256,7 +356,7 @@ describe('AuthService', () => {
         userCount: 3,
         isEmpty: false,
         hasAdmin: true,
-        registerableRoles: ['MEDICO', 'ASISTENTE'],
+        registerableRoles: [],
       });
     });
   });

@@ -6,7 +6,7 @@ interface LogInput {
   entityType: string;
   entityId: string;
   userId: string;
-  action: 'CREATE' | 'UPDATE' | 'DELETE';
+  action: AuditAction;
   diff?: any;
 }
 

@@ -11,6 +11,15 @@ import { ErrorAlert } from '@/components/common/ErrorAlert';
 
 type Role = 'MEDICO' | 'ASISTENTE';
 
+interface UserInvitationResponse {
+  id: string;
+  email: string;
+  role: Role;
+  medicoId?: string | null;
+  expiresAt: string;
+  token: string;
+}
+
 interface AdminUserRow {
   id: string;
   email: string;
@@ -29,12 +38,11 @@ export default function AdminUsuariosPage() {
   const { isAdmin, user } = useAuthStore();
 
   const [createForm, setCreateForm] = useState({
-    nombre: '',
     email: '',
-    password: '',
     role: 'MEDICO' as Role,
     medicoId: '' as string,
   });
+  const [createdInvitationUrl, setCreatedInvitationUrl] = useState<string | null>(null);
 
   const [editingUser, setEditingUser] = useState<AdminUserRow | null>(null);
   const [editForm, setEditForm] = useState({
@@ -54,6 +62,7 @@ export default function AdminUsuariosPage() {
     if (!required && value.trim().length === 0) return null;
     if (value.length < 8) return 'Contraseña debe tener al menos 8 caracteres';
     if (value.length > 72) return 'Contraseña no puede exceder 72 caracteres';
+    if (/\s/.test(value)) return 'Contraseña no puede contener espacios';
     if (!/[A-Z]/.test(value) || !/[a-z]/.test(value) || !/[0-9]/.test(value)) {
       return 'Contraseña debe contener mayúscula, minúscula y número';
     }
@@ -63,11 +72,10 @@ export default function AdminUsuariosPage() {
 
   const getCreateErrors = useCallback(() => {
     const errors: string[] = [];
-    if (createForm.nombre.trim().length < 2) errors.push('Nombre debe tener al menos 2 caracteres');
     if (!isValidEmail(createForm.email)) errors.push('Email inválido');
-
-    const passwordError = getPasswordError(createForm.password, true);
-    if (passwordError) errors.push(passwordError);
+    if (createForm.role === 'ASISTENTE' && !createForm.medicoId) {
+      errors.push('Debe asignar el asistente a un médico');
+    }
 
     return errors;
   }, [createForm]);
@@ -126,24 +134,29 @@ export default function AdminUsuariosPage() {
     }));
   }, [medicos, users]);
 
-  const createUserMutation = useMutation({
+  const createInvitationMutation = useMutation({
     mutationFn: async () => {
       const payload: any = {
-        nombre: createForm.nombre,
         email: createForm.email,
-        password: createForm.password,
         role: createForm.role,
       };
       if (createForm.role === 'ASISTENTE') {
         payload.medicoId = createForm.medicoId || undefined;
       }
-      const response = await api.post('/users', payload);
-      return response.data;
+      const response = await api.post('/users/invitations', payload);
+      return response.data as UserInvitationResponse;
     },
-    onSuccess: () => {
-      toast.success('Usuario creado');
-      setCreateForm({ nombre: '', email: '', password: '', role: 'MEDICO', medicoId: '' });
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    onSuccess: async (invitation) => {
+      const inviteUrl = `${window.location.origin}/register?token=${invitation.token}`;
+      setCreatedInvitationUrl(inviteUrl);
+      setCreateForm({ email: '', role: 'MEDICO', medicoId: '' });
+
+      try {
+        await navigator.clipboard.writeText(inviteUrl);
+        toast.success('Invitación creada y copiada al portapapeles');
+      } catch {
+        toast.success('Invitación creada');
+      }
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
@@ -212,12 +225,11 @@ export default function AdminUsuariosPage() {
 
   const prefillAssistantForMedico = (medico: AdminUserRow) => {
     setCreateForm({
-      nombre: '',
       email: '',
-      password: '',
       role: 'ASISTENTE',
       medicoId: medico.id,
     });
+    setCreatedInvitationUrl(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -244,34 +256,21 @@ export default function AdminUsuariosPage() {
         <div className="panel-header">
           <div className="flex items-center gap-2">
           <FiPlus className="w-4 h-4 text-primary-600" />
-          <h2 className="panel-title">Crear usuario</h2>
+          <h2 className="panel-title">Crear invitación</h2>
           </div>
         </div>
 
+        <p className="mb-4 text-sm text-slate-600">
+          El enlace permite que la persona complete su registro y defina su propia contraseña.
+        </p>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm text-slate-600">Nombre</label>
-            <input
-              className="form-input"
-              value={createForm.nombre}
-              onChange={(e) => setCreateForm((p) => ({ ...p, nombre: e.target.value }))}
-            />
-          </div>
           <div>
             <label className="text-sm text-slate-600">Email</label>
             <input
               className="form-input"
               value={createForm.email}
               onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="text-sm text-slate-600">Contraseña</label>
-            <input
-              type="password"
-              className="form-input"
-              value={createForm.password}
-              onChange={(e) => setCreateForm((p) => ({ ...p, password: e.target.value }))}
             />
           </div>
           <div>
@@ -308,16 +307,23 @@ export default function AdminUsuariosPage() {
         <div className="mt-4 flex items-center gap-3">
           <button
             className="btn btn-primary flex items-center gap-2"
-            onClick={() => createUserMutation.mutate()}
-            disabled={createUserMutation.isPending || createErrors.length > 0}
+            onClick={() => createInvitationMutation.mutate()}
+            disabled={createInvitationMutation.isPending || createErrors.length > 0}
           >
             <FiUsers className="w-4 h-4" />
-            Crear
+            Crear invitación
           </button>
-          {createErrors.length > 0 && createForm.nombre.length + createForm.email.length + createForm.password.length > 0 && (
+          {createErrors.length > 0 && createForm.email.length > 0 && (
             <span className="text-xs text-red-500">{createErrors[0]}</span>
           )}
         </div>
+
+        {createdInvitationUrl && (
+          <div className="mt-4 rounded-xl border border-primary-200 bg-primary-50 p-4">
+            <p className="text-sm font-medium text-slate-900">Enlace de invitación</p>
+            <p className="mt-2 break-all text-sm text-slate-700">{createdInvitationUrl}</p>
+          </div>
+        )}
       </div>
 
       <div className="card mb-6">

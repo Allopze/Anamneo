@@ -1,9 +1,9 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, Patch, UseGuards, Res, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Get, Patch, UseGuards, Res, UnauthorizedException, Param } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import { RegisterWithInvitationDto } from './dto/register-with-invitation.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -83,10 +83,15 @@ export class AuthController {
     return this.authService.getBootstrapState();
   }
 
+  @Get('invitations/:token')
+  async getInvitation(@Param('token') token: string) {
+    return this.authService.getInvitationPreview(token);
+  }
+
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @Throttle({ short: { limit: 3, ttl: 60000 } })
-  async register(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+  async register(@Body() registerDto: RegisterWithInvitationDto, @Res({ passthrough: true }) res: Response) {
     const sessionContext = this.getSessionContext(res.req as Request);
     const result = await this.authService.register(registerDto, sessionContext);
     this.setAuthCookies(res, result);

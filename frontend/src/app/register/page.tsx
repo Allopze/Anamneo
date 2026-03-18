@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -40,7 +40,7 @@ const registerSchema = z.object({
     .regex(/[A-Z]/, 'Debe contener al menos una mayúscula')
     .regex(/[a-z]/, 'Debe contener al menos una minúscula')
     .regex(/[0-9]/, 'Debe contener al menos un número')
-    .regex(/^[A-Za-z\d@$!%*?&]+$/, 'Solo se permiten letras, números y @$!%*?&'),
+    .regex(/^\S+$/, 'La contraseña no puede contener espacios'),
   confirmPassword: z.string(),
   role: z.enum(['ADMIN', 'MEDICO', 'ASISTENTE']),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -52,11 +52,16 @@ type RegisterForm = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [availableRoles, setAvailableRoles] = useState<RegisterRole[]>(['MEDICO', 'ASISTENTE']);
+  const [availableRoles, setAvailableRoles] = useState<RegisterRole[]>(['ADMIN']);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+  const [invitationToken, setInvitationToken] = useState<string | null>(null);
+  const [invitationEmail, setInvitationEmail] = useState<string | null>(null);
+  const [invitationError, setInvitationError] = useState<string | null>(null);
+  const [isInvitationMode, setIsInvitationMode] = useState(false);
 
   const {
     register,
@@ -121,34 +126,55 @@ export default function RegisterPage() {
     let cancelled = false;
 
     const loadBootstrapState = async () => {
+      const tokenFromQuery = searchParams.get('token')?.trim() || null;
+
       try {
         const response = await api.get('/auth/bootstrap');
         if (cancelled) {
           return;
         }
 
-        const rawRoles = response.data?.registerableRoles;
-        const parsedRoles = Array.isArray(rawRoles)
-          ? rawRoles.filter((role: unknown): role is RegisterRole => (
-            role === 'ADMIN' || role === 'MEDICO' || role === 'ASISTENTE'
-          ))
-          : [];
+        if (response.data?.hasAdmin) {
+          setIsInvitationMode(true);
 
-        const nextRoles = parsedRoles.length > 0 ? parsedRoles : (['MEDICO', 'ASISTENTE'] as RegisterRole[]);
-        setAvailableRoles(nextRoles);
-        const currentRole = getValues('role');
-        const preferredRole = currentRole && nextRoles.includes(currentRole as RegisterRole)
-          ? (currentRole as RegisterRole)
-          : nextRoles[0];
-        setValue('role', preferredRole);
+          if (!tokenFromQuery) {
+            setInvitationError('Necesita una invitación válida para crear una cuenta.');
+            setAvailableRoles([]);
+            return;
+          }
+
+          try {
+            const invitationResponse = await api.get(`/auth/invitations/${tokenFromQuery}`);
+            if (cancelled) {
+              return;
+            }
+
+            const role = invitationResponse.data.role as RegisterRole;
+            const email = invitationResponse.data.email as string;
+
+            setInvitationToken(tokenFromQuery);
+            setInvitationEmail(email);
+            setAvailableRoles([role]);
+            setValue('role', role, { shouldValidate: false, shouldDirty: false });
+            setValue('email', email, { shouldValidate: false, shouldDirty: false });
+            setInvitationError(null);
+          } catch {
+            if (!cancelled) {
+              setAvailableRoles([]);
+              setInvitationError('La invitación es inválida o expiró.');
+            }
+          }
+
+          return;
+        }
+
+        setIsInvitationMode(false);
+        setAvailableRoles(['ADMIN']);
+        setValue('role', 'ADMIN', { shouldValidate: false, shouldDirty: false });
+        setInvitationError(null);
       } catch {
         if (!cancelled) {
-          setAvailableRoles(['MEDICO', 'ASISTENTE']);
-          const currentRole = getValues('role');
-          const preferredRole = currentRole === 'MEDICO' || currentRole === 'ASISTENTE'
-            ? currentRole
-            : 'MEDICO';
-          setValue('role', preferredRole);
+          setInvitationError('No fue posible cargar el estado de registro.');
         }
       } finally {
         if (!cancelled) {
@@ -162,7 +188,7 @@ export default function RegisterPage() {
     return () => {
       cancelled = true;
     };
-  }, [getValues, setValue]);
+  }, [getValues, searchParams, setValue]);
 
   const onSubmit = async (data: RegisterForm) => {
     try {
@@ -172,6 +198,7 @@ export default function RegisterPage() {
         password: data.password,
         nombre: data.nombre,
         role: data.role,
+        invitationToken: invitationToken || undefined,
       });
 
       // Fetch user profile using the cookie-based session
@@ -250,6 +277,12 @@ export default function RegisterPage() {
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            {invitationError && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {invitationError}
+              </div>
+            )}
+
             {/* Nombre */}
             <div>
               <label htmlFor="nombre" className="block text-sm font-medium text-slate-700 mb-1">
@@ -281,6 +314,7 @@ export default function RegisterPage() {
                   id="email"
                   type="email"
                   {...register('email')}
+                  readOnly={isInvitationMode && !!invitationEmail}
                   className={`form-input pl-10 ${errors.email ? 'border-red-500' : ''}`}
                   placeholder="doctor@clinica.cl"
                 />
@@ -316,7 +350,9 @@ export default function RegisterPage() {
                     ))}
                   </div>
                   <p className="text-xs text-slate-500 mt-2">
-                    La opción Administrador solo aparece mientras no exista una cuenta administradora activa.
+                    {isInvitationMode
+                      ? 'El rol fue definido por la invitación.'
+                      : 'Solo el primer registro crea la cuenta administradora inicial.'}
                   </p>
                 </>
               )}
@@ -381,7 +417,7 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              disabled={isSubmitting || isLoadingRoles}
+              disabled={isSubmitting || isLoadingRoles || !!invitationError}
               className="btn btn-primary w-full flex items-center justify-center gap-2"
             >
               {isSubmitting ? (

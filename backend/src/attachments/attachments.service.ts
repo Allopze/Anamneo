@@ -208,7 +208,7 @@ export class AttachmentsService {
       throw new NotFoundException('Atención no encontrada');
     }
 
-    if (encounter.patient.medicoId !== effectiveMedicoId) {
+    if (encounter.medicoId !== effectiveMedicoId) {
       throw new ForbiddenException('No tiene permisos para adjuntar archivos a esta atención');
     }
 
@@ -262,7 +262,7 @@ export class AttachmentsService {
       include: { patient: true },
     });
 
-    if (!encounter || encounter.patient.medicoId !== effectiveMedicoId) {
+    if (!encounter || encounter.medicoId !== effectiveMedicoId) {
       throw new NotFoundException('Atención no encontrada');
     }
 
@@ -301,7 +301,7 @@ export class AttachmentsService {
       throw new NotFoundException('Archivo no encontrado');
     }
 
-    if (attachment.encounter.patient.medicoId !== effectiveMedicoId) {
+    if (attachment.encounter.medicoId !== effectiveMedicoId) {
       throw new NotFoundException('Archivo no encontrado');
     }
 
@@ -327,7 +327,7 @@ export class AttachmentsService {
       throw new NotFoundException('Archivo no encontrado');
     }
 
-    if (attachment.encounter.patient.medicoId !== userId) {
+    if (attachment.encounter.medicoId !== userId) {
       throw new ForbiddenException('No tiene permisos para eliminar este archivo');
     }
 

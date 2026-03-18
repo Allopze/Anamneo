@@ -3,8 +3,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomBytes } from 'crypto';
+import { CreateUserInvitationDto } from './dto/create-user-invitation.dto';
 
 const BCRYPT_ROUNDS = 12;
+const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 type SessionMetadata = {
   userAgent?: string | null;
@@ -14,6 +17,14 @@ type SessionMetadata = {
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
+
+  private normalizeEmail(email: string) {
+    return email.trim().toLowerCase();
+  }
+
+  private hashInvitationToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
+  }
 
   private async assertNotLeavingSystemWithoutAdmin(user: {
     id: string;
@@ -56,7 +67,7 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto & { isAdmin?: boolean; allowUnassignedAssistant?: boolean }) {
     const existingUser = await this.prisma.user.findUnique({
-      where: { email: createUserDto.email },
+      where: { email: this.normalizeEmail(createUserDto.email) },
     });
 
     if (existingUser) {
@@ -90,7 +101,7 @@ export class UsersService {
 
     const user = await this.prisma.user.create({
       data: {
-        email: createUserDto.email,
+        email: this.normalizeEmail(createUserDto.email),
         passwordHash,
         nombre: createUserDto.nombre,
         role,
@@ -151,7 +162,105 @@ export class UsersService {
 
   async findByEmail(email: string) {
     return this.prisma.user.findUnique({
+      where: { email: this.normalizeEmail(email) },
+    });
+  }
+
+  async createInvitation(invitedById: string, dto: CreateUserInvitationDto) {
+    const email = this.normalizeEmail(dto.email);
+
+    const existingUser = await this.prisma.user.findUnique({
       where: { email },
+      select: { id: true },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Ya existe un usuario con este email');
+    }
+
+    if (dto.role === 'ASISTENTE' && !dto.medicoId) {
+      throw new ConflictException('Un asistente invitado debe estar asignado a un médico');
+    }
+
+    if (dto.role === 'MEDICO' && dto.medicoId) {
+      throw new ConflictException('Un médico invitado no puede tener medicoId asignado');
+    }
+
+    if (dto.medicoId) {
+      const medico = await this.prisma.user.findUnique({
+        where: { id: dto.medicoId },
+        select: { id: true, role: true, active: true },
+      });
+
+      if (!medico || medico.role !== 'MEDICO' || !medico.active) {
+        throw new NotFoundException('Médico asignado no encontrado');
+      }
+    }
+
+    const now = new Date();
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = this.hashInvitationToken(token);
+    const expiresAt = new Date(now.getTime() + INVITATION_TTL_MS);
+
+    await this.prisma.userInvitation.updateMany({
+      where: {
+        email,
+        acceptedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: now },
+      },
+      data: { revokedAt: now },
+    });
+
+    const invitation = await this.prisma.userInvitation.create({
+      data: {
+        email,
+        role: dto.role,
+        medicoId: dto.role === 'ASISTENTE' ? dto.medicoId ?? null : null,
+        tokenHash,
+        invitedById,
+        expiresAt,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        medicoId: true,
+        expiresAt: true,
+      },
+    });
+
+    return {
+      ...invitation,
+      token,
+    };
+  }
+
+  async findInvitationByToken(token: string) {
+    const now = new Date();
+
+    return this.prisma.userInvitation.findFirst({
+      where: {
+        tokenHash: this.hashInvitationToken(token),
+        acceptedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: now },
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        medicoId: true,
+        invitedById: true,
+        expiresAt: true,
+      },
+    });
+  }
+
+  async acceptInvitation(id: string) {
+    await this.prisma.userInvitation.update({
+      where: { id },
+      data: { acceptedAt: new Date() },
     });
   }
 
@@ -447,6 +556,9 @@ export class UsersService {
     const normalizedPassword = temporaryPassword.trim();
     if (normalizedPassword.length < 8) {
       throw new ConflictException('La contraseña temporal debe tener al menos 8 caracteres');
+    }
+    if (/\s/.test(normalizedPassword)) {
+      throw new ConflictException('La contraseña temporal no puede contener espacios');
     }
     if (!/[A-Z]/.test(normalizedPassword) || !/[a-z]/.test(normalizedPassword) || !/[0-9]/.test(normalizedPassword)) {
       throw new ConflictException('La contraseña temporal debe contener mayúscula, minúscula y número');

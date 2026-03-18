@@ -1,11 +1,17 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
+import { AuditService } from '../audit/audit.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import { RegisterWithInvitationDto } from './dto/register-with-invitation.dto';
 import { Role } from './dto/register.dto';
+
+// ── Account lockout ────────────────────────────────────────────────────
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
 export interface JwtPayload {
   sub: string;
@@ -30,35 +36,158 @@ type SessionContext = {
 @Injectable()
 export class AuthService {
   constructor(
+    private prisma: PrismaService,
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private auditService: AuditService,
   ) {}
 
-  async register(registerDto: RegisterDto, sessionContext?: SessionContext): Promise<AuthTokens> {
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
+  private async clearExpiredLockout(email: string, now: Date) {
+    const loginAttempt = await this.prisma.loginAttempt.findUnique({
+      where: { email },
+    });
+
+    if (!loginAttempt) {
+      return null;
+    }
+
+    if (loginAttempt.lockedUntil && loginAttempt.lockedUntil > now) {
+      return loginAttempt;
+    }
+
+    if (loginAttempt.failedAttempts > 0 || loginAttempt.lockedUntil) {
+      await this.prisma.loginAttempt.update({
+        where: { email },
+        data: {
+          failedAttempts: 0,
+          lockedUntil: null,
+          lastAttemptAt: now,
+        },
+      });
+    }
+
+    return null;
+  }
+
+  private async registerFailedLoginAttempt(email: string, now: Date) {
+    const existingAttempt = await this.prisma.loginAttempt.findUnique({
+      where: { email },
+    });
+
+    const shouldResetCounter = Boolean(
+      existingAttempt?.lockedUntil && existingAttempt.lockedUntil <= now,
+    );
+
+    const nextAttempts = (shouldResetCounter ? 0 : existingAttempt?.failedAttempts ?? 0) + 1;
+    const lockedUntil = nextAttempts >= MAX_FAILED_ATTEMPTS
+      ? new Date(now.getTime() + LOCKOUT_DURATION_MS)
+      : null;
+
+    await this.prisma.loginAttempt.upsert({
+      where: { email },
+      create: {
+        email,
+        failedAttempts: nextAttempts,
+        lockedUntil,
+        lastAttemptAt: now,
+      },
+      update: {
+        failedAttempts: nextAttempts,
+        lockedUntil,
+        lastAttemptAt: now,
+      },
+    });
+
+    return {
+      attempts: nextAttempts,
+      lockedUntil,
+    };
+  }
+
+  private async resetFailedLoginAttempts(email: string) {
+    await this.prisma.loginAttempt.deleteMany({
+      where: { email },
+    });
+  }
+
+  async getInvitationPreview(token: string) {
+    const invitation = await this.usersService.findInvitationByToken(token);
+
+    if (!invitation) {
+      throw new ForbiddenException('La invitación es inválida o expiró');
+    }
+
+    return {
+      email: invitation.email,
+      role: invitation.role,
+      medicoId: invitation.medicoId,
+      expiresAt: invitation.expiresAt,
+    };
+  }
+
+  async register(registerDto: RegisterWithInvitationDto, sessionContext?: SessionContext): Promise<AuthTokens> {
+    const normalizedEmail = this.normalizeEmail(registerDto.email);
+
     // Check if user already exists
-    const existingUser = await this.usersService.findByEmail(registerDto.email);
+    const existingUser = await this.usersService.findByEmail(normalizedEmail);
     if (existingUser) {
       throw new ConflictException('Ya existe un usuario con este email');
     }
 
     const requestedRole: Role = registerDto.role || 'ASISTENTE';
+    const adminCount = await this.usersService.countActiveAdmins();
+    const hasAdmin = adminCount > 0;
+    const invitationToken = registerDto.invitationToken?.trim();
+
+    let invitation: Awaited<ReturnType<UsersService['findInvitationByToken']>> | null = null;
+
+    if (hasAdmin) {
+      if (!invitationToken) {
+        throw new ForbiddenException('El registro público está deshabilitado. Debe usar una invitación válida');
+      }
+
+      invitation = await this.usersService.findInvitationByToken(invitationToken);
+      if (!invitation) {
+        throw new ForbiddenException('La invitación es inválida o expiró');
+      }
+
+      if (invitation.email !== normalizedEmail) {
+        throw new ForbiddenException('El email no coincide con la invitación');
+      }
+
+      if (invitation.role !== requestedRole) {
+        throw new ForbiddenException('El rol no coincide con la invitación');
+      }
+    }
 
     if (requestedRole === 'ADMIN') {
-      const adminCount = await this.usersService.countActiveAdmins();
       if (adminCount > 0) {
-        throw new ConflictException('Ya existe un administrador registrado. Use MEDICO o ASISTENTE');
+        throw new ForbiddenException('Ya existe un administrador registrado. El acceso es solo por invitación');
       }
+    }
+
+    if (!hasAdmin && requestedRole !== 'ADMIN') {
+      throw new ForbiddenException('El primer registro debe crear la cuenta administradora inicial');
     }
 
     // Create user (users service handles password hashing)
     const user = await this.usersService.create({
-      email: registerDto.email,
+      email: normalizedEmail,
       password: registerDto.password,
       nombre: registerDto.nombre,
       role: requestedRole,
-      ...(requestedRole === 'ASISTENTE' ? { allowUnassignedAssistant: true } : {}),
+      ...(invitation?.medicoId ? { medicoId: invitation.medicoId } : {}),
+      ...(requestedRole === 'ASISTENTE' && !invitation?.medicoId ? { allowUnassignedAssistant: true } : {}),
     });
+
+    if (invitation) {
+      await this.usersService.acceptInvitation(invitation.id);
+    }
 
     // Generate and return tokens
     return this.issueTokens(user, sessionContext);
@@ -72,14 +201,13 @@ export class AuthService {
       userCount,
       isEmpty: userCount === 0,
       hasAdmin,
-      registerableRoles: hasAdmin
-        ? (['MEDICO', 'ASISTENTE'] as const)
-        : (['ADMIN', 'MEDICO', 'ASISTENTE'] as const),
+      registerableRoles: hasAdmin ? ([] as const) : (['ADMIN'] as const),
     };
   }
 
   async validateUser(email: string, password: string) {
-    const user = await this.usersService.findByEmail(email);
+    const normalizedEmail = this.normalizeEmail(email);
+    const user = await this.usersService.findByEmail(normalizedEmail);
     if (!user || !user.active) {
       return null;
     }
@@ -93,10 +221,59 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto, sessionContext?: SessionContext): Promise<AuthTokens> {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
+    const email = this.normalizeEmail(loginDto.email);
+    const now = new Date();
+
+    // Check lockout
+    const lockout = await this.clearExpiredLockout(email, now);
+    if (lockout?.lockedUntil) {
+      const remainingMin = Math.ceil((lockout.lockedUntil.getTime() - now.getTime()) / 60000);
+      throw new UnauthorizedException(
+        `Cuenta bloqueada temporalmente. Intente en ${remainingMin} minuto(s).`,
+      );
+    }
+
+    const user = await this.validateUser(email, loginDto.password);
     if (!user) {
+      const entry = await this.registerFailedLoginAttempt(email, now);
+
+      // Audit failed login (look up user to get ID if exists)
+      const existingUser = await this.usersService.findByEmail(email);
+      this.auditService
+        .log({
+          entityType: 'Auth',
+          entityId: existingUser?.id || 'unknown',
+          userId: existingUser?.id || 'unknown',
+          action: 'LOGIN_FAILED',
+          diff: {
+            email,
+            attempt: entry.attempts,
+            locked: !!entry.lockedUntil,
+            ip: sessionContext?.ipAddress || null,
+          },
+        })
+        .catch(() => {}); // fire-and-forget
+
       throw new UnauthorizedException('Credenciales inválidas');
     }
+
+    // Reset lockout on success
+    await this.resetFailedLoginAttempts(email);
+
+    // Audit successful login
+    this.auditService
+      .log({
+        entityType: 'Auth',
+        entityId: user.id,
+        userId: user.id,
+        action: 'LOGIN',
+        diff: {
+          email: user.email,
+          ip: sessionContext?.ipAddress || null,
+          userAgent: sessionContext?.userAgent || null,
+        },
+      })
+      .catch(() => {}); // fire-and-forget
 
     return this.issueTokens(user, sessionContext);
   }
@@ -150,6 +327,17 @@ export class AuthService {
       } else {
         await this.usersService.rotateRefreshTokenVersion(user.id);
       }
+
+      // Audit logout
+      this.auditService
+        .log({
+          entityType: 'Auth',
+          entityId: user.id,
+          userId: user.id,
+          action: 'LOGOUT',
+          diff: { email: user.email },
+        })
+        .catch(() => {});
     } catch {
       // Ignore invalid/expired tokens on logout.
     }

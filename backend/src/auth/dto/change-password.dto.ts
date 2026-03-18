@@ -10,5 +10,8 @@ export class ChangePasswordDto {
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
     message: 'La nueva contraseña debe contener mayúscula, minúscula y número',
   })
+  @Matches(/^\S+$/, {
+    message: 'La nueva contraseña no puede contener espacios',
+  })
   newPassword: string;
 }

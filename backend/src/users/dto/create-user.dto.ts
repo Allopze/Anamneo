@@ -14,6 +14,9 @@ export class CreateUserDto {
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
     message: 'La contraseña debe contener mayúscula, minúscula y número',
   })
+  @Matches(/^\S+$/, {
+    message: 'La contraseña no puede contener espacios',
+  })
   password: string;
 
   @IsString()

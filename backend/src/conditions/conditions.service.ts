@@ -433,7 +433,7 @@ export class ConditionsService {
     const encounter = await this.prisma.encounter.findFirst({
       where: {
         id: encounterId,
-        patient: { medicoId: instanceId },
+        medicoId: instanceId,
       },
       select: { id: true },
     });

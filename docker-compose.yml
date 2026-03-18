@@ -28,6 +28,7 @@ services:
       JWT_REFRESH_EXPIRES_IN: 7d
       PORT: 4444
       CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN is required}
+      SENTRY_DSN: ${SENTRY_DSN:-}
     ports:
       - "4444:4444"
     volumes:
@@ -53,6 +54,7 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
       PORT: 5555
     ports:
       - "5555:5555"
@@ -61,6 +63,32 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  backup-cron:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: anamneo-backup-cron
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      ALLOW_SQLITE_IN_PRODUCTION: ${ALLOW_SQLITE_IN_PRODUCTION:-false}
+      SQLITE_BACKUP_DIR: /app/data/backups
+      SQLITE_BACKUP_RETENTION_DAYS: ${SQLITE_BACKUP_RETENTION_DAYS:-14}
+      BACKUP_CRON_SCHEDULE: ${BACKUP_CRON_SCHEDULE:-0 */6 * * *}
+    volumes:
+      - db_data:/app/data
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        echo "$$BACKUP_CRON_SCHEDULE node /app/scripts/sqlite-backup.js >> /proc/1/fd/1 2>&1" > /tmp/crontab
+        crontab /tmp/crontab
+        echo "Backup cron started: $$BACKUP_CRON_SCHEDULE"
+        node /app/scripts/sqlite-backup.js
+        crond -f -l 2
 
 volumes:
   db_data:

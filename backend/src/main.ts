@@ -1,3 +1,6 @@
+// IMPORTANT: instrument.ts must be imported before everything else
+import './instrument';
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -6,6 +9,7 @@ import * as cookieParser from 'cookie-parser';
 import { NextFunction, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 function assertSafeConfig(configService: ConfigService) {
   const databaseUrl = configService.get<string>('DATABASE_URL');
@@ -148,6 +152,9 @@ async function bootstrap() {
     origin: corsOrigins,
     credentials: true,
   });
+
+  // Global exception filter — sanitizes errors in production
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Global validation pipe
   app.useGlobalPipes(

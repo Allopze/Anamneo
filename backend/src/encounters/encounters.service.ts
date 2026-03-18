@@ -118,10 +118,6 @@ export class EncountersService {
               throw new NotFoundException('Paciente no encontrado');
             }
 
-            if (patient.medicoId !== effectiveMedicoId) {
-              throw new ForbiddenException('No tiene permisos para crear una atención para este paciente');
-            }
-
             if (patient.archivedAt) {
               throw new BadRequestException('No se puede crear una atención para un paciente archivado');
             }
@@ -167,6 +163,7 @@ export class EncountersService {
             const encounter = await tx.encounter.create({
               data: {
                 patientId,
+                medicoId: effectiveMedicoId,
                 createdById: user.id,
                 status: 'EN_PROGRESO',
                 sections: {
@@ -250,8 +247,8 @@ export class EncountersService {
     const skip = (page - 1) * limit;
 
     const where: any = {
+      medicoId: effectiveMedicoId,
       patient: {
-        medicoId: effectiveMedicoId,
         archivedAt: null,
       },
     };
@@ -318,7 +315,7 @@ export class EncountersService {
     const encounter = await this.prisma.encounter.findFirst({
       where: {
         id,
-        patient: { medicoId: effectiveMedicoId },
+        medicoId: effectiveMedicoId,
       },
       include: {
         sections: {
@@ -370,8 +367,8 @@ export class EncountersService {
     const encounters = await this.prisma.encounter.findMany({
       where: {
         patientId,
+        medicoId: effectiveMedicoId,
         patient: {
-          medicoId: effectiveMedicoId,
           archivedAt: null,
         },
       },
@@ -412,7 +409,7 @@ export class EncountersService {
 
     const effectiveMedicoId = getEffectiveMedicoId(user);
 
-    if (encounter.patient.medicoId !== effectiveMedicoId) {
+    if (encounter.medicoId !== effectiveMedicoId) {
       throw new ForbiddenException('No tiene permisos para editar esta atención');
     }
 
@@ -463,7 +460,7 @@ export class EncountersService {
       throw new NotFoundException('Atención no encontrada');
     }
 
-    if (encounter.patient.medicoId !== userId) {
+    if (encounter.medicoId !== userId) {
       throw new ForbiddenException('No tiene permisos para completar esta atención');
     }
 
@@ -581,7 +578,7 @@ export class EncountersService {
       throw new NotFoundException('Atención no encontrada');
     }
 
-    if (encounter.patient.medicoId !== userId) {
+    if (encounter.medicoId !== userId) {
       throw new ForbiddenException('No tiene permisos para cancelar esta atención');
     }
 
@@ -618,7 +615,7 @@ export class EncountersService {
       throw new NotFoundException('Atención no encontrada');
     }
 
-    if (encounter.patient.medicoId !== getEffectiveMedicoId(user)) {
+    if (encounter.medicoId !== getEffectiveMedicoId(user)) {
       throw new ForbiddenException('No tiene permisos para actualizar la revisión de esta atención');
     }
 
@@ -670,8 +667,8 @@ export class EncountersService {
 
     const where = medicoId
       ? {
+          medicoId,
           patient: {
-            medicoId,
             archivedAt: null,
           },
         }
@@ -695,9 +692,9 @@ export class EncountersService {
       this.prisma.encounterTask.findMany({
         where: {
           patient: {
-            medicoId,
             archivedAt: null,
           },
+          encounter: medicoId ? { medicoId } : undefined,
           status: {
             in: ['PENDIENTE', 'EN_PROCESO'],
           },

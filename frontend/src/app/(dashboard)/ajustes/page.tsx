@@ -21,7 +21,8 @@ const passwordSchema = z
       .string()
       .min(8, 'Mínimo 8 caracteres')
       .max(72, 'Máximo 72 caracteres')
-      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Debe contener mayúscula, minúscula y número'),
+      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Debe contener mayúscula, minúscula y número')
+      .regex(/^\S+$/, 'No puede contener espacios'),
     confirmPassword: z.string().min(1, 'Requerido'),
   })
   .refine((d) => d.newPassword === d.confirmPassword, {

@@ -27,7 +27,7 @@ export type SectionKey =
 
 export type ChosenMode = 'AUTO' | 'MANUAL';
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE';
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'LOGIN_FAILED' | 'PASSWORD_CHANGED';
 export type PatientProblemStatus = 'ACTIVO' | 'CRONICO' | 'EN_ESTUDIO' | 'RESUELTO';
 export type EncounterTaskStatus = 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADA' | 'CANCELADA';
 export type EncounterTaskType = 'SEGUIMIENTO' | 'EXAMEN' | 'DERIVACION' | 'TRAMITE';

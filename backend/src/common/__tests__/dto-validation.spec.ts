@@ -49,6 +49,26 @@ describe('DTO Validation', () => {
       expect(errors.some((e) => e.property === 'password')).toBe(true);
     });
 
+    it('should allow password with dot', async () => {
+      const dto = plainToInstance(RegisterDto, {
+        email: 'test@example.com',
+        password: 'Password1.',
+        nombre: 'Test',
+      });
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'password')).toBe(false);
+    });
+
+    it('should fail with password containing spaces', async () => {
+      const dto = plainToInstance(RegisterDto, {
+        email: 'test@example.com',
+        password: 'Password 1',
+        nombre: 'Test',
+      });
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'password')).toBe(true);
+    });
+
     it('should accept ADMIN role', async () => {
       const dto = plainToInstance(RegisterDto, {
         email: 'test@example.com',
@@ -195,10 +215,28 @@ describe('DTO Validation', () => {
       expect(errors.length).toBe(0);
     });
 
+    it('should allow new password with dot', async () => {
+      const dto = plainToInstance(ChangePasswordDto, {
+        currentPassword: 'OldPass1',
+        newPassword: 'NewPass1.',
+      });
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'newPassword')).toBe(false);
+    });
+
     it('should fail with short new password', async () => {
       const dto = plainToInstance(ChangePasswordDto, {
         currentPassword: 'OldPass1',
         newPassword: 'Ab1',
+      });
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'newPassword')).toBe(true);
+    });
+
+    it('should fail with spaces in new password', async () => {
+      const dto = plainToInstance(ChangePasswordDto, {
+        currentPassword: 'OldPass1',
+        newPassword: 'New Pass1',
       });
       const errors = await validate(dto);
       expect(errors.some((e) => e.property === 'newPassword')).toBe(true);

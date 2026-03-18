@@ -35,6 +35,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Releases
+releases/
+
 # OS / editor
 .DS_Store
 .vscode/
@@ -42,3 +45,6 @@ node_modules
 node_modules
 node_modules
 node_modules
+
+# Sentry Config File
+.sentryclirc

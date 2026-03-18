@@ -63,6 +63,7 @@ describe('Application E2E Tests', () => {
   // Cookie jars for different users
   let adminCookies: string[] = [];
   let medicoCookies: string[] = [];
+  let medicoInvitationToken: string;
 
   beforeAll(async () => {
     const testDatabaseUrl = resolveBaseTestDatabaseUrl();
@@ -236,10 +237,45 @@ describe('Application E2E Tests', () => {
     });
   });
 
-  // ── 4. Auth: Register a Medico ──────────────────────────────────────
+  // ── 4. Auth: Invite and Register a Medico ───────────────────────────
 
   describe('Auth - Register Medico', () => {
-    it('POST /api/auth/register → medico user', async () => {
+    it('POST /api/auth/register → rejects public registration after bootstrap', async () => {
+      await req()
+        .post('/api/auth/register')
+        .send({
+          email: 'medico@test.com',
+          password: 'Medico123',
+          nombre: 'Dr. Test',
+          role: 'MEDICO',
+        })
+        .expect(403);
+    });
+
+    it('POST /api/users/invitations → admin can invite medico', async () => {
+      const res = await req()
+        .post('/api/users/invitations')
+        .set('Cookie', cookieHeader(adminCookies))
+        .send({
+          email: 'medico@test.com',
+          role: 'MEDICO',
+        })
+        .expect(201);
+
+      expect(res.body.token).toBeDefined();
+      medicoInvitationToken = res.body.token;
+    });
+
+    it('GET /api/auth/invitations/:token → validates invitation', async () => {
+      const res = await req()
+        .get(`/api/auth/invitations/${medicoInvitationToken}`)
+        .expect(200);
+
+      expect(res.body.email).toBe('medico@test.com');
+      expect(res.body.role).toBe('MEDICO');
+    });
+
+    it('POST /api/auth/register → medico user with invitation', async () => {
       const res = await req()
         .post('/api/auth/register')
         .send({
@@ -247,6 +283,7 @@ describe('Application E2E Tests', () => {
           password: 'Medico123',
           nombre: 'Dr. Test',
           role: 'MEDICO',
+          invitationToken: medicoInvitationToken,
         })
         .expect(201);
 
@@ -307,11 +344,19 @@ describe('Application E2E Tests', () => {
         .expect(409);
     });
 
-    it('POST /api/auth/change-password → success', async () => {
+    it('POST /api/auth/change-password → rejects spaces in new password', async () => {
+      await req()
+        .post('/api/auth/change-password')
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({ currentPassword: 'Medico123', newPassword: 'New Pass123' })
+        .expect(400);
+    });
+
+    it('POST /api/auth/change-password → success with dot in password', async () => {
       const res = await req()
         .post('/api/auth/change-password')
         .set('Cookie', cookieHeader(medicoCookies))
-        .send({ currentPassword: 'Medico123', newPassword: 'NewPass123' })
+        .send({ currentPassword: 'Medico123', newPassword: 'New.Pass123' })
         .expect(200);
 
       expect(res.body.message).toBe('Contraseña actualizada correctamente');
@@ -320,7 +365,7 @@ describe('Application E2E Tests', () => {
     it('POST /api/auth/login → works with new password', async () => {
       const res = await req()
         .post('/api/auth/login')
-        .send({ email: 'medico@test.com', password: 'NewPass123' })
+        .send({ email: 'medico@test.com', password: 'New.Pass123' })
         .expect(200);
 
       medicoCookies = extractCookies(res);
@@ -343,7 +388,7 @@ describe('Application E2E Tests', () => {
     it('re-login medico', async () => {
       const res = await req()
         .post('/api/auth/login')
-        .send({ email: 'medico@test.com', password: 'NewPass123' })
+        .send({ email: 'medico@test.com', password: 'New.Pass123' })
         .expect(200);
 
       medicoCookies = extractCookies(res);
@@ -718,10 +763,18 @@ describe('Application E2E Tests', () => {
       expect(res.body.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('POST /api/users/:id/reset-password → admin can reset password', async () => {
+    it('POST /api/users/:id/reset-password → rejects spaces in temporary password', async () => {
+      await req()
+        .post(`/api/users/${medicoUserId}/reset-password`)
+        .send({ temporaryPassword: 'Nueva Clave123' })
+        .set('Cookie', cookieHeader(adminCookies))
+        .expect(400);
+    });
+
+    it('POST /api/users/:id/reset-password → admin can reset password with dot', async () => {
       const res = await req()
         .post(`/api/users/${medicoUserId}/reset-password`)
-        .send({ temporaryPassword: 'NuevaClave123' })
+        .send({ temporaryPassword: 'Nueva.Clave123' })
         .set('Cookie', cookieHeader(adminCookies))
         .expect(201);
 
@@ -799,12 +852,131 @@ describe('Application E2E Tests', () => {
       expect(res.body.message).toBeDefined();
     });
 
+    it('POST /api/auth/register → rejects public registration with valid password but no invitation', async () => {
+      const res = await req()
+        .post('/api/auth/register')
+        .send({ email: 'dotpass@test.com', password: 'Dot.Pass123', nombre: 'Dot Test', role: 'MEDICO' })
+        .expect(403);
+
+      expect(String(res.body.message)).toContain('invitación');
+    });
+
+    it('POST /api/auth/register → rejects password with spaces', async () => {
+      const res = await req()
+        .post('/api/auth/register')
+        .send({ email: 'spacepass@test.com', password: 'Space Pass123', nombre: 'Space Test', role: 'MEDICO' })
+        .expect(400);
+
+      expect(res.body.message).toBeDefined();
+    });
+
     it('POST /api/patients → missing required fields', async () => {
       await req()
         .post('/api/patients')
         .set('Cookie', cookieHeader(medicoCookies))
         .send({ nombre: 'Test' })
         .expect(400);
+    });
+  });
+
+  // ── 13. Patient Data Isolation (IDOR Prevention) ────────────────────
+
+  describe('Patient Data Isolation', () => {
+    let medico2Cookies: string[] = [];
+    let medico2PatientId: string;
+    let medico2InvitationToken: string;
+
+    it('Admin invites a second medico', async () => {
+      const res = await req()
+        .post('/api/users/invitations')
+        .set('Cookie', cookieHeader(adminCookies))
+        .send({
+          email: 'medico2@test.com',
+          role: 'MEDICO',
+        })
+        .expect(201);
+
+      medico2InvitationToken = res.body.token;
+      expect(medico2InvitationToken).toBeDefined();
+    });
+
+    it('Register a second medico with invitation', async () => {
+      const res = await req()
+        .post('/api/auth/register')
+        .send({
+          email: 'medico2@test.com',
+          password: 'Medico2x1',
+          nombre: 'Dr. Segundo',
+          role: 'MEDICO',
+          invitationToken: medico2InvitationToken,
+        })
+        .expect(201);
+
+      medico2Cookies = extractCookies(res);
+      expect(medico2Cookies.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('Second medico creates own patient', async () => {
+      const res = await req()
+        .post('/api/patients')
+        .set('Cookie', cookieHeader(medico2Cookies))
+        .send({
+          nombre: 'Paciente Medico2',
+          edad: 40,
+          sexo: 'FEMENINO',
+          prevision: 'ISAPRE',
+        })
+        .expect(201);
+
+      medico2PatientId = res.body.id;
+      expect(medico2PatientId).toBeDefined();
+    });
+
+    it('Second medico cannot see first medico patients in list', async () => {
+      const res = await req()
+        .get('/api/patients')
+        .set('Cookie', cookieHeader(medico2Cookies))
+        .expect(200);
+
+      const ids = res.body.data.map((p: any) => p.id);
+      expect(ids).not.toContain(patientId);
+      expect(ids).toContain(medico2PatientId);
+    });
+
+    it('First medico cannot see second medico patients in list', async () => {
+      const res = await req()
+        .get('/api/patients')
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      const ids = res.body.data.map((p: any) => p.id);
+      expect(ids).toContain(patientId);
+      expect(ids).not.toContain(medico2PatientId);
+    });
+
+    it('Second medico cannot access first medico patient by ID', async () => {
+      await req()
+        .get(`/api/patients/${patientId}`)
+        .set('Cookie', cookieHeader(medico2Cookies))
+        .expect(404);
+    });
+
+    it('First medico cannot access second medico patient by ID', async () => {
+      await req()
+        .get(`/api/patients/${medico2PatientId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(404);
+    });
+
+    it('Admin can see all patients', async () => {
+      const res = await req()
+        .get('/api/patients')
+        .set('Cookie', cookieHeader(adminCookies))
+        .expect(200);
+
+      const ids = res.body.data.map((p: any) => p.id);
+      expect(ids).toContain(patientId);
+      expect(ids).toContain(medico2PatientId);
     });
   });
 });
