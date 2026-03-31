@@ -107,7 +107,7 @@ function AtencionesListContent() {
                         className={clsx(
                           'px-3 py-1.5 rounded-pill text-sm transition-colors',
                           statusFilter === status
-                            ? 'bg-accent/20 text-accent'
+                            ? 'border border-status-yellow/60 bg-status-yellow/30 text-accent-text'
                             : 'bg-surface-muted text-ink-secondary hover:bg-surface-muted/50'
                         )}
                       >
@@ -132,7 +132,7 @@ function AtencionesListContent() {
                         className={clsx(
                           'px-3 py-1.5 rounded-pill text-sm transition-colors',
                           reviewFilter === status
-                            ? 'bg-accent/20 text-accent'
+                            ? 'border border-status-yellow/60 bg-status-yellow/30 text-accent-text'
                             : 'bg-surface-muted text-ink-secondary hover:bg-surface-muted/50'
                         )}
                       >
@@ -146,7 +146,7 @@ function AtencionesListContent() {
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="text-sm font-medium text-accent hover:text-accent/80"
+                  className="text-sm font-medium text-accent-text hover:text-ink"
                 >
                   Limpiar filtros
                 </button>
@@ -189,7 +189,7 @@ function AtencionesListContent() {
                     encounter.status === 'COMPLETADO'
                       ? 'bg-status-green/20 text-status-green'
                       : encounter.status === 'EN_PROGRESO'
-                      ? 'bg-status-yellow/20 text-status-yellow'
+                      ? 'border border-status-yellow/70 bg-status-yellow/40 text-accent-text'
                       : 'bg-surface-muted text-ink-secondary'
                   )}
                 >
@@ -197,7 +197,7 @@ function AtencionesListContent() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-ink-primary group-hover:text-accent">
+                    <span className="font-medium text-ink-primary group-hover:text-accent-text">
                       {encounter.patient?.nombre || 'Paciente'}
                     </span>
                     <span
@@ -206,7 +206,7 @@ function AtencionesListContent() {
                         encounter.status === 'COMPLETADO'
                           ? 'bg-status-green/20 text-status-green'
                           : encounter.status === 'EN_PROGRESO'
-                          ? 'bg-status-yellow/20 text-status-yellow'
+                          ? 'border border-status-yellow/70 bg-status-yellow/40 text-accent-text'
                           : 'bg-surface-muted text-ink-secondary'
                       )}
                     >
@@ -232,14 +232,14 @@ function AtencionesListContent() {
                     )}
                   </div>
                 </div>
-                <FiChevronRight className="w-5 h-5 text-ink-muted group-hover:text-accent" />
+                <FiChevronRight className="w-5 h-5 text-ink-muted group-hover:text-accent-text" />
               </Link>
             ))}
           </div>
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <FiFileText className="w-10 h-10 text-accent" />
+              <FiFileText className="w-10 h-10 text-accent-text" />
             </div>
             <h3 className="empty-state-title">
               {hasActiveFilters ? 'No hay resultados para estos filtros' : 'No hay atenciones'}

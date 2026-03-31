@@ -151,7 +151,7 @@ function PacientesContent() {
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Buscar por nombre, RUT o correo…"
+            placeholder="Buscar por nombre o RUT…"
             className="form-input pl-11 w-full"
           />
         </div>

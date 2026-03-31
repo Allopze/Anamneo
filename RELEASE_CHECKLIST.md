@@ -17,6 +17,7 @@
 - `npm --prefix backend run test:e2e`
 - `npm --prefix frontend run typecheck`
 - `npm --prefix frontend run lint`
+- `npm --prefix frontend test -- --ci --runInBand`
 
 ## 3. QA funcional minima
 
@@ -30,7 +31,8 @@
 
 ## 4. Deploy
 
-- Seguir [PRISMA_SQLITE_DEPLOY.md](/home/allopze/dev/pacientes/PRISMA_SQLITE_DEPLOY.md).
+- Seguir [PRISMA_SQLITE_DEPLOY.md](PRISMA_SQLITE_DEPLOY.md).
+- Si vas a rotar claves de ajustes, seguir [docs/settings-key-rotation-runbook.md](docs/settings-key-rotation-runbook.md).
 - Ejecutar backup antes de tocar la base.
 - Confirmar `prisma migrate status` en el entorno.
 - Si la base SQLite ya existe y no tiene `_prisma_migrations`, baselinar antes de `migrate deploy`.

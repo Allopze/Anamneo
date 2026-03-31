@@ -193,7 +193,7 @@ export default function NuevoPacientePage() {
       )}
 
       {!isDoctor && (
-        <div className="mb-6 p-4 rounded-lg border border-status-yellow/30 bg-status-yellow/10 text-status-yellow text-sm">
+        <div className="mb-6 rounded-lg border border-status-yellow/70 bg-status-yellow/40 p-4 text-sm text-accent-text">
           Solo se requieren datos basicos. Podras completar el resto mas tarde.
         </div>
       )}

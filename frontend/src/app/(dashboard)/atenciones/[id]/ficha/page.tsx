@@ -138,7 +138,7 @@ export default function FichaClinicaPage() {
                 <button
                   type="button"
                   onClick={() => handleDownloadAttachment(attachment)}
-                  className="no-print inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80"
+                  className="no-print inline-flex items-center gap-1 text-xs font-medium text-accent-text hover:text-ink"
                 >
                   <FiDownload className="h-3.5 w-3.5" />
                   Descargar
@@ -204,7 +204,7 @@ export default function FichaClinicaPage() {
             1. IDENTIFICACIÓN DEL PACIENTE
           </h2>
           {encounter.identificationSnapshotStatus?.hasDifferences && (
-            <div className="mb-4 rounded-2xl border border-status-yellow/30 bg-status-yellow/10 p-3 text-sm text-status-yellow">
+            <div className="mb-4 rounded-2xl border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
               <div className="flex items-start gap-2">
                 <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <div>
@@ -426,12 +426,20 @@ export default function FichaClinicaPage() {
         </section>
 
         {/* Observaciones */}
-        {observaciones.observaciones && (
+        {(observaciones.resumenClinico || observaciones.observaciones) && (
           <section className="mb-6">
             <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
               10. OBSERVACIONES
             </h2>
-            <p className="text-sm whitespace-pre-wrap">{observaciones.observaciones}</p>
+            {observaciones.resumenClinico && (
+              <div className="mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Resumen longitudinal</p>
+                <p className="text-sm whitespace-pre-wrap">{observaciones.resumenClinico}</p>
+              </div>
+            )}
+            {observaciones.observaciones && (
+              <p className="text-sm whitespace-pre-wrap">{observaciones.observaciones}</p>
+            )}
           </section>
         )}
 

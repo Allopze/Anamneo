@@ -54,6 +54,7 @@ export interface EncounterSection {
   id: string;
   encounterId: string;
   sectionKey: SectionKey;
+  schemaVersion: number;
   label: string;
   order: number;
   data: Record<string, any>;
@@ -77,7 +78,10 @@ export interface Encounter {
   status: 'EN_PROGRESO' | 'COMPLETADO' | 'CANCELADO';
   reviewStatus?: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO';
   reviewRequestedAt?: string | null;
+  reviewNote?: string | null;
   reviewedAt?: string | null;
+  completedAt?: string | null;
+  closureNote?: string | null;
   createdAt: string;
   updatedAt: string;
   patient?: Patient;
@@ -86,7 +90,15 @@ export interface Encounter {
     nombre: string;
     email?: string;
   };
+  reviewRequestedBy?: {
+    id: string;
+    nombre: string;
+  } | null;
   reviewedBy?: {
+    id: string;
+    nombre: string;
+  } | null;
+  completedBy?: {
     id: string;
     nombre: string;
   } | null;
@@ -173,6 +185,50 @@ export interface Attachment {
   uploadedBy?: {
     nombre: string;
   };
+}
+
+export interface PatientClinicalSummary {
+  patientId: string;
+  generatedAt: string;
+  counts: {
+    totalEncounters: number;
+    activeProblems: number;
+    pendingTasks: number;
+  };
+  latestEncounterSummary: {
+    encounterId: string;
+    createdAt: string;
+    lines: string[];
+  } | null;
+  vitalTrend: Array<{
+    encounterId: string;
+    createdAt: string;
+    presionArterial: string | null;
+    peso: number | null;
+    imc: number | null;
+    temperatura: number | null;
+    saturacionOxigeno: number | null;
+  }>;
+  recentDiagnoses: Array<{
+    label: string;
+    count: number;
+    lastSeenAt: string;
+  }>;
+  activeProblems: Array<{
+    id: string;
+    label: string;
+    status: string;
+    severity?: string | null;
+    updatedAt: string;
+  }>;
+  pendingTasks: Array<{
+    id: string;
+    title: string;
+    status: string;
+    type: string;
+    dueDate?: string | null;
+    createdAt: string;
+  }>;
 }
 
 // ── Section data types (Q1) ──────────────────────────────────────────
@@ -295,6 +351,7 @@ export interface RespuestaTratamientoData {
 export interface ObservacionesData {
   observaciones?: string;
   notasInternas?: string;
+  resumenClinico?: string;
 }
 
 export interface StructuredMedication {

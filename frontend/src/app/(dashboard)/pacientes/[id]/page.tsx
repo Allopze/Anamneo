@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, getErrorMessage } from '@/lib/api';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api, getErrorMessage, PaginatedResponse } from '@/lib/api';
 import {
   Patient,
   Encounter,
+  PatientClinicalSummary,
   PatientProblem,
   PatientTask,
   PROBLEM_STATUS_LABELS,
@@ -20,7 +21,7 @@ import {
 } from '@/types';
 import { parseHistoryField } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
-import { buildEncounterSummary, extractVitalTrend } from '@/lib/clinical';
+import { buildEncounterSummary } from '@/lib/clinical';
 import { InProgressEncounterConflictModal, InProgressEncounterSummary } from '@/components/common/InProgressEncounterConflictModal';
 import MiniTrendChart from '@/components/common/MiniTrendChart';
 import {
@@ -53,6 +54,7 @@ export default function PatientDetailPage() {
   const { isMedico, canEditAntecedentes, canEditPatientAdmin, canCreateEncounter } = useAuthStore();
   const [conflictEncounters, setConflictEncounters] = useState<InProgressEncounterSummary[] | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [encounterPage, setEncounterPage] = useState(1);
   const [newProblem, setNewProblem] = useState({ label: '', notes: '', status: 'ACTIVO' });
   const [newTask, setNewTask] = useState({ title: '', details: '', type: 'SEGUIMIENTO', dueDate: '' });
   const [editingProblemId, setEditingProblemId] = useState<string | null>(null);
@@ -66,6 +68,27 @@ export default function PatientDetailPage() {
     queryFn: async () => {
       const response = await api.get(`/patients/${id}`);
       return response.data as Patient;
+    },
+  });
+
+  const {
+    data: encounterTimeline,
+    isLoading: isTimelineLoading,
+    isPlaceholderData: isTimelinePlaceholderData,
+  } = useQuery({
+    queryKey: ['patient-encounters', id, encounterPage],
+    queryFn: async () => {
+      const response = await api.get(`/patients/${id}/encounters?page=${encounterPage}&limit=10`);
+      return response.data as PaginatedResponse<Encounter>;
+    },
+    placeholderData: keepPreviousData,
+  });
+
+  const { data: clinicalSummary } = useQuery({
+    queryKey: ['patient-clinical-summary', id],
+    queryFn: async () => {
+      const response = await api.get(`/patients/${id}/clinical-summary`);
+      return response.data as PatientClinicalSummary;
     },
   });
 
@@ -193,7 +216,9 @@ export default function PatientDetailPage() {
     );
   }
 
-  const vitalTrend = extractVitalTrend(patient.encounters);
+  const timelineEncounters = encounterTimeline?.data || [];
+  const encounterPagination = encounterTimeline?.pagination;
+  const vitalTrend = clinicalSummary?.vitalTrend || [];
   const pendingTasks = (patient.tasks || []).filter((task) => task.status !== 'COMPLETADA' && task.status !== 'CANCELADA');
   const activeProblems = (patient.problems || []).filter((problem) => problem.status !== 'RESUELTO');
   const resolvedProblemsCount = (patient.problems || []).length - activeProblems.length;
@@ -227,7 +252,7 @@ export default function PatientDetailPage() {
             <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
           </Link>
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-accent/20 rounded-full flex items-center justify-center">
+            <div className="w-14 h-14 rounded-full border border-status-yellow/60 bg-status-yellow/35 flex items-center justify-center">
               <FiUser className="w-7 h-7 text-ink-secondary" />
             </div>
             <div>
@@ -326,7 +351,7 @@ export default function PatientDetailPage() {
                 {canEditAntecedentes() && (
                   <Link
                     href={`/pacientes/${id}/historial`}
-                    className="text-sm text-accent hover:text-accent/80"
+                    className="text-sm text-accent-text hover:text-ink"
                   >
                     Editar
                   </Link>
@@ -407,7 +432,7 @@ export default function PatientDetailPage() {
                             Editar
                           </button>
                           <button
-                            className="text-xs text-accent hover:text-accent/80"
+                            className="text-xs text-accent-text hover:text-ink"
                             onClick={() => updateProblemMutation.mutate({ problemId: problem.id, payload: { status: 'RESUELTO' } })}
                           >
                             Resolver
@@ -510,7 +535,7 @@ export default function PatientDetailPage() {
                             Editar
                           </button>
                           <button
-                            className="text-xs text-accent hover:text-accent/80"
+                            className="text-xs text-accent-text hover:text-ink"
                             onClick={() => updateTaskMutation.mutate({ taskId: task.id, payload: { status: 'COMPLETADA' } })}
                           >
                             Completar
@@ -585,9 +610,18 @@ export default function PatientDetailPage() {
 
           <div className="card">
             <div className="flex items-center gap-2 mb-4">
-              <FiActivity className="w-5 h-5 text-accent" />
+              <FiActivity className="w-5 h-5 text-accent-text" />
               <h2 className="text-lg font-semibold text-ink-primary">Tendencias clínicas</h2>
             </div>
+            {clinicalSummary?.recentDiagnoses?.length ? (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {clinicalSummary.recentDiagnoses.map((diagnosis) => (
+                  <span key={diagnosis.label} className="rounded-full border border-status-yellow/60 bg-status-yellow/30 px-3 py-1 text-xs font-medium text-accent-text">
+                    {diagnosis.label} · {diagnosis.count}
+                  </span>
+                ))}
+              </div>
+            ) : null}
             {vitalTrend.length > 0 ? (
               <div className="space-y-3">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -618,6 +652,16 @@ export default function PatientDetailPage() {
             ) : (
                 <p className="text-sm text-ink-muted">Aún no hay signos vitales suficientes para mostrar tendencias.</p>
             )}
+            {clinicalSummary?.latestEncounterSummary?.lines?.length ? (
+              <div className="mt-4 rounded-card border border-surface-muted/30 bg-surface-base/40 p-3">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-muted">Último resumen longitudinal</p>
+                <div className="space-y-1 text-sm text-ink-secondary">
+                  {clinicalSummary.latestEncounterSummary.lines.map((line) => (
+                    <p key={line}>{line}</p>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -627,16 +671,16 @@ export default function PatientDetailPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-ink-primary">Atenciones</h2>
               <span className="text-sm text-ink-muted">
-                {patient.encounters?.length || 0} atenciones registradas
+                {encounterPagination?.total || 0} atenciones registradas
               </span>
             </div>
             
-            {patient.encounters && patient.encounters.length > 0 ? (
+            {timelineEncounters.length > 0 ? (
               <div className="relative">
                 <div className="absolute left-5 top-0 bottom-0 w-px bg-surface-muted" />
 
                 <div className="space-y-4">
-                  {patient.encounters.map((encounter: Encounter) => {
+                  {timelineEncounters.map((encounter: Encounter) => {
                     const isCompleted = encounter.status === 'COMPLETADO';
                     const isInProgress = encounter.status === 'EN_PROGRESO';
                     const actionLabel = isInProgress ? 'Continuar' : 'Ver atención';
@@ -649,7 +693,7 @@ export default function PatientDetailPage() {
                             isCompleted
                               ? 'bg-status-green/20 text-status-green border-status-green/30'
                               : isInProgress
-                              ? 'bg-status-yellow/20 text-status-yellow border-status-yellow/30'
+                              ? 'bg-status-yellow/40 text-accent-text border-status-yellow/70'
                               : 'bg-surface-muted text-ink-secondary border-surface-muted/30'
                           )}
                         >
@@ -662,7 +706,7 @@ export default function PatientDetailPage() {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Link
                                   href={`/atenciones/${encounter.id}`}
-                                  className="font-medium text-ink-primary hover:text-accent"
+                                  className="font-medium text-ink-primary hover:text-accent-text"
                                 >
                                   Atención del{' '}
                                   {format(new Date(encounter.createdAt), "d 'de' MMMM, yyyy", {
@@ -675,7 +719,7 @@ export default function PatientDetailPage() {
                                     isCompleted
                                       ? 'bg-status-green/20 text-status-green'
                                       : isInProgress
-                                      ? 'bg-status-yellow/20 text-status-yellow'
+                                      ? 'border border-status-yellow/70 bg-status-yellow/40 text-accent-text'
                                       : 'bg-surface-muted text-ink-secondary'
                                   )}
                                 >
@@ -719,7 +763,7 @@ export default function PatientDetailPage() {
                           {encounter.tasks && encounter.tasks.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2 text-xs">
                               {encounter.tasks.slice(0, 3).map((task) => (
-                                <span key={task.id} className="rounded-full bg-accent/10 px-2 py-1 text-accent">
+                                <span key={task.id} className="rounded-full border border-status-yellow/60 bg-status-yellow/30 px-2 py-1 text-accent-text">
                                   <FiClipboard className="mr-1 inline-block h-3 w-3" />
                                   {task.title}
                                 </span>
@@ -731,7 +775,7 @@ export default function PatientDetailPage() {
                             <div className="mt-3 border-t border-surface-muted/20 pt-3">
                               <Link
                                 href={`/atenciones/${encounter.id}/ficha`}
-                                className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:text-accent/80"
+                                className="inline-flex items-center gap-2 text-sm font-medium text-accent-text hover:text-ink"
                               >
                                 <FiEye className="w-4 h-4" />
                                 Ver ficha clínica
@@ -743,6 +787,39 @@ export default function PatientDetailPage() {
                     );
                   })}
                 </div>
+
+                {encounterPagination && encounterPagination.totalPages > 1 && (
+                  <div className="mt-6 flex items-center justify-between border-t border-surface-muted/20 pt-4">
+                    <span className="text-sm text-ink-muted">
+                      Página {encounterPagination.page} de {encounterPagination.totalPages}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="btn btn-secondary"
+                        disabled={encounterPage <= 1}
+                        onClick={() => setEncounterPage((current) => Math.max(current - 1, 1))}
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        className="btn btn-secondary"
+                        disabled={
+                          isTimelinePlaceholderData
+                          || encounterPage >= encounterPagination.totalPages
+                        }
+                        onClick={() => setEncounterPage((current) => current + 1)}
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : isTimelineLoading ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, index) => (
+                  <div key={index} className="h-24 skeleton rounded-card" />
+                ))}
               </div>
             ) : (
               <div className="py-8 text-center">

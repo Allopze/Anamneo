@@ -1,8 +1,10 @@
 import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
 import { SettingsService } from './settings.service';
+import { AuditService } from '../audit/audit.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import {
   IsBoolean,
   IsEmail,
@@ -33,7 +35,10 @@ class UpdateSettingsDto {
 @Controller('settings')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SettingsController {
-  constructor(private readonly settingsService: SettingsService) {}
+  constructor(
+    private readonly settingsService: SettingsService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Get()
   @Roles('ADMIN')
@@ -43,7 +48,7 @@ export class SettingsController {
 
   @Put()
   @Roles('ADMIN')
-  update(@Body() dto: UpdateSettingsDto) {
+  async update(@Body() dto: UpdateSettingsDto, @CurrentUser() user: CurrentUserData) {
     const data: Record<string, string> = {};
     if (dto.clinicName !== undefined) data['clinic.name'] = dto.clinicName;
     if (dto.clinicAddress !== undefined) data['clinic.address'] = dto.clinicAddress;
@@ -59,6 +64,20 @@ export class SettingsController {
     if (dto.smtpFromName !== undefined) data['smtp.fromName'] = dto.smtpFromName;
     if (dto.invitationSubject !== undefined) data['email.invitationSubject'] = dto.invitationSubject;
     if (dto.invitationTemplateHtml !== undefined) data['email.invitationTemplateHtml'] = dto.invitationTemplateHtml;
-    return this.settingsService.setMany(data);
+    const result = await this.settingsService.setMany(data);
+
+    if (Object.keys(data).length > 0) {
+      await this.auditService.log({
+        entityType: 'Setting',
+        entityId: 'global',
+        userId: user.id,
+        action: 'UPDATE',
+        diff: {
+          updatedKeys: Object.keys(data),
+        },
+      });
+    }
+
+    return result;
   }
 }

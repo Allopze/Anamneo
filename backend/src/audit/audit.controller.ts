@@ -19,6 +19,8 @@ export class AuditController {
     @Query('entityType') entityType?: string,
     @Query('userId') userId?: string,
     @Query('action') action?: string,
+    @Query('reason') reason?: string,
+    @Query('result') result?: string,
     @Query('requestId') requestId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
@@ -26,7 +28,7 @@ export class AuditController {
     return this.auditService.findAll(
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 50,
-      { entityType, userId, action, requestId, dateFrom, dateTo },
+      { entityType, userId, action, reason, result, requestId, dateFrom, dateTo },
     );
   }
 

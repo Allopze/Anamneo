@@ -1,14 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuditAction } from '../common/types';
+import { AuditAction, AuditReason, AuditResult } from '../common/types';
 import { getRequestId } from '../common/utils/request-context';
+import { inferAuditReason, inferAuditResult } from './audit-catalog';
 
 interface LogInput {
   entityType: string;
   entityId: string;
   userId: string;
   action: AuditAction;
+  reason?: AuditReason;
+  result?: AuditResult;
   diff?: any;
   requestId?: string;
 }
@@ -30,6 +33,8 @@ export class AuditService {
         userId: input.userId,
         requestId: input.requestId ?? getRequestId() ?? null,
         action: input.action as AuditAction,
+        reason: input.reason ?? inferAuditReason(input.entityType, input.action, input.diff),
+        result: input.result ?? inferAuditResult(input.action),
         diff: sanitizedDiff ? JSON.stringify(sanitizedDiff) : null,
       } as Prisma.AuditLogUncheckedCreateInput,
     });
@@ -42,6 +47,8 @@ export class AuditService {
       entityType?: string;
       userId?: string;
       action?: string;
+      reason?: string;
+      result?: string;
       requestId?: string;
       dateFrom?: string;
       dateTo?: string;
@@ -53,6 +60,8 @@ export class AuditService {
     if (filters?.entityType) where.entityType = filters.entityType;
     if (filters?.userId) where.userId = filters.userId;
     if (filters?.action) where.action = filters.action;
+    if (filters?.reason) where.reason = filters.reason;
+    if (filters?.result) where.result = filters.result;
     if (filters?.requestId) where.requestId = { contains: filters.requestId.trim() };
     if (filters?.dateFrom || filters?.dateTo) {
       where.timestamp = {};

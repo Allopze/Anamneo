@@ -80,7 +80,7 @@ export default function VoiceDictationButton({ onTranscript }: Props) {
       className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
         listening
           ? 'border-status-red/30 bg-status-red/10 text-status-red hover:bg-status-red/20'
-          : 'border-accent/20 bg-accent/10 text-accent hover:bg-accent/20'
+          : 'border-status-yellow/60 bg-status-yellow/30 text-accent-text hover:bg-status-yellow/40'
       }`}
       title={listening ? 'Detener dictado' : 'Dictado por voz'}
     >

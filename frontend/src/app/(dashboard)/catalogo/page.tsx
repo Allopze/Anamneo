@@ -246,11 +246,11 @@ export default function CatalogoPage() {
             </button>
           </div>
 
-          <label className="mt-5 block rounded-xl border border-dashed border-surface-muted/30 bg-surface-base/40/60 p-5 transition-colors hover:border-accent/60">
+          <label className="mt-5 block rounded-xl border border-dashed border-surface-muted/30 bg-surface-base/40/60 p-5 transition-colors hover:border-status-yellow/70 hover:bg-status-yellow/10">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center">
-                  <FiUpload className="w-5 h-5 text-accent" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-status-yellow/60 bg-status-yellow/40">
+                  <FiUpload className="w-5 h-5 text-accent-text" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-ink-primary">Selecciona un CSV</p>
@@ -277,7 +277,7 @@ export default function CatalogoPage() {
                   </span>
                 )}
                 {importDuplicateRows > 0 && (
-                  <span className="rounded-full bg-status-yellow/20 px-3 py-1 text-status-yellow">
+                  <span className="rounded-full border border-status-yellow/70 bg-status-yellow/40 px-3 py-1 text-accent-text">
                     {importDuplicateRows} duplicadas en el archivo
                   </span>
                 )}
@@ -434,7 +434,10 @@ export default function CatalogoPage() {
                       return (
                         <>
                           {synonyms.slice(0, 3).map((syn: string, i: number) => (
-                            <span key={i} className="list-chip bg-accent/20 text-accent">
+                            <span
+                              key={i}
+                              className="list-chip border border-status-yellow/65 bg-status-yellow/35 text-accent-text"
+                            >
                               {syn}
                             </span>
                           ))}

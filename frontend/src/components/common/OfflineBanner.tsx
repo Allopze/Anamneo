@@ -23,7 +23,7 @@ export default function OfflineBanner() {
   if (!isOffline) return null;
 
   return (
-    <div className="fixed top-0 inset-x-0 z-[100] bg-status-yellow text-white text-center text-sm py-2 font-medium shadow-md">
+    <div className="fixed top-0 inset-x-0 z-[100] bg-status-yellow text-accent-text text-center text-sm py-2 font-medium shadow-md">
       Sin conexión a Internet — Los cambios no se guardarán hasta que vuelvas a conectarte.
     </div>
   );

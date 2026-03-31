@@ -280,7 +280,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             {invitationError && (
-              <div className="rounded-card border border-status-yellow/30 bg-status-yellow/20 px-4 py-3 text-sm text-status-yellow">
+              <div className="rounded-card border border-status-yellow/70 bg-status-yellow/40 px-4 py-3 text-sm text-accent-text">
                 {invitationError}
               </div>
             )}

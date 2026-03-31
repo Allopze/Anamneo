@@ -5,21 +5,24 @@
 - Alcance: frontend, backend, base de datos, auth, settings, adjuntos, auditoria, CI/CD, DX y riesgos de privacidad/integridad para una webapp medica
 - Modalidad: inspeccion estatica del repositorio + ejecucion de build/lint/typecheck/tests/audit de dependencias cuando el entorno lo permitio
 
-## Estado de remediacion - pasadas 1 a 8 (2026-03-31)
+## Estado de remediacion - pasadas 1 a 13 (2026-03-31)
 
-### Resuelto en codigo
+### Resuelto o mitigado en codigo
 
-- `AN-01`: `smtp.password` ya no se devuelve desde `GET /settings`; la UI solo recibe `smtp.passwordConfigured`.
+- `AN-01`: `smtp.password` ya no se devuelve desde `GET /settings`, la UI solo recibe `smtp.passwordConfigured` y el valor ahora se cifra en reposo con `SETTINGS_ENCRYPTION_KEY`; los secretos legacy se migran al leerse si la clave esta configurada.
+- `AN-01b`: la rotacion operativa ya tiene soporte de key ring (`SETTINGS_ENCRYPTION_KEYS`), lectura con multiples claves y rewrap automatico hacia la clave activa.
 - `AN-02`: Sentry backend ya no envia PII por defecto, bajo el sampling y aplica scrubbing de headers/cookies/body.
 - `AN-06`: la matriz de permisos de antecedentes quedo alineada con backend para `ADMIN` y `ASISTENTE`.
 - `AN-07`: frontend recupero salud de `typecheck`, `test` y `lint`, y CI ahora ejecuta tests frontend.
 - `AN-05`: ya se auditan exportaciones CSV/PDF, upload/download/delete de adjuntos, invitaciones y cambios sensibles de usuarios.
 - `AN-03`: `IDENTIFICACION` ya se trata como snapshot explicito de solo lectura en la atención, con restauración desde ficha maestra y bloqueo backend de divergencias manuales.
-- `AN-04`: todas las secciones editables de la atención ya se sanean y validan en backend, incluido `ANAMNESIS_REMOTA`; además el historial maestro del paciente ahora rechaza payloads malformados y el snapshot remoto se crea sin metadatos espurios.
-- `AN-05`: la auditoria sensible ya incluye correlacion por `requestId`, filtro por request en la UI/admin y migracion de schema para persistirla.
+- `AN-04`: todas las secciones editables de la atención ya se sanean y validan en backend, incluido `ANAMNESIS_REMOTA`; además `EncounterSection` ya no solo persiste `schemaVersion`, sino que `OBSERVACIONES` subio a `v2` con upgrader de compatibilidad en lectura.
+- `AN-05`: la auditoria sensible ya incluye correlacion por `requestId`, filtro por request en la UI/admin, migracion de schema para persistirla y ahora añade `reason/result` con un catalogo operativo minimo reutilizable.
 - `AN-08`: dependencias de runtime actualizadas; `npm audit --omit=dev` ya queda en cero para backend y frontend.
 - `AN-09`: `dateFrom/dateTo`, `dueDate` y `onsetDate` ya siguen una semantica consistente de fecha "solo dia"; backend normaliza almacenamiento y vencimientos, y frontend formatea sin corrimiento del calendario.
-- `AN-10`: `GET /patients/:id` ya no trae todas las secciones completas; la timeline usa un resumen acotado a secciones utiles para cabecera, tendencias y resumen clinico.
+- `AN-10`: `GET /patients/:id` ya no embebe la timeline; frontend consume un read model paginado en `GET /patients/:id/encounters` y ahora un read model longitudinal derivado en `GET /patients/:id/clinical-summary`.
+- `AN-14`: el workflow de revision/cierre ya no queda solo en `reviewStatus`; ahora persiste `reviewRequestedBy`, `reviewNote`, `completedBy` y `closureNote`, con reglas de transicion mas estrictas y trazabilidad visible en la UI de atencion.
+- `AN-15`: la cobertura critica subio con tests frontend para restauracion de snapshot `IDENTIFICACION`, desacople de `ANAMNESIS_REMOTA` y timeline paginada, mas e2e backend de cierre/reapertura con notas obligatorias.
 - `AN-11`: `lint` dejo de barrer el repo completo y paso a `eslint src`.
 - `AN-12`: el guard de auth de Next 16 ya migro de `middleware.ts` a `proxy.ts` y desaparecio el warning de deprecacion en build.
 - `AN-13`: README y ejemplos de entorno quedaron alineados con `Anamneo`, Next 16, `/api` same-origin y los comandos/rutas reales del repo.
@@ -27,17 +30,16 @@
 
 ### Pendiente para siguientes pasadas
 
-- Catalogo unico de eventos de auditoria y semantica transversal de motivos/resultados.
-- Read models longitudinales mas especializados y timeline paginada bajo demanda.
-- Versionado formal de schemas clinicos por seccion.
-- Cobertura e2e/frontend adicional para flujos clinicos complejos y auditoria avanzada.
+- Externalizacion de secretos operativos a un secret manager y runbook formal de rotacion.
+- Nuevos bumps/migraciones de compatibilidad cuando cambien mas contratos clinicos ademas de `OBSERVACIONES v2`.
 
-### Verificacion de esta pasada
+### Verificacion acumulada de las pasadas auditadas
 
 - `npm --prefix frontend run typecheck` -> pasa
 - `npm --prefix frontend test -- --ci --runInBand` -> pasa
 - `npm --prefix frontend run lint` -> pasa
 - `npm --prefix frontend run build` -> pasa
+- `npm --prefix backend test -- --runInBand settings-encryption.spec.ts` -> pasa
 - `npm --prefix frontend run audit:prod` -> pasa
 - `npm --prefix backend run typecheck` -> pasa
 - `npm --prefix backend run lint:check` -> pasa
@@ -49,17 +51,18 @@
 
 Anamneo tiene una base tecnica mejor que la media de un MVP clinico. El backend esta razonablemente ordenado, la separacion por modulos es clara, la suite e2e del backend es amplia, los adjuntos validan firma binaria y tipo MIME, la autenticacion usa cookies `HttpOnly` con `SameSite=strict`, existe autosave en atenciones y hay una capa de auditoria con cierto saneado de payloads.
 
-Dicho eso, hoy no lo considero listo para un contexto clinico exigente sin una ronda clara de endurecimiento. Tras las ocho pasadas de remediacion, los riesgos mas relevantes ya no estan tanto en secretos, observabilidad o drift operativo, sino en integridad del dato y madurez estructural:
+Dicho eso, hoy no lo considero listo para un contexto clinico exigente sin una ronda clara de endurecimiento. Tras las trece pasadas de remediacion, los riesgos mas relevantes ya no estan tanto en secretos, observabilidad o drift operativo, sino en integridad del dato y madurez estructural:
 
-- Persistencia de secciones clinicas ya endurecida en runtime, pero aun sin schema versionado de punta a punta.
-- La auditoria ya correlaciona por `requestId`, pero aun puede madurar hacia un catalogo unico de eventos y motivos/resultados.
-- El detalle longitudinal del paciente ya fue aligerado, pero sigue faltando separar mejor read models y paginacion bajo demanda.
+- Persistencia de secciones clinicas ya endurecida en runtime y ahora con `schemaVersion` ejercitado en produccion de codigo (`OBSERVACIONES v2`), aunque la disciplina debe mantenerse cuando aparezcan nuevos contratos.
+- La auditoria ya correlaciona por `requestId` y `reason/result`, pero todavia puede ampliar cobertura y disciplina catalogada a medida que aparezcan nuevos eventos.
+- La revision y el cierre clinico ya dejan rastro formal de actor/nota y quedaron cubiertos en backend/frontend para los flujos criticos del baseline actual.
+- El detalle longitudinal del paciente ya se separo de la timeline principal y suma un resumen derivado dedicado, aunque aun puede especializarse mas si el volumen crece.
 
 Mi lectura general es: producto funcional, con buena direccion arquitectonica, pero todavia con varios puntos que pueden degradar privacidad, trazabilidad o consistencia clinica sin fallar de forma visible.
 
 ### Fortalezas destacables
 
-- Backend con pruebas e2e utiles y no triviales (`72` unit/spec + `105` e2e pasadas durante esta auditoria tras ocho pasadas de remediacion).
+- Backend con pruebas e2e utiles y no triviales (`72` unit/spec + `116` e2e pasadas durante esta auditoria tras trece pasadas de remediacion), mas `102` tests frontend verdes.
 - Validacion defensiva de adjuntos por contenido binario y path confinement.
 - Controles razonables en auth: bloqueo por intentos fallidos, sesiones con versionado, refresh token versionado, cookies `HttpOnly`.
 - Exclusión explicita de `notasInternas` de la ficha exportada a PDF.
@@ -287,31 +290,34 @@ Los hallazgos estan ordenados por severidad y prioridad de accion.
 ### AN-01. Secretos SMTP expuestos al navegador del administrador
 
 - ID: `AN-01`
-- Estado de remediacion: `resuelto en pasada 1 (2026-03-31)`
-- Titulo: Secretos SMTP quedan almacenados en claro y el backend los devuelve completos al frontend
+- Estado de remediacion: `resuelto en pasada 9 y ampliado en pasada 13 (2026-03-31); queda deuda operativa de secret manager/runbook`
+- Titulo: `smtp.password` dejo de exponerse al frontend y ahora se cifra en reposo
 - Severidad: `S1 alto`
 - Area: `seguridad / backend / frontend / datos`
 - Confianza: `alta`
 - Evidencia exacta:
-  - `backend/src/settings/settings.service.ts:8-15`
+  - `backend/src/settings/settings-encryption.ts:1-90`
+  - `backend/src/settings/settings.service.ts:21-191`
   - `backend/src/settings/settings.controller.ts:38-62`
-  - `backend/prisma/schema.prisma:325-331`
-  - `frontend/src/app/(dashboard)/ajustes/page.tsx:89-114`
-  - `frontend/src/app/(dashboard)/ajustes/page.tsx:210-225`
+  - `backend/src/main.ts:13-65`
+  - `backend/test/app.e2e-spec.ts:1228-1258`
+  - `backend/prisma/schema.prisma:327-331`
 - Impacto real de negocio o clinico:
-  - Un XSS o una sesion admin comprometida puede exfiltrar credenciales SMTP.
-  - Expone credenciales de infraestructura desde una UI que no necesita leerlas en claro.
+  - La exposicion al navegador admin quedo cerrada.
+  - El secreto SMTP deja de quedar legible en base de datos y backups cuando `SETTINGS_ENCRYPTION_KEY` esta configurada.
 - Como reproducirlo o razonamiento tecnico:
-  - `GET /settings` devuelve todos los valores.
-  - El frontend hidrata `settings['smtp.password']` en estado React.
-  - El test mail reenvia esa password desde el navegador al backend.
+  - `GET /settings` sigue usando `getAllAdminView()` y omite `smtp.password`, exponiendo solo `smtp.passwordConfigured`.
+  - `SettingsService.setMany()` cifra `smtp.password` con AES-256-GCM antes de persistirlo.
+  - Si encuentra valores legacy en claro y la clave esta disponible, los reescribe cifrados en el primer acceso.
+  - Si el secreto fue cifrado con una clave vieja aun presente en `SETTINGS_ENCRYPTION_KEYS`, el servicio lo descifra y lo reescribe automaticamente con la clave activa.
+  - `assertSafeConfig()` exige `SETTINGS_ENCRYPTION_KEY` o `SETTINGS_ENCRYPTION_KEYS` validos en `production`.
+  - La e2e verifica que el valor persistido ya no coincide con el secreto original y usa prefijo `enc:v1:`.
 - Causa raiz:
-  - Modelo de settings generico, sin distincion entre secretos y configuracion visible.
+  - Modelo de settings generico, sin lifecycle diferenciado para secretos en lectura, escritura, almacenamiento y operacion.
 - Recomendacion concreta:
-  - Hacer `smtp.password` write-only.
-  - Enmascarar secretos en lecturas.
-  - Evitar que la UI vuelva a recibirlos.
-  - Si se mantienen en base de datos, cifrarlos con una clave de aplicacion/KMS y exponer solo un estado "configurado/no configurado".
+  - Mantener `smtp.password` como write-only y cifrado en reposo.
+  - Mantener el key ring con la clave activa en primer lugar y retirar claves viejas tras verificar el rewrap.
+  - Evaluar mover secretos operativos a un secret manager externo cuando la plataforma lo permita.
 - Esfuerzo estimado: `medio`
 
 ### AN-02. Sentry backend envia PII por defecto y con muestreo maximo
@@ -373,7 +379,7 @@ Los hallazgos estan ordenados por severidad y prioridad de accion.
 ### AN-04. Las secciones clinicas aceptaban payloads sin contrato real por tipo
 
 - ID: `AN-04`
-- Estado de remediacion: `resuelto en pasada 6 para validacion de entrada; queda deuda estructural de schema versionado`
+- Estado de remediacion: `resuelto en pasada 10; validacion de entrada + schemaVersion inicial persistida`
 - Titulo: Backend acepta cualquier objeto en `EncounterSection.data`
 - Severidad: `S1 alto`
 - Area: `backend / datos / integridad`
@@ -393,19 +399,20 @@ Los hallazgos estan ordenados por severidad y prioridad de accion.
   - Originalmente `IdentificacionSection` hacia `parseInt(e.target.value)` para `edad`; si el input quedaba vacio, la serializacion terminaba degradando el valor.
   - Antes de las pasadas 2 a 6 el backend no imponia reglas de rango, enums ni shape por `sectionKey`; ahora se validan `IDENTIFICACION`, `MOTIVO_CONSULTA`, `ANAMNESIS_PROXIMA`, `ANAMNESIS_REMOTA`, `REVISION_SISTEMAS`, `EXAMEN_FISICO`, `SOSPECHA_DIAGNOSTICA`, `TRATAMIENTO`, `RESPUESTA_TRATAMIENTO` y `OBSERVACIONES`.
   - En pasada 6 tambien se endurecio `PUT /patients/:id/history`, se normalizo el snapshot `ANAMNESIS_REMOTA` al crear atenciones y se corrigio la semantica UI para separar "editar solo esta atención" de "editar historial maestro".
+  - En pasada 10 `EncounterSection` sumo `schemaVersion`, y en pasada 13 `OBSERVACIONES` subio a `schemaVersion=2` con upgrader de compatibilidad en lectura para payloads v1.
 - Causa raiz:
   - Modelo tipo blob JSON sin contrato fuerte por `sectionKey`.
 - Recomendacion concreta:
   - Mantener las validaciones por seccion ya añadidas.
-  - Siguiente escalon: versionar schemas de seccion para migraciones y compatibilidad futura.
+  - Repetir el mismo patron de bump + upgrader + tests cuando cambie otro contrato incompatible.
   - Considerar evolucion futura a JSON tipado o columnas estructuradas si el storage cambia.
 - Esfuerzo estimado: `alto`
 
 ### AN-05. La auditoria no cubre varias operaciones sensibles
 
 - ID: `AN-05`
-- Estado de remediacion: `resuelto en pasada 2 y consolidado en pasada 8 (2026-03-31)`
-- Titulo: Existen vacios de trazabilidad sobre exportaciones, adjuntos y administracion de usuarios
+- Estado de remediacion: `resuelto en pasada 10; cobertura sensible + catalogo operativo minimo`
+- Titulo: La auditoria cubre operaciones sensibles y ahora clasifica por `reason/result`
 - Severidad: `S1 alto`
 - Area: `seguridad / datos / backend`
 - Confianza: `alta`
@@ -423,12 +430,13 @@ Los hallazgos estan ordenados por severidad y prioridad de accion.
   - Hay logging de `Patient`, `PatientHistory` y `EncounterSection`.
   - No se observa `auditService.log()` en upload/delete de adjuntos, exportaciones CSV/PDF ni update/remove/reset en usuarios.
   - En la pasada 8 se añadió persistencia de `requestId` en `AuditLog`, middleware comun de trazado HTTP y filtro por request en `GET /audit`.
+  - En la pasada 10 `AuditLog` sumo `reason/result`, `AuditService` ahora infiere un catalogo operativo minimo y la UI admin puede filtrar por ambos.
 - Causa raiz:
   - Auditoria implementada por caso, no como politica transversal.
 - Recomendacion concreta:
-  - Añadir auditoria de acceso y exportacion.
-  - Registrar altas/bajas/cambios de usuarios, invitaciones, reset password, download/upload/delete de adjuntos y export de CSV/PDF.
-  - Adjuntar `requestId`, actor, entidad, motivo y resultado.
+  - Mantener el catalogo operativo y exigir que nuevos eventos de auditoria entren con `reason/result`.
+  - Revisar periodicamente eventos `AUDIT_UNSPECIFIED` para que el catalogo no se degrade.
+  - Adjuntar `requestId`, actor, entidad, motivo y resultado en cada evento sensible nuevo.
 - Esfuerzo estimado: `medio`
 
 ### AN-06. Permisos de antecedentes desalineados entre frontend y backend
@@ -548,8 +556,8 @@ Los hallazgos estan ordenados por severidad y prioridad de accion.
 ### AN-10. La ficha de paciente carga demasiado longitudinal en una sola llamada
 
 - ID: `AN-10`
-- Estado de remediacion: `mitigado en pasada 8 (2026-03-31)`
-- Titulo: `GET /patients/:id` devuelve todas las atenciones con secciones completas
+- Estado de remediacion: `resuelto en pasada 10 y ampliado en pasada 13 (2026-03-31)`
+- Titulo: La capa longitudinal ya se sirve desde read models dedicados
 - Severidad: `S2 medio`
 - Area: `backend / frontend / performance`
 - Confianza: `alta`
@@ -562,11 +570,14 @@ Los hallazgos estan ordenados por severidad y prioridad de accion.
   - Se traen mas datos clinicos de los necesarios para la primera vista.
 - Como reproducirlo o razonamiento tecnico:
   - Originalmente `findById()` incluia `encounters.sections` completos.
-  - En la pasada 8 se acoto a un resumen de secciones clinicamente utiles (`MOTIVO_CONSULTA`, `SOSPECHA_DIAGNOSTICA`, `TRATAMIENTO`, `RESPUESTA_TRATAMIENTO`, `EXAMEN_FISICO`) y se añadió cobertura e2e para evitar regresion.
+  - En la pasada 8 se acoto a un resumen de secciones clinicamente utiles.
+  - En la pasada 10 `GET /patients/:id` deja de embedir `encounters` y la UI consume `GET /patients/:id/encounters?page&limit`, con paginacion y carga bajo demanda.
+  - En la pasada 13 se agrego `GET /patients/:id/clinical-summary`, que entrega tendencias vitales, diagnosticos recientes y snapshot operativo derivado sin depender de la timeline completa.
 - Causa raiz:
   - Falta de read models o endpoints especializados para resumen longitudinal.
 - Recomendacion concreta:
-  - Separar endpoint de detalle base, timeline paginada y resumen clinico derivado.
+  - Mantener el endpoint de detalle base sin timeline embebida.
+  - Mantener `GET /patients/:id/clinical-summary` como endpoint derivado y especializarlo solo si aparecen nuevas necesidades de producto o volumen.
   - Devolver secciones completas solo bajo demanda.
 - Esfuerzo estimado: `medio`
 
@@ -650,8 +661,10 @@ Los hallazgos estan ordenados por severidad y prioridad de accion.
 
 ### 5.1 Permisos
 
-- `canEditAntecedentes()` en frontend no coincide con la regla real backend.
-- Los tests frontend fijan esa inconsistencia como comportamiento esperado.
+- Estado actual:
+  - Resuelto en pasada 1; `canEditAntecedentes()` ya coincide con backend para `MEDICO`, `ADMIN` y `ASISTENTE` con `medicoId`.
+- Deuda residual:
+  - Mantener tests de contrato FE/BE para evitar nuevo drift.
 
 ### 5.2 Busqueda de pacientes
 
@@ -659,6 +672,11 @@ Los hallazgos estan ordenados por severidad y prioridad de accion.
   - `frontend/src/app/(dashboard)/pacientes/page.tsx:154`
 - Backend solo filtra por nombre y RUT:
   - `backend/src/patients/patients.service.ts:231-239`
+
+Estado actual:
+
+- Resuelto en pasada 9 retirando la promesa de correo desde la UI.
+- Si en el futuro `Patient` incorpora email, convendra reabrir este contrato como capacidad real end-to-end.
 
 ### 5.3 Variables de entorno JWT
 
@@ -683,17 +701,27 @@ Referencias:
 ### 5.4 Contratos de seccion
 
 - Frontend modela tipos ricos por seccion.
-- Backend no los garantiza y persiste cualquier objeto.
+- Backend ya valida las secciones activas en runtime y `EncounterSection` ya ejercita compatibilidad real con `OBSERVACIONES schemaVersion=2`.
 
 Referencias:
 
 - `frontend/src/types/index.ts`
 - `backend/src/encounters/dto/update-section.dto.ts`
 
+Estado actual:
+
+- Resuelto en pasada 13 para el baseline actual.
+- Sigue pendiente repetir el patron cuando cambie algun otro contrato.
+
 ### 5.5 Fechas
 
 - Frontend usa `type="date"` y strings locales.
-- Backend las parsea con `new Date(...)` sin contrato explicito de timezone.
+- Backend ya normaliza los campos "solo dia" principales, pero la politica `LocalDate` todavia no esta formalizada como contrato transversal.
+
+Estado actual:
+
+- Mitigado en pasada 7 para auditoria y seguimientos.
+- Sigue pendiente blindar futuros campos de fecha con helpers y tests reutilizables.
 
 ## 6. Riesgos medicos, de privacidad y de integridad
 
@@ -708,23 +736,25 @@ Estos hallazgos merecen tratamiento prioritario por el tipo de producto:
 
 - Asociado a `AN-04`.
 - Mitigado en pasadas 4 a 6 con validacion y saneado por `sectionKey`, endurecimiento del historial maestro y normalizacion del snapshot `ANAMNESIS_REMOTA`.
-- Sigue viva la deuda de schema versionado, pero la via directa de persistir blobs clinicos arbitrarios quedo cerrada para los flujos actuales.
+- En pasada 10 se añadió `schemaVersion` como baseline formal y en pasada 13 `OBSERVACIONES` subio a `v2` con upgrader. La deuda residual ya no es ausencia de versionado, sino sostener la disciplina cuando aparezcan cambios incompatibles nuevos.
 
 ### 6.3 Riesgo de trazabilidad insuficiente en actos sensibles
 
 - Asociado a `AN-05`.
-- Mitigado en pasadas 2 y 8 con auditoria sobre exportaciones, descargas, adjuntos e hitos administrativos, mas correlacion transversal por `requestId`.
-- Queda como mejora futura consolidar un catalogo unico de eventos, motivos y resultados.
+- Resuelto para el baseline actual en pasada 10: la auditoria ya cubre eventos sensibles, correlaciona por `requestId` y clasifica por `reason/result`.
+- Queda como mejora futura mantener disciplina catalogada a medida que aparezcan nuevos eventos de negocio.
 
 ### 6.4 Riesgo de fuga de datos sensibles a terceros de observabilidad
 
 - Asociado a `AN-02`.
-- No se puede afirmar incumplimiento regulatorio desde el repo solo, pero si existe un vacio importante de minimizacion de datos.
+- Mitigado en pasada 1 al desactivar `sendDefaultPii`, bajar sampling y sanear headers/cookies/body en backend.
+- Riesgo residual: validar fuera del repo politicas de retencion, DPA y scrubbing equivalente del lado frontend/infra si existiera.
 
 ### 6.5 Riesgo de exposicion innecesaria de secretos operativos
 
 - Asociado a `AN-01`.
-- No es un riesgo clinico directo, pero si puede terminar en compromiso de infraestructura y canales de comunicacion.
+- Resuelto en codigo para el storage actual: `smtp.password` se mantiene write-only en API/UI y se cifra en reposo antes de persistirse.
+- Riesgo residual: queda pendiente externalizar secretos a un secret manager y formalizar el runbook humano de rotacion/retiro de claves.
 
 ## 7. Calidad, testing y operabilidad
 
@@ -756,7 +786,7 @@ Estos hallazgos merecen tratamiento prioritario por el tipo de producto:
 - Frontend:
   - Build sano.
   - Tras la pasada 1, typecheck, tests y lint quedaron recuperados.
-  - La deuda principal ya no es la pipeline ni dependencias de runtime, sino read models longitudinales y refactors clinicos/operativos de fondo.
+  - La deuda principal ya no es la pipeline ni dependencias de runtime, sino seguir afinando contratos clinicos y operacion segura de secretos.
 
 ### 7.3 Decisiones operativas razonables que conviene conservar
 
@@ -839,16 +869,14 @@ Estrategia incremental:
 
 ### Prioridad alta
 
-- tests UI/e2e de restauracion del snapshot de `IDENTIFICACION` desde la ficha maestra.
-- tests de auditoria que cubran `update/remove` de usuarios, export PDF completo y catalogo unico de eventos.
-- tests frontend/e2e del flujo de `ANAMNESIS_REMOTA` para cubrir "editar solo esta atención" vs "ir al historial maestro".
+- tests de contrato de permisos FE/BE en rutas y pantallas con mayor riesgo de desalineacion.
 
 ### Prioridad media
 
-- tests de contrato de permisos FE/BE.
-- tests de rendimiento o al menos snapshots de payload de `GET /patients/:id` con muchas atenciones.
+- tests de rendimiento o al menos snapshots de payload/paginacion de `GET /patients/:id/encounters` con muchas atenciones.
 - tests del flujo de settings SMTP sin reexponer secrets al cliente.
-- tests de compatibilidad para futuros `schemaVersion` por seccion.
+- tests para futuros bumps de `schemaVersion` mas alla de `OBSERVACIONES v2`.
+- tests operativos end-to-end de rotacion manual de claves y retiro de claves antiguas del key ring.
 
 ## 11. Funcionalidades nuevas recomendadas
 
@@ -890,17 +918,17 @@ Las siguientes propuestas salen de huecos reales del producto y de la arquitectu
 
 - Nombre: `Revision y cierre medico asistido`
 - Problema real que resolveria:
-  - El estado `reviewStatus` existe, pero todavia no expresa un circuito robusto de validacion clinica.
+  - Ya quedo resuelto para el baseline actual: el flujo ahora persiste actor y nota tanto para revision como para cierre.
 - Usuario objetivo:
   - Medicos y asistentes.
 - Por que encaja con la app actual:
-  - Ya existe `reviewStatus`, `reviewedBy`, `reviewedAt`.
+  - Se apoya sobre `reviewStatus`, `reviewRequestedBy`, `reviewedBy`, `completedBy`, `reviewNote` y `closureNote`.
 - Dependencia tecnica o modulo:
   - `encounters`, `audit`, `frontend atencion`.
 - Prioridad: `alta`
 - Complejidad estimada: `media`
 - Riesgo regulatorio o de privacidad:
-  - Medio; conviene definir bien trazabilidad, responsabilidad y evidencia de cierre.
+  - Medio; la base quedo lista, pero conviene extender pruebas de reapertura y evidencia de cierre positivo.
 
 ### 11.4 Alertas de divergencia de datos administrativos
 
@@ -938,33 +966,35 @@ Las siguientes propuestas salen de huecos reales del producto y de la arquitectu
 
 ### Inmediato
 
-- Profundizar la separacion de read models longitudinales y paginacion de timeline.
-- Consolidar catalogo unico de eventos de auditoria con motivos/resultados.
 - Mantener regimen de upgrades preventivos para no reabrir `AN-08`.
+- Documentar rotacion operacional de claves con checklist de retiro seguro.
 
 ### Corto plazo
 
 - Introducir versionado o al menos diff util por seccion clinica.
-- Expandir cobertura e2e/frontend sobre flujos clinicos complejos y auditoria.
+- Completar contrato de permisos FE/BE y pruebas de rendimiento para timelines voluminosas.
 - Completar documentacion operativa de despliegue, backups y restauracion.
 
 ### Mediano plazo
 
-- Implementar versionado clinico por seccion.
-- Diseñar read models y endpoints especializados para longitudinal.
-- Consolidar politica transversal de auditoria.
-- Formalizar workflow de revision medica y trazabilidad de cierre.
+- Practicar nuevos bumps reales de `schemaVersion` cuando aparezcan cambios incompatibles.
+- Diseñar read models y endpoints longitudinales todavia mas especializados solo si crece el volumen o aparecen nuevas vistas.
+- Mantener y ampliar la politica transversal de auditoria.
+
+### Pendientes concretos al cierre
+
+- Externalizacion de secretos operativos a un secret manager y runbook formal de rotacion.
+- Bumps/migraciones de compatibilidad cuando aparezcan nuevos cambios incompatibles de secciones clinicas.
 
 ## 13. Conclusiones finales
 
-Anamneo tiene varias decisiones buenas que merece la pena preservar. No es un proyecto improvisado: hay criterio tecnico en auth, adjuntos, health checks y pruebas backend. El mayor riesgo actual ya no es una ausencia total de controles en ingreso de datos, sino la falta de algunas garantias transversales que un software medico termina necesitando al crecer: read models longitudinales mas finos, versionado clinico y una politica de auditoria todavia mas expresiva.
+Anamneo tiene varias decisiones buenas que merece la pena preservar. No es un proyecto improvisado: hay criterio tecnico en auth, adjuntos, health checks y pruebas backend. Tras esta pasada, el mayor riesgo actual ya no es la falta de cimientos para versionado, auditoria, paginacion longitudinal o trazabilidad basica de revision/cierre, sino completar la siguiente capa de madurez: operacion segura de claves fuera del proceso, disciplina continua de evolucion de `schemaVersion` y especializacion incremental de read models solo cuando haga falta.
 
 Si tuviera que priorizar con mentalidad de seguridad del paciente e integridad del dato, el orden seria:
 
-1. payloads/read models longitudinales para evitar fragilidad y latencia creciente
-2. catalogo unico de eventos y politica de auditoria mas expresiva
-3. schema versionado de secciones clinicas
-4. cobertura e2e/frontend adicional sobre flujos clinicos criticos
-5. formalizacion del workflow de revision medica
+1. externalizacion de secretos y rotacion operativa verificable
+2. disciplina de evolucion/migracion de `schemaVersion`
+3. politica de auditoria cada vez mas expresiva a medida que aparezcan nuevos eventos
+4. read models aun mas finos solo si la carga longitudinal lo exige
 
 Con esas correcciones, la base existente permitiria evolucionar Anamneo con mucha mas seguridad y bastante mejor confianza operativa.

@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { api, PaginatedResponse } from '@/lib/api';
+import { Encounter } from '@/types';
 import { FiAlertTriangle, FiInfo } from 'react-icons/fi';
 
 interface ClinicalAlertsProps {
@@ -14,6 +15,15 @@ export default function ClinicalAlerts({ patientId }: ClinicalAlertsProps) {
     queryFn: async () => {
       const res = await api.get(`/patients/${patientId}`);
       return res.data;
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: encounterTimeline } = useQuery({
+    queryKey: ['patient-encounters-alerts', patientId],
+    queryFn: async () => {
+      const res = await api.get(`/patients/${patientId}/encounters?page=1&limit=1`);
+      return res.data as PaginatedResponse<Encounter>;
     },
     staleTime: 60_000,
   });
@@ -63,12 +73,13 @@ export default function ClinicalAlerts({ patientId }: ClinicalAlertsProps) {
     });
   }
 
-  const recentEncounter = patient.encounters?.[0];
+  const recentEncounter = encounterTimeline?.data?.[0];
   const latestExam = recentEncounter?.sections?.find((section: any) => section.sectionKey === 'EXAMEN_FISICO')?.data;
   const systolic = Number(String(latestExam?.signosVitales?.presionArterial || '').split('/')[0]);
   const temperature = Number(latestExam?.signosVitales?.temperatura);
+  const latestPressureLabel = latestExam?.signosVitales?.presionArterial;
   if (Number.isFinite(systolic) && systolic >= 160) {
-    alerts.push({ type: 'warning', label: 'PA elevada', value: `Último registro ${latestExam.signosVitales.presionArterial}` });
+    alerts.push({ type: 'warning', label: 'PA elevada', value: `Último registro ${latestPressureLabel}` });
   }
   if (Number.isFinite(temperature) && temperature >= 38) {
     alerts.push({ type: 'warning', label: 'Fiebre', value: `Último registro ${temperature.toFixed(1)} °C` });
@@ -77,27 +88,43 @@ export default function ClinicalAlerts({ patientId }: ClinicalAlertsProps) {
   if (alerts.length === 0) return null;
 
   return (
-    <div className="mb-4 space-y-2 animate-fade-in">
-      {alerts.map((alert, i) => (
-        <div
-          key={i}
-          className={`flex items-start gap-3 px-4 py-3 rounded-xl text-sm ${
-            alert.type === 'warning'
-              ? 'bg-status-yellow/10 border border-status-yellow/30 text-status-yellow'
-              : 'bg-accent/10 border border-blue-200 text-blue-800'
-          }`}
-        >
-          {alert.type === 'warning' ? (
-            <FiAlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          ) : (
-            <FiInfo className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          )}
-          <div>
-            <span className="font-medium">{alert.label}:</span>{' '}
-            <span className="opacity-90">{alert.value}</span>
-          </div>
+    <div className="animate-fade-in">
+      <div className="overflow-hidden rounded-xl border border-frame/10 bg-surface-elevated shadow-soft">
+        <div className="border-b border-surface-muted/35 px-4 py-3 sm:px-5">
+          <h2 className="text-sm font-semibold text-ink">Alertas Clínicas</h2>
+          <p className="mt-1 text-sm text-ink-secondary">
+            Datos de la ficha longitudinal que conviene tener visibles mientras editas.
+          </p>
         </div>
-      ))}
+
+        <div className="flex flex-col divide-y divide-surface-muted/30">
+          {alerts.map((alert, index) => (
+            <div
+              key={`${alert.label}-${index}`}
+              className="flex items-start gap-3 px-4 py-3 sm:px-5"
+            >
+              <div
+                className={`mt-0.5 shrink-0 ${
+                  alert.type === 'warning'
+                    ? 'text-accent-text'
+                    : 'text-ink-secondary'
+                }`}
+              >
+                {alert.type === 'warning' ? (
+                  <FiAlertTriangle className="h-4 w-4" />
+                ) : (
+                  <FiInfo className="h-4 w-4" />
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-ink">{alert.label}</p>
+                <p className="mt-1 break-words text-sm text-ink-secondary">{alert.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

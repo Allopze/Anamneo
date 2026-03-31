@@ -3,7 +3,7 @@ import nextConfig from 'eslint-config-next';
 export default [
   ...nextConfig,
   {
-    ignores: ['.next/**', 'out/**', 'node_modules/**'],
+    ignores: ['.next/**', '.next.bak/**', 'out/**', 'node_modules/**'],
   },
   {
     rules: {

@@ -94,14 +94,14 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
         {selected.map((item) => (
           <span
             key={item}
-            className="inline-flex items-center gap-1 px-2.5 py-1 bg-accent/20 text-accent rounded-full text-sm font-medium animate-fade-in"
+            className="inline-flex items-center gap-1 rounded-full border border-status-yellow/65 bg-status-yellow/35 px-2.5 py-1 text-sm font-medium text-accent-text animate-fade-in"
           >
             <FiTag className="w-3 h-3" />
             {item}
             <button
               type="button"
               onClick={() => handleRemove(item)}
-              className="p-0.5 hover:bg-accent/20 rounded-full transition-colors"
+              className="rounded-full p-0.5 transition-colors hover:bg-status-yellow/40"
             >
               <FiX className="w-3 h-3" />
             </button>
@@ -168,7 +168,7 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
               <button
                 type="button"
                 onClick={() => handleAdd(query.trim())}
-                className="dropdown-item py-3 text-accent bg-accent/10/50 border-t border-surface-muted/20"
+                className="dropdown-item border-t border-surface-muted/20 bg-status-yellow/25 py-3 text-accent-text"
               >
                 <FiPlus className="w-4 h-4" />
                 <span>Agregar manualmente: <strong>"{query.trim()}"</strong></span>

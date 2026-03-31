@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
+import { useState, useEffect, useCallback, useMemo, useRef, useTransition } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -32,6 +33,7 @@ import {
   FiTrash2,
   FiFileText,
   FiClipboard,
+  FiActivity,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -42,40 +44,83 @@ import {
   canViewMedicoOnlySections,
 } from '@/lib/permissions';
 
-// Section components
-import IdentificacionSection from '@/components/sections/IdentificacionSection';
-import MotivoConsultaSection from '@/components/sections/MotivoConsultaSection';
-import AnamnesisProximaSection from '@/components/sections/AnamnesisProximaSection';
-import AnamnesisRemotaSection from '@/components/sections/AnamnesisRemotaSection';
-import RevisionSistemasSection from '@/components/sections/RevisionSistemasSection';
-import ExamenFisicoSection from '@/components/sections/ExamenFisicoSection';
-import SospechaDiagnosticaSection from '@/components/sections/SospechaDiagnosticaSection';
-import TratamientoSection from '@/components/sections/TratamientoSection';
-import RespuestaTratamientoSection from '@/components/sections/RespuestaTratamientoSection';
-import ObservacionesSection from '@/components/sections/ObservacionesSection';
 import ClinicalAlerts from '@/components/ClinicalAlerts';
 import TemplateSelector from '@/components/TemplateSelector';
 
 import ConfirmModal from '@/components/common/ConfirmModal';
 
+const SectionLoadingFallback = () => (
+  <div className="rounded-xl border border-surface-muted/40 bg-surface-base/55 px-4 py-5 text-sm text-ink-secondary">
+    Cargando sección…
+  </div>
+);
+
 const SECTION_COMPONENTS: Record<SectionKey, React.ComponentType<any>> = {
-  IDENTIFICACION: IdentificacionSection,
-  MOTIVO_CONSULTA: MotivoConsultaSection,
-  ANAMNESIS_PROXIMA: AnamnesisProximaSection,
-  ANAMNESIS_REMOTA: AnamnesisRemotaSection,
-  REVISION_SISTEMAS: RevisionSistemasSection,
-  EXAMEN_FISICO: ExamenFisicoSection,
-  SOSPECHA_DIAGNOSTICA: SospechaDiagnosticaSection,
-  TRATAMIENTO: TratamientoSection,
-  RESPUESTA_TRATAMIENTO: RespuestaTratamientoSection,
-  OBSERVACIONES: ObservacionesSection,
+  IDENTIFICACION: dynamic(() => import('@/components/sections/IdentificacionSection'), {
+    loading: SectionLoadingFallback,
+  }),
+  MOTIVO_CONSULTA: dynamic(() => import('@/components/sections/MotivoConsultaSection'), {
+    loading: SectionLoadingFallback,
+  }),
+  ANAMNESIS_PROXIMA: dynamic(() => import('@/components/sections/AnamnesisProximaSection'), {
+    loading: SectionLoadingFallback,
+  }),
+  ANAMNESIS_REMOTA: dynamic(() => import('@/components/sections/AnamnesisRemotaSection'), {
+    loading: SectionLoadingFallback,
+  }),
+  REVISION_SISTEMAS: dynamic(() => import('@/components/sections/RevisionSistemasSection'), {
+    loading: SectionLoadingFallback,
+  }),
+  EXAMEN_FISICO: dynamic(() => import('@/components/sections/ExamenFisicoSection'), {
+    loading: SectionLoadingFallback,
+  }),
+  SOSPECHA_DIAGNOSTICA: dynamic(() => import('@/components/sections/SospechaDiagnosticaSection'), {
+    loading: SectionLoadingFallback,
+  }),
+  TRATAMIENTO: dynamic(() => import('@/components/sections/TratamientoSection'), {
+    loading: SectionLoadingFallback,
+  }),
+  RESPUESTA_TRATAMIENTO: dynamic(() => import('@/components/sections/RespuestaTratamientoSection'), {
+    loading: SectionLoadingFallback,
+  }),
+  OBSERVACIONES: dynamic(() => import('@/components/sections/ObservacionesSection'), {
+    loading: SectionLoadingFallback,
+  }),
 };
 
 const AUTOSAVE_DELAY = 10000; // 10 seconds
+const REVIEW_NOTE_MIN_LENGTH = 10;
+const CLOSURE_NOTE_MIN_LENGTH = 15;
 const LINKABLE_ATTACHMENT_LABELS = {
   EXAMEN: 'Examen',
   DERIVACION: 'Derivación',
 } as const;
+
+const headerDateFormatter = new Intl.DateTimeFormat('es-CL', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
+
+const compactDateFormatter = new Intl.DateTimeFormat('es-CL', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+});
+
+const TOOLBAR_BUTTON_CLASS =
+  'inline-flex touch-manipulation items-center justify-center gap-2 rounded-xl border border-frame/15 bg-surface-elevated px-3.5 py-2.5 text-sm font-medium text-ink shadow-soft transition-colors hover:border-frame/30 hover:bg-surface-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20 disabled:cursor-not-allowed disabled:opacity-50';
+
+const TOOLBAR_PRIMARY_BUTTON_CLASS =
+  'inline-flex touch-manipulation items-center justify-center gap-2 rounded-xl border border-accent/70 bg-accent px-3.5 py-2.5 text-sm font-semibold text-accent-text shadow-soft transition-colors hover:bg-accent-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:cursor-not-allowed disabled:opacity-50';
+
+const TOOLBAR_SUCCESS_BUTTON_CLASS =
+  'inline-flex touch-manipulation items-center justify-center gap-2 rounded-xl bg-status-green px-3.5 py-2.5 text-sm font-medium text-status-green-text transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-green/40 disabled:cursor-not-allowed disabled:opacity-50';
+
+const SURFACE_PANEL_CLASS =
+  'overflow-hidden rounded-xl border border-frame/10 bg-surface-elevated shadow-soft';
+
+const INNER_PANEL_CLASS =
+  'rounded-xl border border-surface-muted/45 bg-surface-base/55';
 
 // Sections only visible to doctors
 const MEDICO_ONLY_SECTIONS: SectionKey[] = [
@@ -95,32 +140,32 @@ const TEMPLATE_FIELD_BY_SECTION: Partial<Record<SectionKey, string>> = {
 const SECTION_STATUS_META = {
   idle: {
     label: 'Sin cambios',
-    badgeClassName: 'bg-surface-muted text-ink-secondary',
+    badgeClassName: 'text-ink-secondary',
     dotClassName: 'bg-surface-muted',
   },
   dirty: {
     label: 'Pendiente',
-    badgeClassName: 'bg-status-yellow/20 text-status-yellow',
+    badgeClassName: 'text-accent-text',
     dotClassName: 'bg-status-yellow',
   },
   saving: {
-    label: 'Guardando',
-    badgeClassName: 'bg-accent/20 text-accent',
-    dotClassName: 'bg-accent/100',
+    label: 'Guardando…',
+    badgeClassName: 'text-ink',
+    dotClassName: 'bg-frame',
   },
   saved: {
     label: 'Guardada',
-    badgeClassName: 'bg-emerald-100 text-emerald-700',
-    dotClassName: 'bg-emerald-500',
+    badgeClassName: 'text-status-green-text',
+    dotClassName: 'bg-status-green',
   },
   completed: {
     label: 'Completa',
-    badgeClassName: 'bg-status-green/20 text-status-green',
+    badgeClassName: 'text-status-green-text',
     dotClassName: 'bg-status-green',
   },
   error: {
     label: 'Error',
-    badgeClassName: 'bg-status-red/20 text-status-red',
+    badgeClassName: 'text-status-red-text',
     dotClassName: 'bg-status-red',
   },
 } as const;
@@ -152,11 +197,20 @@ const buildIdentificationSnapshotFromPatient = (encounter: Encounter) => ({
   domicilio: encounter.patient?.domicilio || '',
 });
 
+const formatDateTime = (value?: string | null) => (
+  value ? headerDateFormatter.format(new Date(value)) : '—'
+);
+
+const formatCompactDate = (value?: string | null) => (
+  value ? compactDateFormatter.format(new Date(value)) : '—'
+);
+
 export default function EncounterWizardPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, isMedico, canEditAntecedentes } = useAuthStore();
+  const [isSectionSwitchPending, startSectionTransition] = useTransition();
 
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -183,6 +237,8 @@ export default function EncounterWizardPage() {
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showDeleteAttachment, setShowDeleteAttachment] = useState<string | null>(null);
   const [quickTask, setQuickTask] = useState({ title: '', type: 'SEGUIMIENTO', dueDate: '' });
+  const [reviewActionNote, setReviewActionNote] = useState('');
+  const [closureNote, setClosureNote] = useState('');
   const initializedEncounterIdRef = useRef<string | null>(null);
 
   // Fetch encounter data
@@ -196,11 +252,24 @@ export default function EncounterWizardPage() {
   const isDoctor = isMedico();
   const canEdit = canEditEncounter(user ?? null, encounter);
   const canUpload = canUploadAttachmentsPermission(user ?? null);
-  const allSections = encounter?.sections || [];
-  const sections = canViewMedicoOnlySections(user ?? null)
-    ? allSections
-    : allSections.filter((section) => !MEDICO_ONLY_SECTIONS.includes(section.sectionKey));
+  const allSections = encounter?.sections;
+  const sections = useMemo(
+    () => {
+      const source = allSections ?? [];
+      return (
+      canViewMedicoOnlySections(user ?? null)
+        ? source
+        : source.filter((section) => !MEDICO_ONLY_SECTIONS.includes(section.sectionKey))
+      );
+    },
+    [allSections, user],
+  );
   const currentSection = sections[currentSectionIndex];
+
+  useEffect(() => {
+    setReviewActionNote(encounter?.reviewNote || '');
+    setClosureNote(encounter?.closureNote || '');
+  }, [encounter?.id, encounter?.reviewNote, encounter?.closureNote]);
 
   useEffect(() => {
     activeSectionKeyRef.current = currentSection?.sectionKey ?? null;
@@ -292,7 +361,7 @@ export default function EncounterWizardPage() {
 
   // Complete encounter mutation
   const completeMutation = useMutation({
-    mutationFn: () => api.post(`/encounters/${id}/complete`),
+    mutationFn: (payload: { closureNote: string }) => api.post(`/encounters/${id}/complete`, payload),
     onSuccess: () => {
       toast.success('Atención completada');
       queryClient.invalidateQueries({ queryKey: ['encounter', id] });
@@ -353,8 +422,13 @@ export default function EncounterWizardPage() {
   });
 
   const reviewStatusMutation = useMutation({
-    mutationFn: async (reviewStatus: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO') =>
-      api.put(`/encounters/${id}/review-status`, { reviewStatus }),
+    mutationFn: async ({
+      reviewStatus,
+      note,
+    }: {
+      reviewStatus: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO';
+      note?: string;
+    }) => api.put(`/encounters/${id}/review-status`, { reviewStatus, note }),
     onSuccess: () => {
       toast.success('Estado de revisión actualizado');
       queryClient.invalidateQueries({ queryKey: ['encounter', id] });
@@ -568,14 +642,18 @@ export default function EncounterWizardPage() {
     toast.success('Plantilla insertada en la sección actual');
   };
 
-  const handleNavigate = (direction: 'prev' | 'next') => {
-    // Save current section before navigating
+  const moveToSection = (nextIndex: number) => {
     saveCurrentSection();
+    startSectionTransition(() => {
+      setCurrentSectionIndex(nextIndex);
+    });
+  };
 
+  const handleNavigate = (direction: 'prev' | 'next') => {
     if (direction === 'prev' && currentSectionIndex > 0) {
-      setCurrentSectionIndex(currentSectionIndex - 1);
+      moveToSection(currentSectionIndex - 1);
     } else if (direction === 'next' && currentSectionIndex < sections.length - 1) {
-      setCurrentSectionIndex(currentSectionIndex + 1);
+      moveToSection(currentSectionIndex + 1);
     }
   };
 
@@ -608,80 +686,106 @@ export default function EncounterWizardPage() {
   };
 
   const confirmComplete = () => {
+    if (closureNote.trim().length < CLOSURE_NOTE_MIN_LENGTH) {
+      toast.error(`La nota de cierre debe tener al menos ${CLOSURE_NOTE_MIN_LENGTH} caracteres`);
+      return;
+    }
     setShowCompleteConfirm(false);
-    completeMutation.mutate();
+    completeMutation.mutate({ closureNote });
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-accent border-t-transparent" />
-      </div>
-    );
-  }
+  const handleReviewStatusChange = (
+    reviewStatus: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO'
+  ) => {
+    if (
+      (reviewStatus === 'LISTA_PARA_REVISION' || reviewStatus === 'REVISADA_POR_MEDICO')
+      && reviewActionNote.trim().length < REVIEW_NOTE_MIN_LENGTH
+    ) {
+      toast.error(`La nota de revisión debe tener al menos ${REVIEW_NOTE_MIN_LENGTH} caracteres`);
+      return;
+    }
 
-  if (error || !encounter) {
-    const msg = error ? getErrorMessage(error) : null;
-    return (
-      <div className="text-center py-12">
-        <FiAlertCircle className="w-12 h-12 text-status-red mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-ink-primary mb-2">Atención no encontrada</h2>
-        {msg && <p className="text-ink-muted text-sm mb-4 whitespace-pre-line">{msg}</p>}
-        <Link href="/pacientes" className="btn btn-primary">
-          Volver a pacientes
-        </Link>
-      </div>
-    );
-  }
+    reviewStatusMutation.mutate({
+      reviewStatus,
+      note: reviewActionNote,
+    });
+  };
 
   const SectionComponent = currentSection ? SECTION_COMPONENTS[currentSection.sectionKey] : null;
-  const completedCount = sections.filter((s) => s.completed).length;
+  const completedCount = useMemo(
+    () => sections.filter((section) => section.completed).length,
+    [sections],
+  );
+  const progressPercentage = sections.length > 0 ? (completedCount / sections.length) * 100 : 0;
   const canComplete = canCompleteEncounterPermission(user ?? null, encounter);
-  const attachments = attachmentsQuery.data ?? [];
-  const tratamientoData = (formData.TRATAMIENTO ?? encounter.sections?.find((section) => section.sectionKey === 'TRATAMIENTO')?.data ?? {}) as TratamientoData;
-  const examenesEstructurados = Array.isArray(tratamientoData.examenesEstructurados)
-    ? tratamientoData.examenesEstructurados
-    : [];
-  const derivacionesEstructuradas = Array.isArray(tratamientoData.derivacionesEstructuradas)
-    ? tratamientoData.derivacionesEstructuradas
-    : [];
+  const attachments = useMemo(
+    () => attachmentsQuery.data ?? [],
+    [attachmentsQuery.data],
+  );
+  const tratamientoData = (formData.TRATAMIENTO ?? encounter?.sections?.find((section) => section.sectionKey === 'TRATAMIENTO')?.data ?? {}) as TratamientoData;
+  const examenesEstructurados = useMemo(
+    () => (Array.isArray(tratamientoData.examenesEstructurados) ? tratamientoData.examenesEstructurados : []),
+    [tratamientoData.examenesEstructurados],
+  );
+  const derivacionesEstructuradas = useMemo(
+    () => (Array.isArray(tratamientoData.derivacionesEstructuradas) ? tratamientoData.derivacionesEstructuradas : []),
+    [tratamientoData.derivacionesEstructuradas],
+  );
   const currentLinkedOrderType = uploadMeta.category === 'EXAMEN'
     ? 'EXAMEN'
     : uploadMeta.category === 'DERIVACION'
     ? 'DERIVACION'
     : '';
-  const currentLinkableOrders: StructuredOrder[] = currentLinkedOrderType === 'EXAMEN'
-    ? examenesEstructurados
-    : currentLinkedOrderType === 'DERIVACION'
-    ? derivacionesEstructuradas
-    : [];
-  const linkedAttachmentsByOrderId = attachments.reduce<Record<string, Attachment[]>>((acc, attachment) => {
-    if (!attachment.linkedOrderId) {
+  const currentLinkableOrders: StructuredOrder[] = useMemo(
+    () => (
+      currentLinkedOrderType === 'EXAMEN'
+        ? examenesEstructurados
+        : currentLinkedOrderType === 'DERIVACION'
+        ? derivacionesEstructuradas
+        : []
+    ),
+    [currentLinkedOrderType, derivacionesEstructuradas, examenesEstructurados],
+  );
+  const linkedAttachmentsByOrderId = useMemo(
+    () => attachments.reduce<Record<string, Attachment[]>>((acc, attachment) => {
+      if (!attachment.linkedOrderId) {
+        return acc;
+      }
+
+      if (!acc[attachment.linkedOrderId]) {
+        acc[attachment.linkedOrderId] = [];
+      }
+
+      acc[attachment.linkedOrderId].push(attachment);
       return acc;
-    }
-
-    if (!acc[attachment.linkedOrderId]) {
-      acc[attachment.linkedOrderId] = [];
-    }
-
-    acc[attachment.linkedOrderId].push(attachment);
-    return acc;
-  }, {});
+    }, {}),
+    [attachments],
+  );
   const supportsTemplates = Boolean(currentSection && TEMPLATE_FIELD_BY_SECTION[currentSection.sectionKey]);
-  const generatedSummary = buildGeneratedClinicalSummary({
-    ...encounter,
-    sections: sections.map((section) => ({
-      ...section,
-      data: formData[section.sectionKey] ?? section.data,
-    })),
-  } as Encounter);
+  const generatedSummary = useMemo(
+    () => {
+      if (!encounter) {
+        return '';
+      }
 
-  let savedSnapshot: Record<string, any> = {};
-  try {
-    savedSnapshot = JSON.parse(savedSnapshotJson || '{}');
-  } catch {
-    savedSnapshot = {};
-  }
+      return buildGeneratedClinicalSummary({
+        ...encounter,
+        sections: sections.map((section) => ({
+          ...section,
+          data: formData[section.sectionKey] ?? section.data,
+        })),
+      } as Encounter);
+    },
+    [encounter, formData, sections],
+  );
+
+  const savedSnapshot = useMemo(() => {
+    try {
+      return JSON.parse(savedSnapshotJson || '{}') as Record<string, any>;
+    } catch {
+      return {};
+    }
+  }, [savedSnapshotJson]);
 
   const getSectionUiState = (section: NonNullable<Encounter['sections']>[number]): SectionUiState => {
     if (section.sectionKey === savingSectionKey) return 'saving';
@@ -699,7 +803,7 @@ export default function EncounterWizardPage() {
 
   const currentSectionState = currentSection ? getSectionUiState(currentSection) : 'idle';
   const currentSectionStatusMeta = SECTION_STATUS_META[currentSectionState];
-  const identificationSnapshotStatus = encounter.identificationSnapshotStatus;
+  const identificationSnapshotStatus = encounter?.identificationSnapshotStatus;
   const handleStartLinkedAttachment = (type: 'EXAMEN' | 'DERIVACION', orderId: string) => {
     setUploadError(null);
     setSelectedFile(null);
@@ -713,153 +817,465 @@ export default function EncounterWizardPage() {
   };
 
   const handleRestoreIdentificationFromPatient = () => {
+    if (!encounter) return;
     handleSectionDataChange('IDENTIFICACION', buildIdentificationSnapshotFromPatient(encounter));
     toast.success('Se restauró la identificación desde la ficha maestra del paciente');
   };
 
-  return (
-    <div className="min-h-screen bg-surface-base/40">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-surface-elevated border-b border-surface-muted/30">
-        <div className="px-4 lg:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href={`/pacientes/${encounter.patientId}`}
-              className="p-2 hover:bg-surface-muted rounded-card transition-colors"
-            >
-              <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
-            </Link>
-            <div>
-              <h1 className="font-semibold text-ink-primary">
-                Atención: {encounter.patient?.nombre}
-              </h1>
-              <p className="text-sm text-ink-muted">
-                {completedCount}/{sections.length} secciones completadas
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-accent border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error || !encounter) {
+    const msg = error ? getErrorMessage(error) : null;
+    return (
+      <div className="text-center py-12">
+        <FiAlertCircle className="mx-auto mb-4 h-12 w-12 text-status-red" />
+        <h2 className="mb-2 text-xl font-semibold text-ink-primary">Atención no encontrada</h2>
+        {msg ? <p className="mb-4 whitespace-pre-line text-sm text-ink-muted">{msg}</p> : null}
+        <Link href="/pacientes" className="btn btn-primary">
+          Volver a pacientes
+        </Link>
+      </div>
+    );
+  }
+
+  const saveStateLabel = canEdit
+    ? saveStatus === 'saving'
+      ? 'Guardando…'
+      : saveStatus === 'saved'
+      ? 'Cambios guardados'
+      : saveStatus === 'error'
+      ? 'Error al guardar'
+      : hasUnsavedChanges
+      ? 'Cambios sin guardar'
+      : 'Sin cambios'
+    : null;
+
+  const saveStateToneClass = saveStatus === 'error'
+    ? 'text-status-red-text'
+    : saveStatus === 'saved'
+    ? 'text-status-green-text'
+    : saveStatus === 'saving'
+    ? 'text-ink'
+    : hasUnsavedChanges
+    ? 'text-accent-text'
+    : 'text-ink-secondary';
+
+  const secondaryColumn = (
+    <div className="flex flex-col gap-5">
+      <section className={SURFACE_PANEL_CLASS}>
+        <div className="border-b border-surface-muted/40 px-5 py-4">
+          <h2 className="text-base font-semibold text-ink">Revisión Clínica</h2>
+          <p className="mt-1 text-sm text-ink-secondary">
+            Estado, contexto para revisión y resumen longitudinal.
+          </p>
+        </div>
+        <div className="px-5 py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <FiActivity className="h-4 w-4 text-ink-secondary" />
+                <p className="text-sm font-semibold text-ink">
+                  {REVIEW_STATUS_LABELS[encounter.reviewStatus || 'NO_REQUIERE_REVISION']}
+                </p>
+              </div>
+              <p className="mt-1 text-sm text-ink-secondary">
+                {encounter.reviewedAt
+                  ? `Última revisión · ${formatDateTime(encounter.reviewedAt)}`
+                  : encounter.reviewRequestedAt
+                  ? `Solicitada · ${formatDateTime(encounter.reviewRequestedAt)}`
+                  : 'Sin revisión pendiente'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Save status */}
-            {canEdit && (
-              <div className="flex items-center gap-2 text-sm" aria-live="polite" role="status">
-                {saveStatus === 'saving' && (
-                  <span className="flex items-center gap-1 text-ink-muted">
-                    <FiLoader className="w-4 h-4 animate-spin" />
-                    Guardando...
-                  </span>
-                )}
-                {saveStatus === 'saved' && (
-                  <span className="flex items-center gap-1 text-status-green">
-                    <FiCheck className="w-4 h-4" />
-                    Guardado
-                  </span>
-                )}
-                {saveStatus === 'error' && (
-                  <span className="flex items-center gap-1 text-status-red">
-                    <FiAlertCircle className="w-4 h-4" />
-                    Error
-                  </span>
-                )}
-              </div>
-            )}
+          <label className="mt-5 block text-sm font-medium text-ink" htmlFor="review-note">
+            Nota de revisión
+          </label>
+          <textarea
+            id="review-note"
+            name="review_note"
+            className="form-input mt-2 min-h-[132px]"
+            value={reviewActionNote}
+            onChange={(e) => setReviewActionNote(e.target.value)}
+            placeholder="Contexto clínico para la revisión médica…"
+            readOnly={!canEdit}
+          />
+          <p className="mt-2 text-xs text-ink-muted">
+            Obligatoria para enviar a revisión o marcar revisada. Mínimo {REVIEW_NOTE_MIN_LENGTH} caracteres.
+          </p>
 
-            {canEdit && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {!isDoctor && encounter.reviewStatus !== 'LISTA_PARA_REVISION' ? (
               <button
-                onClick={saveCurrentSection}
-                disabled={!hasUnsavedChanges || saveSectionMutation.isPending}
-                className="btn btn-secondary flex items-center gap-2"
+                className={TOOLBAR_BUTTON_CLASS}
+                onClick={() => handleReviewStatusChange('LISTA_PARA_REVISION')}
+                disabled={reviewStatusMutation.isPending}
               >
-                <FiSave className="w-4 h-4" />
-                Guardar ahora
+                Enviar a Revisión Médica
               </button>
-            )}
+            ) : null}
+            {isDoctor && encounter.reviewStatus !== 'REVISADA_POR_MEDICO' ? (
+              <button
+                className={TOOLBAR_BUTTON_CLASS}
+                onClick={() => handleReviewStatusChange('REVISADA_POR_MEDICO')}
+                disabled={reviewStatusMutation.isPending}
+              >
+                Marcar Revisada
+              </button>
+            ) : null}
+          </div>
 
-            <Link
-              href={`/atenciones/${id}/ficha`}
-              className="btn btn-secondary flex items-center gap-2"
+          <div className="mt-5 border-t border-surface-muted/35 pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-ink">Resumen Clínico Generado</h3>
+              {canEdit && generatedSummary ? (
+                <button
+                  type="button"
+                  className="text-sm font-medium text-ink-secondary transition-colors hover:text-ink"
+                  onClick={() => {
+                    const existing = formData.OBSERVACIONES || {};
+                    const updatedData = {
+                      ...existing,
+                      resumenClinico: generatedSummary,
+                    };
+                    handleSectionDataChange('OBSERVACIONES', updatedData);
+                    saveSectionMutation.mutate({ sectionKey: 'OBSERVACIONES', data: updatedData });
+                    toast.success('Resumen longitudinal guardado');
+                  }}
+                >
+                  Guardar Resumen
+                </button>
+              ) : null}
+            </div>
+            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink-secondary">
+              {generatedSummary || 'Completa más secciones para generar un resumen clínico automático.'}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className={SURFACE_PANEL_CLASS}>
+        <div className="border-b border-surface-muted/40 px-5 py-4">
+          <h2 className="text-base font-semibold text-ink">Acciones de Apoyo</h2>
+          <p className="mt-1 text-sm text-ink-secondary">
+            Adjuntos, antecedentes y seguimiento rápido sin perder el contexto.
+          </p>
+        </div>
+        <div className="px-5 py-5">
+          <div className="grid gap-2">
+            <button
+              type="button"
+              className={TOOLBAR_BUTTON_CLASS}
+              onClick={() => setIsAttachmentsOpen(true)}
             >
-              <FiEye className="w-4 h-4" />
-              Ficha clínica
-            </Link>
-
-            {canComplete && (
-              <button
-                onClick={handleComplete}
-                disabled={completeMutation.isPending}
-                className="btn btn-success flex items-center gap-2"
+              Adjuntos de la Atención
+            </button>
+            {canEditAntecedentes() ? (
+              <Link
+                href={`/pacientes/${encounter.patientId}/historial`}
+                className={TOOLBAR_BUTTON_CLASS}
               >
-                <FiCheck className="w-4 h-4" />
-                Finalizar atención
-              </button>
-            )}
+                Antecedentes del Paciente
+              </Link>
+            ) : null}
+          </div>
+
+          <form
+            className="mt-5 flex flex-col gap-3 border-t border-surface-muted/35 pt-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              createTaskMutation.mutate();
+            }}
+          >
+            <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+              <FiClipboard className="h-4 w-4 text-ink-secondary" />
+              Seguimiento Rápido
+            </div>
+            <input
+              name="quick_task_title"
+              className="form-input"
+              value={quickTask.title}
+              onChange={(e) => setQuickTask((prev) => ({ ...prev, title: e.target.value }))}
+              placeholder="Ej.: revisar examen en 48 h…"
+            />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <select
+                name="quick_task_type"
+                className="form-input"
+                value={quickTask.type}
+                onChange={(e) => setQuickTask((prev) => ({ ...prev, type: e.target.value }))}
+              >
+                {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+              <input
+                type="date"
+                name="quick_task_due_date"
+                className="form-input"
+                value={quickTask.dueDate}
+                onChange={(e) => setQuickTask((prev) => ({ ...prev, dueDate: e.target.value }))}
+              />
+            </div>
+            <button
+              type="submit"
+              className={TOOLBAR_PRIMARY_BUTTON_CLASS}
+              disabled={!quickTask.title.trim() || createTaskMutation.isPending}
+            >
+              {createTaskMutation.isPending ? 'Creando…' : 'Crear Seguimiento'}
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section className={SURFACE_PANEL_CLASS}>
+        <div className="border-b border-surface-muted/40 px-5 py-4">
+          <h2 className="text-base font-semibold text-ink">Cierre & Trazabilidad</h2>
+          <p className="mt-1 text-sm text-ink-secondary">
+            Registro de revisión, cierre y tareas ya generadas para esta atención.
+          </p>
+        </div>
+        <div className="px-5 py-5">
+          <dl className="grid gap-3 text-sm">
+            <div className={INNER_PANEL_CLASS}>
+              <div className="px-4 py-3">
+                <dt className="text-xs font-medium text-ink-muted">Revisión</dt>
+                <dd className="mt-2 text-ink-secondary">
+                  Solicitada por {encounter.reviewRequestedBy?.nombre || '—'}
+                  {encounter.reviewRequestedAt ? ` · ${formatDateTime(encounter.reviewRequestedAt)}` : ''}
+                </dd>
+                <dd className="mt-1 text-ink-secondary">
+                  Revisada por {encounter.reviewedBy?.nombre || '—'}
+                  {encounter.reviewedAt ? ` · ${formatDateTime(encounter.reviewedAt)}` : ''}
+                </dd>
+              </div>
+            </div>
+            <div className={INNER_PANEL_CLASS}>
+              <div className="px-4 py-3">
+                <dt className="text-xs font-medium text-ink-muted">Cierre</dt>
+                <dd className="mt-2 text-ink-secondary">
+                  Cerrada por {encounter.completedBy?.nombre || '—'}
+                  {encounter.completedAt ? ` · ${formatDateTime(encounter.completedAt)}` : ''}
+                </dd>
+              </div>
+            </div>
+          </dl>
+
+          <label className="mt-5 block text-sm font-medium text-ink" htmlFor="closure-note">
+            Nota de cierre
+          </label>
+          <textarea
+            id="closure-note"
+            name="closure_note"
+            className="form-input mt-2 min-h-[132px]"
+            value={closureNote}
+            onChange={(e) => setClosureNote(e.target.value)}
+            placeholder="Resumen clínico del cierre y próximos pasos…"
+            readOnly={!canComplete}
+          />
+          <p className="mt-2 text-xs text-ink-muted">
+            Requerida al finalizar la atención. Mínimo {CLOSURE_NOTE_MIN_LENGTH} caracteres.
+          </p>
+
+          {encounter.tasks && encounter.tasks.length > 0 ? (
+            <div className="mt-5 border-t border-surface-muted/35 pt-4">
+              <h3 className="text-sm font-semibold text-ink">Seguimientos Vinculados</h3>
+              <div className="mt-3 flex flex-col gap-2">
+                {encounter.tasks.slice(0, 4).map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-surface-muted/45 bg-surface-base/45 px-3 py-3 text-sm"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-ink">{task.title}</p>
+                      <p className="mt-1 text-xs text-ink-secondary">
+                        {TASK_TYPE_LABELS[task.type]} · {TASK_STATUS_LABELS[task.status]}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs text-ink-muted">
+                      {formatCompactDate(task.dueDate || task.createdAt)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-surface-base">
+      <header className="sticky top-0 z-30 border-b border-frame/10 bg-surface-elevated/95 backdrop-blur supports-[backdrop-filter]:bg-surface-elevated/88">
+        <div className="mx-auto max-w-[1600px] px-4 py-4 lg:px-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start gap-4">
+                <Link
+                  href={`/pacientes/${encounter.patientId}`}
+                  aria-label="Volver al paciente"
+                  className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-surface-muted/45 bg-surface-base text-ink-secondary transition-colors hover:bg-surface-muted/18 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20"
+                >
+                  <FiArrowLeft className="h-4.5 w-4.5" />
+                </Link>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-secondary">
+                    <span>Atención</span>
+                    <span>{encounter.patient?.rut || 'Sin RUT'}</span>
+                    <span>{formatDateTime(encounter.createdAt)}</span>
+                  </div>
+                  <h1 className="mt-1 truncate text-[1.75rem] font-semibold tracking-tight text-ink lg:text-[2rem]">
+                    {encounter.patient?.nombre}
+                  </h1>
+                  <div className="mt-3 max-w-xl">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-ink-secondary">Progreso de la atención</span>
+                      <span className="font-medium text-ink">
+                        {completedCount}/{sections.length} secciones
+                      </span>
+                    </div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-muted/45">
+                      <div
+                        className="h-full rounded-full bg-accent"
+                        style={{ width: `${progressPercentage}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 xl:justify-end">
+              {canEdit && saveStateLabel ? (
+                <div
+                  className={clsx(
+                    'inline-flex items-center gap-2 rounded-xl border border-frame/15 bg-surface-elevated px-3.5 py-2.5 text-sm shadow-soft',
+                    saveStateToneClass,
+                  )}
+                  aria-live="polite"
+                  role="status"
+                >
+                  {saveStatus === 'saving' ? (
+                    <FiLoader className="h-4 w-4 animate-spin" />
+                  ) : saveStatus === 'saved' ? (
+                    <FiCheck className="h-4 w-4" />
+                  ) : saveStatus === 'error' ? (
+                    <FiAlertCircle className="h-4 w-4" />
+                  ) : (
+                    <FiSave className="h-4 w-4" />
+                  )}
+                  {saveStateLabel}
+                </div>
+              ) : null}
+
+              {canEdit ? (
+                <button
+                  onClick={saveCurrentSection}
+                  disabled={!hasUnsavedChanges || saveSectionMutation.isPending}
+                  className={TOOLBAR_PRIMARY_BUTTON_CLASS}
+                >
+                  <FiSave className="h-4 w-4" />
+                  Guardar Ahora
+                </button>
+              ) : null}
+
+              <Link
+                href={`/atenciones/${id}/ficha`}
+                className={TOOLBAR_BUTTON_CLASS}
+              >
+                <FiEye className="h-4 w-4" />
+                Ficha Clínica
+              </Link>
+
+              {canComplete ? (
+                <button
+                  onClick={handleComplete}
+                  disabled={completeMutation.isPending}
+                  className={TOOLBAR_SUCCESS_BUTTON_CLASS}
+                >
+                  <FiCheck className="h-4 w-4" />
+                  Finalizar Atención
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="flex">
-        {/* Sidebar stepper */}
-        <aside className="hidden lg:block w-72 min-h-[calc(100vh-4rem)] bg-surface-elevated border-r border-surface-muted/30">
-          <nav className="p-4 space-y-1">
-            {sections.map((section, index) => {
-              const sectionState = getSectionUiState(section);
-              const sectionStatusMeta = SECTION_STATUS_META[sectionState];
+      <div className="mx-auto grid max-w-[1600px] xl:grid-cols-[248px_minmax(0,1fr)_340px] xl:items-start">
+        <aside className="hidden xl:block min-h-[calc(100vh-97px)] border-r border-frame/10 bg-surface-elevated/65">
+          <div className="sticky top-[97px] px-4 py-6">
+            <div className="border-b border-surface-muted/35 pb-4">
+              <h2 className="text-sm font-semibold text-ink">Secciones</h2>
+              <p className="mt-1 text-sm text-ink-secondary">
+                Navega la atención y detecta de inmediato qué sigue abierto.
+              </p>
+            </div>
 
-              return (
-                <button
-                  key={section.id}
-                  onClick={() => {
-                    saveCurrentSection();
-                    setCurrentSectionIndex(index);
-                  }}
-                  className={clsx(
-                    'stepper-item w-full text-left',
-                    index === currentSectionIndex && 'stepper-item-active',
-                    index !== currentSectionIndex && section.completed && 'stepper-item-completed',
-                    index !== currentSectionIndex && !section.completed && 'stepper-item-pending'
-                  )}
-                >
-                  <span
+            <nav className="mt-4 flex flex-col gap-1.5" aria-label="Secciones de la atención">
+              {sections.map((section, index) => {
+                const sectionState = getSectionUiState(section);
+                const sectionStatusMeta = SECTION_STATUS_META[sectionState];
+                const isActive = index === currentSectionIndex;
+
+                return (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => moveToSection(index)}
                     className={clsx(
-                      'stepper-dot',
-                      index === currentSectionIndex && 'stepper-dot-active',
-                      index !== currentSectionIndex && section.completed && 'stepper-dot-completed',
-                      index !== currentSectionIndex && !section.completed && 'stepper-dot-pending'
+                      'group grid w-full grid-cols-[32px_minmax(0,1fr)] items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20',
+                      isActive
+                        ? 'border-frame/15 bg-surface-base'
+                        : 'border-transparent hover:border-surface-muted/40 hover:bg-surface-base/45'
                     )}
+                    aria-current={isActive ? 'step' : undefined}
                   >
-                    {section.completed ? <FiCheck className="w-3 h-3" /> : index + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-sm truncate block">{section.label}</span>
                     <span
                       className={clsx(
-                        'mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
-                        sectionStatusMeta.badgeClassName,
+                        'mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl border text-xs font-semibold',
+                        isActive
+                          ? 'border-status-yellow/70 bg-status-yellow text-accent-text'
+                          : section.completed
+                          ? 'border-status-green/40 bg-status-green/14 text-status-green-text'
+                          : 'border-surface-muted/55 bg-surface-elevated text-ink-secondary'
                       )}
                     >
-                      <span className={clsx('w-1.5 h-1.5 rounded-full', sectionStatusMeta.dotClassName)} />
-                      {sectionStatusMeta.label}
+                      {section.completed ? <FiCheck className="h-3.5 w-3.5" /> : index + 1}
                     </span>
-                  </div>
-                </button>
-              );
-            })}
-          </nav>
+
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-ink">
+                        {section.label}
+                      </span>
+                      <span className={clsx('mt-1 flex items-center gap-2 text-xs', sectionStatusMeta.badgeClassName)}>
+                        <span className={clsx('h-1.5 w-1.5 rounded-full', sectionStatusMeta.dotClassName)} />
+                        {sectionStatusMeta.label}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
         </aside>
 
-        {/* Main content */}
-        <main className="flex-1 p-6">
-          <div className="max-w-4xl mx-auto">
-            {/* Mobile section selector */}
-            <div className="lg:hidden mb-4">
+        <main className="min-w-0 px-4 py-5 sm:px-6 xl:px-8 xl:py-6">
+          <div className="mx-auto flex max-w-[920px] flex-col gap-5">
+            <div className="xl:hidden">
               <label htmlFor="mobile-section-select" className="sr-only">Seleccionar sección</label>
               <select
                 id="mobile-section-select"
                 value={currentSectionIndex}
-                onChange={(e) => {
-                  saveCurrentSection();
-                  setCurrentSectionIndex(Number(e.target.value));
-                }}
+                onChange={(e) => moveToSection(Number(e.target.value))}
                 className="form-input text-sm"
               >
                 {sections.map((section, index) => {
@@ -867,275 +1283,135 @@ export default function EncounterWizardPage() {
                   const statusLabel = SECTION_STATUS_META[state].label;
                   return (
                     <option key={section.id} value={index}>
-                      {index + 1}. {section.label} — {statusLabel}
+                      {index + 1}. {section.label} · {statusLabel}
                     </option>
                   );
                 })}
               </select>
             </div>
 
-            {/* Clinical Alerts */}
-            {encounter.patientId && (
+            {encounter.patientId ? (
               <ClinicalAlerts patientId={encounter.patientId} />
-            )}
+            ) : null}
 
-            <div className="card mb-6">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <p className="text-sm font-medium text-ink-muted">Revisión clínica</p>
-                  <h3 className="text-lg font-semibold text-ink-primary">
-                    {REVIEW_STATUS_LABELS[encounter.reviewStatus || 'NO_REQUIERE_REVISION']}
-                  </h3>
-                  <p className="text-sm text-ink-muted">
-                    {encounter.reviewedAt
-                      ? `Última revisión: ${new Date(encounter.reviewedAt).toLocaleString('es-CL')}`
-                      : encounter.reviewRequestedAt
-                      ? `Solicitada: ${new Date(encounter.reviewRequestedAt).toLocaleString('es-CL')}`
-                      : 'Sin revisión pendiente'}
-                  </p>
-                </div>
+            <section className={SURFACE_PANEL_CLASS}>
+              <div className="border-b border-surface-muted/40 px-5 py-4 sm:px-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-secondary">
+                      <span>Sección {currentSectionIndex + 1} de {sections.length}</span>
+                      <span className={clsx('flex items-center gap-2', currentSectionStatusMeta.badgeClassName)}>
+                        <span className={clsx('h-1.5 w-1.5 rounded-full', currentSectionStatusMeta.dotClassName)} />
+                        {currentSectionStatusMeta.label}
+                      </span>
+                      {isSectionSwitchPending ? <span>Cambiando sección…</span> : null}
+                    </div>
+                    <h2 className="mt-2 text-[1.7rem] font-semibold tracking-tight text-ink">
+                      {currentSection?.label}
+                    </h2>
+                  </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {!isDoctor && encounter.reviewStatus !== 'LISTA_PARA_REVISION' && (
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => reviewStatusMutation.mutate('LISTA_PARA_REVISION')}
-                      disabled={reviewStatusMutation.isPending}
-                    >
-                      Enviar a revisión médica
-                    </button>
-                  )}
-                  {isDoctor && encounter.reviewStatus !== 'REVISADA_POR_MEDICO' && (
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => reviewStatusMutation.mutate('REVISADA_POR_MEDICO')}
-                      disabled={reviewStatusMutation.isPending}
-                    >
-                      Marcar revisada
-                    </button>
-                  )}
+                  {canEdit && supportsTemplates && currentSection ? (
+                    <TemplateSelector
+                      sectionKey={currentSection.sectionKey}
+                      onInsert={insertTemplateIntoCurrentSection}
+                    />
+                  ) : null}
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr,1fr]">
-                <div className="rounded-xl border border-surface-muted/30 bg-surface-base/40 p-4">
-                  <div className="mb-2 flex items-center gap-2 text-ink-secondary">
-                    <FiFileText className="h-4 w-4" />
-                    <span className="text-sm font-medium">Resumen clínico generado</span>
-                  </div>
-                  <p className="text-sm text-ink-secondary">
-                    {generatedSummary || 'Completa más secciones para generar un resumen clínico automático.'}
-                  </p>
-                  {canEdit && generatedSummary && (
-                    <button
-                      type="button"
-                      className="mt-3 text-sm font-medium text-accent hover:text-accent"
-                      onClick={() => {
-                        const existing = formData.OBSERVACIONES || {};
-                        const updatedData = {
-                          ...existing,
-                          observaciones: existing.observaciones
-                            ? `${existing.observaciones}\n\n${generatedSummary}`
-                            : generatedSummary,
-                        };
-                        handleSectionDataChange('OBSERVACIONES', updatedData);
-                        saveSectionMutation.mutate({ sectionKey: 'OBSERVACIONES', data: updatedData });
-                        toast.success('Resumen agregado a observaciones');
-                      }}
-                    >
-                      Insertar en observaciones
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-surface-muted/30 p-4">
-                    <div className="mb-3 flex items-center gap-2 text-ink-secondary">
-                      <FiPaperclip className="h-4 w-4" />
-                      <span className="text-sm font-medium">Herramientas rápidas</span>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                      <button
-                        type="button"
-                        className="btn btn-secondary w-full justify-center"
-                        onClick={() => setIsAttachmentsOpen(true)}
-                      >
-                        Adjuntos de la atención
-                      </button>
-                      {canEditAntecedentes() && (
-                        <Link
-                          href={`/pacientes/${encounter.patientId}/historial`}
-                          className="btn btn-secondary w-full justify-center"
-                        >
-                          Antecedentes del paciente
-                        </Link>
-                      )}
-                    </div>
-                    <p className="mt-3 text-xs text-ink-muted">
-                      Mantuvimos estas acciones fuera del encabezado para dejar más claro qué botones avanzan la atención y cuáles son de apoyo.
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-surface-muted/30 p-4">
-                    <div className="mb-3 flex items-center gap-2 text-ink-secondary">
-                      <FiClipboard className="h-4 w-4" />
-                      <span className="text-sm font-medium">Seguimiento rápido</span>
-                    </div>
-                    <div className="space-y-2">
-                      <input
-                        className="form-input"
-                        value={quickTask.title}
-                        onChange={(e) => setQuickTask((prev) => ({ ...prev, title: e.target.value }))}
-                        placeholder="Ej: revisar examen en 48 h"
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <select
-                          className="form-input"
-                          value={quickTask.type}
-                          onChange={(e) => setQuickTask((prev) => ({ ...prev, type: e.target.value }))}
-                        >
-                          {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
-                            <option key={value} value={value}>{label}</option>
-                          ))}
-                        </select>
-                        <input
-                          type="date"
-                          className="form-input"
-                          value={quickTask.dueDate}
-                          onChange={(e) => setQuickTask((prev) => ({ ...prev, dueDate: e.target.value }))}
-                        />
-                      </div>
-                      <button
-                        className="btn btn-secondary w-full"
-                        onClick={() => createTaskMutation.mutate()}
-                        disabled={!quickTask.title.trim() || createTaskMutation.isPending}
-                      >
-                        Crear seguimiento
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {encounter.tasks && encounter.tasks.length > 0 && (
-                <div className="mt-4 space-y-2 border-t border-surface-muted/20 pt-4">
-                  {encounter.tasks.slice(0, 4).map((task) => (
-                    <div key={task.id} className="flex items-center justify-between rounded-card bg-surface-base/40 px-3 py-2 text-sm">
-                      <div>
-                        <div className="font-medium text-ink-primary">{task.title}</div>
-                        <div className="text-xs text-ink-muted">
-                          {TASK_TYPE_LABELS[task.type]} · {TASK_STATUS_LABELS[task.status]}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {/* Section header */}
-            <div className="mb-6">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-medium text-accent">
-                  Sección {currentSectionIndex + 1} de {sections.length}
-                </span>
-                {currentSection?.completed && (
-                  <span className="text-xs px-2 py-0.5 bg-status-green/20 text-status-green rounded-full">
-                    Completada
-                  </span>
-                )}
-                <span
-                  className={clsx(
-                    'text-xs px-2 py-0.5 rounded-full',
-                    currentSectionStatusMeta.badgeClassName,
-                  )}
-                >
-                  {currentSectionStatusMeta.label}
-                </span>
-              </div>
-              <h2 className="text-2xl font-bold text-ink-primary">{currentSection?.label}</h2>
-              {canEdit && supportsTemplates && currentSection && (
-                <div className="mt-3">
-                  <TemplateSelector
-                    sectionKey={currentSection.sectionKey}
-                    onInsert={insertTemplateIntoCurrentSection}
+              <div className="px-5 py-5 sm:px-6">
+                {SectionComponent ? (
+                  <SectionComponent
+                    data={formData[currentSection.sectionKey] || {}}
+                    onChange={(data: any) => handleSectionDataChange(currentSection.sectionKey, data)}
+                    encounter={encounter}
+                    readOnly={!canEdit || currentSection.sectionKey === 'IDENTIFICACION'}
+                    snapshotStatus={currentSection.sectionKey === 'IDENTIFICACION' ? identificationSnapshotStatus : undefined}
+                    onRestoreFromPatient={currentSection.sectionKey === 'IDENTIFICACION' && canEdit ? handleRestoreIdentificationFromPatient : undefined}
+                    patientId={encounter.patientId}
+                    canEditPatientHistory={canEditAntecedentes()}
+                    linkedAttachmentsByOrderId={linkedAttachmentsByOrderId}
+                    onRequestAttachToOrder={handleStartLinkedAttachment}
                   />
+                ) : (
+                  <div className="rounded-xl border border-surface-muted/40 bg-surface-base/55 px-4 py-5 text-sm text-ink-secondary">
+                    No hay una sección activa para mostrar.
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-surface-muted/40 px-5 py-4 sm:px-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    onClick={() => handleNavigate('prev')}
+                    disabled={currentSectionIndex === 0}
+                    className={TOOLBAR_BUTTON_CLASS}
+                  >
+                    <FiChevronLeft className="h-4 w-4" />
+                    Anterior
+                  </button>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {canEdit ? (
+                      <button
+                        onClick={handleMarkComplete}
+                        disabled={saveSectionMutation.isPending || currentSection?.completed}
+                        className={TOOLBAR_BUTTON_CLASS}
+                      >
+                        <FiCheck className="h-4 w-4" />
+                        Completar Sección
+                      </button>
+                    ) : null}
+
+                    <button
+                      onClick={() => handleNavigate('next')}
+                      disabled={currentSectionIndex === sections.length - 1}
+                      className={TOOLBAR_PRIMARY_BUTTON_CLASS}
+                    >
+                      Siguiente
+                      <FiChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            </section>
 
-            {/* Section form */}
-            <div className="card mb-6">
-              {SectionComponent && (
-                <SectionComponent
-                  data={formData[currentSection.sectionKey] || {}}
-                  onChange={(data: any) => handleSectionDataChange(currentSection.sectionKey, data)}
-                  encounter={encounter}
-                  readOnly={!canEdit || currentSection.sectionKey === 'IDENTIFICACION'}
-                  snapshotStatus={currentSection.sectionKey === 'IDENTIFICACION' ? identificationSnapshotStatus : undefined}
-                  onRestoreFromPatient={currentSection.sectionKey === 'IDENTIFICACION' && canEdit ? handleRestoreIdentificationFromPatient : undefined}
-                  patientId={encounter.patientId}
-                  canEditPatientHistory={canEditAntecedentes()}
-                  linkedAttachmentsByOrderId={linkedAttachmentsByOrderId}
-                  onRequestAttachToOrder={handleStartLinkedAttachment}
-                />
-              )}
-            </div>
-
-            {/* Navigation */}
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => handleNavigate('prev')}
-                disabled={currentSectionIndex === 0}
-                className="btn btn-secondary flex items-center gap-2"
-              >
-                <FiChevronLeft className="w-4 h-4" />
-                Anterior
-              </button>
-
-              {canEdit && (
-                <button
-                  onClick={handleMarkComplete}
-                  disabled={saveSectionMutation.isPending || currentSection?.completed}
-                  className="btn btn-success flex items-center gap-2"
-                >
-                  <FiCheck className="w-4 h-4" />
-                  Completar sección
-                </button>
-              )}
-
-              <button
-                onClick={() => handleNavigate('next')}
-                disabled={currentSectionIndex === sections.length - 1}
-                className="btn btn-primary flex items-center gap-2"
-              >
-                Siguiente
-                <FiChevronRight className="w-4 h-4" />
-              </button>
+            <div className="xl:hidden">
+              {secondaryColumn}
             </div>
           </div>
         </main>
+
+        <aside className="hidden xl:block min-h-[calc(100vh-97px)] border-l border-frame/10 bg-surface-elevated/45 px-5 py-6">
+          <div className="sticky top-[97px]">
+            {secondaryColumn}
+          </div>
+        </aside>
       </div>
 
       {isAttachmentsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-ink-primary/50"
+            className="absolute inset-0 bg-ink/55 backdrop-blur-[1px]"
             onClick={() => setIsAttachmentsOpen(false)}
           />
-          <div className="relative w-full max-w-2xl bg-surface-elevated rounded-xl shadow-xl border border-surface-muted/30" role="dialog" aria-modal="true" aria-label="Adjuntos de la atención">
-            <div className="p-5 border-b border-surface-muted/30 flex items-start justify-between gap-3">
+          <div className="relative w-full max-w-3xl overflow-hidden rounded-[20px] border border-frame/10 bg-surface-elevated shadow-dropdown" role="dialog" aria-modal="true" aria-label="Adjuntos de la atención">
+            <div className="flex items-start justify-between gap-3 border-b border-surface-muted/35 px-5 py-4">
               <div>
-                <h2 className="text-lg font-semibold text-ink-primary">Adjuntos de la atención</h2>
-                <p className="text-sm text-ink-secondary">Archivos vinculados a esta atención.</p>
+                <h2 className="text-lg font-semibold text-ink">Adjuntos de la Atención</h2>
+                <p className="text-sm text-ink-secondary">Archivos cargados y documentos vinculados a esta atención.</p>
               </div>
               <button
-                className="btn btn-secondary"
+                className={TOOLBAR_BUTTON_CLASS}
                 onClick={() => setIsAttachmentsOpen(false)}
+                aria-label="Cerrar adjuntos"
               >
-                <FiX className="w-4 h-4" />
+                <FiX className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="p-5 space-y-4">
+            <div className="px-5 py-5">
               {canUpload && (
                 <form
                   onSubmit={(e) => {
@@ -1147,93 +1423,120 @@ export default function EncounterWizardPage() {
                     setUploadError(null);
                     uploadMutation.mutate(selectedFile);
                   }}
-                  className="flex flex-col sm:flex-row gap-3 items-start sm:items-end"
+                  className="flex flex-col gap-4 border-b border-surface-muted/35 pb-5"
                 >
-                  <div className="flex-1 w-full space-y-3">
-                    <label className="form-label">Archivo</label>
-                    <input
-                      type="file"
-                      className="form-input"
-                      onChange={(e) => {
-                        setUploadError(null);
-                        setSelectedFile(e.target.files?.[0] ?? null);
-                      }}
-                    />
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <select
-                        className="form-input"
-                        value={uploadMeta.category}
-                        onChange={(e) => {
-                          const nextCategory = e.target.value;
-                          const nextLinkedOrderType = nextCategory === 'EXAMEN'
-                            ? 'EXAMEN'
-                            : nextCategory === 'DERIVACION'
-                            ? 'DERIVACION'
-                            : '';
-                          setUploadMeta((prev) => ({
-                            ...prev,
-                            category: nextCategory,
-                            linkedOrderType: nextLinkedOrderType,
-                            linkedOrderId: '',
-                          }));
-                        }}
-                      >
-                        <option value="GENERAL">General</option>
-                        <option value="EXAMEN">Resultado de examen</option>
-                        <option value="RECETA">Receta</option>
-                        <option value="DERIVACION">Derivación</option>
-                        <option value="IMAGEN">Imagen clínica</option>
-                      </select>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={uploadMeta.description}
-                        onChange={(e) => setUploadMeta((prev) => ({ ...prev, description: e.target.value }))}
-                        placeholder="Descripción breve"
-                      />
-                    </div>
-                    {currentLinkedOrderType && (
-                      <div className="space-y-1">
-                        <select
+                  <div className="grid gap-4 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+                    <div className="flex min-w-0 flex-col gap-3">
+                      <div>
+                        <label className="form-label" htmlFor="attachment-file">Archivo</label>
+                        <input
+                          id="attachment-file"
+                          name="attachment_file"
+                          type="file"
                           className="form-input"
-                          value={uploadMeta.linkedOrderId}
-                          onChange={(e) => setUploadMeta((prev) => ({ ...prev, linkedOrderId: e.target.value }))}
-                        >
-                          <option value="">Sin vincular a un item específico</option>
-                          {currentLinkableOrders.map((order) => (
-                            <option key={order.id} value={order.id}>
-                              {order.nombre}
-                              {order.estado ? ` · ${order.estado}` : ''}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="text-xs text-ink-muted">
-                          {currentLinkableOrders.length > 0
-                            ? `Puedes asociar este archivo a un ${LINKABLE_ATTACHMENT_LABELS[currentLinkedOrderType]} estructurado para seguir resultados con mayor contexto.`
-                            : `No hay ${currentLinkedOrderType === 'EXAMEN' ? 'exámenes' : 'derivaciones'} estructurados disponibles en esta atención todavía.`}
-                        </p>
+                          onChange={(e) => {
+                            setUploadError(null);
+                            setSelectedFile(e.target.files?.[0] ?? null);
+                          }}
+                        />
                       </div>
-                    )}
+                      <div>
+                        <label className="form-label" htmlFor="attachment-description">Descripción</label>
+                        <input
+                          id="attachment-description"
+                          name="attachment_description"
+                          type="text"
+                          className="form-input"
+                          value={uploadMeta.description}
+                          onChange={(e) => setUploadMeta((prev) => ({ ...prev, description: e.target.value }))}
+                          placeholder="Descripción breve del archivo…"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex min-w-0 flex-col gap-3">
+                      <div>
+                        <label className="form-label" htmlFor="attachment-category">Categoría</label>
+                        <select
+                          id="attachment-category"
+                          name="attachment_category"
+                          className="form-input"
+                          value={uploadMeta.category}
+                          onChange={(e) => {
+                            const nextCategory = e.target.value;
+                            const nextLinkedOrderType = nextCategory === 'EXAMEN'
+                              ? 'EXAMEN'
+                              : nextCategory === 'DERIVACION'
+                              ? 'DERIVACION'
+                              : '';
+                            setUploadMeta((prev) => ({
+                              ...prev,
+                              category: nextCategory,
+                              linkedOrderType: nextLinkedOrderType,
+                              linkedOrderId: '',
+                            }));
+                          }}
+                        >
+                          <option value="GENERAL">General</option>
+                          <option value="EXAMEN">Resultado de examen</option>
+                          <option value="RECETA">Receta</option>
+                          <option value="DERIVACION">Derivación</option>
+                          <option value="IMAGEN">Imagen clínica</option>
+                        </select>
+                      </div>
+                      {currentLinkedOrderType ? (
+                        <div>
+                          <label className="form-label" htmlFor="attachment-linked-order">
+                            Vincular a {LINKABLE_ATTACHMENT_LABELS[currentLinkedOrderType]}
+                          </label>
+                          <select
+                            id="attachment-linked-order"
+                            name="attachment_linked_order"
+                            className="form-input"
+                            value={uploadMeta.linkedOrderId}
+                            onChange={(e) => setUploadMeta((prev) => ({ ...prev, linkedOrderId: e.target.value }))}
+                          >
+                            <option value="">Sin vincular a un item específico</option>
+                            {currentLinkableOrders.map((order) => (
+                              <option key={order.id} value={order.id}>
+                                {order.nombre}
+                                {order.estado ? ` · ${order.estado}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="mt-2 text-xs text-ink-muted">
+                            {currentLinkableOrders.length > 0
+                              ? `Puedes asociar este archivo a un ${LINKABLE_ATTACHMENT_LABELS[currentLinkedOrderType]} estructurado para seguir resultados con más contexto.`
+                              : `No hay ${currentLinkedOrderType === 'EXAMEN' ? 'exámenes' : 'derivaciones'} estructurados disponibles todavía.`}
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={uploadMutation.isPending || !selectedFile}
-                  >
-                    {uploadMutation.isPending ? 'Subiendo...' : 'Subir'}
-                  </button>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-ink-secondary">
+                      {selectedFile ? `Archivo seleccionado: ${selectedFile.name}` : 'Selecciona un archivo para subirlo a esta atención.'}
+                    </p>
+                    <button
+                      type="submit"
+                      className={TOOLBAR_PRIMARY_BUTTON_CLASS}
+                      disabled={uploadMutation.isPending || !selectedFile}
+                    >
+                      {uploadMutation.isPending ? 'Subiendo…' : 'Subir Archivo'}
+                    </button>
+                  </div>
                 </form>
               )}
 
               {uploadError && (
-                <p className="text-sm text-status-red">{uploadError}</p>
+                <p className="mt-4 text-sm text-status-red-text">{uploadError}</p>
               )}
 
-              <div className="border border-surface-muted/30 rounded-card">
+              <div className="mt-5 overflow-hidden rounded-[18px] border border-surface-muted/35">
                 {attachmentsQuery.isLoading ? (
-                  <div className="p-4 text-sm text-ink-muted">Cargando adjuntos...</div>
+                  <div className="p-4 text-sm text-ink-muted">Cargando adjuntos…</div>
                 ) : attachmentsQuery.error ? (
-                  <div className="p-4 text-sm text-status-red">
+                  <div className="p-4 text-sm text-status-red-text">
                     {getErrorMessage(attachmentsQuery.error)}
                   </div>
                 ) : attachments.length === 0 ? (
@@ -1241,14 +1544,14 @@ export default function EncounterWizardPage() {
                 ) : (
                   <ul className="divide-y divide-surface-muted/30">
                     {attachments.map((attachment) => (
-                      <li key={attachment.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <li key={attachment.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-ink-primary truncate">
+                          <p className="truncate font-medium text-ink">
                             {attachment.originalName}
                           </p>
                           <p className="text-xs text-ink-muted">
                             {formatFileSize(attachment.size)} ·{' '}
-                            {new Date(attachment.uploadedAt).toLocaleString('es-CL')}
+                            {formatDateTime(attachment.uploadedAt)}
                             {attachment.uploadedBy?.nombre ? ` · ${attachment.uploadedBy.nombre}` : ''}
                           </p>
                           {(attachment.category || attachment.description) && (
@@ -1257,7 +1560,7 @@ export default function EncounterWizardPage() {
                             </p>
                           )}
                           {attachment.linkedOrderType && attachment.linkedOrderLabel && (
-                            <p className="text-xs text-accent">
+                            <p className="text-xs text-accent-text">
                               Vinculado a {LINKABLE_ATTACHMENT_LABELS[attachment.linkedOrderType]}: {attachment.linkedOrderLabel}
                             </p>
                           )}
@@ -1266,9 +1569,9 @@ export default function EncounterWizardPage() {
                           <button
                             type="button"
                             onClick={() => handleDownload(attachment)}
-                            className="btn btn-secondary text-sm flex items-center gap-2"
+                            className={TOOLBAR_BUTTON_CLASS}
                           >
-                            <FiDownload className="w-4 h-4" />
+                            <FiDownload className="h-4 w-4" />
                             Descargar
                           </button>
                           {isDoctor && (
@@ -1276,9 +1579,9 @@ export default function EncounterWizardPage() {
                               type="button"
                               onClick={() => setShowDeleteAttachment(attachment.id)}
                               disabled={deleteMutation.isPending}
-                              className="btn btn-danger text-sm flex items-center gap-2"
+                              className="inline-flex touch-manipulation items-center justify-center gap-2 rounded-xl bg-status-red px-3.5 py-2.5 text-sm font-medium text-white transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-red/35 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              <FiTrash2 className="w-4 h-4" />
+                              <FiTrash2 className="h-4 w-4" />
                               Eliminar
                             </button>
                           )}

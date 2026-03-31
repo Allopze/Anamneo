@@ -183,8 +183,8 @@ export default function PlantillasPage() {
           <div className="divide-y divide-surface-muted/30">
             {templates.map((t) => (
               <div key={t.id} className="group list-row items-start">
-                <div className="list-row-icon mt-0.5 bg-accent/20 text-accent">
-                  <FiFileText className="w-5 h-5 text-accent" />
+                <div className="list-row-icon mt-0.5 border border-status-yellow/60 bg-status-yellow/35 text-accent-text">
+                  <FiFileText className="w-5 h-5 text-accent-text" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -193,7 +193,7 @@ export default function PlantillasPage() {
                       {CATEGORIES.find((c) => c.value === t.category)?.label || t.category}
                     </span>
                     {t.sectionKey && (
-                      <span className="list-chip bg-accent/10 text-accent">
+                      <span className="list-chip border border-status-yellow/60 bg-status-yellow/30 text-accent-text">
                         {SECTION_KEYS.find((s) => s.value === t.sectionKey)?.label || t.sectionKey}
                       </span>
                     )}
@@ -202,7 +202,7 @@ export default function PlantillasPage() {
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    className="p-2 text-ink-muted hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                    className="p-2 text-ink-muted hover:text-accent-text hover:bg-status-yellow/25 rounded-lg transition-colors"
                     onClick={() => startEdit(t)}
                   >
                     <FiEdit2 className="w-4 h-4" />
@@ -220,7 +220,7 @@ export default function PlantillasPage() {
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <FiFileText className="w-10 h-10 text-accent" />
+              <FiFileText className="w-10 h-10 text-accent-text" />
             </div>
             <h3 className="empty-state-title">Sin plantillas todavía</h3>
             <p className="empty-state-description">Crea una plantilla o instala el pack base para acelerar tus atenciones.</p>

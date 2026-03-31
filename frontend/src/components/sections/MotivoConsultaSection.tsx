@@ -157,7 +157,7 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
                   <span className="font-medium text-ink-primary">{suggestion.name}</span>
                 </div>
                 {!readOnly && (
-                  <span className="text-sm text-accent">Usar esta</span>
+                  <span className="text-sm text-accent-text">Usar esta</span>
                 )}
               </button>
             ))}

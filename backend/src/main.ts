@@ -9,11 +9,16 @@ import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { requestTracingMiddleware } from './common/utils/request-tracing';
+import { resolveSettingsEncryptionSecrets } from './settings/settings-encryption';
 
 function assertSafeConfig(configService: ConfigService) {
   const databaseUrl = configService.get<string>('DATABASE_URL');
   const jwtSecret = configService.get<string>('JWT_SECRET');
   const jwtRefreshSecret = configService.get<string>('JWT_REFRESH_SECRET');
+  const settingsEncryptionKeys = resolveSettingsEncryptionSecrets(
+    configService.get<string>('SETTINGS_ENCRYPTION_KEY'),
+    configService.get<string>('SETTINGS_ENCRYPTION_KEYS'),
+  );
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
   const isProduction = nodeEnv === 'production';
   const allowSqliteInProduction = configService.get<string>('ALLOW_SQLITE_IN_PRODUCTION', 'false') === 'true';
@@ -51,6 +56,19 @@ function assertSafeConfig(configService: ConfigService) {
 
   if (isProduction && (jwtSecret.length < 32 || jwtRefreshSecret.length < 32)) {
     throw new Error('JWT secrets must be at least 32 characters in production');
+  }
+
+  if (isProduction) {
+    if (settingsEncryptionKeys.length === 0) {
+      throw new Error('SETTINGS_ENCRYPTION_KEY or SETTINGS_ENCRYPTION_KEYS must be configured in production');
+    }
+
+    const invalidKey = settingsEncryptionKeys.find((secret) => placeholderValues.has(secret) || secret.length < 32);
+    if (invalidKey) {
+      throw new Error(
+        'Every SETTINGS_ENCRYPTION_KEY/SETTINGS_ENCRYPTION_KEYS entry must be non-placeholder and at least 32 characters in production',
+      );
+    }
   }
 }
 

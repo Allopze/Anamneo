@@ -119,7 +119,7 @@ export default function AnamnesisRemotaSection({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleEnableEdit}
-                className="inline-flex items-center gap-1 text-sm font-medium text-status-yellow hover:text-status-yellow"
+                className="inline-flex items-center gap-1 text-sm font-medium text-accent-text hover:text-ink"
               >
                 <FiEdit2 className="w-4 h-4" />
                 Editar solo esta atención
@@ -127,7 +127,7 @@ export default function AnamnesisRemotaSection({
               {patientId && canEditPatientHistory && (
                 <Link
                   href={`/pacientes/${patientId}/historial`}
-                  className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:text-accent"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-accent-text hover:text-ink"
                 >
                   Ir al historial maestro
                 </Link>

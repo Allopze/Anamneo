@@ -178,8 +178,15 @@ El frontend corre en `http://localhost:5555` y habla con la API vía same-origin
 - Las invitaciones creadas desde administración pueden enviarse por SMTP.
 - La configuración se puede guardar en Ajustes > Correo SMTP.
 - También puedes operar solo con `.env`; el backend usa `APP_PUBLIC_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME` e `INVITATION_EMAIL_SUBJECT` como fallback.
+- Si guardas `smtp.password` desde Ajustes, define `SETTINGS_ENCRYPTION_KEY` o `SETTINGS_ENCRYPTION_KEYS` para cifrar ese secreto en la base de datos; si usas key ring, deja la clave activa primero para permitir rotación gradual.
+- La rotación operativa del key ring quedó documentada en [docs/settings-key-rotation-runbook.md](docs/settings-key-rotation-runbook.md) mientras el proyecto siga usando variables de entorno en vez de un secret manager externo.
 - Si SMTP no está configurado o falla el envío, el sistema mantiene el enlace manual de invitación como respaldo.
 - Para construir el enlace del correo, define `APP_PUBLIC_URL` o `app.publicUrl` en ajustes.
+
+## Read Models Longitudinales
+
+- `GET /api/patients/:id/encounters?page&limit` expone la timeline paginada de atenciones.
+- `GET /api/patients/:id/clinical-summary` entrega un resumen longitudinal derivado con tendencias vitales, diagnósticos recientes y snapshot operativo de problemas/tareas.
 
 ## Estructura del Proyecto
 
@@ -222,6 +229,7 @@ Anamneo/
 
 - Checklist de salida: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
 - Deploy Prisma + SQLite existente: [PRISMA_SQLITE_DEPLOY.md](PRISMA_SQLITE_DEPLOY.md)
+- Runbook de rotación de claves de ajustes: [docs/settings-key-rotation-runbook.md](docs/settings-key-rotation-runbook.md)
 - Roadmap de afinaciones clinicas: [TODO_FUNCIONALIDADES_MEDICAS.md](TODO_FUNCIONALIDADES_MEDICAS.md)
 - Auditoría técnica vigente: [AUDITORIA_TECNICA_ANAMNEO.md](AUDITORIA_TECNICA_ANAMNEO.md)
 

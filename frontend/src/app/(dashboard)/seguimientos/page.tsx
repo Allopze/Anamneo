@@ -96,14 +96,14 @@ export default function SeguimientosPage() {
                 <div
                   className={clsx(
                     'list-row-icon',
-                    task.isOverdue ? 'bg-status-red/15 text-status-red' : 'bg-accent/20 text-accent',
+                    task.isOverdue ? 'bg-status-red/15 text-status-red' : 'border border-status-yellow/60 bg-status-yellow/30 text-accent-text',
                   )}
                 >
                   {task.isOverdue ? <FiAlertTriangle className="h-5 w-5" /> : <FiClipboard className="h-5 w-5" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-ink-primary group-hover:text-accent">{task.title}</span>
+                    <span className="font-medium text-ink-primary group-hover:text-accent-text">{task.title}</span>
                     <span className="list-chip bg-surface-muted text-ink-secondary">
                       {TASK_TYPE_LABELS[task.type]}
                     </span>
@@ -127,14 +127,14 @@ export default function SeguimientosPage() {
                     {task.details && <span className="truncate">{task.details}</span>}
                   </div>
                 </div>
-                <FiChevronRight className="h-5 w-5 text-ink-muted group-hover:text-accent" />
+                <FiChevronRight className="h-5 w-5 text-ink-muted group-hover:text-accent-text" />
               </Link>
             ))}
           </div>
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <FiClipboard className="h-10 w-10 text-accent" />
+              <FiClipboard className="h-10 w-10 text-accent-text" />
             </div>
             <h3 className="empty-state-title">Sin seguimientos visibles</h3>
             <p className="empty-state-description">No hay seguimientos que coincidan con los filtros actuales.</p>

@@ -67,7 +67,7 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly }:
               className="section-item-card space-y-3"
             >
               <div className="flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20 text-sm font-medium text-accent">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-status-yellow/65 bg-status-yellow/35 text-sm font-medium text-accent-text">
                   {sospecha.prioridad}
                 </span>
 

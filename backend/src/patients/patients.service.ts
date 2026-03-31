@@ -9,17 +9,15 @@ import { UpdatePatientHistoryDto } from './dto/update-patient-history.dto';
 import { validateRut } from '../common/utils/helpers';
 import { Prisma } from '@prisma/client';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
-import { parseEncounterSections } from '../common/utils/encounter-sections';
+import { parseStoredJson } from '../common/utils/encounter-sections';
 import { PATIENT_HISTORY_FIELD_KEYS, sanitizePatientHistoryFieldValue } from '../common/utils/patient-history';
 import { isDateOnlyBeforeToday, parseDateOnlyToStoredUtcDate, startOfUtcDay } from '../common/utils/local-date';
-
-const PATIENT_DETAIL_SUMMARY_SECTION_KEYS = [
-  'MOTIVO_CONSULTA',
-  'SOSPECHA_DIAGNOSTICA',
-  'TRATAMIENTO',
-  'RESPUESTA_TRATAMIENTO',
-  'EXAMEN_FISICO',
-] as const;
+import {
+  ENCOUNTER_SECTION_LABELS,
+  ENCOUNTER_SECTION_ORDER,
+} from '../common/utils/encounter-section-meta';
+import { SectionKey } from '../common/types';
+import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
 
 @Injectable()
 export class PatientsService {
@@ -290,6 +288,183 @@ export class PatientsService {
     };
   }
 
+  private formatEncounterTimelineItem(encounter: any) {
+    const sortedSections = [...(encounter.sections || [])].sort((a: any, b: any) => {
+      return ENCOUNTER_SECTION_ORDER.indexOf(a.sectionKey as SectionKey)
+        - ENCOUNTER_SECTION_ORDER.indexOf(b.sectionKey as SectionKey);
+    });
+
+    return {
+      id: encounter.id,
+      patientId: encounter.patientId,
+      createdById: encounter.createdById,
+      status: encounter.status,
+      reviewStatus: encounter.reviewStatus,
+      reviewRequestedAt: encounter.reviewRequestedAt,
+      reviewNote: encounter.reviewNote,
+      reviewedAt: encounter.reviewedAt,
+      completedAt: encounter.completedAt,
+      closureNote: encounter.closureNote,
+      createdAt: encounter.createdAt,
+      updatedAt: encounter.updatedAt,
+      createdBy: encounter.createdBy,
+      reviewRequestedBy: encounter.reviewRequestedBy,
+      reviewedBy: encounter.reviewedBy,
+      completedBy: encounter.completedBy,
+      tasks: (encounter.tasks || []).map((task: any) => this.formatTask(task)),
+      progress: {
+        completed: sortedSections.filter((section) => section.completed).length,
+        total: ENCOUNTER_SECTION_ORDER.length,
+      },
+      sections: sortedSections.map((section: any) => ({
+        ...formatEncounterSectionForRead({
+          ...section,
+          data: parseStoredJson(section.data, {}),
+        }),
+        label: ENCOUNTER_SECTION_LABELS[section.sectionKey as SectionKey],
+        order: ENCOUNTER_SECTION_ORDER.indexOf(section.sectionKey as SectionKey),
+      })),
+    };
+  }
+
+  private getEncounterSectionData<T extends Record<string, unknown>>(encounter: any, sectionKey: SectionKey) {
+    const section = (encounter.sections || []).find((item: any) => item.sectionKey === sectionKey);
+    if (!section) {
+      return {} as T;
+    }
+
+    return formatEncounterSectionForRead(section).data as T;
+  }
+
+  private buildEncounterSummaryLines(encounter: any) {
+    const motivo = this.getEncounterSectionData<{ texto?: string }>(encounter, 'MOTIVO_CONSULTA');
+    const diagnostico = this.getEncounterSectionData<{ sospechas?: Array<{ diagnostico?: string }> }>(encounter, 'SOSPECHA_DIAGNOSTICA');
+    const tratamiento = this.getEncounterSectionData<{ plan?: string }>(encounter, 'TRATAMIENTO');
+    const respuesta = this.getEncounterSectionData<{ planSeguimiento?: string }>(encounter, 'RESPUESTA_TRATAMIENTO');
+    const observaciones = this.getEncounterSectionData<{ resumenClinico?: string }>(encounter, 'OBSERVACIONES');
+
+    const lines = [
+      motivo.texto?.trim(),
+      diagnostico.sospechas?.length
+        ? `Dx: ${diagnostico.sospechas
+            .slice(0, 3)
+            .map((item) => item.diagnostico?.trim())
+            .filter(Boolean)
+            .join(', ')}`
+        : '',
+      tratamiento.plan?.trim() ? `Plan: ${tratamiento.plan.trim()}` : '',
+      respuesta.planSeguimiento?.trim() ? `Seguimiento: ${respuesta.planSeguimiento.trim()}` : '',
+      observaciones.resumenClinico?.trim() ? `Resumen: ${observaciones.resumenClinico.trim()}` : '',
+    ].filter((value): value is string => Boolean(value));
+
+    return lines.slice(0, 4);
+  }
+
+  private buildClinicalSummary(encounters: any[], patient: any, counts: {
+    totalEncounters: number;
+    activeProblems: number;
+    pendingTasks: number;
+  }) {
+    const diagnosisMap = new Map<string, { label: string; count: number; lastSeenAt: Date }>();
+    const vitalTrend = encounters
+      .map((encounter) => {
+        const examen = this.getEncounterSectionData<{
+          signosVitales?: Record<string, unknown>;
+        }>(encounter, 'EXAMEN_FISICO');
+        const signos = examen.signosVitales;
+
+        if (!signos || typeof signos !== 'object') {
+          return null;
+        }
+
+        return {
+          encounterId: encounter.id,
+          createdAt: encounter.createdAt,
+          presionArterial: typeof signos.presionArterial === 'string' ? signos.presionArterial : null,
+          peso: signos.peso ? Number(signos.peso) : null,
+          imc: signos.imc ? Number(signos.imc) : null,
+          temperatura: signos.temperatura ? Number(signos.temperatura) : null,
+          saturacionOxigeno: signos.saturacionOxigeno ? Number(signos.saturacionOxigeno) : null,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      .filter((item) => item.presionArterial || item.peso !== null || item.imc !== null || item.temperatura !== null || item.saturacionOxigeno !== null)
+      .slice(0, 6);
+
+    for (const encounter of encounters) {
+      const diagnostico = this.getEncounterSectionData<{
+        sospechas?: Array<{ diagnostico?: string }>;
+      }>(encounter, 'SOSPECHA_DIAGNOSTICA');
+
+      for (const sospecha of diagnostico.sospechas || []) {
+        const label = sospecha.diagnostico?.trim();
+        if (!label) {
+          continue;
+        }
+
+        const normalizedLabel = label.toLowerCase();
+        const existing = diagnosisMap.get(normalizedLabel);
+        if (existing) {
+          existing.count += 1;
+          if (encounter.createdAt > existing.lastSeenAt) {
+            existing.lastSeenAt = encounter.createdAt;
+          }
+          continue;
+        }
+
+        diagnosisMap.set(normalizedLabel, {
+          label,
+          count: 1,
+          lastSeenAt: encounter.createdAt,
+        });
+      }
+    }
+
+    const recentDiagnoses = [...diagnosisMap.values()]
+      .sort((a, b) => {
+        if (b.count !== a.count) {
+          return b.count - a.count;
+        }
+        return b.lastSeenAt.getTime() - a.lastSeenAt.getTime();
+      })
+      .slice(0, 5)
+      .map((item) => ({
+        label: item.label,
+        count: item.count,
+        lastSeenAt: item.lastSeenAt,
+      }));
+
+    return {
+      patientId: patient.id,
+      generatedAt: new Date().toISOString(),
+      counts,
+      latestEncounterSummary: encounters[0]
+        ? {
+            encounterId: encounters[0].id,
+            createdAt: encounters[0].createdAt,
+            lines: this.buildEncounterSummaryLines(encounters[0]),
+          }
+        : null,
+      vitalTrend,
+      recentDiagnoses,
+      activeProblems: patient.problems.map((problem: any) => ({
+        id: problem.id,
+        label: problem.label,
+        status: problem.status,
+        severity: problem.severity,
+        updatedAt: problem.updatedAt,
+      })),
+      pendingTasks: patient.tasks.map((task: any) => ({
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        type: task.type,
+        dueDate: task.dueDate,
+        createdAt: task.createdAt,
+      })),
+    };
+  }
+
   async exportCsv(user: RequestUser) {
     const patients = await this.prisma.patient.findMany({
       where: { archivedAt: null },
@@ -359,32 +534,6 @@ export class PatientsService {
             },
           },
         },
-        encounters: {
-          orderBy: { createdAt: 'desc' },
-          include: {
-            createdBy: {
-              select: { id: true, nombre: true },
-            },
-            reviewedBy: {
-              select: { id: true, nombre: true },
-            },
-            sections: {
-              where: {
-                sectionKey: {
-                  in: [...PATIENT_DETAIL_SUMMARY_SECTION_KEYS],
-                },
-              },
-              select: {
-                id: true,
-                encounterId: true,
-                sectionKey: true,
-                data: true,
-                completed: true,
-                updatedAt: true,
-              },
-            },
-          },
-        },
       },
     });
 
@@ -394,7 +543,10 @@ export class PatientsService {
 
     // Verify access: user created patient or has encounters with them
     if (!user.isAdmin && patient.createdById !== effectiveMedicoId) {
-      const hasEncounter = patient.encounters.some((e: any) => e.medicoId === effectiveMedicoId);
+      const hasEncounter = await this.prisma.encounter.findFirst({
+        where: { patientId: id, medicoId: effectiveMedicoId },
+        select: { id: true },
+      });
       if (!hasEncounter) {
         throw new NotFoundException('Paciente no encontrado');
       }
@@ -404,8 +556,166 @@ export class PatientsService {
       ...patient,
       problems: patient.problems.map((problem) => this.formatProblem(problem)),
       tasks: patient.tasks.map((task) => this.formatTask(task)),
-      encounters: patient.encounters.map((encounter) => parseEncounterSections(encounter)),
     };
+  }
+
+  async findEncounterTimeline(user: RequestUser, patientId: string, page = 1, limit = 10) {
+    await this.assertPatientAccess(user, patientId);
+    const effectiveMedicoId = getEffectiveMedicoId(user);
+
+    const skip = (page - 1) * limit;
+    const where = {
+      patientId,
+      medicoId: effectiveMedicoId,
+    };
+
+    const [encounters, total] = await Promise.all([
+      this.prisma.encounter.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          createdBy: {
+            select: { id: true, nombre: true, email: true },
+          },
+          reviewRequestedBy: {
+            select: { id: true, nombre: true },
+          },
+          reviewedBy: {
+            select: { id: true, nombre: true },
+          },
+          completedBy: {
+            select: { id: true, nombre: true },
+          },
+          tasks: {
+            orderBy: { createdAt: 'desc' },
+            take: 3,
+            include: {
+              createdBy: {
+                select: { id: true, nombre: true },
+              },
+            },
+          },
+          sections: {
+            select: {
+              id: true,
+              encounterId: true,
+              sectionKey: true,
+              data: true,
+              schemaVersion: true,
+              completed: true,
+              updatedAt: true,
+            },
+          },
+        },
+      }),
+      this.prisma.encounter.count({ where }),
+    ]);
+
+    return {
+      data: encounters.map((encounter) => this.formatEncounterTimelineItem(encounter)),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getClinicalSummary(user: RequestUser, patientId: string) {
+    await this.assertPatientAccess(user, patientId);
+    const effectiveMedicoId = getEffectiveMedicoId(user);
+
+    const [patient, encounters, activeProblemsCount, pendingTasksCount, totalEncounters] = await Promise.all([
+      this.prisma.patient.findUniqueOrThrow({
+        where: { id: patientId },
+        select: {
+          id: true,
+          problems: {
+            where: {
+              status: {
+                not: 'RESUELTO',
+              },
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: 5,
+            select: {
+              id: true,
+              label: true,
+              status: true,
+              severity: true,
+              updatedAt: true,
+            },
+          },
+          tasks: {
+            where: {
+              status: {
+                notIn: ['COMPLETADA', 'CANCELADA'],
+              },
+            },
+            orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+            take: 5,
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              type: true,
+              dueDate: true,
+              createdAt: true,
+            },
+          },
+        },
+      }),
+      this.prisma.encounter.findMany({
+        where: {
+          patientId,
+          medicoId: effectiveMedicoId,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 12,
+        select: {
+          id: true,
+          createdAt: true,
+          sections: {
+            select: {
+              sectionKey: true,
+              data: true,
+              schemaVersion: true,
+            },
+          },
+        },
+      }),
+      this.prisma.patientProblem.count({
+        where: {
+          patientId,
+          status: {
+            not: 'RESUELTO',
+          },
+        },
+      }),
+      this.prisma.encounterTask.count({
+        where: {
+          patientId,
+          status: {
+            notIn: ['COMPLETADA', 'CANCELADA'],
+          },
+        },
+      }),
+      this.prisma.encounter.count({
+        where: {
+          patientId,
+          medicoId: effectiveMedicoId,
+        },
+      }),
+    ]);
+
+    return this.buildClinicalSummary(encounters, patient, {
+      totalEncounters,
+      activeProblems: activeProblemsCount,
+      pendingTasks: pendingTasksCount,
+    });
   }
 
   async findTasks(

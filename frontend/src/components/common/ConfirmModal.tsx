@@ -21,11 +21,11 @@ const variantStyles = {
     button: 'btn btn-danger',
   },
   warning: {
-    icon: 'bg-status-yellow/20 text-status-yellow',
+    icon: 'border border-status-yellow/65 bg-status-yellow/35 text-accent-text',
     button: 'btn bg-status-yellow text-white hover:bg-status-yellow/80 focus:ring-status-yellow',
   },
   info: {
-    icon: 'bg-accent/20 text-accent',
+    icon: 'border border-status-yellow/65 bg-status-yellow/35 text-accent-text',
     button: 'btn btn-primary',
   },
 };

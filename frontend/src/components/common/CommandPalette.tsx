@@ -198,7 +198,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
                               <button
                                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
                                   isSelected
-                                    ? 'bg-accent/10 text-accent'
+                                    ? 'border border-status-yellow/60 bg-status-yellow/30 text-accent-text'
                                     : 'hover:bg-surface-base/40'
                                 }`}
                                 onClick={() => navigateTo(result)}
@@ -207,7 +207,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
                                 <div
                                   className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                                     result.type === 'patient'
-                                      ? 'bg-accent/20 text-blue-600'
+                                      ? 'border border-status-yellow/65 bg-status-yellow/35 text-accent-text'
                                       : 'bg-emerald-100 text-emerald-600'
                                   }`}
                                 >

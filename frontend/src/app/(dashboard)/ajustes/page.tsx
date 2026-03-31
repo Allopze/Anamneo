@@ -423,8 +423,9 @@ export default function AjustesPage() {
             </p>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-1">Nombre del centro</label>
+                <label htmlFor="clinic-name" className="block text-sm font-medium text-ink-secondary mb-1">Nombre del centro</label>
                 <input
+                  id="clinic-name"
                   type="text"
                   className="input w-full"
                   value={clinic.clinicName}
@@ -433,8 +434,9 @@ export default function AjustesPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-1">Dirección</label>
+                <label htmlFor="clinic-address" className="block text-sm font-medium text-ink-secondary mb-1">Dirección</label>
                 <input
+                  id="clinic-address"
                   type="text"
                   className="input w-full"
                   value={clinic.clinicAddress}
@@ -444,8 +446,9 @@ export default function AjustesPage() {
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">Teléfono</label>
+                  <label htmlFor="clinic-phone" className="block text-sm font-medium text-ink-secondary mb-1">Teléfono</label>
                   <input
+                    id="clinic-phone"
                     type="text"
                     className="input w-full"
                     value={clinic.clinicPhone}
@@ -454,8 +457,9 @@ export default function AjustesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">Email</label>
+                  <label htmlFor="clinic-email" className="block text-sm font-medium text-ink-secondary mb-1">Email</label>
                   <input
+                    id="clinic-email"
                     type="email"
                     className="input w-full"
                     value={clinic.clinicEmail}
@@ -490,8 +494,9 @@ export default function AjustesPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-1">URL pública del frontend</label>
+                <label htmlFor="app-public-url" className="block text-sm font-medium text-ink-secondary mb-1">URL pública del frontend</label>
                 <input
+                  id="app-public-url"
                   type="url"
                   className="input w-full"
                   value={clinic.appPublicUrl}
@@ -501,8 +506,9 @@ export default function AjustesPage() {
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">Host SMTP</label>
+                  <label htmlFor="smtp-host" className="block text-sm font-medium text-ink-secondary mb-1">Host SMTP</label>
                   <input
+                    id="smtp-host"
                     type="text"
                     className="input w-full"
                     value={clinic.smtpHost}
@@ -511,8 +517,9 @@ export default function AjustesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">Puerto</label>
+                  <label htmlFor="smtp-port" className="block text-sm font-medium text-ink-secondary mb-1">Puerto</label>
                   <input
+                    id="smtp-port"
                     type="number"
                     className="input w-full"
                     value={clinic.smtpPort}
@@ -521,8 +528,9 @@ export default function AjustesPage() {
                   />
                 </div>
               </div>
-              <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
+              <label htmlFor="smtp-secure" className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
                 <input
+                  id="smtp-secure"
                   type="checkbox"
                   checked={clinic.smtpSecure}
                   onChange={(e) => setClinic(c => ({ ...c, smtpSecure: e.target.checked }))}
@@ -531,8 +539,9 @@ export default function AjustesPage() {
               </label>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">Usuario SMTP</label>
+                  <label htmlFor="smtp-user" className="block text-sm font-medium text-ink-secondary mb-1">Usuario SMTP</label>
                   <input
+                    id="smtp-user"
                     type="text"
                     className="input w-full"
                     value={clinic.smtpUser}
@@ -541,8 +550,9 @@ export default function AjustesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">Clave SMTP</label>
+                  <label htmlFor="smtp-password" className="block text-sm font-medium text-ink-secondary mb-1">Clave SMTP</label>
                   <input
+                    id="smtp-password"
                     type="password"
                     className="input w-full"
                     value={clinic.smtpPassword}
@@ -558,8 +568,9 @@ export default function AjustesPage() {
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">Remitente</label>
+                  <label htmlFor="smtp-from-email" className="block text-sm font-medium text-ink-secondary mb-1">Remitente</label>
                   <input
+                    id="smtp-from-email"
                     type="email"
                     className="input w-full"
                     value={clinic.smtpFromEmail}
@@ -568,8 +579,9 @@ export default function AjustesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">Nombre remitente</label>
+                  <label htmlFor="smtp-from-name" className="block text-sm font-medium text-ink-secondary mb-1">Nombre remitente</label>
                   <input
+                    id="smtp-from-name"
                     type="text"
                     className="input w-full"
                     value={clinic.smtpFromName}
@@ -579,8 +591,9 @@ export default function AjustesPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-1">Asunto del correo</label>
+                <label htmlFor="invitation-subject" className="block text-sm font-medium text-ink-secondary mb-1">Asunto del correo</label>
                 <input
+                  id="invitation-subject"
                   type="text"
                   className="input w-full"
                   value={clinic.invitationSubject}
@@ -593,8 +606,9 @@ export default function AjustesPage() {
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] md:items-end">
                 <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">Correo para prueba</label>
+                  <label htmlFor="smtp-test-email" className="block text-sm font-medium text-ink-secondary mb-1">Correo para prueba</label>
                   <input
+                    id="smtp-test-email"
                     type="email"
                     className="input w-full"
                     value={testEmail}
@@ -643,7 +657,7 @@ export default function AjustesPage() {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <h3 className="text-sm font-semibold text-ink-primary">{preset.name}</h3>
-                      {isActive && <span className="text-xs font-medium text-accent">Activa</span>}
+                      {isActive && <span className="text-xs font-medium text-accent-text">Activa</span>}
                     </div>
                     <p className="mt-2 text-sm text-ink-secondary">{preset.description}</p>
                   </button>

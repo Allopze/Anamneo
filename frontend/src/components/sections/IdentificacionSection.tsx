@@ -57,7 +57,7 @@ export default function IdentificacionSection({
           Esta sección representa la identificación usada dentro de esta atención. No se edita aquí: si necesitas corregir el dato maestro, hazlo en la ficha del paciente y luego restaura este snapshot.
         </p>
         {snapshotStatus?.hasDifferences && (
-          <div className="mt-3 rounded-2xl border border-status-yellow/30 bg-status-yellow/10 p-3 text-sm text-status-yellow">
+          <div className="mt-3 rounded-2xl border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
             <div className="flex items-start gap-2">
               <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <div>

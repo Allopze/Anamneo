@@ -15,6 +15,8 @@ import { Response } from 'express';
 import { EncountersService } from './encounters.service';
 import { EncountersPdfService } from './encounters-pdf.service';
 import { CreateEncounterDto } from './dto/create-encounter.dto';
+import { CompleteEncounterDto } from './dto/complete-encounter.dto';
+import { ReopenEncounterDto } from './dto/reopen-encounter.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
 import { UpdateReviewStatusDto } from './dto/update-review-status.dto';
 import { ParseSectionKeyPipe } from '../common/parse-section-key.pipe';
@@ -132,18 +134,20 @@ export class EncountersController {
   @Roles('MEDICO')
   complete(
     @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CompleteEncounterDto,
     @CurrentUser('id') userId: string,
   ) {
-    return this.encountersService.complete(id, userId);
+    return this.encountersService.complete(id, userId, dto.closureNote);
   }
 
   @Post(':id/reopen')
   @Roles('ADMIN')
   reopen(
     @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReopenEncounterDto,
     @CurrentUser('id') userId: string,
   ) {
-    return this.encountersService.reopen(id, userId);
+    return this.encountersService.reopen(id, userId, dto.note);
   }
 
   @Post(':id/cancel')

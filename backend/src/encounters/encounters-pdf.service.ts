@@ -419,9 +419,16 @@ export class EncountersPdfService {
 
       // ── 10. Observaciones ──
       const obs = sectionsMap['OBSERVACIONES'] || {};
-      if (obs.observaciones) {
+      if (obs.resumenClinico || obs.observaciones) {
         sectionTitle(10, 'OBSERVACIONES');
-        textBlock(obs.observaciones);
+        if (obs.resumenClinico) {
+          doc.font('Helvetica-Bold').text('Resumen longitudinal');
+          doc.font('Helvetica');
+          textBlock(obs.resumenClinico);
+        }
+        if (obs.observaciones) {
+          textBlock(obs.observaciones);
+        }
         doc.moveDown(0.5);
       }
 

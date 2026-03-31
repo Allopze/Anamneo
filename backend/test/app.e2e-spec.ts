@@ -7,6 +7,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../src/prisma/prisma.module';
+import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthModule } from '../src/auth/auth.module';
 import { UsersModule } from '../src/users/users.module';
 import { PatientsModule } from '../src/patients/patients.module';
@@ -17,6 +18,7 @@ import { AuditModule } from '../src/audit/audit.module';
 import { SettingsModule } from '../src/settings/settings.module';
 import { HealthController } from '../src/health.controller';
 import { requestTracingMiddleware } from '../src/common/utils/request-tracing';
+import { getEncounterSectionSchemaVersion } from '../src/common/utils/encounter-section-meta';
 
 // ── Test database setup ─────────────────────────────────────────────
 const TEST_DB_FILENAME = `test-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`;
@@ -49,6 +51,7 @@ function resolveSqliteFilePath(databaseUrl: string): string | null {
 describe('Application E2E Tests', () => {
   let app: INestApplication;
   let httpServer: any;
+  let prisma: PrismaService;
   let testDatabaseFilePath: string | null = null;
   let testSchemaSqlPath: string | null = null;
   let testUploadsDirectory: string | null = null;
@@ -57,6 +60,7 @@ describe('Application E2E Tests', () => {
   let medicoUserId: string;
   let patientId: string;
   let encounterId: string;
+  let workflowEncounterId: string;
   let patientProblemId: string;
   let patientTaskId: string;
   let attachmentId: string;
@@ -88,6 +92,7 @@ describe('Application E2E Tests', () => {
     process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-key';
     process.env.JWT_EXPIRES_IN = '15m';
     process.env.JWT_REFRESH_EXPIRES_IN = '7d';
+    process.env.SETTINGS_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
     process.env.NODE_ENV = 'test';
     process.env.UPLOAD_DEST = testUploadsDirectory;
     process.env.APP_PUBLIC_URL = 'http://localhost:5555';
@@ -135,6 +140,8 @@ describe('Application E2E Tests', () => {
       ],
       controllers: [HealthController],
     }).compile();
+
+    prisma = moduleFixture.get(PrismaService);
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
@@ -679,6 +686,14 @@ describe('Application E2E Tests', () => {
 
       expect(res.body.id).toBe(encounterId);
       expect(res.body.sections).toBeDefined();
+      expect(
+        res.body.sections.every(
+          (section: any) => section.schemaVersion === getEncounterSectionSchemaVersion(section.sectionKey),
+        ),
+      ).toBe(true);
+      expect(
+        res.body.sections.find((section: any) => section.sectionKey === 'OBSERVACIONES')?.data?.resumenClinico,
+      ).toBe('');
     });
 
     it('GET /api/encounters/:id → reports divergence between identification snapshot and patient master data', async () => {
@@ -1061,35 +1076,124 @@ describe('Application E2E Tests', () => {
       expect(res.headers['content-disposition']).toContain('hemograma.pdf');
     });
 
-    it('PUT /api/encounters/:id/review-status → update review status', async () => {
+    it('PUT /api/encounters/:id/review-status → rejects review without contextual note', async () => {
       const res = await req()
         .put(`/api/encounters/${encounterId}/review-status`)
         .set('Cookie', cookieHeader(medicoCookies))
         .send({
           reviewStatus: 'REVISADA_POR_MEDICO',
+          note: 'corta',
+        })
+        .expect(400);
+
+      expect(String(res.body.message)).toContain('nota de revisión');
+    });
+
+    it('PUT /api/encounters/:id/review-status → update review status with note and traceability', async () => {
+      const res = await req()
+        .put(`/api/encounters/${encounterId}/review-status`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          reviewStatus: 'REVISADA_POR_MEDICO',
+          note: 'Revisión médica realizada con correlación clínico-radiológica.',
         })
         .expect(200);
 
       expect(res.body.reviewStatus).toBe('REVISADA_POR_MEDICO');
+      expect(res.body.reviewNote).toContain('Revisión médica');
+      expect(res.body.reviewedBy?.id).toBe(medicoUserId);
     });
 
-    it('GET /api/patients/:id → returns a summarized encounter timeline without all section payloads', async () => {
+    it('GET /api/patients/:id → returns patient detail without embedding the encounter timeline', async () => {
       const res = await req()
         .get(`/api/patients/${patientId}`)
         .set('Cookie', cookieHeader(medicoCookies))
         .expect(200);
 
-      const encounter = res.body.encounters.find((item: any) => item.id === encounterId);
+      expect(res.body.encounters).toBeUndefined();
+    });
+
+    it('GET /api/patients/:id/encounters → returns a paginated timeline read model with schemaVersion', async () => {
+      const res = await req()
+        .get(`/api/patients/${patientId}/encounters?page=1&limit=5`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      const encounter = res.body.data.find((item: any) => item.id === encounterId);
       expect(encounter).toBeDefined();
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.pagination?.page).toBe(1);
+      expect(res.body.pagination?.limit).toBe(5);
+      expect(res.body.pagination?.total).toBeGreaterThanOrEqual(1);
+      expect(encounter.progress?.total).toBe(10);
+      expect(encounter.reviewNote).toContain('Revisión médica');
+      expect(encounter.reviewedBy?.id).toBe(medicoUserId);
       expect(Array.isArray(encounter.sections)).toBe(true);
-      expect(encounter.sections.every((section: any) => [
-        'MOTIVO_CONSULTA',
-        'SOSPECHA_DIAGNOSTICA',
-        'TRATAMIENTO',
-        'RESPUESTA_TRATAMIENTO',
-        'EXAMEN_FISICO',
-      ].includes(section.sectionKey))).toBe(true);
-      expect(encounter.sections.some((section: any) => section.sectionKey === 'IDENTIFICACION')).toBe(false);
+      expect(
+        encounter.sections.every(
+          (section: any) => section.schemaVersion === getEncounterSectionSchemaVersion(section.sectionKey),
+        ),
+      ).toBe(true);
+    });
+
+    it('GET /api/patients/:id/clinical-summary → returns a derived longitudinal read model', async () => {
+      await req()
+        .put(`/api/encounters/${encounterId}/sections/EXAMEN_FISICO`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: {
+            signosVitales: {
+              presionArterial: '120/80',
+              peso: '70',
+              imc: '24.2',
+              temperatura: '36.7',
+              saturacionOxigeno: '98',
+            },
+          },
+          completed: true,
+        })
+        .expect(200);
+
+      await req()
+        .put(`/api/encounters/${encounterId}/sections/SOSPECHA_DIAGNOSTICA`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: {
+            sospechas: [
+              { id: 'dx-1', diagnostico: 'Migraña', notas: 'probable' },
+            ],
+          },
+          completed: true,
+        })
+        .expect(200);
+
+      await req()
+        .put(`/api/encounters/${encounterId}/sections/OBSERVACIONES`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: {
+            resumenClinico: 'Paciente con buena respuesta inicial.',
+          },
+        })
+        .expect(200);
+
+      const res = await req()
+        .get(`/api/patients/${patientId}/clinical-summary`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(res.body.patientId).toBe(patientId);
+      expect(res.body.counts.totalEncounters).toBeGreaterThanOrEqual(1);
+      expect(Array.isArray(res.body.vitalTrend)).toBe(true);
+      expect(res.body.vitalTrend[0]?.peso).toBe(70);
+      expect(res.body.recentDiagnoses).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ label: 'Migraña', count: 1 }),
+        ]),
+      );
+      expect(res.body.latestEncounterSummary?.lines).toEqual(
+        expect.arrayContaining([expect.stringContaining('Resumen: Paciente con buena respuesta inicial.')]),
+      );
     });
 
     it('GET /api/encounters?reviewStatus=REVISADA_POR_MEDICO → filter encounters by review status', async () => {
@@ -1161,6 +1265,143 @@ describe('Application E2E Tests', () => {
         .expect(201);
 
       expect(res.body.status).toBe('CANCELADO');
+    });
+
+    it('POST /api/encounters/patient/:patientId → create workflow encounter for complete/reopen coverage', async () => {
+      const res = await req()
+        .post(`/api/encounters/patient/${patientId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({})
+        .expect(201);
+
+      workflowEncounterId = res.body.id;
+      expect(workflowEncounterId).toBeDefined();
+    });
+
+    it('PUT /api/encounters/:id/sections/IDENTIFICACION → marks identification snapshot complete for workflow encounter', async () => {
+      const encounterRes = await req()
+        .get(`/api/encounters/${workflowEncounterId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      const identification = encounterRes.body.sections.find((section: any) => section.sectionKey === 'IDENTIFICACION');
+
+      const res = await req()
+        .put(`/api/encounters/${workflowEncounterId}/sections/IDENTIFICACION`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: identification.data,
+          completed: true,
+        })
+        .expect(200);
+
+      expect(res.body.completed).toBe(true);
+    });
+
+    it('PUT /api/encounters/:id/sections/MOTIVO_CONSULTA → prepares workflow encounter for completion', async () => {
+      await req()
+        .put(`/api/encounters/${workflowEncounterId}/sections/MOTIVO_CONSULTA`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: { texto: 'Dolor abdominal de 24 horas de evolución' },
+          completed: true,
+        })
+        .expect(200);
+
+      await req()
+        .put(`/api/encounters/${workflowEncounterId}/sections/EXAMEN_FISICO`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: {
+            abdomen: 'Abdomen blando, depresible, doloroso en fosa iliaca derecha.',
+          },
+          completed: true,
+        })
+        .expect(200);
+
+      await req()
+        .put(`/api/encounters/${workflowEncounterId}/sections/SOSPECHA_DIAGNOSTICA`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: {
+            sospechas: [
+              {
+                id: 'dx-apendicitis',
+                diagnostico: 'Apendicitis aguda',
+                notas: 'Correlacionar con clínica y exámenes.',
+              },
+            ],
+          },
+          completed: true,
+        })
+        .expect(200);
+
+      const treatmentRes = await req()
+        .put(`/api/encounters/${workflowEncounterId}/sections/TRATAMIENTO`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: {
+            plan: 'Solicitar evaluación quirúrgica y laboratorio urgente.',
+          },
+          completed: true,
+        })
+        .expect(200);
+
+      expect(treatmentRes.body.completed).toBe(true);
+    });
+
+    it('POST /api/encounters/:id/complete → rejects completion without closure note once sections are ready', async () => {
+      const res = await req()
+        .post(`/api/encounters/${workflowEncounterId}/complete`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          closureNote: 'corta',
+        })
+        .expect(400);
+
+      expect(String(res.body.message)).toContain('nota de cierre');
+    });
+
+    it('POST /api/encounters/:id/complete → completes encounter with closure traceability', async () => {
+      const res = await req()
+        .post(`/api/encounters/${workflowEncounterId}/complete`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          closureNote: 'Paciente derivado con sospecha confirmada y plan quirúrgico informado.',
+        })
+        .expect(201);
+
+      expect(res.body.status).toBe('COMPLETADO');
+      expect(res.body.reviewStatus).toBe('REVISADA_POR_MEDICO');
+      expect(res.body.closureNote).toContain('plan quirúrgico');
+      expect(res.body.completedBy?.id).toBe(medicoUserId);
+    });
+
+    it('POST /api/encounters/:id/reopen → admin requires reopen note', async () => {
+      const res = await req()
+        .post(`/api/encounters/${workflowEncounterId}/reopen`)
+        .set('Cookie', cookieHeader(adminCookies))
+        .send({
+          note: 'corta',
+        })
+        .expect(400);
+
+      expect(String(res.body.message)).toContain('note');
+    });
+
+    it('POST /api/encounters/:id/reopen → admin reopens encounter with explicit trace note', async () => {
+      const res = await req()
+        .post(`/api/encounters/${workflowEncounterId}/reopen`)
+        .set('Cookie', cookieHeader(adminCookies))
+        .send({
+          note: 'Se reabre por auditoría clínica para complementar evolución.',
+        })
+        .expect(201);
+
+      expect(res.body.status).toBe('EN_PROGRESO');
+      expect(res.body.reviewStatus).toBe('NO_REQUIERE_REVISION');
+      expect(res.body.closureNote).toBeNull();
+      expect(res.body.completedAt).toBeNull();
     });
   });
 
@@ -1243,6 +1484,14 @@ describe('Application E2E Tests', () => {
       expect(settingsRes.body['smtp.passwordConfigured']).toBe('true');
       expect(settingsRes.body['email.invitationTemplateHtml']).toBe(template);
       expect(settingsRes.body['email.invitationSubject']).toBe('Invitacion {{roleLabel}} - {{clinicName}}');
+
+      const persistedSmtpPassword = await prisma.setting.findUnique({
+        where: { key: 'smtp.password' },
+      });
+
+      expect(persistedSmtpPassword?.value).toBeDefined();
+      expect(persistedSmtpPassword?.value).not.toBe('SMTP.SuperSecret123');
+      expect(persistedSmtpPassword?.value.startsWith('enc:v1:')).toBe(true);
     });
 
     it('POST /api/mail/test-invitation → admin gets diagnostic response when smtp is missing', async () => {
@@ -1325,6 +1574,18 @@ describe('Application E2E Tests', () => {
 
       expect(res.body.data.some((item: any) => item.entityId === 'csv')).toBe(true);
       expect(res.body.data.every((item: any) => item.requestId?.includes('audit-export-request'))).toBe(true);
+    });
+
+    it('GET /api/audit?reason=PATIENT_EXPORT_CSV&result=SUCCESS → filters by audit catalog semantics', async () => {
+      const res = await req()
+        .get('/api/audit')
+        .query({ reason: 'PATIENT_EXPORT_CSV', result: 'SUCCESS', entityType: 'PatientExport', page: 1, limit: 30 })
+        .set('Cookie', cookieHeader(adminCookies))
+        .expect(200);
+
+      expect(res.body.data.length).toBeGreaterThan(0);
+      expect(res.body.data.every((item: any) => item.reason === 'PATIENT_EXPORT_CSV')).toBe(true);
+      expect(res.body.data.every((item: any) => item.result === 'SUCCESS')).toBe(true);
     });
 
     it('GET /api/audit?action=PASSWORD_CHANGED&entityType=User → returns admin password reset logs', async () => {
@@ -1437,8 +1698,10 @@ describe('Application E2E Tests', () => {
 
   describe('Patient Data Isolation', () => {
     let medico2Cookies: string[] = [];
+    let medico2UserId: string;
     let medico2PatientId: string;
     let medico2InvitationToken: string;
+    let leakedEncounterId: string;
 
     it('Admin invites a second medico', async () => {
       const res = await req()
@@ -1467,6 +1730,11 @@ describe('Application E2E Tests', () => {
         .expect(201);
 
       medico2Cookies = extractCookies(res);
+      const medico2User = await prisma.user.findUniqueOrThrow({
+        where: { email: 'medico2@test.com' },
+        select: { id: true },
+      });
+      medico2UserId = medico2User.id;
       expect(medico2Cookies.length).toBeGreaterThanOrEqual(2);
     });
 
@@ -1518,6 +1786,49 @@ describe('Application E2E Tests', () => {
     it('First medico cannot access second medico patient by ID', async () => {
       await req()
         .get(`/api/patients/${medico2PatientId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(404);
+    });
+
+    it('Second medico cannot create encounters for a patient outside their scope', async () => {
+      await req()
+        .post(`/api/encounters/patient/${patientId}`)
+        .set('Cookie', cookieHeader(medico2Cookies))
+        .send({})
+        .expect(404);
+    });
+
+    it('Patient timeline and derived summary do not leak encounters from another medico scope', async () => {
+      const leakedEncounter = await prisma.encounter.create({
+        data: {
+          patientId,
+          medicoId: medico2UserId,
+          createdById: medico2UserId,
+          status: 'COMPLETADO',
+          createdAt: new Date('2026-04-01T00:00:00.000Z'),
+        },
+      });
+      leakedEncounterId = leakedEncounter.id;
+
+      const timelineRes = await req()
+        .get(`/api/patients/${patientId}/encounters?page=1&limit=10`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(timelineRes.body.data.some((item: any) => item.id === leakedEncounterId)).toBe(false);
+
+      const summaryRes = await req()
+        .get(`/api/patients/${patientId}/clinical-summary`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(summaryRes.body.latestEncounterSummary?.encounterId).not.toBe(leakedEncounterId);
+      expect(summaryRes.body.counts.totalEncounters).toBe(2);
+    });
+
+    it('First medico still gets 404 when trying to open another medico encounter directly', async () => {
+      await req()
+        .get(`/api/encounters/${leakedEncounterId}`)
         .set('Cookie', cookieHeader(medicoCookies))
         .expect(404);
     });

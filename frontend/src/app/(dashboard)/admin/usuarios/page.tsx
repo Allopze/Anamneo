@@ -21,10 +21,10 @@ const INVITATION_STATUS_LABELS: Record<InvitationStatus, string> = {
 };
 
 const INVITATION_STATUS_STYLES: Record<InvitationStatus, string> = {
-  PENDIENTE: 'bg-accent/20 text-accent',
+  PENDIENTE: 'border border-status-yellow/60 bg-status-yellow/30 text-accent-text',
   ACEPTADA: 'bg-status-green/20 text-status-green',
   REVOCADA: 'bg-surface-muted text-ink-secondary',
-  EXPIRADA: 'bg-status-yellow/20 text-status-yellow',
+  EXPIRADA: 'border border-status-yellow/70 bg-status-yellow/40 text-accent-text',
 };
 
 function formatInvitationDate(value: string) {
@@ -343,7 +343,7 @@ export default function AdminUsuariosPage() {
       <div className="card mb-6">
         <div className="panel-header">
           <div className="flex items-center gap-2">
-          <FiPlus className="w-4 h-4 text-accent" />
+          <FiPlus className="w-4 h-4 text-accent-text" />
           <h2 className="panel-title">Crear invitación</h2>
           </div>
         </div>
@@ -420,7 +420,7 @@ export default function AdminUsuariosPage() {
                 : 'No se pudo enviar automáticamente por correo. Puedes compartir este enlace manualmente.'}
             </p>
             {createdInvitation.emailError && (
-              <p className="mt-2 text-xs text-status-yellow">{createdInvitation.emailError}</p>
+              <p className="mt-2 text-xs text-accent-text">{createdInvitation.emailError}</p>
             )}
             <p className="mt-2 break-all text-sm text-ink-secondary">{createdInvitation.inviteUrl}</p>
           </div>
@@ -496,7 +496,7 @@ export default function AdminUsuariosPage() {
                       <span className="text-xs text-status-green">Cuenta creada</span>
                     )}
                     {status === 'EXPIRADA' && (
-                      <span className="text-xs text-status-yellow">Crear nueva invitación</span>
+                      <span className="text-xs text-accent-text">Crear nueva invitación</span>
                     )}
                   </div>
                 </div>
@@ -559,7 +559,7 @@ export default function AdminUsuariosPage() {
         <div className="card mb-6 border-accent/20">
           <div className="panel-header">
             <div className="flex items-center gap-2">
-              <FiEdit2 className="w-4 h-4 text-accent" />
+              <FiEdit2 className="w-4 h-4 text-accent-text" />
               <h2 className="panel-title">Editar usuario</h2>
             </div>
             <button className="btn btn-secondary" onClick={() => setEditingUser(null)}>
@@ -635,7 +635,7 @@ export default function AdminUsuariosPage() {
                 Usuario activo
               </label>
               {editingUser.isAdmin && editingUser.active && activeAdminCount === 1 && (
-                <p className="mt-2 text-xs text-status-yellow">
+                <p className="mt-2 text-xs text-accent-text">
                   Este es el último administrador activo y no puede desactivarse.
                 </p>
               )}
@@ -677,7 +677,7 @@ export default function AdminUsuariosPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-ink-primary truncate">{u.nombre}</span>
                     {u.isAdmin && (
-                      <span className="list-chip bg-accent/20 text-accent">
+                      <span className="list-chip border border-status-yellow/60 bg-status-yellow/30 text-accent-text">
                         Admin
                       </span>
                     )}
@@ -740,7 +740,7 @@ export default function AdminUsuariosPage() {
                   </button>
                 </div>
                 {u.isAdmin && u.active && activeAdminCount === 1 && (
-                  <p className="text-xs text-status-yellow">
+                  <p className="text-xs text-accent-text">
                     Último administrador activo.
                   </p>
                 )}
@@ -753,7 +753,7 @@ export default function AdminUsuariosPage() {
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <FiUsers className="h-10 w-10 text-accent" />
+              <FiUsers className="h-10 w-10 text-accent-text" />
             </div>
             <h3 className="empty-state-title">Sin usuarios cargados</h3>
             <p className="empty-state-description">No hay usuarios registrados todavía en esta instancia.</p>

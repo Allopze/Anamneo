@@ -31,14 +31,15 @@ export default function HistorialPacientePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { canEditAntecedentes } = useAuthStore();
+  const canEditHistory = canEditAntecedentes();
   const [formData, setFormData] = useState<any>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!canEditAntecedentes()) {
+    if (!canEditHistory) {
       router.push(`/pacientes/${id}`);
     }
-  }, [canEditAntecedentes, router, id]);
+  }, [canEditHistory, router, id]);
 
   const { data: patient, isLoading, error: loadError } = useQuery({
     queryKey: ['patient', id],
@@ -46,6 +47,7 @@ export default function HistorialPacientePage() {
       const response = await api.get(`/patients/${id}`);
       return response.data as Patient;
     },
+    enabled: canEditHistory,
   });
 
   const initializedPatientIdRef = useRef<string | null>(null);
@@ -105,6 +107,10 @@ export default function HistorialPacientePage() {
   const handleFieldChange = (key: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [key]: value }));
   };
+
+  if (!canEditHistory) {
+    return null;
+  }
 
   if (isLoading) {
     return (
@@ -182,7 +188,7 @@ export default function HistorialPacientePage() {
           {HISTORY_FIELDS.map((field) => (
             <div key={field.key} className="card border-surface-muted/30 bg-surface-elevated shadow-sm flex flex-col h-full">
               <div className="flex items-center gap-2 mb-4 border-b border-surface-muted/20 pb-2">
-                <FiClipboard className="w-4 h-4 text-accent" />
+                <FiClipboard className="w-4 h-4 text-accent-text" />
                 <h3 className="font-semibold text-ink-primary">{field.label}</h3>
               </div>
               

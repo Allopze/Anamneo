@@ -104,6 +104,24 @@ export class PatientsController {
     });
   }
 
+  @Get(':id/encounters')
+  findEncounterTimeline(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserData,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.patientsService.findEncounterTimeline(user, id, page || 1, limit || 10);
+  }
+
+  @Get(':id/clinical-summary')
+  getClinicalSummary(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.patientsService.getClinicalSummary(user, id);
+  }
+
   @Get(':id')
   findOne(
     @Param('id', ParseUUIDPipe) id: string,

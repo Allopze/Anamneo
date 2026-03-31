@@ -17,6 +17,8 @@ interface AuditLogEntry {
   userId: string;
   requestId?: string | null;
   action: string;
+  reason?: string | null;
+  result: string;
   diff: string | null;
   timestamp: string;
 }
@@ -29,7 +31,7 @@ interface AdminUserRow {
 
 const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   CREATE: { label: 'Creación', color: 'bg-green-100 text-green-700' },
-  UPDATE: { label: 'Actualización', color: 'bg-accent/20 text-accent' },
+  UPDATE: { label: 'Actualización', color: 'border border-status-yellow/60 bg-status-yellow/30 text-accent-text' },
   DELETE: { label: 'Eliminación', color: 'bg-status-red/20 text-status-red' },
   EXPORT: { label: 'Exportación', color: 'bg-sky-100 text-sky-700' },
   DOWNLOAD: { label: 'Descarga', color: 'bg-amber-100 text-amber-700' },
@@ -50,6 +52,49 @@ const ENTITY_LABELS: Record<string, string> = {
   UserInvitation: 'Invitación',
   PatientExport: 'Exportación pacientes',
   Auth: 'Autenticación',
+  Setting: 'Configuración',
+};
+
+const RESULT_LABELS: Record<string, { label: string; color: string }> = {
+  SUCCESS: { label: 'Exitoso', color: 'bg-green-100 text-green-700' },
+  REJECTED: { label: 'Rechazado', color: 'bg-amber-100 text-amber-700' },
+  ERROR: { label: 'Error', color: 'bg-status-red/20 text-status-red' },
+};
+
+const REASON_LABELS: Record<string, string> = {
+  AUTH_LOGIN: 'Login',
+  AUTH_LOGOUT: 'Logout',
+  AUTH_LOGIN_REJECTED: 'Login rechazado',
+  PATIENT_CREATED: 'Alta de paciente',
+  PATIENT_UPDATED: 'Actualización de paciente',
+  PATIENT_ADMIN_UPDATED: 'Actualización administrativa',
+  PATIENT_HISTORY_UPDATED: 'Historial maestro',
+  PATIENT_PROBLEM_CREATED: 'Alta de problema',
+  PATIENT_PROBLEM_UPDATED: 'Actualización de problema',
+  PATIENT_TASK_CREATED: 'Alta de seguimiento',
+  PATIENT_TASK_UPDATED: 'Actualización de seguimiento',
+  PATIENT_ARCHIVED: 'Archivo de paciente',
+  PATIENT_RESTORED: 'Restauración de paciente',
+  PATIENT_EXPORT_CSV: 'Exportación de pacientes',
+  ENCOUNTER_CREATED: 'Creación de atención',
+  ENCOUNTER_SECTION_UPDATED: 'Actualización de sección',
+  ENCOUNTER_COMPLETED: 'Cierre de atención',
+  ENCOUNTER_REOPENED: 'Reapertura de atención',
+  ENCOUNTER_CANCELLED: 'Cancelación de atención',
+  ENCOUNTER_REVIEW_STATUS_UPDATED: 'Cambio de revisión',
+  ENCOUNTER_DOCUMENT_EXPORTED: 'Exportación documental',
+  ATTACHMENT_UPLOADED: 'Carga de adjunto',
+  ATTACHMENT_DOWNLOADED: 'Descarga de adjunto',
+  ATTACHMENT_DELETED: 'Borrado de adjunto',
+  USER_INVITATION_CREATED: 'Creación de invitación',
+  USER_INVITATION_REVOKED: 'Revocación de invitación',
+  USER_UPDATED: 'Actualización de usuario',
+  USER_DEACTIVATED: 'Desactivación de usuario',
+  USER_PROFILE_UPDATED: 'Actualización de perfil',
+  USER_PASSWORD_CHANGED: 'Cambio de contraseña',
+  USER_PASSWORD_RESET: 'Reset de contraseña',
+  SETTINGS_UPDATED: 'Actualización de ajustes',
+  AUDIT_UNSPECIFIED: 'Sin clasificar',
 };
 
 export default function AuditoriaPage() {
@@ -60,6 +105,8 @@ export default function AuditoriaPage() {
     action: '',
     entityType: '',
     userId: '',
+    reason: '',
+    result: '',
     requestId: '',
     dateFrom: '',
     dateTo: '',
@@ -126,13 +173,14 @@ export default function AuditoriaPage() {
 
       <div className="filter-surface">
         <div className="flex items-center gap-2 mb-4">
-          <FiFilter className="w-4 h-4 text-accent" />
+          <FiFilter className="w-4 h-4 text-accent-text" />
           <h2 className="font-semibold text-ink-primary">Filtros operativos</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
           <div>
-            <label className="text-sm text-ink-secondary">Acción</label>
+            <label className="text-sm text-ink-secondary" htmlFor="audit-action-filter">Acción</label>
             <select
+              id="audit-action-filter"
               className="form-input"
               value={filters.action}
               onChange={(e) => {
@@ -147,8 +195,9 @@ export default function AuditoriaPage() {
             </select>
           </div>
           <div>
-            <label className="text-sm text-ink-secondary">Entidad</label>
+            <label className="text-sm text-ink-secondary" htmlFor="audit-entity-filter">Entidad</label>
             <select
+              id="audit-entity-filter"
               className="form-input"
               value={filters.entityType}
               onChange={(e) => {
@@ -163,8 +212,9 @@ export default function AuditoriaPage() {
             </select>
           </div>
           <div>
-            <label className="text-sm text-ink-secondary">Usuario</label>
+            <label className="text-sm text-ink-secondary" htmlFor="audit-user-filter">Usuario</label>
             <select
+              id="audit-user-filter"
               className="form-input"
               value={filters.userId}
               onChange={(e) => {
@@ -181,8 +231,43 @@ export default function AuditoriaPage() {
             </select>
           </div>
           <div>
-            <label className="text-sm text-ink-secondary">Desde</label>
+            <label className="text-sm text-ink-secondary" htmlFor="audit-reason-filter">Motivo</label>
+            <select
+              id="audit-reason-filter"
+              className="form-input"
+              value={filters.reason}
+              onChange={(e) => {
+                setPage(1);
+                setFilters((current) => ({ ...current, reason: e.target.value }));
+              }}
+            >
+              <option value="">Todos</option>
+              {Object.entries(REASON_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm text-ink-secondary" htmlFor="audit-result-filter">Resultado</label>
+            <select
+              id="audit-result-filter"
+              className="form-input"
+              value={filters.result}
+              onChange={(e) => {
+                setPage(1);
+                setFilters((current) => ({ ...current, result: e.target.value }));
+              }}
+            >
+              <option value="">Todos</option>
+              {Object.entries(RESULT_LABELS).map(([value, info]) => (
+                <option key={value} value={value}>{info.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm text-ink-secondary" htmlFor="audit-date-from-filter">Desde</label>
             <input
+              id="audit-date-from-filter"
               type="date"
               className="form-input"
               value={filters.dateFrom}
@@ -193,8 +278,9 @@ export default function AuditoriaPage() {
             />
           </div>
           <div>
-            <label className="text-sm text-ink-secondary">Request ID</label>
+            <label className="text-sm text-ink-secondary" htmlFor="audit-request-filter">Request ID</label>
             <input
+              id="audit-request-filter"
               className="form-input"
               value={filters.requestId}
               onChange={(e) => {
@@ -205,8 +291,9 @@ export default function AuditoriaPage() {
             />
           </div>
           <div>
-            <label className="text-sm text-ink-secondary">Hasta</label>
+            <label className="text-sm text-ink-secondary" htmlFor="audit-date-to-filter">Hasta</label>
             <input
+              id="audit-date-to-filter"
               type="date"
               className="form-input"
               value={filters.dateTo}
@@ -261,6 +348,8 @@ export default function AuditoriaPage() {
                     <th className="pb-3 font-medium text-ink-secondary">Fecha</th>
                     <th className="pb-3 font-medium text-ink-secondary">Usuario</th>
                     <th className="pb-3 font-medium text-ink-secondary">Acción</th>
+                    <th className="pb-3 font-medium text-ink-secondary">Motivo</th>
+                    <th className="pb-3 font-medium text-ink-secondary">Resultado</th>
                     <th className="pb-3 font-medium text-ink-secondary">Entidad</th>
                     <th className="pb-3 font-medium text-ink-secondary">Request ID</th>
                     <th className="pb-3 font-medium text-ink-secondary">ID Entidad</th>
@@ -289,6 +378,14 @@ export default function AuditoriaPage() {
                         <td className="py-3 pr-4">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${actionInfo.color}`}>
                             {actionInfo.label}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-4 text-ink-secondary">
+                          {REASON_LABELS[log.reason || 'AUDIT_UNSPECIFIED'] || log.reason || 'Sin clasificar'}
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(RESULT_LABELS[log.result] || RESULT_LABELS.SUCCESS).color}`}>
+                            {(RESULT_LABELS[log.result] || RESULT_LABELS.SUCCESS).label}
                           </span>
                         </td>
                         <td className="py-3 pr-4 text-ink-secondary">
@@ -349,7 +446,7 @@ export default function AuditoriaPage() {
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <FiShield className="w-10 h-10 text-accent" />
+              <FiShield className="w-10 h-10 text-accent-text" />
             </div>
             <h3 className="empty-state-title">Sin registros de auditoría</h3>
             <p className="empty-state-description">No hay movimientos que coincidan con los filtros actuales.</p>
@@ -390,6 +487,18 @@ export default function AuditoriaPage() {
                 <p className="text-xs uppercase tracking-wide text-ink-muted">Request ID</p>
                 <p className="text-sm font-mono text-ink-secondary">
                   {selectedLog.requestId || 'No disponible'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-ink-muted">Motivo</p>
+                <p className="text-sm text-ink-secondary">
+                  {REASON_LABELS[selectedLog.reason || 'AUDIT_UNSPECIFIED'] || selectedLog.reason || 'Sin clasificar'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-ink-muted">Resultado</p>
+                <p className="text-sm text-ink-secondary">
+                  {(RESULT_LABELS[selectedLog.result] || RESULT_LABELS.SUCCESS).label}
                 </p>
               </div>
               <div className="md:col-span-2">

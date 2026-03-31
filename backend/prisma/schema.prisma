@@ -30,7 +30,9 @@ model User {
   createdPatients       Patient[]               @relation("PatientCreatedBy")
   encounters            Encounter[]
   medicoEncounters      Encounter[]             @relation("EncounterMedico")
+  requestedReviewEncounters Encounter[]         @relation("EncounterReviewRequestedBy")
   reviewedEncounters    Encounter[]             @relation("EncounterReviewedBy")
+  completedEncounters   Encounter[]             @relation("EncounterCompletedBy")
   attachments           Attachment[]
   sessions              UserSession[]
   conditionCatalogLocal ConditionCatalogLocal[]
@@ -95,17 +97,22 @@ model Encounter {
   status            String    @default("EN_PROGRESO")
   reviewStatus      String    @default("NO_REQUIERE_REVISION") @map("review_status")
   reviewRequestedAt DateTime? @map("review_requested_at")
+  reviewRequestedById String? @map("review_requested_by_id")
   reviewedAt        DateTime? @map("reviewed_at")
   reviewedById      String?   @map("reviewed_by_id")
+  reviewNote        String?   @map("review_note")
   completedAt       DateTime? @map("completed_at")
   completedById     String?   @map("completed_by_id")
+  closureNote       String?   @map("closure_note")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
   patient     Patient                  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   medico      User                     @relation("EncounterMedico", fields: [medicoId], references: [id])
   createdBy   User                     @relation(fields: [createdById], references: [id])
+  reviewRequestedBy User?              @relation("EncounterReviewRequestedBy", fields: [reviewRequestedById], references: [id])
   reviewedBy  User?                    @relation("EncounterReviewedBy", fields: [reviewedById], references: [id])
+  completedBy User?                    @relation("EncounterCompletedBy", fields: [completedById], references: [id])
   sections    EncounterSection[]
   suggestions ConditionSuggestionLog[]
   attachments Attachment[]
@@ -121,6 +128,7 @@ model EncounterSection {
   encounterId String   @map("encounter_id")
   sectionKey  String   @map("section_key")
   data        String
+  schemaVersion Int    @default(1) @map("schema_version")
   completed   Boolean  @default(false)
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -185,6 +193,8 @@ model AuditLog {
   userId     String   @map("user_id")
   requestId  String?  @map("request_id")
   action     String
+  reason     String?
+  result     String   @default("SUCCESS")
   diff       String?
   timestamp  DateTime @default(now())
 
@@ -192,6 +202,8 @@ model AuditLog {
   @@index([userId])
   @@index([requestId])
   @@index([action])
+  @@index([reason])
+  @@index([result])
   @@index([timestamp])
   @@map("audit_logs")
 }

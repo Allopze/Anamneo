@@ -13,39 +13,18 @@ import { UpdateSectionDto } from './dto/update-section.dto';
 import { PREVISIONES, SEXOS, SectionKey, EncounterStatus } from '../common/types';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { parseStoredJson } from '../common/utils/encounter-sections';
+import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
 import {
   PATIENT_HISTORY_FIELD_KEYS,
   sanitizePatientHistoryFieldValue,
   sanitizePatientHistoryPayload,
 } from '../common/utils/patient-history';
 import { isDateOnlyBeforeToday } from '../common/utils/local-date';
-
-// Section order for validation
-const SECTION_ORDER: SectionKey[] = [
-  'IDENTIFICACION',
-  'MOTIVO_CONSULTA',
-  'ANAMNESIS_PROXIMA',
-  'ANAMNESIS_REMOTA',
-  'REVISION_SISTEMAS',
-  'EXAMEN_FISICO',
-  'SOSPECHA_DIAGNOSTICA',
-  'TRATAMIENTO',
-  'RESPUESTA_TRATAMIENTO',
-  'OBSERVACIONES',
-];
-
-const SECTION_LABELS: Record<SectionKey, string> = {
-  IDENTIFICACION: 'Identificación del paciente',
-  MOTIVO_CONSULTA: 'Motivo de consulta',
-  ANAMNESIS_PROXIMA: 'Anamnesis próxima',
-  ANAMNESIS_REMOTA: 'Anamnesis remota',
-  REVISION_SISTEMAS: 'Revisión por sistemas',
-  EXAMEN_FISICO: 'Examen físico',
-  SOSPECHA_DIAGNOSTICA: 'Sospecha diagnóstica',
-  TRATAMIENTO: 'Tratamiento',
-  RESPUESTA_TRATAMIENTO: 'Respuesta al tratamiento',
-  OBSERVACIONES: 'Observaciones',
-};
+import {
+  ENCOUNTER_SECTION_LABELS as SECTION_LABELS,
+  ENCOUNTER_SECTION_ORDER as SECTION_ORDER,
+  getEncounterSectionSchemaVersion,
+} from '../common/utils/encounter-section-meta';
 
 const REQUIRED_COMPLETION_SECTIONS: SectionKey[] = [
   'IDENTIFICACION',
@@ -76,6 +55,8 @@ const IDENTIFICATION_SNAPSHOT_FIELD_META = [
 
 const ORDER_STATUSES = ['PENDIENTE', 'RECIBIDO', 'REVISADO'] as const;
 const CHOSEN_MODES = ['AUTO', 'MANUAL'] as const;
+const REVIEW_NOTE_MIN_LENGTH = 10;
+const CLOSURE_NOTE_MIN_LENGTH = 15;
 const REVISION_SISTEMAS_KEYS = [
   'psiquico',
   'cabeza',
@@ -148,6 +129,15 @@ export class EncountersService {
     }
 
     return trimmed.slice(0, maxLength);
+  }
+
+  private sanitizeRequiredWorkflowNote(value: unknown, label: string, minLength: number, maxLength: number) {
+    const sanitized = this.sanitizeText(value, maxLength);
+    if (!sanitized || sanitized.length < minLength) {
+      throw new BadRequestException(`${label} debe tener al menos ${minLength} caracteres`);
+    }
+
+    return sanitized;
   }
 
   private sanitizeTextListField(value: unknown, maxLength: number) {
@@ -550,6 +540,7 @@ export class EncountersService {
     return {
       ...(this.sanitizeTextListField(data.observaciones, 5000) !== undefined ? { observaciones: this.sanitizeTextListField(data.observaciones, 5000) } : {}),
       ...(this.sanitizeTextListField(data.notasInternas, 3000) !== undefined ? { notasInternas: this.sanitizeTextListField(data.notasInternas, 3000) } : {}),
+      ...(this.sanitizeTextListField(data.resumenClinico, 5000) !== undefined ? { resumenClinico: this.sanitizeTextListField(data.resumenClinico, 5000) } : {}),
     };
   }
 
@@ -783,9 +774,24 @@ export class EncountersService {
               throw new BadRequestException('No se puede crear una atención para un paciente archivado');
             }
 
+            if (!user.isAdmin && patient.createdById !== effectiveMedicoId) {
+              const hasEncounterAccess = await tx.encounter.findFirst({
+                where: {
+                  patientId,
+                  medicoId: effectiveMedicoId,
+                },
+                select: { id: true },
+              });
+
+              if (!hasEncounterAccess) {
+                throw new NotFoundException('Paciente no encontrado');
+              }
+            }
+
             const inProgress = await tx.encounter.findMany({
               where: {
                 patientId,
+                medicoId: effectiveMedicoId,
                 status: 'EN_PROGRESO',
               },
               orderBy: { createdAt: 'desc' },
@@ -847,6 +853,7 @@ export class EncountersService {
                     return {
                       sectionKey: key,
                       data: JSON.stringify(sectionData),
+                      schemaVersion: getEncounterSectionSchemaVersion(key),
                       completed: false,
                     };
                   }),
@@ -941,7 +948,13 @@ export class EncountersService {
           createdBy: {
             select: { id: true, nombre: true },
           },
+          reviewRequestedBy: {
+            select: { id: true, nombre: true },
+          },
           reviewedBy: {
+            select: { id: true, nombre: true },
+          },
+          completedBy: {
             select: { id: true, nombre: true },
           },
           sections: {
@@ -999,7 +1012,13 @@ export class EncountersService {
         createdBy: {
           select: { id: true, nombre: true, email: true },
         },
+        reviewRequestedBy: {
+          select: { id: true, nombre: true },
+        },
         reviewedBy: {
+          select: { id: true, nombre: true },
+        },
+        completedBy: {
           select: { id: true, nombre: true },
         },
         suggestions: {
@@ -1036,6 +1055,15 @@ export class EncountersService {
       orderBy: { createdAt: 'desc' },
       include: {
         createdBy: {
+          select: { id: true, nombre: true },
+        },
+        reviewRequestedBy: {
+          select: { id: true, nombre: true },
+        },
+        reviewedBy: {
+          select: { id: true, nombre: true },
+        },
+        completedBy: {
           select: { id: true, nombre: true },
         },
         sections: {
@@ -1104,6 +1132,7 @@ export class EncountersService {
       where: { id: section.id },
       data: {
         data: JSON.stringify(sanitizedData),
+        schemaVersion: getEncounterSectionSchemaVersion(sectionKey),
         completed: dto.completed ?? section.completed,
       },
     });
@@ -1115,6 +1144,7 @@ export class EncountersService {
       action: 'UPDATE',
       diff: {
         sectionKey,
+        schemaVersion: getEncounterSectionSchemaVersion(sectionKey),
         data: JSON.stringify(sanitizedData),
         completed: dto.completed,
       },
@@ -1123,7 +1153,7 @@ export class EncountersService {
     return updatedSection;
   }
 
-  async complete(id: string, userId: string) {
+  async complete(id: string, userId: string, closureNote?: string) {
     const encounter = await this.prisma.encounter.findUnique({
       where: { id },
       include: { sections: true, patient: true },
@@ -1169,6 +1199,13 @@ export class EncountersService {
       );
     }
 
+    const sanitizedClosureNote = this.sanitizeRequiredWorkflowNote(
+      closureNote,
+      'La nota de cierre',
+      CLOSURE_NOTE_MIN_LENGTH,
+      1000,
+    );
+
     const updated = await this.prisma.encounter.update({
       where: { id },
       data: {
@@ -1176,14 +1213,18 @@ export class EncountersService {
         reviewStatus: 'REVISADA_POR_MEDICO',
         reviewedAt: new Date(),
         reviewedById: userId,
+        reviewNote: sanitizedClosureNote,
         completedAt: new Date(),
         completedById: userId,
+        closureNote: sanitizedClosureNote,
       },
       include: {
         sections: true,
         patient: true,
         createdBy: { select: { id: true, nombre: true } },
+        reviewRequestedBy: { select: { id: true, nombre: true } },
         reviewedBy: { select: { id: true, nombre: true } },
+        completedBy: { select: { id: true, nombre: true } },
       },
     });
 
@@ -1192,13 +1233,13 @@ export class EncountersService {
       entityId: id,
       userId,
       action: 'UPDATE',
-      diff: { status: 'COMPLETADO' },
+      diff: { status: 'COMPLETADO', closureNote: sanitizedClosureNote },
     });
 
     return this.formatEncounter(updated);
   }
 
-  async reopen(id: string, userId: string) {
+  async reopen(id: string, userId: string, note: string) {
     const encounter = await this.prisma.encounter.findUnique({
       where: { id },
     });
@@ -1211,22 +1252,34 @@ export class EncountersService {
       throw new BadRequestException('Solo se pueden reabrir atenciones completadas');
     }
 
+    const sanitizedNote = this.sanitizeRequiredWorkflowNote(
+      note,
+      'La nota de reapertura',
+      REVIEW_NOTE_MIN_LENGTH,
+      1000,
+    );
+
     const updated = await this.prisma.encounter.update({
       where: { id },
       data: {
         status: 'EN_PROGRESO',
         reviewStatus: 'NO_REQUIERE_REVISION',
         reviewRequestedAt: null,
+        reviewRequestedById: null,
         reviewedAt: null,
         reviewedById: null,
+        reviewNote: null,
         completedAt: null,
         completedById: null,
+        closureNote: null,
       },
       include: {
         sections: true,
         patient: true,
         createdBy: { select: { id: true, nombre: true } },
+        reviewRequestedBy: { select: { id: true, nombre: true } },
         reviewedBy: { select: { id: true, nombre: true } },
+        completedBy: { select: { id: true, nombre: true } },
       },
     });
 
@@ -1235,7 +1288,7 @@ export class EncountersService {
       entityId: id,
       userId,
       action: 'UPDATE',
-      diff: { status: 'EN_PROGRESO', reopenedBy: userId },
+      diff: { status: 'EN_PROGRESO', reopenedBy: userId, note: sanitizedNote },
     });
 
     return this.formatEncounter(updated);
@@ -1296,27 +1349,44 @@ export class EncountersService {
       throw new ForbiddenException('No tiene permisos para actualizar la revisión de esta atención');
     }
 
+    if (encounter.status === 'CANCELADO') {
+      throw new BadRequestException('No se puede revisar una atención cancelada');
+    }
+
     if (reviewStatus === 'REVISADA_POR_MEDICO' && user.role !== 'MEDICO') {
       throw new ForbiddenException('Solo un médico puede marcar la atención como revisada');
     }
 
-    if (reviewStatus === 'LISTA_PARA_REVISION' && user.role === 'MEDICO') {
-      throw new BadRequestException('La revisión por médico debe marcarse como revisada, no como pendiente');
+    if (reviewStatus === 'LISTA_PARA_REVISION' && user.role !== 'ASISTENTE') {
+      throw new BadRequestException('Solo un asistente puede enviar una atención a revisión médica');
     }
+
+    if (reviewStatus === 'NO_REQUIERE_REVISION' && user.role !== 'MEDICO') {
+      throw new ForbiddenException('Solo un médico puede despejar una revisión pendiente');
+    }
+
+    const requiresNote = reviewStatus === 'LISTA_PARA_REVISION' || reviewStatus === 'REVISADA_POR_MEDICO';
+    const sanitizedNote = requiresNote
+      ? this.sanitizeRequiredWorkflowNote(note, 'La nota de revisión', REVIEW_NOTE_MIN_LENGTH, 500)
+      : this.sanitizeText(note, 500) ?? null;
 
     const updated = await this.prisma.encounter.update({
       where: { id },
       data: {
         reviewStatus,
         reviewRequestedAt: reviewStatus === 'LISTA_PARA_REVISION' ? new Date() : null,
+        reviewRequestedById: reviewStatus === 'LISTA_PARA_REVISION' ? user.id : null,
         reviewedAt: reviewStatus === 'REVISADA_POR_MEDICO' ? new Date() : null,
         reviewedById: reviewStatus === 'REVISADA_POR_MEDICO' ? user.id : null,
+        reviewNote: sanitizedNote,
       },
       include: {
         sections: true,
         patient: true,
         createdBy: { select: { id: true, nombre: true } },
+        reviewRequestedBy: { select: { id: true, nombre: true } },
         reviewedBy: { select: { id: true, nombre: true } },
+        completedBy: { select: { id: true, nombre: true } },
         tasks: {
           orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
           include: { createdBy: { select: { id: true, nombre: true } } },
@@ -1331,7 +1401,7 @@ export class EncountersService {
       action: 'UPDATE',
       diff: {
         reviewStatus,
-        note: note?.trim() || null,
+        note: sanitizedNote,
       },
     });
 
@@ -1447,8 +1517,10 @@ export class EncountersService {
         : encounter.patient,
       tasks: (encounter.tasks || []).map((task: any) => this.formatTask(task)),
       sections: sortedSections.map((section: any) => ({
-        ...section,
-        data: parseSectionData(section.data) ?? {},
+        ...formatEncounterSectionForRead({
+          ...section,
+          data: parseSectionData(section.data) ?? {},
+        }),
         label: SECTION_LABELS[section.sectionKey as SectionKey],
         order: SECTION_ORDER.indexOf(section.sectionKey as SectionKey),
       })),

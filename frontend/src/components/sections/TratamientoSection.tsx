@@ -63,7 +63,7 @@ export default function TratamientoSection({
           actions={!readOnly && onRequestAttachToOrder ? (
             <button
               type="button"
-              className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:text-accent"
+              className="inline-flex items-center gap-2 text-sm font-medium text-accent-text hover:text-ink"
               onClick={() => onRequestAttachToOrder(type, orderId)}
             >
               <FiPaperclip className="h-4 w-4" />

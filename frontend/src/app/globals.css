@@ -153,7 +153,7 @@ body {
 
   /* ── Cards ────────────────────── */
   .card {
-    @apply bg-surface-elevated rounded-card p-6 transition-all duration-200 shadow-soft;
+    @apply bg-surface-elevated rounded-2xl border border-frame/10 p-6 shadow-soft;
   }
 
   .card-hover {
@@ -162,27 +162,27 @@ body {
 
   /* ── Sections ─────────────────── */
   .section-intro {
-    @apply rounded-card bg-surface-base/70 px-4 py-3 text-body text-ink-secondary;
+    @apply rounded-2xl border border-surface-muted/35 bg-surface-base/70 px-4 py-3 text-body text-ink-secondary;
   }
 
   .section-block {
-    @apply rounded-card bg-surface-elevated p-4;
+    @apply rounded-2xl border border-surface-muted/35 bg-surface-elevated p-4;
   }
 
   .section-block-muted {
-    @apply rounded-card bg-surface-base/50 p-4;
+    @apply rounded-2xl border border-surface-muted/30 bg-surface-base/50 p-4;
   }
 
   .section-block-title {
-    @apply text-label font-semibold uppercase tracking-wide text-ink-secondary;
+    @apply text-sm font-semibold text-ink;
   }
 
   .section-block-description {
-    @apply mt-1 text-body text-ink-muted;
+    @apply mt-1 text-body text-ink-secondary;
   }
 
   .section-callout {
-    @apply rounded-card px-4 py-3;
+    @apply rounded-2xl px-4 py-3;
   }
 
   .section-callout-info {
@@ -190,7 +190,7 @@ body {
   }
 
   .section-callout-warning {
-    @apply bg-status-yellow/20 text-ink border border-status-yellow/40;
+    @apply bg-status-yellow/40 text-accent-text border border-status-yellow/70;
   }
 
   .section-callout-success {
@@ -210,7 +210,7 @@ body {
   }
 
   .section-add-button {
-    @apply inline-flex w-full items-center justify-center gap-2 rounded-card border-2 border-dashed border-surface-muted px-4 py-3 text-body font-medium text-ink-muted transition-colors hover:border-accent hover:text-ink;
+    @apply inline-flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-surface-muted px-4 py-3 text-body font-medium text-ink-muted transition-colors hover:border-frame/30 hover:text-ink;
   }
 
   .section-icon-button {
@@ -260,7 +260,7 @@ body {
   }
 
   .empty-state-icon {
-    @apply w-20 h-20 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-6 transition-transform hover:scale-105;
+    @apply w-20 h-20 rounded-full border border-status-yellow/60 bg-status-yellow/35 flex items-center justify-center mx-auto mb-6 transition-transform hover:scale-105;
   }
 
   .empty-state-title {

@@ -119,7 +119,7 @@ export default function NuevaAtencionPage() {
                   disabled={createMutation.isPending}
                   className="w-full flex items-center gap-4 p-4 hover:bg-surface-muted/50 transition-colors text-left"
                 >
-                  <div className="w-10 h-10 bg-accent/20 rounded-full flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full border border-status-yellow/60 bg-status-yellow/35 flex items-center justify-center">
                     <FiUser className="w-5 h-5 text-ink-secondary" />
                   </div>
                   <div className="flex-1">
@@ -128,7 +128,7 @@ export default function NuevaAtencionPage() {
                       {patient.rut || 'Sin RUT'} • {patient.edad} años
                     </p>
                   </div>
-                  <FiPlus className="w-5 h-5 text-accent" />
+                  <FiPlus className="w-5 h-5 text-accent-text" />
                 </button>
               ))
             ) : (
