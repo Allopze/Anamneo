@@ -148,7 +148,7 @@ export default function ExamenFisicoSection({ data, onChange, readOnly }: Props)
               type="text"
               value={signosVitales.imc || '--'}
               disabled
-              className="form-input bg-slate-50"
+              className="form-input bg-surface-base/40"
             />
           </div>
         </div>

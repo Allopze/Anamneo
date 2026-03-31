@@ -6,10 +6,10 @@ interface Props {
   stroke?: string;
 }
 
-export default function MiniTrendChart({ values, height = 56, stroke = '#2563eb' }: Props) {
+export default function MiniTrendChart({ values, height = 56, stroke = '#A2A29B' }: Props) {
   if (values.length < 2) {
     return (
-      <div className="flex h-14 items-center justify-center rounded-lg bg-slate-50 text-xs text-slate-400">
+      <div className="flex h-14 items-center justify-center rounded-card bg-surface-base/60 text-micro text-ink-muted">
         Sin suficientes datos
       </div>
     );
@@ -26,18 +26,18 @@ export default function MiniTrendChart({ values, height = 56, stroke = '#2563eb'
   });
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-14 w-full overflow-visible rounded-lg bg-slate-50">
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-14 w-full overflow-visible rounded-card bg-surface-base/40">
       <polyline
         fill="none"
         stroke={stroke}
-        strokeWidth="2.5"
+        strokeWidth="2"
         points={points.join(' ')}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       {points.map((point, index) => {
         const [cx, cy] = point.split(',');
-        return <circle key={index} cx={cx} cy={cy} r="2.5" fill={stroke} />;
+        return <circle key={index} cx={cx} cy={cy} r="2.5" fill="#E9F34A" />;
       })}
     </svg>
   );

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import * as PDFDocument from 'pdfkit';
 
@@ -29,9 +30,24 @@ const REVIEW_STATUS_MAP: Record<string, string> = {
   REVISADA_POR_MEDICO: 'Revisada por medico',
 };
 
+const IDENTIFICATION_SNAPSHOT_FIELD_META = [
+  { key: 'nombre', label: 'nombre' },
+  { key: 'rut', label: 'RUT' },
+  { key: 'rutExempt', label: 'exención de RUT' },
+  { key: 'rutExemptReason', label: 'motivo de exención' },
+  { key: 'edad', label: 'edad' },
+  { key: 'sexo', label: 'sexo' },
+  { key: 'prevision', label: 'previsión' },
+  { key: 'trabajo', label: 'trabajo' },
+  { key: 'domicilio', label: 'domicilio' },
+] as const;
+
 @Injectable()
 export class EncountersPdfService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   private async loadEncounterForPdf(encounterId: string, user: RequestUser) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
@@ -66,6 +82,50 @@ export class EncountersPdfService {
     }
 
     return sectionsMap;
+  }
+
+  private buildIdentificationSnapshotFromPatient(patient: any) {
+    return {
+      nombre: patient?.nombre ?? '',
+      rut: patient?.rut ?? '',
+      rutExempt: Boolean(patient?.rutExempt),
+      rutExemptReason: patient?.rutExemptReason ?? '',
+      edad: patient?.edad ?? '',
+      sexo: patient?.sexo ?? '',
+      prevision: patient?.prevision ?? '',
+      trabajo: patient?.trabajo ?? '',
+      domicilio: patient?.domicilio ?? '',
+    };
+  }
+
+  private normalizeIdentificationComparisonValue(value: unknown) {
+    if (value === null || value === undefined) {
+      return '';
+    }
+
+    if (typeof value === 'string') {
+      return value.trim();
+    }
+
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? String(value) : '';
+    }
+
+    return JSON.stringify(value);
+  }
+
+  private getIdentificationDifferenceLabels(encounter: any, ident: Record<string, unknown>) {
+    const patientSnapshot = this.buildIdentificationSnapshotFromPatient(encounter.patient);
+
+    return IDENTIFICATION_SNAPSHOT_FIELD_META
+      .filter(({ key }) => (
+        this.normalizeIdentificationComparisonValue(ident[key]) !== this.normalizeIdentificationComparisonValue(patientSnapshot[key])
+      ))
+      .map(({ label }) => label);
   }
 
   private async buildDocumentBuffer(
@@ -118,8 +178,7 @@ export class EncountersPdfService {
   async generatePdf(encounterId: string, user: RequestUser): Promise<Buffer> {
     const encounter = await this.loadEncounterForPdf(encounterId, user);
     const sectionsMap = this.buildSectionsMap(encounter.sections);
-
-    return this.buildDocumentBuffer(
+    const pdfBuffer = await this.buildDocumentBuffer(
       `Ficha Clínica - ${encounter.patient.nombre}`,
       encounter.createdBy?.nombre || 'Sistema',
       (doc, pageWidth) => {
@@ -178,6 +237,7 @@ export class EncountersPdfService {
 
       // ── 1. Identificación ──
       const ident = sectionsMap['IDENTIFICACION'] || {};
+      const identificationDifferences = this.getIdentificationDifferenceLabels(encounter, ident);
       sectionTitle(1, 'IDENTIFICACIÓN DEL PACIENTE');
       field('Nombre', ident.nombre || encounter.patient.nombre);
       field('RUT', ident.rut || encounter.patient.rut || 'Sin RUT');
@@ -186,6 +246,18 @@ export class EncountersPdfService {
       field('Previsión', PREVISION_MAP[ident.prevision] || ident.prevision);
       field('Trabajo', ident.trabajo);
       field('Domicilio', ident.domicilio);
+      if (identificationDifferences.length > 0) {
+        doc.moveDown(0.3);
+        doc
+          .fontSize(9)
+          .font('Helvetica-Oblique')
+          .fillColor('#b45309')
+          .text(
+            `Aviso: esta identificación corresponde al snapshot de la atención y hoy difiere de la ficha maestra del paciente en: ${identificationDifferences.join(', ')}.`,
+          )
+          .fillColor('#000000');
+        doc.fontSize(10).font('Helvetica');
+      }
       doc.moveDown(0.5);
 
       // ── 2. Motivo de consulta ──
@@ -382,6 +454,23 @@ export class EncountersPdfService {
 
       },
     );
+
+    await this.auditService.log({
+      entityType: 'Encounter',
+      entityId: encounter.id,
+      userId: user.id,
+      action: 'EXPORT',
+      diff: {
+        export: {
+          document: 'ficha_clinica_pdf',
+          encounterId: encounter.id,
+          patientId: encounter.patientId,
+          reviewStatus: encounter.reviewStatus,
+        },
+      },
+    });
+
+    return pdfBuffer;
   }
 
   async generateFocusedPdf(
@@ -399,7 +488,7 @@ export class EncountersPdfService {
       derivacion: 'INTERCONSULTA / DERIVACION',
     } as const;
 
-    return this.buildDocumentBuffer(
+    const pdfBuffer = await this.buildDocumentBuffer(
       `${titleMap[kind]} - ${encounter.patient.nombre}`,
       encounter.createdBy?.nombre || 'Sistema',
       (doc, pageWidth) => {
@@ -471,5 +560,22 @@ export class EncountersPdfService {
         });
       },
     );
+
+    await this.auditService.log({
+      entityType: 'Encounter',
+      entityId: encounter.id,
+      userId: user.id,
+      action: 'EXPORT',
+      diff: {
+        export: {
+          document: kind,
+          encounterId: encounter.id,
+          patientId: encounter.patientId,
+          reviewStatus: encounter.reviewStatus,
+        },
+      },
+    });
+
+    return pdfBuffer;
   }
 }

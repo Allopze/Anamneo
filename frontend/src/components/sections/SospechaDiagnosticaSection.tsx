@@ -67,7 +67,7 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly }:
               className="section-item-card space-y-3"
             >
               <div className="flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-sm font-medium text-primary-700">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20 text-sm font-medium text-accent">
                   {sospecha.prioridad}
                 </span>
 
@@ -126,7 +126,7 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly }:
           )}
 
           {sospechas.length === 0 && readOnly && (
-            <p className="py-4 text-center text-slate-500">
+            <p className="py-4 text-center text-ink-muted">
               No se registraron sospechas diagnósticas.
             </p>
           )}

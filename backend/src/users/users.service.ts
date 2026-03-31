@@ -5,6 +5,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import { CreateUserInvitationDto } from './dto/create-user-invitation.dto';
+import { MailService } from '../mail/mail.service';
+import { AuditService } from '../audit/audit.service';
 
 const BCRYPT_ROUNDS = 12;
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -16,7 +18,11 @@ type SessionMetadata = {
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly mailService: MailService,
+    private readonly auditService: AuditService,
+  ) {}
 
   private normalizeEmail(email: string) {
     return email.trim().toLowerCase();
@@ -94,7 +100,7 @@ export class UsersService {
 
     if (createUserDto.medicoId) {
       const medico = await this.prisma.user.findUnique({ where: { id: createUserDto.medicoId } });
-      if (!medico || medico.role !== 'MEDICO') {
+      if (!medico || medico.role !== 'MEDICO' || !medico.active) {
         throw new NotFoundException('Médico asignado no encontrado');
       }
     }
@@ -168,6 +174,7 @@ export class UsersService {
 
   async createInvitation(invitedById: string, dto: CreateUserInvitationDto) {
     const email = this.normalizeEmail(dto.email);
+    let assignedMedicoName: string | null = null;
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
@@ -182,19 +189,21 @@ export class UsersService {
       throw new ConflictException('Un asistente invitado debe estar asignado a un médico');
     }
 
-    if (dto.role === 'MEDICO' && dto.medicoId) {
-      throw new ConflictException('Un médico invitado no puede tener medicoId asignado');
+    if ((dto.role === 'MEDICO' || dto.role === 'ADMIN') && dto.medicoId) {
+      throw new ConflictException(`Un ${dto.role === 'ADMIN' ? 'administrador' : 'médico'} invitado no puede tener medicoId asignado`);
     }
 
     if (dto.medicoId) {
       const medico = await this.prisma.user.findUnique({
         where: { id: dto.medicoId },
-        select: { id: true, role: true, active: true },
+        select: { id: true, role: true, active: true, nombre: true },
       });
 
       if (!medico || medico.role !== 'MEDICO' || !medico.active) {
         throw new NotFoundException('Médico asignado no encontrado');
       }
+
+      assignedMedicoName = medico.nombre;
     }
 
     const now = new Date();
@@ -230,9 +239,37 @@ export class UsersService {
       },
     });
 
+    const delivery = await this.mailService.sendInvitationEmail({
+      email,
+      role: dto.role,
+      token,
+      expiresAt,
+      assignedMedicoName,
+    });
+
+    await this.auditService.log({
+      entityType: 'UserInvitation',
+      entityId: invitation.id,
+      userId: invitedById,
+      action: 'CREATE',
+      diff: {
+        created: {
+          id: invitation.id,
+          email: invitation.email,
+          role: invitation.role,
+          medicoId: invitation.medicoId,
+          expiresAt: invitation.expiresAt,
+          emailSent: delivery.sent,
+        },
+      },
+    });
+
     return {
       ...invitation,
       token,
+      inviteUrl: delivery.inviteUrl,
+      emailSent: delivery.sent,
+      emailError: delivery.reason,
     };
   }
 
@@ -262,6 +299,72 @@ export class UsersService {
       where: { id },
       data: { acceptedAt: new Date() },
     });
+  }
+
+  async listInvitations() {
+    return this.prisma.userInvitation.findMany({
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        medicoId: true,
+        invitedById: true,
+        expiresAt: true,
+        acceptedAt: true,
+        revokedAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async revokeInvitation(id: string, actorUserId: string) {
+    const invitation = await this.prisma.userInvitation.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        acceptedAt: true,
+        revokedAt: true,
+      },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitación no encontrada');
+    }
+
+    if (invitation.acceptedAt || invitation.revokedAt) {
+      throw new ConflictException('La invitación ya no está activa');
+    }
+
+    const revoked = await this.prisma.userInvitation.update({
+      where: { id },
+      data: { revokedAt: new Date() },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        medicoId: true,
+        revokedAt: true,
+      },
+    });
+
+    await this.auditService.log({
+      entityType: 'UserInvitation',
+      entityId: revoked.id,
+      userId: actorUserId,
+      action: 'UPDATE',
+      diff: {
+        revoked: {
+          id: revoked.id,
+          email: revoked.email,
+          role: revoked.role,
+          medicoId: revoked.medicoId,
+          revokedAt: revoked.revokedAt,
+        },
+      },
+    });
+
+    return revoked;
   }
 
   async findAuthById(id: string) {
@@ -401,7 +504,7 @@ export class UsersService {
     });
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async update(id: string, updateUserDto: UpdateUserDto, actorUserId: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
 
     if (!user) {
@@ -456,12 +559,12 @@ export class UsersService {
 
     if (nextMedicoId) {
       const medico = await this.prisma.user.findUnique({ where: { id: nextMedicoId } });
-      if (!medico || medico.role !== 'MEDICO') {
+      if (!medico || medico.role !== 'MEDICO' || !medico.active) {
         throw new NotFoundException('Médico asignado no encontrado');
       }
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data,
       select: {
@@ -475,9 +578,30 @@ export class UsersService {
         updatedAt: true,
       },
     });
+
+    await this.auditService.log({
+      entityType: 'User',
+      entityId: updated.id,
+      userId: actorUserId,
+      action: 'UPDATE',
+      diff: {
+        before: {
+          id: user.id,
+          email: user.email,
+          nombre: user.nombre,
+          role: user.role,
+          medicoId: user.medicoId,
+          isAdmin: user.isAdmin,
+          active: user.active,
+        },
+        after: updated,
+      },
+    });
+
+    return updated;
   }
 
-  async remove(id: string) {
+  async remove(id: string, actorUserId: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
 
     if (!user) {
@@ -487,7 +611,7 @@ export class UsersService {
     await this.assertNotLeavingSystemWithoutAdmin(user, { active: false });
 
     // Soft delete - just deactivate
-    return this.prisma.user.update({
+    const removed = await this.prisma.user.update({
       where: { id },
       data: { active: false },
       select: {
@@ -496,6 +620,22 @@ export class UsersService {
         active: true,
       },
     });
+
+    await this.auditService.log({
+      entityType: 'User',
+      entityId: removed.id,
+      userId: actorUserId,
+      action: 'UPDATE',
+      diff: {
+        deactivated: {
+          id: removed.id,
+          email: removed.email,
+          active: removed.active,
+        },
+      },
+    });
+
+    return removed;
   }
 
   async updateProfile(id: string, data: { nombre?: string; email?: string }) {
@@ -504,18 +644,20 @@ export class UsersService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    if (data.email && data.email !== user.email) {
-      const existing = await this.prisma.user.findUnique({ where: { email: data.email } });
+    const normalizedEmail = data.email?.trim().toLowerCase();
+
+    if (normalizedEmail && normalizedEmail !== user.email) {
+      const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
       if (existing) {
         throw new ConflictException('El correo electrónico ya está registrado');
       }
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: {
         ...(data.nombre !== undefined && { nombre: data.nombre }),
-        ...(data.email !== undefined && { email: data.email }),
+        ...(normalizedEmail !== undefined && { email: normalizedEmail }),
       },
       select: {
         id: true,
@@ -526,6 +668,27 @@ export class UsersService {
         isAdmin: true,
       },
     });
+
+    await this.auditService.log({
+      entityType: 'User',
+      entityId: updated.id,
+      userId: id,
+      action: 'UPDATE',
+      diff: {
+        profile: {
+          before: {
+            nombre: user.nombre,
+            email: user.email,
+          },
+          after: {
+            nombre: updated.nombre,
+            email: updated.email,
+          },
+        },
+      },
+    });
+
+    return updated;
   }
 
   async changePassword(id: string, currentPassword: string, newPassword: string) {
@@ -544,9 +707,19 @@ export class UsersService {
       where: { id },
       data: { passwordHash },
     });
+
+    await this.auditService.log({
+      entityType: 'User',
+      entityId: user.id,
+      userId: id,
+      action: 'PASSWORD_CHANGED',
+      diff: {
+        selfService: true,
+      },
+    });
   }
 
-  async resetPassword(id: string, temporaryPassword: string) {
+  async resetPassword(id: string, temporaryPassword: string, actorUserId: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
 
     if (!user) {
@@ -568,6 +741,20 @@ export class UsersService {
     await this.prisma.user.update({
       where: { id },
       data: { passwordHash },
+    });
+
+    await this.auditService.log({
+      entityType: 'User',
+      entityId: user.id,
+      userId: actorUserId,
+      action: 'PASSWORD_CHANGED',
+      diff: {
+        reset: {
+          id: user.id,
+          email: user.email,
+          temporary: true,
+        },
+      },
     });
 
     return { message: 'Contraseña restablecida correctamente' };

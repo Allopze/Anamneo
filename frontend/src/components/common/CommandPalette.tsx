@@ -134,29 +134,29 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm"
+        className="fixed inset-0 z-50 bg-ink-primary/50 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
-        <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden" role="dialog" aria-modal="true" aria-label="Búsqueda rápida">
+        <div className="w-full max-w-lg bg-surface-elevated rounded-xl shadow-2xl border border-surface-muted/30 overflow-hidden" role="dialog" aria-modal="true" aria-label="Búsqueda rápida">
           {/* Search input */}
-          <div className="flex items-center gap-3 px-4 border-b border-slate-200">
-            <FiSearch className="w-5 h-5 text-slate-400 shrink-0" />
+          <div className="flex items-center gap-3 px-4 border-b border-surface-muted/30">
+            <FiSearch className="w-5 h-5 text-ink-muted shrink-0" />
             <input
               ref={inputRef}
               type="text"
               value={query}
               onChange={(e) => handleChange(e.target.value)}
               placeholder="Buscar pacientes, atenciones..."
-              className="w-full py-4 text-base outline-none placeholder:text-slate-400"
+              className="w-full py-4 text-base outline-none placeholder:text-ink-muted"
               aria-label="Buscar"
               aria-autocomplete="list"
               role="combobox"
               aria-expanded={results.length > 0}
             />
-            <kbd className="hidden sm:inline-flex px-2 py-0.5 text-xs font-medium text-slate-400 bg-slate-100 border border-slate-200 rounded">
+            <kbd className="hidden sm:inline-flex px-2 py-0.5 text-xs font-medium text-ink-muted bg-surface-muted border border-surface-muted/30 rounded">
               ESC
             </kbd>
           </div>
@@ -165,12 +165,12 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
           <div className="max-h-80 overflow-y-auto">
             {loading && (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary-500 border-t-transparent" />
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-accent border-t-transparent" />
               </div>
             )}
 
             {!loading && query.trim() && results.length === 0 && (
-              <div className="text-center py-8 text-slate-500">
+              <div className="text-center py-8 text-ink-muted">
                 <p className="text-sm">No se encontraron resultados para &ldquo;{query}&rdquo;</p>
               </div>
             )}
@@ -184,7 +184,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
                   .filter((group) => group.items.length > 0)
                   .map((group) => (
                     <div key={group.label}>
-                      <div className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                      <div className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
                         {group.label}
                       </div>
                       <ul role="listbox">
@@ -198,8 +198,8 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
                               <button
                                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
                                   isSelected
-                                    ? 'bg-primary-50 text-primary-700'
-                                    : 'hover:bg-slate-50'
+                                    ? 'bg-accent/10 text-accent'
+                                    : 'hover:bg-surface-base/40'
                                 }`}
                                 onClick={() => navigateTo(result)}
                                 onMouseEnter={() => setSelectedIndex(currentIndex)}
@@ -207,7 +207,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
                                 <div
                                   className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                                     result.type === 'patient'
-                                      ? 'bg-blue-100 text-blue-600'
+                                      ? 'bg-accent/20 text-blue-600'
                                       : 'bg-emerald-100 text-emerald-600'
                                   }`}
                                 >
@@ -219,9 +219,9 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium truncate">{result.title}</p>
-                                  <p className="text-xs text-slate-500 truncate">{result.subtitle}</p>
+                                  <p className="text-xs text-ink-muted truncate">{result.subtitle}</p>
                                 </div>
-                                <FiArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+                                <FiArrowRight className="w-4 h-4 text-ink-muted shrink-0" />
                               </button>
                             </li>
                           );
@@ -233,7 +233,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
             )}
 
             {!loading && !query.trim() && (
-              <div className="px-4 py-6 text-center text-slate-400">
+              <div className="px-4 py-6 text-center text-ink-muted">
                 <p className="text-sm">Escribe para buscar pacientes y atenciones</p>
                 <p className="text-xs mt-1">Usa ↑↓ para navegar, Enter para seleccionar, Ctrl+K o ⌘K para abrir</p>
               </div>

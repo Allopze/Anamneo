@@ -54,6 +54,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuthStore();
+  const invitationTokenFromQuery = searchParams.get('token')?.trim() || null;
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [availableRoles, setAvailableRoles] = useState<RegisterRole[]>(['ADMIN']);
@@ -66,7 +67,6 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
-    getValues,
     setValue,
     watch,
     formState: { errors, isSubmitting },
@@ -126,8 +126,6 @@ export default function RegisterPage() {
     let cancelled = false;
 
     const loadBootstrapState = async () => {
-      const tokenFromQuery = searchParams.get('token')?.trim() || null;
-
       try {
         const response = await api.get('/auth/bootstrap');
         if (cancelled) {
@@ -137,14 +135,14 @@ export default function RegisterPage() {
         if (response.data?.hasAdmin) {
           setIsInvitationMode(true);
 
-          if (!tokenFromQuery) {
+          if (!invitationTokenFromQuery) {
             setInvitationError('Necesita una invitación válida para crear una cuenta.');
             setAvailableRoles([]);
             return;
           }
 
           try {
-            const invitationResponse = await api.get(`/auth/invitations/${tokenFromQuery}`);
+            const invitationResponse = await api.get(`/auth/invitations/${invitationTokenFromQuery}`);
             if (cancelled) {
               return;
             }
@@ -152,7 +150,7 @@ export default function RegisterPage() {
             const role = invitationResponse.data.role as RegisterRole;
             const email = invitationResponse.data.email as string;
 
-            setInvitationToken(tokenFromQuery);
+            setInvitationToken(invitationTokenFromQuery);
             setInvitationEmail(email);
             setAvailableRoles([role]);
             setValue('role', role, { shouldValidate: false, shouldDirty: false });
@@ -169,6 +167,8 @@ export default function RegisterPage() {
         }
 
         setIsInvitationMode(false);
+        setInvitationToken(null);
+        setInvitationEmail(null);
         setAvailableRoles(['ADMIN']);
         setValue('role', 'ADMIN', { shouldValidate: false, shouldDirty: false });
         setInvitationError(null);
@@ -188,7 +188,9 @@ export default function RegisterPage() {
     return () => {
       cancelled = true;
     };
-  }, [getValues, searchParams, setValue]);
+  }, [invitationTokenFromQuery, setValue]);
+
+  const isFormBusy = isSubmitting || isLoadingRoles;
 
   const onSubmit = async (data: RegisterForm) => {
     try {
@@ -239,7 +241,7 @@ export default function RegisterPage() {
           <h1 className="text-4xl font-bold mb-6">
             Únete a nuestro<br />sistema clínico
           </h1>
-          <p className="text-primary-100 text-lg mb-8">
+          <p className="text-accent text-lg mb-8">
             Crea tu cuenta para comenzar a gestionar fichas clínicas de forma segura y eficiente.
           </p>
           <div className="space-y-4">
@@ -258,79 +260,87 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        <p className="text-primary-200 text-sm">
+        <p className="text-accent/80 text-sm">
           © {new Date().getFullYear()} Anamneo. Sistema de gestión médica.
         </p>
       </div>
 
-      <div className="flex items-center justify-center bg-slate-50 p-8">
+      <div className="flex items-center justify-center bg-surface-base/40 p-8">
         <div className="auth-card">
           <div className="mb-8 text-center">
             <AnamneoLogo
               className="justify-center mb-6 lg:hidden"
               iconClassName="h-10 w-10"
-              textClassName="text-2xl font-bold text-slate-900"
+              textClassName="text-2xl font-bold text-ink-primary"
               priority
             />
-            <h2 className="text-2xl font-bold text-slate-900">Crear cuenta</h2>
-            <p className="text-slate-600 mt-2">Completa tus datos para registrarte</p>
+            <h2 className="text-2xl font-bold text-ink-primary">Crear cuenta</h2>
+            <p className="text-ink-secondary mt-2">Completa tus datos para registrarte</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             {invitationError && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <div className="rounded-card border border-status-yellow/30 bg-status-yellow/20 px-4 py-3 text-sm text-status-yellow">
                 {invitationError}
+              </div>
+            )}
+
+            {isLoadingRoles && (
+              <div className="rounded-card border border-surface-muted/30 bg-surface-base/40 px-4 py-3 text-sm text-ink-secondary">
+                Validando si este registro requiere invitación...
               </div>
             )}
 
             {/* Nombre */}
             <div>
-              <label htmlFor="nombre" className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="nombre" className="block text-sm font-medium text-ink-secondary mb-1">
                 Nombre completo
               </label>
               <div className="relative">
-                <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" />
                 <input
                   id="nombre"
                   type="text"
                   {...register('nombre')}
-                  className={`form-input pl-10 ${errors.nombre ? 'border-red-500' : ''}`}
+                  disabled={isFormBusy}
+                  className={`form-input pl-10 ${errors.nombre ? 'border-status-red' : ''}`}
                   placeholder="Dr. Juan Pérez"
                 />
               </div>
               {errors.nombre && (
-                <p className="text-red-500 text-sm mt-1">{errors.nombre.message}</p>
+                <p className="text-status-red text-sm mt-1">{errors.nombre.message}</p>
               )}
             </div>
 
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-ink-secondary mb-1">
                 Correo electrónico
               </label>
               <div className="relative">
-                <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" />
                 <input
                   id="email"
                   type="email"
                   {...register('email')}
-                  readOnly={isInvitationMode && !!invitationEmail}
-                  className={`form-input pl-10 ${errors.email ? 'border-red-500' : ''}`}
+                  disabled={isFormBusy}
+                  readOnly={!isLoadingRoles && isInvitationMode && !!invitationEmail}
+                  className={`form-input pl-10 ${errors.email ? 'border-status-red' : ''}`}
                   placeholder="doctor@clinica.cl"
                 />
               </div>
               {errors.email && (
-                <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+                <p className="text-status-red text-sm mt-1">{errors.email.message}</p>
               )}
             </div>
 
             {/* Role */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-ink-secondary mb-1">
                 Rol
               </label>
               {isLoadingRoles ? (
-                <p className="text-xs text-slate-500">Cargando opciones de rol...</p>
+                <p className="text-xs text-ink-muted">Cargando opciones de rol...</p>
               ) : (
                 <>
                   <div className="grid gap-3 grid-cols-1">
@@ -340,16 +350,17 @@ export default function RegisterPage() {
                           type="radio"
                           value={role}
                           {...register('role')}
+                          disabled={isFormBusy}
                           className="peer sr-only"
                         />
-                        <div className="p-3 border-2 border-slate-200 rounded-lg cursor-pointer transition-all peer-checked:border-primary-500 peer-checked:bg-primary-50">
-                          <p className="text-sm font-medium text-slate-900">{ROLE_OPTIONS[role].label}</p>
-                          <p className="text-xs text-slate-600 mt-1">{ROLE_OPTIONS[role].description}</p>
+                        <div className="p-3 border-2 border-surface-muted/30 rounded-card cursor-pointer transition-all peer-checked:border-accent peer-checked:bg-accent/10">
+                          <p className="text-sm font-medium text-ink-primary">{ROLE_OPTIONS[role].label}</p>
+                          <p className="text-xs text-ink-secondary mt-1">{ROLE_OPTIONS[role].description}</p>
                         </div>
                       </label>
                     ))}
                   </div>
-                  <p className="text-xs text-slate-500 mt-2">
+                  <p className="text-xs text-ink-muted mt-2">
                     {isInvitationMode
                       ? 'El rol fue definido por la invitación.'
                       : 'Solo el primer registro crea la cuenta administradora inicial.'}
@@ -360,64 +371,66 @@ export default function RegisterPage() {
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-ink-secondary mb-1">
                 Contraseña
               </label>
               <div className="relative">
-                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   {...register('password')}
-                  className={`form-input pl-10 pr-10 ${errors.password ? 'border-red-500' : ''}`}
+                  disabled={isFormBusy}
+                  className={`form-input pl-10 pr-10 ${errors.password ? 'border-status-red' : ''}`}
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink-secondary"
                 >
                   {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+                <p className="text-status-red text-sm mt-1">{errors.password.message}</p>
               )}
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-ink-muted mt-1">
                 Mínimo 8 caracteres, mayúscula, minúscula y número
               </p>
             </div>
 
             {/* Confirm Password */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-ink-secondary mb-1">
                 Confirmar contraseña
               </label>
               <div className="relative">
-                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" />
                 <input
                   id="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                   {...register('confirmPassword')}
-                  className={`form-input pl-10 pr-10 ${errors.confirmPassword ? 'border-red-500' : ''}`}
+                  disabled={isFormBusy}
+                  className={`form-input pl-10 pr-10 ${errors.confirmPassword ? 'border-status-red' : ''}`}
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink-secondary"
                 >
                   {showConfirmPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
                 </button>
               </div>
               {errors.confirmPassword && (
-                <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
+                <p className="text-status-red text-sm mt-1">{errors.confirmPassword.message}</p>
               )}
             </div>
 
             <button
               type="submit"
-              disabled={isSubmitting || isLoadingRoles || !!invitationError}
+              disabled={isFormBusy || !!invitationError}
               className="btn btn-primary w-full flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
@@ -431,9 +444,9 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <p className="text-center text-slate-600 mt-6">
+          <p className="text-center text-ink-secondary mt-6">
             ¿Ya tienes cuenta?{' '}
-            <Link href="/login" className="text-primary-600 hover:text-primary-700 font-medium">
+            <Link href="/login" className="text-accent hover:text-accent/80 font-medium">
               Iniciar sesión
             </Link>
           </p>

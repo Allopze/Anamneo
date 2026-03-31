@@ -79,8 +79,8 @@ export default function VoiceDictationButton({ onTranscript }: Props) {
       onClick={handleToggle}
       className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
         listening
-          ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
-          : 'border-primary-200 bg-primary-50/80 text-primary-700 hover:bg-primary-100'
+          ? 'border-status-red/30 bg-status-red/10 text-status-red hover:bg-status-red/20'
+          : 'border-accent/20 bg-accent/10 text-accent hover:bg-accent/20'
       }`}
       title={listening ? 'Detener dictado' : 'Dictado por voz'}
     >

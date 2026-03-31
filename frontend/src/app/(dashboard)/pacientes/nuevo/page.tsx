@@ -174,13 +174,13 @@ export default function NuevoPacientePage() {
       <div className="flex items-center gap-4 mb-6">
         <Link
           href="/pacientes"
-          className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+          className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
         >
-          <FiArrowLeft className="w-5 h-5 text-slate-600" />
+          <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Nuevo Paciente</h1>
-          <p className="text-slate-600">
+          <h1 className="text-2xl font-bold text-ink-primary">Nuevo Paciente</h1>
+          <p className="text-ink-secondary">
             {isDoctor ? 'Ingresa los datos del paciente' : 'Registro rapido para recepcion'}
           </p>
         </div>
@@ -193,7 +193,7 @@ export default function NuevoPacientePage() {
       )}
 
       {!isDoctor && (
-        <div className="mb-6 p-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-sm">
+        <div className="mb-6 p-4 rounded-lg border border-status-yellow/30 bg-status-yellow/10 text-status-yellow text-sm">
           Solo se requieren datos basicos. Podras completar el resto mas tarde.
         </div>
       )}
@@ -231,10 +231,10 @@ export default function NuevoPacientePage() {
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
-                className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                className="rounded border-surface-muted/30 text-accent focus:ring-accent"
                 {...register('rutExempt')}
               />
-              <span className="text-sm text-slate-600">Paciente sin RUT</span>
+              <span className="text-sm text-ink-secondary">Paciente sin RUT</span>
             </label>
             {rutExempt && (
               <div>
@@ -342,7 +342,7 @@ export default function NuevoPacientePage() {
         )}
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-surface-muted/30">
           <Link href="/pacientes" className="btn btn-secondary">
             Cancelar
           </Link>

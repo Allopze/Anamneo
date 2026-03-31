@@ -3,6 +3,12 @@ import { UsersService } from './users.service';
 
 describe('UsersService', () => {
   let service: UsersService;
+  let mailService: {
+    sendInvitationEmail: jest.Mock;
+  };
+  let auditService: {
+    log: jest.Mock;
+  };
   let prisma: {
     user: {
       findUnique: jest.Mock;
@@ -20,7 +26,15 @@ describe('UsersService', () => {
       },
     };
 
-    service = new UsersService(prisma as any);
+    mailService = {
+      sendInvitationEmail: jest.fn(),
+    };
+
+    auditService = {
+      log: jest.fn(),
+    };
+
+    service = new UsersService(prisma as any, mailService as any, auditService as any);
   });
 
   describe('update', () => {
@@ -36,7 +50,7 @@ describe('UsersService', () => {
       prisma.user.count.mockResolvedValue(0);
 
       await expect(
-        service.update('admin-1', { active: false }),
+        service.update('admin-1', { active: false }, 'actor-1'),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -52,7 +66,7 @@ describe('UsersService', () => {
       prisma.user.count.mockResolvedValue(0);
 
       await expect(
-        service.update('admin-1', { role: 'MEDICO' as any }),
+        service.update('admin-1', { role: 'MEDICO' as any }, 'actor-1'),
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -69,13 +83,13 @@ describe('UsersService', () => {
       });
       prisma.user.count.mockResolvedValue(0);
 
-      await expect(service.remove('admin-1')).rejects.toThrow(ConflictException);
+      await expect(service.remove('admin-1', 'actor-1')).rejects.toThrow(ConflictException);
     });
 
     it('throws when user does not exist', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.remove('missing')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('missing', 'actor-1')).rejects.toThrow(NotFoundException);
     });
   });
 });

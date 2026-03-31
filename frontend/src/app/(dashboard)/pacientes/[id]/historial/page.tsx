@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
@@ -48,8 +48,13 @@ export default function HistorialPacientePage() {
     },
   });
 
+  const initializedPatientIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (patient?.history) {
+      if (initializedPatientIdRef.current === patient.id) return;
+      initializedPatientIdRef.current = patient.id;
+
       // Initialize form with existing history
       const initialData: any = {};
       HISTORY_FIELDS.forEach(field => {
@@ -104,11 +109,11 @@ export default function HistorialPacientePage() {
   if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto animate-pulse p-8">
-        <div className="h-8 bg-slate-200 rounded w-1/3 mb-6" />
+        <div className="h-8 bg-surface-muted rounded w-1/3 mb-6" />
         <div className="space-y-4">
-          <div className="h-32 bg-slate-100 rounded" />
-          <div className="h-32 bg-slate-100 rounded" />
-          <div className="h-32 bg-slate-100 rounded" />
+          <div className="h-32 bg-surface-muted rounded" />
+          <div className="h-32 bg-surface-muted rounded" />
+          <div className="h-32 bg-surface-muted rounded" />
         </div>
       </div>
     );
@@ -120,13 +125,13 @@ export default function HistorialPacientePage() {
         <div className="flex items-center gap-4 mb-6">
           <Link
             href={`/pacientes/${id}`}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-surface-muted rounded-card transition-colors"
           >
-            <FiArrowLeft className="w-5 h-5 text-slate-600" />
+            <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Historial Clínico</h1>
-            <p className="text-slate-600">No se pudo cargar el paciente</p>
+            <h1 className="text-2xl font-bold text-ink-primary">Historial Clínico</h1>
+            <p className="text-ink-secondary">No se pudo cargar el paciente</p>
           </div>
         </div>
 
@@ -142,13 +147,13 @@ export default function HistorialPacientePage() {
         <div className="flex items-center gap-4">
           <Link
             href={`/pacientes/${id}`}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-surface-muted rounded-card transition-colors"
           >
-            <FiArrowLeft className="w-5 h-5 text-slate-600" />
+            <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Historial Clínico</h1>
-            <p className="text-slate-600">
+            <h1 className="text-2xl font-bold text-ink-primary">Historial Clínico</h1>
+            <p className="text-ink-secondary">
               Antecedentes de <span className="font-semibold">{patient?.nombre}</span>
             </p>
           </div>
@@ -175,10 +180,10 @@ export default function HistorialPacientePage() {
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {HISTORY_FIELDS.map((field) => (
-            <div key={field.key} className="card border-slate-200 bg-white shadow-sm flex flex-col h-full">
-              <div className="flex items-center gap-2 mb-4 border-b border-slate-50 pb-2">
-                <FiClipboard className="w-4 h-4 text-primary-500" />
-                <h3 className="font-semibold text-slate-800">{field.label}</h3>
+            <div key={field.key} className="card border-surface-muted/30 bg-surface-elevated shadow-sm flex flex-col h-full">
+              <div className="flex items-center gap-2 mb-4 border-b border-surface-muted/20 pb-2">
+                <FiClipboard className="w-4 h-4 text-accent" />
+                <h3 className="font-semibold text-ink-primary">{field.label}</h3>
               </div>
               
               <div className="flex-1">

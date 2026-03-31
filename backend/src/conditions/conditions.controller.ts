@@ -12,6 +12,7 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ConditionsService } from './conditions.service';
@@ -47,10 +48,18 @@ export class ConditionsController {
       },
     }),
   )
-  importCsv(@UploadedFile() file?: Express.Multer.File) {
+  importCsv(
+    @CurrentUser() user: CurrentUserData,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (user.role !== 'ADMIN') {
+      throw new ForbiddenException('Solo un administrador con rol ADMIN puede importar CSV global');
+    }
+
     if (!file) {
       throw new BadRequestException('Debe adjuntar un archivo CSV');
     }
+
     return this.conditionsService.importGlobalCsv(file.buffer);
   }
 

@@ -6,9 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { PatientTask, TASK_STATUS_LABELS, TASK_TYPE_LABELS } from '@/types';
 import { FiAlertTriangle, FiCalendar, FiChevronRight, FiClipboard, FiSearch } from 'react-icons/fi';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import clsx from 'clsx';
+import { formatDateOnly } from '@/lib/date';
 
 const STATUS_OPTIONS = ['', 'PENDIENTE', 'EN_PROCESO', 'COMPLETADA', 'CANCELADA'] as const;
 const TYPE_OPTIONS = ['', 'SEGUIMIENTO', 'EXAMEN', 'DERIVACION', 'TRAMITE'] as const;
@@ -48,7 +47,7 @@ export default function SeguimientosPage() {
       <div className="filter-surface">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <div className="relative">
-            <FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
             <input
               className="form-input pl-10"
               value={search}
@@ -70,7 +69,7 @@ export default function SeguimientosPage() {
               </option>
             ))}
           </select>
-          <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 rounded-card border border-surface-muted/30 px-3 py-2 text-sm text-ink-secondary">
             <input type="checkbox" checked={overdueOnly} onChange={() => setOverdueOnly((v) => !v)} />
             Solo atrasados
           </label>
@@ -81,13 +80,13 @@ export default function SeguimientosPage() {
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 rounded-lg skeleton" />
+              <div key={i} className="h-16 rounded-card skeleton" />
             ))}
           </div>
         ) : error ? (
-          <div className="p-6 text-sm text-red-600">Error al cargar seguimientos.</div>
+          <div className="p-6 text-sm text-status-red">Error al cargar seguimientos.</div>
         ) : tasks.length > 0 ? (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-surface-muted/30">
             {tasks.map((task) => (
               <Link
                 key={task.id}
@@ -97,45 +96,45 @@ export default function SeguimientosPage() {
                 <div
                   className={clsx(
                     'list-row-icon',
-                    task.isOverdue ? 'bg-rose-100 text-rose-600' : 'bg-primary-100 text-primary-600',
+                    task.isOverdue ? 'bg-status-red/15 text-status-red' : 'bg-accent/20 text-accent',
                   )}
                 >
                   {task.isOverdue ? <FiAlertTriangle className="h-5 w-5" /> : <FiClipboard className="h-5 w-5" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-slate-900 group-hover:text-primary-600">{task.title}</span>
-                    <span className="list-chip bg-slate-100 text-slate-600">
+                    <span className="font-medium text-ink-primary group-hover:text-accent">{task.title}</span>
+                    <span className="list-chip bg-surface-muted text-ink-secondary">
                       {TASK_TYPE_LABELS[task.type]}
                     </span>
-                    <span className="list-chip bg-slate-100 text-slate-600">
+                    <span className="list-chip bg-surface-muted text-ink-secondary">
                       {TASK_STATUS_LABELS[task.status]}
                     </span>
                     {task.isOverdue && (
-                      <span className="list-chip bg-rose-100 text-rose-700">
+                      <span className="list-chip bg-status-red/15 text-status-red">
                         Atrasado
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-4 text-sm text-slate-500">
+                  <div className="mt-1 flex flex-wrap items-center gap-4 text-sm text-ink-muted">
                     <span>{task.patient?.nombre}</span>
                     {task.dueDate && (
                       <span className="flex items-center gap-1">
                         <FiCalendar className="h-3 w-3" />
-                        {format(new Date(task.dueDate), "d MMM yyyy", { locale: es })}
+                        {formatDateOnly(task.dueDate)}
                       </span>
                     )}
                     {task.details && <span className="truncate">{task.details}</span>}
                   </div>
                 </div>
-                <FiChevronRight className="h-5 w-5 text-slate-400 group-hover:text-primary-600" />
+                <FiChevronRight className="h-5 w-5 text-ink-muted group-hover:text-accent" />
               </Link>
             ))}
           </div>
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <FiClipboard className="h-10 w-10 text-primary-400" />
+              <FiClipboard className="h-10 w-10 text-accent" />
             </div>
             <h3 className="empty-state-title">Sin seguimientos visibles</h3>
             <p className="empty-state-description">No hay seguimientos que coincidan con los filtros actuales.</p>

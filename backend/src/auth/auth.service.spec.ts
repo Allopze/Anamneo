@@ -51,7 +51,11 @@ describe('AuthService', () => {
       countUsers: jest.fn(),
       countActiveAdmins: jest.fn(),
       create: jest.fn(),
-      findById: jest.fn(),
+      findById: jest.fn().mockResolvedValue({
+        id: 'medico-1',
+        role: 'MEDICO',
+        active: true,
+      }),
       findAuthById: jest.fn().mockResolvedValue(mockUser),
       findInvitationByToken: jest.fn().mockResolvedValue(null),
       acceptInvitation: jest.fn(),
@@ -205,6 +209,36 @@ describe('AuthService', () => {
           invitationToken: '0123456789abcdef0123456789abcdef',
         }),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should reject invitation when assigned medico is inactive', async () => {
+      (usersService.findByEmail as jest.Mock).mockResolvedValue(null);
+      (usersService.countActiveAdmins as jest.Mock).mockResolvedValue(1);
+      (usersService.findInvitationByToken as jest.Mock).mockResolvedValue({
+        id: 'invite-1',
+        email: 'assistant@example.com',
+        role: 'ASISTENTE',
+        medicoId: 'medico-1',
+        invitedById: 'admin-1',
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      (usersService.findById as jest.Mock).mockResolvedValue({
+        id: 'medico-1',
+        role: 'MEDICO',
+        active: false,
+      });
+
+      await expect(
+        service.register({
+          email: 'assistant@example.com',
+          password: 'Password1',
+          nombre: 'Assistant',
+          role: 'ASISTENTE',
+          invitationToken: '0123456789abcdef0123456789abcdef',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(usersService.create).not.toHaveBeenCalled();
     });
 
     it('should throw ConflictException for duplicate email', async () => {

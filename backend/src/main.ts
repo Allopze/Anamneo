@@ -6,10 +6,9 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import * as cookieParser from 'cookie-parser';
-import { NextFunction, Request, Response } from 'express';
-import { randomUUID } from 'crypto';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { requestTracingMiddleware } from './common/utils/request-tracing';
 
 function assertSafeConfig(configService: ConfigService) {
   const databaseUrl = configService.get<string>('DATABASE_URL');
@@ -103,38 +102,7 @@ async function bootstrap() {
   // Security middleware
   app.use(helmet());
   app.use(cookieParser());
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const startedAt = process.hrtime.bigint();
-    const headerRequestId = req.headers['x-request-id'];
-    const requestId = typeof headerRequestId === 'string' && headerRequestId.trim().length > 0
-      ? headerRequestId.trim()
-      : randomUUID();
-
-    req.headers['x-request-id'] = requestId;
-    res.setHeader('x-request-id', requestId);
-
-    res.on('finish', () => {
-      const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
-      const logEntry = {
-        level: res.statusCode >= 500 ? 'error' : 'info',
-        event: 'http_request',
-        requestId,
-        method: req.method,
-        path: req.originalUrl,
-        statusCode: res.statusCode,
-        durationMs: Number(durationMs.toFixed(2)),
-      };
-
-      const serialized = JSON.stringify(logEntry);
-      if (res.statusCode >= 500) {
-        console.error(serialized);
-        return;
-      }
-      console.log(serialized);
-    });
-
-    next();
-  });
+  app.use(requestTracingMiddleware);
 
   const corsOriginEnv = configService.get<string>(
     'CORS_ORIGIN',

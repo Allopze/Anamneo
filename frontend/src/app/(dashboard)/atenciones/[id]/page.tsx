@@ -95,18 +95,18 @@ const TEMPLATE_FIELD_BY_SECTION: Partial<Record<SectionKey, string>> = {
 const SECTION_STATUS_META = {
   idle: {
     label: 'Sin cambios',
-    badgeClassName: 'bg-slate-100 text-slate-600',
-    dotClassName: 'bg-slate-300',
+    badgeClassName: 'bg-surface-muted text-ink-secondary',
+    dotClassName: 'bg-surface-muted',
   },
   dirty: {
     label: 'Pendiente',
-    badgeClassName: 'bg-amber-100 text-amber-800',
-    dotClassName: 'bg-amber-500',
+    badgeClassName: 'bg-status-yellow/20 text-status-yellow',
+    dotClassName: 'bg-status-yellow',
   },
   saving: {
     label: 'Guardando',
-    badgeClassName: 'bg-blue-100 text-blue-700',
-    dotClassName: 'bg-blue-500',
+    badgeClassName: 'bg-accent/20 text-accent',
+    dotClassName: 'bg-accent/100',
   },
   saved: {
     label: 'Guardada',
@@ -115,13 +115,13 @@ const SECTION_STATUS_META = {
   },
   completed: {
     label: 'Completa',
-    badgeClassName: 'bg-clinical-100 text-clinical-700',
-    dotClassName: 'bg-clinical-500',
+    badgeClassName: 'bg-status-green/20 text-status-green',
+    dotClassName: 'bg-status-green',
   },
   error: {
     label: 'Error',
-    badgeClassName: 'bg-red-100 text-red-700',
-    dotClassName: 'bg-red-500',
+    badgeClassName: 'bg-status-red/20 text-status-red',
+    dotClassName: 'bg-status-red',
   },
 } as const;
 
@@ -140,6 +140,18 @@ const formatFileSize = (bytes: number) => {
   return `${size.toFixed(size >= 10 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
+const buildIdentificationSnapshotFromPatient = (encounter: Encounter) => ({
+  nombre: encounter.patient?.nombre || '',
+  rut: encounter.patient?.rut || '',
+  rutExempt: encounter.patient?.rutExempt || false,
+  rutExemptReason: encounter.patient?.rutExemptReason || '',
+  edad: encounter.patient?.edad,
+  sexo: encounter.patient?.sexo || '',
+  prevision: encounter.patient?.prevision || '',
+  trabajo: encounter.patient?.trabajo || '',
+  domicilio: encounter.patient?.domicilio || '',
+});
+
 export default function EncounterWizardPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -153,6 +165,7 @@ export default function EncounterWizardPage() {
   const [savingSectionKey, setSavingSectionKey] = useState<SectionKey | null>(null);
   const [savedSectionKey, setSavedSectionKey] = useState<SectionKey | null>(null);
   const [errorSectionKey, setErrorSectionKey] = useState<SectionKey | null>(null);
+  const [savedSnapshotJson, setSavedSnapshotJson] = useState('');
   const lastSavedRef = useRef<string>('');
   const formDataRef = useRef<Record<string, any>>({});
   const activeSectionKeyRef = useRef<SectionKey | null>(null);
@@ -170,6 +183,7 @@ export default function EncounterWizardPage() {
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showDeleteAttachment, setShowDeleteAttachment] = useState<string | null>(null);
   const [quickTask, setQuickTask] = useState({ title: '', type: 'SEGUIMIENTO', dueDate: '' });
+  const initializedEncounterIdRef = useRef<string | null>(null);
 
   // Fetch encounter data
   const { data: encounter, isLoading, error } = useQuery({
@@ -227,6 +241,7 @@ export default function EncounterWizardPage() {
 
       savedSnapshot[variables.sectionKey] = variables.data;
       lastSavedRef.current = JSON.stringify(savedSnapshot);
+      setSavedSnapshotJson(lastSavedRef.current);
 
       queryClient.setQueryData<Encounter | undefined>(['encounter', id], (previous) => {
         if (!previous) return previous;
@@ -407,19 +422,19 @@ export default function EncounterWizardPage() {
     }
   };
 
-  // Initialize form data from encounter sections
+  // Initialize form data from encounter sections (only on first load per encounter)
   useEffect(() => {
-    if (encounter?.sections) {
+    if (encounter?.sections && encounter.id !== initializedEncounterIdRef.current) {
+      initializedEncounterIdRef.current = encounter.id;
       const initialData: Record<string, any> = {};
       encounter.sections.forEach((section) => {
         initialData[section.sectionKey] = section.data;
       });
       setFormData(initialData);
       formDataRef.current = initialData;
-      // Snapshot the full data for autosave comparison (only on initial load / refetch)
       lastSavedRef.current = JSON.stringify(initialData);
+      setSavedSnapshotJson(lastSavedRef.current);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounter]);
 
   // Autosave logic — uses refs to avoid stale closures
@@ -575,9 +590,20 @@ export default function EncounterWizardPage() {
     });
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (!canEdit) return;
-    saveCurrentSection();
+    if (hasUnsavedChanges) {
+      const sectionKey = activeSectionKeyRef.current;
+      if (sectionKey) {
+        const currentData = formDataRef.current[sectionKey];
+        try {
+          await saveSectionMutation.mutateAsync({ sectionKey, data: currentData });
+        } catch {
+          // save error already shown via onError
+          return;
+        }
+      }
+    }
     setShowCompleteConfirm(true);
   };
 
@@ -589,7 +615,7 @@ export default function EncounterWizardPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent" />
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-accent border-t-transparent" />
       </div>
     );
   }
@@ -598,9 +624,9 @@ export default function EncounterWizardPage() {
     const msg = error ? getErrorMessage(error) : null;
     return (
       <div className="text-center py-12">
-        <FiAlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-slate-900 mb-2">Atención no encontrada</h2>
-        {msg && <p className="text-slate-500 text-sm mb-4 whitespace-pre-line">{msg}</p>}
+        <FiAlertCircle className="w-12 h-12 text-status-red mx-auto mb-4" />
+        <h2 className="text-xl font-semibold text-ink-primary mb-2">Atención no encontrada</h2>
+        {msg && <p className="text-ink-muted text-sm mb-4 whitespace-pre-line">{msg}</p>}
         <Link href="/pacientes" className="btn btn-primary">
           Volver a pacientes
         </Link>
@@ -652,7 +678,7 @@ export default function EncounterWizardPage() {
 
   let savedSnapshot: Record<string, any> = {};
   try {
-    savedSnapshot = JSON.parse(lastSavedRef.current || '{}');
+    savedSnapshot = JSON.parse(savedSnapshotJson || '{}');
   } catch {
     savedSnapshot = {};
   }
@@ -673,6 +699,7 @@ export default function EncounterWizardPage() {
 
   const currentSectionState = currentSection ? getSectionUiState(currentSection) : 'idle';
   const currentSectionStatusMeta = SECTION_STATUS_META[currentSectionState];
+  const identificationSnapshotStatus = encounter.identificationSnapshotStatus;
   const handleStartLinkedAttachment = (type: 'EXAMEN' | 'DERIVACION', orderId: string) => {
     setUploadError(null);
     setSelectedFile(null);
@@ -685,23 +712,28 @@ export default function EncounterWizardPage() {
     setIsAttachmentsOpen(true);
   };
 
+  const handleRestoreIdentificationFromPatient = () => {
+    handleSectionDataChange('IDENTIFICACION', buildIdentificationSnapshotFromPatient(encounter));
+    toast.success('Se restauró la identificación desde la ficha maestra del paciente');
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-surface-base/40">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200">
+      <header className="sticky top-0 z-30 bg-surface-elevated border-b border-surface-muted/30">
         <div className="px-4 lg:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
               href={`/pacientes/${encounter.patientId}`}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-surface-muted rounded-card transition-colors"
             >
-              <FiArrowLeft className="w-5 h-5 text-slate-600" />
+              <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
             </Link>
             <div>
-              <h1 className="font-semibold text-slate-900">
+              <h1 className="font-semibold text-ink-primary">
                 Atención: {encounter.patient?.nombre}
               </h1>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-ink-muted">
                 {completedCount}/{sections.length} secciones completadas
               </p>
             </div>
@@ -712,19 +744,19 @@ export default function EncounterWizardPage() {
             {canEdit && (
               <div className="flex items-center gap-2 text-sm" aria-live="polite" role="status">
                 {saveStatus === 'saving' && (
-                  <span className="flex items-center gap-1 text-slate-500">
+                  <span className="flex items-center gap-1 text-ink-muted">
                     <FiLoader className="w-4 h-4 animate-spin" />
                     Guardando...
                   </span>
                 )}
                 {saveStatus === 'saved' && (
-                  <span className="flex items-center gap-1 text-clinical-600">
+                  <span className="flex items-center gap-1 text-status-green">
                     <FiCheck className="w-4 h-4" />
                     Guardado
                   </span>
                 )}
                 {saveStatus === 'error' && (
-                  <span className="flex items-center gap-1 text-red-600">
+                  <span className="flex items-center gap-1 text-status-red">
                     <FiAlertCircle className="w-4 h-4" />
                     Error
                   </span>
@@ -767,7 +799,7 @@ export default function EncounterWizardPage() {
 
       <div className="flex">
         {/* Sidebar stepper */}
-        <aside className="hidden lg:block w-72 min-h-[calc(100vh-4rem)] bg-white border-r border-slate-200">
+        <aside className="hidden lg:block w-72 min-h-[calc(100vh-4rem)] bg-surface-elevated border-r border-surface-muted/30">
           <nav className="p-4 space-y-1">
             {sections.map((section, index) => {
               const sectionState = getSectionUiState(section);
@@ -850,11 +882,11 @@ export default function EncounterWizardPage() {
             <div className="card mb-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-500">Revisión clínica</p>
-                  <h3 className="text-lg font-semibold text-slate-900">
+                  <p className="text-sm font-medium text-ink-muted">Revisión clínica</p>
+                  <h3 className="text-lg font-semibold text-ink-primary">
                     {REVIEW_STATUS_LABELS[encounter.reviewStatus || 'NO_REQUIERE_REVISION']}
                   </h3>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-ink-muted">
                     {encounter.reviewedAt
                       ? `Última revisión: ${new Date(encounter.reviewedAt).toLocaleString('es-CL')}`
                       : encounter.reviewRequestedAt
@@ -886,26 +918,28 @@ export default function EncounterWizardPage() {
               </div>
 
               <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr,1fr]">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="mb-2 flex items-center gap-2 text-slate-700">
+                <div className="rounded-xl border border-surface-muted/30 bg-surface-base/40 p-4">
+                  <div className="mb-2 flex items-center gap-2 text-ink-secondary">
                     <FiFileText className="h-4 w-4" />
                     <span className="text-sm font-medium">Resumen clínico generado</span>
                   </div>
-                  <p className="text-sm text-slate-700">
+                  <p className="text-sm text-ink-secondary">
                     {generatedSummary || 'Completa más secciones para generar un resumen clínico automático.'}
                   </p>
                   {canEdit && generatedSummary && (
                     <button
                       type="button"
-                      className="mt-3 text-sm font-medium text-primary-600 hover:text-primary-700"
+                      className="mt-3 text-sm font-medium text-accent hover:text-accent"
                       onClick={() => {
                         const existing = formData.OBSERVACIONES || {};
-                        handleSectionDataChange('OBSERVACIONES', {
+                        const updatedData = {
                           ...existing,
                           observaciones: existing.observaciones
                             ? `${existing.observaciones}\n\n${generatedSummary}`
                             : generatedSummary,
-                        });
+                        };
+                        handleSectionDataChange('OBSERVACIONES', updatedData);
+                        saveSectionMutation.mutate({ sectionKey: 'OBSERVACIONES', data: updatedData });
                         toast.success('Resumen agregado a observaciones');
                       }}
                     >
@@ -915,8 +949,8 @@ export default function EncounterWizardPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="rounded-xl border border-slate-200 p-4">
-                    <div className="mb-3 flex items-center gap-2 text-slate-700">
+                  <div className="rounded-xl border border-surface-muted/30 p-4">
+                    <div className="mb-3 flex items-center gap-2 text-ink-secondary">
                       <FiPaperclip className="h-4 w-4" />
                       <span className="text-sm font-medium">Herramientas rápidas</span>
                     </div>
@@ -937,12 +971,12 @@ export default function EncounterWizardPage() {
                         </Link>
                       )}
                     </div>
-                    <p className="mt-3 text-xs text-slate-500">
+                    <p className="mt-3 text-xs text-ink-muted">
                       Mantuvimos estas acciones fuera del encabezado para dejar más claro qué botones avanzan la atención y cuáles son de apoyo.
                     </p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 p-4">
-                    <div className="mb-3 flex items-center gap-2 text-slate-700">
+                  <div className="rounded-xl border border-surface-muted/30 p-4">
+                    <div className="mb-3 flex items-center gap-2 text-ink-secondary">
                       <FiClipboard className="h-4 w-4" />
                       <span className="text-sm font-medium">Seguimiento rápido</span>
                     </div>
@@ -983,12 +1017,12 @@ export default function EncounterWizardPage() {
               </div>
 
               {encounter.tasks && encounter.tasks.length > 0 && (
-                <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
+                <div className="mt-4 space-y-2 border-t border-surface-muted/20 pt-4">
                   {encounter.tasks.slice(0, 4).map((task) => (
-                    <div key={task.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                    <div key={task.id} className="flex items-center justify-between rounded-card bg-surface-base/40 px-3 py-2 text-sm">
                       <div>
-                        <div className="font-medium text-slate-800">{task.title}</div>
-                        <div className="text-xs text-slate-500">
+                        <div className="font-medium text-ink-primary">{task.title}</div>
+                        <div className="text-xs text-ink-muted">
                           {TASK_TYPE_LABELS[task.type]} · {TASK_STATUS_LABELS[task.status]}
                         </div>
                       </div>
@@ -1000,11 +1034,11 @@ export default function EncounterWizardPage() {
             {/* Section header */}
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-medium text-primary-600">
+                <span className="text-sm font-medium text-accent">
                   Sección {currentSectionIndex + 1} de {sections.length}
                 </span>
                 {currentSection?.completed && (
-                  <span className="text-xs px-2 py-0.5 bg-clinical-100 text-clinical-700 rounded-full">
+                  <span className="text-xs px-2 py-0.5 bg-status-green/20 text-status-green rounded-full">
                     Completada
                   </span>
                 )}
@@ -1017,7 +1051,7 @@ export default function EncounterWizardPage() {
                   {currentSectionStatusMeta.label}
                 </span>
               </div>
-              <h2 className="text-2xl font-bold text-slate-900">{currentSection?.label}</h2>
+              <h2 className="text-2xl font-bold text-ink-primary">{currentSection?.label}</h2>
               {canEdit && supportsTemplates && currentSection && (
                 <div className="mt-3">
                   <TemplateSelector
@@ -1035,7 +1069,11 @@ export default function EncounterWizardPage() {
                   data={formData[currentSection.sectionKey] || {}}
                   onChange={(data: any) => handleSectionDataChange(currentSection.sectionKey, data)}
                   encounter={encounter}
-                  readOnly={!canEdit}
+                  readOnly={!canEdit || currentSection.sectionKey === 'IDENTIFICACION'}
+                  snapshotStatus={currentSection.sectionKey === 'IDENTIFICACION' ? identificationSnapshotStatus : undefined}
+                  onRestoreFromPatient={currentSection.sectionKey === 'IDENTIFICACION' && canEdit ? handleRestoreIdentificationFromPatient : undefined}
+                  patientId={encounter.patientId}
+                  canEditPatientHistory={canEditAntecedentes()}
                   linkedAttachmentsByOrderId={linkedAttachmentsByOrderId}
                   onRequestAttachToOrder={handleStartLinkedAttachment}
                 />
@@ -1080,14 +1118,14 @@ export default function EncounterWizardPage() {
       {isAttachmentsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-slate-900/50"
+            className="absolute inset-0 bg-ink-primary/50"
             onClick={() => setIsAttachmentsOpen(false)}
           />
-          <div className="relative w-full max-w-2xl bg-white rounded-xl shadow-xl border border-slate-200" role="dialog" aria-modal="true" aria-label="Adjuntos de la atención">
-            <div className="p-5 border-b border-slate-200 flex items-start justify-between gap-3">
+          <div className="relative w-full max-w-2xl bg-surface-elevated rounded-xl shadow-xl border border-surface-muted/30" role="dialog" aria-modal="true" aria-label="Adjuntos de la atención">
+            <div className="p-5 border-b border-surface-muted/30 flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Adjuntos de la atención</h2>
-                <p className="text-sm text-slate-600">Archivos vinculados a esta atención.</p>
+                <h2 className="text-lg font-semibold text-ink-primary">Adjuntos de la atención</h2>
+                <p className="text-sm text-ink-secondary">Archivos vinculados a esta atención.</p>
               </div>
               <button
                 className="btn btn-secondary"
@@ -1169,7 +1207,7 @@ export default function EncounterWizardPage() {
                             </option>
                           ))}
                         </select>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-ink-muted">
                           {currentLinkableOrders.length > 0
                             ? `Puedes asociar este archivo a un ${LINKABLE_ATTACHMENT_LABELS[currentLinkedOrderType]} estructurado para seguir resultados con mayor contexto.`
                             : `No hay ${currentLinkedOrderType === 'EXAMEN' ? 'exámenes' : 'derivaciones'} estructurados disponibles en esta atención todavía.`}
@@ -1188,38 +1226,38 @@ export default function EncounterWizardPage() {
               )}
 
               {uploadError && (
-                <p className="text-sm text-red-600">{uploadError}</p>
+                <p className="text-sm text-status-red">{uploadError}</p>
               )}
 
-              <div className="border border-slate-200 rounded-lg">
+              <div className="border border-surface-muted/30 rounded-card">
                 {attachmentsQuery.isLoading ? (
-                  <div className="p-4 text-sm text-slate-500">Cargando adjuntos...</div>
+                  <div className="p-4 text-sm text-ink-muted">Cargando adjuntos...</div>
                 ) : attachmentsQuery.error ? (
-                  <div className="p-4 text-sm text-red-600">
+                  <div className="p-4 text-sm text-status-red">
                     {getErrorMessage(attachmentsQuery.error)}
                   </div>
                 ) : attachments.length === 0 ? (
-                  <div className="p-4 text-sm text-slate-500">No hay archivos adjuntos.</div>
+                  <div className="p-4 text-sm text-ink-muted">No hay archivos adjuntos.</div>
                 ) : (
-                  <ul className="divide-y divide-slate-100">
+                  <ul className="divide-y divide-surface-muted/30">
                     {attachments.map((attachment) => (
                       <li key={attachment.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-slate-900 truncate">
+                          <p className="font-medium text-ink-primary truncate">
                             {attachment.originalName}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-ink-muted">
                             {formatFileSize(attachment.size)} ·{' '}
                             {new Date(attachment.uploadedAt).toLocaleString('es-CL')}
                             {attachment.uploadedBy?.nombre ? ` · ${attachment.uploadedBy.nombre}` : ''}
                           </p>
                           {(attachment.category || attachment.description) && (
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-ink-muted">
                               {[attachment.category, attachment.description].filter(Boolean).join(' · ')}
                             </p>
                           )}
                           {attachment.linkedOrderType && attachment.linkedOrderLabel && (
-                            <p className="text-xs text-primary-700">
+                            <p className="text-xs text-accent">
                               Vinculado a {LINKABLE_ATTACHMENT_LABELS[attachment.linkedOrderType]}: {attachment.linkedOrderLabel}
                             </p>
                           )}

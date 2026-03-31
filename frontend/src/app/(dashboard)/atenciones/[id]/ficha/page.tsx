@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Attachment, Encounter, SEXO_LABELS, PREVISION_LABELS, STATUS_LABELS, REVIEW_STATUS_LABELS } from '@/types';
-import { FiArrowLeft, FiFileText, FiPrinter, FiDownload, FiPaperclip } from 'react-icons/fi';
+import { FiAlertTriangle, FiArrowLeft, FiFileText, FiPrinter, FiDownload, FiPaperclip } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -74,7 +74,7 @@ export default function FichaClinicaPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent" />
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-accent border-t-transparent" />
       </div>
     );
   }
@@ -118,18 +118,18 @@ export default function FichaClinicaPage() {
     if (attachments.length === 0) return null;
 
     return (
-      <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-        <div className="flex items-center gap-2 text-slate-700">
+      <div className="mt-2 rounded-card border border-surface-muted/30 bg-surface-base/40 p-3">
+        <div className="flex items-center gap-2 text-ink-secondary">
           <FiPaperclip className="h-4 w-4" />
           <span className="text-sm font-medium">Adjuntos vinculados</span>
         </div>
         <ul className="mt-2 space-y-2">
           {attachments.map((attachment) => (
-            <li key={attachment.id} className="rounded-md bg-white px-3 py-2">
+            <li key={attachment.id} className="rounded-md bg-surface-elevated px-3 py-2">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-slate-800">{attachment.originalName}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-sm font-medium text-ink-primary">{attachment.originalName}</p>
+                  <p className="text-xs text-ink-muted">
                     {[attachment.description, attachment.uploadedAt ? format(new Date(attachment.uploadedAt), "d MMM yyyy", { locale: es }) : null]
                       .filter(Boolean)
                       .join(' · ')}
@@ -138,7 +138,7 @@ export default function FichaClinicaPage() {
                 <button
                   type="button"
                   onClick={() => handleDownloadAttachment(attachment)}
-                  className="no-print inline-flex items-center gap-1 text-xs font-medium text-primary-700 hover:text-primary-800"
+                  className="no-print inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80"
                 >
                   <FiDownload className="h-3.5 w-3.5" />
                   Descargar
@@ -154,11 +154,11 @@ export default function FichaClinicaPage() {
   return (
     <>
       {/* Print controls - hidden when printing */}
-      <div className="no-print sticky top-0 z-30 bg-white border-b border-slate-200 px-4 py-3">
+      <div className="no-print sticky top-0 z-30 bg-surface-elevated border-b border-surface-muted/30 px-4 py-3">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <Link
             href={`/atenciones/${id}`}
-            className="flex items-center gap-2 text-slate-600 hover:text-slate-900"
+            className="flex items-center gap-2 text-ink-secondary hover:text-ink-primary"
           >
             <FiArrowLeft className="w-5 h-5" />
             {encounter?.status === 'COMPLETADO' ? 'Volver al resumen' : 'Volver a edición'}
@@ -189,20 +189,33 @@ export default function FichaClinicaPage() {
       </div>
 
       {/* Clinical record content */}
-      <div className="max-w-4xl mx-auto p-8 bg-white print:p-0">
+      <div className="max-w-4xl mx-auto p-8 bg-surface-elevated print:p-0">
         {/* Header */}
-        <header className="text-center border-b-2 border-slate-900 pb-4 mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">FICHA CLÍNICA</h1>
-          <p className="text-slate-600">
+        <header className="text-center border-b-2 border-ink-primary pb-4 mb-6">
+          <h1 className="text-2xl font-bold text-ink-primary">FICHA CLÍNICA</h1>
+          <p className="text-ink-secondary">
             Fecha: {format(new Date(encounter.createdAt), "d 'de' MMMM 'de' yyyy, HH:mm", { locale: es })}
           </p>
         </header>
 
         {/* Patient identification */}
         <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-slate-300 pb-1 mb-3">
+          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
             1. IDENTIFICACIÓN DEL PACIENTE
           </h2>
+          {encounter.identificationSnapshotStatus?.hasDifferences && (
+            <div className="mb-4 rounded-2xl border border-status-yellow/30 bg-status-yellow/10 p-3 text-sm text-status-yellow">
+              <div className="flex items-start gap-2">
+                <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p className="font-medium">Snapshot administrativo con divergencias</p>
+                  <p className="mt-1">
+                    La identificación impresa corresponde a esta atención y hoy difiere de la ficha maestra del paciente en: {encounter.identificationSnapshotStatus.differingFieldLabels.join(', ')}.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
             <p><strong>Nombre:</strong> {identificacion.nombre || '-'}</p>
             <p><strong>RUT:</strong> {identificacion.rut || 'Sin RUT'}</p>
@@ -216,12 +229,12 @@ export default function FichaClinicaPage() {
 
         {/* Motivo de consulta */}
         <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-slate-300 pb-1 mb-3">
+          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
             2. MOTIVO DE CONSULTA
           </h2>
           <p className="text-sm whitespace-pre-wrap">{motivoConsulta.texto || '-'}</p>
           {motivoConsulta.afeccionSeleccionada && (
-            <p className="text-sm mt-2 text-slate-600">
+            <p className="text-sm mt-2 text-ink-secondary">
               <strong>Afección probable:</strong> {motivoConsulta.afeccionSeleccionada.name}
             </p>
           )}
@@ -229,7 +242,7 @@ export default function FichaClinicaPage() {
 
         {/* Anamnesis próxima */}
         <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-slate-300 pb-1 mb-3">
+          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
             3. ANAMNESIS PRÓXIMA
           </h2>
           <div className="text-sm space-y-2">
@@ -254,7 +267,7 @@ export default function FichaClinicaPage() {
 
         {/* Anamnesis remota */}
         <section className="mb-6 print-break-before">
-          <h2 className="text-lg font-bold border-b border-slate-300 pb-1 mb-3">
+          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
             4. ANAMNESIS REMOTA
           </h2>
           <div className="text-sm space-y-1">
@@ -279,7 +292,7 @@ export default function FichaClinicaPage() {
 
         {/* Examen físico */}
         <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-slate-300 pb-1 mb-3">
+          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
             5. REVISIÓN POR SISTEMAS
           </h2>
           <div className="text-sm space-y-1">
@@ -298,7 +311,7 @@ export default function FichaClinicaPage() {
 
         {/* Examen físico */}
         <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-slate-300 pb-1 mb-3">
+          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
             6. EXAMEN FÍSICO
           </h2>
           <div className="text-sm">
@@ -329,7 +342,7 @@ export default function FichaClinicaPage() {
 
         {/* Sospecha diagnóstica */}
         <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-slate-300 pb-1 mb-3">
+          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
             7. SOSPECHA DIAGNÓSTICA
           </h2>
           {sospechaDiagnostica.sospechas?.length > 0 ? (
@@ -337,7 +350,7 @@ export default function FichaClinicaPage() {
               {sospechaDiagnostica.sospechas.map((s: any, i: number) => (
                 <li key={i}>
                   <strong>{s.diagnostico}</strong>
-                  {s.notas && <span className="text-slate-600"> - {s.notas}</span>}
+                  {s.notas && <span className="text-ink-secondary"> - {s.notas}</span>}
                 </li>
               ))}
             </ol>
@@ -348,7 +361,7 @@ export default function FichaClinicaPage() {
 
         {/* Tratamiento */}
         <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-slate-300 pb-1 mb-3">
+          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
             8. TRATAMIENTO
           </h2>
           <div className="text-sm space-y-2">
@@ -372,7 +385,7 @@ export default function FichaClinicaPage() {
                 <strong>Exámenes estructurados:</strong>
                 <ul className="mt-2 space-y-2">
                   {tratamiento.examenesEstructurados.map((item: any) => (
-                    <li key={item.id} className="rounded-lg border border-slate-200 px-3 py-2">
+                    <li key={item.id} className="rounded-card border border-surface-muted/30 px-3 py-2">
                       <div>{[item.nombre, item.indicacion, item.estado].filter(Boolean).join(' · ')}</div>
                       {renderLinkedAttachments(item.id)}
                     </li>
@@ -385,7 +398,7 @@ export default function FichaClinicaPage() {
                 <strong>Derivaciones estructuradas:</strong>
                 <ul className="mt-2 space-y-2">
                   {tratamiento.derivacionesEstructuradas.map((item: any) => (
-                    <li key={item.id} className="rounded-lg border border-slate-200 px-3 py-2">
+                    <li key={item.id} className="rounded-card border border-surface-muted/30 px-3 py-2">
                       <div>{[item.nombre, item.indicacion, item.estado].filter(Boolean).join(' · ')}</div>
                       {renderLinkedAttachments(item.id)}
                     </li>
@@ -398,7 +411,7 @@ export default function FichaClinicaPage() {
 
         {/* Respuesta al tratamiento */}
         <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-slate-300 pb-1 mb-3">
+          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
             9. RESPUESTA AL TRATAMIENTO
           </h2>
           <div className="text-sm space-y-2">
@@ -415,7 +428,7 @@ export default function FichaClinicaPage() {
         {/* Observaciones */}
         {observaciones.observaciones && (
           <section className="mb-6">
-            <h2 className="text-lg font-bold border-b border-slate-300 pb-1 mb-3">
+            <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
               10. OBSERVACIONES
             </h2>
             <p className="text-sm whitespace-pre-wrap">{observaciones.observaciones}</p>
@@ -423,7 +436,7 @@ export default function FichaClinicaPage() {
         )}
 
         {/* Footer */}
-        <footer className="mt-12 pt-6 border-t border-slate-300">
+        <footer className="mt-12 pt-6 border-t border-surface-muted/30">
           <div className="flex justify-between text-sm">
             <p>
               <strong>Profesional:</strong> {encounter.createdBy?.nombre || '-'}
@@ -437,7 +450,7 @@ export default function FichaClinicaPage() {
           </div>
           <div className="mt-8 flex justify-end">
             <div className="text-center">
-              <div className="w-48 border-t border-slate-900 pt-1">
+              <div className="w-48 border-t border-ink-primary pt-1">
                 <p className="text-sm">Firma y Timbre</p>
               </div>
             </div>

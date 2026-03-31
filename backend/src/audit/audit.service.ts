@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditAction } from '../common/types';
+import { getRequestId } from '../common/utils/request-context';
 
 interface LogInput {
   entityType: string;
@@ -8,7 +10,10 @@ interface LogInput {
   userId: string;
   action: AuditAction;
   diff?: any;
+  requestId?: string;
 }
+
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 @Injectable()
 export class AuditService {
@@ -23,9 +28,10 @@ export class AuditService {
         entityType: input.entityType,
         entityId: input.entityId,
         userId: input.userId,
+        requestId: input.requestId ?? getRequestId() ?? null,
         action: input.action as AuditAction,
         diff: sanitizedDiff ? JSON.stringify(sanitizedDiff) : null,
-      },
+      } as Prisma.AuditLogUncheckedCreateInput,
     });
   }
 
@@ -36,6 +42,7 @@ export class AuditService {
       entityType?: string;
       userId?: string;
       action?: string;
+      requestId?: string;
       dateFrom?: string;
       dateTo?: string;
     },
@@ -46,10 +53,11 @@ export class AuditService {
     if (filters?.entityType) where.entityType = filters.entityType;
     if (filters?.userId) where.userId = filters.userId;
     if (filters?.action) where.action = filters.action;
+    if (filters?.requestId) where.requestId = { contains: filters.requestId.trim() };
     if (filters?.dateFrom || filters?.dateTo) {
       where.timestamp = {};
-      if (filters.dateFrom) where.timestamp.gte = new Date(filters.dateFrom);
-      if (filters.dateTo) where.timestamp.lte = new Date(filters.dateTo);
+      if (filters.dateFrom) where.timestamp.gte = this.parseDateFilter(filters.dateFrom, 'start');
+      if (filters.dateTo) where.timestamp.lte = this.parseDateFilter(filters.dateTo, 'end');
     }
 
     const [logs, total] = await Promise.all([
@@ -137,6 +145,15 @@ export class AuditService {
 
     removeSensitive(sanitized);
     return sanitized;
+  }
+
+  private parseDateFilter(value: string, boundary: 'start' | 'end') {
+    if (DATE_ONLY_PATTERN.test(value)) {
+      const time = boundary === 'start' ? '00:00:00.000' : '23:59:59.999';
+      return new Date(`${value}T${time}Z`);
+    }
+
+    return new Date(value);
   }
 
   private minimizeClinicalDiff(entityType: string, diff: any) {

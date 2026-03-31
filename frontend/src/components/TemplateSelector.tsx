@@ -78,7 +78,7 @@ export default function TemplateSelector({ sectionKey, onInsert }: TemplateSelec
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium px-2 py-1 rounded-lg hover:bg-primary-50 transition-colors"
+        className="flex items-center gap-1.5 text-xs text-accent hover:text-accent font-medium px-2 py-1 rounded-lg hover:bg-accent/10 transition-colors"
       >
         <FiFileText className="w-3.5 h-3.5" />
         Insertar plantilla
@@ -86,9 +86,9 @@ export default function TemplateSelector({ sectionKey, onInsert }: TemplateSelec
       </button>
 
       {open && (
-        <div className="absolute z-20 left-0 top-full mt-2 w-[min(42rem,calc(100vw-2rem))] bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+        <div className="absolute z-20 left-0 top-full mt-2 w-[min(42rem,calc(100vw-2rem))] bg-surface-elevated border border-surface-muted/30 rounded-2xl shadow-xl overflow-hidden">
           <div className="grid md:grid-cols-[16rem,1fr]">
-            <div className="max-h-80 overflow-y-auto border-b md:border-b-0 md:border-r border-slate-200">
+            <div className="max-h-80 overflow-y-auto border-b md:border-b-0 md:border-r border-surface-muted/30">
               {filtered.map((template) => {
                 const isActive = template.id === previewTemplate?.id;
                 return (
@@ -96,20 +96,20 @@ export default function TemplateSelector({ sectionKey, onInsert }: TemplateSelec
                     key={template.id}
                     type="button"
                     onClick={() => setPreviewTemplateId(template.id)}
-                    className={`w-full text-left px-4 py-3 transition-colors border-b border-slate-100 last:border-b-0 ${
-                      isActive ? 'bg-primary-50' : 'hover:bg-slate-50'
+                    className={`w-full text-left px-4 py-3 transition-colors border-b border-surface-muted/20 last:border-b-0 ${
+                      isActive ? 'bg-accent/10' : 'hover:bg-surface-base/40'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium text-slate-900 truncate">{template.name}</div>
-                      {isActive && <FiEye className="w-4 h-4 text-primary-600 flex-shrink-0" />}
+                      <div className="text-sm font-medium text-ink-primary truncate">{template.name}</div>
+                      {isActive && <FiEye className="w-4 h-4 text-accent flex-shrink-0" />}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-surface-muted text-ink-secondary">
                         {CATEGORY_LABELS[template.category] || template.category}
                       </span>
                       {template.sectionKey && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary-50 text-primary-700">
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-accent/10 text-accent">
                           {SECTION_LABELS[template.sectionKey] || template.sectionKey}
                         </span>
                       )}
@@ -123,8 +123,8 @@ export default function TemplateSelector({ sectionKey, onInsert }: TemplateSelec
               <div className="p-4 flex flex-col gap-4 max-h-80">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-slate-900">{previewTemplate.name}</div>
-                    <p className="text-xs text-slate-500">
+                    <div className="text-sm font-semibold text-ink-primary">{previewTemplate.name}</div>
+                    <p className="text-xs text-ink-muted">
                       Vista previa antes de insertar en la sección actual.
                     </p>
                   </div>
@@ -141,8 +141,8 @@ export default function TemplateSelector({ sectionKey, onInsert }: TemplateSelec
                   </button>
                 </div>
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 overflow-y-auto">
-                  <pre className="whitespace-pre-wrap break-words text-sm text-slate-700 font-sans">
+                <div className="rounded-xl border border-surface-muted/30 bg-surface-base/40 p-3 overflow-y-auto">
+                  <pre className="whitespace-pre-wrap break-words text-sm text-ink-secondary font-sans">
                     {previewTemplate.content}
                   </pre>
                 </div>

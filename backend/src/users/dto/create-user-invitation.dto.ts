@@ -5,8 +5,8 @@ export class CreateUserInvitationDto {
   email: string;
 
   @IsString({ message: 'Debe ingresar un rol válido' })
-  @IsIn(['MEDICO', 'ASISTENTE'], { message: 'Solo se pueden invitar médicos o asistentes' })
-  role: 'MEDICO' | 'ASISTENTE';
+  @IsIn(['MEDICO', 'ASISTENTE', 'ADMIN'], { message: 'Solo se pueden invitar médicos, asistentes o administradores' })
+  role: 'MEDICO' | 'ASISTENTE' | 'ADMIN';
 
   @IsOptional()
   @IsUUID('4', { message: 'Debe seleccionar un médico válido' })

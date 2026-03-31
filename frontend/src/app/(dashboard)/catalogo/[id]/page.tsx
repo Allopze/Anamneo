@@ -86,12 +86,12 @@ export default function EditarAfeccionPage() {
   return (
     <div className="animate-fade-in max-w-2xl">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/catalogo" className="p-2 hover:bg-slate-100 rounded-lg">
-          <FiArrowLeft className="w-5 h-5 text-slate-600" />
+        <Link href="/catalogo" className="p-2 hover:bg-surface-muted rounded-lg">
+          <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Editar afección</h1>
-          <p className="text-slate-600">Actualizar nombre, sinónimos, tags y estado</p>
+          <h1 className="text-2xl font-bold text-ink-primary">Editar afección</h1>
+          <p className="text-ink-secondary">Actualizar nombre, sinónimos, tags y estado</p>
         </div>
       </div>
 
@@ -105,19 +105,19 @@ export default function EditarAfeccionPage() {
         ) : (
           <>
             <div>
-              <label className="text-sm text-slate-600">Nombre</label>
+              <label className="text-sm text-ink-secondary">Nombre</label>
               <input className="form-input" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div>
-              <label className="text-sm text-slate-600">Sinónimos (separados por coma)</label>
+              <label className="text-sm text-ink-secondary">Sinónimos (separados por coma)</label>
               <input className="form-input" value={synonyms} onChange={(e) => setSynonyms(e.target.value)} />
             </div>
             <div>
-              <label className="text-sm text-slate-600">Tags (separados por coma)</label>
+              <label className="text-sm text-ink-secondary">Tags (separados por coma)</label>
               <input className="form-input" value={tags} onChange={(e) => setTags(e.target.value)} />
             </div>
             <div>
-              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+              <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
                 <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
                 Activa
               </label>

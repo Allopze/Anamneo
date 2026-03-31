@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth-store';
@@ -16,14 +16,14 @@ import {
   FiMenu,
   FiX,
   FiSearch,
-  FiChevronDown,
   FiBookmark,
   FiClipboard,
+  FiArrowRight,
+  FiUser,
 } from 'react-icons/fi';
 import clsx from 'clsx';
 import { getNameInitial } from '@/lib/utils';
 import OfflineBanner from '@/components/common/OfflineBanner';
-import CommandPalette from '@/components/common/CommandPalette';
 import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
 
 interface DashboardLayoutProps {
@@ -38,7 +38,7 @@ const primaryNavigation = [
 ];
 
 const secondaryNavigation = [
-  { name: 'Catálogo de afecciones', href: '/catalogo', icon: FiList },
+  { name: 'Catálogo', href: '/catalogo', icon: FiList },
   { name: 'Plantillas', href: '/plantillas', icon: FiBookmark },
   { name: 'Ajustes', href: '/ajustes', icon: FiSettings },
 ];
@@ -52,15 +52,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     ...secondaryNavigation,
     ...(user?.isAdmin
       ? [
-          { name: 'Administración', href: '/admin/usuarios', icon: FiShield },
+          { name: 'Admin', href: '/admin/usuarios', icon: FiShield },
           { name: 'Auditoría', href: '/admin/auditoria', icon: FiList },
         ]
       : []),
   ];
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ id: string; type: 'patient' | 'encounter'; title: string; subtitle: string; href: string }[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const [mounted, setMounted] = useState(false);
   const [authCheckComplete, setAuthCheckComplete] = useState(false);
 
@@ -96,7 +102,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       } catch {
         if (cancelled) return;
         logout();
-        router.replace('/login');
       } finally {
         if (!cancelled) {
           setAuthCheckComplete(true);
@@ -111,17 +116,74 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     };
   }, [authCheckComplete, hasHydrated, isAuthenticated, login, logout, mounted, router]);
 
-  // F9: ⌘K / Ctrl+K keyboard shortcut to open search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setSearchOpen(true);
+        setTimeout(() => searchInputRef.current?.focus(), 100);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Close search when clicking outside
+  useEffect(() => {
+    if (!searchOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+        setSearchQuery('');
+        setSearchResults([]);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [searchOpen]);
+
+  const performSearch = useCallback(async (q: string) => {
+    if (!q.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const [patientsRes, encountersRes] = await Promise.allSettled([
+        api.get(`/patients?search=${encodeURIComponent(q)}&limit=5`),
+        api.get(`/encounters?search=${encodeURIComponent(q)}&limit=5`),
+      ]);
+      const items: typeof searchResults = [];
+      if (patientsRes.status === 'fulfilled' && patientsRes.value.data?.data) {
+        for (const p of patientsRes.value.data.data) {
+          items.push({ id: p.id, type: 'patient', title: p.nombre, subtitle: p.rut || 'Sin RUT', href: `/pacientes/${p.id}` });
+        }
+      }
+      if (encountersRes.status === 'fulfilled' && encountersRes.value.data?.data) {
+        for (const enc of encountersRes.value.data.data) {
+          items.push({ id: enc.id, type: 'encounter', title: enc.patient?.nombre || 'Atención', subtitle: `${enc.status === 'EN_PROGRESO' ? 'En progreso' : enc.status === 'COMPLETADO' ? 'Completado' : 'Cancelado'} — ${new Date(enc.createdAt).toLocaleDateString('es-CL')}`, href: `/atenciones/${enc.id}` });
+        }
+      }
+      setSearchResults(items);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => performSearch(value), 300);
+  };
+
+  const handleSearchNavigate = (href: string) => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    setSearchResults([]);
+    router.push(href);
+  };
 
   const handleLogout = async () => {
     try {
@@ -137,207 +199,247 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   if (!mounted || !hasHydrated || !authCheckComplete || !isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent" />
+      <div className="min-h-screen flex items-center justify-center bg-surface-base">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-frame border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-surface-base">
       <OfflineBanner />
-      <CommandPalette isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
 
-      {/* Sidebar */}
-      <aside
-        className={clsx(
-          'fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 transform transition-transform duration-200 lg:translate-x-0 flex flex-col',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        )}
-      >
-        {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200">
-          <Link href="/" className="flex items-center gap-2">
-            <AnamneoLogo
-              className="gap-2.5"
-              iconClassName="h-8 w-8"
-              textClassName="text-lg font-semibold text-slate-900"
-            />
-          </Link>
-          <button
-            className="lg:hidden p-2 text-slate-500 hover:text-slate-700"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Cerrar menú"
-          >
-            <FiX className="w-5 h-5" />
-          </button>
-        </div>
+      {/* ── App Shell ─────────────────────────────────────────────── */}
+      <div className="mx-auto max-w-[1440px] min-h-screen flex flex-col">
 
-        {/* Navigation */}
-        <nav className="p-4 space-y-4" aria-label="Navegación principal">
-          <div className="space-y-1">
-            {primaryItems.map((item) => {
-              const isActive = (item as any).exact ? pathname === item.href : pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  aria-current={isActive ? 'page' : undefined}
+        {/* ── Top Header Bar (dark frame) ──────────────────────────── */}
+        <header className="sticky top-0 z-40 bg-frame rounded-b-shell">
+          <div className="flex items-center justify-between h-14 px-4 lg:px-6">
+            {/* Left: Logo + Primary Nav */}
+            <div className="flex items-center gap-6">
+              <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+                <AnamneoLogo
+                  className="gap-2"
+                  iconClassName="h-7 w-7"
+                  textClassName="text-base font-semibold text-ink-onDark"
+                />
+              </Link>
+
+              {/* Desktop primary nav — text-only pills */}
+              <nav className="hidden lg:flex items-center gap-1" aria-label="Navegación principal">
+                {primaryItems.map((item) => {
+                  const isActive = (item as any).exact ? pathname === item.href : pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={clsx(
+                        'px-3.5 py-1.5 rounded-pill text-sm font-medium transition-all duration-200',
+                        isActive
+                          ? 'bg-accent text-accent-text'
+                          : 'text-ink-onDark/60 hover:text-ink-onDark hover:bg-surface-elevated/10'
+                      )}
+                    >
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Right: Search + User */}
+            <div className="flex items-center gap-1.5">
+              {/* Inline expanding search */}
+              <div ref={searchContainerRef} className="relative flex items-center">
+                <button
+                  onClick={() => {
+                    setSearchOpen(!searchOpen);
+                    if (!searchOpen) setTimeout(() => searchInputRef.current?.focus(), 100);
+                    else { setSearchQuery(''); setSearchResults([]); }
+                  }}
                   className={clsx(
-                    'flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-colors',
-                    isActive
-                      ? 'bg-primary-50/80 text-primary-700'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    'p-2 rounded-full transition-all duration-200',
+                    searchOpen
+                      ? 'text-ink-onDark bg-surface-elevated/15'
+                      : 'text-ink-onDark/50 hover:text-ink-onDark hover:bg-surface-elevated/10'
+                  )}
+                  aria-label="Buscar (⌘K)"
+                >
+                  <FiSearch className="w-4 h-4" />
+                </button>
+
+                <div
+                  className={clsx(
+                    'absolute right-10 top-1/2 -translate-y-1/2 overflow-hidden transition-all duration-300 ease-out',
+                    searchOpen ? 'w-64 opacity-100' : 'w-0 opacity-0'
                   )}
                 >
-                  <item.icon className="w-5 h-5" aria-hidden="true" />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </div>
-          <div className="border-t border-slate-100 pt-4">
-            <p className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-              Configuración y apoyo
-            </p>
-            <div className="space-y-1">
-              {secondaryItems.map((item) => {
-                const isActive = (item as any).exact ? pathname === item.href : pathname.startsWith(item.href);
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={clsx(
-                      'flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-colors',
-                      isActive
-                        ? 'bg-primary-50/80 text-primary-700'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setSearchOpen(false);
+                        setSearchQuery('');
+                        setSearchResults([]);
+                      }
+                    }}
+                    placeholder="Buscar..."
+                    className="w-full bg-surface-elevated/15 text-ink-onDark placeholder:text-ink-onDark/40 text-sm rounded-pill px-4 py-1.5 outline-none border border-surface-elevated/20 focus:border-accent/50 transition-colors"
+                  />
+                </div>
+
+                {/* Search results dropdown */}
+                {searchOpen && searchQuery.trim() && (
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-surface-elevated rounded-card shadow-dropdown border border-surface-muted/30 overflow-hidden z-50 animate-fade-in">
+                    {searchLoading && (
+                      <div className="flex items-center justify-center py-6">
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-accent border-t-transparent" />
+                      </div>
                     )}
-                  >
-                    <item.icon className="w-5 h-5" aria-hidden="true" />
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </nav>
-
-        {/* User info at bottom */}
-        <div className="mt-auto p-4 border-t border-slate-200 mb-2">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-              <span className="text-primary-700 font-semibold">
-                {getNameInitial(user?.nombre)}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">{user?.nombre}</p>
-              <p className="text-xs text-slate-500">
-                {user?.isAdmin
-                  ? 'Administrador'
-                  : user?.role === 'MEDICO'
-                  ? 'Médico'
-                  : 'Asistente'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <div className="lg:pl-64">
-        {/* Top bar */}
-        <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200">
-          <div className="h-full px-4 flex items-center justify-between gap-4">
-            {/* Mobile menu button */}
-            <button
-              className="lg:hidden p-2 text-slate-500 hover:text-slate-700"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Abrir menú de navegación"
-            >
-              <FiMenu className="w-6 h-6" />
-            </button>
-
-            {/* Search */}
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="flex-1 max-w-md flex items-center gap-3 px-3 py-2 border border-slate-300 rounded-lg text-slate-400 hover:border-primary-400 hover:text-slate-500 transition-all cursor-pointer"
-            >
-              <FiSearch className="w-5 h-5" />
-              <span className="text-sm">Buscar pacientes, atenciones...</span>
-              <div className="ml-auto hidden md:flex items-center gap-1 px-1.5 py-0.5 border border-slate-200 rounded bg-slate-50 text-[10px] font-medium text-slate-400">
-                <span>⌘K</span>
-                <span>/</span>
-                <span>Ctrl+K</span>
+                    {!searchLoading && searchResults.length === 0 && (
+                      <div className="text-center py-6 text-ink-muted text-sm">
+                        Sin resultados para &ldquo;{searchQuery}&rdquo;
+                      </div>
+                    )}
+                    {!searchLoading && searchResults.length > 0 && (
+                      <div className="py-1.5 max-h-72 overflow-y-auto">
+                        {searchResults.filter(r => r.type === 'patient').length > 0 && (
+                          <div>
+                            <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Pacientes</div>
+                            {searchResults.filter(r => r.type === 'patient').map((r) => (
+                              <button key={r.id} onClick={() => handleSearchNavigate(r.href)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-base/50 transition-colors">
+                                <FiUser className="w-4 h-4 text-ink-muted shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-ink truncate">{r.title}</p>
+                                  <p className="text-micro text-ink-muted truncate">{r.subtitle}</p>
+                                </div>
+                                <FiArrowRight className="w-3.5 h-3.5 text-ink-muted shrink-0" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {searchResults.filter(r => r.type === 'encounter').length > 0 && (
+                          <div>
+                            <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Atenciones</div>
+                            {searchResults.filter(r => r.type === 'encounter').map((r) => (
+                              <button key={r.id} onClick={() => handleSearchNavigate(r.href)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-base/50 transition-colors">
+                                <FiFileText className="w-4 h-4 text-ink-muted shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-ink truncate">{r.title}</p>
+                                  <p className="text-micro text-ink-muted truncate">{r.subtitle}</p>
+                                </div>
+                                <FiArrowRight className="w-3.5 h-3.5 text-ink-muted shrink-0" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </button>
 
-            {/* Actions */}
-            <div className="flex items-center gap-3">
-              {/* User menu */}
+              {/* User avatar + dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className={clsx(
-                    'flex items-center gap-2 p-2 rounded-xl border transition-all',
+                    'p-1 rounded-full transition-all',
                     userMenuOpen
-                      ? 'bg-primary-50 border-primary-200 text-primary-700 shadow-sm'
-                      : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200 text-slate-700'
+                      ? 'ring-2 ring-accent/50'
+                      : 'hover:ring-2 hover:ring-surface-elevated/20'
                   )}
                   aria-label="Menú de usuario"
                   aria-expanded={userMenuOpen}
                   aria-haspopup="true"
                 >
-                  <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                    <span className="text-primary-700 font-semibold text-sm">
+                  <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center">
+                    <span className="text-accent-text font-semibold text-xs">
                       {getNameInitial(user?.nombre)}
                     </span>
                   </div>
-                  <FiChevronDown
-                    className={clsx(
-                      'w-4 h-4 transition-transform',
-                      userMenuOpen ? 'rotate-180 text-primary-600' : 'text-slate-500'
-                    )}
-                  />
                 </button>
 
                 {userMenuOpen && (
                   <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setUserMenuOpen(false)}
-                    />
+                    <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
                     <div className="absolute right-0 mt-2 w-56 dropdown-surface py-1.5 z-20" role="menu">
                       <div className="dropdown-header">
-                        <p className="text-sm font-medium text-slate-900">{user?.nombre}</p>
-                        <p className="text-xs text-slate-500">{user?.email}</p>
+                        <p className="text-sm font-medium text-ink">{user?.nombre}</p>
+                        <p className="text-micro text-ink-muted">{user?.email}</p>
+                        <p className="text-micro text-ink-muted mt-0.5">
+                          {user?.isAdmin ? 'Administrador' : user?.role === 'MEDICO' ? 'Médico' : 'Asistente'}
+                        </p>
                       </div>
-                      <button
-                        onClick={handleLogout}
-                        className="dropdown-item dropdown-item-danger"
-                      >
-                        <FiLogOut className="w-4 h-4" />
-                        Cerrar sesión
-                      </button>
+                      {/* Secondary nav links */}
+                      <div className="border-t border-surface-muted/30 mt-1 pt-1">
+                        {secondaryItems.map((item) => (
+                          <Link
+                            key={item.name}
+                            href={item.href}
+                            className="dropdown-item"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <item.icon className="w-4 h-4" />
+                            {item.name}
+                          </Link>
+                        ))}
+                      </div>
+                      <div className="border-t border-surface-muted/30 mt-1 pt-1">
+                        <button onClick={handleLogout} className="dropdown-item dropdown-item-danger">
+                          <FiLogOut className="w-4 h-4" />
+                          Cerrar sesión
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}
               </div>
+
+              {/* Mobile menu button */}
+              <button
+                className="lg:hidden p-2 text-ink-onDark/70 hover:text-ink-onDark"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label={mobileMenuOpen ? 'Cerrar menú' : 'Abrir menú de navegación'}
+              >
+                {mobileMenuOpen ? <FiX className="w-5 h-5" /> : <FiMenu className="w-5 h-5" />}
+              </button>
             </div>
           </div>
+
+          {/* ── Mobile nav accordion ───────────────────────────────── */}
+          {mobileMenuOpen && (
+            <nav className="lg:hidden px-4 pb-3 pt-1 border-t border-white/10 animate-fade-in">
+              <div className="flex flex-wrap gap-1.5">
+                {[...primaryItems, ...secondaryItems].map((item) => {
+                  const isActive = (item as any).exact ? pathname === item.href : pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={clsx(
+                        'px-3.5 py-2 rounded-pill text-sm font-medium transition-all',
+                        isActive
+                          ? 'bg-accent text-accent-text'
+                          : 'text-ink-onDark/60 hover:bg-surface-elevated/10'
+                      )}
+                    >
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            </nav>
+          )}
         </header>
 
-        {/* Page content */}
-        <main className="p-6">{children}</main>
+        {/* ── Page Content ─────────────────────────────────────────── */}
+        <main className="flex-1 px-3 py-6 lg:px-8 lg:py-8">{children}</main>
       </div>
     </div>
   );

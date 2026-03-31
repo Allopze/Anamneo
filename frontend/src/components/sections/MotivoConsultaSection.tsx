@@ -118,9 +118,9 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
         title="Sugerencias de afección"
         description="Clasificación asistida para organizar la atención. No reemplaza criterio clínico."
         muted
-        actions={isSearching ? <span className="text-xs text-slate-500 animate-pulse">Buscando...</span> : undefined}
+        actions={isSearching ? <span className="text-xs text-ink-muted animate-pulse">Buscando...</span> : undefined}
       >
-        <div className="mb-3 flex items-center gap-2 text-slate-600">
+        <div className="mb-3 flex items-center gap-2 text-ink-secondary">
           <FiSearch className="w-4 h-4" />
           <span className="text-sm font-medium">Coincidencias detectadas</span>
         </div>
@@ -136,7 +136,7 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
                   'section-item-card w-full flex items-center justify-between text-left',
                   data.afeccionSeleccionada?.id === suggestion.id
                     ? 'section-item-card-selected'
-                    : 'hover:border-primary-300'
+                    : 'hover:border-accent/60'
                 )}
               >
                 <div className="flex items-center gap-3">
@@ -144,8 +144,8 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
                     className={clsx(
                       'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
                       data.afeccionSeleccionada?.id === suggestion.id
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-slate-100 text-slate-600'
+                        ? 'bg-accent/100 text-white'
+                        : 'bg-surface-muted text-ink-secondary'
                     )}
                   >
                     {data.afeccionSeleccionada?.id === suggestion.id ? (
@@ -154,20 +154,20 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
                       `${suggestion.confidence}%`
                     )}
                   </div>
-                  <span className="font-medium text-slate-900">{suggestion.name}</span>
+                  <span className="font-medium text-ink-primary">{suggestion.name}</span>
                 </div>
                 {!readOnly && (
-                  <span className="text-sm text-primary-600">Usar esta</span>
+                  <span className="text-sm text-accent">Usar esta</span>
                 )}
               </button>
             ))}
           </div>
         ) : data.texto && data.texto.length >= 3 ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-ink-muted">
             No se encontraron sugerencias para el texto ingresado.
           </p>
         ) : (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-ink-muted">
             Escribe al menos 3 caracteres para ver sugerencias.
           </p>
         )}
@@ -179,11 +179,11 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
             className={clsx(
               'mt-3 w-full rounded-xl border border-dashed p-3 text-left transition-colors',
               data.modoSeleccion === 'MANUAL'
-                ? 'border-amber-500 bg-amber-50'
-                : 'border-dashed border-slate-300 hover:border-slate-400'
+                ? 'border-status-yellow bg-status-yellow/10'
+                : 'border-dashed border-surface-muted/30 hover:border-surface-muted/40'
             )}
           >
-            <span className="text-sm text-slate-600">
+            <span className="text-sm text-ink-secondary">
               Ninguna coincide exactamente. Mantener selección manual.
             </span>
           </button>

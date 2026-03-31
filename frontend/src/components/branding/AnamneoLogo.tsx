@@ -35,7 +35,7 @@ export function AnamneoLogo({
       </span>
       <span
         className={clsx(
-          'font-sans text-2xl font-semibold tracking-tight text-slate-900',
+          'font-sans text-2xl font-semibold tracking-tight text-ink-primary',
           textClassName
         )}
       >

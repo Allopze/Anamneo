@@ -183,12 +183,14 @@ model AuditLog {
   entityType String   @map("entity_type")
   entityId   String   @map("entity_id")
   userId     String   @map("user_id")
+  requestId  String?  @map("request_id")
   action     String
   diff       String?
   timestamp  DateTime @default(now())
 
   @@index([entityType, entityId])
   @@index([userId])
+  @@index([requestId])
   @@index([action])
   @@index([timestamp])
   @@map("audit_logs")

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
+import { canImportConditionsCsv } from '@/lib/permissions';
 import { Condition } from '@/types';
 import { parseJsonArray } from '@/lib/safe-json';
 import { FiPlus, FiEdit2, FiSearch, FiTag, FiUpload } from 'react-icons/fi';
@@ -13,7 +14,7 @@ import toast from 'react-hot-toast';
 const CSV_PREVIEW_LIMIT = 6;
 
 export default function CatalogoPage() {
-  const { isAdmin } = useAuthStore();
+  const { isAdmin, user } = useAuthStore();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -25,6 +26,7 @@ export default function CatalogoPage() {
   const [editingCondition, setEditingCondition] = useState<Condition | null>(null);
   const [localForm, setLocalForm] = useState({ name: '', synonyms: '', tags: '' });
   const isAdminUser = isAdmin();
+  const canImportCsv = canImportConditionsCsv(user);
 
   // Debounce search to avoid firing on every keystroke
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -210,10 +212,12 @@ export default function CatalogoPage() {
               <FiPlus className="w-4 h-4" />
               Nueva Afección
             </Link>
-            <a href="#import-csv" className="btn btn-secondary flex items-center gap-2">
-              <FiUpload className="w-4 h-4" />
-              Importar CSV
-            </a>
+            {canImportCsv && (
+              <a href="#import-csv" className="btn btn-secondary flex items-center gap-2">
+                <FiUpload className="w-4 h-4" />
+                Importar CSV
+              </a>
+            )}
           </div>
         ) : (
           <button className="btn btn-primary" onClick={openCreateForm}>
@@ -223,12 +227,12 @@ export default function CatalogoPage() {
         )}
       </div>
 
-      {isAdminUser && (
+      {canImportCsv && (
         <div id="import-csv" className="card mb-6">
           <div className="panel-header flex-col items-start gap-6 lg:flex-row lg:items-center">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Importar CSV global</h2>
-              <p className="text-sm text-slate-600">
+              <h2 className="text-lg font-semibold text-ink-primary">Importar CSV global</h2>
+              <p className="text-sm text-ink-secondary">
                 Carga masiva inicial del catálogo. Formato: una columna llamada <strong>name</strong>.
               </p>
             </div>
@@ -242,18 +246,18 @@ export default function CatalogoPage() {
             </button>
           </div>
 
-          <label className="mt-5 block rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-5 transition-colors hover:border-primary-300">
+          <label className="mt-5 block rounded-xl border border-dashed border-surface-muted/30 bg-surface-base/40/60 p-5 transition-colors hover:border-accent/60">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center">
-                  <FiUpload className="w-5 h-5 text-primary-600" />
+                <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center">
+                  <FiUpload className="w-5 h-5 text-accent" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Selecciona un CSV</p>
-                  <p className="text-xs text-slate-500">Arrastra y suelta o haz clic para elegir</p>
+                  <p className="text-sm font-medium text-ink-primary">Selecciona un CSV</p>
+                  <p className="text-xs text-ink-muted">Arrastra y suelta o haz clic para elegir</p>
                 </div>
               </div>
-              <span className="text-xs text-slate-500">.csv</span>
+              <span className="text-xs text-ink-muted">.csv</span>
             </div>
             <input
               type="file"
@@ -265,20 +269,20 @@ export default function CatalogoPage() {
 
           {importFile && (
             <div className="mt-3 space-y-3">
-              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                <span className="rounded-full bg-slate-100 px-3 py-1">{importFile.name}</span>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-ink-secondary">
+                <span className="rounded-full bg-surface-muted px-3 py-1">{importFile.name}</span>
                 {typeof importRows === 'number' && (
-                  <span className="rounded-full bg-slate-100 px-3 py-1">
+                  <span className="rounded-full bg-surface-muted px-3 py-1">
                     {importRows} filas
                   </span>
                 )}
                 {importDuplicateRows > 0 && (
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">
+                  <span className="rounded-full bg-status-yellow/20 px-3 py-1 text-status-yellow">
                     {importDuplicateRows} duplicadas en el archivo
                   </span>
                 )}
                 <button
-                  className="text-slate-500 hover:text-slate-700"
+                  className="text-ink-muted hover:text-ink-secondary"
                   onClick={() => {
                     setImportFile(null);
                     setImportRows(null);
@@ -292,16 +296,16 @@ export default function CatalogoPage() {
               </div>
 
               {importPreview.length > 0 && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="rounded-xl border border-surface-muted/30 bg-surface-base/40 p-4">
                   <div className="flex items-center justify-between gap-3 mb-3">
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-900">Vista previa</h3>
-                      <p className="text-xs text-slate-500">
+                      <h3 className="text-sm font-semibold text-ink-primary">Vista previa</h3>
+                      <p className="text-xs text-ink-muted">
                         Primeras {importPreview.length} filas que se intentarán importar.
                       </p>
                     </div>
                     {typeof importRows === 'number' && importRows > importPreview.length && (
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-ink-muted">
                         +{importRows - importPreview.length} adicionales
                       </span>
                     )}
@@ -310,7 +314,7 @@ export default function CatalogoPage() {
                     {importPreview.map((row, index) => (
                       <li
                         key={`${row}-${index}`}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                        className="rounded-lg border border-surface-muted/30 bg-surface-elevated px-3 py-2 text-sm text-ink-secondary"
                       >
                         {row}
                       </li>
@@ -322,7 +326,7 @@ export default function CatalogoPage() {
           )}
 
           {importError && (
-            <p className="mt-3 text-sm text-red-600">{importError}</p>
+            <p className="mt-3 text-sm text-status-red">{importError}</p>
           )}
         </div>
       )}
@@ -331,8 +335,8 @@ export default function CatalogoPage() {
         <div className="card mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Mi catálogo</h2>
-              <p className="text-sm text-slate-600">
+              <h2 className="text-lg font-semibold text-ink-primary">Mi catálogo</h2>
+              <p className="text-sm text-ink-secondary">
                 Agrega o personaliza afecciones solo para tu instancia
               </p>
             </div>
@@ -345,7 +349,7 @@ export default function CatalogoPage() {
           {formMode && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-sm text-slate-600">Nombre</label>
+                <label className="text-sm text-ink-secondary">Nombre</label>
                 <input
                   className="form-input"
                   value={localForm.name}
@@ -353,7 +357,7 @@ export default function CatalogoPage() {
                 />
               </div>
               <div>
-                <label className="text-sm text-slate-600">Sinónimos (coma)</label>
+                <label className="text-sm text-ink-secondary">Sinónimos (coma)</label>
                 <input
                   className="form-input"
                   value={localForm.synonyms}
@@ -361,7 +365,7 @@ export default function CatalogoPage() {
                 />
               </div>
               <div>
-                <label className="text-sm text-slate-600">Tags (coma)</label>
+                <label className="text-sm text-ink-secondary">Tags (coma)</label>
                 <input
                   className="form-input"
                   value={localForm.tags}
@@ -394,7 +398,7 @@ export default function CatalogoPage() {
 
       <div className="filter-surface">
         <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" />
           <input
             type="text"
             value={search}
@@ -413,29 +417,29 @@ export default function CatalogoPage() {
             ))}
           </div>
         ) : conditions && conditions.length > 0 ? (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-surface-muted/30">
             {conditions.map((condition) => (
               <div
                 key={condition.id}
                 className="group list-row cursor-pointer"
               >
-                <div className="list-row-icon bg-clinical-100 text-clinical-600">
-                  <FiTag className="w-5 h-5 text-clinical-600" />
+                <div className="list-row-icon bg-status-green/20 text-status-green">
+                  <FiTag className="w-5 h-5 text-status-green" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-slate-900">{condition.name}</h3>
+                  <h3 className="font-medium text-ink-primary">{condition.name}</h3>
                   <div className="flex items-center gap-2 flex-wrap mt-1">
                     {(() => {
                       const synonyms = parseJsonArray(condition.synonyms);
                       return (
                         <>
                           {synonyms.slice(0, 3).map((syn: string, i: number) => (
-                            <span key={i} className="list-chip bg-primary-100 text-primary-700">
+                            <span key={i} className="list-chip bg-accent/20 text-accent">
                               {syn}
                             </span>
                           ))}
                           {synonyms.length > 3 && (
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-ink-muted">
                               +{synonyms.length - 3} más
                             </span>
                           )}
@@ -448,7 +452,7 @@ export default function CatalogoPage() {
                   <div className="flex items-center gap-2">
                     <Link
                       href={`/catalogo/${condition.id}`}
-                      className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                      className="p-2 text-ink-muted hover:text-accent hover:bg-accent/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                     >
                       <FiEdit2 className="w-4 h-4" />
                     </Link>
@@ -456,7 +460,7 @@ export default function CatalogoPage() {
                 ) : (
                   <div className="flex items-center gap-2">
                     {condition.scope && (
-                      <span className="list-chip bg-slate-100 text-slate-600 uppercase tracking-wide text-[10px]">
+                      <span className="list-chip bg-surface-muted text-ink-secondary uppercase tracking-wide text-[10px]">
                         {condition.scope === 'GLOBAL' ? 'Global' : 'Local'}
                       </span>
                     )}
@@ -481,7 +485,7 @@ export default function CatalogoPage() {
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <FiTag className="w-10 h-10 text-primary-400" />
+              <FiTag className="w-10 h-10 text-accent" />
             </div>
             <h3 className="empty-state-title">Sin afecciones cargadas</h3>
             <p className="empty-state-description">No hay afecciones disponibles en el catálogo para esta búsqueda.</p>

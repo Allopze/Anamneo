@@ -113,13 +113,13 @@ export default function PlantillasPage() {
       </div>
 
       {showForm && (
-        <div className="filter-surface border-primary-200">
-          <h2 className="font-semibold text-slate-900 mb-4">
+        <div className="filter-surface border-accent/20">
+          <h2 className="font-semibold text-ink-primary mb-4">
             {editingId ? 'Editar plantilla' : 'Nueva plantilla'}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="block text-sm text-slate-600 mb-1">Nombre</label>
+              <label className="block text-sm text-ink-secondary mb-1">Nombre</label>
               <input
                 className="form-input"
                 value={form.name}
@@ -128,7 +128,7 @@ export default function PlantillasPage() {
               />
             </div>
             <div>
-              <label className="block text-sm text-slate-600 mb-1">Categoría</label>
+              <label className="block text-sm text-ink-secondary mb-1">Categoría</label>
               <select
                 className="form-input"
                 value={form.category}
@@ -140,7 +140,7 @@ export default function PlantillasPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm text-slate-600 mb-1">Sección (opcional)</label>
+              <label className="block text-sm text-ink-secondary mb-1">Sección (opcional)</label>
               <select
                 className="form-input"
                 value={form.sectionKey}
@@ -153,7 +153,7 @@ export default function PlantillasPage() {
             </div>
           </div>
           <div className="mb-4">
-            <label className="block text-sm text-slate-600 mb-1">Contenido</label>
+            <label className="block text-sm text-ink-secondary mb-1">Contenido</label>
             <textarea
               className="form-input min-h-[120px]"
               value={form.content}
@@ -180,35 +180,35 @@ export default function PlantillasPage() {
             {[...Array(4)].map((_, i) => <div key={i} className="h-16 skeleton rounded-lg" />)}
           </div>
         ) : templates && templates.length > 0 ? (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-surface-muted/30">
             {templates.map((t) => (
               <div key={t.id} className="group list-row items-start">
-                <div className="list-row-icon mt-0.5 bg-primary-100 text-primary-600">
-                  <FiFileText className="w-5 h-5 text-primary-600" />
+                <div className="list-row-icon mt-0.5 bg-accent/20 text-accent">
+                  <FiFileText className="w-5 h-5 text-accent" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-medium text-slate-900">{t.name}</h3>
-                    <span className="list-chip bg-slate-100 text-slate-600">
+                    <h3 className="font-medium text-ink-primary">{t.name}</h3>
+                    <span className="list-chip bg-surface-muted text-ink-secondary">
                       {CATEGORIES.find((c) => c.value === t.category)?.label || t.category}
                     </span>
                     {t.sectionKey && (
-                      <span className="list-chip bg-primary-50 text-primary-600">
+                      <span className="list-chip bg-accent/10 text-accent">
                         {SECTION_KEYS.find((s) => s.value === t.sectionKey)?.label || t.sectionKey}
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-slate-500 line-clamp-2">{t.content}</p>
+                  <p className="text-sm text-ink-muted line-clamp-2">{t.content}</p>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                    className="p-2 text-ink-muted hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
                     onClick={() => startEdit(t)}
                   >
                     <FiEdit2 className="w-4 h-4" />
                   </button>
                   <button
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-ink-muted hover:text-status-red hover:bg-status-red/10 rounded-lg transition-colors"
                     onClick={() => { if (confirm('¿Eliminar esta plantilla?')) deleteMutation.mutate(t.id); }}
                   >
                     <FiTrash2 className="w-4 h-4" />
@@ -220,7 +220,7 @@ export default function PlantillasPage() {
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <FiFileText className="w-10 h-10 text-primary-400" />
+              <FiFileText className="w-10 h-10 text-accent" />
             </div>
             <h3 className="empty-state-title">Sin plantillas todavía</h3>
             <p className="empty-state-description">Crea una plantilla o instala el pack base para acelerar tus atenciones.</p>

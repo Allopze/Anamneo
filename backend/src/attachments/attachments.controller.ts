@@ -60,6 +60,7 @@ export class AttachmentsController {
     @CurrentUser() user: CurrentUserData,
   ) {
     const file = await this.attachmentsService.getFile(id, user);
+    await this.attachmentsService.logDownload(id, user.id);
     res.setHeader('Content-Type', file.mime);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);

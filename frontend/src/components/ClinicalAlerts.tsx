@@ -83,8 +83,8 @@ export default function ClinicalAlerts({ patientId }: ClinicalAlertsProps) {
           key={i}
           className={`flex items-start gap-3 px-4 py-3 rounded-xl text-sm ${
             alert.type === 'warning'
-              ? 'bg-amber-50 border border-amber-200 text-amber-800'
-              : 'bg-blue-50 border border-blue-200 text-blue-800'
+              ? 'bg-status-yellow/10 border border-status-yellow/30 text-status-yellow'
+              : 'bg-accent/10 border border-blue-200 text-blue-800'
           }`}
         >
           {alert.type === 'warning' ? (

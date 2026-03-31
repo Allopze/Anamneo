@@ -89,6 +89,10 @@ jobs:
         run: npm run typecheck
         working-directory: frontend
 
+      - name: Run tests (frontend)
+        run: npm test -- --ci --runInBand
+        working-directory: frontend
+
       - name: Audit production deps (frontend)
         run: npm run audit:prod
         working-directory: frontend

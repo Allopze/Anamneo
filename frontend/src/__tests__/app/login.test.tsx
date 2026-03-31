@@ -6,6 +6,7 @@ import LoginPage from '@/app/login/page';
 const pushMock = jest.fn();
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
+  useSearchParams: () => ({ get: () => null }),
 }));
 
 // Mock api

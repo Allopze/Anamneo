@@ -61,6 +61,15 @@ export interface EncounterSection {
   updatedAt: string;
 }
 
+export interface EncounterIdentificationSnapshotStatus {
+  isSnapshot: boolean;
+  hasDifferences: boolean;
+  differingFields: string[];
+  differingFieldLabels: string[];
+  snapshotCreatedAt: string;
+  sourcePatientUpdatedAt?: string | null;
+}
+
 export interface Encounter {
   id: string;
   patientId: string;
@@ -84,6 +93,7 @@ export interface Encounter {
   sections?: EncounterSection[];
   attachments?: Attachment[];
   tasks?: PatientTask[];
+  identificationSnapshotStatus?: EncounterIdentificationSnapshotStatus;
   progress?: {
     completed: number;
     total: number;

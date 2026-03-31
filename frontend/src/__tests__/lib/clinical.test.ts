@@ -78,6 +78,7 @@ describe('extractStructuredMedicationLines', () => {
   it('formats medication lines', () => {
     const meds: StructuredMedication[] = [
       {
+        id: 'med-1',
         nombre: 'Paracetamol',
         dosis: '500mg',
         frecuencia: 'c/8h',
@@ -97,7 +98,7 @@ describe('extractStructuredMedicationLines', () => {
 
   it('skips empty fields', () => {
     const meds: StructuredMedication[] = [
-      { nombre: 'Ibuprofeno', dosis: '', frecuencia: '', duracion: '' },
+      { id: 'med-2', nombre: 'Ibuprofeno', dosis: '', frecuencia: '', duracion: '' },
     ];
     const lines = extractStructuredMedicationLines(meds);
     expect(lines[0]).toBe('Ibuprofeno');
@@ -107,7 +108,7 @@ describe('extractStructuredMedicationLines', () => {
 describe('extractStructuredOrderLines', () => {
   it('formats order lines', () => {
     const orders: StructuredOrder[] = [
-      { nombre: 'Hemograma', estado: 'PENDIENTE', indicacion: 'Control' },
+      { id: 'ord-1', nombre: 'Hemograma', estado: 'PENDIENTE', indicacion: 'Control' },
     ];
     const lines = extractStructuredOrderLines(orders);
     expect(lines).toHaveLength(1);

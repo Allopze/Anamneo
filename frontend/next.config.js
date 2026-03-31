@@ -2,10 +2,24 @@ const { withSentryConfig } = require('@sentry/nextjs');
 
 /** @type {import('next').NextConfig} */
 const backendApiUrl = (process.env.API_PROXY_TARGET || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4444/api').replace(/\/$/, '');
-const allowedDevOrigins = (process.env.NEXT_ALLOWED_DEV_ORIGINS || 'localhost,127.0.0.1,192.168.*.*,10.*.*.*')
+const defaultAllowedDevOrigins = [
+  'localhost',
+  '127.0.0.1',
+  '192.168.*.*',
+  '10.*.*.*',
+  'anamneo.lat',
+  '*.anamneo.lat',
+  'anamneo.cloudbox.lat',
+  '*.cloudbox.lat',
+];
+const configuredAllowedDevOrigins = (process.env.NEXT_ALLOWED_DEV_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+const allowedDevOrigins = Array.from(new Set([
+  ...defaultAllowedDevOrigins,
+  ...configuredAllowedDevOrigins,
+]));
 
 const nextConfig = {
   reactStrictMode: true,

@@ -15,6 +15,7 @@ interface AuditLogEntry {
   entityType: string;
   entityId: string;
   userId: string;
+  requestId?: string | null;
   action: string;
   diff: string | null;
   timestamp: string;
@@ -28,8 +29,14 @@ interface AdminUserRow {
 
 const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   CREATE: { label: 'Creación', color: 'bg-green-100 text-green-700' },
-  UPDATE: { label: 'Actualización', color: 'bg-primary-100 text-primary-700' },
-  DELETE: { label: 'Eliminación', color: 'bg-red-100 text-red-700' },
+  UPDATE: { label: 'Actualización', color: 'bg-accent/20 text-accent' },
+  DELETE: { label: 'Eliminación', color: 'bg-status-red/20 text-status-red' },
+  EXPORT: { label: 'Exportación', color: 'bg-sky-100 text-sky-700' },
+  DOWNLOAD: { label: 'Descarga', color: 'bg-amber-100 text-amber-700' },
+  PASSWORD_CHANGED: { label: 'Cambio de contraseña', color: 'bg-orange-100 text-orange-700' },
+  LOGIN: { label: 'Inicio de sesión', color: 'bg-emerald-100 text-emerald-700' },
+  LOGOUT: { label: 'Cierre de sesión', color: 'bg-slate-200 text-slate-700' },
+  LOGIN_FAILED: { label: 'Login fallido', color: 'bg-rose-100 text-rose-700' },
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -40,6 +47,9 @@ const ENTITY_LABELS: Record<string, string> = {
   ConditionCatalog: 'Catálogo',
   ConditionCatalogLocal: 'Catálogo local',
   Attachment: 'Adjunto',
+  UserInvitation: 'Invitación',
+  PatientExport: 'Exportación pacientes',
+  Auth: 'Autenticación',
 };
 
 export default function AuditoriaPage() {
@@ -50,6 +60,7 @@ export default function AuditoriaPage() {
     action: '',
     entityType: '',
     userId: '',
+    requestId: '',
     dateFrom: '',
     dateTo: '',
   });
@@ -115,12 +126,12 @@ export default function AuditoriaPage() {
 
       <div className="filter-surface">
         <div className="flex items-center gap-2 mb-4">
-          <FiFilter className="w-4 h-4 text-primary-600" />
-          <h2 className="font-semibold text-slate-900">Filtros operativos</h2>
+          <FiFilter className="w-4 h-4 text-accent" />
+          <h2 className="font-semibold text-ink-primary">Filtros operativos</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div>
-            <label className="text-sm text-slate-600">Acción</label>
+            <label className="text-sm text-ink-secondary">Acción</label>
             <select
               className="form-input"
               value={filters.action}
@@ -136,7 +147,7 @@ export default function AuditoriaPage() {
             </select>
           </div>
           <div>
-            <label className="text-sm text-slate-600">Entidad</label>
+            <label className="text-sm text-ink-secondary">Entidad</label>
             <select
               className="form-input"
               value={filters.entityType}
@@ -152,7 +163,7 @@ export default function AuditoriaPage() {
             </select>
           </div>
           <div>
-            <label className="text-sm text-slate-600">Usuario</label>
+            <label className="text-sm text-ink-secondary">Usuario</label>
             <select
               className="form-input"
               value={filters.userId}
@@ -170,7 +181,7 @@ export default function AuditoriaPage() {
             </select>
           </div>
           <div>
-            <label className="text-sm text-slate-600">Desde</label>
+            <label className="text-sm text-ink-secondary">Desde</label>
             <input
               type="date"
               className="form-input"
@@ -182,7 +193,19 @@ export default function AuditoriaPage() {
             />
           </div>
           <div>
-            <label className="text-sm text-slate-600">Hasta</label>
+            <label className="text-sm text-ink-secondary">Request ID</label>
+            <input
+              className="form-input"
+              value={filters.requestId}
+              onChange={(e) => {
+                setPage(1);
+                setFilters((current) => ({ ...current, requestId: e.target.value }));
+              }}
+              placeholder="Correlación"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-ink-secondary">Hasta</label>
             <input
               type="date"
               className="form-input"
@@ -213,8 +236,8 @@ export default function AuditoriaPage() {
                   <span className="text-lg font-bold">{count}</span>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-900">{info.label}</p>
-                  <p className="text-xs text-slate-500">en esta página</p>
+                  <p className="text-sm font-medium text-ink-primary">{info.label}</p>
+                  <p className="text-xs text-ink-muted">en esta página</p>
                 </div>
               </div>
             );
@@ -234,32 +257,33 @@ export default function AuditoriaPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-left">
-                    <th className="pb-3 font-medium text-slate-600">Fecha</th>
-                    <th className="pb-3 font-medium text-slate-600">Usuario</th>
-                    <th className="pb-3 font-medium text-slate-600">Acción</th>
-                    <th className="pb-3 font-medium text-slate-600">Entidad</th>
-                    <th className="pb-3 font-medium text-slate-600">ID Entidad</th>
+                  <tr className="border-b border-surface-muted/30 text-left">
+                    <th className="pb-3 font-medium text-ink-secondary">Fecha</th>
+                    <th className="pb-3 font-medium text-ink-secondary">Usuario</th>
+                    <th className="pb-3 font-medium text-ink-secondary">Acción</th>
+                    <th className="pb-3 font-medium text-ink-secondary">Entidad</th>
+                    <th className="pb-3 font-medium text-ink-secondary">Request ID</th>
+                    <th className="pb-3 font-medium text-ink-secondary">ID Entidad</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-surface-muted/30">
                   {logs.map((log) => {
                     const user = usersMap.get(log.userId);
                     const actionInfo = ACTION_LABELS[log.action] || {
                       label: log.action,
-                      color: 'bg-slate-100 text-slate-700',
+                      color: 'bg-surface-muted text-ink-secondary',
                     };
                     return (
-                      <tr key={log.id} className="hover:bg-slate-50">
-                        <td className="py-3 pr-4 whitespace-nowrap text-slate-600">
+                      <tr key={log.id} className="hover:bg-surface-base/40">
+                        <td className="py-3 pr-4 whitespace-nowrap text-ink-secondary">
                           {format(new Date(log.timestamp), "dd MMM yyyy HH:mm", { locale: es })}
                         </td>
                         <td className="py-3 pr-4">
-                          <span className="text-slate-900 font-medium">
+                          <span className="text-ink-primary font-medium">
                             {user?.nombre || 'Desconocido'}
                           </span>
                           {user?.email && (
-                            <span className="block text-xs text-slate-400">{user.email}</span>
+                            <span className="block text-xs text-ink-muted">{user.email}</span>
                           )}
                         </td>
                         <td className="py-3 pr-4">
@@ -267,11 +291,16 @@ export default function AuditoriaPage() {
                             {actionInfo.label}
                           </span>
                         </td>
-                        <td className="py-3 pr-4 text-slate-700">
+                        <td className="py-3 pr-4 text-ink-secondary">
                           {ENTITY_LABELS[log.entityType] || log.entityType}
                         </td>
                         <td className="py-3 pr-4">
-                          <span className="text-xs font-mono text-slate-500">
+                          <span className="text-xs font-mono text-ink-muted">
+                            {log.requestId ? `${log.requestId.slice(0, 8)}…` : '—'}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span className="text-xs font-mono text-ink-muted">
                             {log.entityId.slice(0, 8)}…
                           </span>
                         </td>
@@ -292,8 +321,8 @@ export default function AuditoriaPage() {
 
             {/* Pagination */}
             {pagination && pagination.totalPages > 1 && (
-              <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-200">
-                <span className="text-sm text-slate-500">
+              <div className="flex items-center justify-between pt-4 mt-4 border-t border-surface-muted/30">
+                <span className="text-sm text-ink-muted">
                   Página {pagination.page} de {pagination.totalPages} ({pagination.total} registros)
                 </span>
                 <div className="flex items-center gap-2">
@@ -320,7 +349,7 @@ export default function AuditoriaPage() {
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <FiShield className="w-10 h-10 text-primary-400" />
+              <FiShield className="w-10 h-10 text-accent" />
             </div>
             <h3 className="empty-state-title">Sin registros de auditoría</h3>
             <p className="empty-state-description">No hay movimientos que coincidan con los filtros actuales.</p>
@@ -330,12 +359,12 @@ export default function AuditoriaPage() {
 
       {selectedLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/50" onClick={() => setSelectedLog(null)} />
-          <div className="relative w-full max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-xl">
-            <div className="flex items-start justify-between gap-3 border-b border-slate-200 p-5">
+          <div className="absolute inset-0 bg-ink-primary/50" onClick={() => setSelectedLog(null)} />
+          <div className="relative w-full max-w-3xl rounded-2xl border border-surface-muted/30 bg-surface-elevated shadow-xl">
+            <div className="flex items-start justify-between gap-3 border-b border-surface-muted/30 p-5">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Detalle de auditoría</h2>
-                <p className="text-sm text-slate-500">
+                <h2 className="text-lg font-semibold text-ink-primary">Detalle de auditoría</h2>
+                <p className="text-sm text-ink-muted">
                   {ENTITY_LABELS[selectedLog.entityType] || selectedLog.entityType} ·{' '}
                   {ACTION_LABELS[selectedLog.action]?.label || selectedLog.action}
                 </p>
@@ -346,20 +375,26 @@ export default function AuditoriaPage() {
             </div>
             <div className="grid gap-4 p-5 md:grid-cols-2">
               <div>
-                <p className="text-xs uppercase tracking-wide text-slate-400">Usuario</p>
-                <p className="text-sm text-slate-700">
+                <p className="text-xs uppercase tracking-wide text-ink-muted">Usuario</p>
+                <p className="text-sm text-ink-secondary">
                   {usersMap.get(selectedLog.userId)?.nombre || selectedLog.userId}
                 </p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-slate-400">Fecha</p>
-                <p className="text-sm text-slate-700">
+                <p className="text-xs uppercase tracking-wide text-ink-muted">Fecha</p>
+                <p className="text-sm text-ink-secondary">
                   {format(new Date(selectedLog.timestamp), "dd MMM yyyy HH:mm:ss", { locale: es })}
                 </p>
               </div>
               <div className="md:col-span-2">
-                <p className="text-xs uppercase tracking-wide text-slate-400">Diff redactado</p>
-                <pre className="mt-2 max-h-[24rem] overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">
+                <p className="text-xs uppercase tracking-wide text-ink-muted">Request ID</p>
+                <p className="text-sm font-mono text-ink-secondary">
+                  {selectedLog.requestId || 'No disponible'}
+                </p>
+              </div>
+              <div className="md:col-span-2">
+                <p className="text-xs uppercase tracking-wide text-ink-muted">Diff redactado</p>
+                <pre className="mt-2 max-h-[24rem] overflow-auto rounded-xl border border-surface-muted/30 bg-surface-base/40 p-4 text-xs text-ink-secondary">
                   {selectedLogDiff || 'Sin diff disponible'}
                 </pre>
               </div>

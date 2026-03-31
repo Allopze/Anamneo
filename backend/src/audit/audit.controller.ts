@@ -19,13 +19,14 @@ export class AuditController {
     @Query('entityType') entityType?: string,
     @Query('userId') userId?: string,
     @Query('action') action?: string,
+    @Query('requestId') requestId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
   ) {
     return this.auditService.findAll(
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 50,
-      { entityType, userId, action, dateFrom, dateTo },
+      { entityType, userId, action, requestId, dateFrom, dateTo },
     );
   }
 

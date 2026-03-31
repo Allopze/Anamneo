@@ -53,22 +53,22 @@ export default function NuevaAfeccionPage() {
   return (
     <div className="animate-fade-in max-w-2xl">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/catalogo" className="p-2 hover:bg-slate-100 rounded-lg">
-          <FiArrowLeft className="w-5 h-5 text-slate-600" />
+        <Link href="/catalogo" className="p-2 hover:bg-surface-muted rounded-lg">
+          <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Nueva afección</h1>
-          <p className="text-slate-600">Disponible para sugerencias automáticas</p>
+          <h1 className="text-2xl font-bold text-ink-primary">Nueva afección</h1>
+          <p className="text-ink-secondary">Disponible para sugerencias automáticas</p>
         </div>
       </div>
 
       <div className="card space-y-4">
         <div>
-          <label className="text-sm text-slate-600">Nombre</label>
+          <label className="text-sm text-ink-secondary">Nombre</label>
           <input className="form-input" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div>
-          <label className="text-sm text-slate-600">Sinónimos (separados por coma)</label>
+          <label className="text-sm text-ink-secondary">Sinónimos (separados por coma)</label>
           <input
             className="form-input"
             value={synonyms}
@@ -77,7 +77,7 @@ export default function NuevaAfeccionPage() {
           />
         </div>
         <div>
-          <label className="text-sm text-slate-600">Tags (separados por coma)</label>
+          <label className="text-sm text-ink-secondary">Tags (separados por coma)</label>
           <input
             className="form-input"
             value={tags}

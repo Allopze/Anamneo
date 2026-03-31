@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { parseStoredJson } from '../common/utils/encounter-sections';
 import * as fs from 'fs/promises';
@@ -87,6 +88,7 @@ export class AttachmentsService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
+    private auditService: AuditService,
   ) {}
 
   private getUploadsRoot(): string {
@@ -236,6 +238,26 @@ export class AttachmentsService {
         },
       });
 
+      await this.auditService.log({
+        entityType: 'Attachment',
+        entityId: attachment.id,
+        userId: user.id,
+        action: 'CREATE',
+        diff: {
+          created: {
+            id: attachment.id,
+            encounterId: attachment.encounterId,
+            uploadedById: attachment.uploadedById,
+            originalName: attachment.originalName,
+            mime: attachment.mime,
+            size: attachment.size,
+            category: attachment.category,
+            linkedOrderType: attachment.linkedOrderType,
+            linkedOrderId: attachment.linkedOrderId,
+          },
+        },
+      });
+
       return {
         id: attachment.id,
         originalName: attachment.originalName,
@@ -338,6 +360,59 @@ export class AttachmentsService {
 
     await this.prisma.attachment.delete({ where: { id } });
 
+    await this.auditService.log({
+      entityType: 'Attachment',
+      entityId: attachment.id,
+      userId,
+      action: 'DELETE',
+      diff: {
+        deleted: {
+          id: attachment.id,
+          encounterId: attachment.encounterId,
+          uploadedById: attachment.uploadedById,
+          originalName: attachment.originalName,
+          mime: attachment.mime,
+          size: attachment.size,
+          category: attachment.category,
+          linkedOrderType: attachment.linkedOrderType,
+          linkedOrderId: attachment.linkedOrderId,
+        },
+      },
+    });
+
     return { message: 'Archivo eliminado correctamente' };
+  }
+
+  async logDownload(id: string, userId: string) {
+    const attachment = await this.prisma.attachment.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        encounterId: true,
+        originalName: true,
+        mime: true,
+        size: true,
+      },
+    });
+
+    if (!attachment) {
+      return;
+    }
+
+    await this.auditService.log({
+      entityType: 'Attachment',
+      entityId: attachment.id,
+      userId,
+      action: 'DOWNLOAD',
+      diff: {
+        download: {
+          id: attachment.id,
+          encounterId: attachment.encounterId,
+          originalName: attachment.originalName,
+          mime: attachment.mime,
+          size: attachment.size,
+        },
+      },
+    });
   }
 }

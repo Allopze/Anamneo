@@ -41,6 +41,7 @@ import {
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { extractDateOnly, formatDateOnly } from '@/lib/date';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -162,7 +163,7 @@ export default function PatientDetailPage() {
     return (
       <div className="animate-fade-in">
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-10 h-10 skeleton rounded-lg" />
+          <div className="w-10 h-10 skeleton rounded-card" />
           <div>
             <div className="h-6 skeleton rounded w-48 mb-2" />
             <div className="h-4 skeleton rounded w-32" />
@@ -182,9 +183,9 @@ export default function PatientDetailPage() {
   if (error || !patient) {
     return (
       <div className="text-center py-12">
-        <FiAlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-slate-900 mb-2">Paciente no encontrado</h2>
-        <p className="text-slate-600 mb-4">El paciente que buscas no existe o fue eliminado.</p>
+        <FiAlertCircle className="w-12 h-12 text-status-red mx-auto mb-4" />
+        <h2 className="text-xl font-semibold text-ink-primary mb-2">Paciente no encontrado</h2>
+        <p className="text-ink-secondary mb-4">El paciente que buscas no existe o fue eliminado.</p>
         <Link href="/pacientes" className="btn btn-primary">
           Volver a pacientes
         </Link>
@@ -222,16 +223,16 @@ export default function PatientDetailPage() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
-          <Link href="/pacientes" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-            <FiArrowLeft className="w-5 h-5 text-slate-600" />
+          <Link href="/pacientes" className="p-2 hover:bg-surface-muted rounded-card transition-colors">
+            <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
           </Link>
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-primary-100 rounded-full flex items-center justify-center">
-              <FiUser className="w-7 h-7 text-primary-600" />
+            <div className="w-14 h-14 bg-accent/20 rounded-full flex items-center justify-center">
+              <FiUser className="w-7 h-7 text-ink-secondary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">{patient.nombre}</h1>
-              <p className="text-slate-600">
+              <h1 className="text-2xl font-bold text-ink-primary">{patient.nombre}</h1>
+              <p className="text-ink-secondary">
                 {patient.rut || 'Sin RUT'} • {patient.edad} años • {SEXO_LABELS[patient.sexo]}
               </p>
             </div>
@@ -278,39 +279,39 @@ export default function PatientDetailPage() {
         {/* Patient Info */}
         <div className="lg:col-span-1 space-y-6">
           <div className="card">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Información personal</h2>
+            <h2 className="text-lg font-semibold text-ink-primary mb-4">Información personal</h2>
             <dl className="space-y-3">
               <div>
-                <dt className="text-sm text-slate-500">RUT</dt>
+                <dt className="text-sm text-ink-muted">RUT</dt>
                 <dd className="font-medium">
                   {patient.rut || (
-                    <span className="text-slate-400">
+                    <span className="text-ink-muted">
                       Sin RUT {patient.rutExemptReason && `(${patient.rutExemptReason})`}
                     </span>
                   )}
                 </dd>
               </div>
               <div>
-                <dt className="text-sm text-slate-500">Edad</dt>
+                <dt className="text-sm text-ink-muted">Edad</dt>
                 <dd className="font-medium">{patient.edad} años</dd>
               </div>
               <div>
-                <dt className="text-sm text-slate-500">Sexo</dt>
+                <dt className="text-sm text-ink-muted">Sexo</dt>
                 <dd className="font-medium">{SEXO_LABELS[patient.sexo]}</dd>
               </div>
               <div>
-                <dt className="text-sm text-slate-500">Previsión</dt>
+                <dt className="text-sm text-ink-muted">Previsión</dt>
                 <dd className="font-medium">{PREVISION_LABELS[patient.prevision]}</dd>
               </div>
               {patient.trabajo && (
                 <div>
-                  <dt className="text-sm text-slate-500">Trabajo</dt>
+                  <dt className="text-sm text-ink-muted">Trabajo</dt>
                   <dd className="font-medium">{patient.trabajo}</dd>
                 </div>
               )}
               {patient.domicilio && (
                 <div>
-                  <dt className="text-sm text-slate-500">Domicilio</dt>
+                  <dt className="text-sm text-ink-muted">Domicilio</dt>
                   <dd className="font-medium">{patient.domicilio}</dd>
                 </div>
               )}
@@ -321,11 +322,11 @@ export default function PatientDetailPage() {
           {patient.history && (
             <div className="card">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">Antecedentes</h2>
+                <h2 className="text-lg font-semibold text-ink-primary">Antecedentes</h2>
                 {canEditAntecedentes() && (
                   <Link
                     href={`/pacientes/${id}/historial`}
-                    className="text-sm text-primary-600 hover:text-primary-700"
+                    className="text-sm text-accent hover:text-accent/80"
                   >
                     Editar
                   </Link>
@@ -339,7 +340,7 @@ export default function PatientDetailPage() {
                   { key: 'antecedentesFamiliares', label: 'Familiares' },
                   { key: 'habitos', label: 'Hábitos' },
                   { key: 'medicamentos', label: 'Medicamentos' },
-                  { key: 'alergias', label: 'Alergias', color: 'text-red-600' },
+                  { key: 'alergias', label: 'Alergias', color: 'text-status-red' },
                   { key: 'inmunizaciones', label: 'Inmunizaciones' },
                   { key: 'antecedentesSociales', label: 'Sociales' },
                   { key: 'antecedentesPersonales', label: 'Personales' },
@@ -352,9 +353,9 @@ export default function PatientDetailPage() {
                   if (!hasItems && !hasTexto) return null;
 
                   return (
-                    <div key={field.key} className="border-l-2 border-slate-100 pl-3 py-1">
-                      <dt className="text-slate-500 font-medium mb-1">{field.label}</dt>
-                      <dd className={clsx('font-medium', field.color || 'text-slate-800')}>
+                    <div key={field.key} className="border-l-2 border-surface-muted/30 pl-3 py-1">
+                      <dt className="text-ink-muted font-medium mb-1">{field.label}</dt>
+                      <dd className={clsx('font-medium', field.color || 'text-ink-primary')}>
                         {hasItems && val.items.join(', ')}
                         {hasItems && hasTexto && <br />}
                         {hasTexto && val.texto}
@@ -363,7 +364,7 @@ export default function PatientDetailPage() {
                   );
                 })}
                 {!Object.values(patient.history).some(v => v?.items?.length > 0 || v?.texto?.trim()?.length > 0) && (
-                  <p className="text-slate-400 italic">No hay antecedentes registrados</p>
+                  <p className="text-ink-muted italic">No hay antecedentes registrados</p>
                 )}
               </div>
             </div>
@@ -371,8 +372,8 @@ export default function PatientDetailPage() {
 
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-slate-900">Problemas activos</h2>
-              <span className="text-xs text-slate-500">
+              <h2 className="text-lg font-semibold text-ink-primary">Problemas activos</h2>
+              <span className="text-xs text-ink-muted">
                 {activeProblems.length} activos
                 {resolvedProblemsCount > 0 ? ` · ${resolvedProblemsCount} resueltos ocultos` : ''}
               </span>
@@ -380,20 +381,20 @@ export default function PatientDetailPage() {
             <div className="space-y-3">
               {activeProblems.length > 0 ? (
                 activeProblems.map((problem: PatientProblem) => (
-                  <div key={problem.id} className="rounded-xl border border-slate-200 p-3">
+                  <div key={problem.id} className="rounded-card border border-surface-muted/30 p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-medium text-slate-900">{problem.label}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="font-medium text-ink-primary">{problem.label}</p>
+                        <p className="text-xs text-ink-muted">
                           {PROBLEM_STATUS_LABELS[problem.status]}
                           {problem.severity ? ` · ${problem.severity}` : ''}
                         </p>
-                        {problem.notes && <p className="mt-1 text-sm text-slate-600">{problem.notes}</p>}
+                        {problem.notes && <p className="mt-1 text-sm text-ink-secondary">{problem.notes}</p>}
                       </div>
                       {problem.status !== 'RESUELTO' && (
                         <div className="flex items-center gap-2">
                           <button
-                            className="text-xs text-slate-600 hover:text-slate-900"
+                            className="text-xs text-ink-secondary hover:text-ink-primary"
                             onClick={() => {
                               setEditingProblemId(problem.id);
                               setNewProblem({
@@ -406,7 +407,7 @@ export default function PatientDetailPage() {
                             Editar
                           </button>
                           <button
-                            className="text-xs text-primary-600 hover:text-primary-700"
+                            className="text-xs text-accent hover:text-accent/80"
                             onClick={() => updateProblemMutation.mutate({ problemId: problem.id, payload: { status: 'RESUELTO' } })}
                           >
                             Resolver
@@ -417,11 +418,11 @@ export default function PatientDetailPage() {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-slate-500">No hay problemas clínicos registrados.</p>
+                <p className="text-sm text-ink-muted">No hay problemas clínicos registrados.</p>
               )}
             </div>
 
-            <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
+            <div className="mt-4 space-y-2 border-t border-surface-muted/20 pt-4">
               <input
                 className="form-input"
                 value={newProblem.label}
@@ -473,8 +474,8 @@ export default function PatientDetailPage() {
 
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-slate-900">Seguimientos</h2>
-              <span className="text-xs text-slate-500">
+              <h2 className="text-lg font-semibold text-ink-primary">Seguimientos</h2>
+              <span className="text-xs text-ink-muted">
                 {pendingTasks.length} pendientes
                 {completedTasksCount > 0 ? ` · ${completedTasksCount} cerrados ocultos` : ''}
               </span>
@@ -482,34 +483,34 @@ export default function PatientDetailPage() {
             <div className="space-y-3">
               {pendingTasks.length > 0 ? (
                 pendingTasks.map((task: PatientTask) => (
-                  <div key={task.id} className="rounded-xl border border-slate-200 p-3">
+                  <div key={task.id} className="rounded-card border border-surface-muted/30 p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-medium text-slate-900">{task.title}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="font-medium text-ink-primary">{task.title}</p>
+                        <p className="text-xs text-ink-muted">
                           {TASK_TYPE_LABELS[task.type]} · {TASK_STATUS_LABELS[task.status]}
-                          {task.dueDate ? ` · ${format(new Date(task.dueDate), 'd MMM yyyy', { locale: es })}` : ''}
+                          {task.dueDate ? ` · ${formatDateOnly(task.dueDate)}` : ''}
                         </p>
-                        {task.details && <p className="mt-1 text-sm text-slate-600">{task.details}</p>}
+                        {task.details && <p className="mt-1 text-sm text-ink-secondary">{task.details}</p>}
                       </div>
                       {task.status !== 'COMPLETADA' && (
                         <div className="flex items-center gap-2">
                           <button
-                            className="text-xs text-slate-600 hover:text-slate-900"
+                            className="text-xs text-ink-secondary hover:text-ink-primary"
                             onClick={() => {
                               setEditingTaskId(task.id);
                               setNewTask({
                                 title: task.title,
                                 details: task.details || '',
                                 type: task.type,
-                                dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
+                                dueDate: extractDateOnly(task.dueDate) || '',
                               });
                             }}
                           >
                             Editar
                           </button>
                           <button
-                            className="text-xs text-primary-600 hover:text-primary-700"
+                            className="text-xs text-accent hover:text-accent/80"
                             onClick={() => updateTaskMutation.mutate({ taskId: task.id, payload: { status: 'COMPLETADA' } })}
                           >
                             Completar
@@ -520,11 +521,11 @@ export default function PatientDetailPage() {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-slate-500">No hay seguimientos registrados.</p>
+                <p className="text-sm text-ink-muted">No hay seguimientos registrados.</p>
               )}
             </div>
 
-            <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
+            <div className="mt-4 space-y-2 border-t border-surface-muted/20 pt-4">
               <input
                 className="form-input"
                 value={newTask.title}
@@ -584,27 +585,27 @@ export default function PatientDetailPage() {
 
           <div className="card">
             <div className="flex items-center gap-2 mb-4">
-              <FiActivity className="w-5 h-5 text-primary-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Tendencias clínicas</h2>
+              <FiActivity className="w-5 h-5 text-accent" />
+              <h2 className="text-lg font-semibold text-ink-primary">Tendencias clínicas</h2>
             </div>
             {vitalTrend.length > 0 ? (
               <div className="space-y-3">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Peso</p>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-muted">Peso</p>
                     <MiniTrendChart values={vitalTrend.map((item) => item.peso).filter((value): value is number => value !== null)} stroke="#0f766e" />
                   </div>
                   <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">IMC</p>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-muted">IMC</p>
                     <MiniTrendChart values={vitalTrend.map((item) => item.imc).filter((value): value is number => value !== null)} stroke="#7c3aed" />
                   </div>
                 </div>
                 {vitalTrend.slice(0, 5).map((item) => (
-                  <div key={item.encounterId} className="rounded-xl border border-slate-200 p-3 text-sm">
-                    <div className="font-medium text-slate-800">
+                  <div key={item.encounterId} className="rounded-card border border-surface-muted/30 p-3 text-sm">
+                    <div className="font-medium text-ink-primary">
                       {format(new Date(item.createdAt), "d 'de' MMMM", { locale: es })}
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-2 text-slate-600">
+                    <div className="mt-1 flex flex-wrap gap-2 text-ink-secondary">
                       {item.presionArterial && <span>PA {item.presionArterial}</span>}
                       {item.peso !== null && <span>Peso {item.peso} kg</span>}
                       {item.imc !== null && <span>IMC {item.imc}</span>}
@@ -615,7 +616,7 @@ export default function PatientDetailPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-slate-500">Aún no hay signos vitales suficientes para mostrar tendencias.</p>
+                <p className="text-sm text-ink-muted">Aún no hay signos vitales suficientes para mostrar tendencias.</p>
             )}
           </div>
         </div>
@@ -624,15 +625,15 @@ export default function PatientDetailPage() {
         <div className="lg:col-span-2">
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-slate-900">Atenciones</h2>
-              <span className="text-sm text-slate-500">
+              <h2 className="text-lg font-semibold text-ink-primary">Atenciones</h2>
+              <span className="text-sm text-ink-muted">
                 {patient.encounters?.length || 0} atenciones registradas
               </span>
             </div>
             
             {patient.encounters && patient.encounters.length > 0 ? (
               <div className="relative">
-                <div className="absolute left-5 top-0 bottom-0 w-px bg-slate-200" />
+                <div className="absolute left-5 top-0 bottom-0 w-px bg-surface-muted" />
 
                 <div className="space-y-4">
                   {patient.encounters.map((encounter: Encounter) => {
@@ -646,22 +647,22 @@ export default function PatientDetailPage() {
                           className={clsx(
                             'absolute left-1.5 top-4 w-7 h-7 rounded-full flex items-center justify-center border',
                             isCompleted
-                              ? 'bg-clinical-100 text-clinical-700 border-clinical-200'
+                              ? 'bg-status-green/20 text-status-green border-status-green/30'
                               : isInProgress
-                              ? 'bg-amber-100 text-amber-700 border-amber-200'
-                              : 'bg-slate-100 text-slate-700 border-slate-200'
+                              ? 'bg-status-yellow/20 text-status-yellow border-status-yellow/30'
+                              : 'bg-surface-muted text-ink-secondary border-surface-muted/30'
                           )}
                         >
                           <FiFileText className="w-4 h-4" />
                         </div>
 
-                        <div className="rounded-lg border border-slate-200 bg-white p-4 hover:bg-slate-50 transition-colors">
+                        <div className="rounded-card border border-surface-muted/30 bg-surface-elevated p-4 hover:bg-surface-muted/50 transition-colors">
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Link
                                   href={`/atenciones/${encounter.id}`}
-                                  className="font-medium text-slate-900 hover:text-primary-600"
+                                  className="font-medium text-ink-primary hover:text-accent"
                                 >
                                   Atención del{' '}
                                   {format(new Date(encounter.createdAt), "d 'de' MMMM, yyyy", {
@@ -672,17 +673,17 @@ export default function PatientDetailPage() {
                                   className={clsx(
                                     'text-xs px-2 py-0.5 rounded-full',
                                     isCompleted
-                                      ? 'bg-clinical-100 text-clinical-700'
+                                      ? 'bg-status-green/20 text-status-green'
                                       : isInProgress
-                                      ? 'bg-amber-100 text-amber-700'
-                                      : 'bg-slate-100 text-slate-700'
+                                      ? 'bg-status-yellow/20 text-status-yellow'
+                                      : 'bg-surface-muted text-ink-secondary'
                                   )}
                                 >
                                   {STATUS_LABELS[encounter.status]}
                                 </span>
                               </div>
 
-                              <div className="mt-1 flex items-center gap-4 text-sm text-slate-500 flex-wrap">
+                              <div className="mt-1 flex items-center gap-4 text-sm text-ink-muted flex-wrap">
                                 <span className="flex items-center gap-1">
                                   <FiClock className="w-3 h-3" />
                                   {format(new Date(encounter.createdAt), 'HH:mm')}
@@ -699,7 +700,7 @@ export default function PatientDetailPage() {
                               </div>
 
                               {buildEncounterSummary(encounter).length > 0 && (
-                                <div className="mt-3 space-y-1 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+                                <div className="mt-3 space-y-1 rounded-card bg-surface-base/40 p-3 text-sm text-ink-secondary">
                                   {buildEncounterSummary(encounter).map((line) => (
                                     <p key={line}>{line}</p>
                                   ))}
@@ -718,7 +719,7 @@ export default function PatientDetailPage() {
                           {encounter.tasks && encounter.tasks.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2 text-xs">
                               {encounter.tasks.slice(0, 3).map((task) => (
-                                <span key={task.id} className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">
+                                <span key={task.id} className="rounded-full bg-accent/10 px-2 py-1 text-accent">
                                   <FiClipboard className="mr-1 inline-block h-3 w-3" />
                                   {task.title}
                                 </span>
@@ -727,10 +728,10 @@ export default function PatientDetailPage() {
                           )}
 
                           {isCompleted && (
-                            <div className="mt-3 border-t border-slate-100 pt-3">
+                            <div className="mt-3 border-t border-surface-muted/20 pt-3">
                               <Link
                                 href={`/atenciones/${encounter.id}/ficha`}
-                                className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 hover:text-primary-700"
+                                className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:text-accent/80"
                               >
                                 <FiEye className="w-4 h-4" />
                                 Ver ficha clínica
@@ -745,11 +746,11 @@ export default function PatientDetailPage() {
               </div>
             ) : (
               <div className="py-8 text-center">
-                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FiCalendar className="w-8 h-8 text-slate-400" />
+                <div className="w-16 h-16 bg-surface-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FiCalendar className="w-8 h-8 text-ink-muted" />
                 </div>
-                <h3 className="font-medium text-slate-900 mb-1">Sin atenciones</h3>
-                <p className="text-slate-500 mb-4">No hay atenciones registradas para este paciente</p>
+                <h3 className="font-medium text-ink-primary mb-1">Sin atenciones</h3>
+                <p className="text-ink-muted mb-4">No hay atenciones registradas para este paciente</p>
                 {canCreateEncounterAllowed && (
                   <button
                     onClick={() => createEncounterMutation.mutate()}

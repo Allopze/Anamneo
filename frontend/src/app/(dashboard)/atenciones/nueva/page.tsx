@@ -83,18 +83,18 @@ export default function NuevaAtencionPage() {
       )}
 
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/atenciones" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-          <FiArrowLeft className="w-5 h-5 text-slate-600" />
+        <Link href="/atenciones" className="p-2 hover:bg-surface-muted rounded-card transition-colors">
+          <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Nueva Atención</h1>
-          <p className="text-slate-600">Selecciona un paciente para iniciar</p>
+          <h1 className="text-2xl font-bold text-ink-primary">Nueva Atención</h1>
+          <p className="text-ink-secondary">Selecciona un paciente para iniciar</p>
         </div>
       </div>
 
       <div className="card">
         <div className="relative mb-4">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" />
           <input
             type="text"
             value={search}
@@ -105,9 +105,9 @@ export default function NuevaAtencionPage() {
         </div>
 
         {search.length >= 2 && (
-          <div className="border border-slate-200 rounded-lg divide-y divide-slate-100">
+          <div className="border border-surface-muted/30 rounded-card divide-y divide-surface-muted/30">
             {isLoading ? (
-              <div className="p-4 text-center text-slate-500">Buscando...</div>
+              <div className="p-4 text-center text-ink-muted">Buscando...</div>
             ) : patients && patients.length > 0 ? (
               patients.map((patient) => (
                 <button
@@ -117,23 +117,23 @@ export default function NuevaAtencionPage() {
                     createMutation.mutate(patient.id);
                   }}
                   disabled={createMutation.isPending}
-                  className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors text-left"
+                  className="w-full flex items-center gap-4 p-4 hover:bg-surface-muted/50 transition-colors text-left"
                 >
-                  <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                    <FiUser className="w-5 h-5 text-primary-600" />
+                  <div className="w-10 h-10 bg-accent/20 rounded-full flex items-center justify-center">
+                    <FiUser className="w-5 h-5 text-ink-secondary" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-medium text-slate-900">{patient.nombre}</p>
-                    <p className="text-sm text-slate-500">
+                    <p className="font-medium text-ink-primary">{patient.nombre}</p>
+                    <p className="text-sm text-ink-muted">
                       {patient.rut || 'Sin RUT'} • {patient.edad} años
                     </p>
                   </div>
-                  <FiPlus className="w-5 h-5 text-primary-600" />
+                  <FiPlus className="w-5 h-5 text-accent" />
                 </button>
               ))
             ) : (
               <div className="p-8 text-center">
-                <p className="text-slate-500 mb-4">No se encontraron pacientes</p>
+                <p className="text-ink-muted mb-4">No se encontraron pacientes</p>
                 <Link href="/pacientes/nuevo" className="btn btn-primary">
                   Crear nuevo paciente
                 </Link>
@@ -143,7 +143,7 @@ export default function NuevaAtencionPage() {
         )}
 
         {search.length < 2 && (
-          <p className="text-center text-slate-500 py-8">
+          <p className="text-center text-ink-muted py-8">
             Escribe al menos 2 caracteres para buscar
           </p>
         )}

@@ -146,13 +146,13 @@ function PacientesContent() {
 
       <form onSubmit={handleSearch} className="mb-4">
         <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
           <input
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Buscar por nombre, RUT o correo…"
-            className="form-input pl-10 w-full"
+            className="form-input pl-11 w-full"
           />
         </div>
       </form>
@@ -160,7 +160,7 @@ function PacientesContent() {
       <div className="mb-4">
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 font-medium mb-2"
+          className="flex items-center gap-2 text-body text-ink-secondary hover:text-ink font-medium mb-2"
         >
           <FiFilter className="w-4 h-4" />
           Filtros avanzados
@@ -171,7 +171,7 @@ function PacientesContent() {
           <div className="filter-surface">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
               <div>
-                <label className="block text-xs text-slate-500 mb-1">Sexo</label>
+                <label className="block text-micro text-ink-muted mb-1">Sexo</label>
                 <select
                   className="input w-full text-sm"
                   value={filters.sexo}
@@ -181,7 +181,7 @@ function PacientesContent() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-slate-500 mb-1">Previsión</label>
+                <label className="block text-micro text-ink-muted mb-1">Previsión</label>
                 <select
                   className="input w-full text-sm"
                   value={filters.prevision}
@@ -191,7 +191,7 @@ function PacientesContent() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-slate-500 mb-1">Edad mín</label>
+                <label className="block text-micro text-ink-muted mb-1">Edad mín</label>
                 <input
                   type="number"
                   className="input w-full text-sm"
@@ -202,7 +202,7 @@ function PacientesContent() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-500 mb-1">Edad máx</label>
+                <label className="block text-micro text-ink-muted mb-1">Edad máx</label>
                 <input
                   type="number"
                   className="input w-full text-sm"
@@ -213,7 +213,7 @@ function PacientesContent() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-500 mb-1">Ordenar</label>
+                <label className="block text-micro text-ink-muted mb-1">Ordenar</label>
                 <select
                   className="input w-full text-sm"
                   value={filters.sortBy}
@@ -223,7 +223,7 @@ function PacientesContent() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-slate-500 mb-1">Orden</label>
+                <label className="block text-micro text-ink-muted mb-1">Orden</label>
                 <select
                   className="input w-full text-sm"
                   value={filters.sortOrder}
@@ -236,14 +236,14 @@ function PacientesContent() {
             </div>
             <div className="flex items-center gap-3 mt-3">
               <button
-                className="text-xs text-primary-600 hover:underline"
+                className="text-micro text-ink-secondary hover:text-ink hover:underline"
                 onClick={clearFilters}
               >
                 Limpiar filtros
               </button>
               {user?.isAdmin && (
                 <button
-                  className="flex items-center gap-1 text-xs text-slate-600 hover:text-primary-600"
+                  className="flex items-center gap-1 text-micro text-ink-secondary hover:text-ink"
                   onClick={async () => {
                     try {
                       const res = await api.get('/patients/export/csv', { responseType: 'blob' });
@@ -267,7 +267,7 @@ function PacientesContent() {
       </div>
 
       {error && (
-        <div className="card mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+        <div className="card mb-6 p-4 bg-status-red/10 text-status-red-text text-body rounded-card">
           Error al cargar pacientes. Intente recargar la página.
         </div>
       )}
@@ -276,37 +276,37 @@ function PacientesContent() {
         {isLoading ? (
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4 p-4 border-b border-slate-100">
-                <div className="w-12 h-12 skeleton rounded-full" />
+              <div key={i} className="flex items-center gap-4 p-4 border-b border-surface-muted/20">
+                <div className="w-12 h-12 skeleton rounded-icon" />
                 <div className="flex-1">
-                  <div className="h-4 skeleton rounded w-1/3 mb-2" />
-                  <div className="h-3 skeleton rounded w-1/4" />
+                  <div className="h-4 skeleton w-1/3 mb-2" />
+                  <div className="h-3 skeleton w-1/4" />
                 </div>
               </div>
             ))}
           </div>
         ) : hasPatients ? (
           <>
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-surface-muted/30">
               {data.data.map((patient: Patient) => (
                 <Link
                   key={patient.id}
                   href={`/pacientes/${patient.id}`}
                   className="group list-row"
                 >
-                  <div className="list-row-icon h-12 w-12 bg-primary-100 text-primary-600">
-                    <FiUser className="w-6 h-6 text-primary-600" />
+                  <div className="list-row-icon h-12 w-12 bg-surface-base text-ink-secondary">
+                    <FiUser className="w-6 h-6" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-medium text-slate-900 truncate group-hover:text-primary-600">
+                      <h3 className="font-medium text-ink truncate group-hover:text-ink-secondary">
                         {patient.nombre}
                       </h3>
-                      <span className="list-chip bg-slate-100 text-slate-600">
+                      <span className="list-chip bg-surface-base text-ink-secondary">
                         {patient.edad} años
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-slate-500">
+                    <div className="flex items-center gap-4 text-body text-ink-muted">
                       {patient.rut && <span>{patient.rut}</span>}
                       <span>{SEXO_LABELS[patient.sexo]}</span>
                       <span>{PREVISION_LABELS[patient.prevision]}</span>
@@ -318,15 +318,15 @@ function PacientesContent() {
                       )}
                     </div>
                   </div>
-                  <FiChevronRight className="w-5 h-5 text-slate-400 group-hover:text-primary-600" />
+                  <FiChevronRight className="w-5 h-5 text-ink-muted group-hover:text-ink" />
                 </Link>
               ))}
             </div>
 
             {/* Pagination */}
             {data.pagination && data.pagination.totalPages > 1 && (
-              <div className="flex items-center justify-between p-4 border-t border-slate-100">
-                <p className="text-sm text-slate-600">
+              <div className="flex items-center justify-between p-4 border-t border-surface-muted/30">
+                <p className="text-body text-ink-secondary">
                   Mostrando {(page - 1) * 10 + 1} - {Math.min(page * 10, data.pagination.total)} de{' '}
                   {data.pagination.total} pacientes
                 </p>
@@ -352,7 +352,7 @@ function PacientesContent() {
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <FiUser className="w-10 h-10 text-primary-400" />
+              <FiUser className="w-10 h-10 text-ink-muted" />
             </div>
             <h3 className="empty-state-title">No hay pacientes</h3>
             <p className="empty-state-description">

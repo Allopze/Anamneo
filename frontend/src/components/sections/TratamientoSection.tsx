@@ -63,7 +63,7 @@ export default function TratamientoSection({
           actions={!readOnly && onRequestAttachToOrder ? (
             <button
               type="button"
-              className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 hover:text-primary-700"
+              className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:text-accent"
               onClick={() => onRequestAttachToOrder(type, orderId)}
             >
               <FiPaperclip className="h-4 w-4" />
@@ -72,12 +72,12 @@ export default function TratamientoSection({
           ) : undefined}
         >
           <div>
-            <p className="text-sm font-medium text-slate-800">
+            <p className="text-sm font-medium text-ink-primary">
               {linkedAttachments.length > 0
                 ? `${linkedAttachments.length} adjunto${linkedAttachments.length === 1 ? '' : 's'} vinculado${linkedAttachments.length === 1 ? '' : 's'}`
                 : 'Sin adjuntos vinculados todavía'}
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-ink-muted">
               {type === 'EXAMEN'
                 ? 'Usa este vínculo para agrupar resultados del examen solicitado.'
                 : 'Usa este vínculo para asociar respaldos de la derivación.'}
@@ -88,8 +88,8 @@ export default function TratamientoSection({
           <div className="mt-3 space-y-2">
             {linkedAttachments.map((attachment) => (
               <div key={attachment.id} className="section-item-card px-3 py-2">
-                <div className="text-sm font-medium text-slate-800">{attachment.originalName}</div>
-                <div className="text-xs text-slate-500">
+                <div className="text-sm font-medium text-ink-primary">{attachment.originalName}</div>
+                <div className="text-xs text-ink-muted">
                   {[attachment.description, attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleDateString('es-CL') : null]
                     .filter(Boolean)
                     .join(' · ')}
@@ -153,7 +153,7 @@ export default function TratamientoSection({
           className="form-input resize-none"
           placeholder="Medicamento - Dosis - Frecuencia - Duración..."
         />
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-xs text-ink-muted mt-1">
           Además del texto libre, puedes dejar medicamentos estructurados para seguimiento.
         </p>
         <div className="mt-3 space-y-2">

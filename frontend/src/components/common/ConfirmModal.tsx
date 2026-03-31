@@ -17,15 +17,15 @@ interface ConfirmModalProps {
 
 const variantStyles = {
   danger: {
-    icon: 'bg-red-100 text-red-600',
+    icon: 'bg-status-red/20 text-status-red',
     button: 'btn btn-danger',
   },
   warning: {
-    icon: 'bg-amber-100 text-amber-600',
-    button: 'btn bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500',
+    icon: 'bg-status-yellow/20 text-status-yellow',
+    button: 'btn bg-status-yellow text-white hover:bg-status-yellow/80 focus:ring-status-yellow',
   },
   info: {
-    icon: 'bg-primary-100 text-primary-600',
+    icon: 'bg-accent/20 text-accent',
     button: 'btn btn-primary',
   },
 };
@@ -64,10 +64,10 @@ export default function ConfirmModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-ink-primary/50 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          className="w-full max-w-md bg-white rounded-xl shadow-xl border border-slate-200"
+          className="w-full max-w-md bg-surface-elevated rounded-xl shadow-xl border border-surface-muted/30"
           role="alertdialog"
           aria-modal="true"
           aria-labelledby="confirm-title"
@@ -79,23 +79,23 @@ export default function ConfirmModal({
                 <FiAlertTriangle className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <h3 id="confirm-title" className="text-lg font-semibold text-slate-900">
+                <h3 id="confirm-title" className="text-lg font-semibold text-ink-primary">
                   {title}
                 </h3>
-                <p id="confirm-message" className="mt-2 text-sm text-slate-600">
+                <p id="confirm-message" className="mt-2 text-sm text-ink-secondary">
                   {message}
                 </p>
               </div>
               <button
                 onClick={onClose}
-                className="p-1 text-slate-400 hover:text-slate-600"
+                className="p-1 text-ink-muted hover:text-ink-secondary"
                 aria-label="Cerrar"
               >
                 <FiX className="w-5 h-5" />
               </button>
             </div>
           </div>
-          <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 rounded-b-xl border-t border-slate-200">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 bg-surface-base/40 rounded-b-xl border-t border-surface-muted/30">
             <button onClick={onClose} className="btn btn-secondary" disabled={loading}>
               {cancelLabel}
             </button>

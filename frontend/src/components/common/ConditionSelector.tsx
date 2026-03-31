@@ -61,6 +61,15 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
     if (!selected.includes(name)) {
       onChange([...selected, name]);
     }
+    // If the name doesn't come from a catalog suggestion, persist it as a local condition
+    const isFromCatalog = suggestions.some(
+      (s) => s.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (!isFromCatalog && name.trim().length >= 2) {
+      api.post('/conditions/local', { name: name.trim() }).catch(() => {
+        // Silently fail — the tag is still added locally
+      });
+    }
     setQuery('');
     setIsOpen(false);
   };
@@ -85,14 +94,14 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
         {selected.map((item) => (
           <span
             key={item}
-            className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium animate-fade-in"
+            className="inline-flex items-center gap-1 px-2.5 py-1 bg-accent/20 text-accent rounded-full text-sm font-medium animate-fade-in"
           >
             <FiTag className="w-3 h-3" />
             {item}
             <button
               type="button"
               onClick={() => handleRemove(item)}
-              className="p-0.5 hover:bg-primary-200 rounded-full transition-colors"
+              className="p-0.5 hover:bg-accent/20 rounded-full transition-colors"
             >
               <FiX className="w-3 h-3" />
             </button>
@@ -103,7 +112,7 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
       {/* Input and suggestions */}
       <div className="relative">
         <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
           <input
             type="text"
             value={query}
@@ -118,7 +127,7 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
           />
           {isLoading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
             </div>
           )}
         </div>
@@ -128,7 +137,7 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
           <div className="absolute z-50 w-full mt-2 dropdown-surface max-h-64 overflow-y-auto">
             {suggestions.length > 0 && (
               <div className="dropdown-header py-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sugerencias</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Sugerencias</p>
               </div>
             )}
             {suggestions.map((condition) => (
@@ -139,18 +148,18 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
                 className="dropdown-item justify-between py-3"
               >
                 <div>
-                  <p className="font-medium text-slate-900">{condition.name}</p>
+                  <p className="font-medium text-ink-primary">{condition.name}</p>
                   {condition.tags?.length > 0 && (
                     <div className="flex gap-1 mt-0.5">
                       {parseJsonArray(condition.tags).map((tag: string) => (
-                        <span key={tag} className="text-[10px] bg-slate-100 px-1 rounded">
+                        <span key={tag} className="text-[10px] bg-surface-muted px-1 rounded">
                           {tag}
                         </span>
                       ))}
                     </div>
                   )}
                 </div>
-                <FiPlus className="w-4 h-4 text-slate-400" />
+                <FiPlus className="w-4 h-4 text-ink-muted" />
               </button>
             ))}
 
@@ -159,7 +168,7 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
               <button
                 type="button"
                 onClick={() => handleAdd(query.trim())}
-                className="dropdown-item py-3 text-primary-700 bg-primary-50/50 border-t border-slate-100"
+                className="dropdown-item py-3 text-accent bg-accent/10/50 border-t border-surface-muted/20"
               >
                 <FiPlus className="w-4 h-4" />
                 <span>Agregar manualmente: <strong>"{query.trim()}"</strong></span>
@@ -167,7 +176,7 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
             )}
 
             {!isLoading && query.trim() && suggestions.length === 0 && (
-              <div className="px-4 py-3 text-sm text-slate-500 text-center">
+              <div className="px-4 py-3 text-sm text-ink-muted text-center">
                 No se encontraron resultados para "{query}"
               </div>
             )}

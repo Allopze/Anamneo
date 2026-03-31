@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
@@ -10,6 +10,16 @@ import { validateRut } from '../common/utils/helpers';
 import { Prisma } from '@prisma/client';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { parseEncounterSections } from '../common/utils/encounter-sections';
+import { PATIENT_HISTORY_FIELD_KEYS, sanitizePatientHistoryFieldValue } from '../common/utils/patient-history';
+import { isDateOnlyBeforeToday, parseDateOnlyToStoredUtcDate, startOfUtcDay } from '../common/utils/local-date';
+
+const PATIENT_DETAIL_SUMMARY_SECTION_KEYS = [
+  'MOTIVO_CONSULTA',
+  'SOSPECHA_DIAGNOSTICA',
+  'TRATAMIENTO',
+  'RESPUESTA_TRATAMIENTO',
+  'EXAMEN_FISICO',
+] as const;
 
 @Injectable()
 export class PatientsService {
@@ -280,7 +290,7 @@ export class PatientsService {
     };
   }
 
-  async exportCsv() {
+  async exportCsv(user: RequestUser) {
     const patients = await this.prisma.patient.findMany({
       where: { archivedAt: null },
       orderBy: { nombre: 'asc' },
@@ -301,6 +311,19 @@ export class PatientsService {
         p.createdAt.toISOString().slice(0, 10),
       ];
       return fields.join(',');
+    });
+
+    await this.auditService.log({
+      entityType: 'PatientExport',
+      entityId: 'csv',
+      userId: user.id,
+      action: 'EXPORT',
+      diff: {
+        export: {
+          format: 'csv',
+          patientCount: patients.length,
+        },
+      },
     });
 
     return '\uFEFF' + header + '\n' + rows.join('\n');
@@ -345,7 +368,21 @@ export class PatientsService {
             reviewedBy: {
               select: { id: true, nombre: true },
             },
-            sections: true,
+            sections: {
+              where: {
+                sectionKey: {
+                  in: [...PATIENT_DETAIL_SUMMARY_SECTION_KEYS],
+                },
+              },
+              select: {
+                id: true,
+                encounterId: true,
+                sectionKey: true,
+                data: true,
+                completed: true,
+                updatedAt: true,
+              },
+            },
           },
         },
       },
@@ -419,7 +456,7 @@ export class PatientsService {
     }
 
     if (filters?.overdueOnly) {
-      where.dueDate = { lt: new Date() };
+      where.dueDate = { lt: startOfUtcDay(new Date()) };
       where.status = { in: ['PENDIENTE', 'EN_PROCESO'] } as any;
     }
 
@@ -441,14 +478,12 @@ export class PatientsService {
       this.prisma.encounterTask.count({ where }),
     ]);
 
-    const now = new Date();
-
     return {
       data: tasks.map((task) => ({
         ...this.formatTask(task),
         isOverdue: Boolean(
           task.dueDate
-          && task.dueDate < now
+          && isDateOnlyBeforeToday(task.dueDate)
           && ['PENDIENTE', 'EN_PROCESO'].includes(task.status),
         ),
       })),
@@ -461,7 +496,7 @@ export class PatientsService {
     };
   }
 
-  async update(id: string, updatePatientDto: UpdatePatientDto, userId: string) {
+  async update(id: string, updatePatientDto: UpdatePatientDto, user: RequestUser) {
     const existingPatient = await this.prisma.patient.findUnique({ where: { id } });
 
     if (!existingPatient) {
@@ -470,6 +505,11 @@ export class PatientsService {
 
     if (existingPatient.archivedAt) {
       throw new BadRequestException('No se puede editar un paciente archivado');
+    }
+
+    const effectiveMedicoId = getEffectiveMedicoId(user);
+    if (!user.isAdmin && existingPatient.createdById !== effectiveMedicoId) {
+      throw new ForbiddenException('No tiene permisos para editar este paciente');
     }
 
     // Prepare update data
@@ -545,7 +585,7 @@ export class PatientsService {
     await this.auditService.log({
       entityType: 'Patient',
       entityId: patient.id,
-      userId,
+      userId: user.id,
       action: 'UPDATE',
       diff: {
         before: existingPatient,
@@ -557,15 +597,7 @@ export class PatientsService {
   }
 
   async updateAdminFields(user: RequestUser, patientId: string, dto: UpdatePatientAdminDto) {
-    const existingPatient = await this.prisma.patient.findUnique({ where: { id: patientId } });
-
-    if (!existingPatient) {
-      throw new NotFoundException('Paciente no encontrado');
-    }
-
-    if (existingPatient.archivedAt) {
-      throw new BadRequestException('No se puede editar un paciente archivado');
-    }
+    const existingPatient = await this.assertPatientAccess(user, patientId);
 
     const updateData: Prisma.PatientUpdateInput = {};
     if (dto.edad !== undefined) updateData.edad = dto.edad;
@@ -602,34 +634,23 @@ export class PatientsService {
   }
 
   async updateHistory(user: RequestUser, patientId: string, dto: UpdatePatientHistoryDto) {
-    const patient = await this.prisma.patient.findUnique({
-      where: { id: patientId },
-      include: { history: true },
-    });
-
-    if (!patient) {
-      throw new NotFoundException('Paciente no encontrado');
-    }
-
-    if (patient.archivedAt) {
-      throw new BadRequestException('No se puede editar el historial de un paciente archivado');
-    }
+    const patient = await this.assertPatientAccess(user, patientId);
+    const dtoRecord = dto as Record<string, unknown>;
 
     const previousHistory = patient.history;
 
-    // Serialize objects to JSON strings for SQLite
-    // Use !== undefined to allow empty strings/objects/null to clear fields
     const historyData: Record<string, string | null> = {};
-    if (dto.antecedentesMedicos !== undefined) historyData.antecedentesMedicos = dto.antecedentesMedicos ? JSON.stringify(dto.antecedentesMedicos) : null;
-    if (dto.antecedentesQuirurgicos !== undefined) historyData.antecedentesQuirurgicos = dto.antecedentesQuirurgicos ? JSON.stringify(dto.antecedentesQuirurgicos) : null;
-    if (dto.antecedentesGinecoobstetricos !== undefined) historyData.antecedentesGinecoobstetricos = dto.antecedentesGinecoobstetricos ? JSON.stringify(dto.antecedentesGinecoobstetricos) : null;
-    if (dto.antecedentesFamiliares !== undefined) historyData.antecedentesFamiliares = dto.antecedentesFamiliares ? JSON.stringify(dto.antecedentesFamiliares) : null;
-    if (dto.habitos !== undefined) historyData.habitos = dto.habitos ? JSON.stringify(dto.habitos) : null;
-    if (dto.medicamentos !== undefined) historyData.medicamentos = dto.medicamentos ? JSON.stringify(dto.medicamentos) : null;
-    if (dto.alergias !== undefined) historyData.alergias = dto.alergias ? JSON.stringify(dto.alergias) : null;
-    if (dto.inmunizaciones !== undefined) historyData.inmunizaciones = dto.inmunizaciones ? JSON.stringify(dto.inmunizaciones) : null;
-    if (dto.antecedentesSociales !== undefined) historyData.antecedentesSociales = dto.antecedentesSociales ? JSON.stringify(dto.antecedentesSociales) : null;
-    if (dto.antecedentesPersonales !== undefined) historyData.antecedentesPersonales = dto.antecedentesPersonales ? JSON.stringify(dto.antecedentesPersonales) : null;
+    for (const key of PATIENT_HISTORY_FIELD_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(dtoRecord, key)) {
+        continue;
+      }
+
+      const sanitized = sanitizePatientHistoryFieldValue(key, dtoRecord[key], {
+        rejectUnknownKeys: true,
+      });
+
+      historyData[key] = sanitized ? JSON.stringify(sanitized) : null;
+    }
 
     const history = await this.prisma.patientHistory.upsert({
       where: { patientId },
@@ -654,11 +675,16 @@ export class PatientsService {
     return history;
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, user: RequestUser) {
+    const effectiveMedicoId = getEffectiveMedicoId(user);
     const patient = await this.prisma.patient.findUnique({ where: { id } });
 
     if (!patient) {
       throw new NotFoundException('Paciente no encontrado');
+    }
+
+    if (!user.isAdmin && patient.createdById !== effectiveMedicoId) {
+      throw new ForbiddenException('No tiene permisos para archivar este paciente');
     }
 
     if (patient.archivedAt) {
@@ -680,7 +706,7 @@ export class PatientsService {
         where: { id },
         data: {
           archivedAt,
-          archivedById: userId,
+          archivedById: user.id,
         },
       }),
     ]);
@@ -688,11 +714,11 @@ export class PatientsService {
     await this.auditService.log({
       entityType: 'Patient',
       entityId: id,
-      userId,
+      userId: user.id,
       action: 'UPDATE',
       diff: {
         archivedAt: archivedAt.toISOString(),
-        archivedById: userId,
+        archivedById: user.id,
         previousStatus: patient,
       },
     });
@@ -700,11 +726,16 @@ export class PatientsService {
     return { message: 'Paciente archivado correctamente' };
   }
 
-  async restore(id: string, userId: string) {
+  async restore(id: string, user: RequestUser) {
+    const effectiveMedicoId = getEffectiveMedicoId(user);
     const patient = await this.prisma.patient.findUnique({ where: { id } });
 
     if (!patient) {
       throw new NotFoundException('Paciente no encontrado');
+    }
+
+    if (!user.isAdmin && patient.createdById !== effectiveMedicoId) {
+      throw new ForbiddenException('No tiene permisos para restaurar este paciente');
     }
 
     if (!patient.archivedAt) {
@@ -722,7 +753,7 @@ export class PatientsService {
     await this.auditService.log({
       entityType: 'Patient',
       entityId: id,
-      userId,
+      userId: user.id,
       action: 'UPDATE',
       diff: {
         restoredAt: new Date().toISOString(),
@@ -769,7 +800,7 @@ export class PatientsService {
         status: dto.status || 'ACTIVO',
         notes: dto.notes?.trim() || null,
         severity: dto.severity?.trim() || null,
-        onsetDate: dto.onsetDate ? new Date(dto.onsetDate) : null,
+        onsetDate: dto.onsetDate ? parseDateOnlyToStoredUtcDate(dto.onsetDate, 'La fecha de inicio') : null,
       },
       include: {
         encounter: {
@@ -814,6 +845,8 @@ export class PatientsService {
       throw new NotFoundException('Problema clínico no encontrado');
     }
 
+    await this.assertPatientAccess(user, problem.patientId);
+
     const updated = await this.prisma.patientProblem.update({
       where: { id: problemId },
       data: {
@@ -821,7 +854,9 @@ export class PatientsService {
         status: dto.status || problem.status,
         notes: dto.notes !== undefined ? dto.notes.trim() || null : problem.notes,
         severity: dto.severity !== undefined ? dto.severity.trim() || null : problem.severity,
-        onsetDate: dto.onsetDate !== undefined ? (dto.onsetDate ? new Date(dto.onsetDate) : null) : problem.onsetDate,
+        onsetDate: dto.onsetDate !== undefined
+          ? (dto.onsetDate ? parseDateOnlyToStoredUtcDate(dto.onsetDate, 'La fecha de inicio') : null)
+          : problem.onsetDate,
         resolvedAt: dto.status === 'RESUELTO' ? new Date() : dto.status ? null : problem.resolvedAt,
       },
       include: {
@@ -880,7 +915,7 @@ export class PatientsService {
         type: dto.type || 'SEGUIMIENTO',
         priority: dto.priority || 'MEDIA',
         status: dto.status || 'PENDIENTE',
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+        dueDate: dto.dueDate ? parseDateOnlyToStoredUtcDate(dto.dueDate, 'La fecha de vencimiento') : null,
       },
       include: {
         createdBy: {
@@ -926,6 +961,8 @@ export class PatientsService {
       throw new NotFoundException('Seguimiento no encontrado');
     }
 
+    await this.assertPatientAccess(user, task.patientId);
+
     const updated = await this.prisma.encounterTask.update({
       where: { id: taskId },
       data: {
@@ -934,7 +971,9 @@ export class PatientsService {
         details: dto.details !== undefined ? dto.details.trim() || null : task.details,
         type: dto.type || task.type,
         priority: dto.priority || task.priority,
-        dueDate: dto.dueDate !== undefined ? (dto.dueDate ? new Date(dto.dueDate) : null) : task.dueDate,
+        dueDate: dto.dueDate !== undefined
+          ? (dto.dueDate ? parseDateOnlyToStoredUtcDate(dto.dueDate, 'La fecha de vencimiento') : null)
+          : task.dueDate,
         completedAt: dto.status === 'COMPLETADA' ? new Date() : dto.status && dto.status !== 'COMPLETADA' ? null : task.completedAt,
       },
       include: {

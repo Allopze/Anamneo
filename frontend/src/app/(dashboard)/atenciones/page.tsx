@@ -17,7 +17,7 @@ export default function AtencionesListPage() {
     <Suspense fallback={
       <div className="animate-fade-in">
         <div className="h-8 skeleton rounded w-48 mb-6" />
-        <div className="card"><div className="space-y-4">{[...Array(5)].map((_, i) => (<div key={i} className="h-16 skeleton rounded-lg" />))}</div></div>
+        <div className="card"><div className="space-y-4">{[...Array(5)].map((_, i) => (<div key={i} className="h-16 skeleton rounded-card" />))}</div></div>
       </div>
     }>
       <AtencionesListContent />
@@ -92,7 +92,7 @@ function AtencionesListContent() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-                  <span className="text-sm text-slate-600">Filtrar por estado:</span>
+                  <span className="text-sm text-ink-secondary">Filtrar por estado:</span>
                   <div className="flex flex-wrap gap-2">
                     {['', 'EN_PROGRESO', 'COMPLETADO', 'CANCELADO'].map((status) => (
                       <button
@@ -105,10 +105,10 @@ function AtencionesListContent() {
                           router.replace(`/atenciones${params.toString() ? `?${params.toString()}` : ''}`);
                         }}
                         className={clsx(
-                          'px-3 py-1.5 rounded-lg text-sm transition-colors',
+                          'px-3 py-1.5 rounded-pill text-sm transition-colors',
                           statusFilter === status
-                            ? 'bg-primary-100 text-primary-700'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            ? 'bg-accent/20 text-accent'
+                            : 'bg-surface-muted text-ink-secondary hover:bg-surface-muted/50'
                         )}
                       >
                         {status === '' ? 'Todos' : STATUS_LABELS[status]}
@@ -117,7 +117,7 @@ function AtencionesListContent() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-                  <span className="text-sm text-slate-600">Revisión:</span>
+                  <span className="text-sm text-ink-secondary">Revisión:</span>
                   <div className="flex flex-wrap gap-2">
                     {['', 'LISTA_PARA_REVISION', 'REVISADA_POR_MEDICO'].map((status) => (
                       <button
@@ -130,10 +130,10 @@ function AtencionesListContent() {
                           router.replace(`/atenciones${params.toString() ? `?${params.toString()}` : ''}`);
                         }}
                         className={clsx(
-                          'px-3 py-1.5 rounded-lg text-sm transition-colors',
+                          'px-3 py-1.5 rounded-pill text-sm transition-colors',
                           reviewFilter === status
-                            ? 'bg-primary-100 text-primary-700'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            ? 'bg-accent/20 text-accent'
+                            : 'bg-surface-muted text-ink-secondary hover:bg-surface-muted/50'
                         )}
                       >
                         {status === '' ? 'Todas' : REVIEW_STATUS_LABELS[status]}
@@ -146,7 +146,7 @@ function AtencionesListContent() {
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="text-sm font-medium text-primary-600 hover:text-primary-700"
+                  className="text-sm font-medium text-accent hover:text-accent/80"
                 >
                   Limpiar filtros
                 </button>
@@ -157,7 +157,7 @@ function AtencionesListContent() {
       )}
 
       {error && (
-        <div className="card mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+        <div className="card mb-6 p-4 bg-status-red/10 border border-status-red/30 text-status-red text-sm rounded-card">
           Error al cargar atenciones. Intente recargar la página.
         </div>
       )}
@@ -176,7 +176,7 @@ function AtencionesListContent() {
             ))}
           </div>
         ) : hasData ? (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-surface-muted/30">
             {data.data.map((encounter: Encounter) => (
               <Link
                 key={encounter.id}
@@ -187,33 +187,33 @@ function AtencionesListContent() {
                   className={clsx(
                     'list-row-icon',
                     encounter.status === 'COMPLETADO'
-                      ? 'bg-clinical-100 text-clinical-600'
+                      ? 'bg-status-green/20 text-status-green'
                       : encounter.status === 'EN_PROGRESO'
-                      ? 'bg-amber-100 text-amber-600'
-                      : 'bg-slate-100 text-slate-600'
+                      ? 'bg-status-yellow/20 text-status-yellow'
+                      : 'bg-surface-muted text-ink-secondary'
                   )}
                 >
                   <FiFileText className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-slate-900 group-hover:text-primary-600">
+                    <span className="font-medium text-ink-primary group-hover:text-accent">
                       {encounter.patient?.nombre || 'Paciente'}
                     </span>
                     <span
                       className={clsx(
                         'list-chip',
                         encounter.status === 'COMPLETADO'
-                          ? 'bg-clinical-100 text-clinical-700'
+                          ? 'bg-status-green/20 text-status-green'
                           : encounter.status === 'EN_PROGRESO'
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-slate-100 text-slate-700'
+                          ? 'bg-status-yellow/20 text-status-yellow'
+                          : 'bg-surface-muted text-ink-secondary'
                       )}
                     >
                       {STATUS_LABELS[encounter.status]}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-slate-500">
+                  <div className="flex items-center gap-4 text-sm text-ink-muted">
                     <span className="flex items-center gap-1">
                       <FiCalendar className="w-3 h-3" />
                       {format(new Date(encounter.createdAt), "d MMM yyyy, HH:mm", { locale: es })}
@@ -232,14 +232,14 @@ function AtencionesListContent() {
                     )}
                   </div>
                 </div>
-                <FiChevronRight className="w-5 h-5 text-slate-400 group-hover:text-primary-600" />
+                <FiChevronRight className="w-5 h-5 text-ink-muted group-hover:text-accent" />
               </Link>
             ))}
           </div>
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <FiFileText className="w-10 h-10 text-primary-400" />
+              <FiFileText className="w-10 h-10 text-accent" />
             </div>
             <h3 className="empty-state-title">
               {hasActiveFilters ? 'No hay resultados para estos filtros' : 'No hay atenciones'}
@@ -267,7 +267,7 @@ function AtencionesListContent() {
       {/* Pagination */}
       {data?.pagination && data.pagination.totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-ink-secondary">
             Página {data.pagination.page} de {data.pagination.totalPages} ({data.pagination.total} atenciones)
           </p>
           <div className="flex items-center gap-2">

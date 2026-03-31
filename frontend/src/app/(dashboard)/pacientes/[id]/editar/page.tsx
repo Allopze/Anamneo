@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -99,8 +99,12 @@ export default function EditarPacientePage() {
     },
   });
 
+  const initializedPatientIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!patient) return;
+    if (initializedPatientIdRef.current === patient.id) return;
+    initializedPatientIdRef.current = patient.id;
 
     editForm.reset({
       edad: patient.edad ?? 0,
@@ -202,13 +206,13 @@ export default function EditarPacientePage() {
         <div className="flex items-center gap-4 mb-6">
           <Link
             href={`/pacientes/${id}`}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
           >
-            <FiArrowLeft className="w-5 h-5 text-slate-600" />
+            <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Editar paciente</h1>
-            <p className="text-slate-600">No se pudo cargar el paciente</p>
+            <h1 className="text-2xl font-bold text-ink-primary">Editar paciente</h1>
+            <p className="text-ink-secondary">No se pudo cargar el paciente</p>
           </div>
         </div>
         <ErrorAlert message={getErrorMessage(loadError ?? new Error('Paciente no encontrado'))} />
@@ -224,13 +228,13 @@ export default function EditarPacientePage() {
         <div className="flex items-center gap-4">
           <Link
             href={`/pacientes/${id}`}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
           >
-            <FiArrowLeft className="w-5 h-5 text-slate-600" />
+            <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Editar paciente</h1>
-            <p className="text-slate-600">
+            <h1 className="text-2xl font-bold text-ink-primary">Editar paciente</h1>
+            <p className="text-ink-secondary">
               Actualiza los datos de <span className="font-semibold">{patient.nombre}</span>
             </p>
           </div>
@@ -256,7 +260,7 @@ export default function EditarPacientePage() {
       </div>
 
       {!isDoctor && (
-        <div className="mb-6 p-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-sm">
+        <div className="mb-6 p-4 rounded-lg border border-status-yellow/30 bg-status-yellow/10 text-status-yellow text-sm">
           Solo puedes editar datos administrativos del paciente.
         </div>
       )}
@@ -293,10 +297,10 @@ export default function EditarPacientePage() {
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                    className="rounded border-surface-muted/30 text-accent focus:ring-accent"
                     {...editForm.register('rutExempt')}
                   />
-                  <span className="text-sm text-slate-600">Paciente sin RUT</span>
+                  <span className="text-sm text-ink-secondary">Paciente sin RUT</span>
                 </label>
                 {Boolean(rutExempt) && (
                   <>
@@ -378,7 +382,7 @@ export default function EditarPacientePage() {
           <input className="form-input" {...editForm.register('domicilio')} />
         </div>
 
-        <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+        <div className="pt-4 border-t border-surface-muted/30 flex items-center justify-end gap-3">
           <Link href={`/pacientes/${id}`} className="btn btn-secondary">
             Cancelar
           </Link>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -23,6 +23,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +57,8 @@ export default function LoginPage() {
       });
 
       toast.success('¡Bienvenido!');
-      router.push('/pacientes');
+      const redirectTo = searchParams.get('from') || '/pacientes';
+      router.push(redirectTo.startsWith('/') && !redirectTo.startsWith('//') ? redirectTo : '/pacientes');
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         setError('Credenciales incorrectas. Verifica tu correo y contraseña.');
@@ -78,7 +80,7 @@ export default function LoginPage() {
             textClassName="text-3xl font-bold text-white"
             priority
           />
-          <p className="mb-8 text-xl text-primary-100">
+          <p className="mb-8 text-xl text-accent">
             Flujo clínico continuo para consultas, seguimiento y documentación médica.
           </p>
           <ul className="space-y-4">
@@ -102,18 +104,18 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-center bg-slate-50 p-8">
+      <div className="flex items-center justify-center bg-surface-base/40 p-8">
         <div className="auth-card">
           <AnamneoLogo
             className="justify-center mb-8 lg:hidden"
             iconClassName="h-10 w-10"
-            textClassName="text-2xl font-bold text-slate-900"
+            textClassName="text-2xl font-bold text-ink-primary"
             priority
           />
 
           <div className="mb-8 text-center">
-            <h2 className="text-2xl font-bold text-slate-900">Iniciar sesión</h2>
-            <p className="text-slate-600 mt-2">Ingresa tus credenciales para acceder</p>
+            <h2 className="text-2xl font-bold text-ink-primary">Iniciar sesión</h2>
+            <p className="text-ink-secondary mt-2">Ingresa tus credenciales para acceder</p>
           </div>
 
           {error && (
@@ -128,7 +130,7 @@ export default function LoginPage() {
                 Correo electrónico
               </label>
               <div className="relative">
-                <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" />
                 <input
                   id="email"
                   type="email"
@@ -148,7 +150,7 @@ export default function LoginPage() {
                 Contraseña
               </label>
               <div className="relative">
-                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" />
                 <input
                   id="password"
                   type="password"
@@ -179,9 +181,9 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-center text-slate-600 mt-6">
+          <p className="text-center text-ink-secondary mt-6">
             ¿No tienes cuenta?{' '}
-            <Link href="/register" className="text-primary-600 hover:text-primary-700 font-medium">
+            <Link href="/register" className="text-accent hover:text-accent/80 font-medium">
               Crear cuenta
             </Link>
           </p>

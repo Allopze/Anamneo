@@ -73,8 +73,8 @@ export default function RevisionSistemasSection({ data, onChange, readOnly }: Pr
                     className={clsx(
                       'mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded border-2 transition-colors',
                       systemData.checked
-                        ? 'border-primary-500 bg-primary-500 text-white'
-                        : 'border-slate-300 hover:border-primary-400'
+                        ? 'border-accent bg-accent/100 text-white'
+                        : 'border-surface-muted/30 hover:border-accent/80'
                     )}
                   >
                     {systemData.checked && <FiCheck className="w-4 h-4" aria-hidden="true" />}
@@ -82,8 +82,8 @@ export default function RevisionSistemasSection({ data, onChange, readOnly }: Pr
 
                   <div className="flex-1">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                      <span className="font-medium text-slate-900">{label}</span>
-                      <span className="text-xs text-slate-500">{examples}</span>
+                      <span className="font-medium text-ink-primary">{label}</span>
+                      <span className="text-xs text-ink-muted">{examples}</span>
                     </div>
 
                     {systemData.checked && (

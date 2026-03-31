@@ -118,9 +118,15 @@ export class AuthController {
       this.clearAuthCookies(res);
       throw new UnauthorizedException('Token de refresco no proporcionado');
     }
-    const tokens = await this.authService.refreshTokens(refreshToken, this.getSessionContext(req));
-    this.setAuthCookies(res, tokens);
-    return { message: 'Tokens actualizados' };
+    try {
+      const tokens = await this.authService.refreshTokens(refreshToken, this.getSessionContext(req));
+      this.setAuthCookies(res, tokens);
+      return { message: 'Tokens actualizados' };
+    } catch (err) {
+      // Clear stale cookies so the browser stops sending expired tokens
+      this.clearAuthCookies(res);
+      throw err;
+    }
   }
 
   @Patch('profile')

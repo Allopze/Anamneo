@@ -52,8 +52,11 @@ export class PatientsController {
 
   @Get('export/csv')
   @UseGuards(AdminGuard)
-  async exportCsv(@Res() res: Response) {
-    const csv = await this.patientsService.exportCsv();
+  async exportCsv(
+    @CurrentUser() user: CurrentUserData,
+    @Res() res: Response,
+  ) {
+    const csv = await this.patientsService.exportCsv(user);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename=pacientes_${new Date().toISOString().slice(0, 10)}.csv`);
     res.send(csv);
@@ -114,9 +117,9 @@ export class PatientsController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updatePatientDto: UpdatePatientDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: CurrentUserData,
   ) {
-    return this.patientsService.update(id, updatePatientDto, userId);
+    return this.patientsService.update(id, updatePatientDto, user);
   }
 
   @Put(':id/admin')
@@ -182,17 +185,17 @@ export class PatientsController {
   @Roles('MEDICO')
   remove(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: CurrentUserData,
   ) {
-    return this.patientsService.remove(id, userId);
+    return this.patientsService.remove(id, user);
   }
 
   @Post(':id/restore')
   @Roles('MEDICO')
   restore(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: CurrentUserData,
   ) {
-    return this.patientsService.restore(id, userId);
+    return this.patientsService.restore(id, user);
   }
 }

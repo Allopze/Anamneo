@@ -9,7 +9,30 @@ import { useAuthStore } from '@/stores/auth-store';
 import { FiPlus, FiUsers, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 
-type Role = 'MEDICO' | 'ASISTENTE';
+type Role = 'MEDICO' | 'ASISTENTE' | 'ADMIN';
+
+type InvitationStatus = 'PENDIENTE' | 'ACEPTADA' | 'REVOCADA' | 'EXPIRADA';
+
+const INVITATION_STATUS_LABELS: Record<InvitationStatus, string> = {
+  PENDIENTE: 'Pendiente',
+  ACEPTADA: 'Aceptada',
+  REVOCADA: 'Revocada',
+  EXPIRADA: 'Expirada',
+};
+
+const INVITATION_STATUS_STYLES: Record<InvitationStatus, string> = {
+  PENDIENTE: 'bg-accent/20 text-accent',
+  ACEPTADA: 'bg-status-green/20 text-status-green',
+  REVOCADA: 'bg-surface-muted text-ink-secondary',
+  EXPIRADA: 'bg-status-yellow/20 text-status-yellow',
+};
+
+function formatInvitationDate(value: string) {
+  return new Date(value).toLocaleString('es-CL', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+}
 
 interface UserInvitationResponse {
   id: string;
@@ -18,6 +41,28 @@ interface UserInvitationResponse {
   medicoId?: string | null;
   expiresAt: string;
   token: string;
+  inviteUrl?: string | null;
+  emailSent: boolean;
+  emailError?: string | null;
+}
+
+interface CreatedInvitationState {
+  email: string;
+  inviteUrl: string;
+  emailSent: boolean;
+  emailError?: string | null;
+}
+
+interface AdminInvitationRow {
+  id: string;
+  email: string;
+  role: Role;
+  medicoId?: string | null;
+  invitedById: string;
+  expiresAt: string;
+  acceptedAt?: string | null;
+  revokedAt?: string | null;
+  createdAt: string;
 }
 
 interface AdminUserRow {
@@ -42,7 +87,7 @@ export default function AdminUsuariosPage() {
     role: 'MEDICO' as Role,
     medicoId: '' as string,
   });
-  const [createdInvitationUrl, setCreatedInvitationUrl] = useState<string | null>(null);
+  const [createdInvitation, setCreatedInvitation] = useState<CreatedInvitationState | null>(null);
 
   const [editingUser, setEditingUser] = useState<AdminUserRow | null>(null);
   const [editForm, setEditForm] = useState({
@@ -119,6 +164,19 @@ export default function AdminUsuariosPage() {
     enabled: isAdmin(),
   });
 
+  const {
+    data: invitations,
+    isLoading: isLoadingInvitations,
+    error: invitationsError,
+  } = useQuery({
+    queryKey: ['user-invitations'],
+    queryFn: async () => {
+      const response = await api.get('/users/invitations');
+      return response.data as AdminInvitationRow[];
+    },
+    enabled: isAdmin(),
+  });
+
   const medicos = useMemo(() => {
     return (users || []).filter((u) => u.role === 'MEDICO' && u.active);
   }, [users]);
@@ -134,6 +192,13 @@ export default function AdminUsuariosPage() {
     }));
   }, [medicos, users]);
 
+  const getInvitationStatus = useCallback((invitation: AdminInvitationRow): InvitationStatus => {
+    if (invitation.acceptedAt) return 'ACEPTADA';
+    if (invitation.revokedAt) return 'REVOCADA';
+    if (new Date(invitation.expiresAt).getTime() <= Date.now()) return 'EXPIRADA';
+    return 'PENDIENTE';
+  }, []);
+
   const createInvitationMutation = useMutation({
     mutationFn: async () => {
       const payload: any = {
@@ -147,15 +212,26 @@ export default function AdminUsuariosPage() {
       return response.data as UserInvitationResponse;
     },
     onSuccess: async (invitation) => {
-      const inviteUrl = `${window.location.origin}/register?token=${invitation.token}`;
-      setCreatedInvitationUrl(inviteUrl);
+      const inviteUrl = invitation.inviteUrl || `${window.location.origin}/register?token=${invitation.token}`;
+      setCreatedInvitation({
+        email: invitation.email,
+        inviteUrl,
+        emailSent: invitation.emailSent,
+        emailError: invitation.emailError,
+      });
       setCreateForm({ email: '', role: 'MEDICO', medicoId: '' });
+      queryClient.invalidateQueries({ queryKey: ['user-invitations'] });
+
+      if (invitation.emailSent) {
+        toast.success('Invitación enviada por correo');
+        return;
+      }
 
       try {
         await navigator.clipboard.writeText(inviteUrl);
-        toast.success('Invitación creada y copiada al portapapeles');
+        toast.success('Invitación creada. Se copió el enlace manual');
       } catch {
-        toast.success('Invitación creada');
+        toast.success('Invitación creada. Comparte el enlace manualmente');
       }
     },
     onError: (err) => toast.error(getErrorMessage(err)),
@@ -200,6 +276,18 @@ export default function AdminUsuariosPage() {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
+  const revokeInvitationMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      const response = await api.delete(`/users/invitations/${invitationId}`);
+      return response.data as { id: string; revokedAt: string };
+    },
+    onSuccess: () => {
+      toast.success('Invitación revocada');
+      queryClient.invalidateQueries({ queryKey: ['user-invitations'] });
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  });
+
   const resetPasswordMutation = useMutation({
     mutationFn: async ({ userId, temporaryPassword }: { userId: string; temporaryPassword: string }) => {
       const response = await api.post(`/users/${userId}/reset-password`, { temporaryPassword });
@@ -229,7 +317,7 @@ export default function AdminUsuariosPage() {
       role: 'ASISTENTE',
       medicoId: medico.id,
     });
-    setCreatedInvitationUrl(null);
+    setCreatedInvitation(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -255,18 +343,18 @@ export default function AdminUsuariosPage() {
       <div className="card mb-6">
         <div className="panel-header">
           <div className="flex items-center gap-2">
-          <FiPlus className="w-4 h-4 text-primary-600" />
+          <FiPlus className="w-4 h-4 text-accent" />
           <h2 className="panel-title">Crear invitación</h2>
           </div>
         </div>
 
-        <p className="mb-4 text-sm text-slate-600">
+        <p className="mb-4 text-sm text-ink-secondary">
           El enlace permite que la persona complete su registro y defina su propia contraseña.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="text-sm text-slate-600">Email</label>
+            <label className="text-sm text-ink-secondary">Email</label>
             <input
               className="form-input"
               value={createForm.email}
@@ -274,7 +362,7 @@ export default function AdminUsuariosPage() {
             />
           </div>
           <div>
-            <label className="text-sm text-slate-600">Rol</label>
+            <label className="text-sm text-ink-secondary">Rol</label>
             <select
               className="form-input"
               value={createForm.role}
@@ -282,12 +370,13 @@ export default function AdminUsuariosPage() {
             >
               <option value="MEDICO">Médico</option>
               <option value="ASISTENTE">Asistente</option>
+              <option value="ADMIN">Administrador</option>
             </select>
           </div>
 
           {createForm.role === 'ASISTENTE' && (
             <div className="md:col-span-2">
-              <label className="text-sm text-slate-600">Asignar a médico</label>
+              <label className="text-sm text-ink-secondary">Asignar a médico</label>
               <select
                 className="form-input"
                 value={createForm.medicoId}
@@ -314,14 +403,109 @@ export default function AdminUsuariosPage() {
             Crear invitación
           </button>
           {createErrors.length > 0 && createForm.email.length > 0 && (
-            <span className="text-xs text-red-500">{createErrors[0]}</span>
+            <span className="text-xs text-status-red">{createErrors[0]}</span>
           )}
         </div>
 
-        {createdInvitationUrl && (
-          <div className="mt-4 rounded-xl border border-primary-200 bg-primary-50 p-4">
-            <p className="text-sm font-medium text-slate-900">Enlace de invitación</p>
-            <p className="mt-2 break-all text-sm text-slate-700">{createdInvitationUrl}</p>
+        {createdInvitation && (
+          <div className={`mt-4 rounded-xl border p-4 ${createdInvitation.emailSent ? 'border-status-green/30 bg-status-green/10' : 'border-accent/20 bg-accent/10'}`}>
+            <p className="text-sm font-medium text-ink-primary">
+              {createdInvitation.emailSent
+                ? `Invitación enviada a ${createdInvitation.email}`
+                : 'Enlace de invitación listo'}
+            </p>
+            <p className="mt-1 text-sm text-ink-secondary">
+              {createdInvitation.emailSent
+                ? 'El correo salió con la configuración SMTP actual. Conserva el enlace como respaldo.'
+                : 'No se pudo enviar automáticamente por correo. Puedes compartir este enlace manualmente.'}
+            </p>
+            {createdInvitation.emailError && (
+              <p className="mt-2 text-xs text-status-yellow">{createdInvitation.emailError}</p>
+            )}
+            <p className="mt-2 break-all text-sm text-ink-secondary">{createdInvitation.inviteUrl}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="card mb-6">
+        <div className="panel-header">
+          <h2 className="panel-title">Invitaciones</h2>
+        </div>
+
+        <p className="mb-4 text-sm text-ink-secondary">
+          Revisa el estado de cada invitación pendiente. Para reenviar un enlace, crea una nueva invitación para el mismo correo.
+        </p>
+
+        {invitationsError && (
+          <div className="mb-4">
+            <ErrorAlert message={getErrorMessage(invitationsError)} />
+          </div>
+        )}
+
+        {isLoadingInvitations ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-16 skeleton rounded" />
+            ))}
+          </div>
+        ) : invitations && invitations.length > 0 ? (
+          <div className="divide-y divide-surface-muted/30">
+            {invitations.map((invitation) => {
+              const status = getInvitationStatus(invitation);
+              const assignedMedico = invitation.medicoId
+                ? users?.find((candidate) => candidate.id === invitation.medicoId)
+                : null;
+              const canRevoke = status === 'PENDIENTE';
+
+              return (
+                <div key={invitation.id} className="group list-row flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-ink-primary truncate">{invitation.email}</span>
+                      <span className="list-chip bg-surface-muted text-ink-secondary">
+                        {invitation.role === 'MEDICO' ? 'Médico' : invitation.role === 'ADMIN' ? 'Administrador' : 'Asistente'}
+                      </span>
+                      <span className={`list-chip ${INVITATION_STATUS_STYLES[status]}`}>
+                        {INVITATION_STATUS_LABELS[status]}
+                      </span>
+                    </div>
+                    <div className="text-xs text-ink-muted mt-1">
+                      Creada: {formatInvitationDate(invitation.createdAt)} · Expira: {formatInvitationDate(invitation.expiresAt)}
+                    </div>
+                    {assignedMedico && (
+                      <div className="text-xs text-ink-muted mt-1">
+                        Asignada a médico: {assignedMedico.nombre} ({assignedMedico.email})
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {canRevoke && (
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => revokeInvitationMutation.mutate(invitation.id)}
+                        disabled={revokeInvitationMutation.isPending}
+                      >
+                        Revocar
+                      </button>
+                    )}
+                    {status === 'REVOCADA' && (
+                      <span className="text-xs text-ink-muted">Enlace invalidado</span>
+                    )}
+                    {status === 'ACEPTADA' && (
+                      <span className="text-xs text-status-green">Cuenta creada</span>
+                    )}
+                    {status === 'EXPIRADA' && (
+                      <span className="text-xs text-status-yellow">Crear nueva invitación</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-surface-muted/30 px-4 py-6 text-sm text-ink-muted">
+            No hay invitaciones emitidas todavía.
           </div>
         )}
       </div>
@@ -332,12 +516,12 @@ export default function AdminUsuariosPage() {
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           {assistantGroups.map(({ medico, assistants }) => (
-            <div key={medico.id} className="rounded-xl border border-slate-200 p-4">
+            <div key={medico.id} className="rounded-xl border border-surface-muted/30 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="font-medium text-slate-900">{medico.nombre}</h3>
-                  <p className="text-sm text-slate-500">{medico.email}</p>
-                  <p className="mt-1 text-xs text-slate-400">
+                  <h3 className="font-medium text-ink-primary">{medico.nombre}</h3>
+                  <p className="text-sm text-ink-muted">{medico.email}</p>
+                  <p className="mt-1 text-xs text-ink-muted">
                     {assistants.length} asistente{assistants.length === 1 ? '' : 's'} asignado{assistants.length === 1 ? '' : 's'}
                   </p>
                 </div>
@@ -353,14 +537,14 @@ export default function AdminUsuariosPage() {
                 {assistants.length > 0 ? assistants.map((assistant) => (
                   <button
                     key={assistant.id}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-left hover:border-primary-300 hover:bg-primary-50 transition-colors"
+                    className="w-full rounded-lg border border-surface-muted/30 px-3 py-2 text-left hover:border-accent/60 hover:bg-accent/10 transition-colors"
                     onClick={() => startEdit(assistant)}
                   >
-                    <div className="font-medium text-slate-900">{assistant.nombre}</div>
-                    <div className="text-sm text-slate-500">{assistant.email}</div>
+                    <div className="font-medium text-ink-primary">{assistant.nombre}</div>
+                    <div className="text-sm text-ink-muted">{assistant.email}</div>
                   </button>
                 )) : (
-                  <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
+                  <div className="rounded-lg border border-dashed border-surface-muted/30 px-3 py-4 text-sm text-ink-muted">
                     Sin asistentes asignados.
                   </div>
                 )}
@@ -372,10 +556,10 @@ export default function AdminUsuariosPage() {
 
       {/* Edit */}
       {editingUser && (
-        <div className="card mb-6 border-primary-200">
+        <div className="card mb-6 border-accent/20">
           <div className="panel-header">
             <div className="flex items-center gap-2">
-              <FiEdit2 className="w-4 h-4 text-primary-600" />
+              <FiEdit2 className="w-4 h-4 text-accent" />
               <h2 className="panel-title">Editar usuario</h2>
             </div>
             <button className="btn btn-secondary" onClick={() => setEditingUser(null)}>
@@ -385,7 +569,7 @@ export default function AdminUsuariosPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm text-slate-600">Nombre</label>
+              <label className="text-sm text-ink-secondary">Nombre</label>
               <input
                 className="form-input"
                 value={editForm.nombre}
@@ -393,7 +577,7 @@ export default function AdminUsuariosPage() {
               />
             </div>
             <div>
-              <label className="text-sm text-slate-600">Email</label>
+              <label className="text-sm text-ink-secondary">Email</label>
               <input
                 className="form-input"
                 value={editForm.email}
@@ -401,7 +585,7 @@ export default function AdminUsuariosPage() {
               />
             </div>
             <div>
-              <label className="text-sm text-slate-600">Nueva contraseña (opcional)</label>
+              <label className="text-sm text-ink-secondary">Nueva contraseña (opcional)</label>
               <input
                 type="password"
                 className="form-input"
@@ -410,7 +594,7 @@ export default function AdminUsuariosPage() {
               />
             </div>
             <div>
-              <label className="text-sm text-slate-600">Rol</label>
+              <label className="text-sm text-ink-secondary">Rol</label>
               <select
                 className="form-input"
                 value={editForm.role}
@@ -418,12 +602,13 @@ export default function AdminUsuariosPage() {
               >
                 <option value="MEDICO">Médico</option>
                 <option value="ASISTENTE">Asistente</option>
+                <option value="ADMIN">Administrador</option>
               </select>
             </div>
 
             {editForm.role === 'ASISTENTE' && (
               <div className="md:col-span-2">
-                <label className="text-sm text-slate-600">Asignar a médico</label>
+                <label className="text-sm text-ink-secondary">Asignar a médico</label>
                 <select
                   className="form-input"
                   value={editForm.medicoId}
@@ -440,7 +625,7 @@ export default function AdminUsuariosPage() {
             )}
 
             <div className="md:col-span-2">
-              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+              <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
                 <input
                   type="checkbox"
                   checked={editForm.active}
@@ -450,7 +635,7 @@ export default function AdminUsuariosPage() {
                 Usuario activo
               </label>
               {editingUser.isAdmin && editingUser.active && activeAdminCount === 1 && (
-                <p className="mt-2 text-xs text-amber-700">
+                <p className="mt-2 text-xs text-status-yellow">
                   Este es el último administrador activo y no puede desactivarse.
                 </p>
               )}
@@ -467,7 +652,7 @@ export default function AdminUsuariosPage() {
               Guardar cambios
             </button>
             {editErrors.length > 0 && (
-              <span className="text-xs text-red-500">{editErrors[0]}</span>
+              <span className="text-xs text-status-red">{editErrors[0]}</span>
             )}
           </div>
         </div>
@@ -485,32 +670,32 @@ export default function AdminUsuariosPage() {
             ))}
           </div>
         ) : users && users.length > 0 ? (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-surface-muted/30">
             {users.map((u) => (
               <div key={u.id} className="group list-row flex-col sm:flex-row sm:items-center">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-slate-900 truncate">{u.nombre}</span>
+                    <span className="font-medium text-ink-primary truncate">{u.nombre}</span>
                     {u.isAdmin && (
-                      <span className="list-chip bg-primary-100 text-primary-700">
+                      <span className="list-chip bg-accent/20 text-accent">
                         Admin
                       </span>
                     )}
-                    <span className="list-chip bg-slate-100 text-slate-700">
-                      {u.role === 'MEDICO' ? 'Médico' : 'Asistente'}
+                    <span className="list-chip bg-surface-muted text-ink-secondary">
+                      {u.role === 'MEDICO' ? 'Médico' : u.role === 'ADMIN' ? 'Administrador' : 'Asistente'}
                     </span>
                     <span
                       className={
                         'list-chip ' +
-                        (u.active ? 'bg-clinical-100 text-clinical-700' : 'bg-slate-100 text-slate-500')
+                        (u.active ? 'bg-status-green/20 text-status-green' : 'bg-surface-muted text-ink-muted')
                       }
                     >
                       {u.active ? 'Activo' : 'Inactivo'}
                     </span>
                   </div>
-                  <div className="text-sm text-slate-500 truncate">{u.email}</div>
+                  <div className="text-sm text-ink-muted truncate">{u.email}</div>
                   {u.role === 'ASISTENTE' && u.medicoId && (
-                    <div className="text-xs text-slate-400">Asignado a médico: {users?.find(m => m.id === u.medicoId)?.nombre || u.medicoId}</div>
+                    <div className="text-xs text-ink-muted">Asignado a médico: {users?.find(m => m.id === u.medicoId)?.nombre || u.medicoId}</div>
                   )}
                 </div>
 
@@ -555,12 +740,12 @@ export default function AdminUsuariosPage() {
                   </button>
                 </div>
                 {u.isAdmin && u.active && activeAdminCount === 1 && (
-                  <p className="text-xs text-amber-700">
+                  <p className="text-xs text-status-yellow">
                     Último administrador activo.
                   </p>
                 )}
                 {user?.id === u.id && (
-                  <p className="text-xs text-slate-400">Sesión actual</p>
+                  <p className="text-xs text-ink-muted">Sesión actual</p>
                 )}
               </div>
             ))}
@@ -568,7 +753,7 @@ export default function AdminUsuariosPage() {
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <FiUsers className="h-10 w-10 text-primary-400" />
+              <FiUsers className="h-10 w-10 text-accent" />
             </div>
             <h3 className="empty-state-title">Sin usuarios cargados</h3>
             <p className="empty-state-description">No hay usuarios registrados todavía en esta instancia.</p>

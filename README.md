@@ -12,7 +12,7 @@ Sistema de gestión de fichas clínicas para atención médica.
 1. **Clonar el repositorio y entrar al directorio:**
 
    ```bash
-   cd pacientes
+   cd Anamneo
    ```
 
 2. **Instalar dependencias:**
@@ -41,6 +41,8 @@ Sistema de gestión de fichas clínicas para atención médica.
    ```bash
    npm run dev
    ```
+
+   `npm run dev` levanta frontend y backend con el supervisor del repo. El backend aplica las migraciones Prisma antes de iniciar en modo watch.
 
 6. **Acceder a la aplicación:**
    - Frontend: http://localhost:5555
@@ -132,10 +134,10 @@ Cuando se mantiene SQLite en produccion, aplicar esta base operativa:
 
 ```cron
 # Ciclo operacional cada 6 horas (backup + drill segun cadencia + monitor + webhook si aplica)
-0 */6 * * * cd /ruta/pacientes && npm run db:ops >> /var/log/anamneo-sqlite-ops.log 2>&1
+0 */6 * * * cd /ruta/Anamneo && npm run db:ops >> /var/log/anamneo-sqlite-ops.log 2>&1
 
 # Monitor cada 10 minutos para deteccion temprana de degradacion
-*/10 * * * * cd /ruta/pacientes && npm run db:ops:monitor >> /var/log/anamneo-sqlite-monitor.log 2>&1
+*/10 * * * * cd /ruta/Anamneo && npm run db:ops:monitor >> /var/log/anamneo-sqlite-monitor.log 2>&1
 ```
 
 ## Desarrollo Local
@@ -162,17 +164,27 @@ npm --prefix frontend install
 npm run dev:frontend
 ```
 
+El frontend corre en `http://localhost:5555` y habla con la API vía same-origin `/api`, reescrita por Next.js hacia `http://localhost:4444/api`. La protección de navegación no autenticada está implementada en [`frontend/src/proxy.ts`](frontend/src/proxy.ts).
+
 ## Primeros Pasos
 
 1. Acceder a http://localhost:5555/register
-2. Crear la primera cuenta de médico
+2. Crear la primera cuenta de administrador
 3. Iniciar sesión con la cuenta creada
-4. Crear asistentes desde la administración una vez inicializado el sistema
+4. Invitar médicos o asistentes desde administración
+
+## Invitaciones por Correo
+
+- Las invitaciones creadas desde administración pueden enviarse por SMTP.
+- La configuración se puede guardar en Ajustes > Correo SMTP.
+- También puedes operar solo con `.env`; el backend usa `APP_PUBLIC_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME` e `INVITATION_EMAIL_SUBJECT` como fallback.
+- Si SMTP no está configurado o falla el envío, el sistema mantiene el enlace manual de invitación como respaldo.
+- Para construir el enlace del correo, define `APP_PUBLIC_URL` o `app.publicUrl` en ajustes.
 
 ## Estructura del Proyecto
 
 ```
-pacientes/
+Anamneo/
 ├── backend/           # API NestJS
 │   ├── src/
 │   │   ├── auth/      # Autenticación JWT
@@ -181,7 +193,7 @@ pacientes/
 │   │   ├── conditions/# Catálogo con TF-IDF
 │   │   └── ...
 │   └── prisma/        # Schema y migraciones
-├── frontend/          # Next.js 14
+├── frontend/          # Next.js 16
 │   └── src/
 │       ├── app/       # Pages (App Router)
 │       ├── components/# Componentes React
@@ -208,9 +220,10 @@ pacientes/
 
 ## Operacion y Release
 
-- Checklist de salida: [RELEASE_CHECKLIST.md](/home/allopze/dev/pacientes/RELEASE_CHECKLIST.md)
-- Deploy Prisma + SQLite existente: [PRISMA_SQLITE_DEPLOY.md](/home/allopze/dev/pacientes/PRISMA_SQLITE_DEPLOY.md)
-- Roadmap de afinaciones clinicas: [TODO_FUNCIONALIDADES_MEDICAS.md](/home/allopze/dev/pacientes/TODO_FUNCIONALIDADES_MEDICAS.md)
+- Checklist de salida: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
+- Deploy Prisma + SQLite existente: [PRISMA_SQLITE_DEPLOY.md](PRISMA_SQLITE_DEPLOY.md)
+- Roadmap de afinaciones clinicas: [TODO_FUNCIONALIDADES_MEDICAS.md](TODO_FUNCIONALIDADES_MEDICAS.md)
+- Auditoría técnica vigente: [AUDITORIA_TECNICA_ANAMNEO.md](AUDITORIA_TECNICA_ANAMNEO.md)
 
 ## Licencia
 

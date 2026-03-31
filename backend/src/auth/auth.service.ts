@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import type { StringValue } from 'ms';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -163,10 +164,18 @@ export class AuthService {
       if (invitation.role !== requestedRole) {
         throw new ForbiddenException('El rol no coincide con la invitación');
       }
+
+      if (invitation.medicoId) {
+        const invitedMedico = await this.usersService.findById(invitation.medicoId);
+
+        if (!invitedMedico || invitedMedico.role !== 'MEDICO' || !invitedMedico.active) {
+          throw new ForbiddenException('El médico asignado en la invitación ya no está disponible');
+        }
+      }
     }
 
     if (requestedRole === 'ADMIN') {
-      if (adminCount > 0) {
+      if (adminCount > 0 && !invitation) {
         throw new ForbiddenException('Ya existe un administrador registrado. El acceso es solo por invitación');
       }
     }
@@ -306,7 +315,10 @@ export class AuthService {
         ...sessionContext,
         sessionId: session.id,
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
       throw new UnauthorizedException('Token de refresco inválido');
     }
   }
@@ -380,11 +392,10 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(refreshPayload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '7d'),
+      secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '7d') as StringValue,
     });
 
     return { accessToken, refreshToken };
   }
 }
-

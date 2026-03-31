@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FiAlertCircle, FiEdit2 } from 'react-icons/fi';
 import { parseHistoryField } from '@/lib/utils';
 import { AnamnesisRemotaData } from '@/types';
@@ -9,6 +10,8 @@ interface Props {
   data: AnamnesisRemotaData;
   onChange: (data: AnamnesisRemotaData) => void;
   readOnly?: boolean;
+  patientId?: string;
+  canEditPatientHistory?: boolean;
 }
 
 const HISTORY_FIELDS = [
@@ -47,7 +50,13 @@ const HISTORY_GROUPS = [
   },
 ] as const;
 
-export default function AnamnesisRemotaSection({ data, onChange, readOnly }: Props) {
+export default function AnamnesisRemotaSection({
+  data,
+  onChange,
+  readOnly,
+  patientId,
+  canEditPatientHistory = false,
+}: Props) {
   const isReadOnlyFromHistory = data.readonly === true;
   const effectiveReadOnly = readOnly || isReadOnlyFromHistory;
 
@@ -55,7 +64,7 @@ export default function AnamnesisRemotaSection({ data, onChange, readOnly }: Pro
     onChange({
       ...data,
       [field]: { texto: value },
-      readonly: false, // Mark as edited
+      readonly: false,
     });
   };
 
@@ -78,7 +87,7 @@ export default function AnamnesisRemotaSection({ data, onChange, readOnly }: Pro
             {val.items.map((item: string) => (
               <span
                 key={item}
-                className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
+                className="inline-flex items-center rounded-full border border-surface-muted/30 bg-surface-muted px-2 py-0.5 text-xs text-ink-secondary"
               >
                 {item}
               </span>
@@ -100,27 +109,37 @@ export default function AnamnesisRemotaSection({ data, onChange, readOnly }: Pro
 
   return (
     <div className="space-y-5">
-      <SectionIntro description="Antecedentes remotos reutilizables desde el historial del paciente, con posibilidad de ajuste contextual en esta atención." />
+      <SectionIntro description="Antecedentes remotos cargados desde el historial del paciente. Si necesitas contextualizarlos para esta atención, primero desacopla el snapshot local; si necesitas cambiar el historial permanente, hazlo desde la ficha del paciente." />
 
       {isReadOnlyFromHistory && (
         <SectionCallout
           tone="warning"
-          title="Información sincronizada con el historial"
+          title="Snapshot cargado desde el historial del paciente"
           actions={!readOnly ? (
-            <button
-              onClick={handleEnableEdit}
-              className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 hover:text-amber-800"
-            >
-              <FiEdit2 className="w-4 h-4" />
-              Editar historial
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleEnableEdit}
+                className="inline-flex items-center gap-1 text-sm font-medium text-status-yellow hover:text-status-yellow"
+              >
+                <FiEdit2 className="w-4 h-4" />
+                Editar solo esta atención
+              </button>
+              {patientId && canEditPatientHistory && (
+                <Link
+                  href={`/pacientes/${patientId}/historial`}
+                  className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:text-accent"
+                >
+                  Ir al historial maestro
+                </Link>
+              )}
+            </div>
           ) : undefined}
         >
           <div className="flex items-start gap-2">
             <FiAlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <p>
-              Esta información proviene del historial del paciente. Los cambios aquí
-              actualizarán el historial permanente del paciente.
+              Esta información proviene del historial del paciente. Si la editas aquí,
+              el cambio quedará solo en esta atención y ya no seguirá sincronizado con la ficha maestra.
             </p>
           </div>
         </SectionCallout>

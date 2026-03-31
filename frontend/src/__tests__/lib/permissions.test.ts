@@ -6,6 +6,7 @@ import {
   canCreatePatient,
   canCreateEncounter,
   canEditPatientAdmin,
+  canImportConditionsCsv,
   canUploadAttachments,
   canEditAntecedentes,
   canViewMedicoOnlySections,
@@ -76,11 +77,18 @@ describe('feature guards', () => {
     expect(canUploadAttachments(asistenteNoMedico)).toBe(false);
   });
 
-  it('canEditAntecedentes — medico and any assistant', () => {
+  it('canImportConditionsCsv', () => {
+    expect(canImportConditionsCsv(admin)).toBe(true);
+    expect(canImportConditionsCsv(medico)).toBe(false);
+    expect(canImportConditionsCsv(asistente)).toBe(false);
+    expect(canImportConditionsCsv({ id: '5', role: 'MEDICO', isAdmin: true })).toBe(false);
+  });
+
+  it('canEditAntecedentes — medico, assigned assistant and admin', () => {
     expect(canEditAntecedentes(medico)).toBe(true);
     expect(canEditAntecedentes(asistente)).toBe(true);
-    expect(canEditAntecedentes(asistenteNoMedico)).toBe(true);
-    expect(canEditAntecedentes(admin)).toBe(false);
+    expect(canEditAntecedentes(asistenteNoMedico)).toBe(false);
+    expect(canEditAntecedentes(admin)).toBe(true);
   });
 
   it('canViewMedicoOnlySections', () => {

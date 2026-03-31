@@ -39,8 +39,12 @@ export function canUploadAttachments(user: PermissionUser | null | undefined) {
   return Boolean(isMedicoUser(user) || hasAssignedMedico(user) || isAdminUser(user));
 }
 
+export function canImportConditionsCsv(user: PermissionUser | null | undefined) {
+  return Boolean(user?.role === 'ADMIN');
+}
+
 export function canEditAntecedentes(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || isAssistantUser(user));
+  return Boolean(isMedicoUser(user) || hasAssignedMedico(user) || isAdminUser(user));
 }
 
 export function canViewMedicoOnlySections(user: PermissionUser | null | undefined) {

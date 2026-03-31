@@ -50,6 +50,11 @@ export class UsersController {
     return this.usersService.createInvitation(user.id, dto);
   }
 
+  @Get('invitations')
+  findInvitations() {
+    return this.usersService.listInvitations();
+  }
+
   @Get()
   findAll() {
     return this.usersService.findAll();
@@ -64,20 +69,33 @@ export class UsersController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
+    @CurrentUser('id') actorUserId: string,
   ) {
-    return this.usersService.update(id, updateUserDto);
+    return this.usersService.update(id, updateUserDto, actorUserId);
+  }
+
+  @Delete('invitations/:id')
+  revokeInvitation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') actorUserId: string,
+  ) {
+    return this.usersService.revokeInvitation(id, actorUserId);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.remove(id);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') actorUserId: string,
+  ) {
+    return this.usersService.remove(id, actorUserId);
   }
 
   @Post(':id/reset-password')
   resetPassword(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ResetPasswordDto,
+    @CurrentUser('id') actorUserId: string,
   ) {
-    return this.usersService.resetPassword(id, dto.temporaryPassword);
+    return this.usersService.resetPassword(id, dto.temporaryPassword, actorUserId);
   }
 }

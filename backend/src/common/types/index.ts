@@ -27,7 +27,16 @@ export type SectionKey =
 
 export type ChosenMode = 'AUTO' | 'MANUAL';
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'LOGIN_FAILED' | 'PASSWORD_CHANGED';
+export type AuditAction =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'LOGIN_FAILED'
+  | 'PASSWORD_CHANGED'
+  | 'EXPORT'
+  | 'DOWNLOAD';
 export type PatientProblemStatus = 'ACTIVO' | 'CRONICO' | 'EN_ESTUDIO' | 'RESUELTO';
 export type EncounterTaskStatus = 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADA' | 'CANCELADA';
 export type EncounterTaskType = 'SEGUIMIENTO' | 'EXAMEN' | 'DERIVACION' | 'TRAMITE';
@@ -56,7 +65,17 @@ export const SECTION_KEYS = [
   'OBSERVACIONES',
 ] as const;
 export const CHOSEN_MODES = ['AUTO', 'MANUAL'] as const;
-export const AUDIT_ACTIONS = ['CREATE', 'UPDATE', 'DELETE'] as const;
+export const AUDIT_ACTIONS = [
+  'CREATE',
+  'UPDATE',
+  'DELETE',
+  'LOGIN',
+  'LOGOUT',
+  'LOGIN_FAILED',
+  'PASSWORD_CHANGED',
+  'EXPORT',
+  'DOWNLOAD',
+] as const;
 export const PATIENT_PROBLEM_STATUSES = ['ACTIVO', 'CRONICO', 'EN_ESTUDIO', 'RESUELTO'] as const;
 export const ENCOUNTER_TASK_STATUSES = ['PENDIENTE', 'EN_PROCESO', 'COMPLETADA', 'CANCELADA'] as const;
 export const ENCOUNTER_TASK_TYPES = ['SEGUIMIENTO', 'EXAMEN', 'DERIVACION', 'TRAMITE'] as const;
