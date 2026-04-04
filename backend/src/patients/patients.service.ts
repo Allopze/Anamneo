@@ -216,6 +216,7 @@ export class PatientsService {
       prevision?: string;
       edadMin?: number;
       edadMax?: number;
+      clinicalSearch?: string;
       sortBy?: 'nombre' | 'edad' | 'createdAt' | 'updatedAt';
       sortOrder?: 'asc' | 'desc';
     },
@@ -256,6 +257,27 @@ export class PatientsService {
       where.edad = {};
       if (filters.edadMin !== undefined) where.edad.gte = filters.edadMin;
       if (filters.edadMax !== undefined) where.edad.lte = filters.edadMax;
+    }
+
+    if (filters?.clinicalSearch?.trim()) {
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : []),
+        {
+          encounters: {
+            some: {
+              ...(user.isAdmin ? {} : { medicoId: effectiveMedicoId }),
+              sections: {
+                some: {
+                  sectionKey: {
+                    in: ['MOTIVO_CONSULTA', 'ANAMNESIS_PROXIMA', 'REVISION_SISTEMAS'],
+                  },
+                  data: { contains: filters.clinicalSearch.trim() },
+                },
+              },
+            },
+          },
+        },
+      ];
     }
 
     const orderBy = filters?.sortBy
@@ -356,9 +378,10 @@ export class PatientsService {
   private buildEncounterSummaryLines(encounter: any) {
     const motivo = this.getEncounterSectionData<{ texto?: string }>(encounter, 'MOTIVO_CONSULTA');
     const diagnostico = this.getEncounterSectionData<{ sospechas?: Array<{ diagnostico?: string }> }>(encounter, 'SOSPECHA_DIAGNOSTICA');
-    const tratamiento = this.getEncounterSectionData<{ plan?: string }>(encounter, 'TRATAMIENTO');
+    const tratamiento = this.getEncounterSectionData<{ plan?: string; indicaciones?: string }>(encounter, 'TRATAMIENTO');
     const respuesta = this.getEncounterSectionData<{ planSeguimiento?: string }>(encounter, 'RESPUESTA_TRATAMIENTO');
     const observaciones = this.getEncounterSectionData<{ resumenClinico?: string }>(encounter, 'OBSERVACIONES');
+    const treatmentPlan = tratamiento.plan?.trim() || tratamiento.indicaciones?.trim() || '';
 
     const lines = [
       motivo.texto?.trim(),
@@ -369,7 +392,7 @@ export class PatientsService {
             .filter(Boolean)
             .join(', ')}`
         : '',
-      tratamiento.plan?.trim() ? `Plan: ${tratamiento.plan.trim()}` : '',
+      treatmentPlan ? `Plan: ${treatmentPlan}` : '',
       respuesta.planSeguimiento?.trim() ? `Seguimiento: ${respuesta.planSeguimiento.trim()}` : '',
       observaciones.resumenClinico?.trim() ? `Resumen: ${observaciones.resumenClinico.trim()}` : '',
     ].filter((value): value is string => Boolean(value));

@@ -4,6 +4,9 @@ import {
   extractStructuredMedicationLines,
   extractStructuredOrderLines,
   extractVitalTrend,
+  formatHistoryFieldText,
+  getRevisionSystemEntries,
+  getTreatmentPlanText,
 } from '@/lib/clinical';
 import { Encounter, StructuredMedication, StructuredOrder } from '@/types';
 
@@ -71,6 +74,16 @@ describe('buildEncounterSummary', () => {
       },
     ]);
     expect(buildEncounterSummary(enc).length).toBeLessThanOrEqual(4);
+  });
+
+  it('uses indicaciones when the legacy treatment field is the only one present', () => {
+    const enc = makeEncounter([
+      { sectionKey: 'TRATAMIENTO', data: { indicaciones: 'Control y reposo' } },
+    ]);
+
+    expect(buildEncounterSummary(enc)).toEqual(
+      expect.arrayContaining([expect.stringContaining('Control y reposo')]),
+    );
   });
 });
 
@@ -156,5 +169,47 @@ describe('extractVitalTrend', () => {
 
   it('handles undefined encounters', () => {
     expect(extractVitalTrend(undefined)).toEqual([]);
+  });
+});
+
+describe('getTreatmentPlanText', () => {
+  it('returns the shared treatment text when plan and indicaciones match', () => {
+    expect(getTreatmentPlanText({ plan: 'Reposo', indicaciones: 'Reposo' })).toBe('Reposo');
+  });
+
+  it('merges plan and additional instructions when both are different', () => {
+    expect(getTreatmentPlanText({ plan: 'Reposo', indicaciones: 'Control en 48 h' })).toContain(
+      'Indicaciones adicionales',
+    );
+  });
+});
+
+describe('formatHistoryFieldText', () => {
+  it('combines history chips with free text', () => {
+    expect(
+      formatHistoryFieldText({
+        items: ['HTA'],
+        texto: 'En tratamiento.',
+      }),
+    ).toBe('HTA. En tratamiento.');
+  });
+});
+
+describe('getRevisionSystemEntries', () => {
+  it('formats checked systems with notes', () => {
+    expect(
+      getRevisionSystemEntries({
+        respiratorio: {
+          checked: true,
+          notas: 'Tos seca',
+        },
+      }),
+    ).toEqual([
+      {
+        key: 'respiratorio',
+        label: 'Respiratorio',
+        text: 'Tos seca',
+      },
+    ]);
   });
 });

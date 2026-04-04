@@ -35,7 +35,7 @@ export default function RespuestaTratamientoSection({ data, onChange, readOnly }
               onChange={(e) => handleChange('evolucion', e.target.value)}
               disabled={readOnly}
               rows={4}
-              className="form-input resize-none"
+              className="form-input form-textarea"
               placeholder="Describa cómo ha respondido el paciente al tratamiento indicado..."
             />
           </div>
@@ -56,7 +56,7 @@ export default function RespuestaTratamientoSection({ data, onChange, readOnly }
               onChange={(e) => handleChange('resultadosExamenes', e.target.value)}
               disabled={readOnly}
               rows={3}
-              className="form-input resize-none"
+              className="form-input form-textarea"
               placeholder="Resultados relevantes de exámenes solicitados..."
             />
           </div>
@@ -81,7 +81,7 @@ export default function RespuestaTratamientoSection({ data, onChange, readOnly }
               onChange={(e) => handleChange('ajustesTratamiento', e.target.value)}
               disabled={readOnly}
               rows={3}
-              className="form-input resize-none"
+              className="form-input form-textarea"
               placeholder="Cambios realizados al plan de tratamiento inicial..."
             />
           </div>
@@ -102,7 +102,7 @@ export default function RespuestaTratamientoSection({ data, onChange, readOnly }
               onChange={(e) => handleChange('planSeguimiento', e.target.value)}
               disabled={readOnly}
               rows={3}
-              className="form-input resize-none"
+              className="form-input form-textarea"
               placeholder="Próximos controles, indicaciones de seguimiento..."
             />
           </div>

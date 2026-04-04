@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AnamnesisRemotaSection from '@/components/sections/AnamnesisRemotaSection';
 
@@ -32,6 +32,36 @@ describe('AnamnesisRemotaSection', () => {
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
         readonly: false,
+      }),
+    );
+  });
+
+  it('keeps history chips when adding extra text to the local encounter copy', async () => {
+    const onChange = jest.fn();
+
+    render(
+      <AnamnesisRemotaSection
+        data={{
+          antecedentesMedicos: {
+            items: ['HTA'],
+            texto: 'En tratamiento.',
+          },
+        }}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText(/Enfermedades crónicas, hospitalizaciones previas/i),
+      { target: { value: 'En tratamiento. Controlado' } },
+    );
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        antecedentesMedicos: {
+          items: ['HTA'],
+          texto: 'En tratamiento. Controlado',
+        },
       }),
     );
   });

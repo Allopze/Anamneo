@@ -35,7 +35,7 @@ export default function ObservacionesSection({ data, onChange, readOnly }: Props
           onChange={(e) => handleChange('observaciones', e.target.value)}
           disabled={readOnly}
           rows={6}
-          className="form-input resize-none"
+          className="form-input form-textarea"
           placeholder="Cualquier observación adicional relevante para el registro..."
         />
       </SectionBlock>
@@ -56,7 +56,7 @@ export default function ObservacionesSection({ data, onChange, readOnly }: Props
           onChange={(e) => handleChange('notasInternas', e.target.value)}
           disabled={readOnly}
           rows={3}
-          className="form-input resize-none"
+          className="form-input form-textarea"
           placeholder="Notas de uso interno, recordatorios para el equipo médico..."
         />
         <div className="mt-3">

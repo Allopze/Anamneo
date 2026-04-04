@@ -72,14 +72,15 @@ export class PatientsController {
     @Query('prevision') prevision?: string,
     @Query('edadMin') edadMin?: string,
     @Query('edadMax') edadMax?: string,
+    @Query('clinicalSearch') clinicalSearch?: string,
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: string,
   ) {
     return this.patientsService.findAll(user, search, page || 1, limit || 20, {
-      sexo, prevision,
+      sexo, prevision, clinicalSearch,
       edadMin: edadMin ? parseInt(edadMin, 10) : undefined,
       edadMax: edadMax ? parseInt(edadMax, 10) : undefined,
-      sortBy: sortBy as 'nombre' | 'edad' | 'createdAt' | undefined,
+      sortBy: sortBy as 'nombre' | 'edad' | 'createdAt' | 'updatedAt' | undefined,
       sortOrder: (sortOrder || 'asc') as 'asc' | 'desc',
     });
   }

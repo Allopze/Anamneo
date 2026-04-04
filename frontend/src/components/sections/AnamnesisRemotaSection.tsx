@@ -61,9 +61,13 @@ export default function AnamnesisRemotaSection({
   const effectiveReadOnly = readOnly || isReadOnlyFromHistory;
 
   const handleChange = (field: string, value: string) => {
+    const current = parseHistoryField(data[field as keyof AnamnesisRemotaData]);
     onChange({
       ...data,
-      [field]: { texto: value },
+      [field]: {
+        ...(Array.isArray(current?.items) && current.items.length > 0 ? { items: current.items } : {}),
+        texto: value,
+      },
       readonly: false,
     });
   };
@@ -100,7 +104,7 @@ export default function AnamnesisRemotaSection({
           onChange={(e) => handleChange(key, e.target.value)}
           disabled={effectiveReadOnly}
           rows={2}
-          className="form-input resize-none"
+          className="form-input form-textarea"
           placeholder={placeholder}
         />
       </div>

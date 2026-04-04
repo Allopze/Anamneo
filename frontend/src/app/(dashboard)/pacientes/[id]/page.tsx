@@ -468,7 +468,7 @@ export default function PatientDetailPage() {
                 placeholder="Nuevo problema clínico"
               />
               <textarea
-                className="form-input resize-none"
+                className="form-input form-textarea"
                 rows={2}
                 value={newProblem.notes}
                 onChange={(e) => setNewProblem((prev) => ({ ...prev, notes: e.target.value }))}
@@ -571,7 +571,7 @@ export default function PatientDetailPage() {
                 placeholder="Nuevo seguimiento o tarea"
               />
               <textarea
-                className="form-input resize-none"
+                className="form-input form-textarea"
                 rows={2}
                 value={newTask.details}
                 onChange={(e) => setNewTask((prev) => ({ ...prev, details: e.target.value }))}

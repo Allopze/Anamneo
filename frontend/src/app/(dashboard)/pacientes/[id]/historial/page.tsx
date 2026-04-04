@@ -205,7 +205,7 @@ export default function HistorialPacientePage() {
                     onChange={(e) => handleFieldChange(field.key, e.target.value)}
                     placeholder={field.placeholder}
                     rows={4}
-                    className="form-input resize-none h-full min-h-[100px]"
+                    className="form-input form-textarea h-full min-h-[100px]"
                   />
                 )}
               </div>

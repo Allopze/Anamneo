@@ -1,7 +1,9 @@
 import {
   Encounter,
   ExamenFisicoData,
+  HistoryFieldValue,
   MotivoConsultaData,
+  RevisionSistemasData,
   RespuestaTratamientoData,
   SectionKey,
   SospechaDiagnosticaData,
@@ -9,9 +11,80 @@ import {
   StructuredOrder,
   TratamientoData,
 } from '@/types';
+import { parseHistoryField } from '@/lib/utils';
 
 export function getSectionData<T>(encounter: Encounter | undefined, key: SectionKey): T {
   return (encounter?.sections?.find((section) => section.sectionKey === key)?.data || {}) as T;
+}
+
+export function getTreatmentPlanText(tratamiento: Partial<TratamientoData> | undefined) {
+  const plan = tratamiento?.plan?.trim() || '';
+  const indicaciones = tratamiento?.indicaciones?.trim() || '';
+
+  if (!plan) {
+    return indicaciones;
+  }
+
+  if (!indicaciones || indicaciones === plan) {
+    return plan;
+  }
+
+  return `${plan}\n\nIndicaciones adicionales:\n${indicaciones}`;
+}
+
+export function formatHistoryFieldText(field: HistoryFieldValue | string | null | undefined) {
+  const parsed = parseHistoryField(field);
+  if (!parsed) {
+    return '';
+  }
+
+  const items = Array.isArray(parsed.items)
+    ? parsed.items.map((item: string) => item.trim()).filter(Boolean)
+    : [];
+  const text = typeof parsed.texto === 'string'
+    ? parsed.texto.trim()
+    : typeof parsed === 'string'
+    ? parsed.trim()
+    : '';
+
+  if (!items.length) {
+    return text;
+  }
+
+  if (!text) {
+    return items.join(', ');
+  }
+
+  return `${items.join(', ')}. ${text}`;
+}
+
+export function formatRevisionSystemLabel(key: string) {
+  const normalized = key.replace(/([A-Z])/g, ' $1').trim();
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+export function getRevisionSystemEntries(revision: RevisionSistemasData | undefined) {
+  return Object.entries(revision || {})
+    .map(([key, value]) => {
+      if (!value || typeof value !== 'object') {
+        return null;
+      }
+
+      const checked = Boolean((value as { checked?: boolean }).checked);
+      const rawNotes = (value as { notas?: string }).notas;
+      const notes = typeof rawNotes === 'string' ? rawNotes.trim() : '';
+
+      if (!checked && !notes) {
+        return null;
+      }
+
+      return {
+        key,
+        label: formatRevisionSystemLabel(key),
+        text: notes || 'Sin hallazgos descritos',
+      };
+    })
+    .filter((entry): entry is { key: string; label: string; text: string } => entry !== null);
 }
 
 export function buildEncounterSummary(encounter: Encounter): string[] {
@@ -30,8 +103,9 @@ export function buildEncounterSummary(encounter: Encounter): string[] {
     lines.push(`Dx: ${diagnostico.sospechas.slice(0, 3).map((item) => item.diagnostico).filter(Boolean).join(', ')}`);
   }
 
-  if (tratamiento.plan?.trim()) {
-    lines.push(`Plan: ${tratamiento.plan.trim()}`);
+  const treatmentPlan = getTreatmentPlanText(tratamiento);
+  if (treatmentPlan) {
+    lines.push(`Plan: ${treatmentPlan}`);
   }
 
   if (respuesta.planSeguimiento?.trim()) {
@@ -95,7 +169,7 @@ export function buildGeneratedClinicalSummary(encounter: Encounter) {
           .filter(Boolean)
           .join(', ')}.`
       : '',
-    tratamiento.plan?.trim() ? `Tratamiento: ${tratamiento.plan.trim()}.` : '',
+    getTreatmentPlanText(tratamiento) ? `Tratamiento: ${getTreatmentPlanText(tratamiento)}.` : '',
     extractStructuredMedicationLines(tratamiento.medicamentosEstructurados).length
       ? `Medicamentos: ${extractStructuredMedicationLines(tratamiento.medicamentosEstructurados).join('; ')}.`
       : '',

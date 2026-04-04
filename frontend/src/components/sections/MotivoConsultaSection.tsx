@@ -109,7 +109,7 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
           onChange={(e) => handleTextChange(e.target.value)}
           disabled={readOnly}
           rows={6}
-          className="form-input resize-none"
+          className="form-input form-textarea"
           placeholder="Ej: Paciente refiere dolor de cabeza intenso de 3 días de evolución, que empeora con la luz..."
         />
       </SectionBlock>

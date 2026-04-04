@@ -97,7 +97,7 @@ describe('LoginPage', () => {
         email: 'doc@test.cl',
         password: 'Password1',
       });
-      expect(pushMock).toHaveBeenCalledWith('/pacientes');
+      expect(pushMock).toHaveBeenCalledWith('/');
     });
   });
 

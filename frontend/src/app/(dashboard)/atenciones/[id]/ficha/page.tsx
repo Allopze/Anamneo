@@ -12,6 +12,40 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import clsx from 'clsx';
 import { useAuthStore } from '@/stores/auth-store';
+import {
+  formatHistoryFieldText,
+  getRevisionSystemEntries,
+  getTreatmentPlanText,
+} from '@/lib/clinical';
+
+function fallbackPdfFilename(encounter: Encounter | undefined, kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') {
+  const patientName = (encounter?.patient?.nombre || 'paciente')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toLowerCase();
+  const encounterDate = encounter?.createdAt
+    ? format(new Date(encounter.createdAt), 'yyyy-MM-dd')
+    : format(new Date(), 'yyyy-MM-dd');
+  const prefix = kind === 'pdf' ? 'ficha_clinica' : kind;
+
+  return `${prefix}_${patientName || 'paciente'}_${encounterDate}.pdf`;
+}
+
+function getFilenameFromDisposition(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(value);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const classicMatch = /filename="?([^"]+)"?/i.exec(value);
+  return classicMatch?.[1] || null;
+}
 
 export default function FichaClinicaPage() {
   const { id } = useParams<{ id: string }>();
@@ -76,7 +110,8 @@ export default function FichaClinicaPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${kind}_${(id as string).slice(0, 8)}.pdf`;
+      link.download = getFilenameFromDisposition(response.headers['content-disposition'])
+        || fallbackPdfFilename(encounter, kind);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -113,6 +148,8 @@ export default function FichaClinicaPage() {
   const tratamiento = sections.find((s) => s.sectionKey === 'TRATAMIENTO')?.data || {};
   const respuestaTratamiento = sections.find((s) => s.sectionKey === 'RESPUESTA_TRATAMIENTO')?.data || {};
   const observaciones = sections.find((s) => s.sectionKey === 'OBSERVACIONES')?.data || {};
+  const revisionEntries = getRevisionSystemEntries(revisionSistemas);
+  const treatmentPlan = getTreatmentPlanText(tratamiento);
   const linkedAttachmentsByOrderId = (encounter.attachments || []).reduce<Record<string, Attachment[]>>((acc, attachment) => {
     if (!attachment.linkedOrderId) {
       return acc;
@@ -296,8 +333,7 @@ export default function FichaClinicaPage() {
               alergias: 'Alergias',
               inmunizaciones: 'Inmunizaciones',
             }).map(([key, label]) => {
-              const value = anamnesisRemota[key];
-              const text = typeof value === 'object' ? value?.texto : value;
+              const text = formatHistoryFieldText(anamnesisRemota[key]);
               return text ? (
                 <p key={key}><strong>{label}:</strong> {text}</p>
               ) : null;
@@ -311,13 +347,10 @@ export default function FichaClinicaPage() {
             5. REVISIÓN POR SISTEMAS
           </h2>
           <div className="text-sm space-y-1">
-            {Object.entries(revisionSistemas).length > 0 ? (
-              Object.entries(revisionSistemas).map(([key, value]) => {
-                const text = typeof value === 'object' && value !== null ? (value as any).texto || (value as any).observaciones : value;
-                return text ? (
-                  <p key={key}><strong>{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}:</strong> {String(text)}</p>
-                ) : null;
-              })
+            {revisionEntries.length > 0 ? (
+              revisionEntries.map((entry) => (
+                <p key={entry.key}><strong>{entry.label}:</strong> {entry.text}</p>
+              ))
             ) : (
               <p>-</p>
             )}
@@ -380,8 +413,7 @@ export default function FichaClinicaPage() {
             8. TRATAMIENTO
           </h2>
           <div className="text-sm space-y-2">
-            {tratamiento.plan && <p><strong>Plan:</strong> {tratamiento.plan}</p>}
-            {tratamiento.indicaciones && <p><strong>Indicaciones:</strong> {tratamiento.indicaciones}</p>}
+            {treatmentPlan && <p><strong>Plan de tratamiento e indicaciones:</strong> {treatmentPlan}</p>}
             {tratamiento.receta && <p><strong>Receta:</strong> {tratamiento.receta}</p>}
             {tratamiento.examenes && <p><strong>Exámenes:</strong> {tratamiento.examenes}</p>}
             {tratamiento.derivaciones && <p><strong>Derivaciones:</strong> {tratamiento.derivaciones}</p>}

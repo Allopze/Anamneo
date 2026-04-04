@@ -35,7 +35,7 @@ export default function AnamnesisProximaSection({ data, onChange, readOnly }: Pr
           onChange={(e) => handleChange('relatoAmpliado', e.target.value)}
           disabled={readOnly}
           rows={4}
-          className="form-input resize-none"
+          className="form-input form-textarea"
           placeholder="Describa en detalle la evolución y características del cuadro actual..."
         />
       </SectionBlock>
@@ -83,7 +83,7 @@ export default function AnamnesisProximaSection({ data, onChange, readOnly }: Pr
               onChange={(e) => handleChange('factoresAgravantes', e.target.value)}
               disabled={readOnly}
               rows={2}
-              className="form-input resize-none"
+              className="form-input form-textarea"
               placeholder="¿Qué empeora los síntomas?"
             />
           </div>
@@ -104,7 +104,7 @@ export default function AnamnesisProximaSection({ data, onChange, readOnly }: Pr
               onChange={(e) => handleChange('factoresAtenuantes', e.target.value)}
               disabled={readOnly}
               rows={2}
-              className="form-input resize-none"
+              className="form-input form-textarea"
               placeholder="¿Qué mejora los síntomas?"
             />
           </div>
@@ -127,7 +127,7 @@ export default function AnamnesisProximaSection({ data, onChange, readOnly }: Pr
           onChange={(e) => handleChange('sintomasAsociados', e.target.value)}
           disabled={readOnly}
           rows={3}
-          className="form-input resize-none"
+          className="form-input form-textarea"
           placeholder="Otros síntomas que acompañan al cuadro principal..."
         />
       </SectionBlock>

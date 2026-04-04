@@ -1,17 +1,42 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { FiPlus, FiTrash2, FiArrowUp, FiArrowDown } from 'react-icons/fi';
-import { SospechaDiagnosticaData, SospechaDiagnostica } from '@/types';
+import { ConditionSuggestion, MotivoConsultaData, SospechaDiagnosticaData, SospechaDiagnostica } from '@/types';
 import { SectionAddButton, SectionBlock, SectionIconButton, SectionIntro } from '@/components/sections/SectionPrimitives';
 
 interface Props {
   data: SospechaDiagnosticaData;
   onChange: (data: SospechaDiagnosticaData) => void;
   readOnly?: boolean;
+  motivoConsultaData?: MotivoConsultaData;
 }
 
-export default function SospechaDiagnosticaSection({ data, onChange, readOnly }: Props) {
+export default function SospechaDiagnosticaSection({ data, onChange, readOnly, motivoConsultaData }: Props) {
   const sospechas: SospechaDiagnostica[] = data.sospechas || [];
+  const didSeedRef = useRef(false);
+
+  // Pre-load the selected condition from Motivo de Consulta as first diagnostic suspicion
+  useEffect(() => {
+    if (didSeedRef.current) return;
+    if (readOnly) return;
+    if (sospechas.length > 0) return;
+    const afeccion = motivoConsultaData?.afeccionSeleccionada;
+    if (!afeccion?.name) return;
+
+    didSeedRef.current = true;
+    onChange({
+      ...data,
+      sospechas: [
+        {
+          id: Date.now().toString(),
+          diagnostico: afeccion.name,
+          prioridad: 1,
+          notas: `Sugerida automáticamente desde motivo de consulta (confianza: ${Math.round((afeccion.confidence ?? 0) * 100)}%)`,
+        },
+      ],
+    });
+  }, [motivoConsultaData?.afeccionSeleccionada, sospechas.length, readOnly]);
 
   const addSospecha = () => {
     const newSospecha: SospechaDiagnostica = {
@@ -112,7 +137,7 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly }:
                 onChange={(e) => updateSospecha(sospecha.id, 'notas', e.target.value)}
                 disabled={readOnly}
                 rows={2}
-                className="form-input resize-none"
+                className="form-input form-textarea"
                 placeholder="Notas sobre esta sospecha diagnóstica..."
               />
             </div>

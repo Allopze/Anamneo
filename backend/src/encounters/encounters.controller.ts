@@ -70,11 +70,12 @@ export class EncountersController {
     @CurrentUser() user: CurrentUserData,
     @Res() res: Response,
   ) {
+    const filename = await this.encountersPdfService.getPdfFilename(id, user);
     const pdfBuffer = await this.encountersPdfService.generatePdf(id, user);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="ficha_clinica_${id.slice(0, 8)}.pdf"`,
+      `attachment; filename="${filename}"`,
     );
     res.setHeader('Content-Length', pdfBuffer.length);
     res.end(pdfBuffer);
@@ -92,11 +93,12 @@ export class EncountersController {
       throw new BadRequestException('Tipo de documento no soportado');
     }
 
+    const filename = await this.encountersPdfService.getFocusedPdfFilename(id, kind, user);
     const pdfBuffer = await this.encountersPdfService.generateFocusedPdf(id, kind, user);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${kind}_${id.slice(0, 8)}.pdf"`,
+      `attachment; filename="${filename}"`,
     );
     res.setHeader('Content-Length', pdfBuffer.length);
     res.end(pdfBuffer);

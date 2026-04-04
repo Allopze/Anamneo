@@ -3,6 +3,7 @@
 import { Attachment, TratamientoData } from '@/types';
 import VoiceDictationButton from '@/components/common/VoiceDictationButton';
 import { FiPaperclip, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { getTreatmentPlanText } from '@/lib/clinical';
 import {
   SectionAddButton,
   SectionBlock,
@@ -39,10 +40,23 @@ export default function TratamientoSection({
   const medicamentos = data.medicamentosEstructurados || [];
   const examenes = data.examenesEstructurados || [];
   const derivaciones = data.derivacionesEstructuradas || [];
+  const planText = getTreatmentPlanText(data);
 
   const appendDictation = (field: keyof TratamientoData, transcript: string) => {
-    const previous = typeof data[field] === 'string' ? data[field] : '';
+    const previous = field === 'plan'
+      ? planText
+      : typeof data[field] === 'string'
+      ? data[field]
+      : '';
     handleChange(field, `${previous ? `${previous} ` : ''}${transcript}`.trim());
+  };
+
+  const handlePlanChange = (value: string) => {
+    onChange({
+      ...data,
+      plan: value,
+      indicaciones: value,
+    });
   };
 
   const updateList = (field: 'medicamentosEstructurados' | 'examenesEstructurados' | 'derivacionesEstructuradas', next: any[]) => {
@@ -110,57 +124,27 @@ export default function TratamientoSection({
         <div className="space-y-4">
           <div>
             <SectionFieldHeader
-              label="Plan de tratamiento"
+              label="Plan de tratamiento e indicaciones"
               action={!readOnly ? <VoiceDictationButton onTranscript={(text) => appendDictation('plan', text)} /> : undefined}
             />
             <textarea
-              value={data.plan || ''}
-              onChange={(e) => handleChange('plan', e.target.value)}
+              value={planText}
+              onChange={(e) => handlePlanChange(e.target.value)}
               disabled={readOnly}
               rows={4}
-              className="form-input resize-none"
-              placeholder="Describa el plan terapéutico general..."
-            />
-          </div>
-
-          <div>
-            <SectionFieldHeader
-              label="Indicaciones"
-              action={!readOnly ? <VoiceDictationButton onTranscript={(text) => appendDictation('indicaciones', text)} /> : undefined}
-            />
-            <textarea
-              value={data.indicaciones || ''}
-              onChange={(e) => handleChange('indicaciones', e.target.value)}
-              disabled={readOnly}
-              rows={4}
-              className="form-input resize-none"
-              placeholder="Indicaciones para el paciente (reposo, dieta, cuidados, controles)..."
+              className="form-input form-textarea"
+              placeholder="Describa el plan terapéutico, cuidados e indicaciones entregadas al paciente..."
             />
           </div>
         </div>
       </SectionBlock>
 
-      <SectionBlock title="Medicamentos" description="Combina texto libre con medicamentos estructurados para seguimiento más claro.">
-        <SectionFieldHeader
-          label="Receta / Medicamentos"
-          action={!readOnly ? <VoiceDictationButton onTranscript={(text) => appendDictation('receta', text)} /> : undefined}
-        />
-        <textarea
-          value={data.receta || ''}
-          onChange={(e) => handleChange('receta', e.target.value)}
-          disabled={readOnly}
-          rows={4}
-          className="form-input resize-none"
-          placeholder="Medicamento - Dosis - Frecuencia - Duración..."
-        />
-        <p className="text-xs text-ink-muted mt-1">
-          Además del texto libre, puedes dejar medicamentos estructurados para seguimiento.
-        </p>
-        <div className="mt-3 space-y-2">
+      <SectionBlock title="Medicamentos" description="Agrega medicamentos estructurados como mecanismo principal. El texto libre complementa si hace falta.">
+        <div className="space-y-2">
           {medicamentos.map((medicamento, index) => (
-            <div key={medicamento.id} className="section-item-card grid grid-cols-1 gap-2 md:grid-cols-5">
+            <div key={medicamento.id} className="section-item-card grid grid-cols-1 gap-2 md:grid-cols-6">
               <input
-                className="form-input"
+                className="form-input md:col-span-2"
                 placeholder="Medicamento"
                 value={medicamento.nombre || ''}
                 disabled={readOnly}
@@ -181,6 +165,28 @@ export default function TratamientoSection({
                   updateList('medicamentosEstructurados', next);
                 }}
               />
+              <select
+                className="form-input"
+                value={medicamento.via || ''}
+                disabled={readOnly}
+                onChange={(e) => {
+                  const next = [...medicamentos];
+                  next[index] = { ...next[index], via: e.target.value };
+                  updateList('medicamentosEstructurados', next);
+                }}
+              >
+                <option value="">Vía…</option>
+                <option value="ORAL">Oral</option>
+                <option value="IV">IV</option>
+                <option value="IM">IM</option>
+                <option value="SC">SC</option>
+                <option value="TOPICA">Tópica</option>
+                <option value="INHALATORIA">Inhalatoria</option>
+                <option value="RECTAL">Rectal</option>
+                <option value="SUBLINGUAL">Sublingual</option>
+                <option value="OFTALMICA">Oftálmica</option>
+                <option value="OTRA">Otra</option>
+              </select>
               <input
                 className="form-input"
                 placeholder="Frecuencia"
@@ -189,17 +195,6 @@ export default function TratamientoSection({
                 onChange={(e) => {
                   const next = [...medicamentos];
                   next[index] = { ...next[index], frecuencia: e.target.value };
-                  updateList('medicamentosEstructurados', next);
-                }}
-              />
-              <input
-                className="form-input"
-                placeholder="Duración"
-                value={medicamento.duracion || ''}
-                disabled={readOnly}
-                onChange={(e) => {
-                  const next = [...medicamentos];
-                  next[index] = { ...next[index], duracion: e.target.value };
                   updateList('medicamentosEstructurados', next);
                 }}
               />
@@ -212,6 +207,17 @@ export default function TratamientoSection({
                   <FiTrash2 className="h-4 w-4" />
                 </SectionIconButton>
               )}
+              <input
+                className="form-input md:col-span-full"
+                placeholder="Duración (ej: 7 días, uso continuo…)"
+                value={medicamento.duracion || ''}
+                disabled={readOnly}
+                onChange={(e) => {
+                  const next = [...medicamentos];
+                  next[index] = { ...next[index], duracion: e.target.value };
+                  updateList('medicamentosEstructurados', next);
+                }}
+              />
             </div>
           ))}
           {!readOnly && (
@@ -219,14 +225,28 @@ export default function TratamientoSection({
               onClick={() =>
                 updateList('medicamentosEstructurados', [
                   ...medicamentos,
-                  { id: createId(), nombre: '', dosis: '', frecuencia: '', duracion: '', indicacion: '' },
+                  { id: createId(), nombre: '', dosis: '', via: '', frecuencia: '', duracion: '', indicacion: '' },
                 ])
               }
             >
               <FiPlus className="h-4 w-4" />
-              Agregar medicamento estructurado
+              Agregar medicamento
             </SectionAddButton>
           )}
+        </div>
+        <div className="mt-4">
+          <SectionFieldHeader
+            label="Notas adicionales de receta (texto libre)"
+            action={!readOnly ? <VoiceDictationButton onTranscript={(text) => appendDictation('receta', text)} /> : undefined}
+          />
+          <textarea
+            value={data.receta || ''}
+            onChange={(e) => handleChange('receta', e.target.value)}
+            disabled={readOnly}
+            rows={2}
+            className="form-input form-textarea"
+            placeholder="Indicaciones adicionales que no encajen en los campos estructurados…"
+          />
         </div>
       </SectionBlock>
 
@@ -240,7 +260,7 @@ export default function TratamientoSection({
           onChange={(e) => handleChange('examenes', e.target.value)}
           disabled={readOnly}
           rows={2}
-          className="form-input resize-none"
+          className="form-input form-textarea"
           placeholder="Hemograma, perfil bioquímico, radiografía..."
         />
         <div className="mt-3 space-y-2">
@@ -320,7 +340,7 @@ export default function TratamientoSection({
           onChange={(e) => handleChange('derivaciones', e.target.value)}
           disabled={readOnly}
           rows={2}
-          className="form-input resize-none"
+          className="form-input form-textarea"
           placeholder="Especialista, motivo de derivación..."
         />
         <div className="mt-3 space-y-2">

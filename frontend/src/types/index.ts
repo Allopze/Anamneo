@@ -335,6 +335,8 @@ export interface SignosVitales {
 }
 
 export interface ExamenFisicoData {
+  estadoGeneral?: string;
+  estadoGeneralNotas?: string;
   signosVitales?: SignosVitales;
   cabeza?: string;
   cuello?: string;
@@ -382,6 +384,7 @@ export interface StructuredMedication {
   id: string;
   nombre: string;
   dosis?: string;
+  via?: string;
   frecuencia?: string;
   duracion?: string;
   indicacion?: string;

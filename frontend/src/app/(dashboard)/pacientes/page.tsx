@@ -65,6 +65,7 @@ function PacientesContent() {
     prevision: searchParams.get('prevision') || '',
     edadMin: searchParams.get('edadMin') || '',
     edadMax: searchParams.get('edadMax') || '',
+    clinicalSearch: searchParams.get('clinicalSearch') || '',
     sortBy: searchParams.get('sortBy') || 'createdAt',
     sortOrder: searchParams.get('sortOrder') || 'desc',
   };
@@ -87,7 +88,16 @@ function PacientesContent() {
   };
 
   const clearFilters = () => {
-    router.push(buildUrl({ sexo: '', prevision: '', edadMin: '', edadMax: '', sortBy: 'createdAt', sortOrder: 'desc', page: '1' }));
+    router.push(buildUrl({
+      sexo: '',
+      prevision: '',
+      edadMin: '',
+      edadMax: '',
+      clinicalSearch: '',
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+      page: '1',
+    }));
   };
 
   const { data, isLoading, error } = useQuery({
@@ -101,6 +111,7 @@ function PacientesContent() {
       if (filters.prevision) params.set('prevision', filters.prevision);
       if (filters.edadMin) params.set('edadMin', filters.edadMin);
       if (filters.edadMax) params.set('edadMax', filters.edadMax);
+      if (filters.clinicalSearch) params.set('clinicalSearch', filters.clinicalSearch);
       if (filters.sortBy) params.set('sortBy', filters.sortBy);
       if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
       const response = await api.get(`/patients?${params}`);
@@ -214,6 +225,16 @@ function PacientesContent() {
                   onChange={(e) => setFilter('edadMax', e.target.value)}
                   placeholder="120"
                   min={0}
+                />
+              </div>
+              <div className="col-span-2 md:col-span-2 lg:col-span-2">
+                <label className="block text-micro text-ink-muted mb-1">Motivo o síntoma</label>
+                <input
+                  type="text"
+                  className="input w-full text-sm"
+                  value={filters.clinicalSearch}
+                  onChange={(e) => setFilter('clinicalSearch', e.target.value)}
+                  placeholder="Ej: cefalea, tos, dolor abdominal..."
                 />
               </div>
               <div>

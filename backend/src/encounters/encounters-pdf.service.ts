@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import * as PDFDocument from 'pdfkit';
+import * as path from 'path';
 
 const SEXO_MAP: Record<string, string> = {
   MASCULINO: 'Masculino',
@@ -41,6 +42,9 @@ const IDENTIFICATION_SNAPSHOT_FIELD_META = [
   { key: 'trabajo', label: 'trabajo' },
   { key: 'domicilio', label: 'domicilio' },
 ] as const;
+
+const PDF_LOCALE = 'es-CL';
+const PDF_TIME_ZONE = 'America/Santiago';
 
 @Injectable()
 export class EncountersPdfService {
@@ -128,6 +132,128 @@ export class EncountersPdfService {
       .map(({ label }) => label);
   }
 
+  private formatEncounterDateTime(value: string | Date) {
+    return new Intl.DateTimeFormat(PDF_LOCALE, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: PDF_TIME_ZONE,
+    }).format(new Date(value));
+  }
+
+  private formatEncounterDateOnly(value: string | Date) {
+    return new Intl.DateTimeFormat(PDF_LOCALE, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: PDF_TIME_ZONE,
+    }).format(new Date(value)).replace(/\//g, '-');
+  }
+
+  private sanitizeFilenameSegment(value: string | undefined | null) {
+    const normalized = (value || 'paciente')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .toLowerCase();
+
+    return path.basename(normalized || 'paciente');
+  }
+
+  private buildEncounterDocumentFilename(encounter: any, prefix: string) {
+    const patientName = this.sanitizeFilenameSegment(encounter?.patient?.nombre);
+    const encounterDate = this.formatEncounterDateOnly(encounter?.createdAt || new Date());
+    return `${prefix}_${patientName}_${encounterDate}.pdf`;
+  }
+
+  async getPdfFilename(encounterId: string, user: RequestUser) {
+    const encounter = await this.loadEncounterForPdf(encounterId, user);
+    return this.buildEncounterDocumentFilename(encounter, 'ficha_clinica');
+  }
+
+  async getFocusedPdfFilename(
+    encounterId: string,
+    kind: 'receta' | 'ordenes' | 'derivacion',
+    user: RequestUser,
+  ) {
+    const encounter = await this.loadEncounterForPdf(encounterId, user);
+    return this.buildEncounterDocumentFilename(encounter, kind);
+  }
+
+  private getTreatmentPlanText(trat: Record<string, any>) {
+    const plan = typeof trat.plan === 'string' ? trat.plan.trim() : '';
+    const indicaciones = typeof trat.indicaciones === 'string' ? trat.indicaciones.trim() : '';
+
+    if (!plan) {
+      return indicaciones;
+    }
+
+    if (!indicaciones || indicaciones === plan) {
+      return plan;
+    }
+
+    return `${plan}\n\nIndicaciones adicionales:\n${indicaciones}`;
+  }
+
+  private formatHistoryFieldText(value: unknown) {
+    if (!value) {
+      return '';
+    }
+
+    if (typeof value === 'string') {
+      return value.trim();
+    }
+
+    if (typeof value !== 'object' || Array.isArray(value)) {
+      return '';
+    }
+
+    const record = value as Record<string, unknown>;
+    const items = Array.isArray(record.items)
+      ? record.items
+          .filter((item): item is string => typeof item === 'string')
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : [];
+    const text = typeof record.texto === 'string' ? record.texto.trim() : '';
+
+    if (!items.length) {
+      return text;
+    }
+
+    if (!text) {
+      return items.join(', ');
+    }
+
+    return `${items.join(', ')}. ${text}`;
+  }
+
+  private formatRevisionSystemEntries(revision: Record<string, any>) {
+    return Object.entries(revision || {})
+      .map(([key, value]) => {
+        if (!value || typeof value !== 'object') {
+          return null;
+        }
+
+        const checked = Boolean((value as { checked?: boolean }).checked);
+        const rawNotes = (value as { notas?: string }).notas;
+        const notes = typeof rawNotes === 'string' ? rawNotes.trim() : '';
+
+        if (!checked && !notes) {
+          return null;
+        }
+
+        return {
+          label: key.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase()),
+          text: notes || 'Sin hallazgos descritos',
+        };
+      })
+      .filter((entry): entry is { label: string; text: string } => entry !== null);
+  }
+
   private async buildDocumentBuffer(
     title: string,
     author: string,
@@ -192,7 +318,7 @@ export class EncountersPdfService {
         .fontSize(10)
         .font('Helvetica')
         .text(
-          `Fecha: ${new Date(encounter.createdAt).toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+          `Fecha: ${this.formatEncounterDateTime(encounter.createdAt)}`,
           { align: 'center' },
         );
       doc.moveDown(0.5);
@@ -295,10 +421,11 @@ export class EncountersPdfService {
         ['Medicamentos', 'medicamentos'],
         ['Alergias', 'alergias'],
         ['Inmunizaciones', 'inmunizaciones'],
+        ['Antecedentes sociales', 'antecedentesSociales'],
+        ['Antecedentes personales', 'antecedentesPersonales'],
       ];
       for (const [label, key] of remoteFields) {
-        const val = anRem[key];
-        const text = typeof val === 'object' ? val?.texto : val;
+        const text = this.formatHistoryFieldText(anRem[key]);
         if (text) field(label, text);
       }
       doc.moveDown(0.5);
@@ -306,19 +433,10 @@ export class EncountersPdfService {
       // ── 5. Revisión por sistemas ──
       const revSis = sectionsMap['REVISION_SISTEMAS'] || {};
       sectionTitle(5, 'REVISIÓN POR SISTEMAS');
-      const revEntries = Object.entries(revSis);
+      const revEntries = this.formatRevisionSystemEntries(revSis);
       if (revEntries.length > 0) {
-        for (const [key, value] of revEntries) {
-          const text =
-            typeof value === 'object' && value !== null
-              ? (value as any).texto || (value as any).observaciones
-              : value;
-          if (text) {
-            const label = key
-              .replace(/([A-Z])/g, ' $1')
-              .replace(/^./, (s) => s.toUpperCase());
-            field(label, String(text));
-          }
+        for (const entry of revEntries) {
+          field(entry.label, entry.text);
         }
       } else {
         doc.text('-');
@@ -375,9 +493,9 @@ export class EncountersPdfService {
 
       // ── 8. Tratamiento ──
       const trat = sectionsMap['TRATAMIENTO'] || {};
+      const treatmentPlan = this.getTreatmentPlanText(trat);
       sectionTitle(8, 'TRATAMIENTO');
-      field('Plan', trat.plan);
-      field('Indicaciones', trat.indicaciones);
+      field('Plan de tratamiento e indicaciones', treatmentPlan);
       field('Receta', trat.receta);
       field('Exámenes', trat.examenes);
       field('Derivaciones', trat.derivaciones);
@@ -397,7 +515,15 @@ export class EncountersPdfService {
             .join(' | '),
         );
       }
-      if (!trat.plan && !trat.indicaciones && !trat.receta) doc.text('-');
+      if (Array.isArray(trat.derivacionesEstructuradas) && trat.derivacionesEstructuradas.length > 0) {
+        field(
+          'Derivaciones estructuradas',
+          trat.derivacionesEstructuradas
+            .map((item: any) => [item.nombre, item.indicacion, item.estado].filter(Boolean).join(' · '))
+            .join(' | '),
+        );
+      }
+      if (!treatmentPlan && !trat.receta && !trat.examenes && !trat.derivaciones) doc.text('-');
       doc.moveDown(0.5);
 
       // ── 9. Respuesta al tratamiento ──
@@ -494,6 +620,7 @@ export class EncountersPdfService {
       ordenes: 'ORDEN DE EXAMENES',
       derivacion: 'INTERCONSULTA / DERIVACION',
     } as const;
+    const treatmentPlan = this.getTreatmentPlanText(trat);
 
     const pdfBuffer = await this.buildDocumentBuffer(
       `${titleMap[kind]} - ${encounter.patient.nombre}`,
@@ -507,7 +634,7 @@ export class EncountersPdfService {
 
         doc.fontSize(18).font('Helvetica-Bold').text(titleMap[kind], { align: 'center' });
         doc.fontSize(10).font('Helvetica').text(
-          `Fecha: ${new Date(encounter.createdAt).toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' })}`,
+          `Fecha: ${this.formatEncounterDateTime(encounter.createdAt)}`,
           { align: 'center' },
         );
         doc.moveDown(1);
@@ -521,7 +648,7 @@ export class EncountersPdfService {
 
         if (kind === 'receta') {
           doc.font('Helvetica-Bold').text('Indicaciones generales');
-          doc.font('Helvetica').text(trat.indicaciones || trat.plan || '-');
+          doc.font('Helvetica').text(treatmentPlan || '-');
           doc.moveDown(0.5);
           doc.font('Helvetica-Bold').text('Medicacion');
           if (Array.isArray(trat.medicamentosEstructurados) && trat.medicamentosEstructurados.length > 0) {

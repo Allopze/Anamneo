@@ -15,6 +15,7 @@ import {
 import {
   Attachment,
   Encounter,
+  IdentificacionData,
   REVIEW_STATUS_LABELS,
   SectionKey,
   StructuredOrder,
@@ -40,6 +41,8 @@ import {
   FiFileText,
   FiClipboard,
   FiActivity,
+  FiSlash,
+  FiClock,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -232,6 +235,8 @@ export default function EncounterWizardPage() {
   const [savedSectionKey, setSavedSectionKey] = useState<SectionKey | null>(null);
   const [errorSectionKey, setErrorSectionKey] = useState<SectionKey | null>(null);
   const [savedSnapshotJson, setSavedSnapshotJson] = useState('');
+  const [sidebarTab, setSidebarTab] = useState<'revision' | 'apoyo' | 'cierre'>('revision');
+  const [elapsedMinutes, setElapsedMinutes] = useState(0);
   const lastSavedRef = useRef<string>('');
   const formDataRef = useRef<Record<string, any>>({});
   const activeSectionKeyRef = useRef<SectionKey | null>(null);
@@ -267,6 +272,15 @@ export default function EncounterWizardPage() {
     if (!isOperationalAdmin) return;
     router.replace('/');
   }, [isOperationalAdmin, router]);
+
+  // Elapsed consultation timer
+  useEffect(() => {
+    if (!encounter?.createdAt) return;
+    const calc = () => Math.max(0, Math.floor((Date.now() - new Date(encounter.createdAt).getTime()) / 60000));
+    setElapsedMinutes(calc());
+    const interval = setInterval(() => setElapsedMinutes(calc()), 60000);
+    return () => clearInterval(interval);
+  }, [encounter?.createdAt]);
 
   const isDoctor = isMedico();
   const canEdit = canEditEncounter(user ?? null, encounter);
@@ -582,28 +596,43 @@ export default function EncounterWizardPage() {
   }, [currentSectionIndex, encounter?.id, encounter?.status, formData, savedSnapshotJson, user?.id]);
 
   // Autosave logic — uses refs to avoid stale closures
-  const saveCurrentSection = useCallback(() => {
+  const persistSection = useCallback(async ({
+    sectionKey,
+    completed,
+  }: {
+    sectionKey?: SectionKey;
+    completed?: boolean;
+  } = {}) => {
     if (!canEdit) return;
     if (!encounter?.sections) return;
-    
-    const sectionKey = activeSectionKeyRef.current;
-    if (!sectionKey) return;
-    const currentData = formDataRef.current[sectionKey];
-    
-    // Compare the current section's data against its snapshot
+
+    const targetSectionKey = sectionKey ?? activeSectionKeyRef.current;
+    if (!targetSectionKey) return;
+
+    const currentData = formDataRef.current[targetSectionKey];
     let savedSnapshot: Record<string, any> = {};
     try { savedSnapshot = JSON.parse(lastSavedRef.current || '{}'); } catch { /* ignore */ }
-    const savedSectionData = JSON.stringify(savedSnapshot[sectionKey]);
+    const savedSectionData = JSON.stringify(savedSnapshot[targetSectionKey]);
     const currentSectionData = JSON.stringify(currentData);
+    const persistedSection = sections.find((section) => section.sectionKey === targetSectionKey);
+    const shouldSaveData = currentSectionData !== savedSectionData;
+    const shouldSaveCompletion = completed !== undefined && persistedSection?.completed !== completed;
 
-    if (currentSectionData !== savedSectionData) {
-      setSaveStatus('saving');
-      saveSectionMutation.mutate({
-        sectionKey,
-        data: currentData,
-      });
+    if (!shouldSaveData && !shouldSaveCompletion) {
+      return;
     }
-  }, [canEdit, encounter?.sections, saveSectionMutation]);
+
+    setSaveStatus('saving');
+    await saveSectionMutation.mutateAsync({
+      sectionKey: targetSectionKey,
+      data: currentData,
+      ...(completed !== undefined ? { completed } : {}),
+    });
+  }, [canEdit, encounter?.sections, saveSectionMutation, sections]);
+
+  const saveCurrentSection = useCallback(() => {
+    void persistSection();
+  }, [persistSection]);
 
   // Set up autosave timer
   useEffect(() => {
@@ -719,23 +748,39 @@ export default function EncounterWizardPage() {
     });
   };
 
-  const handleNavigate = (direction: 'prev' | 'next') => {
+  const handleNavigate = async (direction: 'prev' | 'next') => {
     if (direction === 'prev' && currentSectionIndex > 0) {
       moveToSection(currentSectionIndex - 1);
     } else if (direction === 'next' && currentSectionIndex < sections.length - 1) {
-      moveToSection(currentSectionIndex + 1);
+      saveCurrentSection();
+
+      startSectionTransition(() => {
+        setCurrentSectionIndex(currentSectionIndex + 1);
+      });
     }
   };
 
   const handleMarkComplete = () => {
     if (!canEdit) return;
     if (!currentSection) return;
-    
-    saveSectionMutation.mutate({
+
+    void persistSection({
       sectionKey: currentSection.sectionKey,
-      data: formData[currentSection.sectionKey],
       completed: true,
     });
+  };
+
+  const handleMarkNotApplicable = () => {
+    if (!canEdit) return;
+    if (!currentSection) return;
+
+    const sectionKey = currentSection.sectionKey;
+    handleSectionDataChange(sectionKey, { ...formData[sectionKey], _notApplicable: true });
+    void persistSection({
+      sectionKey,
+      completed: true,
+    });
+    toast.success('Sección marcada como no aplica');
   };
 
   const handleComplete = async () => {
@@ -874,6 +919,9 @@ export default function EncounterWizardPage() {
   const currentSectionState = currentSection ? getSectionUiState(currentSection) : 'idle';
   const currentSectionStatusMeta = SECTION_STATUS_META[currentSectionState];
   const identificationSnapshotStatus = encounter?.identificationSnapshotStatus;
+  const identificationData = ((formData.IDENTIFICACION
+    ?? encounter?.sections?.find((section) => section.sectionKey === 'IDENTIFICACION')?.data
+    ?? {}) as IdentificacionData);
   const handleStartLinkedAttachment = (type: 'EXAMEN' | 'DERIVACION', orderId: string) => {
     setUploadError(null);
     setSelectedFile(null);
@@ -940,15 +988,36 @@ export default function EncounterWizardPage() {
     ? 'text-accent-text'
     : 'text-ink-secondary';
 
+  const SIDEBAR_TABS = [
+    { key: 'revision' as const, label: 'Revisión', icon: FiActivity },
+    { key: 'apoyo' as const, label: 'Apoyo', icon: FiClipboard },
+    { key: 'cierre' as const, label: 'Cierre', icon: FiFileText },
+  ];
+
   const secondaryColumn = (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-0">
       <section className={SURFACE_PANEL_CLASS}>
-        <div className="border-b border-surface-muted/40 px-5 py-4">
-          <h2 className="text-base font-semibold text-ink">Revisión Clínica</h2>
-          <p className="mt-1 text-sm text-ink-secondary">
-            Estado, contexto para revisión y resumen longitudinal.
-          </p>
+        {/* Tabs */}
+        <div className="flex border-b border-surface-muted/40">
+          {SIDEBAR_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setSidebarTab(tab.key)}
+              className={clsx(
+                'flex flex-1 items-center justify-center gap-2 px-3 py-3 text-sm font-medium transition-colors',
+                sidebarTab === tab.key
+                  ? 'border-b-2 border-accent text-ink'
+                  : 'text-ink-secondary hover:text-ink',
+              )}
+            >
+              <tab.icon className="h-3.5 w-3.5" />
+              {tab.label}
+            </button>
+          ))}
         </div>
+
+        {sidebarTab === 'revision' && (
         <div className="px-5 py-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -974,7 +1043,7 @@ export default function EncounterWizardPage() {
           <textarea
             id="review-note"
             name="review_note"
-            className="form-input mt-2 min-h-[132px]"
+            className="form-input form-textarea mt-2 min-h-[132px]"
             value={reviewActionNote}
             onChange={(e) => setReviewActionNote(e.target.value)}
             placeholder="Contexto clínico para la revisión médica…"
@@ -1032,15 +1101,9 @@ export default function EncounterWizardPage() {
             </p>
           </div>
         </div>
-      </section>
+        )}
 
-      <section className={SURFACE_PANEL_CLASS}>
-        <div className="border-b border-surface-muted/40 px-5 py-4">
-          <h2 className="text-base font-semibold text-ink">Acciones de Apoyo</h2>
-          <p className="mt-1 text-sm text-ink-secondary">
-            Adjuntos, antecedentes y seguimiento rápido sin perder el contexto.
-          </p>
-        </div>
+        {sidebarTab === 'apoyo' && (
         <div className="px-5 py-5">
           <div className="grid gap-2">
             <button
@@ -1106,15 +1169,9 @@ export default function EncounterWizardPage() {
             </button>
           </form>
         </div>
-      </section>
+        )}
 
-      <section className={SURFACE_PANEL_CLASS}>
-        <div className="border-b border-surface-muted/40 px-5 py-4">
-          <h2 className="text-base font-semibold text-ink">Cierre & Trazabilidad</h2>
-          <p className="mt-1 text-sm text-ink-secondary">
-            Registro de revisión, cierre y tareas ya generadas para esta atención.
-          </p>
-        </div>
+        {sidebarTab === 'cierre' && (
         <div className="px-5 py-5">
           <dl className="grid gap-3 text-sm">
             <div className={INNER_PANEL_CLASS}>
@@ -1141,13 +1198,24 @@ export default function EncounterWizardPage() {
             </div>
           </dl>
 
-          <label className="mt-5 block text-sm font-medium text-ink" htmlFor="closure-note">
-            Nota de cierre
-          </label>
+          <div className="mt-5 flex items-center justify-between gap-3">
+            <label className="block text-sm font-medium text-ink" htmlFor="closure-note">
+              Nota de cierre
+            </label>
+            {canComplete && generatedSummary && !closureNote.trim() ? (
+              <button
+                type="button"
+                className="text-sm font-medium text-accent transition-colors hover:text-accent/80"
+                onClick={() => setClosureNote(generatedSummary)}
+              >
+                Usar resumen generado
+              </button>
+            ) : null}
+          </div>
           <textarea
             id="closure-note"
             name="closure_note"
-            className="form-input mt-2 min-h-[132px]"
+            className="form-input form-textarea mt-2 min-h-[132px]"
             value={closureNote}
             onChange={(e) => setClosureNote(e.target.value)}
             placeholder="Resumen clínico del cierre y próximos pasos…"
@@ -1181,6 +1249,7 @@ export default function EncounterWizardPage() {
             </div>
           ) : null}
         </div>
+        )}
       </section>
     </div>
   );
@@ -1205,6 +1274,12 @@ export default function EncounterWizardPage() {
                     <span>Atención</span>
                     <span>{encounter.patient?.rut || 'Sin RUT'}</span>
                     <span>{formatDateTime(encounter.createdAt)}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <FiClock className="h-3.5 w-3.5" />
+                      {elapsedMinutes < 60
+                        ? `${elapsedMinutes} min`
+                        : `${Math.floor(elapsedMinutes / 60)}h ${elapsedMinutes % 60}m`}
+                    </span>
                   </div>
                   <h1 className="mt-1 truncate text-[1.75rem] font-extrabold tracking-tight text-ink lg:text-[2rem]">
                     {encounter.patient?.nombre}
@@ -1347,24 +1422,29 @@ export default function EncounterWizardPage() {
         <main className="min-w-0">
           <div className="mx-auto flex max-w-[920px] flex-col gap-5">
             <div className="xl:hidden">
-              <label htmlFor="mobile-section-select" className="sr-only">Seleccionar sección</label>
-              <select
-                id="mobile-section-select"
-                name="mobile_section_select"
-                value={currentSectionIndex}
-                onChange={(e) => moveToSection(Number(e.target.value))}
-                className="form-input text-sm"
-              >
+              <nav className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2 sidebar-scroll" aria-label="Secciones">
                 {sections.map((section, index) => {
                   const state = getSectionUiState(section);
-                  const statusLabel = SECTION_STATUS_META[state].label;
+                  const meta = SECTION_STATUS_META[state];
+                  const isActive = index === currentSectionIndex;
                   return (
-                    <option key={section.id} value={index}>
-                      {index + 1}. {section.label} · {statusLabel}
-                    </option>
+                    <button
+                      key={section.id}
+                      type="button"
+                      onClick={() => moveToSection(index)}
+                      className={clsx(
+                        'flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                        isActive
+                          ? 'border-accent/40 bg-accent/10 text-ink'
+                          : 'border-surface-muted/45 bg-surface-elevated text-ink-secondary hover:border-accent/30 hover:text-ink',
+                      )}
+                    >
+                      <span className={clsx('h-1.5 w-1.5 rounded-full', meta.dotClassName)} />
+                      <span className="whitespace-nowrap">{index + 1}. {section.label}</span>
+                    </button>
                   );
                 })}
-              </select>
+              </nav>
             </div>
 
             {encounter.patientId ? (
@@ -1410,6 +1490,9 @@ export default function EncounterWizardPage() {
                     canEditPatientHistory={canEditAntecedentes()}
                     linkedAttachmentsByOrderId={linkedAttachmentsByOrderId}
                     onRequestAttachToOrder={handleStartLinkedAttachment}
+                    patientAge={identificationData.edad ?? encounter.patient?.edad}
+                    patientSexo={identificationData.sexo ?? encounter.patient?.sexo}
+                    motivoConsultaData={currentSection.sectionKey === 'SOSPECHA_DIAGNOSTICA' ? (formData.MOTIVO_CONSULTA ?? encounter?.sections?.find((s) => s.sectionKey === 'MOTIVO_CONSULTA')?.data) : undefined}
                   />
                 ) : (
                   <div className="rounded-card border border-surface-muted/40 bg-surface-base/55 px-5 py-5 text-sm text-ink-secondary">
@@ -1430,6 +1513,18 @@ export default function EncounterWizardPage() {
                   </button>
 
                   <div className="flex flex-wrap items-center gap-2">
+                    {canEdit && currentSection?.sectionKey !== 'IDENTIFICACION' ? (
+                      <button
+                        onClick={handleMarkNotApplicable}
+                        disabled={saveSectionMutation.isPending || currentSection?.completed}
+                        className={TOOLBAR_BUTTON_CLASS}
+                        title="Marcar esta sección como no aplica para este paciente"
+                      >
+                        <FiSlash className="h-4 w-4" />
+                        No aplica
+                      </button>
+                    ) : null}
+
                     {canEdit ? (
                       <button
                         onClick={handleMarkComplete}
