@@ -136,6 +136,16 @@ function resolveBackupDir(dbPath, configuredBackupDir = process.env.SQLITE_BACKU
   return path.resolve(path.dirname(dbPath), 'backups');
 }
 
+function resolveUploadsRoot(configuredUploadDest = process.env.UPLOAD_DEST) {
+  const uploadDest = configuredUploadDest && configuredUploadDest.trim().length > 0
+    ? configuredUploadDest.trim()
+    : './uploads';
+
+  return path.isAbsolute(uploadDest)
+    ? uploadDest
+    : path.resolve(process.cwd(), uploadDest);
+}
+
 function listBackupFiles(backupDir) {
   if (!fs.existsSync(backupDir)) {
     return [];
@@ -199,6 +209,7 @@ module.exports = {
   resolveDatabaseUrl,
   resolveSqliteDatabasePath,
   resolveBackupDir,
+  resolveUploadsRoot,
   listBackupFiles,
   escapeSqliteString,
   formatTimestamp,

@@ -13,8 +13,6 @@ import toast from 'react-hot-toast';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { validateRut } from '@/lib/rut';
 
-const PATIENT_DRAFT_KEY = 'anamneo:draft:new-patient';
-
 const basePatientObject = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   edad: z.number().min(0, 'La edad debe ser mayor a 0').max(150, 'Edad no valida').optional(),
@@ -78,7 +76,6 @@ export default function NuevoPacientePage() {
   const {
     register,
     handleSubmit,
-    setValue,
     watch,
     formState: { errors },
   } = useForm<PatientForm>({
@@ -89,43 +86,6 @@ export default function NuevoPacientePage() {
   });
 
   const rutExempt = watch('rutExempt');
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const rawDraft = window.sessionStorage.getItem(PATIENT_DRAFT_KEY);
-    if (!rawDraft) {
-      return;
-    }
-
-    try {
-      const parsedDraft = JSON.parse(rawDraft) as Partial<PatientForm>;
-      for (const [field, value] of Object.entries(parsedDraft)) {
-        setValue(field as keyof PatientForm, value as PatientForm[keyof PatientForm], {
-          shouldValidate: false,
-          shouldDirty: false,
-        });
-      }
-    } catch {
-      window.sessionStorage.removeItem(PATIENT_DRAFT_KEY);
-    }
-  }, [setValue]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const subscription = watch((value) => {
-      window.sessionStorage.setItem(PATIENT_DRAFT_KEY, JSON.stringify(value));
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [watch]);
 
   if (!canCreate) {
     return null;
@@ -156,9 +116,6 @@ export default function NuevoPacientePage() {
           };
       const endpoint = isDoctor ? '/patients' : '/patients/quick';
       const response = await api.post(endpoint, payload);
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.removeItem(PATIENT_DRAFT_KEY);
-      }
       toast.success('Paciente creado correctamente');
       router.push(`/pacientes/${response.data.id}`);
     } catch (err) {

@@ -7,7 +7,11 @@ export function ErrorAlert(props: { message: string; title?: string }) {
   const { message, title } = props;
 
   return (
-    <div className="p-4 bg-status-red/10 border border-status-red/30 rounded-lg flex items-start gap-3">
+    <div
+      className="flex items-start gap-3 rounded-lg border border-status-red/30 bg-status-red/10 p-4"
+      role="alert"
+      aria-live="polite"
+    >
       <FiAlertCircle className="w-5 h-5 text-status-red flex-shrink-0 mt-0.5" />
       <div>
         {title && <p className="text-sm font-semibold text-red-800 mb-1">{title}</p>}

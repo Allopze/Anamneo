@@ -288,6 +288,23 @@ export class PatientsService {
     };
   }
 
+  private neutralizeCsvField(value: string) {
+    const trimmed = value.trimStart();
+    if (!trimmed || !['=', '+', '-', '@'].includes(trimmed[0])) {
+      return value;
+    }
+
+    return `'${value}`;
+  }
+
+  private toCsvCell(value: string | number | null | undefined) {
+    const normalized = value === null || value === undefined || value === ''
+      ? '-'
+      : String(value);
+    const escaped = this.neutralizeCsvField(normalized).replace(/"/g, '""');
+    return `"${escaped}"`;
+  }
+
   private formatEncounterTimelineItem(encounter: any) {
     const sortedSections = [...(encounter.sections || [])].sort((a: any, b: any) => {
       return ENCOUNTER_SECTION_ORDER.indexOf(a.sectionKey as SectionKey)
@@ -475,15 +492,15 @@ export class PatientsService {
     const header = 'Nombre,RUT,Edad,Sexo,Previsión,Trabajo,Domicilio,Atenciones,Creado';
     const rows = patients.map((p) => {
       const fields = [
-        `"${(p.nombre || '').replace(/"/g, '""')}"`,
-        p.rut || '-',
-        p.edad,
-        p.sexo,
-        p.prevision,
-        `"${(p.trabajo || '-').replace(/"/g, '""')}"`,
-        `"${(p.domicilio || '-').replace(/"/g, '""')}"`,
-        p._count.encounters,
-        p.createdAt.toISOString().slice(0, 10),
+        this.toCsvCell(p.nombre || ''),
+        this.toCsvCell(p.rut),
+        this.toCsvCell(p.edad),
+        this.toCsvCell(p.sexo),
+        this.toCsvCell(p.prevision),
+        this.toCsvCell(p.trabajo),
+        this.toCsvCell(p.domicilio),
+        this.toCsvCell(p._count.encounters),
+        this.toCsvCell(p.createdAt.toISOString().slice(0, 10)),
       ];
       return fields.join(',');
     });

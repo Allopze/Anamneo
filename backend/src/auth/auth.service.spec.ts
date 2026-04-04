@@ -86,6 +86,7 @@ describe('AuthService', () => {
 
     configService = {
       get: jest.fn().mockReturnValue('test-secret'),
+      getOrThrow: jest.fn().mockReturnValue('test-refresh-secret'),
     };
 
     auditService = {

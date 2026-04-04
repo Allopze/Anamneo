@@ -99,7 +99,7 @@ export class AttachmentsService {
     const uploadsRoot = this.getUploadsRoot();
     const absolutePath = path.isAbsolute(storagePath)
       ? path.normalize(storagePath)
-      : path.resolve(storagePath);
+      : path.resolve(uploadsRoot, storagePath);
     const relativeToRoot = path.relative(uploadsRoot, absolutePath);
 
     if (!relativeToRoot || relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot)) {
@@ -107,6 +107,11 @@ export class AttachmentsService {
     }
 
     return absolutePath;
+  }
+
+  private toStoredStoragePath(absolutePath: string): string {
+    const relativePath = path.relative(this.getUploadsRoot(), absolutePath);
+    return relativePath.replace(/\\/g, '/');
   }
 
   private async readFileSignature(filePath: string): Promise<Buffer> {
@@ -228,7 +233,7 @@ export class AttachmentsService {
           originalName: sanitizeFilename(file.originalname),
           mime: normalizedMime,
           size: file.size,
-          storagePath: resolvedStoragePath,
+          storagePath: this.toStoredStoragePath(resolvedStoragePath),
           uploadedById: user.id,
           category: metadata?.category?.trim() || null,
           description: metadata?.description?.trim() || null,

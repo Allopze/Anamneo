@@ -41,10 +41,10 @@ body {
   /* ── Forms ────────────────────── */
   .form-input,
   .input {
-    @apply w-full px-4 py-2.5 border border-surface-muted rounded-input
-           focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent
-           bg-surface-elevated text-ink placeholder:text-ink-muted
-           transition-all duration-200;
+    @apply w-full rounded-input border border-surface-muted/55 bg-surface-elevated px-4 py-3
+           text-ink placeholder:text-ink-muted shadow-soft
+           transition-[border-color,box-shadow,background-color] duration-200
+           focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/70;
   }
 
   .form-input:disabled,
@@ -120,10 +120,10 @@ body {
 
   /* ── Buttons ──────────────────── */
   .btn {
-    @apply inline-flex items-center justify-center px-5 py-2.5
-           font-medium rounded-pill transition-all duration-200
+    @apply inline-flex items-center justify-center rounded-btn px-5 py-3
+           font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-200
            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface-base
-           disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
+           disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.99];
   }
 
   .btn-primary {
@@ -153,7 +153,7 @@ body {
 
   /* ── Cards ────────────────────── */
   .card {
-    @apply bg-surface-elevated rounded-2xl border border-frame/10 p-6 shadow-soft;
+    @apply rounded-card border border-frame/10 bg-surface-elevated p-6 shadow-soft;
   }
 
   .card-hover {
@@ -162,15 +162,15 @@ body {
 
   /* ── Sections ─────────────────── */
   .section-intro {
-    @apply rounded-2xl border border-surface-muted/35 bg-surface-base/70 px-4 py-3 text-body text-ink-secondary;
+    @apply rounded-card border border-surface-muted/35 bg-surface-base/70 px-5 py-4 text-body text-ink-secondary;
   }
 
   .section-block {
-    @apply rounded-2xl border border-surface-muted/35 bg-surface-elevated p-4;
+    @apply rounded-card border border-surface-muted/35 bg-surface-elevated p-5;
   }
 
   .section-block-muted {
-    @apply rounded-2xl border border-surface-muted/30 bg-surface-base/50 p-4;
+    @apply rounded-card border border-surface-muted/30 bg-surface-base/50 p-5;
   }
 
   .section-block-title {
@@ -182,7 +182,7 @@ body {
   }
 
   .section-callout {
-    @apply rounded-2xl px-4 py-3;
+    @apply rounded-card px-5 py-4;
   }
 
   .section-callout-info {
@@ -202,7 +202,7 @@ body {
   }
 
   .section-item-card {
-    @apply rounded-card bg-surface-elevated p-4 transition-colors;
+    @apply rounded-card border border-surface-muted/30 bg-surface-elevated p-4 transition-colors;
   }
 
   .section-item-card-selected {
@@ -210,7 +210,7 @@ body {
   }
 
   .section-add-button {
-    @apply inline-flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-surface-muted px-4 py-3 text-body font-medium text-ink-muted transition-colors hover:border-frame/30 hover:text-ink;
+    @apply inline-flex w-full items-center justify-center gap-2 rounded-card border border-dashed border-surface-muted px-4 py-3 text-body font-medium text-ink-muted transition-colors hover:border-frame/30 hover:text-ink;
   }
 
   .section-icon-button {
@@ -338,23 +338,149 @@ body {
 
   /* ── Auth Screens ─────────────── */
   .auth-shell {
-    @apply min-h-screen lg:grid lg:grid-cols-[1.05fr,0.95fr];
+    @apply relative min-h-screen overflow-hidden lg:grid lg:grid-cols-[1.02fr,0.98fr];
+    background:
+      radial-gradient(circle at top left, rgba(233, 243, 74, 0.2), transparent 34%),
+      linear-gradient(180deg, rgba(241, 242, 239, 0.92), rgba(223, 223, 213, 0.98));
+  }
+
+  .auth-shell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(93, 93, 88, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(93, 93, 88, 0.06) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.65), transparent 88%);
   }
 
   .auth-hero {
-    @apply hidden lg:flex flex-col justify-between bg-frame p-12 text-ink-onDark;
+    @apply relative flex flex-col justify-between border-b border-frame/10 bg-frame px-5 py-6 text-ink-onDark sm:px-6 sm:py-8 lg:min-h-screen lg:border-b-0 lg:px-12 lg:py-12;
+    background:
+      radial-gradient(circle at top left, rgba(243, 254, 72, 0.16), transparent 28%),
+      linear-gradient(155deg, rgba(30, 30, 26, 0.92), rgba(74, 74, 69, 0.96));
+  }
+
+  .auth-hero-panel {
+    @apply relative z-[1] mx-auto w-full max-w-2xl;
+  }
+
+  .auth-kicker {
+    @apply mb-3 inline-flex rounded-pill border border-white/10 bg-white/5 px-3 py-1 text-micro font-semibold uppercase tracking-[0.14em] text-accent;
+  }
+
+  .auth-headline {
+    @apply max-w-xl text-[2rem] font-semibold leading-tight tracking-tight text-balance text-ink-onDark sm:text-[2.6rem];
+  }
+
+  .auth-copy {
+    @apply mt-4 max-w-xl text-[1rem] leading-7 sm:text-[1.05rem];
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .auth-feature-grid {
+    @apply mt-8 grid gap-3 sm:grid-cols-3;
+  }
+
+  .auth-feature-card {
+    @apply rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-[2px];
+  }
+
+  .auth-feature-label {
+    @apply text-micro font-semibold uppercase tracking-[0.14em];
+    color: rgba(233, 243, 74, 0.9);
+  }
+
+  .auth-feature-title {
+    @apply mt-3 text-sm font-semibold text-ink-onDark;
+  }
+
+  .auth-feature-description {
+    @apply mt-2 text-sm leading-6;
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  .auth-footnote {
+    @apply relative z-[1] mt-6 text-sm;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .auth-panel {
+    @apply relative z-[1] flex items-center justify-center px-4 py-6 sm:px-6 lg:px-8 lg:py-10;
   }
 
   .auth-card {
-    @apply w-full max-w-md rounded-shell bg-surface-elevated p-8 shadow-elevated;
+    @apply w-full max-w-lg rounded-shell border border-frame/10 bg-surface-elevated/95 p-6 shadow-elevated sm:p-8;
   }
 
-  .auth-bullet {
-    @apply flex items-center gap-3 text-ink-onDark/80;
+  .auth-card-header {
+    @apply mb-8 space-y-3 text-center lg:text-left;
   }
 
-  .auth-bullet-dot {
-    @apply h-8 w-8 rounded-card bg-white/10 flex items-center justify-center text-label font-semibold;
+  .auth-card-kicker {
+    @apply text-micro font-semibold uppercase tracking-[0.14em] text-ink-muted;
+  }
+
+  .auth-card-title {
+    @apply text-[1.8rem] font-semibold tracking-tight text-ink;
+  }
+
+  .auth-card-description {
+    @apply mx-auto max-w-md text-body leading-7 text-ink-secondary lg:mx-0;
+  }
+
+  .auth-card-footer {
+    @apply mt-6 border-t border-surface-muted/35 pt-5;
+  }
+
+  .auth-note {
+    @apply mb-6 flex items-start gap-3 rounded-2xl border border-surface-muted/35 bg-surface-base/60 p-4;
+  }
+
+  .auth-note-icon {
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/50 text-accent-text;
+  }
+
+  .auth-note-title {
+    @apply text-sm font-semibold text-ink;
+  }
+
+  .auth-note-copy {
+    @apply mt-1 text-sm leading-6 text-ink-secondary;
+  }
+
+  .auth-inline-link {
+    @apply inline-flex items-center gap-1 font-medium text-accent-text transition-colors hover:text-ink;
+  }
+
+  .auth-inline-metrics {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .auth-inline-metric {
+    @apply inline-flex items-center gap-2 rounded-pill border border-surface-muted/40 bg-surface-base/55 px-3 py-1.5 text-micro font-medium text-ink-secondary;
+  }
+
+  .auth-banner {
+    @apply rounded-card border px-4 py-3 text-sm;
+  }
+
+  .auth-banner-warning {
+    @apply border-status-yellow/70 bg-status-yellow/35 text-accent-text;
+  }
+
+  .auth-banner-muted {
+    @apply border-surface-muted/35 bg-surface-base/45 text-ink-secondary;
+  }
+
+  .auth-role-card {
+    @apply flex items-start gap-3 rounded-card border-2 border-surface-muted/30 bg-surface-elevated px-4 py-3 transition-colors;
+  }
+
+  .auth-role-indicator {
+    @apply mt-1 h-3 w-3 shrink-0 rounded-full border border-surface-muted bg-surface-base;
   }
 
   /* ── Status Screens ───────────── */
@@ -376,6 +502,155 @@ body {
 
   .loading-card {
     @apply w-full max-w-xl rounded-shell bg-surface-elevated p-6 shadow-soft;
+  }
+}
+
+/* ── Header Clinical Cockpit ───────────────────────────────────────── */
+@layer components {
+
+  /* ── Tooltip ────────────────────── */
+  .tooltip-bubble {
+    @apply px-2.5 py-1.5 text-[11px] font-medium leading-tight tracking-wide
+           rounded-lg bg-frame-dark text-ink-onDark shadow-dropdown
+           pointer-events-none select-none;
+    animation: tooltip-in 0.12s ease-out;
+  }
+
+  @keyframes tooltip-in {
+    0%   { opacity: 0; transform: translateY(2px) scale(0.97); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* ── Header Shell ───────────────── */
+  .header-shell {
+    @apply sticky top-0 z-40 rounded-b-shell overflow-hidden;
+    background: var(--surface-elevated);
+    box-shadow: 0 2px 12px rgba(30,30,26,0.06);
+  }
+
+  /* ── Dark Rail (Level 1) ────────── */
+  .header-rail {
+    @apply flex items-center justify-between px-4 lg:px-6;
+    height: 54px;
+    background: var(--frame);
+  }
+
+  /* ── Nav Items ──────────────────── */
+  .header-nav-item {
+    @apply inline-flex items-center justify-center rounded-pill
+           transition-all duration-200 outline-none
+           focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-frame;
+  }
+
+  .header-nav-item-primary {
+    @apply w-10 h-10 text-ink-onDark/55
+           hover:text-ink-onDark hover:bg-white/10;
+  }
+
+  .header-nav-item-active {
+    @apply bg-accent text-accent-text
+           hover:bg-accent-bright hover:text-accent-text
+           shadow-soft;
+  }
+
+  .header-nav-item-secondary {
+    @apply w-8 h-8 text-ink-onDark/40
+           hover:text-ink-onDark/70 hover:bg-white/[0.08];
+  }
+
+  .header-nav-item-secondary-active {
+    @apply bg-white/[0.15] text-ink-onDark
+           hover:bg-white/[0.20];
+  }
+
+  .header-nav-divider {
+    @apply w-px h-5 bg-white/[0.12] mx-1;
+  }
+
+  /* ── KPI Bar (Level 2) ─────────── */
+  .header-kpi-bar {
+    @apply flex items-center justify-between gap-6 px-5 lg:px-7 py-3.5;
+    background: var(--surface-elevated);
+    border-bottom: 1px solid rgba(194,193,187,0.35);
+  }
+
+  .header-module-title {
+    @apply text-[1.35rem] font-semibold tracking-tight text-ink leading-tight;
+  }
+
+  .header-kpi-grid {
+    @apply hidden md:flex items-center gap-5 lg:gap-7;
+  }
+
+  .header-kpi-item {
+    @apply flex items-center gap-2.5 cursor-default;
+  }
+
+  .header-kpi-icon {
+    @apply flex items-center justify-center w-7 h-7 rounded-lg bg-surface-base/80;
+  }
+
+  .header-kpi-content {
+    @apply flex items-baseline gap-1.5;
+  }
+
+  .header-kpi-value {
+    @apply text-[1.5rem] font-bold leading-none tracking-tight text-ink;
+  }
+
+  .header-kpi-unit {
+    @apply text-[11px] font-medium text-ink-muted leading-none tracking-wide;
+  }
+
+  /* ── Context Bar (Level 3) ─────── */
+  .header-context-bar {
+    @apply flex items-center justify-between px-5 lg:px-7 py-2.5;
+    background: var(--surface-base);
+    border-bottom: 1px solid rgba(194,193,187,0.25);
+  }
+
+  .header-context-chip {
+    @apply inline-flex items-center justify-center rounded-pill
+           transition-all duration-200 outline-none
+           focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1;
+  }
+
+  .header-context-chip-filter {
+    @apply w-9 h-9 text-ink-secondary
+           border border-surface-muted/60 bg-surface-elevated
+           hover:bg-surface-muted/40 hover:text-ink hover:border-surface-muted;
+  }
+
+  .header-context-chip-action {
+    @apply w-9 h-9 text-ink-onDark
+           bg-frame hover:bg-frame-dark
+           shadow-soft;
+  }
+
+  .header-context-chip-active {
+    @apply bg-accent text-accent-text border-accent
+           hover:bg-accent-bright hover:text-accent-text hover:border-accent-bright
+           shadow-soft;
+  }
+
+  /* ── Mobile Header ─────────────── */
+  .header-mobile-nav {
+    @apply lg:hidden px-4 pb-3 pt-2 border-t border-white/[0.08];
+    background: var(--frame);
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .header-mobile-item {
+    @apply flex items-center gap-3 px-3.5 py-2.5 rounded-pill text-sm font-medium
+           transition-all duration-200;
+  }
+
+  .header-mobile-item-active {
+    @apply bg-accent text-accent-text;
+  }
+
+  .header-mobile-item-inactive {
+    @apply text-ink-onDark/60 hover:bg-white/[0.08] hover:text-ink-onDark;
   }
 }
 

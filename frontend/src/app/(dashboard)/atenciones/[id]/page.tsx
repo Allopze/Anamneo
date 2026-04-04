@@ -50,7 +50,7 @@ import TemplateSelector from '@/components/TemplateSelector';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
 const SectionLoadingFallback = () => (
-  <div className="rounded-xl border border-surface-muted/40 bg-surface-base/55 px-4 py-5 text-sm text-ink-secondary">
+  <div className="rounded-card border border-surface-muted/40 bg-surface-base/55 px-5 py-5 text-sm text-ink-secondary">
     Cargando sección…
   </div>
 );
@@ -108,19 +108,24 @@ const compactDateFormatter = new Intl.DateTimeFormat('es-CL', {
 });
 
 const TOOLBAR_BUTTON_CLASS =
-  'inline-flex touch-manipulation items-center justify-center gap-2 rounded-xl border border-frame/15 bg-surface-elevated px-3.5 py-2.5 text-sm font-medium text-ink shadow-soft transition-colors hover:border-frame/30 hover:bg-surface-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20 disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-input border border-frame/15 bg-surface-elevated px-4 py-3 text-sm font-medium text-ink shadow-soft transition-colors hover:border-frame/30 hover:bg-surface-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20 disabled:cursor-not-allowed disabled:opacity-50';
 
 const TOOLBAR_PRIMARY_BUTTON_CLASS =
-  'inline-flex touch-manipulation items-center justify-center gap-2 rounded-xl border border-accent/70 bg-accent px-3.5 py-2.5 text-sm font-semibold text-accent-text shadow-soft transition-colors hover:bg-accent-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-input border border-accent/70 bg-accent px-4 py-3 text-sm font-semibold text-accent-text shadow-soft transition-colors hover:bg-accent-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:cursor-not-allowed disabled:opacity-50';
 
 const TOOLBAR_SUCCESS_BUTTON_CLASS =
-  'inline-flex touch-manipulation items-center justify-center gap-2 rounded-xl bg-status-green px-3.5 py-2.5 text-sm font-medium text-status-green-text transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-green/40 disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-input bg-status-green px-4 py-3 text-sm font-medium text-status-green-text transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-green/40 disabled:cursor-not-allowed disabled:opacity-50';
 
 const SURFACE_PANEL_CLASS =
-  'overflow-hidden rounded-xl border border-frame/10 bg-surface-elevated shadow-soft';
+  'overflow-hidden rounded-card border border-frame/10 bg-surface-elevated shadow-soft';
 
 const INNER_PANEL_CLASS =
-  'rounded-xl border border-surface-muted/45 bg-surface-base/55';
+  'rounded-card border border-surface-muted/45 bg-surface-base/55';
+
+const RAIL_PANEL_CLASS =
+  'overflow-hidden rounded-card border border-frame/10 bg-surface-elevated/78 shadow-soft';
+
+const WORKSPACE_STICKY_OFFSET_CLASS = 'top-[110px]';
 
 // Sections only visible to doctors
 const MEDICO_ONLY_SECTIONS: SectionKey[] = [
@@ -1090,7 +1095,7 @@ export default function EncounterWizardPage() {
                 {encounter.tasks.slice(0, 4).map((task) => (
                   <div
                     key={task.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-surface-muted/45 bg-surface-base/45 px-3 py-3 text-sm"
+                    className="flex items-center justify-between gap-3 rounded-input border border-surface-muted/45 bg-surface-base/45 px-4 py-3 text-sm"
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium text-ink">{task.title}</p>
@@ -1112,16 +1117,16 @@ export default function EncounterWizardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-surface-base">
-      <header className="sticky top-0 z-30 border-b border-frame/10 bg-surface-elevated/95 backdrop-blur supports-[backdrop-filter]:bg-surface-elevated/88">
-        <div className="mx-auto max-w-[1600px] px-4 py-4 lg:px-6">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    <div className="min-h-screen overflow-x-clip bg-surface-base">
+      <header className="border-b border-frame/10 bg-surface-elevated/96">
+        <div className="w-full px-4 py-5 lg:px-8 xl:px-10">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="min-w-0 flex-1">
               <div className="flex items-start gap-4">
                 <Link
                   href={`/pacientes/${encounter.patientId}`}
                   aria-label="Volver al paciente"
-                  className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-surface-muted/45 bg-surface-base text-ink-secondary transition-colors hover:bg-surface-muted/18 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20"
+                  className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-input border border-surface-muted/45 bg-surface-base text-ink-secondary transition-colors hover:bg-surface-muted/18 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20"
                 >
                   <FiArrowLeft className="h-4.5 w-4.5" />
                 </Link>
@@ -1135,7 +1140,7 @@ export default function EncounterWizardPage() {
                   <h1 className="mt-1 truncate text-[1.75rem] font-semibold tracking-tight text-ink lg:text-[2rem]">
                     {encounter.patient?.nombre}
                   </h1>
-                  <div className="mt-3 max-w-xl">
+                  <div className="mt-4 max-w-2xl">
                     <div className="flex items-center justify-between gap-3 text-sm">
                       <span className="text-ink-secondary">Progreso de la atención</span>
                       <span className="font-medium text-ink">
@@ -1153,11 +1158,11 @@ export default function EncounterWizardPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 xl:justify-end">
+            <div className="flex flex-wrap items-center gap-3 xl:justify-end">
               {canEdit && saveStateLabel ? (
                 <div
                   className={clsx(
-                    'inline-flex items-center gap-2 rounded-xl border border-frame/15 bg-surface-elevated px-3.5 py-2.5 text-sm shadow-soft',
+                    'inline-flex min-h-12 items-center gap-2 rounded-input border border-frame/15 bg-surface-elevated px-4 py-3 text-sm shadow-soft',
                     saveStateToneClass,
                   )}
                   aria-live="polite"
@@ -1210,70 +1215,73 @@ export default function EncounterWizardPage() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1600px] xl:grid-cols-[248px_minmax(0,1fr)_340px] xl:items-start">
-        <aside className="hidden xl:block min-h-[calc(100vh-97px)] border-r border-frame/10 bg-surface-elevated/65">
-          <div className="sticky top-[97px] px-4 py-6">
-            <div className="border-b border-surface-muted/35 pb-4">
-              <h2 className="text-sm font-semibold text-ink">Secciones</h2>
-              <p className="mt-1 text-sm text-ink-secondary">
-                Navega la atención y detecta de inmediato qué sigue abierto.
-              </p>
-            </div>
+      <div className="grid w-full gap-5 px-4 py-5 xl:grid-cols-[264px_minmax(0,1fr)_356px] xl:items-start xl:px-6 xl:py-6 2xl:px-10">
+        <aside className="hidden xl:block">
+          <div className={clsx('sticky', WORKSPACE_STICKY_OFFSET_CLASS)}>
+            <div className={RAIL_PANEL_CLASS}>
+              <div className="border-b border-surface-muted/35 px-5 py-5">
+                <h2 className="text-sm font-semibold text-ink">Secciones</h2>
+                <p className="mt-1 text-sm text-ink-secondary">
+                  Navega la atención y detecta de inmediato qué sigue abierto.
+                </p>
+              </div>
 
-            <nav className="mt-4 flex flex-col gap-1.5" aria-label="Secciones de la atención">
-              {sections.map((section, index) => {
-                const sectionState = getSectionUiState(section);
-                const sectionStatusMeta = SECTION_STATUS_META[sectionState];
-                const isActive = index === currentSectionIndex;
+              <nav className="flex flex-col gap-2 px-3 py-3" aria-label="Secciones de la atención">
+                {sections.map((section, index) => {
+                  const sectionState = getSectionUiState(section);
+                  const sectionStatusMeta = SECTION_STATUS_META[sectionState];
+                  const isActive = index === currentSectionIndex;
 
-                return (
-                  <button
-                    key={section.id}
-                    type="button"
-                    onClick={() => moveToSection(index)}
-                    className={clsx(
-                      'group grid w-full grid-cols-[32px_minmax(0,1fr)] items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20',
-                      isActive
-                        ? 'border-frame/15 bg-surface-base'
-                        : 'border-transparent hover:border-surface-muted/40 hover:bg-surface-base/45'
-                    )}
-                    aria-current={isActive ? 'step' : undefined}
-                  >
-                    <span
+                  return (
+                    <button
+                      key={section.id}
+                      type="button"
+                      onClick={() => moveToSection(index)}
                       className={clsx(
-                        'mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl border text-xs font-semibold',
+                        'group grid w-full grid-cols-[36px_minmax(0,1fr)] items-start gap-3 rounded-card border px-4 py-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20',
                         isActive
-                          ? 'border-status-yellow/70 bg-status-yellow text-accent-text'
-                          : section.completed
-                          ? 'border-status-green/40 bg-status-green/14 text-status-green-text'
-                          : 'border-surface-muted/55 bg-surface-elevated text-ink-secondary'
+                          ? 'border-frame/15 bg-surface-base shadow-soft'
+                          : 'border-transparent hover:border-surface-muted/40 hover:bg-surface-base/45'
                       )}
+                      aria-current={isActive ? 'step' : undefined}
                     >
-                      {section.completed ? <FiCheck className="h-3.5 w-3.5" /> : index + 1}
-                    </span>
+                      <span
+                        className={clsx(
+                          'mt-0.5 flex size-9 items-center justify-center rounded-input border text-xs font-semibold',
+                          isActive
+                            ? 'border-status-yellow/70 bg-status-yellow text-accent-text'
+                            : section.completed
+                            ? 'border-status-green/40 bg-status-green/14 text-status-green-text'
+                            : 'border-surface-muted/55 bg-surface-elevated text-ink-secondary'
+                        )}
+                      >
+                        {section.completed ? <FiCheck className="h-3.5 w-3.5" /> : index + 1}
+                      </span>
 
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-ink">
-                        {section.label}
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-ink">
+                          {section.label}
+                        </span>
+                        <span className={clsx('mt-1 flex items-center gap-2 text-xs', sectionStatusMeta.badgeClassName)}>
+                          <span className={clsx('h-1.5 w-1.5 rounded-full', sectionStatusMeta.dotClassName)} />
+                          {sectionStatusMeta.label}
+                        </span>
                       </span>
-                      <span className={clsx('mt-1 flex items-center gap-2 text-xs', sectionStatusMeta.badgeClassName)}>
-                        <span className={clsx('h-1.5 w-1.5 rounded-full', sectionStatusMeta.dotClassName)} />
-                        {sectionStatusMeta.label}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
           </div>
         </aside>
 
-        <main className="min-w-0 px-4 py-5 sm:px-6 xl:px-8 xl:py-6">
+        <main className="min-w-0">
           <div className="mx-auto flex max-w-[920px] flex-col gap-5">
             <div className="xl:hidden">
               <label htmlFor="mobile-section-select" className="sr-only">Seleccionar sección</label>
               <select
                 id="mobile-section-select"
+                name="mobile_section_select"
                 value={currentSectionIndex}
                 onChange={(e) => moveToSection(Number(e.target.value))}
                 className="form-input text-sm"
@@ -1335,7 +1343,7 @@ export default function EncounterWizardPage() {
                     onRequestAttachToOrder={handleStartLinkedAttachment}
                   />
                 ) : (
-                  <div className="rounded-xl border border-surface-muted/40 bg-surface-base/55 px-4 py-5 text-sm text-ink-secondary">
+                  <div className="rounded-card border border-surface-muted/40 bg-surface-base/55 px-5 py-5 text-sm text-ink-secondary">
                     No hay una sección activa para mostrar.
                   </div>
                 )}
@@ -1383,8 +1391,8 @@ export default function EncounterWizardPage() {
           </div>
         </main>
 
-        <aside className="hidden xl:block min-h-[calc(100vh-97px)] border-l border-frame/10 bg-surface-elevated/45 px-5 py-6">
-          <div className="sticky top-[97px]">
+        <aside className="hidden xl:block">
+          <div className={clsx('sticky', WORKSPACE_STICKY_OFFSET_CLASS)}>
             {secondaryColumn}
           </div>
         </aside>
@@ -1396,7 +1404,7 @@ export default function EncounterWizardPage() {
             className="absolute inset-0 bg-ink/55 backdrop-blur-[1px]"
             onClick={() => setIsAttachmentsOpen(false)}
           />
-          <div className="relative w-full max-w-3xl overflow-hidden rounded-[20px] border border-frame/10 bg-surface-elevated shadow-dropdown" role="dialog" aria-modal="true" aria-label="Adjuntos de la atención">
+          <div className="relative w-full max-w-3xl overflow-hidden rounded-card border border-frame/10 bg-surface-elevated shadow-dropdown" role="dialog" aria-modal="true" aria-label="Adjuntos de la atención">
             <div className="flex items-start justify-between gap-3 border-b border-surface-muted/35 px-5 py-4">
               <div>
                 <h2 className="text-lg font-semibold text-ink">Adjuntos de la Atención</h2>
@@ -1532,7 +1540,7 @@ export default function EncounterWizardPage() {
                 <p className="mt-4 text-sm text-status-red-text">{uploadError}</p>
               )}
 
-              <div className="mt-5 overflow-hidden rounded-[18px] border border-surface-muted/35">
+              <div className="mt-5 overflow-hidden rounded-card border border-surface-muted/35">
                 {attachmentsQuery.isLoading ? (
                   <div className="p-4 text-sm text-ink-muted">Cargando adjuntos…</div>
                 ) : attachmentsQuery.error ? (
@@ -1579,7 +1587,7 @@ export default function EncounterWizardPage() {
                               type="button"
                               onClick={() => setShowDeleteAttachment(attachment.id)}
                               disabled={deleteMutation.isPending}
-                              className="inline-flex touch-manipulation items-center justify-center gap-2 rounded-xl bg-status-red px-3.5 py-2.5 text-sm font-medium text-white transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-red/35 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-input bg-status-red px-4 py-3 text-sm font-medium text-white transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-red/35 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <FiTrash2 className="h-4 w-4" />
                               Eliminar

@@ -28,6 +28,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fail on tracked local env or SQLite artifacts
+        run: |
+          tracked_sensitive=$(git ls-files \
+            'backend/.env' \
+            'frontend/.env' \
+            'backend/prisma/*.db*' \
+            'backend/prisma/**/*.db*' \
+            'backend/prisma/**/*.bak' \
+            'backend/prisma/backups/**')
+          if [ -n "$tracked_sensitive" ]; then
+            echo "Tracked sensitive/runtime artifacts detected:"
+            echo "$tracked_sensitive"
+            exit 1
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -69,6 +84,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fail on tracked local env or SQLite artifacts
+        run: |
+          tracked_sensitive=$(git ls-files \
+            'backend/.env' \
+            'frontend/.env' \
+            'backend/prisma/*.db*' \
+            'backend/prisma/**/*.db*' \
+            'backend/prisma/**/*.bak' \
+            'backend/prisma/backups/**')
+          if [ -n "$tracked_sensitive" ]; then
+            echo "Tracked sensitive/runtime artifacts detected:"
+            echo "$tracked_sensitive"
+            exit 1
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

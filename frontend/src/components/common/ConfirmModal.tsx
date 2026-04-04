@@ -67,7 +67,7 @@ export default function ConfirmModal({
       <div className="fixed inset-0 z-50 bg-ink-primary/50 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          className="w-full max-w-md bg-surface-elevated rounded-xl shadow-xl border border-surface-muted/30"
+          className="w-full max-w-md rounded-card border border-surface-muted/30 bg-surface-elevated shadow-dropdown"
           role="alertdialog"
           aria-modal="true"
           aria-labelledby="confirm-title"
@@ -75,7 +75,7 @@ export default function ConfirmModal({
         >
           <div className="p-6">
             <div className="flex items-start gap-4">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${styles.icon}`}>
+              <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${styles.icon}`}>
                 <FiAlertTriangle className="w-5 h-5" />
               </div>
               <div className="flex-1">
@@ -88,14 +88,14 @@ export default function ConfirmModal({
               </div>
               <button
                 onClick={onClose}
-                className="p-1 text-ink-muted hover:text-ink-secondary"
+                className="rounded-input p-2 text-ink-muted transition-colors hover:bg-surface-base/65 hover:text-ink-secondary"
                 aria-label="Cerrar"
               >
                 <FiX className="w-5 h-5" />
               </button>
             </div>
           </div>
-          <div className="flex items-center justify-end gap-3 px-6 py-4 bg-surface-base/40 rounded-b-xl border-t border-surface-muted/30">
+          <div className="flex items-center justify-end gap-3 rounded-b-card border-t border-surface-muted/30 bg-surface-base/40 px-6 py-4">
             <button onClick={onClose} className="btn btn-secondary" disabled={loading}>
               {cancelLabel}
             </button>
@@ -108,7 +108,7 @@ export default function ConfirmModal({
               {loading ? (
                 <span className="flex items-center gap-2">
                   <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                  Procesando...
+                  Procesando…
                 </span>
               ) : (
                 confirmLabel

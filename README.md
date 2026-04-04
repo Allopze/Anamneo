@@ -102,11 +102,15 @@ Cuando se mantiene SQLite en produccion, aplicar esta base operativa:
    npm run db:backup
    ```
 
+   El backup ahora incluye la base SQLite y un snapshot del directorio de adjuntos `uploads`.
+
 3. Ejecutar simulacro de restore (sin tocar la DB activa):
 
    ```bash
    npm run db:restore:drill
    ```
+
+   El restore drill valida integridad de la DB y presencia de adjuntos restaurados.
 
 4. Verificar monitoreo operativo (falla con codigo != 0 en modo estricto):
 
@@ -116,7 +120,7 @@ Cuando se mantiene SQLite en produccion, aplicar esta base operativa:
 
 5. Endpoints operativos de salud:
    - `GET /api/health` valida conectividad DB para readiness.
-   - `GET /api/health/sqlite` expone estado WAL/backup y warnings operativos.
+   - `GET /api/health/sqlite` expone estado WAL/backup y warnings operativos, pero requiere sesion autenticada de administrador.
 
 6. Ejecutar runner unificado (backup + restore drill por cadencia + monitor estricto + alerta webhook opcional):
 
@@ -148,7 +152,7 @@ El comando `npm run dev` en la raíz levanta backend y frontend con un superviso
 
 ```bash
 npm --prefix backend install
-cp .env.example .env
+# Usar el .env raiz del repo (cp .env.example .env)
 # Editar .env con tus secretos JWT y CORS reales
 # DATABASE_URL debe usar formato file:... (SQLite)
 npm --prefix backend run prisma:generate

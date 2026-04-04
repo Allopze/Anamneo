@@ -131,6 +131,33 @@ export class EncountersService {
     return trimmed.slice(0, maxLength);
   }
 
+  private summarizeSectionAuditData(sectionKey: SectionKey, data: unknown, completed?: boolean) {
+    const topLevelKeys = typeof data === 'object' && data !== null && !Array.isArray(data)
+      ? Object.keys(data as Record<string, unknown>)
+      : [];
+
+    return {
+      sectionKey,
+      schemaVersion: getEncounterSectionSchemaVersion(sectionKey),
+      completed,
+      topLevelKeys,
+      fieldCount: topLevelKeys.length,
+      redacted: true,
+    };
+  }
+
+  private summarizeWorkflowNoteAudit(note: string | null | undefined) {
+    if (!note) {
+      return null;
+    }
+
+    return {
+      redacted: true,
+      provided: true,
+      length: note.length,
+    };
+  }
+
   private sanitizeRequiredWorkflowNote(value: unknown, label: string, minLength: number, maxLength: number) {
     const sanitized = this.sanitizeText(value, maxLength);
     if (!sanitized || sanitized.length < minLength) {
@@ -1142,12 +1169,7 @@ export class EncountersService {
       entityId: section.id,
       userId: user.id,
       action: 'UPDATE',
-      diff: {
-        sectionKey,
-        schemaVersion: getEncounterSectionSchemaVersion(sectionKey),
-        data: JSON.stringify(sanitizedData),
-        completed: dto.completed,
-      },
+      diff: this.summarizeSectionAuditData(sectionKey, sanitizedData, dto.completed),
     });
 
     return updatedSection;
@@ -1233,7 +1255,10 @@ export class EncountersService {
       entityId: id,
       userId,
       action: 'UPDATE',
-      diff: { status: 'COMPLETADO', closureNote: sanitizedClosureNote },
+      diff: {
+        status: 'COMPLETADO',
+        closureNote: this.summarizeWorkflowNoteAudit(sanitizedClosureNote),
+      },
     });
 
     return this.formatEncounter(updated);
@@ -1288,7 +1313,11 @@ export class EncountersService {
       entityId: id,
       userId,
       action: 'UPDATE',
-      diff: { status: 'EN_PROGRESO', reopenedBy: userId, note: sanitizedNote },
+      diff: {
+        status: 'EN_PROGRESO',
+        reopenedBy: userId,
+        note: this.summarizeWorkflowNoteAudit(sanitizedNote),
+      },
     });
 
     return this.formatEncounter(updated);
@@ -1401,7 +1430,7 @@ export class EncountersService {
       action: 'UPDATE',
       diff: {
         reviewStatus,
-        note: sanitizedNote,
+        note: this.summarizeWorkflowNoteAudit(sanitizedNote),
       },
     });
 

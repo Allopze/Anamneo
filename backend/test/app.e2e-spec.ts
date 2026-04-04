@@ -18,7 +18,10 @@ import { AuditModule } from '../src/audit/audit.module';
 import { SettingsModule } from '../src/settings/settings.module';
 import { HealthController } from '../src/health.controller';
 import { requestTracingMiddleware } from '../src/common/utils/request-tracing';
-import { getEncounterSectionSchemaVersion } from '../src/common/utils/encounter-section-meta';
+import {
+  ENCOUNTER_SECTION_ORDER,
+  getEncounterSectionSchemaVersion,
+} from '../src/common/utils/encounter-section-meta';
 
 // ── Test database setup ─────────────────────────────────────────────
 const TEST_DB_FILENAME = `test-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`;
@@ -68,6 +71,7 @@ describe('Application E2E Tests', () => {
   // Cookie jars for different users
   let adminCookies: string[] = [];
   let medicoCookies: string[] = [];
+  let assistantCookies: string[] = [];
   let medicoInvitationToken: string;
   let revokedInvitationId: string;
   let revokedInvitationToken: string;
@@ -207,12 +211,8 @@ describe('Application E2E Tests', () => {
       expect(res.body.status).toBe('ok');
     });
 
-    it('GET /api/health/sqlite → 200 with operational payload', async () => {
-      const res = await req().get('/api/health/sqlite').expect(200);
-      expect(['ok', 'degraded']).toContain(res.body.status);
-      expect(res.body.database?.status).toBe('ok');
-      expect(res.body.sqlite).toBeDefined();
-      expect(typeof res.body.sqlite.enabled).toBe('boolean');
+    it('GET /api/health/sqlite → 401 when unauthenticated', async () => {
+      await req().get('/api/health/sqlite').expect(401);
     });
   });
 
@@ -253,6 +253,18 @@ describe('Application E2E Tests', () => {
 
       expect(res.body.email).toBe('admin@test.com');
       expect(res.body.isAdmin).toBe(true);
+    });
+
+    it('GET /api/health/sqlite → 200 for admin with operational payload', async () => {
+      const res = await req()
+        .get('/api/health/sqlite')
+        .set('Cookie', cookieHeader(adminCookies))
+        .expect(200);
+
+      expect(['ok', 'degraded']).toContain(res.body.status);
+      expect(res.body.database?.status).toBe('ok');
+      expect(res.body.sqlite).toBeDefined();
+      expect(typeof res.body.sqlite.enabled).toBe('boolean');
     });
   });
 
@@ -363,6 +375,45 @@ describe('Application E2E Tests', () => {
       expect(res.body.email).toBe('medico@test.com');
       expect(res.body.role).toBe('MEDICO');
       medicoUserId = res.body.id;
+    });
+  });
+
+  describe('Auth - Register Assistant', () => {
+    it('POST /api/users → admin can create assigned assistant', async () => {
+      const res = await req()
+        .post('/api/users')
+        .set('Cookie', cookieHeader(adminCookies))
+        .send({
+          email: 'assistant@test.com',
+          password: 'Assist123',
+          nombre: 'Asistente Test',
+          role: 'ASISTENTE',
+          medicoId: medicoUserId,
+        })
+        .expect(201);
+
+      expect(res.body.email).toBe('assistant@test.com');
+      expect(res.body.medicoId).toBe(medicoUserId);
+    });
+
+    it('POST /api/auth/login → assistant can login', async () => {
+      const res = await req()
+        .post('/api/auth/login')
+        .send({ email: 'assistant@test.com', password: 'Assist123' })
+        .expect(200);
+
+      assistantCookies = extractCookies(res);
+      expect(assistantCookies.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('GET /api/auth/me → returns assigned assistant user', async () => {
+      const res = await req()
+        .get('/api/auth/me')
+        .set('Cookie', cookieHeader(assistantCookies))
+        .expect(200);
+
+      expect(res.body.role).toBe('ASISTENTE');
+      expect(res.body.medicoId).toBe(medicoUserId);
     });
   });
 
@@ -582,6 +633,50 @@ describe('Application E2E Tests', () => {
       });
       expect(JSON.parse(res.body.medicamentos)).toEqual({
         texto: 'Losartán 50 mg cada 12 horas',
+      });
+    });
+
+    it('PUT /api/patients/:id/history → assigned assistant can edit patient master history', async () => {
+      const res = await req()
+        .put(`/api/patients/${patientId}/history`)
+        .set('Cookie', cookieHeader(assistantCookies))
+        .send({
+          antecedentesFamiliares: {
+            texto: 'Diabetes mellitus en madre',
+          },
+        })
+        .expect(200);
+
+      expect(JSON.parse(res.body.antecedentesFamiliares)).toEqual({
+        texto: 'Diabetes mellitus en madre',
+      });
+    });
+
+    it('PUT /api/patients/:id/admin → assigned assistant can edit patient admin fields', async () => {
+      const res = await req()
+        .put(`/api/patients/${patientId}/admin`)
+        .set('Cookie', cookieHeader(assistantCookies))
+        .send({
+          trabajo: 'Ingeniero clínico',
+        })
+        .expect(200);
+
+      expect(res.body.trabajo).toBe('Ingeniero clínico');
+    });
+
+    it('PUT /api/patients/:id/history → admin can edit patient master history', async () => {
+      const res = await req()
+        .put(`/api/patients/${patientId}/history`)
+        .set('Cookie', cookieHeader(adminCookies))
+        .send({
+          antecedentesPersonales: {
+            texto: 'Observación administrativa validada por admin',
+          },
+        })
+        .expect(200);
+
+      expect(JSON.parse(res.body.antecedentesPersonales)).toEqual({
+        texto: 'Observación administrativa validada por admin',
       });
     });
 
@@ -1833,6 +1928,26 @@ describe('Application E2E Tests', () => {
         .expect(404);
     });
 
+    it('First medico cannot update second medico patient history or admin fields', async () => {
+      await req()
+        .put(`/api/patients/${medico2PatientId}/history`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          antecedentesMedicos: {
+            texto: 'Intento fuera de alcance',
+          },
+        })
+        .expect(404);
+
+      await req()
+        .put(`/api/patients/${medico2PatientId}/admin`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          domicilio: 'No debería persistirse',
+        })
+        .expect(404);
+    });
+
     it('Admin can see all patients', async () => {
       const res = await req()
         .get('/api/patients')
@@ -1842,6 +1957,110 @@ describe('Application E2E Tests', () => {
       const ids = res.body.data.map((p: any) => p.id);
       expect(ids).toContain(patientId);
       expect(ids).toContain(medico2PatientId);
+    });
+  });
+
+  describe('Patient Timeline Volume', () => {
+    it('GET /api/patients/:id/encounters → keeps pagination metadata and payload bounded with many encounters', async () => {
+      const patientRes = await req()
+        .post('/api/patients')
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          nombre: 'Paciente Volumen',
+          edad: 52,
+          sexo: 'MASCULINO',
+          prevision: 'FONASA',
+        })
+        .expect(201);
+
+      const volumePatientId = patientRes.body.id;
+      const baseDate = new Date('2026-04-01T08:00:00.000Z');
+
+      for (let index = 0; index < 14; index += 1) {
+        const encounterDate = new Date(baseDate.getTime() + index * 24 * 60 * 60 * 1000);
+
+        await prisma.encounter.create({
+          data: {
+            patientId: volumePatientId,
+            medicoId: medicoUserId,
+            createdById: medicoUserId,
+            status: 'COMPLETADO',
+            reviewStatus: 'REVISADA_POR_MEDICO',
+            createdAt: encounterDate,
+            updatedAt: encounterDate,
+            completedAt: encounterDate,
+            sections: {
+              create: ENCOUNTER_SECTION_ORDER.map((sectionKey, sectionIndex) => ({
+                sectionKey,
+                data: JSON.stringify(
+                  sectionKey === 'MOTIVO_CONSULTA'
+                    ? { texto: `Control ${index + 1}` }
+                    : sectionKey === 'OBSERVACIONES'
+                      ? {
+                          observaciones: `Nota ${index + 1}`,
+                          resumenClinico: `Resumen ${index + 1}`,
+                        }
+                      : sectionKey === 'EXAMEN_FISICO'
+                        ? {
+                            signosVitales: {
+                              peso: String(70 + index),
+                              temperatura: '36.5',
+                            },
+                          }
+                        : {},
+                ),
+                schemaVersion: getEncounterSectionSchemaVersion(sectionKey),
+                completed: sectionIndex < 8,
+                updatedAt: encounterDate,
+              })),
+            },
+          },
+        });
+      }
+
+      const res = await req()
+        .get(`/api/patients/${volumePatientId}/encounters?page=2&limit=5`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      const payloadSummary = {
+        page: res.body.pagination?.page,
+        limit: res.body.pagination?.limit,
+        total: res.body.pagination?.total,
+        totalPages: res.body.pagination?.totalPages,
+        itemCount: res.body.data.length,
+        firstItemSectionKeys: res.body.data[0]?.sections?.map((section: any) => section.sectionKey),
+        firstItemProgress: res.body.data[0]?.progress,
+        payloadBytes: Buffer.byteLength(JSON.stringify(res.body)),
+      };
+
+      expect(payloadSummary).toMatchInlineSnapshot(`
+        {
+          "firstItemProgress": {
+            "completed": 8,
+            "total": 10,
+          },
+          "firstItemSectionKeys": [
+            "IDENTIFICACION",
+            "MOTIVO_CONSULTA",
+            "ANAMNESIS_PROXIMA",
+            "ANAMNESIS_REMOTA",
+            "REVISION_SISTEMAS",
+            "EXAMEN_FISICO",
+            "SOSPECHA_DIAGNOSTICA",
+            "TRATAMIENTO",
+            "RESPUESTA_TRATAMIENTO",
+            "OBSERVACIONES",
+          ],
+          "itemCount": 5,
+          "limit": 5,
+          "page": 2,
+          "payloadBytes": 16595,
+          "total": 14,
+          "totalPages": 3,
+        }
+      `);
+      expect(payloadSummary.payloadBytes).toBeLessThan(20000);
     });
   });
 });

@@ -28,6 +28,8 @@ services:
       JWT_REFRESH_EXPIRES_IN: 7d
       PORT: 4444
       CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN is required}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      UPLOAD_DEST: ${UPLOAD_DEST:-/app/uploads}
       SENTRY_DSN: ${SENTRY_DSN:-}
     ports:
       - "4444:4444"
@@ -79,8 +81,10 @@ services:
       SQLITE_BACKUP_DIR: /app/data/backups
       SQLITE_BACKUP_RETENTION_DAYS: ${SQLITE_BACKUP_RETENTION_DAYS:-14}
       BACKUP_CRON_SCHEDULE: ${BACKUP_CRON_SCHEDULE:-0 */6 * * *}
+      UPLOAD_DEST: ${UPLOAD_DEST:-/app/uploads}
     volumes:
       - db_data:/app/data
+      - uploads_data:/app/uploads
     entrypoint: ["sh", "-c"]
     command:
       - |

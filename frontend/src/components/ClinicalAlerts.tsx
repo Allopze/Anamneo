@@ -89,8 +89,8 @@ export default function ClinicalAlerts({ patientId }: ClinicalAlertsProps) {
 
   return (
     <div className="animate-fade-in">
-      <div className="overflow-hidden rounded-xl border border-frame/10 bg-surface-elevated shadow-soft">
-        <div className="border-b border-surface-muted/35 px-4 py-3 sm:px-5">
+      <div className="overflow-hidden rounded-card border border-frame/10 bg-surface-elevated shadow-soft">
+        <div className="border-b border-surface-muted/35 px-5 py-4 sm:px-6">
           <h2 className="text-sm font-semibold text-ink">Alertas Clínicas</h2>
           <p className="mt-1 text-sm text-ink-secondary">
             Datos de la ficha longitudinal que conviene tener visibles mientras editas.
@@ -101,7 +101,7 @@ export default function ClinicalAlerts({ patientId }: ClinicalAlertsProps) {
           {alerts.map((alert, index) => (
             <div
               key={`${alert.label}-${index}`}
-              className="flex items-start gap-3 px-4 py-3 sm:px-5"
+              className="flex items-start gap-3 px-5 py-4 sm:px-6"
             >
               <div
                 className={`mt-0.5 shrink-0 ${

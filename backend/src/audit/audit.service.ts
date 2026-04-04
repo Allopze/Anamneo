@@ -17,6 +17,51 @@ interface LogInput {
 }
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+const CLINICAL_ENTITY_TYPES = new Set([
+  'Patient',
+  'PatientHistory',
+  'Encounter',
+  'EncounterSection',
+  'PatientProblem',
+  'EncounterTask',
+]);
+const SAFE_CLINICAL_STRING_KEYS = new Set([
+  'id',
+  'patientId',
+  'encounterId',
+  'createdById',
+  'archivedById',
+  'reviewRequestedById',
+  'reviewedById',
+  'completedById',
+  'uploadedById',
+  'linkedOrderId',
+  'linkedOrderType',
+  'linkedOrderLabel',
+  'status',
+  'reviewStatus',
+  'sectionKey',
+  'scope',
+  'format',
+  'mime',
+  'category',
+  'type',
+  'priority',
+  'result',
+  'reason',
+  'createdAt',
+  'updatedAt',
+  'archivedAt',
+  'restoredAt',
+  'previousArchivedAt',
+  'reviewRequestedAt',
+  'reviewedAt',
+  'completedAt',
+  'dueDate',
+  'onsetDate',
+ ]);
+const SENSITIVE_FIELDS = ['passwordHash', 'password', 'refreshToken', 'accessToken'];
 
 @Injectable()
 export class AuditService {
@@ -25,6 +70,13 @@ export class AuditService {
   async log(input: LogInput) {
     // Remove sensitive data from diff
     const sanitizedDiff = this.sanitizeDiff(input.entityType, input.diff);
+    const reason = input.reason ?? inferAuditReason(input.entityType, input.action, input.diff);
+
+    if (reason === 'AUDIT_UNSPECIFIED') {
+      throw new Error(
+        `Audit event ${input.entityType}/${input.action} must define an explicit catalog reason`,
+      );
+    }
 
     return this.prisma.auditLog.create({
       data: {
@@ -33,7 +85,7 @@ export class AuditService {
         userId: input.userId,
         requestId: input.requestId ?? getRequestId() ?? null,
         action: input.action as AuditAction,
-        reason: input.reason ?? inferAuditReason(input.entityType, input.action, input.diff),
+        reason,
         result: input.result ?? inferAuditResult(input.action),
         diff: sanitizedDiff ? JSON.stringify(sanitizedDiff) : null,
       } as Prisma.AuditLogUncheckedCreateInput,
@@ -128,18 +180,16 @@ export class AuditService {
     if (!diff) return null;
 
     const sanitized = JSON.parse(JSON.stringify(diff));
-    const shouldMinimizeClinicalPayload = ['Patient', 'PatientHistory', 'EncounterSection'].includes(entityType);
+    const shouldMinimizeClinicalPayload = CLINICAL_ENTITY_TYPES.has(entityType);
 
     if (shouldMinimizeClinicalPayload) {
       return this.minimizeClinicalDiff(entityType, sanitized);
     }
 
-    const sensitiveFields = ['passwordHash', 'password', 'refreshToken', 'accessToken'];
-
     const removeSensitive = (obj: any) => {
       if (typeof obj !== 'object' || obj === null) return;
 
-      for (const key of sensitiveFields) {
+      for (const key of SENSITIVE_FIELDS) {
         if (key in obj) {
           obj[key] = '[REDACTED]';
         }
@@ -166,36 +216,83 @@ export class AuditService {
   }
 
   private minimizeClinicalDiff(entityType: string, diff: any) {
-    const summarizeRecord = (value: any) => {
-      if (typeof value !== 'object' || value === null) {
-        return value ?? null;
-      }
-
-      const summary: Record<string, unknown> = {
+    if (typeof diff !== 'object' || diff === null) {
+      return {
         redacted: true,
         entityType,
+        valueType: typeof diff,
       };
+    }
 
-      for (const key of ['id', 'patientId', 'encounterId', 'sectionKey', 'createdAt', 'updatedAt']) {
-        if (key in value) {
-          summary[key] = value[key];
-        }
+    const summarized = this.summarizeClinicalValue(diff, undefined);
+    if (typeof summarized !== 'object' || summarized === null || Array.isArray(summarized)) {
+      return {
+        redacted: true,
+        entityType,
+        summary: summarized,
+      };
+    }
+
+    return {
+      entityType,
+      ...summarized,
+    };
+  }
+
+  private summarizeClinicalValue(value: unknown, key?: string): unknown {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    if (typeof value === 'string') {
+      if (key && this.shouldKeepClinicalStringValue(key, value)) {
+        return value;
       }
 
-      summary.fieldCount = Object.keys(value).length;
-      return summary;
+      return {
+        redacted: true,
+        length: value.length,
+      };
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return value;
+    }
+
+    if (Array.isArray(value)) {
+      return {
+        redacted: true,
+        itemCount: value.length,
+      };
+    }
+
+    if (typeof value !== 'object') {
+      return {
+        redacted: true,
+        valueType: typeof value,
+      };
+    }
+
+    const summary: Record<string, unknown> = {
+      redacted: true,
+      fieldCount: Object.keys(value).length,
     };
 
-    if (typeof diff !== 'object' || diff === null) {
-      return { redacted: true, entityType };
+    for (const [childKey, childValue] of Object.entries(value)) {
+      if (SENSITIVE_FIELDS.includes(childKey)) {
+        summary[childKey] = '[REDACTED]';
+        continue;
+      }
+
+      summary[childKey] = this.summarizeClinicalValue(childValue, childKey);
     }
 
-    const summarized: Record<string, unknown> = { redacted: true, entityType };
+    return summary;
+  }
 
-    for (const [key, value] of Object.entries(diff)) {
-      summarized[key] = summarizeRecord(value);
-    }
-
-    return summarized;
+  private shouldKeepClinicalStringValue(key: string, value: string) {
+    return SAFE_CLINICAL_STRING_KEYS.has(key)
+      || DATE_ONLY_PATTERN.test(value)
+      || ISO_DATE_TIME_PATTERN.test(value);
   }
 }

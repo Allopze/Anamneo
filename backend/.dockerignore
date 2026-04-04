@@ -1,7 +1,12 @@
 node_modules
 dist
 .env
+.env.*
 *.log
 uploads
 coverage
 .git
+prisma/*.db
+prisma/*.db.*
+prisma/**/*.bak
+prisma/backups/

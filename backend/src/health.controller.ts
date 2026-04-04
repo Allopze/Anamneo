@@ -1,6 +1,8 @@
-import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
+import { Controller, Get, ServiceUnavailableException, UseGuards } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from './common/decorators/public.decorator';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { AdminGuard } from './common/guards/admin.guard';
 import { PrismaService } from './prisma/prisma.service';
 
 @Controller('health')
@@ -24,8 +26,8 @@ export class HealthController {
   }
 
   @Get('sqlite')
-  @Public()
   @SkipThrottle()
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async sqlite() {
     const database = await this.prismaService.getDatabaseHealth();
     if (database.status !== 'ok') {

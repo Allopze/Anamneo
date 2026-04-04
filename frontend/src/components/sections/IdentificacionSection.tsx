@@ -48,16 +48,16 @@ export default function IdentificacionSection({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5">
       <SectionIntro description="Confirma los datos administrativos y demográficos antes de continuar con la atención." />
 
-      <div className="rounded-2xl border border-surface-muted/30 bg-surface-base/40 p-4">
+      <div className="rounded-card border border-surface-muted/30 bg-surface-base/40 p-5">
         <p className="text-sm font-medium text-ink-primary">Snapshot administrativo de la atención</p>
         <p className="mt-2 text-sm text-ink-secondary">
           Esta sección representa la identificación usada dentro de esta atención. No se edita aquí: si necesitas corregir el dato maestro, hazlo en la ficha del paciente y luego restaura este snapshot.
         </p>
         {snapshotStatus?.hasDifferences && (
-          <div className="mt-3 rounded-2xl border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
+          <div className="mt-4 rounded-card border border-status-yellow/70 bg-status-yellow/40 p-4 text-sm text-accent-text">
             <div className="flex items-start gap-2">
               <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
@@ -82,7 +82,7 @@ export default function IdentificacionSection({
       </div>
 
       <SectionBlock title="Datos personales" description="Identificación base del paciente en esta atención.">
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="form-label">Nombre completo</label>
@@ -135,7 +135,7 @@ export default function IdentificacionSection({
                 disabled={readOnly}
                 className="form-input"
               >
-                <option value="" disabled>Seleccionar...</option>
+                <option value="" disabled>Seleccionar…</option>
                 {Object.entries(SEXO_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
@@ -149,7 +149,7 @@ export default function IdentificacionSection({
                 disabled={readOnly}
                 className="form-input"
               >
-                <option value="" disabled>Seleccionar...</option>
+                <option value="" disabled>Seleccionar…</option>
                 {Object.entries(PREVISION_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}

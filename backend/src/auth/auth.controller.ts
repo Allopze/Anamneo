@@ -61,14 +61,9 @@ export class AuthController {
   }
 
   private getSessionContext(req: Request) {
-    const forwardedFor = req.headers['x-forwarded-for'];
-    const forwardedIp = Array.isArray(forwardedFor)
-      ? forwardedFor[0]
-      : (forwardedFor?.split(',')[0]?.trim() ?? null);
-
     return {
       userAgent: req.get('user-agent') ?? null,
-      ipAddress: forwardedIp || req.ip || null,
+      ipAddress: req.ip ?? null,
     };
   }
 

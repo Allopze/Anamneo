@@ -1,25 +1,59 @@
 'use client';
 
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
+import clsx from 'clsx';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import {
+  FiCalendar,
+  FiChevronDown,
+  FiChevronRight,
+  FiFileText,
+  FiFilter,
+  FiList,
+  FiPlus,
+  FiSearch,
+  FiUser,
+} from 'react-icons/fi';
 import { api } from '@/lib/api';
 import { Encounter, REVIEW_STATUS_LABELS, STATUS_LABELS } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
-import { FiFileText, FiCalendar, FiUser, FiChevronRight, FiChevronLeft, FiPlus } from 'react-icons/fi';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import clsx from 'clsx';
-import { Suspense, useState } from 'react';
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'Todos los estados' },
+  { value: 'EN_PROGRESO', label: STATUS_LABELS.EN_PROGRESO },
+  { value: 'COMPLETADO', label: STATUS_LABELS.COMPLETADO },
+  { value: 'CANCELADO', label: STATUS_LABELS.CANCELADO },
+];
+
+const REVIEW_OPTIONS = [
+  { value: '', label: 'Todas las revisiones' },
+  { value: 'NO_REQUIERE_REVISION', label: REVIEW_STATUS_LABELS.NO_REQUIERE_REVISION },
+  { value: 'LISTA_PARA_REVISION', label: REVIEW_STATUS_LABELS.LISTA_PARA_REVISION },
+  { value: 'REVISADA_POR_MEDICO', label: REVIEW_STATUS_LABELS.REVISADA_POR_MEDICO },
+];
+
+const PAGE_SIZE = 15;
 
 export default function AtencionesListPage() {
   return (
-    <Suspense fallback={
-      <div className="animate-fade-in">
-        <div className="h-8 skeleton rounded w-48 mb-6" />
-        <div className="card"><div className="space-y-4">{[...Array(5)].map((_, i) => (<div key={i} className="h-16 skeleton rounded-card" />))}</div></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="animate-fade-in">
+          <div className="mb-6 h-8 w-48 rounded skeleton" />
+          <div className="card">
+            <div className="space-y-4">
+              {[...Array(5)].map((_, index) => (
+                <div key={index} className="h-16 rounded-lg skeleton" />
+              ))}
+            </div>
+          </div>
+        </div>
+      }
+    >
       <AtencionesListContent />
     </Suspense>
   );
@@ -28,268 +62,363 @@ export default function AtencionesListPage() {
 function AtencionesListContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
-  const [reviewFilter, setReviewFilter] = useState(searchParams.get('reviewStatus') || '');
   const { canCreateEncounter, canCreatePatient } = useAuthStore();
   const canCreate = canCreateEncounter();
   const canCreatePatientAllowed = canCreatePatient();
+  const search = searchParams.get('search') || '';
+  const [searchInput, setSearchInput] = useState(search);
+  const page = Number(searchParams.get('page') || '1');
+  const filters = {
+    status: searchParams.get('status') || '',
+    reviewStatus: searchParams.get('reviewStatus') || '',
+  };
+  const [showFilters, setShowFilters] = useState(Boolean(filters.status || filters.reviewStatus));
+  const hasSearch = Boolean(search);
+  const hasAdvancedFilters = Boolean(filters.status || filters.reviewStatus);
+  const hasActiveCriteria = hasSearch || hasAdvancedFilters;
+
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
+
+  useEffect(() => {
+    if (hasAdvancedFilters) {
+      setShowFilters(true);
+    }
+  }, [hasAdvancedFilters]);
+
+  const buildUrl = (overrides: Record<string, string>) => {
+    const next = new URLSearchParams();
+    const merged = { search, status: filters.status, reviewStatus: filters.reviewStatus, page: String(page), ...overrides };
+
+    Object.entries(merged).forEach(([key, value]) => {
+      if (!value) {
+        return;
+      }
+
+      if (key === 'page' && value === '1') {
+        return;
+      }
+
+      next.set(key, value);
+    });
+
+    const queryString = next.toString();
+    return `/atenciones${queryString ? `?${queryString}` : ''}`;
+  };
+
+  const setPage = (nextPage: number | ((previousPage: number) => number)) => {
+    const resolvedPage = typeof nextPage === 'function' ? nextPage(page) : nextPage;
+    router.push(buildUrl({ page: String(resolvedPage) }));
+  };
+
+  const setFilter = (key: 'status' | 'reviewStatus', value: string) => {
+    router.push(buildUrl({ [key]: value, page: '1' }));
+  };
+
+  const clearFilters = () => {
+    router.push(buildUrl({ status: '', reviewStatus: '', page: '1' }));
+  };
+
+  const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    router.push(buildUrl({ search: searchInput.trim(), page: '1' }));
+  };
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['encounters', page, statusFilter, reviewFilter],
+    queryKey: ['encounters', search, page, filters],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set('page', page.toString());
-      params.set('limit', '15');
-      if (statusFilter) params.set('status', statusFilter);
-      if (reviewFilter) params.set('reviewStatus', reviewFilter);
+      params.set('limit', PAGE_SIZE.toString());
+      if (search) params.set('search', search);
+      if (filters.status) params.set('status', filters.status);
+      if (filters.reviewStatus) params.set('reviewStatus', filters.reviewStatus);
       const response = await api.get(`/encounters?${params}`);
       return response.data;
     },
   });
 
-  const hasData = data?.data?.length > 0;
-  const hasActiveFilters = Boolean(statusFilter || reviewFilter);
-  const showEmptyCreateEncounterCta = canCreate && !isLoading && !error && !hasData;
+  const hasEncounters = data?.data?.length > 0;
+  const showEmptyCreateEncounterCta = canCreate && !isLoading && !error && !hasEncounters && !hasActiveCriteria;
   const showHeaderNewEncounter = canCreate && !showEmptyCreateEncounterCta;
   const showHeaderActions = showHeaderNewEncounter || canCreatePatientAllowed;
-
-  const clearFilters = () => {
-    setStatusFilter('');
-    setReviewFilter('');
-    setPage(1);
-    router.replace('/atenciones');
-  };
 
   return (
     <div className="animate-fade-in">
       <div className="page-header">
         <div>
           <h1 className="page-header-title">Atenciones</h1>
-          <p className="page-header-description">Historial clínico de consultas y controles registrados.</p>
+          <p className="page-header-description">
+            Revisa el historial clínico activo con el mismo patrón de navegación que usas en pacientes.
+          </p>
         </div>
-        {showHeaderActions && (
+
+        {showHeaderActions ? (
           <div className="flex flex-wrap items-center gap-2">
-            {showHeaderNewEncounter && (
+            {showHeaderNewEncounter ? (
               <Link href="/atenciones/nueva" className="btn btn-primary flex items-center gap-2">
-                <FiPlus className="w-4 h-4" />
+                <FiPlus className="h-4 w-4" aria-hidden="true" />
                 Nueva Atención
               </Link>
-            )}
-            {canCreatePatientAllowed && (
+            ) : null}
+            {canCreatePatientAllowed ? (
               <Link href="/pacientes/nuevo" className="btn btn-secondary flex items-center gap-2">
-                <FiUser className="w-4 h-4" />
+                <FiUser className="h-4 w-4" aria-hidden="true" />
                 Nuevo Paciente
               </Link>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
       </div>
 
-      {(hasData || hasActiveFilters) && (
-        <div className="filter-surface">
-          <div className="space-y-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-                  <span className="text-sm text-ink-secondary">Filtrar por estado:</span>
-                  <div className="flex flex-wrap gap-2">
-                    {['', 'EN_PROGRESO', 'COMPLETADO', 'CANCELADO'].map((status) => (
-                      <button
-                        key={status}
-                        onClick={() => {
-                          setStatusFilter(status);
-                          setPage(1);
-                          const params = new URLSearchParams(searchParams.toString());
-                          if (status) params.set('status', status); else params.delete('status');
-                          router.replace(`/atenciones${params.toString() ? `?${params.toString()}` : ''}`);
-                        }}
-                        className={clsx(
-                          'px-3 py-1.5 rounded-pill text-sm transition-colors',
-                          statusFilter === status
-                            ? 'border border-status-yellow/60 bg-status-yellow/30 text-accent-text'
-                            : 'bg-surface-muted text-ink-secondary hover:bg-surface-muted/50'
-                        )}
-                      >
-                        {status === '' ? 'Todos' : STATUS_LABELS[status]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-                  <span className="text-sm text-ink-secondary">Revisión:</span>
-                  <div className="flex flex-wrap gap-2">
-                    {['', 'LISTA_PARA_REVISION', 'REVISADA_POR_MEDICO'].map((status) => (
-                      <button
-                        key={status}
-                        onClick={() => {
-                          setReviewFilter(status);
-                          setPage(1);
-                          const params = new URLSearchParams(searchParams.toString());
-                          if (status) params.set('reviewStatus', status); else params.delete('reviewStatus');
-                          router.replace(`/atenciones${params.toString() ? `?${params.toString()}` : ''}`);
-                        }}
-                        className={clsx(
-                          'px-3 py-1.5 rounded-pill text-sm transition-colors',
-                          reviewFilter === status
-                            ? 'border border-status-yellow/60 bg-status-yellow/30 text-accent-text'
-                            : 'bg-surface-muted text-ink-secondary hover:bg-surface-muted/50'
-                        )}
-                      >
-                        {status === '' ? 'Todas' : REVIEW_STATUS_LABELS[status]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+      <form onSubmit={handleSearch} className="mb-4">
+        <label htmlFor="encounters-search" className="sr-only">
+          Buscar atenciones por nombre o RUT del paciente
+        </label>
+        <div className="relative">
+          <FiSearch className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
+          <input
+            id="encounters-search"
+            type="search"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="Buscar por nombre o RUT del paciente…"
+            className="form-input w-full pl-11"
+            autoComplete="off"
+          />
+        </div>
+      </form>
+
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={() => setShowFilters((current) => !current)}
+          className="mb-2 flex items-center gap-2 text-body font-medium text-ink-secondary hover:text-ink"
+        >
+          <FiFilter className="h-4 w-4" aria-hidden="true" />
+          Filtros avanzados
+          {hasAdvancedFilters ? (
+            <span className="list-chip bg-surface-base text-ink-secondary">
+              {[filters.status, filters.reviewStatus].filter(Boolean).length} activos
+            </span>
+          ) : null}
+          <FiChevronDown
+            className={clsx('h-3 w-3 transition-transform', showFilters ? 'rotate-180' : '')}
+            aria-hidden="true"
+          />
+        </button>
+
+        {showFilters ? (
+          <div className="filter-surface">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <label htmlFor="encounter-status" className="block text-micro text-ink-muted mb-1">
+                  Estado
+                </label>
+                <select
+                  id="encounter-status"
+                  className="input w-full text-sm"
+                  value={filters.status}
+                  onChange={(event) => setFilter('status', event.target.value)}
+                >
+                  {STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
-              {hasActiveFilters && (
+
+              <div>
+                <label htmlFor="encounter-review-status" className="block text-micro text-ink-muted mb-1">
+                  Revisión
+                </label>
+                <select
+                  id="encounter-review-status"
+                  className="input w-full text-sm"
+                  value={filters.reviewStatus}
+                  onChange={(event) => setFilter('reviewStatus', event.target.value)}
+                >
+                  {REVIEW_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <span className="text-micro text-ink-secondary">
+                {hasAdvancedFilters ? 'Ajusta los filtros para afinar la lista.' : 'Sin filtros avanzados activos.'}
+              </span>
+              {hasAdvancedFilters ? (
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="text-sm font-medium text-accent-text hover:text-ink"
+                  className="text-micro text-ink-secondary transition-colors hover:text-ink hover:underline"
                 >
                   Limpiar filtros
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
-        </div>
-      )}
+        ) : null}
+      </div>
 
-      {error && (
-        <div className="card mb-6 p-4 bg-status-red/10 border border-status-red/30 text-status-red text-sm rounded-card">
-          Error al cargar atenciones. Intente recargar la página.
+      {error ? (
+        <div className="card mb-6 rounded-card border border-status-red/30 bg-status-red/10 p-4 text-body text-status-red-text">
+          Error al cargar atenciones. Intenta recargar la página.
         </div>
-      )}
+      ) : null}
 
-      <div className="card">
+      <div className="card transition-all duration-300">
         {isLoading ? (
           <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4 p-4">
-                <div className="w-10 h-10 skeleton rounded-full" />
+            {[...Array(5)].map((_, index) => (
+              <div key={index} className="flex items-center gap-4 border-b border-surface-muted/20 p-4 last:border-b-0">
+                <div className="h-12 w-12 rounded-icon skeleton" />
                 <div className="flex-1">
-                  <div className="h-4 skeleton rounded w-1/2 mb-2" />
-                  <div className="h-3 skeleton rounded w-1/3" />
+                  <div className="mb-2 h-4 w-1/3 skeleton" />
+                  <div className="h-3 w-1/2 skeleton" />
                 </div>
               </div>
             ))}
           </div>
-        ) : hasData ? (
-          <div className="divide-y divide-surface-muted/30">
-            {data.data.map((encounter: Encounter) => (
-              <Link
-                key={encounter.id}
-                href={`/atenciones/${encounter.id}`}
-                className="group list-row"
-              >
-                <div
-                  className={clsx(
-                    'list-row-icon',
-                    encounter.status === 'COMPLETADO'
-                      ? 'bg-status-green/20 text-status-green'
-                      : encounter.status === 'EN_PROGRESO'
-                      ? 'border border-status-yellow/70 bg-status-yellow/40 text-accent-text'
-                      : 'bg-surface-muted text-ink-secondary'
-                  )}
-                >
-                  <FiFileText className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-ink-primary group-hover:text-accent-text">
-                      {encounter.patient?.nombre || 'Paciente'}
-                    </span>
-                    <span
-                      className={clsx(
-                        'list-chip',
-                        encounter.status === 'COMPLETADO'
-                          ? 'bg-status-green/20 text-status-green'
-                          : encounter.status === 'EN_PROGRESO'
-                          ? 'border border-status-yellow/70 bg-status-yellow/40 text-accent-text'
-                          : 'bg-surface-muted text-ink-secondary'
-                      )}
-                    >
-                      {STATUS_LABELS[encounter.status]}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-ink-muted">
-                    <span className="flex items-center gap-1">
-                      <FiCalendar className="w-3 h-3" />
-                      {format(new Date(encounter.createdAt), "d MMM yyyy, HH:mm", { locale: es })}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <FiUser className="w-3 h-3" />
-                      {encounter.createdBy?.nombre}
-                    </span>
-                    {encounter.reviewStatus && (
-                      <span>{REVIEW_STATUS_LABELS[encounter.reviewStatus]}</span>
+        ) : hasEncounters ? (
+          <>
+            <div className="divide-y divide-surface-muted/30">
+              {data.data.map((encounter: Encounter) => (
+                <Link key={encounter.id} href={`/atenciones/${encounter.id}`} className="group list-row">
+                  <div
+                    className={clsx(
+                      'list-row-icon h-12 w-12',
+                      encounter.status === 'COMPLETADO'
+                        ? 'bg-status-green/20 text-status-green'
+                        : encounter.status === 'EN_PROGRESO'
+                          ? 'border border-status-yellow/70 bg-status-yellow/35 text-accent-text'
+                          : 'bg-surface-base text-ink-secondary'
                     )}
-                    {encounter.progress && (
-                      <span>
-                        {encounter.progress.completed}/{encounter.progress.total} secciones
+                  >
+                    <FiFileText className="h-5 w-5" aria-hidden="true" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <h3 className="truncate font-medium text-ink group-hover:text-ink-secondary">
+                        {encounter.patient?.nombre || 'Paciente sin nombre'}
+                      </h3>
+                      <span className={getStatusChipClassName(encounter.status)}>
+                        {STATUS_LABELS[encounter.status]}
                       </span>
-                    )}
+                      <span className={getReviewChipClassName(encounter.reviewStatus)}>
+                        {REVIEW_STATUS_LABELS[encounter.reviewStatus || 'NO_REQUIERE_REVISION']}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-body text-ink-muted">
+                      {encounter.patient?.rut ? <span>{encounter.patient.rut}</span> : null}
+                      <span className="flex items-center gap-1">
+                        <FiCalendar className="h-3 w-3" aria-hidden="true" />
+                        {format(new Date(encounter.createdAt), "d MMM yyyy, HH:mm", { locale: es })}
+                      </span>
+                      {encounter.createdBy?.nombre ? (
+                        <span className="flex items-center gap-1">
+                          <FiUser className="h-3 w-3" aria-hidden="true" />
+                          {encounter.createdBy.nombre}
+                        </span>
+                      ) : null}
+                      {encounter.progress ? (
+                        <span className="flex items-center gap-1">
+                          <FiList className="h-3 w-3" aria-hidden="true" />
+                          {encounter.progress.completed}/{encounter.progress.total} secciones listas
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
+
+                  <FiChevronRight className="h-5 w-5 text-ink-muted group-hover:text-ink" aria-hidden="true" />
+                </Link>
+              ))}
+            </div>
+
+            {data.pagination && data.pagination.totalPages > 1 ? (
+              <div className="flex items-center justify-between border-t border-surface-muted/30 p-4">
+                <p className="text-body text-ink-secondary">
+                  Mostrando {(page - 1) * PAGE_SIZE + 1} - {Math.min(page * PAGE_SIZE, data.pagination.total)} de{' '}
+                  {data.pagination.total} atenciones
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((previousPage) => Math.max(1, previousPage - 1))}
+                    disabled={page === 1}
+                    className="btn btn-secondary text-sm"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((previousPage) => Math.min(data.pagination.totalPages, previousPage + 1))}
+                    disabled={page === data.pagination.totalPages}
+                    className="btn btn-secondary text-sm"
+                  >
+                    Siguiente
+                  </button>
                 </div>
-                <FiChevronRight className="w-5 h-5 text-ink-muted group-hover:text-accent-text" />
-              </Link>
-            ))}
-          </div>
+              </div>
+            ) : null}
+          </>
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <FiFileText className="w-10 h-10 text-accent-text" />
+              <FiFileText className="h-10 w-10 text-accent-text" aria-hidden="true" />
             </div>
             <h3 className="empty-state-title">
-              {hasActiveFilters ? 'No hay resultados para estos filtros' : 'No hay atenciones'}
+              {hasActiveCriteria ? 'No encontramos atenciones para este criterio' : 'No hay atenciones registradas'}
             </h3>
             <p className="empty-state-description">
-              {hasActiveFilters
-                ? 'Prueba ajustando o limpiando los filtros para volver a ver atenciones.'
-                : 'Aún no hay atenciones registradas. Comienza creando una nueva atención para un paciente.'}
+              {hasActiveCriteria
+                ? 'Prueba limpiando filtros o ajustando la búsqueda para recuperar resultados.'
+                : 'Cuando registres la primera atención, aparecerá aquí junto con su estado clínico y progreso por secciones.'}
             </p>
-            {hasActiveFilters && (
+            {hasAdvancedFilters ? (
               <button type="button" onClick={clearFilters} className="btn btn-secondary mb-3">
                 Limpiar filtros
               </button>
-            )}
-            {showEmptyCreateEncounterCta && (
+            ) : null}
+            {showEmptyCreateEncounterCta ? (
               <Link href="/atenciones/nueva" className="empty-state-cta">
-                <FiPlus className="w-5 h-5 mr-2" />
+                <FiPlus className="mr-2 h-5 w-5" aria-hidden="true" />
                 Registrar primera atención
               </Link>
-            )}
+            ) : null}
           </div>
         )}
       </div>
-
-      {/* Pagination */}
-      {data?.pagination && data.pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-ink-secondary">
-            Página {data.pagination.page} de {data.pagination.totalPages} ({data.pagination.total} atenciones)
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="btn btn-secondary flex items-center gap-1 disabled:opacity-50"
-            >
-              <FiChevronLeft className="w-4 h-4" />
-              Anterior
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(data.pagination.totalPages, p + 1))}
-              disabled={page >= data.pagination.totalPages}
-              className="btn btn-secondary flex items-center gap-1 disabled:opacity-50"
-            >
-              Siguiente
-              <FiChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
     </div>
+  );
+}
+
+function getStatusChipClassName(status: Encounter['status']) {
+  return clsx(
+    'list-chip',
+    status === 'COMPLETADO'
+      ? 'bg-status-green/20 text-status-green'
+      : status === 'EN_PROGRESO'
+        ? 'border border-status-yellow/70 bg-status-yellow/35 text-accent-text'
+        : 'bg-surface-base text-ink-secondary'
+  );
+}
+
+function getReviewChipClassName(reviewStatus?: Encounter['reviewStatus']) {
+  return clsx(
+    'list-chip',
+    reviewStatus === 'REVISADA_POR_MEDICO'
+      ? 'bg-frame text-ink-onDark'
+      : reviewStatus === 'LISTA_PARA_REVISION'
+        ? 'border border-status-yellow/70 bg-status-yellow/30 text-accent-text'
+        : 'bg-surface-base text-ink-secondary'
   );
 }

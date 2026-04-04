@@ -5,6 +5,7 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   AUTH_LOGOUT: 'Cierre de sesión',
   AUTH_LOGIN_REJECTED: 'Credenciales rechazadas',
   PATIENT_CREATED: 'Alta de paciente',
+  PATIENT_HISTORY_CREATED: 'Alta de historial maestro',
   PATIENT_UPDATED: 'Actualización de paciente',
   PATIENT_ADMIN_UPDATED: 'Actualización administrativa de paciente',
   PATIENT_HISTORY_UPDATED: 'Actualización de historial maestro',
@@ -46,6 +47,7 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'Patient' && action === 'UPDATE' && hasDiffScope(diff, 'ADMIN_FIELDS')) return 'PATIENT_ADMIN_UPDATED';
   if (entityType === 'Patient' && action === 'UPDATE' && hasDiffKey(diff, 'adminFields')) return 'PATIENT_ADMIN_UPDATED';
   if (entityType === 'Patient' && action === 'UPDATE') return 'PATIENT_UPDATED';
+  if (entityType === 'PatientHistory' && action === 'CREATE') return 'PATIENT_HISTORY_CREATED';
   if (entityType === 'PatientHistory' && action === 'UPDATE') return 'PATIENT_HISTORY_UPDATED';
   if (entityType === 'PatientProblem' && action === 'CREATE') return 'PATIENT_PROBLEM_CREATED';
   if (entityType === 'PatientProblem' && action === 'UPDATE') return 'PATIENT_PROBLEM_UPDATED';
@@ -66,6 +68,7 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'Attachment' && action === 'DOWNLOAD') return 'ATTACHMENT_DOWNLOADED';
   if (entityType === 'Attachment' && action === 'DELETE') return 'ATTACHMENT_DELETED';
   if (entityType === 'UserInvitation' && action === 'CREATE') return 'USER_INVITATION_CREATED';
+  if (entityType === 'UserInvitation' && action === 'UPDATE') return 'USER_INVITATION_REVOKED';
   if (entityType === 'UserInvitation' && action === 'DELETE') return 'USER_INVITATION_REVOKED';
   if (entityType === 'User' && action === 'UPDATE' && hasDiffKey(diff, 'deactivated')) return 'USER_DEACTIVATED';
   if (entityType === 'User' && action === 'UPDATE' && hasDiffKey(diff, 'profile')) return 'USER_PROFILE_UPDATED';

@@ -35,7 +35,8 @@
     "db:sqlite:restore:drill": "node scripts/sqlite-restore-drill.js",
     "db:sqlite:monitor": "node scripts/sqlite-monitor.js --strict",
     "db:sqlite:ops": "node scripts/sqlite-ops-runner.js --mode=all --notify=on-failure",
-    "db:sqlite:ops:monitor": "node scripts/sqlite-ops-runner.js --mode=monitor --notify=on-failure"
+    "db:sqlite:ops:monitor": "node scripts/sqlite-ops-runner.js --mode=monitor --notify=on-failure",
+    "audit:redact:clinical-logs": "node scripts/audit-redact-clinical-logs.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.17",

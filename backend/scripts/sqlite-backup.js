@@ -8,6 +8,7 @@ const {
   resolveDatabaseUrl,
   resolveSqliteDatabasePath,
   resolveBackupDir,
+  resolveUploadsRoot,
   escapeSqliteString,
   formatTimestamp,
   readPositiveInteger,
@@ -25,6 +26,79 @@ function sha256File(filePath) {
   return hash.digest('hex');
 }
 
+function readBackupMetadata(backupPath) {
+  const metadataPath = `${backupPath}.meta.json`;
+  if (!fs.existsSync(metadataPath)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function collectDirectoryStats(directoryPath) {
+  if (!fs.existsSync(directoryPath)) {
+    return {
+      fileCount: 0,
+      directoryCount: 0,
+      totalSizeBytes: 0,
+    };
+  }
+
+  let fileCount = 0;
+  let directoryCount = 0;
+  let totalSizeBytes = 0;
+
+  const walk = (currentPath) => {
+    for (const entry of fs.readdirSync(currentPath, { withFileTypes: true })) {
+      const entryPath = path.join(currentPath, entry.name);
+      if (entry.isDirectory()) {
+        directoryCount += 1;
+        walk(entryPath);
+        continue;
+      }
+
+      if (!entry.isFile()) {
+        continue;
+      }
+
+      fileCount += 1;
+      totalSizeBytes += fs.statSync(entryPath).size;
+    }
+  };
+
+  walk(directoryPath);
+
+  return {
+    fileCount,
+    directoryCount,
+    totalSizeBytes,
+  };
+}
+
+function createUploadsSnapshot(uploadsRoot, backupDir, timestamp) {
+  const snapshotRelativePath = path.join('uploads', `anamneo-${timestamp}`);
+  const snapshotPath = path.join(backupDir, snapshotRelativePath);
+
+  fs.rmSync(snapshotPath, { recursive: true, force: true });
+  fs.mkdirSync(path.dirname(snapshotPath), { recursive: true });
+
+  if (fs.existsSync(uploadsRoot)) {
+    fs.cpSync(uploadsRoot, snapshotPath, { recursive: true });
+  } else {
+    fs.mkdirSync(snapshotPath, { recursive: true });
+  }
+
+  return {
+    snapshotRelativePath,
+    snapshotPath,
+    ...collectDirectoryStats(snapshotPath),
+  };
+}
+
 function cleanupExpiredBackups(backupDir, retentionDays) {
   const now = Date.now();
   const maxAgeMs = retentionDays * 24 * 60 * 60 * 1000;
@@ -37,6 +111,13 @@ function cleanupExpiredBackups(backupDir, retentionDays) {
     }
 
     fs.rmSync(file.path, { force: true });
+    const metadata = readBackupMetadata(file.path);
+    if (metadata?.uploadsSnapshotRelativePath) {
+      fs.rmSync(path.join(backupDir, metadata.uploadsSnapshotRelativePath), {
+        recursive: true,
+        force: true,
+      });
+    }
     fs.rmSync(`${file.path}.meta.json`, { force: true });
     removed += 1;
   }
@@ -66,6 +147,7 @@ async function main() {
   const resolvedUrl = resolveDatabaseUrl(process.env.DATABASE_URL);
   const dbPath = resolveSqliteDatabasePath(process.env.DATABASE_URL);
   const backupDir = resolveBackupDir(dbPath, process.env.SQLITE_BACKUP_DIR);
+  const uploadsRoot = resolveUploadsRoot(process.env.UPLOAD_DEST);
 
   fs.mkdirSync(backupDir, { recursive: true });
 
@@ -95,6 +177,7 @@ async function main() {
 
     const checksumSha256 = sha256File(backupPath);
     const stat = fs.statSync(backupPath);
+    const uploadsSnapshot = createUploadsSnapshot(uploadsRoot, backupDir, timestamp);
 
     fs.writeFileSync(
       `${backupPath}.meta.json`,
@@ -104,6 +187,11 @@ async function main() {
         backupFile: backupFileName,
         sizeBytes: stat.size,
         checksumSha256,
+        uploadsRoot,
+        uploadsSnapshotRelativePath: uploadsSnapshot.snapshotRelativePath,
+        uploadsFileCount: uploadsSnapshot.fileCount,
+        uploadsDirectoryCount: uploadsSnapshot.directoryCount,
+        uploadsTotalSizeBytes: uploadsSnapshot.totalSizeBytes,
       }, null, 2)}\n`,
       'utf8',
     );
@@ -117,6 +205,10 @@ async function main() {
       backupPath,
       sizeBytes: stat.size,
       checksumSha256,
+      uploadsRoot,
+      uploadsSnapshotPath: uploadsSnapshot.snapshotPath,
+      uploadsFileCount: uploadsSnapshot.fileCount,
+      uploadsTotalSizeBytes: uploadsSnapshot.totalSizeBytes,
       retentionDays,
       removedExpired,
       durationMs,

@@ -1,4 +1,8 @@
+const path = require('path');
+const { loadEnvConfig } = require('@next/env');
 const { withSentryConfig } = require('@sentry/nextjs');
+
+loadEnvConfig(path.join(__dirname, '..'));
 
 /** @type {import('next').NextConfig} */
 const backendApiUrl = (process.env.API_PROXY_TARGET || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4444/api').replace(/\/$/, '');

@@ -3,9 +3,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PatientDetailPage from '@/app/(dashboard)/pacientes/[id]/page';
+import permissionContract from '../../../../shared/permission-contract.json';
 
 const pushMock = jest.fn();
 const apiGetMock = jest.fn();
+let currentUser = permissionContract[0].user as any;
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({ id: 'patient-1' }),
@@ -13,12 +15,15 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/stores/auth-store', () => ({
-  useAuthStore: () => ({
-    isMedico: () => true,
-    canEditAntecedentes: () => true,
-    canEditPatientAdmin: () => true,
-    canCreateEncounter: () => true,
-  }),
+  useAuthStore: () => {
+    const permissions = jest.requireActual('@/lib/permissions');
+    return {
+      isMedico: () => permissions.isMedicoUser(currentUser),
+      canEditAntecedentes: () => permissions.canEditAntecedentes(currentUser),
+      canEditPatientAdmin: () => permissions.canEditPatientAdmin(currentUser),
+      canCreateEncounter: () => permissions.canCreateEncounter(currentUser),
+    };
+  },
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -52,6 +57,7 @@ function createWrapper() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  currentUser = permissionContract.find((scenario) => scenario.id === 'medico')?.user as any;
 
   apiGetMock.mockImplementation((url: string) => {
     if (url === '/patients/patient-1') {
@@ -69,7 +75,7 @@ beforeEach(() => {
           domicilio: null,
           createdAt: '2026-03-31T08:00:00.000Z',
           updatedAt: '2026-03-31T08:00:00.000Z',
-          history: undefined,
+          history: {},
           problems: [],
           tasks: [],
         },
@@ -192,4 +198,26 @@ describe('PatientDetailPage', () => {
 
     expect(await screen.findByText('Página 2 de 2')).toBeInTheDocument();
   });
+
+  it.each(permissionContract)(
+    'shows antecedentes edit action according to permission contract for $id',
+    async ({ user, expectations }) => {
+      currentUser = user as any;
+
+      render(<PatientDetailPage />, { wrapper: createWrapper() });
+
+      expect(await screen.findByText('Antecedentes')).toBeInTheDocument();
+      const editLinks = screen.queryAllByRole('link', { name: 'Editar' });
+      const historyEditLink = editLinks.find(
+        (link) => link.getAttribute('href') === '/pacientes/patient-1/historial',
+      );
+
+      if (expectations.canEditAntecedentes) {
+        expect(historyEditLink).toBeDefined();
+        return;
+      }
+
+      expect(historyEditLink).toBeUndefined();
+    },
+  );
 });

@@ -1,34 +1,6 @@
 import { SectionKey } from '../types';
-import { getEncounterSectionSchemaVersion } from './encounter-section-meta';
+import { getEncounterSectionSchemaDefinition } from './encounter-section-schema';
 import { parseStoredJson } from './encounter-sections';
-
-type EncounterSectionUpgradeMap = Partial<
-  Record<SectionKey, Partial<Record<number, (data: Record<string, unknown>) => Record<string, unknown>>>>
->;
-
-const ENCOUNTER_SECTION_UPGRADERS: EncounterSectionUpgradeMap = {
-  OBSERVACIONES: {
-    1: (data) => ({
-      ...data,
-      resumenClinico:
-        typeof data.resumenClinico === 'string'
-          ? data.resumenClinico
-          : '',
-    }),
-  },
-};
-
-const ENCOUNTER_SECTION_READ_NORMALIZERS: Partial<
-  Record<SectionKey, (data: Record<string, unknown>) => Record<string, unknown>>
-> = {
-  OBSERVACIONES: (data) => ({
-    ...data,
-    resumenClinico:
-      typeof data.resumenClinico === 'string'
-        ? data.resumenClinico
-        : '',
-  }),
-};
 
 export function upgradeEncounterSectionData(params: {
   sectionKey: SectionKey;
@@ -37,7 +9,8 @@ export function upgradeEncounterSectionData(params: {
 }) {
   const { sectionKey } = params;
   const data = parseStoredJson<Record<string, unknown>>(params.data, {});
-  const targetVersion = getEncounterSectionSchemaVersion(sectionKey);
+  const schemaDefinition = getEncounterSectionSchemaDefinition(sectionKey);
+  const targetVersion = schemaDefinition.currentVersion;
   const initialVersion = Math.max(1, params.schemaVersion ?? 1);
 
   if (initialVersion > targetVersion) {
@@ -50,7 +23,7 @@ export function upgradeEncounterSectionData(params: {
   let currentData = data;
 
   while (currentVersion < targetVersion) {
-    const upgrader = ENCOUNTER_SECTION_UPGRADERS[sectionKey]?.[currentVersion];
+    const upgrader = schemaDefinition.upgraders?.[currentVersion];
     if (!upgrader) {
       throw new Error(
         `Missing encounter section upgrader for ${sectionKey} schemaVersion ${currentVersion} -> ${currentVersion + 1}`,
@@ -61,7 +34,7 @@ export function upgradeEncounterSectionData(params: {
     currentVersion += 1;
   }
 
-  const normalizer = ENCOUNTER_SECTION_READ_NORMALIZERS[sectionKey];
+  const normalizer = schemaDefinition.normalizeReadData;
   currentData = normalizer ? normalizer(currentData) : currentData;
 
   return {

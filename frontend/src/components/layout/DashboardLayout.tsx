@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth-store';
@@ -21,23 +21,34 @@ import {
   FiArrowRight,
   FiUser,
 } from 'react-icons/fi';
+import type { IconType } from 'react-icons';
 import clsx from 'clsx';
 import { getNameInitial } from '@/lib/utils';
 import OfflineBanner from '@/components/common/OfflineBanner';
 import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
+import HeaderNavItem from './HeaderNavItem';
+import HeaderKpiBar from './HeaderKpiBar';
+import HeaderContextBar from './HeaderContextBar';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
-const primaryNavigation = [
+interface NavItem {
+  name: string;
+  href: string;
+  icon: IconType;
+  exact?: boolean;
+}
+
+const primaryNavigation: NavItem[] = [
   { name: 'Inicio', href: '/', icon: FiHome, exact: true },
   { name: 'Pacientes', href: '/pacientes', icon: FiUsers },
   { name: 'Atenciones', href: '/atenciones', icon: FiFileText },
   { name: 'Seguimientos', href: '/seguimientos', icon: FiClipboard },
 ];
 
-const secondaryNavigation = [
+const secondaryNavigation: NavItem[] = [
   { name: 'Catálogo', href: '/catalogo', icon: FiList },
   { name: 'Plantillas', href: '/plantillas', icon: FiBookmark },
   { name: 'Ajustes', href: '/ajustes', icon: FiSettings },
@@ -48,13 +59,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const { user, isAuthenticated, hasHydrated, login, logout } = useAuthStore();
   const primaryItems = primaryNavigation;
-  const secondaryItems = [
+  const secondaryItems: NavItem[] = [
     ...secondaryNavigation,
     ...(user?.isAdmin
       ? [
           { name: 'Admin', href: '/admin/usuarios', icon: FiShield },
           { name: 'Auditoría', href: '/admin/auditoria', icon: FiList },
-        ]
+        ] as NavItem[]
       : []),
   ];
 
@@ -69,6 +80,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const [mounted, setMounted] = useState(false);
   const [authCheckComplete, setAuthCheckComplete] = useState(false);
+  const isEncounterWorkspace = /^\/atenciones\/[^/]+$/.test(pathname);
+
+  // Close menus on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setUserMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     setMounted(true);
@@ -127,6 +145,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Close user menu on Escape
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setUserMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [userMenuOpen]);
 
   // Close search when clicking outside
   useEffect(() => {
@@ -210,14 +240,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <OfflineBanner />
 
       {/* ── App Shell ─────────────────────────────────────────────── */}
-      <div className="mx-auto max-w-[1440px] min-h-screen flex flex-col">
+      <div
+        className={clsx(
+          'min-h-screen flex flex-col',
+          isEncounterWorkspace ? 'w-full' : 'mx-auto max-w-[1440px]',
+        )}
+      >
 
-        {/* ── Top Header Bar (dark frame) ──────────────────────────── */}
-        <header className="sticky top-0 z-40 bg-frame rounded-b-shell">
-          <div className="flex items-center justify-between h-14 px-4 lg:px-6">
+        {/* ── Header (Clinical Cockpit) ──────────────────────────── */}
+        <header className={clsx('header-shell', isEncounterWorkspace && 'rounded-none')}>
+
+          {/* ── Level 1: Dark Rail ───────────────────────────────── */}
+          <div className="header-rail">
             {/* Left: Logo + Primary Nav */}
-            <div className="flex items-center gap-6">
-              <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-4">
+              <Link href="/" className="flex items-center gap-2 flex-shrink-0" aria-label="Inicio — Anamneo">
                 <AnamneoLogo
                   className="gap-2"
                   iconClassName="h-7 w-7"
@@ -225,24 +262,39 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 />
               </Link>
 
-              {/* Desktop primary nav — text-only pills */}
+              {/* Desktop primary nav — icon pills with tooltip */}
               <nav className="hidden lg:flex items-center gap-1" aria-label="Navegación principal">
                 {primaryItems.map((item) => {
-                  const isActive = (item as any).exact ? pathname === item.href : pathname.startsWith(item.href);
+                  const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
                   return (
-                    <Link
+                    <HeaderNavItem
                       key={item.name}
                       href={item.href}
-                      aria-current={isActive ? 'page' : undefined}
-                      className={clsx(
-                        'px-3.5 py-1.5 rounded-pill text-sm font-medium transition-all duration-200',
-                        isActive
-                          ? 'bg-accent text-accent-text'
-                          : 'text-ink-onDark/60 hover:text-ink-onDark hover:bg-surface-elevated/10'
-                      )}
-                    >
-                      {item.name}
-                    </Link>
+                      icon={item.icon}
+                      label={item.name}
+                      isActive={isActive}
+                      tier="primary"
+                    />
+                  );
+                })}
+              </nav>
+
+              {/* Divider between primary and secondary nav */}
+              <div className="hidden lg:block header-nav-divider" aria-hidden="true" />
+
+              {/* Desktop secondary nav — smaller icon pills */}
+              <nav className="hidden lg:flex items-center gap-0.5" aria-label="Navegación secundaria">
+                {secondaryItems.map((item) => {
+                  const isActive = pathname.startsWith(item.href);
+                  return (
+                    <HeaderNavItem
+                      key={item.name}
+                      href={item.href}
+                      icon={item.icon}
+                      label={item.name}
+                      isActive={isActive}
+                      tier="secondary"
+                    />
                   );
                 })}
               </nav>
@@ -261,8 +313,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   className={clsx(
                     'p-2 rounded-full transition-all duration-200',
                     searchOpen
-                      ? 'text-ink-onDark bg-surface-elevated/15'
-                      : 'text-ink-onDark/50 hover:text-ink-onDark hover:bg-surface-elevated/10'
+                      ? 'text-ink-onDark bg-white/[0.15]'
+                      : 'text-ink-onDark/50 hover:text-ink-onDark hover:bg-white/10'
                   )}
                   aria-label="Buscar (⌘K)"
                 >
@@ -288,7 +340,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       }
                     }}
                     placeholder="Buscar..."
-                    className="w-full bg-surface-elevated/15 text-ink-onDark placeholder:text-ink-onDark/40 text-sm rounded-pill px-4 py-1.5 outline-none border border-surface-elevated/20 focus:border-accent/50 transition-colors"
+                    className="w-full bg-white/[0.12] text-ink-onDark placeholder:text-ink-onDark/40 text-sm rounded-pill px-4 py-1.5 outline-none border border-white/[0.15] focus:border-accent/50 transition-colors"
                   />
                 </div>
 
@@ -351,7 +403,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     'p-1 rounded-full transition-all',
                     userMenuOpen
                       ? 'ring-2 ring-accent/50'
-                      : 'hover:ring-2 hover:ring-surface-elevated/20'
+                      : 'hover:ring-2 hover:ring-white/20'
                   )}
                   aria-label="Menú de usuario"
                   aria-expanded={userMenuOpen}
@@ -374,20 +426,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         <p className="text-micro text-ink-muted mt-0.5">
                           {user?.isAdmin ? 'Administrador' : user?.role === 'MEDICO' ? 'Médico' : 'Asistente'}
                         </p>
-                      </div>
-                      {/* Secondary nav links */}
-                      <div className="border-t border-surface-muted/30 mt-1 pt-1">
-                        {secondaryItems.map((item) => (
-                          <Link
-                            key={item.name}
-                            href={item.href}
-                            className="dropdown-item"
-                            onClick={() => setUserMenuOpen(false)}
-                          >
-                            <item.icon className="w-4 h-4" />
-                            {item.name}
-                          </Link>
-                        ))}
                       </div>
                       <div className="border-t border-surface-muted/30 mt-1 pt-1">
                         <button onClick={handleLogout} className="dropdown-item dropdown-item-danger">
@@ -413,22 +451,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* ── Mobile nav accordion ───────────────────────────────── */}
           {mobileMenuOpen && (
-            <nav className="lg:hidden px-4 pb-3 pt-1 border-t border-white/10 animate-fade-in">
+            <nav className="header-mobile-nav" aria-label="Navegación móvil">
               <div className="flex flex-wrap gap-1.5">
                 {[...primaryItems, ...secondaryItems].map((item) => {
-                  const isActive = (item as any).exact ? pathname === item.href : pathname.startsWith(item.href);
+                  const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
                   return (
                     <Link
                       key={item.name}
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
                       className={clsx(
-                        'px-3.5 py-2 rounded-pill text-sm font-medium transition-all',
-                        isActive
-                          ? 'bg-accent text-accent-text'
-                          : 'text-ink-onDark/60 hover:bg-surface-elevated/10'
+                        'header-mobile-item',
+                        isActive ? 'header-mobile-item-active' : 'header-mobile-item-inactive'
                       )}
                     >
+                      <item.icon className="w-4 h-4" />
                       {item.name}
                     </Link>
                   );
@@ -436,10 +473,25 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
             </nav>
           )}
+
+          {/* ── Level 2: KPI Bar ────────────────────────────────── */}
+          <HeaderKpiBar />
+
+          {/* ── Level 3: Context Bar ─────────────────────────────── */}
+          <Suspense fallback={null}>
+            <HeaderContextBar />
+          </Suspense>
         </header>
 
         {/* ── Page Content ─────────────────────────────────────────── */}
-        <main className="flex-1 px-3 py-6 lg:px-8 lg:py-8">{children}</main>
+        <main
+          className={clsx(
+            'flex-1',
+            isEncounterWorkspace ? 'px-0 py-0' : 'px-3 py-6 lg:px-8 lg:py-8',
+          )}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

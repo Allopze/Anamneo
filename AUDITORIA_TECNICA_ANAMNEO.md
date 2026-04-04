@@ -5,7 +5,7 @@
 - Alcance: frontend, backend, base de datos, auth, settings, adjuntos, auditoria, CI/CD, DX y riesgos de privacidad/integridad para una webapp medica
 - Modalidad: inspeccion estatica del repositorio + ejecucion de build/lint/typecheck/tests/audit de dependencias cuando el entorno lo permitio
 
-## Estado de remediacion - pasadas 1 a 13 (2026-03-31)
+## Estado de remediacion - pasadas 1 a 14 (2026-03-31)
 
 ### Resuelto o mitigado en codigo
 
@@ -27,10 +27,14 @@
 - `AN-12`: el guard de auth de Next 16 ya migro de `middleware.ts` a `proxy.ts` y desaparecio el warning de deprecacion en build.
 - `AN-13`: README y ejemplos de entorno quedaron alineados con `Anamneo`, Next 16, `/api` same-origin y los comandos/rutas reales del repo.
 - Inconsistencia `5.3`: `backend/.env.example` ya usa `JWT_EXPIRES_IN` y `JWT_REFRESH_EXPIRES_IN`.
+- `AN-04b`: `schemaVersion` ya no depende solo de acordarse de tocar dos archivos; ahora existe un registro unico de schema por seccion con self-check de integridad y tests que fallan si alguien sube una version sin completar la cadena de migracion.
+- `AN-05b`: la auditoria ya no permite nuevas escrituras con `AUDIT_UNSPECIFIED`; `AuditService` falla rapido si un evento nuevo no esta catalogado y se cubrieron explicitamente casos reales como `PATIENT_HISTORY_CREATED` y revocacion de invitaciones.
+- `AN-06b`: ya existen tests de contrato FE/BE para permisos criticos usando una matriz compartida, mas cobertura de pantallas/rutas sensibles (`historial` y detalle de paciente) para evitar nuevo drift.
+- `AN-10b`: la timeline paginada ya tiene e2e de volumen con muchas atenciones, snapshot de metadata/payload y cota de tamaño para detectar regresiones de costo.
 
 ### Pendiente para siguientes pasadas
 
-- Externalizacion de secretos operativos a un secret manager y runbook formal de rotacion.
+- Externalizacion de secretos operativos a un secret manager y verificacion operativa automatizada de rotacion/rewrap.
 - Nuevos bumps/migraciones de compatibilidad cuando cambien mas contratos clinicos ademas de `OBSERVACIONES v2`.
 
 ### Verificacion acumulada de las pasadas auditadas
@@ -44,6 +48,9 @@
 - `npm --prefix backend run typecheck` -> pasa
 - `npm --prefix backend run lint:check` -> pasa
 - `npm --prefix backend run test:e2e -- --runInBand` -> pasa
+- `npm --prefix backend test -- --runInBand audit-catalog.spec.ts audit.service.spec.ts medico-id.spec.ts encounter-section-schema.spec.ts encounter-section-compat.spec.ts` -> pasa
+- `npm --prefix frontend test -- --runInBand permissions-contract.test.ts historial-paciente.test.tsx paciente-detalle.test.tsx` -> pasa
+- `npm --prefix backend run test:e2e -- --runInBand app.e2e-spec.ts` -> pasa
 - `npm --prefix backend run build` -> pasa
 - `npm --prefix backend run audit:prod` -> pasa
 
@@ -53,16 +60,16 @@ Anamneo tiene una base tecnica mejor que la media de un MVP clinico. El backend 
 
 Dicho eso, hoy no lo considero listo para un contexto clinico exigente sin una ronda clara de endurecimiento. Tras las trece pasadas de remediacion, los riesgos mas relevantes ya no estan tanto en secretos, observabilidad o drift operativo, sino en integridad del dato y madurez estructural:
 
-- Persistencia de secciones clinicas ya endurecida en runtime y ahora con `schemaVersion` ejercitado en produccion de codigo (`OBSERVACIONES v2`), aunque la disciplina debe mantenerse cuando aparezcan nuevos contratos.
-- La auditoria ya correlaciona por `requestId` y `reason/result`, pero todavia puede ampliar cobertura y disciplina catalogada a medida que aparezcan nuevos eventos.
+- Persistencia de secciones clinicas ya endurecida en runtime y ahora con `schemaVersion` ejercitado en produccion de codigo (`OBSERVACIONES v2`), mas un registro unico con chequeos de integridad para que futuros bumps fallen rapido si quedan incompletos.
+- La auditoria ya correlaciona por `requestId` y `reason/result`, y desde esta pasada deja de aceptar nuevas escrituras sin catalogo explicito, aunque todavia puede ampliar cobertura semantica a medida que aparezcan nuevos eventos.
 - La revision y el cierre clinico ya dejan rastro formal de actor/nota y quedaron cubiertos en backend/frontend para los flujos criticos del baseline actual.
-- El detalle longitudinal del paciente ya se separo de la timeline principal y suma un resumen derivado dedicado, aunque aun puede especializarse mas si el volumen crece.
+- El detalle longitudinal del paciente ya se separo de la timeline principal y suma un resumen derivado dedicado; ademas, la timeline paginada ya tiene cobertura automatizada con volumen para detectar regresiones de payload.
 
 Mi lectura general es: producto funcional, con buena direccion arquitectonica, pero todavia con varios puntos que pueden degradar privacidad, trazabilidad o consistencia clinica sin fallar de forma visible.
 
 ### Fortalezas destacables
 
-- Backend con pruebas e2e utiles y no triviales (`72` unit/spec + `116` e2e pasadas durante esta auditoria tras trece pasadas de remediacion), mas `102` tests frontend verdes.
+- Backend con pruebas e2e utiles y no triviales, mas una base frontend ya cubierta en los flujos criticos de permisos, snapshots clinicos y timeline paginada.
 - Validacion defensiva de adjuntos por contenido binario y path confinement.
 - Controles razonables en auth: bloqueo por intentos fallidos, sesiones con versionado, refresh token versionado, cookies `HttpOnly`.
 - Exclusión explicita de `notasInternas` de la ficha exportada a PDF.
@@ -379,7 +386,7 @@ Los hallazgos estan ordenados por severidad y prioridad de accion.
 ### AN-04. Las secciones clinicas aceptaban payloads sin contrato real por tipo
 
 - ID: `AN-04`
-- Estado de remediacion: `resuelto en pasada 10; validacion de entrada + schemaVersion inicial persistida`
+- Estado de remediacion: `resuelto en pasadas 10, 13 y 14; validacion de entrada + schemaVersion ejercitada + registro unico con self-check`
 - Titulo: Backend acepta cualquier objeto en `EncounterSection.data`
 - Severidad: `S1 alto`
 - Area: `backend / datos / integridad`
@@ -399,19 +406,19 @@ Los hallazgos estan ordenados por severidad y prioridad de accion.
   - Originalmente `IdentificacionSection` hacia `parseInt(e.target.value)` para `edad`; si el input quedaba vacio, la serializacion terminaba degradando el valor.
   - Antes de las pasadas 2 a 6 el backend no imponia reglas de rango, enums ni shape por `sectionKey`; ahora se validan `IDENTIFICACION`, `MOTIVO_CONSULTA`, `ANAMNESIS_PROXIMA`, `ANAMNESIS_REMOTA`, `REVISION_SISTEMAS`, `EXAMEN_FISICO`, `SOSPECHA_DIAGNOSTICA`, `TRATAMIENTO`, `RESPUESTA_TRATAMIENTO` y `OBSERVACIONES`.
   - En pasada 6 tambien se endurecio `PUT /patients/:id/history`, se normalizo el snapshot `ANAMNESIS_REMOTA` al crear atenciones y se corrigio la semantica UI para separar "editar solo esta atención" de "editar historial maestro".
-  - En pasada 10 `EncounterSection` sumo `schemaVersion`, y en pasada 13 `OBSERVACIONES` subio a `schemaVersion=2` con upgrader de compatibilidad en lectura para payloads v1.
+  - En pasada 10 `EncounterSection` sumo `schemaVersion`, en pasada 13 `OBSERVACIONES` subio a `schemaVersion=2` con upgrader de compatibilidad en lectura para payloads v1 y en pasada 14 se centralizo el contrato en un registro unico con chequeo de integridad para que un bump sin migrador falle en tests y al cargar el modulo.
 - Causa raiz:
   - Modelo tipo blob JSON sin contrato fuerte por `sectionKey`.
 - Recomendacion concreta:
   - Mantener las validaciones por seccion ya añadidas.
-  - Repetir el mismo patron de bump + upgrader + tests cuando cambie otro contrato incompatible.
+  - Repetir el mismo patron de bump + upgrader + tests cuando cambie otro contrato incompatible, ahora sobre el registro unico ya incorporado.
   - Considerar evolucion futura a JSON tipado o columnas estructuradas si el storage cambia.
 - Esfuerzo estimado: `alto`
 
 ### AN-05. La auditoria no cubre varias operaciones sensibles
 
 - ID: `AN-05`
-- Estado de remediacion: `resuelto en pasada 10; cobertura sensible + catalogo operativo minimo`
+- Estado de remediacion: `resuelto en pasadas 10 y 14; cobertura sensible + catalogo operativo minimo + fail-fast para eventos no catalogados`
 - Titulo: La auditoria cubre operaciones sensibles y ahora clasifica por `reason/result`
 - Severidad: `S1 alto`
 - Area: `seguridad / datos / backend`
@@ -431,11 +438,12 @@ Los hallazgos estan ordenados por severidad y prioridad de accion.
   - No se observa `auditService.log()` en upload/delete de adjuntos, exportaciones CSV/PDF ni update/remove/reset en usuarios.
   - En la pasada 8 se añadió persistencia de `requestId` en `AuditLog`, middleware comun de trazado HTTP y filtro por request en `GET /audit`.
   - En la pasada 10 `AuditLog` sumo `reason/result`, `AuditService` ahora infiere un catalogo operativo minimo y la UI admin puede filtrar por ambos.
+  - En la pasada 14 el servicio deja de aceptar nuevas escrituras con `AUDIT_UNSPECIFIED`, se cubrieron explicitamente `PATIENT_HISTORY_CREATED` y la revocacion de invitaciones via `UPDATE`, y la suite falla rapido si alguien introduce un evento sin catalogar.
 - Causa raiz:
   - Auditoria implementada por caso, no como politica transversal.
 - Recomendacion concreta:
   - Mantener el catalogo operativo y exigir que nuevos eventos de auditoria entren con `reason/result`.
-  - Revisar periodicamente eventos `AUDIT_UNSPECIFIED` para que el catalogo no se degrade.
+  - Mantener el fail-fast para que eventos nuevos no degraden el catalogo.
   - Adjuntar `requestId`, actor, entidad, motivo y resultado en cada evento sensible nuevo.
 - Esfuerzo estimado: `medio`
 
@@ -664,7 +672,7 @@ Los hallazgos estan ordenados por severidad y prioridad de accion.
 - Estado actual:
   - Resuelto en pasada 1; `canEditAntecedentes()` ya coincide con backend para `MEDICO`, `ADMIN` y `ASISTENTE` con `medicoId`.
 - Deuda residual:
-  - Mantener tests de contrato FE/BE para evitar nuevo drift.
+  - Resuelto en pasada 14 con matriz compartida de contrato y pruebas FE/BE en helpers, pantallas y rutas sensibles.
 
 ### 5.2 Busqueda de pacientes
 
@@ -710,7 +718,7 @@ Referencias:
 
 Estado actual:
 
-- Resuelto en pasada 13 para el baseline actual.
+- Resuelto en pasada 14 para el baseline actual con registro unico de schema + upgrader + self-check.
 - Sigue pendiente repetir el patron cuando cambie algun otro contrato.
 
 ### 5.5 Fechas
@@ -736,13 +744,12 @@ Estos hallazgos merecen tratamiento prioritario por el tipo de producto:
 
 - Asociado a `AN-04`.
 - Mitigado en pasadas 4 a 6 con validacion y saneado por `sectionKey`, endurecimiento del historial maestro y normalizacion del snapshot `ANAMNESIS_REMOTA`.
-- En pasada 10 se añadió `schemaVersion` como baseline formal y en pasada 13 `OBSERVACIONES` subio a `v2` con upgrader. La deuda residual ya no es ausencia de versionado, sino sostener la disciplina cuando aparezcan cambios incompatibles nuevos.
+- En pasada 10 se añadió `schemaVersion` como baseline formal, en pasada 13 `OBSERVACIONES` subio a `v2` con upgrader y en pasada 14 se centralizo el baseline en un registro unico con chequeos de integridad. La deuda residual ya no es ausencia de versionado, sino sostener la disciplina cuando aparezcan cambios incompatibles nuevos.
 
 ### 6.3 Riesgo de trazabilidad insuficiente en actos sensibles
 
 - Asociado a `AN-05`.
-- Resuelto para el baseline actual en pasada 10: la auditoria ya cubre eventos sensibles, correlaciona por `requestId` y clasifica por `reason/result`.
-- Queda como mejora futura mantener disciplina catalogada a medida que aparezcan nuevos eventos de negocio.
+- Resuelto para el baseline actual en pasadas 10 y 14: la auditoria ya cubre eventos sensibles, correlaciona por `requestId`, clasifica por `reason/result` y ahora falla rapido si alguien introduce un evento nuevo sin catalogarlo.
 
 ### 6.4 Riesgo de fuga de datos sensibles a terceros de observabilidad
 
@@ -863,19 +870,16 @@ Estrategia incremental:
 1. Definir catalogo minimo de eventos obligatorios.
 2. Instrumentar una capa reusable para eventos de acceso, exportacion y mutacion sensible.
 3. Correlacionar con `requestId`.
-   Ya quedo resuelto en pasada 8; la deuda residual es un catalogo unico de eventos.
+   Ya quedo resuelto en pasadas 8 y 14; la deuda residual ya no es permitir `AUDIT_UNSPECIFIED` en nuevas escrituras, sino ampliar el catalogo conforme crezcan los eventos de negocio.
 
 ## 10. Tests que faltan
 
 ### Prioridad alta
 
-- tests de contrato de permisos FE/BE en rutas y pantallas con mayor riesgo de desalineacion.
+- tests para futuros bumps de `schemaVersion` mas alla de `OBSERVACIONES v2`, reutilizando el registro unico ya incorporado.
 
 ### Prioridad media
 
-- tests de rendimiento o al menos snapshots de payload/paginacion de `GET /patients/:id/encounters` con muchas atenciones.
-- tests del flujo de settings SMTP sin reexponer secrets al cliente.
-- tests para futuros bumps de `schemaVersion` mas alla de `OBSERVACIONES v2`.
 - tests operativos end-to-end de rotacion manual de claves y retiro de claves antiguas del key ring.
 
 ## 11. Funcionalidades nuevas recomendadas
@@ -972,7 +976,6 @@ Las siguientes propuestas salen de huecos reales del producto y de la arquitectu
 ### Corto plazo
 
 - Introducir versionado o al menos diff util por seccion clinica.
-- Completar contrato de permisos FE/BE y pruebas de rendimiento para timelines voluminosas.
 - Completar documentacion operativa de despliegue, backups y restauracion.
 
 ### Mediano plazo
@@ -983,8 +986,9 @@ Las siguientes propuestas salen de huecos reales del producto y de la arquitectu
 
 ### Pendientes concretos al cierre
 
-- Externalizacion de secretos operativos a un secret manager y runbook formal de rotacion.
+- Externalizacion de secretos operativos a un secret manager y verificacion operativa automatizada de rotacion/rewrap.
 - Bumps/migraciones de compatibilidad cuando aparezcan nuevos cambios incompatibles de secciones clinicas.
+- Versionado clinico/diff util por seccion si el producto necesita reconstruccion historica mas rica que la auditoria actual.
 
 ## 13. Conclusiones finales
 

@@ -72,6 +72,25 @@ function assertSafeConfig(configService: ConfigService) {
   }
 }
 
+function resolveTrustProxySetting(rawValue: string | undefined) {
+  const trimmed = rawValue?.trim();
+
+  if (!trimmed || trimmed.toLowerCase() === 'false') {
+    return false;
+  }
+
+  if (trimmed.toLowerCase() === 'true') {
+    return true;
+  }
+
+  const numericValue = Number.parseInt(trimmed, 10);
+  if (Number.isFinite(numericValue) && String(numericValue) === trimmed) {
+    return numericValue;
+  }
+
+  return trimmed;
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
@@ -116,8 +135,11 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   assertSafeConfig(configService);
+  const trustProxy = resolveTrustProxySetting(configService.get<string>('TRUST_PROXY'));
+  const httpAdapter = app.getHttpAdapter();
 
   // Security middleware
+  httpAdapter.getInstance().set('trust proxy', trustProxy);
   app.use(helmet());
   app.use(cookieParser());
   app.use(requestTracingMiddleware);
@@ -131,6 +153,7 @@ async function bootstrap() {
     level: 'info',
     event: 'config_loaded',
     corsOrigins,
+    trustProxy,
   }));
 
   // CORS
