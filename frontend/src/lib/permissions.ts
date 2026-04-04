@@ -24,19 +24,19 @@ export function hasAssignedMedico(user: PermissionUser | null | undefined) {
 }
 
 export function canCreatePatient(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user) || isAdminUser(user));
+  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
 }
 
 export function canCreateEncounter(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user) || isAdminUser(user));
+  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
 }
 
 export function canEditPatientAdmin(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user) || isAdminUser(user));
+  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
 }
 
 export function canUploadAttachments(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user) || isAdminUser(user));
+  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
 }
 
 export function canImportConditionsCsv(user: PermissionUser | null | undefined) {
@@ -44,7 +44,7 @@ export function canImportConditionsCsv(user: PermissionUser | null | undefined) 
 }
 
 export function canEditAntecedentes(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user) || isAdminUser(user));
+  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
 }
 
 export function canViewMedicoOnlySections(user: PermissionUser | null | undefined) {
@@ -59,7 +59,7 @@ export function canEditEncounter(
     return false;
   }
 
-  return isMedicoUser(user) || isAdminUser(user) || encounter.createdBy?.id === user.id;
+  return isMedicoUser(user) || encounter.createdBy?.id === user.id;
 }
 
 export function canCompleteEncounter(

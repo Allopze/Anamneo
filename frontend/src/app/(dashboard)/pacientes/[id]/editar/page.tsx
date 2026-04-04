@@ -14,6 +14,7 @@ import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import { validateRut } from '@/lib/rut';
 
 type EditForm = {
   edad: number;
@@ -72,6 +73,12 @@ export default function EditarPacientePage() {
               message: 'Debe indicar el motivo de exencion de RUT',
             });
           }
+        } else if (anyVal.rut && anyVal.rut.trim().length > 0 && !validateRut(anyVal.rut).valid) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['rut'],
+            message: 'RUT inválido (ej: 12.345.678-5)',
+          });
         }
       });
   }, [isDoctor]);

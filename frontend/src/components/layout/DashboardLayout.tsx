@@ -26,7 +26,6 @@ import clsx from 'clsx';
 import { getNameInitial } from '@/lib/utils';
 import OfflineBanner from '@/components/common/OfflineBanner';
 import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
-import HeaderNavItem from './HeaderNavItem';
 import HeaderKpiBar from './HeaderKpiBar';
 import HeaderContextBar from './HeaderContextBar';
 
@@ -58,9 +57,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isAuthenticated, hasHydrated, login, logout } = useAuthStore();
-  const primaryItems = primaryNavigation;
+  const isOperationalAdmin = !!user?.isAdmin;
+  const primaryItems = isOperationalAdmin
+    ? primaryNavigation.filter((item) => item.href === '/' || item.href === '/pacientes')
+    : primaryNavigation;
   const secondaryItems: NavItem[] = [
-    ...secondaryNavigation,
+    ...(isOperationalAdmin
+      ? secondaryNavigation.filter((item) => item.href !== '/plantillas')
+      : secondaryNavigation),
     ...(user?.isAdmin
       ? [
           { name: 'Admin', href: '/admin/usuarios', icon: FiShield },
@@ -70,7 +74,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   ];
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ id: string; type: 'patient' | 'encounter'; title: string; subtitle: string; href: string }[]>([]);
@@ -85,7 +88,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Close menus on route change
   useEffect(() => {
     setMobileMenuOpen(false);
-    setUserMenuOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -146,18 +148,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Close user menu on Escape
-  useEffect(() => {
-    if (!userMenuOpen) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setUserMenuOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [userMenuOpen]);
-
   // Close search when clicking outside
   useEffect(() => {
     if (!searchOpen) return;
@@ -173,6 +163,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [searchOpen]);
 
   const performSearch = useCallback(async (q: string) => {
+    if (isOperationalAdmin) {
+      setSearchResults([]);
+      return;
+    }
     if (!q.trim()) {
       setSearchResults([]);
       return;
@@ -200,7 +194,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     } finally {
       setSearchLoading(false);
     }
-  }, []);
+  }, [isOperationalAdmin]);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -239,114 +233,62 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="min-h-screen bg-surface-base">
       <OfflineBanner />
 
-      {/* ── App Shell ─────────────────────────────────────────────── */}
-      <div
-        className={clsx(
-          'min-h-screen flex flex-col',
-          isEncounterWorkspace ? 'w-full' : 'mx-auto max-w-[1440px]',
-        )}
-      >
+      {/* ── App Shell — Sidebar + Content ─────────────────────── */}
+      <div className="flex h-screen overflow-hidden">
 
-        {/* ── Header (Clinical Cockpit) ──────────────────────────── */}
-        <header className={clsx('header-shell', isEncounterWorkspace && 'rounded-none')}>
+        {/* ── Floating Sidebar (Desktop) ─────────────────────── */}
+        <aside className="hidden lg:flex flex-col w-64 bg-frame m-4 rounded-shell shadow-elevated z-10 flex-shrink-0" style={{ overflow: 'clip' }}>
+          {/* Logo */}
+          <div className="h-24 flex items-center px-8">
+            <Link href="/" className="flex items-center gap-2" aria-label="Inicio — Anamneo">
+              <AnamneoLogo
+                className="gap-2"
+                iconClassName="h-8 w-8 brightness-0 invert"
+                textClassName="text-2xl font-extrabold text-white tracking-tight"
+              />
+            </Link>
+          </div>
 
-          {/* ── Level 1: Dark Rail ───────────────────────────────── */}
-          <div className="header-rail">
-            {/* Left: Logo + Primary Nav */}
-            <div className="flex items-center gap-4">
-              <Link href="/" className="flex items-center gap-2 flex-shrink-0" aria-label="Inicio — Anamneo">
-                <AnamneoLogo
-                  className="gap-2"
-                  iconClassName="h-7 w-7"
-                  textClassName="text-base font-semibold text-ink-onDark"
-                />
-              </Link>
-
-              {/* Desktop primary nav — icon pills with tooltip */}
-              <nav className="hidden lg:flex items-center gap-1" aria-label="Navegación principal">
-                {primaryItems.map((item) => {
-                  const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-                  return (
-                    <HeaderNavItem
-                      key={item.name}
-                      href={item.href}
-                      icon={item.icon}
-                      label={item.name}
-                      isActive={isActive}
-                      tier="primary"
-                    />
-                  );
-                })}
-              </nav>
-
-              {/* Divider between primary and secondary nav */}
-              <div className="hidden lg:block header-nav-divider" aria-hidden="true" />
-
-              {/* Desktop secondary nav — smaller icon pills */}
-              <nav className="hidden lg:flex items-center gap-0.5" aria-label="Navegación secundaria">
-                {secondaryItems.map((item) => {
-                  const isActive = pathname.startsWith(item.href);
-                  return (
-                    <HeaderNavItem
-                      key={item.name}
-                      href={item.href}
-                      icon={item.icon}
-                      label={item.name}
-                      isActive={isActive}
-                      tier="secondary"
-                    />
-                  );
-                })}
-              </nav>
+          {/* User card */}
+          <div className="px-6 pb-5 mb-4 border-b border-white/20">
+            <div className="flex items-center gap-3 bg-frame-dark p-3 rounded-card">
+              <div className="h-12 w-12 rounded-full bg-surface-inset flex items-center justify-center font-bold text-frame text-lg flex-shrink-0">
+                {getNameInitial(user?.nombre)}
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-sm font-bold text-white truncate">{user?.nombre}</p>
+                <p className="text-xs text-white/50 font-medium capitalize truncate">
+                  {user?.isAdmin ? 'Administrador' : user?.role === 'MEDICO' ? 'Médico' : 'Asistente'}
+                </p>
+              </div>
             </div>
+          </div>
 
-            {/* Right: Search + User */}
-            <div className="flex items-center gap-1.5">
-              {/* Inline expanding search */}
-              <div ref={searchContainerRef} className="relative flex items-center">
-                <button
-                  onClick={() => {
-                    setSearchOpen(!searchOpen);
-                    if (!searchOpen) setTimeout(() => searchInputRef.current?.focus(), 100);
-                    else { setSearchQuery(''); setSearchResults([]); }
+          {/* Search (inside sidebar) */}
+          {!isOperationalAdmin ? (
+            <div className="px-4 mb-3" ref={searchContainerRef}>
+              <div className="relative">
+                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onFocus={() => setSearchOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setSearchOpen(false);
+                      setSearchQuery('');
+                      setSearchResults([]);
+                    }
                   }}
-                  className={clsx(
-                    'p-2 rounded-full transition-all duration-200',
-                    searchOpen
-                      ? 'text-ink-onDark bg-white/[0.15]'
-                      : 'text-ink-onDark/50 hover:text-ink-onDark hover:bg-white/10'
-                  )}
-                  aria-label="Buscar (⌘K)"
-                >
-                  <FiSearch className="w-4 h-4" />
-                </button>
-
-                <div
-                  className={clsx(
-                    'absolute right-10 top-1/2 -translate-y-1/2 overflow-hidden transition-all duration-300 ease-out',
-                    searchOpen ? 'w-64 opacity-100' : 'w-0 opacity-0'
-                  )}
-                >
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape') {
-                        setSearchOpen(false);
-                        setSearchQuery('');
-                        setSearchResults([]);
-                      }
-                    }}
-                    placeholder="Buscar..."
-                    className="w-full bg-white/[0.12] text-ink-onDark placeholder:text-ink-onDark/40 text-sm rounded-pill px-4 py-1.5 outline-none border border-white/[0.15] focus:border-accent/50 transition-colors"
-                  />
-                </div>
+                  placeholder="Buscar… ⌘K"
+                  className="w-full bg-white/[0.08] text-white placeholder:text-white/30 text-sm rounded-pill pl-10 pr-4 py-2.5 outline-none border border-white/[0.1] focus:border-accent/50 focus:bg-white/[0.12] transition-colors"
+                />
 
                 {/* Search results dropdown */}
                 {searchOpen && searchQuery.trim() && (
-                  <div className="absolute right-0 top-full mt-2 w-80 bg-surface-elevated rounded-card shadow-dropdown border border-surface-muted/30 overflow-hidden z-50 animate-fade-in">
+                  <div className="absolute left-0 top-full mt-2 w-full bg-surface-elevated rounded-card shadow-dropdown border border-surface-muted/30 overflow-hidden z-50 animate-fade-in">
                     {searchLoading && (
                       <div className="flex items-center justify-center py-6">
                         <div className="animate-spin rounded-full h-5 w-5 border-2 border-accent border-t-transparent" />
@@ -361,12 +303,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       <div className="py-1.5 max-h-72 overflow-y-auto">
                         {searchResults.filter(r => r.type === 'patient').length > 0 && (
                           <div>
-                            <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Pacientes</div>
+                            <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-muted">Pacientes</div>
                             {searchResults.filter(r => r.type === 'patient').map((r) => (
-                              <button key={r.id} onClick={() => handleSearchNavigate(r.href)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-base/50 transition-colors">
+                              <button key={r.id} onClick={() => handleSearchNavigate(r.href)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-inset/50 transition-colors">
                                 <FiUser className="w-4 h-4 text-ink-muted shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-ink truncate">{r.title}</p>
+                                  <p className="text-sm font-bold text-ink truncate">{r.title}</p>
                                   <p className="text-micro text-ink-muted truncate">{r.subtitle}</p>
                                 </div>
                                 <FiArrowRight className="w-3.5 h-3.5 text-ink-muted shrink-0" />
@@ -376,12 +318,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         )}
                         {searchResults.filter(r => r.type === 'encounter').length > 0 && (
                           <div>
-                            <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Atenciones</div>
+                            <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-muted">Atenciones</div>
                             {searchResults.filter(r => r.type === 'encounter').map((r) => (
-                              <button key={r.id} onClick={() => handleSearchNavigate(r.href)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-base/50 transition-colors">
+                              <button key={r.id} onClick={() => handleSearchNavigate(r.href)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-inset/50 transition-colors">
                                 <FiFileText className="w-4 h-4 text-ink-muted shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-ink truncate">{r.title}</p>
+                                  <p className="text-sm font-bold text-ink truncate">{r.title}</p>
                                   <p className="text-micro text-ink-muted truncate">{r.subtitle}</p>
                                 </div>
                                 <FiArrowRight className="w-3.5 h-3.5 text-ink-muted shrink-0" />
@@ -394,64 +336,91 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   </div>
                 )}
               </div>
+            </div>
+          ) : null}
 
-              {/* User avatar + dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+          {/* Navigation */}
+          <nav className="flex-1 px-4 py-2 space-y-1.5 overflow-y-auto sidebar-scroll" aria-label="Navegación principal">
+            {primaryItems.map((item) => {
+              const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
                   className={clsx(
-                    'p-1 rounded-full transition-all',
-                    userMenuOpen
-                      ? 'ring-2 ring-accent/50'
-                      : 'hover:ring-2 hover:ring-white/20'
+                    'w-full flex items-center px-4 py-3.5 text-sm font-bold rounded-pill transition-all',
+                    isActive
+                      ? 'bg-accent text-accent-text'
+                      : 'text-ink-muted hover:bg-frame-dark hover:text-white'
                   )}
-                  aria-label="Menú de usuario"
-                  aria-expanded={userMenuOpen}
-                  aria-haspopup="true"
                 >
-                  <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center">
-                    <span className="text-accent-text font-semibold text-xs">
-                      {getNameInitial(user?.nombre)}
-                    </span>
-                  </div>
-                </button>
+                  <item.icon className={clsx('mr-4 h-5 w-5', isActive ? 'text-accent-text' : 'text-ink-muted')} />
+                  {item.name}
+                </Link>
+              );
+            })}
 
-                {userMenuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-56 dropdown-surface py-1.5 z-20" role="menu">
-                      <div className="dropdown-header">
-                        <p className="text-sm font-medium text-ink">{user?.nombre}</p>
-                        <p className="text-micro text-ink-muted">{user?.email}</p>
-                        <p className="text-micro text-ink-muted mt-0.5">
-                          {user?.isAdmin ? 'Administrador' : user?.role === 'MEDICO' ? 'Médico' : 'Asistente'}
-                        </p>
-                      </div>
-                      <div className="border-t border-surface-muted/30 mt-1 pt-1">
-                        <button onClick={handleLogout} className="dropdown-item dropdown-item-danger">
-                          <FiLogOut className="w-4 h-4" />
-                          Cerrar sesión
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+            {/* Divider */}
+            <div className="my-3 mx-2 border-t border-white/[0.12]" />
 
-              {/* Mobile menu button */}
+            {secondaryItems.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={clsx(
+                    'w-full flex items-center px-4 py-3.5 text-sm font-bold rounded-pill transition-all',
+                    isActive
+                      ? 'bg-accent text-accent-text'
+                      : 'text-ink-muted hover:bg-frame-dark hover:text-white'
+                  )}
+                >
+                  <item.icon className={clsx('mr-4 h-5 w-5', isActive ? 'text-accent-text' : 'text-ink-muted')} />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Logout */}
+          <div className="p-6">
+            <button
+              onClick={handleLogout}
+              className="flex items-center justify-center w-full px-4 py-3 text-sm font-bold text-ink-muted bg-frame-dark hover:text-white hover:bg-status-red rounded-pill transition-colors"
+            >
+              <FiLogOut className="mr-3 h-5 w-5" />
+              Salir
+            </button>
+          </div>
+        </aside>
+
+        {/* ── Main Content Area ───────────────────────────────── */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+
+          {/* ── Mobile Header ─────────────────────────────────── */}
+          <header className="lg:hidden bg-surface-elevated rounded-b-card shadow-soft flex items-center justify-between px-5 h-16 z-20 mx-2 mt-2 flex-shrink-0">
+            <Link href="/" className="flex items-center gap-2">
+              <AnamneoLogo
+                className="gap-2"
+                iconClassName="h-6 w-6"
+                textClassName="text-xl font-extrabold text-ink"
+              />
+            </Link>
+            <div className="flex items-center gap-2">
               <button
-                className="lg:hidden p-2 text-ink-onDark/70 hover:text-ink-onDark"
+                className="p-2 text-ink-secondary hover:text-ink"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-label={mobileMenuOpen ? 'Cerrar menú' : 'Abrir menú de navegación'}
               >
                 {mobileMenuOpen ? <FiX className="w-5 h-5" /> : <FiMenu className="w-5 h-5" />}
               </button>
             </div>
-          </div>
+          </header>
 
-          {/* ── Mobile nav accordion ───────────────────────────────── */}
+          {/* Mobile nav accordion */}
           {mobileMenuOpen && (
-            <nav className="header-mobile-nav" aria-label="Navegación móvil">
+            <nav className="lg:hidden bg-frame mx-2 rounded-card px-4 pb-3 pt-2 animate-fade-in" aria-label="Navegación móvil">
               <div className="flex flex-wrap gap-1.5">
                 {[...primaryItems, ...secondaryItems].map((item) => {
                   const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
@@ -461,8 +430,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
                       className={clsx(
-                        'header-mobile-item',
-                        isActive ? 'header-mobile-item-active' : 'header-mobile-item-inactive'
+                        'flex items-center gap-3 px-3.5 py-2.5 rounded-pill text-sm font-bold transition-all duration-200',
+                        isActive
+                          ? 'bg-accent text-accent-text'
+                          : 'text-white/60 hover:bg-white/[0.08] hover:text-white'
                       )}
                     >
                       <item.icon className="w-4 h-4" />
@@ -471,27 +442,36 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   );
                 })}
               </div>
+              <button
+                onClick={handleLogout}
+                className="mt-2 flex items-center gap-2 px-3.5 py-2.5 rounded-pill text-sm font-bold text-status-red hover:bg-status-red/10 transition-colors"
+              >
+                <FiLogOut className="w-4 h-4" />
+                Cerrar sesión
+              </button>
             </nav>
           )}
 
-          {/* ── Level 2: KPI Bar ────────────────────────────────── */}
-          <HeaderKpiBar />
+          {/* ── KPI + Context Bar ─────────────────────────────── */}
+          <div className={clsx('flex-shrink-0', isEncounterWorkspace && 'hidden')}>
+            <HeaderKpiBar />
+            <Suspense fallback={null}>
+              <HeaderContextBar />
+            </Suspense>
+          </div>
 
-          {/* ── Level 3: Context Bar ─────────────────────────────── */}
-          <Suspense fallback={null}>
-            <HeaderContextBar />
-          </Suspense>
-        </header>
-
-        {/* ── Page Content ─────────────────────────────────────────── */}
-        <main
-          className={clsx(
-            'flex-1',
-            isEncounterWorkspace ? 'px-0 py-0' : 'px-3 py-6 lg:px-8 lg:py-8',
-          )}
-        >
-          {children}
-        </main>
+          {/* ── Page Content ───────────────────────────────────── */}
+          <main
+            className={clsx(
+              'flex-1 overflow-auto',
+              isEncounterWorkspace ? 'px-0 py-0' : 'px-3 py-6 lg:px-8 lg:py-8',
+            )}
+          >
+            <div className={clsx(!isEncounterWorkspace && 'max-w-7xl mx-auto')}>
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );

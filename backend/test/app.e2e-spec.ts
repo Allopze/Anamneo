@@ -664,8 +664,8 @@ describe('Application E2E Tests', () => {
       expect(res.body.trabajo).toBe('Ingeniero clínico');
     });
 
-    it('PUT /api/patients/:id/history → admin can edit patient master history', async () => {
-      const res = await req()
+    it('PUT /api/patients/:id/history → admin gets 403 because history is clinical', async () => {
+      await req()
         .put(`/api/patients/${patientId}/history`)
         .set('Cookie', cookieHeader(adminCookies))
         .send({
@@ -673,11 +673,41 @@ describe('Application E2E Tests', () => {
             texto: 'Observación administrativa validada por admin',
           },
         })
+        .expect(403);
+    });
+
+    it('GET /api/patients/:id → admin gets 403 because the detail is clinical', async () => {
+      await req()
+        .get(`/api/patients/${patientId}`)
+        .set('Cookie', cookieHeader(adminCookies))
+        .expect(403);
+    });
+
+    it('GET /api/patients/:id/clinical-summary → admin gets 403 because the summary is clinical', async () => {
+      await req()
+        .get(`/api/patients/${patientId}/clinical-summary`)
+        .set('Cookie', cookieHeader(adminCookies))
+        .expect(403);
+    });
+
+    it('GET /api/patients/:id/admin-summary → admin gets a reduced non-clinical patient view', async () => {
+      const res = await req()
+        .get(`/api/patients/${patientId}/admin-summary`)
+        .set('Cookie', cookieHeader(adminCookies))
         .expect(200);
 
-      expect(JSON.parse(res.body.antecedentesPersonales)).toEqual({
-        texto: 'Observación administrativa validada por admin',
-      });
+      expect(res.body.nombre).toBe('Paciente Actualizado');
+      expect(res.body.metrics.encounterCount).toBe(0);
+      expect(res.body.history).toBeUndefined();
+      expect(res.body.problems).toBeUndefined();
+      expect(res.body.tasks).toBeUndefined();
+    });
+
+    it('GET /api/patients/:id/admin-summary → medico gets 403 because the view is administrative only', async () => {
+      await req()
+        .get(`/api/patients/${patientId}/admin-summary`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(403);
     });
 
     it('GET /api/patients?search=Actualizado → search works', async () => {
@@ -771,6 +801,13 @@ describe('Application E2E Tests', () => {
         .expect(200);
 
       expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('GET /api/encounters → admin gets 403 because the encounter list is clinical', async () => {
+      await req()
+        .get('/api/encounters')
+        .set('Cookie', cookieHeader(adminCookies))
+        .expect(403);
     });
 
     it('GET /api/encounters/:id → get encounter with sections', async () => {
@@ -1090,6 +1127,13 @@ describe('Application E2E Tests', () => {
       expect(res.body.data.some((task: any) => task.id === patientTaskId)).toBe(true);
     });
 
+    it('GET /api/patients/tasks → admin gets 403 because the task inbox is clinical', async () => {
+      await req()
+        .get('/api/patients/tasks?search=Revisar')
+        .set('Cookie', cookieHeader(adminCookies))
+        .expect(403);
+    });
+
     it('GET /api/patients/tasks?overdueOnly=true → does not mark tasks due today as overdue', async () => {
       const res = await req()
         .get('/api/patients/tasks?overdueOnly=true')
@@ -1125,6 +1169,16 @@ describe('Application E2E Tests', () => {
       const task = res.body.data.find((item: any) => item.id === patientTaskId);
       expect(task).toBeDefined();
       expect(task.isOverdue).toBe(true);
+    });
+
+    it('GET /api/patients/tasks?status=COMPLETADA&overdueOnly=true → keeps filter semantics and returns empty', async () => {
+      const res = await req()
+        .get('/api/patients/tasks?status=COMPLETADA&overdueOnly=true')
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(res.body.data).toEqual([]);
+      expect(res.body.pagination.total).toBe(0);
     });
 
     it('POST /api/attachments/encounter/:id → upload exam result linked to structured order', async () => {
@@ -1472,10 +1526,20 @@ describe('Application E2E Tests', () => {
       expect(res.body.completedBy?.id).toBe(medicoUserId);
     });
 
-    it('POST /api/encounters/:id/reopen → admin requires reopen note', async () => {
-      const res = await req()
+    it('POST /api/encounters/:id/reopen → admin gets 403 because reopening is clinical', async () => {
+      await req()
         .post(`/api/encounters/${workflowEncounterId}/reopen`)
         .set('Cookie', cookieHeader(adminCookies))
+        .send({
+          note: 'Se intenta reabrir sin rol clínico.',
+        })
+        .expect(403);
+    });
+
+    it('POST /api/encounters/:id/reopen → medico requires reopen note', async () => {
+      const res = await req()
+        .post(`/api/encounters/${workflowEncounterId}/reopen`)
+        .set('Cookie', cookieHeader(medicoCookies))
         .send({
           note: 'corta',
         })
@@ -1484,10 +1548,10 @@ describe('Application E2E Tests', () => {
       expect(String(res.body.message)).toContain('note');
     });
 
-    it('POST /api/encounters/:id/reopen → admin reopens encounter with explicit trace note', async () => {
+    it('POST /api/encounters/:id/reopen → medico reopens own encounter with explicit trace note', async () => {
       const res = await req()
         .post(`/api/encounters/${workflowEncounterId}/reopen`)
-        .set('Cookie', cookieHeader(adminCookies))
+        .set('Cookie', cookieHeader(medicoCookies))
         .send({
           note: 'Se reabre por auditoría clínica para complementar evolución.',
         })

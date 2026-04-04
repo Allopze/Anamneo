@@ -5,15 +5,18 @@ import userEvent from '@testing-library/user-event';
 import AjustesPage from '@/app/(dashboard)/ajustes/page';
 import type { User } from '@/stores/auth-store';
 
+const replaceMock = jest.fn();
 const apiGetMock = jest.fn();
 const apiPutMock = jest.fn();
 const apiPostMock = jest.fn();
 const apiPatchMock = jest.fn();
 const setUserMock = jest.fn();
+const logoutMock = jest.fn();
 
 const authStoreState: {
   user: User | null;
   setUser: typeof setUserMock;
+  logout: typeof logoutMock;
 } = {
   user: {
     id: 'admin-1',
@@ -24,10 +27,15 @@ const authStoreState: {
     medicoId: null,
   },
   setUser: setUserMock,
+  logout: logoutMock,
 };
 
 jest.mock('@/stores/auth-store', () => ({
   useAuthStore: () => authStoreState,
+}));
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: replaceMock }),
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -133,5 +141,24 @@ describe('AjustesPage', () => {
     await waitFor(() => {
       expect(apiGetMock).not.toHaveBeenCalled();
     });
+  });
+
+  it('logs out and redirects to login after changing password', async () => {
+    render(<AjustesPage />, { wrapper: createWrapper() });
+
+    await userEvent.type(screen.getByLabelText('Contraseña actual'), 'Admin123');
+    await userEvent.type(screen.getByLabelText('Nueva contraseña'), 'NuevaClave9');
+    await userEvent.type(screen.getByLabelText('Confirmar nueva contraseña'), 'NuevaClave9');
+    await userEvent.click(screen.getByRole('button', { name: 'Cambiar contraseña' }));
+
+    await waitFor(() => {
+      expect(apiPostMock).toHaveBeenCalledWith('/auth/change-password', {
+        currentPassword: 'Admin123',
+        newPassword: 'NuevaClave9',
+      });
+    });
+
+    expect(logoutMock).toHaveBeenCalled();
+    expect(replaceMock).toHaveBeenCalledWith('/login');
   });
 });

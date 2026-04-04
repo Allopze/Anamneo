@@ -7,6 +7,12 @@ import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import {
+  clearEncounterDraft,
+  hasEncounterDraftUnsavedChanges,
+  readEncounterDraft,
+  writeEncounterDraft,
+} from '@/lib/encounter-draft';
+import {
   Attachment,
   Encounter,
   REVIEW_STATUS_LABELS,
@@ -215,6 +221,7 @@ export default function EncounterWizardPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, isMedico, canEditAntecedentes } = useAuthStore();
+  const isOperationalAdmin = !!user?.isAdmin;
   const [isSectionSwitchPending, startSectionTransition] = useTransition();
 
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
@@ -253,7 +260,14 @@ export default function EncounterWizardPage() {
       const response = await api.get(`/encounters/${id}`);
       return response.data as Encounter;
     },
+    enabled: !isOperationalAdmin,
   });
+
+  useEffect(() => {
+    if (!isOperationalAdmin) return;
+    router.replace('/');
+  }, [isOperationalAdmin, router]);
+
   const isDoctor = isMedico();
   const canEdit = canEditEncounter(user ?? null, encounter);
   const canUpload = canUploadAttachmentsPermission(user ?? null);
@@ -368,6 +382,9 @@ export default function EncounterWizardPage() {
   const completeMutation = useMutation({
     mutationFn: (payload: { closureNote: string }) => api.post(`/encounters/${id}/complete`, payload),
     onSuccess: () => {
+      if (user?.id) {
+        clearEncounterDraft(id, user.id);
+      }
       toast.success('Atención completada');
       queryClient.invalidateQueries({ queryKey: ['encounter', id] });
       router.push(`/atenciones/${id}/ficha`);
@@ -509,12 +526,60 @@ export default function EncounterWizardPage() {
       encounter.sections.forEach((section) => {
         initialData[section.sectionKey] = section.data;
       });
-      setFormData(initialData);
-      formDataRef.current = initialData;
-      lastSavedRef.current = JSON.stringify(initialData);
+      const storedDraft = user?.id ? readEncounterDraft(encounter.id, user.id) : null;
+      const restoredFormData = storedDraft?.formData ?? initialData;
+      const restoredSavedSnapshot = storedDraft?.savedSnapshot ?? initialData;
+
+      setFormData(restoredFormData);
+      formDataRef.current = restoredFormData;
+      lastSavedRef.current = JSON.stringify(restoredSavedSnapshot);
       setSavedSnapshotJson(lastSavedRef.current);
+      setCurrentSectionIndex(
+        Math.min(
+          Math.max(storedDraft?.currentSectionIndex ?? 0, 0),
+          Math.max(sections.length - 1, 0),
+        ),
+      );
+
+      if (storedDraft && hasEncounterDraftUnsavedChanges(storedDraft)) {
+        toast.success('Se restauró un borrador local de esta atención');
+      }
     }
-  }, [encounter]);
+  }, [encounter, sections.length, user?.id]);
+
+  useEffect(() => {
+    if (!encounter?.id || !user?.id) return;
+    if (initializedEncounterIdRef.current !== encounter.id) return;
+
+    if (encounter.status !== 'EN_PROGRESO') {
+      clearEncounterDraft(encounter.id, user.id);
+      return;
+    }
+
+    const savedSnapshot = (() => {
+      try {
+        return JSON.parse(savedSnapshotJson || '{}') as Record<string, unknown>;
+      } catch {
+        return {};
+      }
+    })();
+
+    const draft = {
+      version: 1,
+      encounterId: encounter.id,
+      userId: user.id,
+      currentSectionIndex,
+      formData,
+      savedSnapshot,
+    };
+
+    if (hasEncounterDraftUnsavedChanges(draft)) {
+      writeEncounterDraft(draft);
+      return;
+    }
+
+    clearEncounterDraft(encounter.id, user.id);
+  }, [currentSectionIndex, encounter?.id, encounter?.status, formData, savedSnapshotJson, user?.id]);
 
   // Autosave logic — uses refs to avoid stale closures
   const saveCurrentSection = useCallback(() => {
@@ -827,6 +892,10 @@ export default function EncounterWizardPage() {
     toast.success('Se restauró la identificación desde la ficha maestra del paciente');
   };
 
+  if (isOperationalAdmin) {
+    return null;
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -840,7 +909,7 @@ export default function EncounterWizardPage() {
     return (
       <div className="text-center py-12">
         <FiAlertCircle className="mx-auto mb-4 h-12 w-12 text-status-red" />
-        <h2 className="mb-2 text-xl font-semibold text-ink-primary">Atención no encontrada</h2>
+        <h2 className="mb-2 text-xl font-bold text-ink">Atención no encontrada</h2>
         {msg ? <p className="mb-4 whitespace-pre-line text-sm text-ink-muted">{msg}</p> : null}
         <Link href="/pacientes" className="btn btn-primary">
           Volver a pacientes
@@ -1137,7 +1206,7 @@ export default function EncounterWizardPage() {
                     <span>{encounter.patient?.rut || 'Sin RUT'}</span>
                     <span>{formatDateTime(encounter.createdAt)}</span>
                   </div>
-                  <h1 className="mt-1 truncate text-[1.75rem] font-semibold tracking-tight text-ink lg:text-[2rem]">
+                  <h1 className="mt-1 truncate text-[1.75rem] font-extrabold tracking-tight text-ink lg:text-[2rem]">
                     {encounter.patient?.nombre}
                   </h1>
                   <div className="mt-4 max-w-2xl">
@@ -1314,7 +1383,7 @@ export default function EncounterWizardPage() {
                       </span>
                       {isSectionSwitchPending ? <span>Cambiando sección…</span> : null}
                     </div>
-                    <h2 className="mt-2 text-[1.7rem] font-semibold tracking-tight text-ink">
+                    <h2 className="mt-2 text-[1.7rem] font-extrabold tracking-tight text-ink">
                       {currentSection?.label}
                     </h2>
                   </div>

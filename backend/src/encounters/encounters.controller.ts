@@ -45,6 +45,7 @@ export class EncountersController {
   }
 
   @Get()
+  @Roles('MEDICO', 'ASISTENTE')
   findAll(
     @CurrentUser() user: CurrentUserData,
     @Query('status') status?: EncounterStatus,
@@ -57,11 +58,13 @@ export class EncountersController {
   }
 
   @Get('stats/dashboard')
+  @Roles('MEDICO', 'ASISTENTE')
   dashboard(@CurrentUser() user: CurrentUserData) {
     return this.encountersService.getDashboard(user);
   }
 
   @Get(':id/export/pdf')
+  @Roles('MEDICO', 'ASISTENTE')
   async exportPdf(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserData,
@@ -78,6 +81,7 @@ export class EncountersController {
   }
 
   @Get(':id/export/document/:kind')
+  @Roles('MEDICO', 'ASISTENTE')
   async exportFocusedPdf(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('kind') kind: 'receta' | 'ordenes' | 'derivacion',
@@ -99,6 +103,7 @@ export class EncountersController {
   }
 
   @Get(':id')
+  @Roles('MEDICO', 'ASISTENTE')
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserData,
@@ -107,6 +112,7 @@ export class EncountersController {
   }
 
   @Get('patient/:patientId')
+  @Roles('MEDICO', 'ASISTENTE')
   findByPatient(
     @Param('patientId', ParseUUIDPipe) patientId: string,
     @CurrentUser() user: CurrentUserData,
@@ -141,7 +147,7 @@ export class EncountersController {
   }
 
   @Post(':id/reopen')
-  @Roles('ADMIN')
+  @Roles('MEDICO')
   reopen(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReopenEncounterDto,

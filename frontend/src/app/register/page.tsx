@@ -257,7 +257,7 @@ export default function RegisterPage() {
       }
 
       toast.success('¡Cuenta creada exitosamente!');
-      router.push('/pacientes');
+      router.push('/');
     } catch (err) {
       toast.error(getErrorMessage(err));
     }

@@ -85,6 +85,7 @@ export class PatientsController {
   }
 
   @Get('tasks')
+  @Roles('MEDICO', 'ASISTENTE')
   findTasks(
     @CurrentUser() user: CurrentUserData,
     @Query('search') search?: string,
@@ -104,7 +105,17 @@ export class PatientsController {
     });
   }
 
+  @Get(':id/admin-summary')
+  @UseGuards(AdminGuard)
+  getAdminSummary(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.patientsService.getAdminSummary(user, id);
+  }
+
   @Get(':id/encounters')
+  @Roles('MEDICO', 'ASISTENTE')
   findEncounterTimeline(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserData,
@@ -115,6 +126,7 @@ export class PatientsController {
   }
 
   @Get(':id/clinical-summary')
+  @Roles('MEDICO', 'ASISTENTE')
   getClinicalSummary(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserData,
@@ -123,6 +135,7 @@ export class PatientsController {
   }
 
   @Get(':id')
+  @Roles('MEDICO', 'ASISTENTE')
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserData,
@@ -151,6 +164,7 @@ export class PatientsController {
   }
 
   @Put(':id/history')
+  @Roles('MEDICO', 'ASISTENTE')
   updateHistory(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateHistoryDto: UpdatePatientHistoryDto,

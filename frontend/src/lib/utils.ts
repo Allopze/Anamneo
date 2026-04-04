@@ -9,6 +9,18 @@ export function parseHistoryField(field: any): any {
   return field;
 }
 
+export function historyFieldHasContent(field: any): boolean {
+  const parsed = parseHistoryField(field);
+  const hasItems = Array.isArray(parsed?.items) && parsed.items.length > 0;
+  const hasText = typeof parsed?.texto === 'string' && parsed.texto.trim().length > 0;
+  return hasItems || hasText;
+}
+
+export function patientHistoryHasContent(history: Record<string, any> | null | undefined): boolean {
+  if (!history) return false;
+  return Object.values(history).some((field) => historyFieldHasContent(field));
+}
+
 /**
  * Obtiene el primer nombre de un string, ignorando títulos comunes (Dr., Dra., etc.)
  */

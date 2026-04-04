@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/stores/auth-store';
+import { buildLoginRedirectPath, getCurrentAppPath } from '@/lib/login-redirect';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 const REFRESH_ENDPOINT = '/auth/refresh';
@@ -43,7 +44,7 @@ async function clearSessionAndRedirectToLogin(): Promise<void> {
 
   if (typeof window !== 'undefined' && !loginRedirectInProgress) {
     loginRedirectInProgress = true;
-    window.location.replace('/login');
+    window.location.replace(buildLoginRedirectPath(getCurrentAppPath(window.location)));
   }
 }
 

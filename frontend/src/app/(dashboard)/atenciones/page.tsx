@@ -62,7 +62,8 @@ export default function AtencionesListPage() {
 function AtencionesListContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { canCreateEncounter, canCreatePatient } = useAuthStore();
+  const { user, canCreateEncounter, canCreatePatient } = useAuthStore();
+  const isOperationalAdmin = !!user?.isAdmin;
   const canCreate = canCreateEncounter();
   const canCreatePatientAllowed = canCreatePatient();
   const search = searchParams.get('search') || '';
@@ -76,6 +77,13 @@ function AtencionesListContent() {
   const hasSearch = Boolean(search);
   const hasAdvancedFilters = Boolean(filters.status || filters.reviewStatus);
   const hasActiveCriteria = hasSearch || hasAdvancedFilters;
+
+  useEffect(() => {
+    if (isOperationalAdmin) {
+      router.replace('/');
+      return;
+    }
+  }, [isOperationalAdmin, router]);
 
   useEffect(() => {
     setSearchInput(search);
@@ -137,7 +145,12 @@ function AtencionesListContent() {
       const response = await api.get(`/encounters?${params}`);
       return response.data;
     },
+    enabled: !isOperationalAdmin,
   });
+
+  if (isOperationalAdmin) {
+    return null;
+  }
 
   const hasEncounters = data?.data?.length > 0;
   const showEmptyCreateEncounterCta = canCreate && !isLoading && !error && !hasEncounters && !hasActiveCriteria;
@@ -416,9 +429,9 @@ function getReviewChipClassName(reviewStatus?: Encounter['reviewStatus']) {
   return clsx(
     'list-chip',
     reviewStatus === 'REVISADA_POR_MEDICO'
-      ? 'bg-frame text-ink-onDark'
+      ? 'bg-frame text-white'
       : reviewStatus === 'LISTA_PARA_REVISION'
         ? 'border border-status-yellow/70 bg-status-yellow/30 text-accent-text'
-        : 'bg-surface-base text-ink-secondary'
+        : 'bg-surface-inset text-ink-secondary'
   );
 }

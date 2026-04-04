@@ -124,7 +124,11 @@ function PacientesContent() {
       <div className="page-header">
         <div>
           <h1 className="page-header-title">Pacientes</h1>
-          <p className="page-header-description">Gestiona el registro longitudinal de pacientes.</p>
+          <p className="page-header-description">
+            {user?.isAdmin
+              ? 'Consulta el registro administrativo de pacientes y exporta el padrón actual.'
+              : 'Gestiona el registro longitudinal de pacientes.'}
+          </p>
         </div>
         {showHeaderActions && (
           <div className="flex flex-wrap items-center gap-2">
@@ -288,39 +292,46 @@ function PacientesContent() {
         ) : hasPatients ? (
           <>
             <div className="divide-y divide-surface-muted/30">
-              {data.data.map((patient: Patient) => (
-                <Link
-                  key={patient.id}
-                  href={`/pacientes/${patient.id}`}
-                  className="group list-row"
-                >
-                  <div className="list-row-icon h-12 w-12 bg-surface-base text-ink-secondary">
-                    <FiUser className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-medium text-ink truncate group-hover:text-ink-secondary">
-                        {patient.nombre}
-                      </h3>
-                      <span className="list-chip bg-surface-base text-ink-secondary">
-                        {patient.edad} años
-                      </span>
+              {data.data.map((patient: Patient) => {
+                const patientHref = user?.isAdmin
+                  ? `/pacientes/${patient.id}/administrativo`
+                  : `/pacientes/${patient.id}`;
+                const rowContent = (
+                  <>
+                    <div className="list-row-icon h-12 w-12 bg-surface-inset text-ink-secondary">
+                      <FiUser className="w-6 h-6" />
                     </div>
-                    <div className="flex items-center gap-4 text-body text-ink-muted">
-                      {patient.rut && <span>{patient.rut}</span>}
-                      <span>{SEXO_LABELS[patient.sexo]}</span>
-                      <span>{PREVISION_LABELS[patient.prevision]}</span>
-                      {patient._count && (
-                        <span className="flex items-center gap-1">
-                          <FiCalendar className="w-3 h-3" />
-                          {patient._count.encounters} atenciones
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-medium text-ink truncate group-hover:text-ink-secondary">
+                          {patient.nombre}
+                        </h3>
+                        <span className="list-chip bg-surface-inset text-ink-secondary">
+                          {patient.edad} años
                         </span>
-                      )}
+                      </div>
+                      <div className="flex items-center gap-4 text-body text-ink-muted">
+                        {patient.rut && <span>{patient.rut}</span>}
+                        <span>{SEXO_LABELS[patient.sexo]}</span>
+                        <span>{PREVISION_LABELS[patient.prevision]}</span>
+                        {patient._count && (
+                          <span className="flex items-center gap-1">
+                            <FiCalendar className="w-3 h-3" />
+                            {patient._count.encounters} atenciones
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <FiChevronRight className="w-5 h-5 text-ink-muted group-hover:text-ink" />
-                </Link>
-              ))}
+                    <FiChevronRight className="w-5 h-5 text-ink-muted group-hover:text-ink" />
+                  </>
+                );
+
+                return (
+                  <Link key={patient.id} href={patientHref} className="group list-row">
+                    {rowContent}
+                  </Link>
+                );
+              })}
             </div>
 
             {/* Pagination */}

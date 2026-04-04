@@ -22,7 +22,7 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Usuario no autenticado');
     }
 
-    if (user.isAdmin) {
+    if (user.isAdmin && requiredRoles.includes('ADMIN')) {
       return true;
     }
 

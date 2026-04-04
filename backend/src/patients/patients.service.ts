@@ -482,6 +482,16 @@ export class PatientsService {
     };
   }
 
+  /**
+   * Exports all non-archived patients as CSV.
+   *
+   * Scope: This endpoint is intentionally restricted to ADMIN users only
+   * (enforced by AdminGuard in the controller) and exports patients across
+   * all medicos in the system. This is by design for administrative oversight
+   * and reporting — it is NOT scoped per medico.
+   *
+   * The export event is recorded in the audit log with the total patient count.
+   */
   async exportCsv(user: RequestUser) {
     const patients = await this.prisma.patient.findMany({
       where: { archivedAt: null },
@@ -519,6 +529,60 @@ export class PatientsService {
     });
 
     return '\uFEFF' + header + '\n' + rows.join('\n');
+  }
+
+  async getAdminSummary(user: RequestUser, id: string) {
+    const patient = await this.prisma.patient.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        rut: true,
+        rutExempt: true,
+        rutExemptReason: true,
+        nombre: true,
+        edad: true,
+        sexo: true,
+        trabajo: true,
+        prevision: true,
+        domicilio: true,
+        createdAt: true,
+        updatedAt: true,
+        archivedAt: true,
+        createdBy: {
+          select: {
+            id: true,
+            nombre: true,
+            email: true,
+          },
+        },
+        _count: {
+          select: {
+            encounters: true,
+          },
+        },
+        encounters: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    if (!patient || patient.archivedAt) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+
+    const { archivedAt, encounters, _count, ...summary } = patient;
+
+    return {
+      ...summary,
+      metrics: {
+        encounterCount: _count.encounters,
+        lastEncounterAt: encounters[0]?.createdAt ?? null,
+      },
+    };
   }
 
   async findById(user: RequestUser, id: string) {
@@ -784,7 +848,21 @@ export class PatientsService {
 
     if (filters?.overdueOnly) {
       where.dueDate = { lt: startOfUtcDay(new Date()) };
-      where.status = { in: ['PENDIENTE', 'EN_PROCESO'] } as any;
+      if (filters?.status) {
+        if (!['PENDIENTE', 'EN_PROCESO'].includes(filters.status)) {
+          return {
+            data: [],
+            pagination: {
+              page,
+              limit,
+              total: 0,
+              totalPages: 0,
+            },
+          };
+        }
+      } else {
+        where.status = { in: ['PENDIENTE', 'EN_PROCESO'] } as any;
+      }
     }
 
     const [tasks, total] = await Promise.all([

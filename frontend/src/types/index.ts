@@ -231,6 +231,30 @@ export interface PatientClinicalSummary {
   }>;
 }
 
+export interface PatientAdminSummary {
+  id: string;
+  rut: string | null;
+  rutExempt: boolean;
+  rutExemptReason: string | null;
+  nombre: string;
+  edad: number;
+  sexo: 'MASCULINO' | 'FEMENINO' | 'OTRO' | 'PREFIERE_NO_DECIR';
+  trabajo: string | null;
+  prevision: 'FONASA' | 'ISAPRE' | 'OTRA' | 'DESCONOCIDA';
+  domicilio: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: {
+    id: string;
+    nombre: string;
+    email: string;
+  } | null;
+  metrics: {
+    encounterCount: number;
+    lastEncounterAt: string | null;
+  };
+}
+
 // ── Section data types (Q1) ──────────────────────────────────────────
 
 export interface IdentificacionData {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -42,7 +43,8 @@ type ProfileForm = z.infer<typeof profileSchema>;
 type PasswordForm = z.infer<typeof passwordSchema>;
 
 export default function AjustesPage() {
-  const { user, setUser } = useAuthStore();
+  const router = useRouter();
+  const { user, setUser, logout } = useAuthStore();
   const queryClient = useQueryClient();
   const isAdmin = !!user?.isAdmin;
   const [showPassword, setShowPassword] = useState(false);
@@ -221,6 +223,9 @@ export default function AjustesPage() {
     onSuccess: () => {
       toast.success('Contraseña actualizada');
       resetPasswordForm();
+      queryClient.clear();
+      logout();
+      router.replace('/login');
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.message || 'Error al cambiar contraseña';

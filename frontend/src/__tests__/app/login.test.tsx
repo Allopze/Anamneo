@@ -4,9 +4,10 @@ import LoginPage from '@/app/login/page';
 
 // Mock next/navigation
 const pushMock = jest.fn();
+let fromParam: string | null = null;
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
-  useSearchParams: () => ({ get: () => null }),
+  useSearchParams: () => ({ get: (key: string) => (key === 'from' ? fromParam : null) }),
 }));
 
 // Mock api
@@ -33,6 +34,7 @@ jest.mock('@/components/branding/AnamneoLogo', () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  fromParam = null;
 });
 
 describe('LoginPage', () => {
@@ -96,6 +98,32 @@ describe('LoginPage', () => {
         password: 'Password1',
       });
       expect(pushMock).toHaveBeenCalledWith('/pacientes');
+    });
+  });
+
+  it('uses the safe from parameter when returning after login', async () => {
+    fromParam = '/atenciones/enc-1?panel=review';
+    apiPostMock.mockResolvedValueOnce({});
+    apiGetMock.mockResolvedValueOnce({
+      data: {
+        id: '1',
+        email: 'doc@test.cl',
+        nombre: 'Dr. Test',
+        role: 'MEDICO',
+        isAdmin: false,
+        medicoId: null,
+      },
+    });
+
+    const user = userEvent.setup();
+    render(<LoginPage />);
+
+    await user.type(screen.getByLabelText('Correo electrónico'), 'doc@test.cl');
+    await user.type(screen.getByLabelText('Contraseña'), 'Password1');
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith('/atenciones/enc-1?panel=review');
     });
   });
 

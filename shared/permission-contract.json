@@ -19,9 +19,9 @@
       "isAdmin": true
     },
     "expectations": {
-      "canEditAntecedentes": true,
-      "canEditPatientAdmin": true,
-      "canCreateEncounter": true
+      "canEditAntecedentes": false,
+      "canEditPatientAdmin": false,
+      "canCreateEncounter": false
     }
   },
   {

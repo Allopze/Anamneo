@@ -1277,6 +1277,10 @@ export class EncountersService {
       throw new BadRequestException('Solo se pueden reabrir atenciones completadas');
     }
 
+    if (encounter.medicoId !== userId) {
+      throw new ForbiddenException('No tiene permisos para reabrir esta atención');
+    }
+
     const sanitizedNote = this.sanitizeRequiredWorkflowNote(
       note,
       'La nota de reapertura',

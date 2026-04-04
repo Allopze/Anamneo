@@ -1,6 +1,7 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -10,9 +11,13 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import clsx from 'clsx';
+import { useAuthStore } from '@/stores/auth-store';
 
 export default function FichaClinicaPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const isOperationalAdmin = !!user?.isAdmin;
 
   const { data: encounter, isLoading } = useQuery({
     queryKey: ['encounter', id],
@@ -20,7 +25,17 @@ export default function FichaClinicaPage() {
       const response = await api.get(`/encounters/${id}`);
       return response.data as Encounter;
     },
+    enabled: !isOperationalAdmin,
   });
+
+  useEffect(() => {
+    if (!isOperationalAdmin) return;
+    router.replace('/');
+  }, [isOperationalAdmin, router]);
+
+  if (isOperationalAdmin) {
+    return null;
+  }
 
   const handlePrint = () => {
     window.print();

@@ -5,19 +5,19 @@
 /* ── Anamneo Visual System ────────────────────────────────────────── */
 
 :root {
-  --surface-base: #DFDFD5;
-  --surface-elevated: #F1F2EF;
-  --surface-muted: #C2C1BB;
-  --surface-inset: #D5D5CB;
-  --frame: #5D5D58;
-  --frame-dark: #4A4A45;
-  --accent: #E9F34A;
-  --accent-bright: #F3FE48;
-  --ink: #1E1E1A;
-  --ink-secondary: #6E6E67;
-  --ink-muted: #8A8A84;
-  --ink-on-dark: #F1F2EF;
-  --chip: #73756E;
+  --surface-base: #ebe9e4;
+  --surface-elevated: #fdfcfb;
+  --surface-muted: #e5e4e0;
+  --surface-inset: #f5f4f0;
+  --frame: #404040;
+  --frame-dark: #2b2b2b;
+  --accent: #eaf832;
+  --accent-bright: #f3fe48;
+  --ink: #2b2b2b;
+  --ink-secondary: #666666;
+  --ink-muted: #a3a3a3;
+  --ink-on-dark: #ffffff;
+  --chip: #666666;
   --status-red: #D08C84;
   --status-yellow: #E5D86A;
   --status-green: #96B38A;
@@ -41,7 +41,7 @@ body {
   /* ── Forms ────────────────────── */
   .form-input,
   .input {
-    @apply w-full rounded-input border border-surface-muted/55 bg-surface-elevated px-4 py-3
+    @apply w-full rounded-pill border border-surface-muted/55 bg-white px-5 py-3
            text-ink placeholder:text-ink-muted shadow-soft
            transition-[border-color,box-shadow,background-color] duration-200
            focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/70;
@@ -81,7 +81,7 @@ body {
   }
 
   .dropdown-surface {
-    @apply bg-surface-elevated rounded-card border border-surface-muted/60 shadow-dropdown;
+    @apply bg-surface-elevated rounded-card border border-surface-muted/40 shadow-dropdown;
     animation: dropdown-in 0.15s ease-out;
     transform-origin: top right;
   }
@@ -120,25 +120,25 @@ body {
 
   /* ── Buttons ──────────────────── */
   .btn {
-    @apply inline-flex items-center justify-center rounded-btn px-5 py-3
-           font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-200
+    @apply inline-flex items-center justify-center rounded-pill px-5 py-3
+           font-bold transition-[background-color,border-color,color,box-shadow,transform] duration-200
            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface-base
-           disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.99];
+           disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
   }
 
   .btn-primary {
-    @apply bg-frame text-ink-onDark hover:bg-frame-dark
+    @apply bg-frame text-white hover:bg-frame-dark
            focus:ring-frame shadow-soft;
   }
 
   .btn-secondary {
-    @apply bg-surface-elevated text-ink-secondary border border-surface-muted/60
-           hover:bg-surface-base hover:text-ink focus:ring-surface-muted;
+    @apply bg-white text-ink-secondary border border-surface-muted/60
+           hover:bg-surface-inset hover:text-ink focus:ring-surface-muted;
   }
 
   .btn-accent {
     @apply bg-accent text-accent-text hover:bg-accent-bright
-           focus:ring-accent shadow-soft;
+           focus:ring-accent shadow-soft font-bold;
   }
 
   .btn-success {
@@ -153,7 +153,7 @@ body {
 
   /* ── Cards ────────────────────── */
   .card {
-    @apply rounded-card border border-frame/10 bg-surface-elevated p-6 shadow-soft;
+    @apply rounded-card border border-surface-muted/30 bg-surface-elevated p-6 shadow-soft;
   }
 
   .card-hover {
@@ -162,7 +162,7 @@ body {
 
   /* ── Sections ─────────────────── */
   .section-intro {
-    @apply rounded-card border border-surface-muted/35 bg-surface-base/70 px-5 py-4 text-body text-ink-secondary;
+    @apply rounded-card border border-surface-muted/35 bg-surface-inset/70 px-5 py-4 text-body text-ink-secondary;
   }
 
   .section-block {
@@ -170,7 +170,7 @@ body {
   }
 
   .section-block-muted {
-    @apply rounded-card border border-surface-muted/30 bg-surface-base/50 p-5;
+    @apply rounded-card border border-surface-muted/30 bg-surface-inset/50 p-5;
   }
 
   .section-block-title {
@@ -281,7 +281,7 @@ body {
   }
 
   .page-header-title {
-    @apply text-hero text-ink;
+    @apply text-hero text-ink font-extrabold;
   }
 
   .page-header-description {
@@ -290,7 +290,7 @@ body {
 
   /* ── Filters ──────────────────── */
   .filter-surface {
-    @apply card mb-6 p-4;
+    @apply card mb-6 p-4 bg-surface-inset;
   }
 
   /* ── Metrics ──────────────────── */
@@ -299,11 +299,11 @@ body {
   }
 
   .metric-icon {
-    @apply flex h-10 w-10 items-center justify-center rounded-icon;
+    @apply flex h-10 w-10 items-center justify-center rounded-full;
   }
 
   .metric-value {
-    @apply text-metric text-ink;
+    @apply text-metric text-ink font-extrabold;
   }
 
   .metric-label {
@@ -325,23 +325,23 @@ body {
 
   /* ── List Rows ────────────────── */
   .list-row {
-    @apply flex items-center gap-4 rounded-card px-4 py-3 transition-colors hover:bg-surface-base/60;
+    @apply flex items-center gap-4 rounded-card px-4 py-3 transition-colors hover:bg-surface-inset/60;
   }
 
   .list-row-icon {
-    @apply flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-icon;
+    @apply flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full;
   }
 
   .list-chip {
-    @apply rounded-pill px-3 py-1 text-micro font-medium;
+    @apply rounded-pill px-3 py-1 text-micro font-bold;
   }
 
   /* ── Auth Screens ─────────────── */
   .auth-shell {
     @apply relative min-h-screen overflow-hidden lg:grid lg:grid-cols-[1.02fr,0.98fr];
     background:
-      radial-gradient(circle at top left, rgba(233, 243, 74, 0.2), transparent 34%),
-      linear-gradient(180deg, rgba(241, 242, 239, 0.92), rgba(223, 223, 213, 0.98));
+      radial-gradient(circle at top left, rgba(234, 248, 50, 0.2), transparent 34%),
+      linear-gradient(180deg, rgba(253, 252, 251, 0.92), rgba(235, 233, 228, 0.98));
   }
 
   .auth-shell::before {
@@ -350,17 +350,17 @@ body {
     inset: 0;
     pointer-events: none;
     background-image:
-      linear-gradient(rgba(93, 93, 88, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(93, 93, 88, 0.06) 1px, transparent 1px);
+      linear-gradient(rgba(64, 64, 64, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(64, 64, 64, 0.06) 1px, transparent 1px);
     background-size: 28px 28px;
     mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.65), transparent 88%);
   }
 
   .auth-hero {
-    @apply relative flex flex-col justify-between border-b border-frame/10 bg-frame px-5 py-6 text-ink-onDark sm:px-6 sm:py-8 lg:min-h-screen lg:border-b-0 lg:px-12 lg:py-12;
+    @apply relative flex flex-col justify-between border-b border-frame/10 bg-frame px-5 py-6 text-white sm:px-6 sm:py-8 lg:min-h-screen lg:border-b-0 lg:px-12 lg:py-12;
     background:
-      radial-gradient(circle at top left, rgba(243, 254, 72, 0.16), transparent 28%),
-      linear-gradient(155deg, rgba(30, 30, 26, 0.92), rgba(74, 74, 69, 0.96));
+      radial-gradient(circle at top left, rgba(234, 248, 50, 0.16), transparent 28%),
+      linear-gradient(155deg, rgba(43, 43, 43, 0.92), rgba(64, 64, 64, 0.96));
   }
 
   .auth-hero-panel {
@@ -412,7 +412,7 @@ body {
   }
 
   .auth-card {
-    @apply w-full max-w-lg rounded-shell border border-frame/10 bg-surface-elevated/95 p-6 shadow-elevated sm:p-8;
+    @apply w-full max-w-lg rounded-shell border border-surface-muted/30 bg-surface-elevated/95 p-6 shadow-elevated sm:p-8;
   }
 
   .auth-card-header {
@@ -424,7 +424,7 @@ body {
   }
 
   .auth-card-title {
-    @apply text-[1.8rem] font-semibold tracking-tight text-ink;
+    @apply text-[1.8rem] font-extrabold tracking-tight text-ink;
   }
 
   .auth-card-description {
@@ -523,9 +523,10 @@ body {
 
   /* ── Header Shell ───────────────── */
   .header-shell {
-    @apply sticky top-0 z-40 rounded-b-shell overflow-hidden;
+    @apply sticky top-0 z-40 overflow-hidden;
     background: var(--surface-elevated);
-    box-shadow: 0 2px 12px rgba(30,30,26,0.06);
+    box-shadow: 0 2px 12px rgba(43,43,43,0.04);
+    border-radius: 0 0 2rem 2rem;
   }
 
   /* ── Dark Rail (Level 1) ────────── */
@@ -569,13 +570,13 @@ body {
 
   /* ── KPI Bar (Level 2) ─────────── */
   .header-kpi-bar {
-    @apply flex items-center justify-between gap-6 px-5 lg:px-7 py-3.5;
+    @apply flex items-center justify-between gap-6 mx-3 lg:mx-6 mt-4 mb-1 px-6 py-3.5 rounded-card;
     background: var(--surface-elevated);
-    border-bottom: 1px solid rgba(194,193,187,0.35);
+    box-shadow: 0 1px 3px rgba(43,43,43,0.04);
   }
 
   .header-module-title {
-    @apply text-[1.35rem] font-semibold tracking-tight text-ink leading-tight;
+    @apply text-[1.35rem] font-extrabold tracking-tight text-ink leading-tight;
   }
 
   .header-kpi-grid {
@@ -587,7 +588,7 @@ body {
   }
 
   .header-kpi-icon {
-    @apply flex items-center justify-center w-7 h-7 rounded-lg bg-surface-base/80;
+    @apply flex items-center justify-center w-7 h-7 rounded-full bg-surface-inset;
   }
 
   .header-kpi-content {
@@ -595,7 +596,7 @@ body {
   }
 
   .header-kpi-value {
-    @apply text-[1.5rem] font-bold leading-none tracking-tight text-ink;
+    @apply text-[1.5rem] font-extrabold leading-none tracking-tight text-ink;
   }
 
   .header-kpi-unit {
@@ -604,27 +605,26 @@ body {
 
   /* ── Context Bar (Level 3) ─────── */
   .header-context-bar {
-    @apply flex items-center justify-between px-5 lg:px-7 py-2.5;
-    background: var(--surface-base);
-    border-bottom: 1px solid rgba(194,193,187,0.25);
+    @apply flex items-center justify-between mx-3 lg:mx-6 mb-1 px-6 py-2;
   }
 
   .header-context-chip {
-    @apply inline-flex items-center justify-center rounded-pill
+    @apply inline-flex items-center justify-center rounded-full
            transition-all duration-200 outline-none
            focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1;
   }
 
   .header-context-chip-filter {
     @apply w-9 h-9 text-ink-secondary
-           border border-surface-muted/60 bg-surface-elevated
-           hover:bg-surface-muted/40 hover:text-ink hover:border-surface-muted;
+           border border-surface-muted/50 bg-surface-elevated
+           hover:bg-surface-muted/40 hover:text-ink hover:border-surface-muted
+           rounded-full;
   }
 
   .header-context-chip-action {
-    @apply w-9 h-9 text-ink-onDark
+    @apply w-9 h-9 text-white
            bg-frame hover:bg-frame-dark
-           shadow-soft;
+           shadow-soft rounded-full;
   }
 
   .header-context-chip-active {
@@ -661,6 +661,10 @@ body {
   .print-break-before { break-before: page; }
 }
 
+/* ── Sidebar scroll ────────────────────────────────────────────────── */
+.sidebar-scroll::-webkit-scrollbar { display: none; }
+.sidebar-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* ── Keyframes ─────────────────────────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
@@ -676,7 +680,7 @@ body {
   background: linear-gradient(90deg, var(--surface-muted) 25%, var(--surface-elevated) 50%, var(--surface-muted) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: 12px;
+  border-radius: 999px;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -51,9 +51,9 @@ describe('role checks', () => {
 });
 
 describe('feature guards', () => {
-  it('canCreatePatient — medico, assigned assistant, admin can', () => {
+  it('canCreatePatient — medico and assigned assistant can, admin cannot', () => {
     expect(canCreatePatient(medico)).toBe(true);
-    expect(canCreatePatient(admin)).toBe(true);
+    expect(canCreatePatient(admin)).toBe(false);
     expect(canCreatePatient(asistente)).toBe(true);
     expect(canCreatePatient(asistenteNoMedico)).toBe(false);
     expect(canCreatePatient(null)).toBe(false);
@@ -61,19 +61,21 @@ describe('feature guards', () => {
 
   it('canCreateEncounter', () => {
     expect(canCreateEncounter(medico)).toBe(true);
-    expect(canCreateEncounter(admin)).toBe(true);
+    expect(canCreateEncounter(admin)).toBe(false);
     expect(canCreateEncounter(asistente)).toBe(true);
     expect(canCreateEncounter(asistenteNoMedico)).toBe(false);
   });
 
   it('canEditPatientAdmin', () => {
     expect(canEditPatientAdmin(medico)).toBe(true);
-    expect(canEditPatientAdmin(admin)).toBe(true);
+    expect(canEditPatientAdmin(asistente)).toBe(true);
+    expect(canEditPatientAdmin(admin)).toBe(false);
   });
 
   it('canUploadAttachments', () => {
     expect(canUploadAttachments(medico)).toBe(true);
     expect(canUploadAttachments(asistente)).toBe(true);
+    expect(canUploadAttachments(admin)).toBe(false);
     expect(canUploadAttachments(asistenteNoMedico)).toBe(false);
   });
 
@@ -84,11 +86,11 @@ describe('feature guards', () => {
     expect(canImportConditionsCsv({ id: '5', role: 'MEDICO', isAdmin: true })).toBe(false);
   });
 
-  it('canEditAntecedentes — medico, assigned assistant and admin', () => {
+  it('canEditAntecedentes — medico and assigned assistant only', () => {
     expect(canEditAntecedentes(medico)).toBe(true);
     expect(canEditAntecedentes(asistente)).toBe(true);
     expect(canEditAntecedentes(asistenteNoMedico)).toBe(false);
-    expect(canEditAntecedentes(admin)).toBe(true);
+    expect(canEditAntecedentes(admin)).toBe(false);
   });
 
   it('canViewMedicoOnlySections', () => {
@@ -114,7 +116,7 @@ describe('encounter-level permissions', () => {
   });
 
   it('canEditEncounter — admin on active encounter', () => {
-    expect(canEditEncounter(admin, activeEncounter)).toBe(true);
+    expect(canEditEncounter(admin, activeEncounter)).toBe(false);
   });
 
   it('canEditEncounter — creator on active encounter', () => {

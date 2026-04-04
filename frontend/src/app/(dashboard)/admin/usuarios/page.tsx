@@ -408,7 +408,7 @@ export default function AdminUsuariosPage() {
         </div>
 
         {createdInvitation && (
-          <div className={`mt-4 rounded-xl border p-4 ${createdInvitation.emailSent ? 'border-status-green/30 bg-status-green/10' : 'border-accent/20 bg-accent/10'}`}>
+          <div className={`mt-4 rounded-card border p-4 ${createdInvitation.emailSent ? 'border-status-green/30 bg-status-green/10' : 'border-accent/20 bg-accent/10'}`}>
             <p className="text-sm font-medium text-ink-primary">
               {createdInvitation.emailSent
                 ? `Invitación enviada a ${createdInvitation.email}`
@@ -516,7 +516,7 @@ export default function AdminUsuariosPage() {
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           {assistantGroups.map(({ medico, assistants }) => (
-            <div key={medico.id} className="rounded-xl border border-surface-muted/30 p-4">
+            <div key={medico.id} className="rounded-card border border-surface-muted/30 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="font-medium text-ink-primary">{medico.nombre}</h3>

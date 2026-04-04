@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -19,7 +19,7 @@ import {
   TASK_STATUS_LABELS,
   TASK_TYPE_LABELS,
 } from '@/types';
-import { parseHistoryField } from '@/lib/utils';
+import { parseHistoryField, patientHistoryHasContent } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 import { buildEncounterSummary } from '@/lib/clinical';
 import { InProgressEncounterConflictModal, InProgressEncounterSummary } from '@/components/common/InProgressEncounterConflictModal';
@@ -51,7 +51,7 @@ export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { isMedico, canEditAntecedentes, canEditPatientAdmin, canCreateEncounter } = useAuthStore();
+  const { user, isMedico, canEditAntecedentes, canEditPatientAdmin, canCreateEncounter } = useAuthStore();
   const [conflictEncounters, setConflictEncounters] = useState<InProgressEncounterSummary[] | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [encounterPage, setEncounterPage] = useState(1);
@@ -69,6 +69,7 @@ export default function PatientDetailPage() {
       const response = await api.get(`/patients/${id}`);
       return response.data as Patient;
     },
+    enabled: !user?.isAdmin,
   });
 
   const {
@@ -82,6 +83,7 @@ export default function PatientDetailPage() {
       return response.data as PaginatedResponse<Encounter>;
     },
     placeholderData: keepPreviousData,
+    enabled: !user?.isAdmin,
   });
 
   const { data: clinicalSummary } = useQuery({
@@ -90,7 +92,18 @@ export default function PatientDetailPage() {
       const response = await api.get(`/patients/${id}/clinical-summary`);
       return response.data as PatientClinicalSummary;
     },
+    enabled: !user?.isAdmin,
   });
+  const historyHasContent = patientHistoryHasContent(patient?.history);
+
+  useEffect(() => {
+    if (!user?.isAdmin) return;
+    router.replace('/pacientes');
+  }, [router, user?.isAdmin]);
+
+  if (user?.isAdmin) {
+    return null;
+  }
 
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/patients/${id}`),
@@ -207,7 +220,7 @@ export default function PatientDetailPage() {
     return (
       <div className="text-center py-12">
         <FiAlertCircle className="w-12 h-12 text-status-red mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-ink-primary mb-2">Paciente no encontrado</h2>
+        <h2 className="text-xl font-bold text-ink mb-2">Paciente no encontrado</h2>
         <p className="text-ink-secondary mb-4">El paciente que buscas no existe o fue eliminado.</p>
         <Link href="/pacientes" className="btn btn-primary">
           Volver a pacientes
@@ -256,7 +269,7 @@ export default function PatientDetailPage() {
               <FiUser className="w-7 h-7 text-ink-secondary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-ink-primary">{patient.nombre}</h1>
+              <h1 className="text-2xl font-extrabold text-ink">{patient.nombre}</h1>
               <p className="text-ink-secondary">
                 {patient.rut || 'Sin RUT'} • {patient.edad} años • {SEXO_LABELS[patient.sexo]}
               </p>
@@ -304,7 +317,7 @@ export default function PatientDetailPage() {
         {/* Patient Info */}
         <div className="lg:col-span-1 space-y-6">
           <div className="card">
-            <h2 className="text-lg font-semibold text-ink-primary mb-4">Información personal</h2>
+            <h2 className="text-lg font-bold text-ink mb-4">Información personal</h2>
             <dl className="space-y-3">
               <div>
                 <dt className="text-sm text-ink-muted">RUT</dt>
@@ -347,7 +360,7 @@ export default function PatientDetailPage() {
           {patient.history && (
             <div className="card">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-ink-primary">Antecedentes</h2>
+                <h2 className="text-lg font-bold text-ink">Antecedentes</h2>
                 {canEditAntecedentes() && (
                   <Link
                     href={`/pacientes/${id}/historial`}
@@ -388,7 +401,7 @@ export default function PatientDetailPage() {
                     </div>
                   );
                 })}
-                {!Object.values(patient.history).some(v => v?.items?.length > 0 || v?.texto?.trim()?.length > 0) && (
+                {!historyHasContent && (
                   <p className="text-ink-muted italic">No hay antecedentes registrados</p>
                 )}
               </div>
@@ -397,7 +410,7 @@ export default function PatientDetailPage() {
 
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-ink-primary">Problemas activos</h2>
+              <h2 className="text-lg font-bold text-ink">Problemas activos</h2>
               <span className="text-xs text-ink-muted">
                 {activeProblems.length} activos
                 {resolvedProblemsCount > 0 ? ` · ${resolvedProblemsCount} resueltos ocultos` : ''}
@@ -499,7 +512,7 @@ export default function PatientDetailPage() {
 
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-ink-primary">Seguimientos</h2>
+              <h2 className="text-lg font-bold text-ink">Seguimientos</h2>
               <span className="text-xs text-ink-muted">
                 {pendingTasks.length} pendientes
                 {completedTasksCount > 0 ? ` · ${completedTasksCount} cerrados ocultos` : ''}
@@ -611,7 +624,7 @@ export default function PatientDetailPage() {
           <div className="card">
             <div className="flex items-center gap-2 mb-4">
               <FiActivity className="w-5 h-5 text-accent-text" />
-              <h2 className="text-lg font-semibold text-ink-primary">Tendencias clínicas</h2>
+              <h2 className="text-lg font-bold text-ink">Tendencias clínicas</h2>
             </div>
             {clinicalSummary?.recentDiagnoses?.length ? (
               <div className="mb-4 flex flex-wrap gap-2">
@@ -669,7 +682,7 @@ export default function PatientDetailPage() {
         <div className="lg:col-span-2">
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-ink-primary">Atenciones</h2>
+              <h2 className="text-lg font-bold text-ink">Atenciones</h2>
               <span className="text-sm text-ink-muted">
                 {encounterPagination?.total || 0} atenciones registradas
               </span>

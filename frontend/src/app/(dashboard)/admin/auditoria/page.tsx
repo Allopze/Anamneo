@@ -174,7 +174,7 @@ export default function AuditoriaPage() {
       <div className="filter-surface">
         <div className="flex items-center gap-2 mb-4">
           <FiFilter className="w-4 h-4 text-accent-text" />
-          <h2 className="font-semibold text-ink-primary">Filtros operativos</h2>
+          <h2 className="font-bold text-ink">Filtros operativos</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
           <div>
@@ -460,7 +460,7 @@ export default function AuditoriaPage() {
           <div className="relative w-full max-w-3xl rounded-2xl border border-surface-muted/30 bg-surface-elevated shadow-xl">
             <div className="flex items-start justify-between gap-3 border-b border-surface-muted/30 p-5">
               <div>
-                <h2 className="text-lg font-semibold text-ink-primary">Detalle de auditoría</h2>
+                <h2 className="text-lg font-bold text-ink">Detalle de auditoría</h2>
                 <p className="text-sm text-ink-muted">
                   {ENTITY_LABELS[selectedLog.entityType] || selectedLog.entityType} ·{' '}
                   {ACTION_LABELS[selectedLog.action]?.label || selectedLog.action}
@@ -503,7 +503,7 @@ export default function AuditoriaPage() {
               </div>
               <div className="md:col-span-2">
                 <p className="text-xs uppercase tracking-wide text-ink-muted">Diff redactado</p>
-                <pre className="mt-2 max-h-[24rem] overflow-auto rounded-xl border border-surface-muted/30 bg-surface-base/40 p-4 text-xs text-ink-secondary">
+                <pre className="mt-2 max-h-[24rem] overflow-auto rounded-card border border-surface-muted/30 bg-surface-inset/40 p-4 text-xs text-ink-secondary">
                   {selectedLogDiff || 'Sin diff disponible'}
                 </pre>
               </div>

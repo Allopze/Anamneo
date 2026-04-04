@@ -1,24 +1,34 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { PatientTask, TASK_STATUS_LABELS, TASK_TYPE_LABELS } from '@/types';
 import { FiAlertTriangle, FiCalendar, FiChevronRight, FiClipboard, FiSearch } from 'react-icons/fi';
 import clsx from 'clsx';
 import { formatDateOnly } from '@/lib/date';
+import { useAuthStore } from '@/stores/auth-store';
 
 const STATUS_OPTIONS = ['', 'PENDIENTE', 'EN_PROCESO', 'COMPLETADA', 'CANCELADA'] as const;
 const TYPE_OPTIONS = ['', 'SEGUIMIENTO', 'EXAMEN', 'DERIVACION', 'TRAMITE'] as const;
 
 export default function SeguimientosPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const isOperationalAdmin = !!user?.isAdmin;
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [type, setType] = useState('');
   const [overdueOnly, setOverdueOnly] = useState(false);
 
   const queryKey = useMemo(() => ['task-inbox', search, status, type, overdueOnly], [search, status, type, overdueOnly]);
+
+  useEffect(() => {
+    if (!isOperationalAdmin) return;
+    router.replace('/');
+  }, [isOperationalAdmin, router]);
 
   const { data, isLoading, error } = useQuery({
     queryKey,
@@ -31,9 +41,14 @@ export default function SeguimientosPage() {
       const response = await api.get(`/patients/tasks?${params.toString()}`);
       return response.data as { data: PatientTask[] };
     },
+    enabled: !isOperationalAdmin,
   });
 
   const tasks = data?.data || [];
+
+  if (isOperationalAdmin) {
+    return null;
+  }
 
   return (
     <div className="animate-fade-in">

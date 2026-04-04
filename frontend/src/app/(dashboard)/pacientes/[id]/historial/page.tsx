@@ -30,16 +30,16 @@ export default function HistorialPacientePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { canEditAntecedentes } = useAuthStore();
+  const { user, canEditAntecedentes } = useAuthStore();
   const canEditHistory = canEditAntecedentes();
   const [formData, setFormData] = useState<any>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!canEditHistory) {
+    if (user?.isAdmin || !canEditHistory) {
       router.push(`/pacientes/${id}`);
     }
-  }, [canEditHistory, router, id]);
+  }, [canEditHistory, router, id, user?.isAdmin]);
 
   const { data: patient, isLoading, error: loadError } = useQuery({
     queryKey: ['patient', id],
@@ -47,7 +47,7 @@ export default function HistorialPacientePage() {
       const response = await api.get(`/patients/${id}`);
       return response.data as Patient;
     },
-    enabled: canEditHistory,
+    enabled: canEditHistory && !user?.isAdmin,
   });
 
   const initializedPatientIdRef = useRef<string | null>(null);
@@ -108,7 +108,7 @@ export default function HistorialPacientePage() {
     setFormData((prev: any) => ({ ...prev, [key]: value }));
   };
 
-  if (!canEditHistory) {
+  if (!canEditHistory || user?.isAdmin) {
     return null;
   }
 

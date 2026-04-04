@@ -1,4 +1,10 @@
-import { parseHistoryField, getFirstName, getNameInitial } from '@/lib/utils';
+import {
+  parseHistoryField,
+  historyFieldHasContent,
+  patientHistoryHasContent,
+  getFirstName,
+  getNameInitial,
+} from '@/lib/utils';
 
 describe('parseHistoryField', () => {
   it('parses a JSON string into object', () => {
@@ -22,6 +28,37 @@ describe('parseHistoryField', () => {
   it('returns arrays as-is', () => {
     const arr = [1, 2];
     expect(parseHistoryField(arr)).toBe(arr);
+  });
+});
+
+describe('historyFieldHasContent', () => {
+  it('returns true for JSON payload with items', () => {
+    expect(historyFieldHasContent('{"items":["HTA"]}')).toBe(true);
+  });
+
+  it('returns true for plain text strings', () => {
+    expect(historyFieldHasContent('Alergia a penicilina')).toBe(true);
+  });
+
+  it('returns false for empty values', () => {
+    expect(historyFieldHasContent(null)).toBe(false);
+    expect(historyFieldHasContent('{"items":[],"texto":"   "}')).toBe(false);
+  });
+});
+
+describe('patientHistoryHasContent', () => {
+  it('detects content in mixed stored history fields', () => {
+    expect(patientHistoryHasContent({
+      antecedentesMedicos: '{"items":["HTA"]}',
+      alergias: '',
+    })).toBe(true);
+  });
+
+  it('returns false when every history field is empty', () => {
+    expect(patientHistoryHasContent({
+      antecedentesMedicos: '{"items":[],"texto":""}',
+      alergias: null,
+    })).toBe(false);
   });
 });
 

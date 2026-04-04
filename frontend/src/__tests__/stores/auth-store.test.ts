@@ -101,6 +101,12 @@ describe('useAuthStore', () => {
       expect(useAuthStore.getState().canCreatePatient()).toBe(true);
     });
 
+    it('admin cannot create patients or encounters', () => {
+      act(() => useAuthStore.getState().login(adminUser));
+      expect(useAuthStore.getState().canCreatePatient()).toBe(false);
+      expect(useAuthStore.getState().canCreateEncounter()).toBe(false);
+    });
+
     it('unassigned asistente cannot create patients', () => {
       act(() =>
         useAuthStore.getState().login({ ...asistenteUser, medicoId: null })

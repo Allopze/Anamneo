@@ -46,6 +46,7 @@ export class AttachmentsController {
   }
 
   @Get('encounter/:encounterId')
+  @Roles('MEDICO', 'ASISTENTE')
   findByEncounter(
     @Param('encounterId', ParseUUIDPipe) encounterId: string,
     @CurrentUser() user: CurrentUserData,
@@ -54,6 +55,7 @@ export class AttachmentsController {
   }
 
   @Get(':id/download')
+  @Roles('MEDICO', 'ASISTENTE')
   async download(
     @Param('id', ParseUUIDPipe) id: string,
     @Res() res: Response,

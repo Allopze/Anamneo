@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import axios from 'axios';
 import { api, getErrorMessage } from '@/lib/api';
+import { sanitizeRedirectPath } from '@/lib/login-redirect';
 import { useAuthStore } from '@/stores/auth-store';
 import { FiArrowRight, FiFileText, FiLock, FiMail, FiShield, FiUsers } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
@@ -75,8 +76,7 @@ export default function LoginPage() {
       });
 
       toast.success('¡Bienvenido!');
-      const redirectTo = searchParams.get('from') || '/pacientes';
-      router.push(redirectTo.startsWith('/') && !redirectTo.startsWith('//') ? redirectTo : '/pacientes');
+      router.push(sanitizeRedirectPath(searchParams.get('from'), '/'));
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         setError('Credenciales incorrectas. Verifica tu correo y contraseña.');
