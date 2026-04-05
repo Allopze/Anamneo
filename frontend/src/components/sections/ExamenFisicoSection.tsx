@@ -11,6 +11,7 @@ interface Props {
   onChange: (data: ExamenFisicoData) => void;
   readOnly?: boolean;
   patientAge?: number;
+  patientAgeMonths?: number;
   patientSexo?: Patient['sexo'];
 }
 
@@ -129,6 +130,7 @@ export default function ExamenFisicoSection({
   onChange,
   readOnly,
   patientAge,
+  patientAgeMonths,
   patientSexo,
 }: Props) {
   const handleChange = (field: string, value: any) => {
@@ -151,7 +153,7 @@ export default function ExamenFisicoSection({
   const bmiInterpretation = getBmiInterpretation({
     weightKg: signosVitales.peso,
     heightCm: signosVitales.talla,
-    ageYears: patientAge,
+    ageYears: patientAge != null ? patientAge + (patientAgeMonths ?? 0) / 12 : undefined,
     sex: patientSexo,
   });
   const vitalAlerts = getVitalAlerts(signosVitales as Record<string, string | undefined>);

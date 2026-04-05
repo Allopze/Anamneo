@@ -271,7 +271,7 @@ export default function FichaClinicaPage() {
           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
             <p><strong>Nombre:</strong> {identificacion.nombre || '-'}</p>
             <p><strong>RUT:</strong> {identificacion.rut || 'Sin RUT'}</p>
-            <p><strong>Edad:</strong> {identificacion.edad} años</p>
+            <p><strong>Edad:</strong> {identificacion.edad} años{identificacion.edadMeses ? ` ${identificacion.edadMeses} meses` : ''}</p>
             <p><strong>Sexo:</strong> {SEXO_LABELS[identificacion.sexo] || '-'}</p>
             <p><strong>Previsión:</strong> {PREVISION_LABELS[identificacion.prevision] || '-'}</p>
             <p><strong>Trabajo:</strong> {identificacion.trabajo || '-'}</p>

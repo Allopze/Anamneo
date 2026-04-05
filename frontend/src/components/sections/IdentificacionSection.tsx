@@ -113,9 +113,9 @@ export default function IdentificacionSection({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <div>
-              <label className="form-label">Edad</label>
+              <label className="form-label">Edad (años)</label>
               <input
                 type="number"
                 value={data.edad || ''}
@@ -125,6 +125,24 @@ export default function IdentificacionSection({
                 }}
                 disabled={readOnly}
                 className="form-input"
+                min={0}
+                max={150}
+              />
+            </div>
+            <div>
+              <label className="form-label">Meses</label>
+              <input
+                type="number"
+                value={data.edadMeses ?? ''}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  handleChange('edadMeses', nextValue === '' ? undefined : parseInt(nextValue, 10));
+                }}
+                disabled={readOnly}
+                className="form-input"
+                placeholder="Opcional"
+                min={0}
+                max={11}
               />
             </div>
             <div>

@@ -752,22 +752,19 @@ export default function EncounterWizardPage() {
     if (direction === 'prev' && currentSectionIndex > 0) {
       moveToSection(currentSectionIndex - 1);
     } else if (direction === 'next' && currentSectionIndex < sections.length - 1) {
-      saveCurrentSection();
+      if (canEdit && currentSection && !currentSection.completed) {
+        await persistSection({
+          sectionKey: currentSection.sectionKey,
+          completed: true,
+        });
+      } else {
+        saveCurrentSection();
+      }
 
       startSectionTransition(() => {
         setCurrentSectionIndex(currentSectionIndex + 1);
       });
     }
-  };
-
-  const handleMarkComplete = () => {
-    if (!canEdit) return;
-    if (!currentSection) return;
-
-    void persistSection({
-      sectionKey: currentSection.sectionKey,
-      completed: true,
-    });
   };
 
   const handleMarkNotApplicable = () => {
@@ -801,12 +798,8 @@ export default function EncounterWizardPage() {
   };
 
   const confirmComplete = () => {
-    if (closureNote.trim().length < CLOSURE_NOTE_MIN_LENGTH) {
-      toast.error(`La nota de cierre debe tener al menos ${CLOSURE_NOTE_MIN_LENGTH} caracteres`);
-      return;
-    }
     setShowCompleteConfirm(false);
-    completeMutation.mutate({ closureNote });
+    completeMutation.mutate({ closureNote: closureNote.trim() || undefined });
   };
 
   const handleReviewStatusChange = (
@@ -1222,7 +1215,7 @@ export default function EncounterWizardPage() {
             readOnly={!canComplete}
           />
           <p className="mt-2 text-xs text-ink-muted">
-            Requerida al finalizar la atención. Mínimo {CLOSURE_NOTE_MIN_LENGTH} caracteres.
+            Opcional. Puedes agregar un breve resumen o comentario de cierre.
           </p>
 
           {encounter.tasks && encounter.tasks.length > 0 ? (
@@ -1491,6 +1484,7 @@ export default function EncounterWizardPage() {
                     linkedAttachmentsByOrderId={linkedAttachmentsByOrderId}
                     onRequestAttachToOrder={handleStartLinkedAttachment}
                     patientAge={identificationData.edad ?? encounter.patient?.edad}
+                    patientAgeMonths={identificationData.edadMeses ?? encounter.patient?.edadMeses}
                     patientSexo={identificationData.sexo ?? encounter.patient?.sexo}
                     motivoConsultaData={currentSection.sectionKey === 'SOSPECHA_DIAGNOSTICA' ? (formData.MOTIVO_CONSULTA ?? encounter?.sections?.find((s) => s.sectionKey === 'MOTIVO_CONSULTA')?.data) : undefined}
                   />
@@ -1525,16 +1519,6 @@ export default function EncounterWizardPage() {
                       </button>
                     ) : null}
 
-                    {canEdit ? (
-                      <button
-                        onClick={handleMarkComplete}
-                        disabled={saveSectionMutation.isPending || currentSection?.completed}
-                        className={TOOLBAR_BUTTON_CLASS}
-                      >
-                        <FiCheck className="h-4 w-4" />
-                        Completar Sección
-                      </button>
-                    ) : null}
 
                     <button
                       onClick={() => handleNavigate('next')}

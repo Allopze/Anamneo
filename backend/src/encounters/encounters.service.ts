@@ -866,6 +866,7 @@ export class EncountersService {
                       ? {
                           nombre: patient.nombre,
                           edad: patient.edad,
+                          edadMeses: patient.edadMeses ?? undefined,
                           sexo: patient.sexo,
                           trabajo: patient.trabajo || '',
                           prevision: patient.prevision,
@@ -1221,12 +1222,9 @@ export class EncountersService {
       );
     }
 
-    const sanitizedClosureNote = this.sanitizeRequiredWorkflowNote(
-      closureNote,
-      'La nota de cierre',
-      CLOSURE_NOTE_MIN_LENGTH,
-      1000,
-    );
+    const sanitizedClosureNote = closureNote
+      ? (this.sanitizeText(closureNote, 1000) ?? null)
+      : null;
 
     const updated = await this.prisma.encounter.update({
       where: { id },

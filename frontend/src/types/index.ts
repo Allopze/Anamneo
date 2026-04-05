@@ -6,6 +6,7 @@ export interface Patient {
   rutExemptReason: string | null;
   nombre: string;
   edad: number;
+  edadMeses?: number | null;
   sexo: 'MASCULINO' | 'FEMENINO' | 'OTRO' | 'PREFIERE_NO_DECIR';
   trabajo: string | null;
   prevision: 'FONASA' | 'ISAPRE' | 'OTRA' | 'DESCONOCIDA';
@@ -238,6 +239,7 @@ export interface PatientAdminSummary {
   rutExemptReason: string | null;
   nombre: string;
   edad: number;
+  edadMeses?: number | null;
   sexo: 'MASCULINO' | 'FEMENINO' | 'OTRO' | 'PREFIERE_NO_DECIR';
   trabajo: string | null;
   prevision: 'FONASA' | 'ISAPRE' | 'OTRA' | 'DESCONOCIDA';
@@ -263,6 +265,7 @@ export interface IdentificacionData {
   rutExemptReason?: string;
   nombre?: string;
   edad?: number;
+  edadMeses?: number;
   sexo?: string;
   trabajo?: string;
   prevision?: string;

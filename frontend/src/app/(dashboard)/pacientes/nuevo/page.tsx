@@ -16,6 +16,7 @@ import { validateRut } from '@/lib/rut';
 const basePatientObject = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   edad: z.number().min(0, 'La edad debe ser mayor a 0').max(150, 'Edad no valida').optional(),
+  edadMeses: z.number().min(0).max(11).optional(),
   sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR']).optional(),
   prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA']).optional(),
   rut: z.string().optional(),
@@ -44,6 +45,7 @@ const basePatientSchema = basePatientObject.superRefine((val, ctx) => {
 
 const fullPatientSchema = basePatientObject.extend({
   edad: z.number().min(0, 'La edad debe ser mayor a 0').max(150, 'Edad no valida'),
+  edadMeses: z.number().min(0).max(11).optional(),
   sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR']),
   prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA']),
 }).superRefine((val, ctx) => {
@@ -220,10 +222,10 @@ export default function NuevoPacientePage() {
         {isDoctor && (
           <>
         {/* Edad y Sexo */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div>
             <label htmlFor="edad" className="form-label">
-              Edad *
+              Edad (años) *
             </label>
             <input
               id="edad"
@@ -235,6 +237,20 @@ export default function NuevoPacientePage() {
               {...register('edad', { valueAsNumber: true })}
             />
             {errors.edad && <p className="form-error">{errors.edad.message}</p>}
+          </div>
+          <div>
+            <label htmlFor="edadMeses" className="form-label">
+              Meses
+            </label>
+            <input
+              id="edadMeses"
+              type="number"
+              min="0"
+              max="11"
+              className="form-input"
+              placeholder="Opcional"
+              {...register('edadMeses', { valueAsNumber: true })}
+            />
           </div>
           <div>
             <label htmlFor="sexo" className="form-label">

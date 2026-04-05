@@ -50,6 +50,7 @@ model Patient {
   rutExemptReason String?   @map("rut_exempt_reason")
   nombre          String
   edad            Int
+  edadMeses       Int?            @map("edad_meses")
   sexo            String
   trabajo         String?
   prevision       String

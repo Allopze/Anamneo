@@ -38,6 +38,12 @@ export class CreatePatientDto {
   @Max(150, { message: 'La edad no puede ser mayor a 150' })
   edad: number;
 
+  @IsInt()
+  @Min(0)
+  @Max(11)
+  @IsOptional()
+  edadMeses?: number;
+
   @IsIn(SEXOS, { message: 'El sexo debe ser válido' })
   sexo: Sexo;
 

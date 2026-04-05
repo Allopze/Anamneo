@@ -367,7 +367,7 @@ export class EncountersPdfService {
       sectionTitle(1, 'IDENTIFICACIÓN DEL PACIENTE');
       field('Nombre', ident.nombre || encounter.patient.nombre);
       field('RUT', ident.rut || encounter.patient.rut || 'Sin RUT');
-      field('Edad', ident.edad ? `${ident.edad} años` : undefined);
+      field('Edad', ident.edad ? `${ident.edad} años${ident.edadMeses ? ` ${ident.edadMeses} meses` : ''}` : undefined);
       field('Sexo', SEXO_MAP[ident.sexo] || ident.sexo);
       field('Previsión', PREVISION_MAP[ident.prevision] || ident.prevision);
       field('Trabajo', ident.trabajo);

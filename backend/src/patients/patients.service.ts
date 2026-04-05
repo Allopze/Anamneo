@@ -122,30 +122,14 @@ export class PatientsService {
         rutExemptReason: trimmedRutExemptReason || null,
         nombre: createPatientDto.nombre,
         edad: createPatientDto.edad,
+        edadMeses: createPatientDto.edadMeses ?? null,
         sexo: createPatientDto.sexo,
         trabajo: createPatientDto.trabajo,
         prevision: createPatientDto.prevision,
         domicilio: createPatientDto.domicilio,
         history: {
-          create: {}, // Create empty history record
+          create: {},
         },
-      },
-      include: {
-        history: true,
-      },
-    });
-
-    await this.auditService.log({
-      entityType: 'Patient',
-      entityId: patient.id,
-      userId,
-      action: 'CREATE',
-      diff: { created: patient },
-    });
-
-    return patient;
-  }
-
   async createQuick(createPatientDto: CreatePatientQuickDto, user: RequestUser) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
 

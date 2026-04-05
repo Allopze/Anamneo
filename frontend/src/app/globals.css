@@ -49,7 +49,7 @@ body {
 
   .form-textarea,
   textarea.form-input {
-    @apply min-h-[104px] rounded-[1.45rem] px-4 py-3.5 leading-6;
+    @apply min-h-[104px] rounded-xl px-5 py-4 leading-6;
     resize: vertical;
   }
 
