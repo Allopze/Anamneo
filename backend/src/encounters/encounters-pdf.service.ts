@@ -37,6 +37,7 @@ const IDENTIFICATION_SNAPSHOT_FIELD_META = [
   { key: 'rutExempt', label: 'exención de RUT' },
   { key: 'rutExemptReason', label: 'motivo de exención' },
   { key: 'edad', label: 'edad' },
+  { key: 'edadMeses', label: 'edad (meses)' },
   { key: 'sexo', label: 'sexo' },
   { key: 'prevision', label: 'previsión' },
   { key: 'trabajo', label: 'trabajo' },
@@ -95,6 +96,7 @@ export class EncountersPdfService {
       rutExempt: Boolean(patient?.rutExempt),
       rutExemptReason: patient?.rutExemptReason ?? '',
       edad: patient?.edad ?? '',
+      edadMeses: patient?.edadMeses ?? null,
       sexo: patient?.sexo ?? '',
       prevision: patient?.prevision ?? '',
       trabajo: patient?.trabajo ?? '',
@@ -153,12 +155,11 @@ export class EncountersPdfService {
   }
 
   private sanitizeFilenameSegment(value: string | undefined | null) {
-    const normalized = (value || 'paciente')
+    const normalized = (value || 'Paciente')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .toLowerCase();
+      .replace(/[^a-zA-Z0-9 ]+/g, ' ')
+      .trim();
 
     return path.basename(normalized || 'paciente');
   }
@@ -166,7 +167,10 @@ export class EncountersPdfService {
   private buildEncounterDocumentFilename(encounter: any, prefix: string) {
     const patientName = this.sanitizeFilenameSegment(encounter?.patient?.nombre);
     const encounterDate = this.formatEncounterDateOnly(encounter?.createdAt || new Date());
-    return `${prefix}_${patientName}_${encounterDate}.pdf`;
+    if (prefix === 'ficha_clinica') {
+      return `${patientName} - ${encounterDate}.pdf`;
+    }
+    return `${patientName} - ${prefix} - ${encounterDate}.pdf`;
   }
 
   async getPdfFilename(encounterId: string, user: RequestUser) {

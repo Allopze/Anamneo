@@ -361,6 +361,7 @@ export interface SospechaDiagnosticaData {
 
 export interface TratamientoData {
   plan?: string;
+  /** @deprecated Usar solo 'plan' */
   indicaciones?: string;
   receta?: string;
   examenes?: string;

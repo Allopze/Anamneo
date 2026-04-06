@@ -47,6 +47,7 @@ const IDENTIFICATION_SNAPSHOT_FIELD_META = [
   { key: 'rutExempt', label: 'exención de RUT' },
   { key: 'rutExemptReason', label: 'motivo de exención' },
   { key: 'edad', label: 'edad' },
+  { key: 'edadMeses', label: 'edad (meses)' },
   { key: 'sexo', label: 'sexo' },
   { key: 'prevision', label: 'previsión' },
   { key: 'trabajo', label: 'trabajo' },
@@ -695,6 +696,7 @@ export class EncountersService {
       rutExempt: Boolean(patient?.rutExempt),
       rutExemptReason: patient?.rutExemptReason ?? '',
       edad: patient?.edad ?? '',
+      edadMeses: patient?.edadMeses ?? null,
       sexo: patient?.sexo ?? '',
       prevision: patient?.prevision ?? '',
       trabajo: patient?.trabajo ?? '',
@@ -703,7 +705,7 @@ export class EncountersService {
   }
 
   private buildAnamnesisRemotaSnapshotFromHistory(history: any) {
-    const snapshot: Record<string, unknown> = { readonly: true };
+    const snapshot: Record<string, unknown> = {};
 
     for (const key of PATIENT_HISTORY_FIELD_KEYS) {
       try {

@@ -55,7 +55,6 @@ export default function TratamientoSection({
     onChange({
       ...data,
       plan: value,
-      indicaciones: value,
     });
   };
 

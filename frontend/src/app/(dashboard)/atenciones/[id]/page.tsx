@@ -1520,14 +1520,25 @@ export default function EncounterWizardPage() {
                     ) : null}
 
 
-                    <button
-                      onClick={() => handleNavigate('next')}
-                      disabled={currentSectionIndex === sections.length - 1}
-                      className={TOOLBAR_PRIMARY_BUTTON_CLASS}
-                    >
-                      Siguiente
-                      <FiChevronRight className="h-4 w-4" />
-                    </button>
+                    {currentSectionIndex < sections.length - 1 ? (
+                      <button
+                        onClick={() => handleNavigate('next')}
+                        className={TOOLBAR_PRIMARY_BUTTON_CLASS}
+                      >
+                        Siguiente
+                        <FiChevronRight className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => currentSection && persistSection({ sectionKey: currentSection.sectionKey, completed: true })}
+                        disabled={saveSectionMutation.isPending || currentSection?.completed || !canEdit}
+                        className={TOOLBAR_PRIMARY_BUTTON_CLASS}
+                        title="Marcar como completa y guardar los últimos cambios"
+                      >
+                        Completar
+                        <FiCheck className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

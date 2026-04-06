@@ -130,6 +130,23 @@ export class PatientsService {
         history: {
           create: {},
         },
+      },
+      include: {
+        history: true,
+      },
+    });
+
+    await this.auditService.log({
+      entityType: 'Patient',
+      entityId: patient.id,
+      userId,
+      action: 'CREATE',
+      diff: { created: patient },
+    });
+
+    return patient;
+  }
+
   async createQuick(createPatientDto: CreatePatientQuickDto, user: RequestUser) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
 

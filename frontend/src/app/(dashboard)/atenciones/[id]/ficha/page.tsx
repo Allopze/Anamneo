@@ -19,18 +19,19 @@ import {
 } from '@/lib/clinical';
 
 function fallbackPdfFilename(encounter: Encounter | undefined, kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') {
-  const patientName = (encounter?.patient?.nombre || 'paciente')
+  const patientName = (encounter?.patient?.nombre || 'Paciente')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .toLowerCase();
+    .replace(/[^a-zA-Z0-9 ]+/g, ' ')
+    .trim();
   const encounterDate = encounter?.createdAt
     ? format(new Date(encounter.createdAt), 'yyyy-MM-dd')
     : format(new Date(), 'yyyy-MM-dd');
-  const prefix = kind === 'pdf' ? 'ficha_clinica' : kind;
 
-  return `${prefix}_${patientName || 'paciente'}_${encounterDate}.pdf`;
+  if (kind === 'pdf') {
+    return `${patientName} - ${encounterDate}.pdf`;
+  }
+  return `${patientName} - ${kind} - ${encounterDate}.pdf`;
 }
 
 function getFilenameFromDisposition(value?: string) {
