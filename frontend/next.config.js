@@ -5,7 +5,7 @@ const { withSentryConfig } = require('@sentry/nextjs');
 loadEnvConfig(path.join(__dirname, '..'));
 
 /** @type {import('next').NextConfig} */
-const backendApiUrl = (process.env.API_PROXY_TARGET || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4444/api').replace(/\/$/, '');
+const backendApiUrl = (process.env.API_PROXY_TARGET || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5678/api').replace(/\/$/, '');
 const defaultAllowedDevOrigins = [
   'localhost',
   '127.0.0.1',

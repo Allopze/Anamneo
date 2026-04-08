@@ -36,6 +36,6 @@ RUN addgroup -g 1001 -S nodejs && \
     chown -R nestjs:nodejs /app
 USER nestjs
 
-EXPOSE 4444
+EXPOSE 5678
 
 CMD ["npm", "run", "start:prod:migrate"]

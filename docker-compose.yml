@@ -26,19 +26,19 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
       JWT_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 7d
-      PORT: 4444
+      PORT: 5678
       CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN is required}
       TRUST_PROXY: ${TRUST_PROXY:-false}
       UPLOAD_DEST: ${UPLOAD_DEST:-/app/uploads}
       SENTRY_DSN: ${SENTRY_DSN:-}
     ports:
-      - "4444:4444"
+      - "5678:5678"
     volumes:
       - db_data:/app/data
       - uploads_data:/app/uploads
     healthcheck:
       test:
-        ["CMD", "wget", "-q", "--spider", "http://localhost:4444/api/health"]
+        ["CMD", "wget", "-q", "--spider", "http://localhost:5678/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -48,7 +48,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:4444/api
+        NEXT_PUBLIC_API_URL: http://localhost:5678/api
     container_name: anamneo-frontend
     restart: unless-stopped
     depends_on:

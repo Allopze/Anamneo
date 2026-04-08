@@ -80,8 +80,23 @@ sanitize_local_env
 start_process backend_pid backend npm run dev:backend
 start_process frontend_pid frontend npm run dev:frontend
 
-wait -n "$backend_pid" "$frontend_pid"
-child_status=$?
+# macOS bash does not support `wait -n`; poll the child PIDs instead.
+child_status=0
+while true; do
+  if [[ -n "$backend_pid" ]] && ! kill -0 "$backend_pid" 2>/dev/null; then
+    wait "$backend_pid" 2>/dev/null || true
+    child_status=$?
+    break
+  fi
+
+  if [[ -n "$frontend_pid" ]] && ! kill -0 "$frontend_pid" 2>/dev/null; then
+    wait "$frontend_pid" 2>/dev/null || true
+    child_status=$?
+    break
+  fi
+
+  sleep 0.1
+done
 
 shutdown CHILD_EXIT
 exit "$child_status"
