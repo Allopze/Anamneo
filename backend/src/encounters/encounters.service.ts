@@ -705,7 +705,9 @@ export class EncountersService {
   }
 
   private buildAnamnesisRemotaSnapshotFromHistory(history: any) {
-    const snapshot: Record<string, unknown> = {};
+    const snapshot: Record<string, unknown> = {
+      readonly: true,
+    };
 
     for (const key of PATIENT_HISTORY_FIELD_KEYS) {
       try {
@@ -1224,9 +1226,12 @@ export class EncountersService {
       );
     }
 
-    const sanitizedClosureNote = closureNote
-      ? (this.sanitizeText(closureNote, 1000) ?? null)
-      : null;
+    const sanitizedClosureNote = this.sanitizeRequiredWorkflowNote(
+      closureNote,
+      'La nota de cierre',
+      CLOSURE_NOTE_MIN_LENGTH,
+      1000,
+    );
 
     const updated = await this.prisma.encounter.update({
       where: { id },

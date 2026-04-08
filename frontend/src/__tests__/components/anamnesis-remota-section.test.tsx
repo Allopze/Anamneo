@@ -21,6 +21,10 @@ describe('AnamnesisRemotaSection', () => {
       />,
     );
 
+    expect(
+      screen.getByPlaceholderText(/Enfermedades crónicas, hospitalizaciones previas/i),
+    ).toBeDisabled();
+
     expect(screen.getByText(/Snapshot cargado desde el historial del paciente/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Ir al historial maestro/i })).toHaveAttribute(
       'href',
@@ -64,5 +68,24 @@ describe('AnamnesisRemotaSection', () => {
         },
       }),
     );
+  });
+
+  it('keeps the section editable when the data is already a local encounter copy', () => {
+    render(
+      <AnamnesisRemotaSection
+        data={{
+          readonly: false,
+          antecedentesMedicos: {
+            texto: 'Seguimiento local',
+          },
+        }}
+        onChange={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByPlaceholderText(/Enfermedades crónicas, hospitalizaciones previas/i),
+    ).toBeEnabled();
+    expect(screen.queryByText(/Snapshot cargado desde el historial del paciente/i)).not.toBeInTheDocument();
   });
 });

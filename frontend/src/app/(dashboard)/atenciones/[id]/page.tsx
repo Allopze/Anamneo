@@ -4,8 +4,14 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect, useCallback, useMemo, useRef, useTransition } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import type { AxiosResponse } from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
+import {
+  CLOSURE_NOTE_MIN_LENGTH,
+  getClosureNoteCompletionError,
+  normalizeClosureNoteForCompletion,
+} from '@/lib/encounter-completion';
 import {
   clearEncounterDraft,
   hasEncounterDraftUnsavedChanges,
@@ -99,7 +105,10 @@ const SECTION_COMPONENTS: Record<SectionKey, React.ComponentType<any>> = {
 
 const AUTOSAVE_DELAY = 10000; // 10 seconds
 const REVIEW_NOTE_MIN_LENGTH = 10;
-const CLOSURE_NOTE_MIN_LENGTH = 15;
+type CompleteEncounterPayload = {
+  closureNote: string;
+};
+
 const LINKABLE_ATTACHMENT_LABELS = {
   EXAMEN: 'Examen',
   DERIVACION: 'Derivación',
@@ -393,8 +402,11 @@ export default function EncounterWizardPage() {
   });
 
   // Complete encounter mutation
-  const completeMutation = useMutation({
-    mutationFn: (payload: { closureNote: string }) => api.post(`/encounters/${id}/complete`, payload),
+  const completeMutation = useMutation<Encounter, unknown, CompleteEncounterPayload>({
+    mutationFn: async (payload) => {
+      const response: AxiosResponse<Encounter> = await api.post(`/encounters/${id}/complete`, payload);
+      return response.data;
+    },
     onSuccess: () => {
       if (user?.id) {
         clearEncounterDraft(id, user.id);
@@ -794,12 +806,19 @@ export default function EncounterWizardPage() {
         }
       }
     }
+
+    const closureNoteError = getClosureNoteCompletionError(closureNote);
+    if (closureNoteError) {
+      toast.error(closureNoteError);
+      return;
+    }
+
     setShowCompleteConfirm(true);
   };
 
   const confirmComplete = () => {
     setShowCompleteConfirm(false);
-    completeMutation.mutate({ closureNote: closureNote.trim() || undefined });
+    completeMutation.mutate({ closureNote: normalizeClosureNoteForCompletion(closureNote) });
   };
 
   const handleReviewStatusChange = (
@@ -1215,7 +1234,7 @@ export default function EncounterWizardPage() {
             readOnly={!canComplete}
           />
           <p className="mt-2 text-xs text-ink-muted">
-            Opcional. Puedes agregar un breve resumen o comentario de cierre.
+            Obligatoria para completar la atención. Mínimo {CLOSURE_NOTE_MIN_LENGTH} caracteres.
           </p>
 
           {encounter.tasks && encounter.tasks.length > 0 ? (
