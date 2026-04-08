@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
 import { api, getErrorMessage, PaginatedResponse } from '@/lib/api';
 import {
   Patient,
@@ -101,10 +102,6 @@ export default function PatientDetailPage() {
     router.replace('/pacientes');
   }, [router, user?.isAdmin]);
 
-  if (user?.isAdmin) {
-    return null;
-  }
-
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/patients/${id}`),
     onSuccess: () => {
@@ -125,12 +122,12 @@ export default function PatientDetailPage() {
       router.push(`/atenciones/${response.data.id}`);
     },
     onError: (err) => {
-      const anyErr = err as any;
-      const status = anyErr?.response?.status;
-      const data = anyErr?.response?.data;
+      const response = (err as AxiosError<{ inProgressEncounters?: InProgressEncounterSummary[] }>).response;
+      const status = response?.status;
+      const data = response?.data;
 
       if (status === 409 && Array.isArray(data?.inProgressEncounters)) {
-        setConflictEncounters(data.inProgressEncounters as InProgressEncounterSummary[]);
+        setConflictEncounters(data.inProgressEncounters);
         return;
       }
 
@@ -194,6 +191,10 @@ export default function PatientDetailPage() {
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
+
+  if (user?.isAdmin) {
+    return null;
+  }
 
   if (isLoading) {
     return (

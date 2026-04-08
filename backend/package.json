@@ -39,13 +39,13 @@
     "audit:redact:clinical-logs": "node scripts/audit-redact-clinical-logs.js"
   },
   "dependencies": {
-    "@nestjs/common": "^11.1.17",
+    "@nestjs/common": "^11.1.18",
     "@nestjs/config": "^4.0.3",
-    "@nestjs/core": "^11.1.17",
+    "@nestjs/core": "^11.1.18",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/mapped-types": "^2.1.0",
     "@nestjs/passport": "^11.0.5",
-    "@nestjs/platform-express": "^11.1.17",
+    "@nestjs/platform-express": "^11.1.18",
     "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^5.8.0",
     "@sentry/nestjs": "^10.46.0",
@@ -70,7 +70,7 @@
   "devDependencies": {
     "@nestjs/cli": "^11.0.16",
     "@nestjs/schematics": "^11.0.9",
-    "@nestjs/testing": "^11.1.17",
+    "@nestjs/testing": "^11.1.18",
     "@types/bcrypt": "^5.0.2",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^4.17.21",
@@ -99,6 +99,7 @@
     "typescript": "^5.3.3"
   },
   "overrides": {
+    "lodash": "^4.18.1",
     "path-to-regexp": "^8.4.1"
   },
   "jest": {

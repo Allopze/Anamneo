@@ -598,7 +598,7 @@ export class PatientsService {
       throw new NotFoundException('Paciente no encontrado');
     }
 
-    const { archivedAt, encounters, _count, ...summary } = patient;
+    const { encounters, _count, ...summary } = patient;
 
     return {
       ...summary,

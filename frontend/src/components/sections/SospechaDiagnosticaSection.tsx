@@ -36,7 +36,7 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly, m
         },
       ],
     });
-  }, [motivoConsultaData?.afeccionSeleccionada, sospechas.length, readOnly]);
+  }, [data, motivoConsultaData?.afeccionSeleccionada, onChange, readOnly, sospechas.length]);
 
   const addSospecha = () => {
     const newSospecha: SospechaDiagnostica = {
