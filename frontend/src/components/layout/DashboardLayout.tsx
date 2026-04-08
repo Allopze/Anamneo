@@ -99,11 +99,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       return;
     }
 
-    if (isAuthenticated) {
-      setAuthCheckComplete(true);
-      return;
-    }
-
     let cancelled = false;
 
     const bootstrapSession = async () => {
@@ -134,7 +129,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => {
       cancelled = true;
     };
-  }, [authCheckComplete, hasHydrated, isAuthenticated, login, logout, mounted, router]);
+  }, [authCheckComplete, hasHydrated, login, logout, mounted]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

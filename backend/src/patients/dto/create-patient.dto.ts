@@ -59,5 +59,10 @@ export class CreatePatientDto {
   @MaxLength(500, { message: 'El domicilio no puede exceder 500 caracteres' })
   @IsOptional()
   domicilio?: string;
+
+  @IsString()
+  @MaxLength(200, { message: 'El centro médico no puede exceder 200 caracteres' })
+  @IsOptional()
+  centroMedico?: string;
 }
 

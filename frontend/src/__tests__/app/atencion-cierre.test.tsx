@@ -259,6 +259,40 @@ describe('EncounterWizardPage closing workflow', () => {
     expect(apiPostMock).not.toHaveBeenCalledWith('/encounters/enc-1/complete', expect.anything());
   });
 
+  it('disables encounter completion when the patient record is pending medical verification', async () => {
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/encounters/enc-1') {
+        return Promise.resolve({
+          data: {
+            ...encounterResponse,
+            patient: {
+              ...encounterResponse.patient,
+              registrationMode: 'RAPIDO',
+              completenessStatus: 'PENDIENTE_VERIFICACION',
+              demographicsMissingFields: [],
+            },
+            clinicalOutputBlock: {
+              completenessStatus: 'PENDIENTE_VERIFICACION',
+              missingFields: [],
+              blockedActions: ['COMPLETE_ENCOUNTER', 'EXPORT_OFFICIAL_DOCUMENTS', 'PRINT_CLINICAL_RECORD'],
+              reason: 'La ficha maestra del paciente está pendiente de verificación médica antes de habilitar cierres y documentos clínicos oficiales.',
+            },
+          },
+        });
+      }
+
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    render(<EncounterWizardPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Finalizar Atención' })).toBeDisabled();
+    expect(screen.getAllByText(/pendiente de verificación médica/i)).toHaveLength(2);
+    expect(screen.getByRole('link', { name: 'Revisar ficha administrativa' })).toHaveAttribute('href', '/pacientes/patient-1');
+    expect(apiPostMock).not.toHaveBeenCalled();
+  });
+
   it('opens the confirmation modal and sends the normalized closure note when valid', async () => {
     const user = userEvent.setup();
 

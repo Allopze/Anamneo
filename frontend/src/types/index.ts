@@ -1,16 +1,28 @@
 // Patient types
+export type PatientSexo = 'MASCULINO' | 'FEMENINO' | 'OTRO' | 'PREFIERE_NO_DECIR';
+export type PatientPrevision = 'FONASA' | 'ISAPRE' | 'OTRA' | 'DESCONOCIDA';
+export type PatientRegistrationMode = 'COMPLETO' | 'RAPIDO';
+export type PatientCompletenessStatus = 'INCOMPLETA' | 'PENDIENTE_VERIFICACION' | 'VERIFICADA';
+export type PatientDemographicMissingField = 'rut' | 'edad' | 'sexo' | 'prevision';
+
 export interface Patient {
   id: string;
   rut: string | null;
   rutExempt: boolean;
   rutExemptReason: string | null;
   nombre: string;
-  edad: number;
+  edad: number | null;
   edadMeses?: number | null;
-  sexo: 'MASCULINO' | 'FEMENINO' | 'OTRO' | 'PREFIERE_NO_DECIR';
+  sexo: PatientSexo | null;
   trabajo: string | null;
-  prevision: 'FONASA' | 'ISAPRE' | 'OTRA' | 'DESCONOCIDA';
+  prevision: PatientPrevision | null;
+  registrationMode: PatientRegistrationMode;
+  completenessStatus: PatientCompletenessStatus;
+  demographicsVerifiedAt?: string | null;
+  demographicsVerifiedById?: string | null;
+  demographicsMissingFields: PatientDemographicMissingField[];
   domicilio: string | null;
+  centroMedico: string | null;
   createdAt: string;
   updatedAt: string;
   history?: PatientHistory;
@@ -72,6 +84,18 @@ export interface EncounterIdentificationSnapshotStatus {
   sourcePatientUpdatedAt?: string | null;
 }
 
+export type EncounterClinicalOutputAction =
+  | 'COMPLETE_ENCOUNTER'
+  | 'EXPORT_OFFICIAL_DOCUMENTS'
+  | 'PRINT_CLINICAL_RECORD';
+
+export interface EncounterClinicalOutputBlock {
+  completenessStatus: Extract<PatientCompletenessStatus, 'INCOMPLETA' | 'PENDIENTE_VERIFICACION'>;
+  missingFields: PatientDemographicMissingField[];
+  blockedActions: EncounterClinicalOutputAction[];
+  reason: string;
+}
+
 export interface Encounter {
   id: string;
   patientId: string;
@@ -107,6 +131,7 @@ export interface Encounter {
   attachments?: Attachment[];
   tasks?: PatientTask[];
   identificationSnapshotStatus?: EncounterIdentificationSnapshotStatus;
+  clinicalOutputBlock?: EncounterClinicalOutputBlock | null;
   progress?: {
     completed: number;
     total: number;
@@ -238,12 +263,18 @@ export interface PatientAdminSummary {
   rutExempt: boolean;
   rutExemptReason: string | null;
   nombre: string;
-  edad: number;
+  edad: number | null;
   edadMeses?: number | null;
-  sexo: 'MASCULINO' | 'FEMENINO' | 'OTRO' | 'PREFIERE_NO_DECIR';
+  sexo: PatientSexo | null;
   trabajo: string | null;
-  prevision: 'FONASA' | 'ISAPRE' | 'OTRA' | 'DESCONOCIDA';
+  prevision: PatientPrevision | null;
+  registrationMode: PatientRegistrationMode;
+  completenessStatus: PatientCompletenessStatus;
+  demographicsVerifiedAt?: string | null;
+  demographicsVerifiedById?: string | null;
+  demographicsMissingFields: PatientDemographicMissingField[];
   domicilio: string | null;
+  centroMedico: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy: {
@@ -264,12 +295,15 @@ export interface IdentificacionData {
   rutExempt?: boolean;
   rutExemptReason?: string;
   nombre?: string;
-  edad?: number;
-  edadMeses?: number;
-  sexo?: string;
+  edad?: number | null;
+  edadMeses?: number | null;
+  sexo?: string | null;
   trabajo?: string;
-  prevision?: string;
+  prevision?: string | null;
   domicilio?: string;
+  completenessStatus?: PatientCompletenessStatus;
+  registrationMode?: PatientRegistrationMode;
+  demographicsMissingFields?: PatientDemographicMissingField[];
 }
 
 export interface MotivoConsultaData {
@@ -443,6 +477,24 @@ export const PREVISION_LABELS: Record<string, string> = {
   ISAPRE: 'ISAPRE',
   OTRA: 'Otra',
   DESCONOCIDA: 'Desconocida',
+};
+
+export const PATIENT_REGISTRATION_MODE_LABELS: Record<PatientRegistrationMode, string> = {
+  COMPLETO: 'Registro completo',
+  RAPIDO: 'Alta rápida',
+};
+
+export const PATIENT_COMPLETENESS_STATUS_LABELS: Record<PatientCompletenessStatus, string> = {
+  INCOMPLETA: 'Ficha incompleta',
+  PENDIENTE_VERIFICACION: 'Pendiente de verificación médica',
+  VERIFICADA: 'Ficha verificada',
+};
+
+export const PATIENT_DEMOGRAPHIC_FIELD_LABELS: Record<PatientDemographicMissingField, string> = {
+  rut: 'RUT',
+  edad: 'edad',
+  sexo: 'sexo',
+  prevision: 'previsión',
 };
 
 // Status labels

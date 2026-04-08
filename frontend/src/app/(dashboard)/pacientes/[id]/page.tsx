@@ -14,8 +14,6 @@ import {
   PatientTask,
   PROBLEM_STATUS_LABELS,
   REVIEW_STATUS_LABELS,
-  SEXO_LABELS,
-  PREVISION_LABELS,
   STATUS_LABELS,
   TASK_STATUS_LABELS,
   TASK_TYPE_LABELS,
@@ -47,6 +45,12 @@ import { extractDateOnly, formatDateOnly } from '@/lib/date';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import {
+  formatPatientAge,
+  formatPatientPrevision,
+  formatPatientSex,
+  getPatientCompletenessMeta,
+} from '@/lib/patient';
 
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -131,6 +135,19 @@ export default function PatientDetailPage() {
         return;
       }
 
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  const verifyDemographicsMutation = useMutation({
+    mutationFn: () => api.post(`/patients/${id}/verify-demographics`, {}),
+    onSuccess: () => {
+      toast.success('Ficha verificada');
+      queryClient.invalidateQueries({ queryKey: ['patient', id] });
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      queryClient.invalidateQueries({ queryKey: ['patient-admin-summary', id] });
+    },
+    onError: (err) => {
       toast.error(getErrorMessage(err));
     },
   });
@@ -237,6 +254,7 @@ export default function PatientDetailPage() {
   const activeProblems = (patient.problems || []).filter((problem) => problem.status !== 'RESUELTO');
   const resolvedProblemsCount = (patient.problems || []).length - activeProblems.length;
   const completedTasksCount = (patient.tasks || []).length - pendingTasks.length;
+  const completenessMeta = getPatientCompletenessMeta(patient);
 
   return (
     <div className="animate-fade-in">
@@ -249,6 +267,7 @@ export default function PatientDetailPage() {
             setConflictEncounters(null);
             router.push(`/atenciones/${encounterId}`);
           }}
+          allowCancel={isMedico()}
           onCancelled={(encounterId) => {
             setConflictEncounters((prev) => {
               if (!prev) return prev;
@@ -272,8 +291,12 @@ export default function PatientDetailPage() {
             <div>
               <h1 className="text-2xl font-extrabold text-ink">{patient.nombre}</h1>
               <p className="text-ink-secondary">
-                {patient.rut || 'Sin RUT'} • {patient.edad} años • {SEXO_LABELS[patient.sexo]}
+                {patient.rut || 'Sin RUT'} • {formatPatientAge(patient.edad, patient.edadMeses)} • {formatPatientSex(patient.sexo)}
               </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                <span className={`list-chip ${completenessMeta.badgeClassName}`}>{completenessMeta.label}</span>
+                <span className="list-chip bg-surface-inset text-ink-secondary">{completenessMeta.registrationLabel}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -314,6 +337,33 @@ export default function PatientDetailPage() {
         )}
       </div>
 
+      {patient.completenessStatus && patient.completenessStatus !== 'VERIFICADA' && (
+        <div className="mb-6 rounded-card border border-status-yellow/70 bg-status-yellow/40 p-4 text-sm text-accent-text">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="font-medium">{completenessMeta.label}</p>
+              <p className="mt-1">{completenessMeta.description}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {canEditAdminFields && (
+                <Link href={`/pacientes/${id}/editar`} className="btn btn-secondary text-sm">
+                  Completar ficha
+                </Link>
+              )}
+              {isMedico() && patient.completenessStatus === 'PENDIENTE_VERIFICACION' && (
+                <button
+                  onClick={() => verifyDemographicsMutation.mutate()}
+                  disabled={verifyDemographicsMutation.isPending}
+                  className="btn btn-primary text-sm"
+                >
+                  {verifyDemographicsMutation.isPending ? 'Verificando...' : 'Validar ficha'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Patient Info */}
         <div className="lg:col-span-1 space-y-6">
@@ -332,15 +382,19 @@ export default function PatientDetailPage() {
               </div>
               <div>
                 <dt className="text-sm text-ink-muted">Edad</dt>
-                <dd className="font-medium">{patient.edad} años</dd>
+                <dd className="font-medium">{formatPatientAge(patient.edad, patient.edadMeses)}</dd>
               </div>
               <div>
                 <dt className="text-sm text-ink-muted">Sexo</dt>
-                <dd className="font-medium">{SEXO_LABELS[patient.sexo]}</dd>
+                <dd className="font-medium">{formatPatientSex(patient.sexo)}</dd>
               </div>
               <div>
                 <dt className="text-sm text-ink-muted">Previsión</dt>
-                <dd className="font-medium">{PREVISION_LABELS[patient.prevision]}</dd>
+                <dd className="font-medium">{formatPatientPrevision(patient.prevision)}</dd>
+              </div>
+              <div>
+                <dt className="text-sm text-ink-muted">Estado del registro</dt>
+                <dd className="font-medium">{completenessMeta.label}</dd>
               </div>
               {patient.trabajo && (
                 <div>

@@ -2,23 +2,32 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { FiSearch, FiPlus, FiX, FiTag } from 'react-icons/fi';
-import { api } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 import { Condition } from '@/types';
 import { parseJsonArray } from '@/lib/safe-json';
 import clsx from 'clsx';
+import toast from 'react-hot-toast';
 
 interface Props {
   selected: string[];
   onChange: (selected: string[]) => void;
   placeholder?: string;
   label?: string;
+  allowCatalogPersistence?: boolean;
 }
 
-export default function ConditionSelector({ selected, onChange, placeholder, label }: Props) {
+export default function ConditionSelector({
+  selected,
+  onChange,
+  placeholder,
+  label,
+  allowCatalogPersistence = false,
+}: Props) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<Condition[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [isPersistingToCatalog, setIsPersistingToCatalog] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -57,19 +66,32 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
     return () => clearTimeout(debounce);
   }, [query, selected]);
 
-  const handleAdd = (name: string) => {
-    if (!selected.includes(name)) {
-      onChange([...selected, name]);
+  const handleAdd = async (name: string, options?: { persistToCatalog?: boolean }) => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      return;
     }
-    // If the name doesn't come from a catalog suggestion, persist it as a local condition
-    const isFromCatalog = suggestions.some(
-      (s) => s.name.toLowerCase() === name.toLowerCase(),
-    );
-    if (!isFromCatalog && name.trim().length >= 2) {
-      api.post('/conditions/local', { name: name.trim() }).catch(() => {
-        // Silently fail — the tag is still added locally
-      });
+
+    if (!selected.includes(trimmedName)) {
+      onChange([...selected, trimmedName]);
     }
+
+    if (options?.persistToCatalog) {
+      setIsPersistingToCatalog(true);
+      try {
+        const response = await api.post('/conditions/local', { name: trimmedName });
+        if (response.data?.deduplicatedByName) {
+          toast.success('Afección reutilizada desde el catálogo local');
+        } else {
+          toast.success('Afección agregada al catálogo local');
+        }
+      } catch (error) {
+        toast.error(getErrorMessage(error));
+      } finally {
+        setIsPersistingToCatalog(false);
+      }
+    }
+
     setQuery('');
     setIsOpen(false);
   };
@@ -81,9 +103,14 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && query.trim()) {
       e.preventDefault();
-      handleAdd(query.trim());
+      void handleAdd(query.trim());
     }
   };
+
+  const trimmedQuery = query.trim();
+  const hasExactSuggestion = suggestions.some(
+    (suggestion) => suggestion.name.toLowerCase() === trimmedQuery.toLowerCase(),
+  );
 
   return (
     <div className="space-y-2" ref={wrapperRef}>
@@ -133,7 +160,7 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
         </div>
 
         {/* Dropdown */}
-        {isOpen && (query.trim() || suggestions.length > 0) && (
+        {isOpen && (trimmedQuery || suggestions.length > 0) && (
           <div className="absolute z-50 w-full mt-2 dropdown-surface max-h-64 overflow-y-auto">
             {suggestions.length > 0 && (
               <div className="dropdown-header py-2">
@@ -144,7 +171,9 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
               <button
                 type="button"
                 key={condition.id}
-                onClick={() => handleAdd(condition.name)}
+                onClick={() => {
+                  void handleAdd(condition.name);
+                }}
                 className="dropdown-item justify-between py-3"
               >
                 <div>
@@ -164,20 +193,44 @@ export default function ConditionSelector({ selected, onChange, placeholder, lab
             ))}
 
             {/* Manual add option */}
-            {query.trim() && !suggestions.some(s => s.name.toLowerCase() === query.trim().toLowerCase()) && (
-              <button
-                type="button"
-                onClick={() => handleAdd(query.trim())}
-                className="dropdown-item border-t border-surface-muted/20 bg-status-yellow/25 py-3 text-accent-text"
-              >
-                <FiPlus className="w-4 h-4" />
-                <span>Agregar manualmente: <strong>"{query.trim()}"</strong></span>
-              </button>
+            {trimmedQuery && !hasExactSuggestion && (
+              <div className="border-t border-surface-muted/20 bg-status-yellow/15">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleAdd(trimmedQuery);
+                  }}
+                  className="dropdown-item py-3 text-accent-text"
+                >
+                  <FiPlus className="w-4 h-4" />
+                  <span>Agregar solo al historial: <strong>"{trimmedQuery}"</strong></span>
+                </button>
+                {allowCatalogPersistence && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleAdd(trimmedQuery, { persistToCatalog: true });
+                    }}
+                    disabled={isPersistingToCatalog}
+                    className={clsx(
+                      'dropdown-item py-3 text-ink-primary',
+                      isPersistingToCatalog && 'cursor-not-allowed opacity-60',
+                    )}
+                  >
+                    <FiPlus className="w-4 h-4" />
+                    <span>
+                      {isPersistingToCatalog
+                        ? 'Guardando en catálogo local...'
+                        : `Agregar también al catálogo local: "${trimmedQuery}"`}
+                    </span>
+                  </button>
+                )}
+              </div>
             )}
 
-            {!isLoading && query.trim() && suggestions.length === 0 && (
+            {!isLoading && trimmedQuery && suggestions.length === 0 && (
               <div className="px-4 py-3 text-sm text-ink-muted text-center">
-                No se encontraron resultados para "{query}"
+                No se encontraron resultados para "{trimmedQuery}"
               </div>
             )}
           </div>

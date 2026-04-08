@@ -198,6 +198,7 @@ export default function HistorialPacientePage() {
                     selected={formData[field.key] || []}
                     onChange={(tags) => handleFieldChange(field.key, tags)}
                     placeholder={field.placeholder}
+                    allowCatalogPersistence
                   />
                 ) : (
                   <textarea

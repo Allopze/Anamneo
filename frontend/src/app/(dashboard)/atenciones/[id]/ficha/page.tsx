@@ -4,8 +4,8 @@ import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { Attachment, Encounter, SEXO_LABELS, PREVISION_LABELS, STATUS_LABELS, REVIEW_STATUS_LABELS } from '@/types';
+import { api, getErrorMessage } from '@/lib/api';
+import { Attachment, Encounter, STATUS_LABELS, REVIEW_STATUS_LABELS } from '@/types';
 import { FiAlertTriangle, FiArrowLeft, FiFileText, FiPrinter, FiDownload, FiPaperclip } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -17,6 +17,14 @@ import {
   getRevisionSystemEntries,
   getTreatmentPlanText,
 } from '@/lib/clinical';
+import {
+  formatPatientAge,
+  formatPatientMissingFields,
+  formatPatientPrevision,
+  formatPatientSex,
+  getIdentificationMissingFields,
+  getPatientCompletenessMeta,
+} from '@/lib/patient';
 
 function fallbackPdfFilename(encounter: Encounter | undefined, kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') {
   const patientName = (encounter?.patient?.nombre || 'Paciente')
@@ -63,6 +71,14 @@ export default function FichaClinicaPage() {
     enabled: !isOperationalAdmin,
   });
 
+  const clinicalOutputBlock = encounter?.clinicalOutputBlock ?? null;
+  const exportBlockedReason = clinicalOutputBlock?.blockedActions.includes('EXPORT_OFFICIAL_DOCUMENTS')
+    ? clinicalOutputBlock.reason
+    : null;
+  const printBlockedReason = clinicalOutputBlock?.blockedActions.includes('PRINT_CLINICAL_RECORD')
+    ? clinicalOutputBlock.reason
+    : null;
+
   useEffect(() => {
     if (!isOperationalAdmin) return;
     router.replace('/');
@@ -73,6 +89,11 @@ export default function FichaClinicaPage() {
   }
 
   const handlePrint = () => {
+    if (printBlockedReason) {
+      toast.error(printBlockedReason);
+      return;
+    }
+
     window.print();
   };
 
@@ -100,6 +121,11 @@ export default function FichaClinicaPage() {
   };
 
   const handleDownloadDocument = async (kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') => {
+    if (exportBlockedReason) {
+      toast.error(exportBlockedReason);
+      return;
+    }
+
     try {
       const endpoint = kind === 'pdf'
         ? `/encounters/${id}/export/pdf`
@@ -117,8 +143,8 @@ export default function FichaClinicaPage() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Error al generar el documento');
+    } catch (error) {
+      toast.error(getErrorMessage(error));
     }
   };
 
@@ -151,6 +177,8 @@ export default function FichaClinicaPage() {
   const observaciones = sections.find((s) => s.sectionKey === 'OBSERVACIONES')?.data || {};
   const revisionEntries = getRevisionSystemEntries(revisionSistemas);
   const treatmentPlan = getTreatmentPlanText(tratamiento);
+  const identificationMissingFields = formatPatientMissingFields(getIdentificationMissingFields(identificacion));
+  const patientCompletenessMeta = encounter.patient ? getPatientCompletenessMeta(encounter.patient) : null;
   const linkedAttachmentsByOrderId = (encounter.attachments || []).reduce<Record<string, Attachment[]>>((acc, attachment) => {
     if (!attachment.linkedOrderId) {
       return acc;
@@ -217,32 +245,79 @@ export default function FichaClinicaPage() {
             {encounter?.status === 'COMPLETADO' ? 'Volver al resumen' : 'Volver a edición'}
           </Link>
           <div className="flex items-center gap-2">
-            <button onClick={() => handleDownloadDocument('receta')} className="btn btn-secondary flex items-center gap-2">
+            <button
+              onClick={() => handleDownloadDocument('receta')}
+              className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
+              disabled={Boolean(exportBlockedReason)}
+              title={exportBlockedReason ?? undefined}
+            >
               <FiDownload className="w-4 h-4" />
               Receta
             </button>
-            <button onClick={() => handleDownloadDocument('ordenes')} className="btn btn-secondary flex items-center gap-2">
+            <button
+              onClick={() => handleDownloadDocument('ordenes')}
+              className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
+              disabled={Boolean(exportBlockedReason)}
+              title={exportBlockedReason ?? undefined}
+            >
               <FiDownload className="w-4 h-4" />
               Órdenes
             </button>
-            <button onClick={() => handleDownloadDocument('derivacion')} className="btn btn-secondary flex items-center gap-2">
+            <button
+              onClick={() => handleDownloadDocument('derivacion')}
+              className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
+              disabled={Boolean(exportBlockedReason)}
+              title={exportBlockedReason ?? undefined}
+            >
               <FiDownload className="w-4 h-4" />
               Derivación
             </button>
-            <button onClick={handleDownloadPdf} className="btn btn-secondary flex items-center gap-2">
+            <button
+              onClick={handleDownloadPdf}
+              className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
+              disabled={Boolean(exportBlockedReason)}
+              title={exportBlockedReason ?? undefined}
+            >
               <FiDownload className="w-4 h-4" />
               Descargar PDF
             </button>
-            <button onClick={handlePrint} className="btn btn-primary flex items-center gap-2">
+            <button
+              onClick={handlePrint}
+              className={clsx('btn btn-primary flex items-center gap-2', printBlockedReason && 'cursor-not-allowed opacity-60')}
+              disabled={Boolean(printBlockedReason)}
+              title={printBlockedReason ?? undefined}
+            >
               <FiPrinter className="w-4 h-4" />
               Imprimir
             </button>
           </div>
         </div>
+        {clinicalOutputBlock ? (
+          <div className="mx-auto mt-3 max-w-4xl rounded-2xl border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
+            <p className="font-medium">Salidas clinicas bloqueadas</p>
+            <p className="mt-1">{clinicalOutputBlock.reason}</p>
+            <Link
+              href={`/pacientes/${encounter.patientId}`}
+              className="mt-3 inline-flex items-center gap-2 rounded-full border border-status-yellow/70 px-3 py-1.5 text-xs font-semibold text-accent-text transition-colors hover:bg-status-yellow/55"
+            >
+              Revisar ficha administrativa
+            </Link>
+          </div>
+        ) : null}
       </div>
 
+      {clinicalOutputBlock ? (
+        <section className="hidden print:block px-8 py-12 text-center text-ink-primary">
+          <h1 className="text-2xl font-bold">Impresión bloqueada</h1>
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-ink-secondary">
+            Esta ficha no puede imprimirse mientras la identificación administrativa del paciente siga incompleta o pendiente de verificación médica.
+            Completa o valida la ficha administrativa y utiliza el circuito oficial de documentos una vez habilitado.
+          </p>
+        </section>
+      ) : null}
+
       {/* Clinical record content */}
-      <div className="max-w-4xl mx-auto p-8 bg-surface-elevated print:p-0">
+      <div className={clsx('max-w-4xl mx-auto p-8 bg-surface-elevated print:p-0', clinicalOutputBlock && 'print:hidden')}>
         {/* Header */}
         <header className="text-center border-b-2 border-ink-primary pb-4 mb-6">
           <h1 className="text-2xl font-bold text-ink-primary">FICHA CLÍNICA</h1>
@@ -256,6 +331,19 @@ export default function FichaClinicaPage() {
           <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
             1. IDENTIFICACIÓN DEL PACIENTE
           </h2>
+          {identificationMissingFields.length > 0 && (
+            <div className="mb-4 rounded-2xl border border-status-red/35 bg-status-red/10 p-3 text-sm text-status-red-text">
+              <div className="flex items-start gap-2">
+                <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p className="font-medium">Identificación incompleta en esta atención</p>
+                  <p className="mt-1">
+                    Faltan campos demográficos clave: {identificationMissingFields.join(', ')}.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           {encounter.identificationSnapshotStatus?.hasDifferences && (
             <div className="mb-4 rounded-2xl border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
               <div className="flex items-start gap-2">
@@ -269,12 +357,18 @@ export default function FichaClinicaPage() {
               </div>
             </div>
           )}
+          {patientCompletenessMeta && encounter.patient?.completenessStatus && encounter.patient.completenessStatus !== 'VERIFICADA' && (
+            <div className="mb-4 rounded-2xl border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
+              <p className="font-medium">{patientCompletenessMeta.label}</p>
+              <p className="mt-1">{patientCompletenessMeta.description}</p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
             <p><strong>Nombre:</strong> {identificacion.nombre || '-'}</p>
             <p><strong>RUT:</strong> {identificacion.rut || 'Sin RUT'}</p>
-            <p><strong>Edad:</strong> {identificacion.edad} años{identificacion.edadMeses ? ` ${identificacion.edadMeses} meses` : ''}</p>
-            <p><strong>Sexo:</strong> {SEXO_LABELS[identificacion.sexo] || '-'}</p>
-            <p><strong>Previsión:</strong> {PREVISION_LABELS[identificacion.prevision] || '-'}</p>
+            <p><strong>Edad:</strong> {formatPatientAge(identificacion.edad, identificacion.edadMeses)}</p>
+            <p><strong>Sexo:</strong> {formatPatientSex(identificacion.sexo)}</p>
+            <p><strong>Previsión:</strong> {formatPatientPrevision(identificacion.prevision)}</p>
             <p><strong>Trabajo:</strong> {identificacion.trabajo || '-'}</p>
             <p className="col-span-2"><strong>Domicilio:</strong> {identificacion.domicilio || '-'}</p>
           </div>

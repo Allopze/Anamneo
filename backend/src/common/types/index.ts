@@ -6,6 +6,8 @@ export type Role = 'MEDICO' | 'ASISTENTE' | 'ADMIN';
 export type Sexo = 'MASCULINO' | 'FEMENINO' | 'OTRO' | 'PREFIERE_NO_DECIR';
 
 export type Prevision = 'FONASA' | 'ISAPRE' | 'OTRA' | 'DESCONOCIDA';
+export type PatientRegistrationMode = 'COMPLETO' | 'RAPIDO';
+export type PatientCompletenessStatus = 'INCOMPLETA' | 'PENDIENTE_VERIFICACION' | 'VERIFICADA';
 
 export type EncounterStatus = 'EN_PROGRESO' | 'COMPLETADO' | 'CANCELADO';
 export type EncounterReviewStatus =
@@ -82,6 +84,12 @@ export type EncounterTaskPriority = 'ALTA' | 'MEDIA' | 'BAJA';
 export const ROLES = ['MEDICO', 'ASISTENTE', 'ADMIN'] as const;
 export const SEXOS = ['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR'] as const;
 export const PREVISIONES = ['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA'] as const;
+export const PATIENT_REGISTRATION_MODES = ['COMPLETO', 'RAPIDO'] as const;
+export const PATIENT_COMPLETENESS_STATUSES = [
+  'INCOMPLETA',
+  'PENDIENTE_VERIFICACION',
+  'VERIFICADA',
+] as const;
 export const ENCOUNTER_STATUSES = ['EN_PROGRESO', 'COMPLETADO', 'CANCELADO'] as const;
 export const ENCOUNTER_REVIEW_STATUSES = [
   'NO_REQUIERE_REVISION',

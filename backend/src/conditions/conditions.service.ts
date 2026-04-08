@@ -16,6 +16,57 @@ export class ConditionsService {
     private similarityService: ConditionsSimilarityService,
   ) {}
 
+  private normalizeConditionName(name: string): string {
+    return name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  private sanitizeStringArray(values?: string[]): string[] {
+    return (values || []).map((value) => value.trim()).filter(Boolean);
+  }
+
+  private mergeUniqueStrings(existing: string[], incoming: string[]): string[] {
+    const merged: string[] = [];
+    const seen = new Set<string>();
+
+    for (const value of [...existing, ...incoming]) {
+      const trimmedValue = value.trim();
+      if (!trimmedValue) {
+        continue;
+      }
+
+      const key = this.normalizeConditionName(trimmedValue);
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      merged.push(trimmedValue);
+    }
+
+    return merged;
+  }
+
+  private async findLocalConditionDuplicates(instanceId: string, name: string, excludeId?: string) {
+    const normalizedName = this.normalizeConditionName(name);
+    const localConditions = await this.prisma.conditionCatalogLocal.findMany({
+      where: { medicoId: instanceId },
+      orderBy: [{ active: 'desc' }, { hidden: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    return localConditions.filter((condition) => {
+      if (excludeId && condition.id === excludeId) {
+        return false;
+      }
+
+      return this.normalizeConditionName(condition.name) === normalizedName;
+    });
+  }
+
   async create(createDto: CreateConditionDto) {
     const condition = await this.prisma.conditionCatalog.create({
       data: {
@@ -210,10 +261,16 @@ export class ConditionsService {
 
   async createLocal(user: CurrentUserData, dto: CreateLocalConditionDto) {
     const instanceId = this.getInstanceId(user);
+    const trimmedName = dto.name?.trim();
+    const sanitizedSynonyms = this.sanitizeStringArray(dto.synonyms);
+    const sanitizedTags = this.sanitizeStringArray(dto.tags);
 
-    if (!dto.name || dto.name.trim().length < 2) {
+    if (!trimmedName || trimmedName.length < 2) {
       throw new BadRequestException('El nombre debe tener al menos 2 caracteres');
     }
+
+    const duplicateByName = await this.findLocalConditionDuplicates(instanceId, trimmedName);
+    const existingByName = duplicateByName[0];
 
     if (dto.baseConditionId) {
       const base = await this.prisma.conditionCatalog.findUnique({
@@ -221,6 +278,43 @@ export class ConditionsService {
       });
       if (!base) {
         throw new NotFoundException('Afección base no encontrada');
+      }
+
+      if (
+        existingByName
+        && existingByName.baseConditionId
+        && existingByName.baseConditionId !== dto.baseConditionId
+      ) {
+        throw new BadRequestException('Ya existe una afección local con ese nombre en el catálogo');
+      }
+
+      if (existingByName) {
+        const updated = await this.prisma.conditionCatalogLocal.update({
+          where: { id: existingByName.id },
+          data: {
+            baseConditionId: dto.baseConditionId,
+            name: trimmedName,
+            synonyms: JSON.stringify(
+              this.mergeUniqueStrings(
+                this.parseStringArray(existingByName.synonyms),
+                sanitizedSynonyms,
+              ),
+            ),
+            tags: JSON.stringify(
+              this.mergeUniqueStrings(
+                this.parseStringArray(existingByName.tags),
+                sanitizedTags,
+              ),
+            ),
+            active: true,
+            hidden: false,
+          },
+        });
+
+        return {
+          ...this.toConditionResponse(updated, 'LOCAL', dto.baseConditionId),
+          deduplicatedByName: true,
+        };
       }
 
       const upserted = await this.prisma.conditionCatalogLocal.upsert({
@@ -233,16 +327,16 @@ export class ConditionsService {
         create: {
           medicoId: instanceId,
           baseConditionId: dto.baseConditionId,
-          name: dto.name.trim(),
-          synonyms: JSON.stringify(dto.synonyms || []),
-          tags: JSON.stringify(dto.tags || []),
+          name: trimmedName,
+          synonyms: JSON.stringify(sanitizedSynonyms),
+          tags: JSON.stringify(sanitizedTags),
           active: true,
           hidden: false,
         },
         update: {
-          name: dto.name.trim(),
-          synonyms: JSON.stringify(dto.synonyms || []),
-          tags: JSON.stringify(dto.tags || []),
+          name: trimmedName,
+          synonyms: JSON.stringify(sanitizedSynonyms),
+          tags: JSON.stringify(sanitizedTags),
           active: true,
           hidden: false,
         },
@@ -251,12 +345,40 @@ export class ConditionsService {
       return this.toConditionResponse(upserted, 'LOCAL', dto.baseConditionId);
     }
 
+    if (existingByName) {
+      const updated = await this.prisma.conditionCatalogLocal.update({
+        where: { id: existingByName.id },
+        data: {
+          name: trimmedName,
+          synonyms: JSON.stringify(
+            this.mergeUniqueStrings(
+              this.parseStringArray(existingByName.synonyms),
+              sanitizedSynonyms,
+            ),
+          ),
+          tags: JSON.stringify(
+            this.mergeUniqueStrings(
+              this.parseStringArray(existingByName.tags),
+              sanitizedTags,
+            ),
+          ),
+          active: true,
+          hidden: false,
+        },
+      });
+
+      return {
+        ...this.toConditionResponse(updated, 'LOCAL', updated.baseConditionId ?? null),
+        deduplicatedByName: true,
+      };
+    }
+
     const created = await this.prisma.conditionCatalogLocal.create({
       data: {
         medicoId: instanceId,
-        name: dto.name.trim(),
-        synonyms: JSON.stringify(dto.synonyms || []),
-        tags: JSON.stringify(dto.tags || []),
+        name: trimmedName,
+        synonyms: JSON.stringify(sanitizedSynonyms),
+        tags: JSON.stringify(sanitizedTags),
       },
     });
 
@@ -273,10 +395,16 @@ export class ConditionsService {
       throw new NotFoundException('Afección local no encontrada');
     }
 
+    const nextName = dto.name?.trim() || existing.name;
+    const duplicateByName = await this.findLocalConditionDuplicates(instanceId, nextName, id);
+    if (duplicateByName.length > 0) {
+      throw new BadRequestException('Ya existe una afección local con ese nombre en el catálogo');
+    }
+
     const updateData: Record<string, unknown> = {};
     if (dto.name) updateData.name = dto.name.trim();
-    if (dto.synonyms) updateData.synonyms = JSON.stringify(dto.synonyms || []);
-    if (dto.tags) updateData.tags = JSON.stringify(dto.tags || []);
+    if (dto.synonyms) updateData.synonyms = JSON.stringify(this.sanitizeStringArray(dto.synonyms));
+    if (dto.tags) updateData.tags = JSON.stringify(this.sanitizeStringArray(dto.tags));
 
     const updated = await this.prisma.conditionCatalogLocal.update({
       where: { id },

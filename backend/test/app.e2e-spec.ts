@@ -62,11 +62,16 @@ describe('Application E2E Tests', () => {
   // Stored IDs used across tests
   let medicoUserId: string;
   let patientId: string;
+  let quickPatientId: string;
+  let blockedPatientId: string;
   let encounterId: string;
+  let blockedEncounterId: string;
   let workflowEncounterId: string;
   let patientProblemId: string;
   let patientTaskId: string;
   let attachmentId: string;
+  let localConditionId: string;
+  let secondLocalConditionId: string;
 
   // Cookie jars for different users
   let adminCookies: string[] = [];
@@ -444,6 +449,50 @@ describe('Application E2E Tests', () => {
         })
         .expect(403);
     });
+
+    it('POST /api/conditions/local → assistant can add a local condition once', async () => {
+      const res = await req()
+        .post('/api/conditions/local')
+        .set('Cookie', cookieHeader(assistantCookies))
+        .send({ name: 'Migraña' })
+        .expect(201);
+
+      expect(res.body.name).toBe('Migraña');
+      expect(res.body.scope).toBe('LOCAL');
+      expect(res.body.deduplicatedByName).toBeUndefined();
+      localConditionId = res.body.id;
+    });
+
+    it('POST /api/conditions/local → normalized duplicates reuse the existing local condition', async () => {
+      const res = await req()
+        .post('/api/conditions/local')
+        .set('Cookie', cookieHeader(assistantCookies))
+        .send({ name: '  migrana  ' })
+        .expect(201);
+
+      expect(res.body.id).toBe(localConditionId);
+      expect(res.body.name).toBe('migrana');
+      expect(res.body.deduplicatedByName).toBe(true);
+    });
+
+    it('POST /api/conditions/local → can create a second distinct local condition', async () => {
+      const res = await req()
+        .post('/api/conditions/local')
+        .set('Cookie', cookieHeader(assistantCookies))
+        .send({ name: 'Asma bronquial' })
+        .expect(201);
+
+      expect(res.body.name).toBe('Asma bronquial');
+      secondLocalConditionId = res.body.id;
+    });
+
+    it('PUT /api/conditions/local/:id → rejects renaming to an existing normalized local condition', async () => {
+      await req()
+        .put(`/api/conditions/local/${secondLocalConditionId}`)
+        .set('Cookie', cookieHeader(assistantCookies))
+        .send({ name: 'migraña' })
+        .expect(400);
+    });
   });
 
   // ── 6. Auth: Login ──────────────────────────────────────────────────
@@ -547,6 +596,7 @@ describe('Application E2E Tests', () => {
         .post('/api/patients')
         .set('Cookie', cookieHeader(medicoCookies))
         .send({
+          rut: '12.345.678-5',
           nombre: 'Paciente Test',
           edad: 35,
           sexo: 'MASCULINO',
@@ -557,8 +607,31 @@ describe('Application E2E Tests', () => {
         .expect(201);
 
       expect(res.body.nombre).toBe('Paciente Test');
+      expect(res.body.registrationMode).toBe('COMPLETO');
+      expect(res.body.completenessStatus).toBe('VERIFICADA');
       expect(res.body.id).toBeDefined();
       patientId = res.body.id;
+    });
+
+    it('POST /api/patients/quick → assistant creates an intentionally incomplete patient', async () => {
+      const res = await req()
+        .post('/api/patients/quick')
+        .set('Cookie', cookieHeader(assistantCookies))
+        .send({
+          nombre: 'Paciente Recepción',
+          rutExempt: true,
+          rutExemptReason: 'Extranjero sin identificación chilena',
+        })
+        .expect(201);
+
+      expect(res.body.nombre).toBe('Paciente Recepción');
+      expect(res.body.edad).toBeNull();
+      expect(res.body.sexo).toBeNull();
+      expect(res.body.prevision).toBeNull();
+      expect(res.body.registrationMode).toBe('RAPIDO');
+      expect(res.body.completenessStatus).toBe('INCOMPLETA');
+      expect(res.body.demographicsMissingFields).toEqual(expect.arrayContaining(['edad', 'sexo', 'prevision']));
+      quickPatientId = res.body.id;
     });
 
     it('GET /api/patients → list patients', async () => {
@@ -662,6 +735,36 @@ describe('Application E2E Tests', () => {
         .expect(200);
 
       expect(res.body.trabajo).toBe('Ingeniero clínico');
+    });
+
+    it('PUT /api/patients/:id/admin → assistant completes quick registration and leaves it pending medical verification', async () => {
+      const res = await req()
+        .put(`/api/patients/${quickPatientId}/admin`)
+        .set('Cookie', cookieHeader(assistantCookies))
+        .send({
+          edad: 28,
+          sexo: 'FEMENINO',
+          prevision: 'FONASA',
+          trabajo: 'Técnica en laboratorio',
+        })
+        .expect(200);
+
+      expect(res.body.completenessStatus).toBe('PENDIENTE_VERIFICACION');
+      expect(res.body.demographicsVerifiedAt).toBeNull();
+      expect(res.body.demographicsVerifiedById).toBeNull();
+      expect(res.body.demographicsMissingFields).toEqual([]);
+    });
+
+    it('POST /api/patients/:id/verify-demographics → doctor verifies a completed quick registration', async () => {
+      const res = await req()
+        .post(`/api/patients/${quickPatientId}/verify-demographics`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(201);
+
+      expect(res.body.registrationMode).toBe('RAPIDO');
+      expect(res.body.completenessStatus).toBe('VERIFICADA');
+      expect(res.body.demographicsVerifiedAt).toBeTruthy();
+      expect(res.body.demographicsVerifiedById).toBeDefined();
     });
 
     it('PUT /api/patients/:id/history → admin gets 403 because history is clinical', async () => {
@@ -1087,6 +1190,18 @@ describe('Application E2E Tests', () => {
       patientProblemId = res.body.id;
     });
 
+    it('PUT /api/patients/problems/:problemId → rejects invalid patient problem status', async () => {
+      const res = await req()
+        .put(`/api/patients/problems/${patientProblemId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          status: 'ESTADO_INVALIDO',
+        })
+        .expect(400);
+
+      expect(String(res.body.message)).toContain('status');
+    });
+
     it('PUT /api/patients/problems/:problemId → resolve patient problem', async () => {
       const res = await req()
         .put(`/api/patients/problems/${patientProblemId}`)
@@ -1354,6 +1469,75 @@ describe('Application E2E Tests', () => {
       expect(res.body.data.some((item: any) => item.id === encounterId)).toBe(true);
     });
 
+    it('POST /api/patients/quick → create blocked patient for output-policy coverage', async () => {
+      const res = await req()
+        .post('/api/patients/quick')
+        .set('Cookie', cookieHeader(assistantCookies))
+        .send({
+          nombre: 'Paciente Bloqueado',
+          rutExempt: true,
+          rutExemptReason: 'Paciente sin documento disponible',
+        })
+        .expect(201);
+
+      blockedPatientId = res.body.id;
+      expect(res.body.completenessStatus).toBe('INCOMPLETA');
+    });
+
+    it('POST /api/encounters/patient/:patientId → create encounter for output-policy coverage', async () => {
+      const res = await req()
+        .post(`/api/encounters/patient/${blockedPatientId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({})
+        .expect(201);
+
+      blockedEncounterId = res.body.id;
+      expect(blockedEncounterId).toBeDefined();
+    });
+
+    it('GET /api/encounters/:id/export/pdf → 400 while patient record remains incomplete', async () => {
+      const res = await req()
+        .get(`/api/encounters/${blockedEncounterId}/export/pdf`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(400);
+
+      expect(String(res.body.message)).toContain('ficha maestra del paciente sigue incompleta');
+    });
+
+    it('POST /api/encounters/:id/complete → 400 while patient record remains incomplete', async () => {
+      const res = await req()
+        .post(`/api/encounters/${blockedEncounterId}/complete`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({ closureNote: 'Cierre suficientemente largo para la validación base.' })
+        .expect(400);
+
+      expect(String(res.body.message)).toContain('ficha maestra del paciente sigue incompleta');
+    });
+
+    it('PUT /api/patients/:id/admin → move blocked patient to pending verification', async () => {
+      const res = await req()
+        .put(`/api/patients/${blockedPatientId}/admin`)
+        .set('Cookie', cookieHeader(assistantCookies))
+        .send({
+          edad: 31,
+          sexo: 'FEMENINO',
+          prevision: 'FONASA',
+          trabajo: 'Recepcionista',
+        })
+        .expect(200);
+
+      expect(res.body.completenessStatus).toBe('PENDIENTE_VERIFICACION');
+    });
+
+    it('GET /api/encounters/:id/export/document/receta → 400 while patient record is pending verification', async () => {
+      const res = await req()
+        .get(`/api/encounters/${blockedEncounterId}/export/document/receta`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(400);
+
+      expect(String(res.body.message)).toContain('pendiente de verificación médica');
+    });
+
     it('GET /api/encounters/:id/export/document/receta → returns PDF', async () => {
       const res = await req()
         .get(`/api/encounters/${encounterId}/export/document/receta`)
@@ -1511,6 +1695,20 @@ describe('Application E2E Tests', () => {
       expect(String(res.body.message)).toContain('nota de cierre');
     });
 
+    it('PUT /api/encounters/:id/review-status → stores workflow review note before completion', async () => {
+      const res = await req()
+        .put(`/api/encounters/${workflowEncounterId}/review-status`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          reviewStatus: 'REVISADA_POR_MEDICO',
+          note: 'Revisión final con hallazgos concordantes y autorización de cierre.',
+        })
+        .expect(200);
+
+      expect(res.body.reviewStatus).toBe('REVISADA_POR_MEDICO');
+      expect(res.body.reviewNote).toContain('autorización de cierre');
+    });
+
     it('POST /api/encounters/:id/complete → completes encounter with closure traceability', async () => {
       const res = await req()
         .post(`/api/encounters/${workflowEncounterId}/complete`)
@@ -1522,6 +1720,7 @@ describe('Application E2E Tests', () => {
 
       expect(res.body.status).toBe('COMPLETADO');
       expect(res.body.reviewStatus).toBe('REVISADA_POR_MEDICO');
+      expect(res.body.reviewNote).toContain('autorización de cierre');
       expect(res.body.closureNote).toContain('plan quirúrgico');
       expect(res.body.completedBy?.id).toBe(medicoUserId);
     });

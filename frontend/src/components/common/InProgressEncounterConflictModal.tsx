@@ -26,7 +26,7 @@ export function InProgressEncounterConflictModal(props: {
   allowCancel?: boolean;
   onCancelled?: (encounterId: string) => void;
 }) {
-  const { encounters, patient, onClose, onOpenEncounter, allowCancel = true, onCancelled } = props;
+  const { encounters, patient, onClose, onOpenEncounter, allowCancel = false, onCancelled } = props;
   const mostRecent = encounters[0];
   const [cancellingId, setCancellingId] = React.useState<string | null>(null);
 

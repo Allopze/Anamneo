@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
-import { PatientAdminSummary, PREVISION_LABELS, SEXO_LABELS } from '@/types';
+import { PatientAdminSummary } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   FiArrowLeft,
@@ -16,6 +16,12 @@ import {
   FiShield,
   FiUser,
 } from 'react-icons/fi';
+import {
+  formatPatientAge,
+  formatPatientPrevision,
+  formatPatientSex,
+  getPatientCompletenessMeta,
+} from '@/lib/patient';
 
 const dateTimeFormatter = new Intl.DateTimeFormat('es-CL', {
   dateStyle: 'medium',
@@ -92,6 +98,7 @@ export default function PatientAdministrativeDetailPage() {
   const displayRut = data.rutExempt
     ? `Sin RUT${data.rutExemptReason ? ` · ${data.rutExemptReason}` : ''}`
     : data.rut || 'Sin RUT registrado';
+  const completenessMeta = getPatientCompletenessMeta(data);
 
   return (
     <div className="animate-fade-in pb-10">
@@ -105,6 +112,10 @@ export default function PatientAdministrativeDetailPage() {
           <p className="page-header-description">
             Resumen operativo del paciente sin exponer historial ni contenido clínico.
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <span className={`list-chip ${completenessMeta.badgeClassName}`}>{completenessMeta.label}</span>
+            <span className="list-chip bg-surface-inset text-ink-secondary">{completenessMeta.registrationLabel}</span>
+          </div>
         </div>
         <Link href="/pacientes" className="btn btn-secondary inline-flex items-center gap-2">
           <FiArrowLeft className="w-4 h-4" />
@@ -126,9 +137,10 @@ export default function PatientAdministrativeDetailPage() {
 
           <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <DetailField label="RUT" value={displayRut} />
-            <DetailField label="Edad" value={`${data.edad} años`} />
-            <DetailField label="Sexo" value={SEXO_LABELS[data.sexo]} />
-            <DetailField label="Previsión" value={PREVISION_LABELS[data.prevision]} />
+            <DetailField label="Edad" value={formatPatientAge(data.edad, data.edadMeses)} />
+            <DetailField label="Sexo" value={formatPatientSex(data.sexo)} />
+            <DetailField label="Previsión" value={formatPatientPrevision(data.prevision)} />
+            <DetailField label="Estado" value={completenessMeta.label} />
             <DetailField label="Trabajo" value={data.trabajo || 'No informado'} />
             <DetailField label="Domicilio" value={data.domicilio || 'No informado'} />
           </dl>

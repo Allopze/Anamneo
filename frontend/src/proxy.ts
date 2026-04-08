@@ -1,22 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildLoginRedirectPath } from './lib/login-redirect';
+import { resolveProxyDecision } from './lib/proxy-session';
 
-const publicRoutes = ['/login', '/register'];
+const AUTH_ME_PATH = '/api/auth/me';
 
-export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  const hasSession =
-    request.cookies.has('access_token') || request.cookies.has('refresh_token');
-
-  const isPublicRoute = publicRoutes.some((route) => pathname === route);
-
-  if (!isPublicRoute && !hasSession) {
-    const loginUrl = new URL(buildLoginRedirectPath(`${pathname}${request.nextUrl.search}`), request.url);
-    return NextResponse.redirect(loginUrl);
+async function hasValidatedAccessSession(request: NextRequest): Promise<boolean> {
+  if (!request.cookies.has('access_token')) {
+    return false;
   }
 
-  return NextResponse.next();
+  const cookieHeader = request.headers.get('cookie');
+  if (!cookieHeader) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(new URL(AUTH_ME_PATH, request.url), {
+      method: 'GET',
+      headers: {
+        cookie: cookieHeader,
+        accept: 'application/json',
+      },
+      cache: 'no-store',
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const hasAccessToken = request.cookies.has('access_token');
+  const hasRefreshToken = request.cookies.has('refresh_token');
+  const hasSessionCookie = hasAccessToken || hasRefreshToken;
+  const hasValidatedSession = await hasValidatedAccessSession(request);
+
+  const decision = resolveProxyDecision({
+    pathname,
+    search: request.nextUrl.search,
+    hasSessionCookie,
+    hasRefreshToken,
+    hasValidatedSession,
+  });
+
+  if (decision.action === 'next') {
+    return NextResponse.next();
+  }
+
+  return NextResponse.redirect(new URL(decision.target, request.url));
 }
 
 export const config = {

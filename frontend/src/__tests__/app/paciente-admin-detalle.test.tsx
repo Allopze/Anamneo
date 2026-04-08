@@ -67,6 +67,11 @@ describe('PatientAdministrativeDetailPage', () => {
         sexo: 'FEMENINO',
         trabajo: 'Contadora',
         prevision: 'FONASA',
+        registrationMode: 'RAPIDO',
+        completenessStatus: 'PENDIENTE_VERIFICACION',
+        demographicsVerifiedAt: null,
+        demographicsVerifiedById: null,
+        demographicsMissingFields: [],
         domicilio: 'Santiago',
         createdAt: '2026-03-31T08:00:00.000Z',
         updatedAt: '2026-04-01T10:00:00.000Z',
@@ -90,6 +95,7 @@ describe('PatientAdministrativeDetailPage', () => {
     expect(screen.getByText('Ficha administrativa')).toBeInTheDocument();
     expect(screen.getByText('Atenciones registradas')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getAllByText('Pendiente de verificación médica')).toHaveLength(2);
     expect(apiGetMock).toHaveBeenCalledWith('/patients/patient-1/admin-summary');
   });
 

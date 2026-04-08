@@ -13,6 +13,15 @@ import toast from 'react-hot-toast';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { validateRut } from '@/lib/rut';
 
+function parseOptionalNumberInput(value: string) {
+  if (value === '') {
+    return undefined;
+  }
+
+  const parsedValue = Number.parseInt(value, 10);
+  return Number.isNaN(parsedValue) ? undefined : parsedValue;
+}
+
 const basePatientObject = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   edad: z.number().min(0, 'La edad debe ser mayor a 0').max(150, 'Edad no valida').optional(),
@@ -24,6 +33,7 @@ const basePatientObject = z.object({
   rutExemptReason: z.string().optional(),
   trabajo: z.string().optional(),
   domicilio: z.string().optional(),
+  centroMedico: z.string().optional(),
 });
 
 const basePatientSchema = basePatientObject.superRefine((val, ctx) => {
@@ -147,7 +157,7 @@ export default function NuevoPacientePage() {
         <div>
           <h1 className="text-2xl font-bold text-ink-primary">Nuevo Paciente</h1>
           <p className="text-ink-secondary">
-            {isDoctor ? 'Ingresa los datos del paciente' : 'Registro rapido para recepcion'}
+            {isDoctor ? 'Ingresa los datos del paciente' : 'Registro rápido para recepción'}
           </p>
         </div>
       </div>
@@ -160,7 +170,7 @@ export default function NuevoPacientePage() {
 
       {!isDoctor && (
         <div className="mb-6 rounded-lg border border-status-yellow/70 bg-status-yellow/40 p-4 text-sm text-accent-text">
-          Solo se requieren datos basicos. Podras completar el resto mas tarde.
+          Solo se requieren los datos mínimos de recepción. La ficha quedará como incompleta hasta que se completen edad, sexo, previsión y validación médica.
         </div>
       )}
 
@@ -249,7 +259,7 @@ export default function NuevoPacientePage() {
               max="11"
               className="form-input"
               placeholder="Opcional"
-              {...register('edadMeses', { valueAsNumber: true })}
+              {...register('edadMeses', { setValueAs: parseOptionalNumberInput })}
             />
           </div>
           <div>
@@ -315,6 +325,20 @@ export default function NuevoPacientePage() {
             className="form-input"
             placeholder="Ej: Av. Providencia 1234, Santiago"
             {...register('domicilio')}
+          />
+        </div>
+
+        {/* Centro Médico */}
+        <div>
+          <label htmlFor="centroMedico" className="form-label">
+            Centro médico
+          </label>
+          <input
+            id="centroMedico"
+            type="text"
+            className="form-input"
+            placeholder="Ej: Hospital Clínico UC, Clínica Santa María"
+            {...register('centroMedico')}
           />
         </div>
 

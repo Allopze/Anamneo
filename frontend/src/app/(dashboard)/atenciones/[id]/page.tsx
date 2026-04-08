@@ -32,6 +32,11 @@ import {
 import { useAuthStore } from '@/stores/auth-store';
 import { buildGeneratedClinicalSummary } from '@/lib/clinical';
 import {
+  formatPatientMissingFields,
+  getIdentificationMissingFields,
+  getPatientCompletenessMeta,
+} from '@/lib/patient';
+import {
   FiArrowLeft,
   FiCheck,
   FiSave,
@@ -214,6 +219,7 @@ const buildIdentificationSnapshotFromPatient = (encounter: Encounter) => ({
   rutExempt: encounter.patient?.rutExempt || false,
   rutExemptReason: encounter.patient?.rutExemptReason || '',
   edad: encounter.patient?.edad,
+  edadMeses: encounter.patient?.edadMeses ?? null,
   sexo: encounter.patient?.sexo || '',
   prevision: encounter.patient?.prevision || '',
   trabajo: encounter.patient?.trabajo || '',
@@ -794,6 +800,11 @@ export default function EncounterWizardPage() {
 
   const handleComplete = async () => {
     if (!canEdit) return;
+    if (completionBlockedReason) {
+      toast.error(completionBlockedReason);
+      return;
+    }
+
     if (hasUnsavedChanges) {
       const sectionKey = activeSectionKeyRef.current;
       if (sectionKey) {
@@ -934,6 +945,12 @@ export default function EncounterWizardPage() {
   const identificationData = ((formData.IDENTIFICACION
     ?? encounter?.sections?.find((section) => section.sectionKey === 'IDENTIFICACION')?.data
     ?? {}) as IdentificacionData);
+  const patientCompletenessMeta = encounter?.patient ? getPatientCompletenessMeta(encounter.patient) : null;
+  const identificationMissingFields = formatPatientMissingFields(getIdentificationMissingFields(identificationData));
+  const clinicalOutputBlockReason = encounter?.clinicalOutputBlock?.reason ?? null;
+  const completionBlockedReason = encounter?.clinicalOutputBlock?.blockedActions.includes('COMPLETE_ENCOUNTER')
+    ? encounter.clinicalOutputBlock.reason
+    : null;
   const handleStartLinkedAttachment = (type: 'EXAMEN' | 'DERIVACION', orderId: string) => {
     setUploadError(null);
     setSelectedFile(null);
@@ -1359,8 +1376,9 @@ export default function EncounterWizardPage() {
               {canComplete ? (
                 <button
                   onClick={handleComplete}
-                  disabled={completeMutation.isPending}
+                  disabled={completeMutation.isPending || Boolean(completionBlockedReason)}
                   className={TOOLBAR_SUCCESS_BUTTON_CLASS}
+                  title={completionBlockedReason ?? undefined}
                 >
                   <FiCheck className="h-4 w-4" />
                   Finalizar Atención
@@ -1370,6 +1388,38 @@ export default function EncounterWizardPage() {
           </div>
         </div>
       </header>
+
+      {(identificationMissingFields.length > 0
+        || Boolean(encounter.patient?.completenessStatus && encounter.patient.completenessStatus !== 'VERIFICADA')
+        || Boolean(clinicalOutputBlockReason)) && (
+        <div className="px-4 pt-4 lg:px-8 xl:px-10">
+          <div className="rounded-card border border-status-yellow/70 bg-status-yellow/40 p-4 text-sm text-accent-text">
+            {identificationMissingFields.length > 0 ? (
+              <p>
+                La identificación de esta atención sigue incompleta. Faltan: {identificationMissingFields.join(', ')}.
+              </p>
+            ) : null}
+            {patientCompletenessMeta && encounter.patient?.completenessStatus && encounter.patient.completenessStatus !== 'VERIFICADA' ? (
+              <p className={identificationMissingFields.length > 0 ? 'mt-2' : ''}>
+                La ficha maestra del paciente está en estado "{patientCompletenessMeta.label.toLowerCase()}".
+              </p>
+            ) : null}
+            {clinicalOutputBlockReason ? (
+              <p className={identificationMissingFields.length > 0 || Boolean(encounter.patient?.completenessStatus && encounter.patient.completenessStatus !== 'VERIFICADA') ? 'mt-2' : ''}>
+                {clinicalOutputBlockReason}
+              </p>
+            ) : null}
+            {clinicalOutputBlockReason ? (
+              <Link
+                href={`/pacientes/${encounter.patientId}`}
+                className="mt-3 inline-flex items-center gap-2 rounded-full border border-status-yellow/70 px-3 py-1.5 text-xs font-semibold text-accent-text transition-colors hover:bg-status-yellow/55"
+              >
+                Revisar ficha administrativa
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       <div className="grid w-full gap-5 px-4 py-5 xl:grid-cols-[264px_minmax(0,1fr)_356px] xl:items-start xl:px-6 xl:py-6 2xl:px-10">
         <aside className="hidden xl:block">

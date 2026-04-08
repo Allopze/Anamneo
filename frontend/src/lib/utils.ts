@@ -16,9 +16,22 @@ export function historyFieldHasContent(field: any): boolean {
   return hasItems || hasText;
 }
 
+const PATIENT_HISTORY_CONTENT_FIELDS = [
+  'antecedentesMedicos',
+  'antecedentesQuirurgicos',
+  'antecedentesGinecoobstetricos',
+  'antecedentesFamiliares',
+  'habitos',
+  'medicamentos',
+  'alergias',
+  'inmunizaciones',
+  'antecedentesSociales',
+  'antecedentesPersonales',
+] as const;
+
 export function patientHistoryHasContent(history: Record<string, any> | null | undefined): boolean {
   if (!history) return false;
-  return Object.values(history).some((field) => historyFieldHasContent(field));
+  return PATIENT_HISTORY_CONTENT_FIELDS.some((field) => historyFieldHasContent(history[field]));
 }
 
 /**

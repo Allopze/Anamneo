@@ -10,10 +10,11 @@ import { Patient } from '@/types';
 import { InProgressEncounterConflictModal, InProgressEncounterSummary } from '@/components/common/InProgressEncounterConflictModal';
 import { FiArrowLeft, FiSearch, FiUser, FiPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { formatPatientAge, getPatientCompletenessMeta } from '@/lib/patient';
 
 export default function NuevaAtencionPage() {
   const router = useRouter();
-  const { user, canCreateEncounter } = useAuthStore();
+  const { user, canCreateEncounter, isMedico } = useAuthStore();
   const [search, setSearch] = useState('');
   const canCreate = canCreateEncounter();
 
@@ -72,6 +73,7 @@ export default function NuevaAtencionPage() {
             setConflictEncounters(null);
             router.push(`/atenciones/${encounterId}`);
           }}
+          allowCancel={isMedico()}
           onCancelled={(encounterId) => {
             setConflictEncounters((prev) => {
               if (!prev) return prev;
@@ -110,26 +112,35 @@ export default function NuevaAtencionPage() {
               <div className="p-4 text-center text-ink-muted">Buscando...</div>
             ) : patients && patients.length > 0 ? (
               patients.map((patient) => (
-                <button
-                  key={patient.id}
-                  onClick={() => {
-                    setSelectedPatient({ id: patient.id, nombre: patient.nombre, rut: patient.rut });
-                    createMutation.mutate(patient.id);
-                  }}
-                  disabled={createMutation.isPending}
-                  className="w-full flex items-center gap-4 p-4 hover:bg-surface-muted/50 transition-colors text-left"
-                >
-                  <div className="w-10 h-10 rounded-full border border-status-yellow/60 bg-status-yellow/35 flex items-center justify-center">
-                    <FiUser className="w-5 h-5 text-ink-secondary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-ink-primary">{patient.nombre}</p>
-                    <p className="text-sm text-ink-muted">
-                      {patient.rut || 'Sin RUT'} • {patient.edad} años
-                    </p>
-                  </div>
-                  <FiPlus className="w-5 h-5 text-accent-text" />
-                </button>
+                (() => {
+                  const completenessMeta = getPatientCompletenessMeta(patient);
+
+                  return (
+                    <button
+                      key={patient.id}
+                      onClick={() => {
+                        setSelectedPatient({ id: patient.id, nombre: patient.nombre, rut: patient.rut });
+                        createMutation.mutate(patient.id);
+                      }}
+                      disabled={createMutation.isPending}
+                      className="w-full flex items-center gap-4 p-4 hover:bg-surface-muted/50 transition-colors text-left"
+                    >
+                      <div className="w-10 h-10 rounded-full border border-status-yellow/60 bg-status-yellow/35 flex items-center justify-center">
+                        <FiUser className="w-5 h-5 text-ink-secondary" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium text-ink-primary">{patient.nombre}</p>
+                          <span className={`list-chip ${completenessMeta.badgeClassName}`}>{completenessMeta.label}</span>
+                        </div>
+                        <p className="text-sm text-ink-muted">
+                          {patient.rut || 'Sin RUT'} • {formatPatientAge(patient.edad, patient.edadMeses)}
+                        </p>
+                      </div>
+                      <FiPlus className="w-5 h-5 text-accent-text" />
+                    </button>
+                  );
+                })()
               ))
             ) : (
               <div className="p-8 text-center">

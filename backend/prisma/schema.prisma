@@ -49,12 +49,17 @@ model Patient {
   rutExempt       Boolean   @default(false) @map("rut_exempt")
   rutExemptReason String?   @map("rut_exempt_reason")
   nombre          String
-  edad            Int
+  edad            Int?
   edadMeses       Int?            @map("edad_meses")
-  sexo            String
+  sexo            String?
   trabajo         String?
-  prevision       String
+  prevision       String?
+  registrationMode String   @default("COMPLETO") @map("registration_mode")
+  completenessStatus String @default("VERIFICADA") @map("completeness_status")
+  demographicsVerifiedAt DateTime? @map("demographics_verified_at")
+  demographicsVerifiedById String? @map("demographics_verified_by_id")
   domicilio       String?
+  centroMedico    String?   @map("centro_medico")
   archivedAt      DateTime? @map("archived_at")
   archivedById    String?   @map("archived_by_id")
   createdAt       DateTime  @default(now()) @map("created_at")

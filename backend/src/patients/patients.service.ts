@@ -6,6 +6,8 @@ import { CreatePatientQuickDto } from './dto/create-patient-quick.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { UpdatePatientAdminDto } from './dto/update-patient-admin.dto';
 import { UpdatePatientHistoryDto } from './dto/update-patient-history.dto';
+import { UpsertPatientProblemDto } from './dto/upsert-patient-problem.dto';
+import { UpdatePatientProblemDto } from './dto/update-patient-problem.dto';
 import { validateRut } from '../common/utils/helpers';
 import { Prisma } from '@prisma/client';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
@@ -18,6 +20,11 @@ import {
 } from '../common/utils/encounter-section-meta';
 import { SectionKey } from '../common/types';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
+import {
+  getPatientDemographicsMissingFields,
+  hasPatientVerificationFieldChanges,
+  isPatientDemographicsComplete,
+} from '../common/utils/patient-completeness';
 
 @Injectable()
 export class PatientsService {
@@ -58,6 +65,98 @@ export class PatientsService {
           }
         : null,
     };
+  }
+
+  private decoratePatient<T extends Record<string, any>>(patient: T) {
+    return {
+      ...patient,
+      demographicsMissingFields: getPatientDemographicsMissingFields(patient),
+    };
+  }
+
+  private resolvePatientVerificationState(params: {
+    currentPatient?: Record<string, any> | null;
+    nextPatient: Record<string, any>;
+    actorId: string;
+    actorRole?: string | null;
+    mode: 'CREATE_FULL' | 'CREATE_QUICK' | 'UPDATE_FULL' | 'UPDATE_ADMIN' | 'VERIFY';
+  }) {
+    const { currentPatient, nextPatient, actorId, actorRole, mode } = params;
+
+    if (mode === 'CREATE_QUICK') {
+      return {
+        completenessStatus: 'INCOMPLETA',
+        demographicsVerifiedAt: null,
+        demographicsVerifiedById: null,
+      } satisfies Prisma.PatientUpdateInput;
+    }
+
+    if (!isPatientDemographicsComplete(nextPatient)) {
+      return {
+        completenessStatus: 'INCOMPLETA',
+        demographicsVerifiedAt: null,
+        demographicsVerifiedById: null,
+      } satisfies Prisma.PatientUpdateInput;
+    }
+
+    if (mode === 'VERIFY') {
+      return {
+        completenessStatus: 'VERIFICADA',
+        demographicsVerifiedAt: new Date(),
+        demographicsVerifiedById: actorId,
+      } satisfies Prisma.PatientUpdateInput;
+    }
+
+    const verificationFieldsChanged = currentPatient
+      ? hasPatientVerificationFieldChanges(currentPatient, nextPatient)
+      : true;
+
+    if (actorRole === 'MEDICO') {
+      if (
+        currentPatient?.completenessStatus === 'VERIFICADA'
+        && !verificationFieldsChanged
+        && currentPatient.demographicsVerifiedAt
+      ) {
+        return {
+          completenessStatus: 'VERIFICADA',
+          demographicsVerifiedAt: currentPatient.demographicsVerifiedAt,
+          demographicsVerifiedById: currentPatient.demographicsVerifiedById,
+        } satisfies Prisma.PatientUpdateInput;
+      }
+
+      return {
+        completenessStatus: 'VERIFICADA',
+        demographicsVerifiedAt: new Date(),
+        demographicsVerifiedById: actorId,
+      } satisfies Prisma.PatientUpdateInput;
+    }
+
+    if (currentPatient?.completenessStatus === 'VERIFICADA' && !verificationFieldsChanged) {
+      return {
+        completenessStatus: 'VERIFICADA',
+        demographicsVerifiedAt: currentPatient.demographicsVerifiedAt,
+        demographicsVerifiedById: currentPatient.demographicsVerifiedById,
+      } satisfies Prisma.PatientUpdateInput;
+    }
+
+    return {
+      completenessStatus: 'PENDIENTE_VERIFICACION',
+      demographicsVerifiedAt: null,
+      demographicsVerifiedById: null,
+    } satisfies Prisma.PatientUpdateInput;
+  }
+
+  private normalizeNullableString(value: string | null | undefined, trim = true) {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null) {
+      return null;
+    }
+
+    const normalized = trim ? value.trim() : value;
+    return normalized.length > 0 ? normalized : null;
   }
 
   private async assertPatientAccess(user: RequestUser, patientId: string) {
@@ -114,6 +213,20 @@ export class PatientsService {
       throw new BadRequestException('Debe indicar el motivo de exención de RUT');
     }
 
+    const verificationState = this.resolvePatientVerificationState({
+      actorId: userId,
+      actorRole: 'MEDICO',
+      mode: 'CREATE_FULL',
+      nextPatient: {
+        rut: createPatientDto.rutExempt ? null : (formattedRut || createPatientDto.rut || null),
+        rutExempt: createPatientDto.rutExempt || false,
+        rutExemptReason: trimmedRutExemptReason || null,
+        edad: createPatientDto.edad,
+        sexo: createPatientDto.sexo,
+        prevision: createPatientDto.prevision,
+      },
+    });
+
     const patient = await this.prisma.patient.create({
       data: {
         createdById: userId,
@@ -127,6 +240,9 @@ export class PatientsService {
         trabajo: createPatientDto.trabajo,
         prevision: createPatientDto.prevision,
         domicilio: createPatientDto.domicilio,
+        centroMedico: createPatientDto.centroMedico,
+        registrationMode: 'COMPLETO',
+        ...verificationState,
         history: {
           create: {},
         },
@@ -144,7 +260,7 @@ export class PatientsService {
       diff: { created: patient },
     });
 
-    return patient;
+    return this.decoratePatient(patient);
   }
 
   async createQuick(createPatientDto: CreatePatientQuickDto, user: RequestUser) {
@@ -183,11 +299,22 @@ export class PatientsService {
         rutExempt: createPatientDto.rutExempt || false,
         rutExemptReason: trimmedRutExemptReason || null,
         nombre: createPatientDto.nombre,
-        edad: 0,
-        sexo: 'PREFIERE_NO_DECIR',
-        prevision: 'DESCONOCIDA',
+        edad: null,
+        sexo: null,
+        prevision: null,
         trabajo: null,
         domicilio: null,
+        registrationMode: 'RAPIDO',
+        ...this.resolvePatientVerificationState({
+          actorId: user.id,
+          actorRole: user.role,
+          mode: 'CREATE_QUICK',
+          nextPatient: {
+            rut: createPatientDto.rutExempt ? null : (formattedRut || createPatientDto.rut || null),
+            rutExempt: createPatientDto.rutExempt || false,
+            rutExemptReason: trimmedRutExemptReason || null,
+          },
+        }),
         history: {
           create: {},
         },
@@ -203,7 +330,7 @@ export class PatientsService {
       diff: { created: patient, quick: true },
     });
 
-    return patient;
+    return this.decoratePatient(patient);
   }
 
 
@@ -301,7 +428,7 @@ export class PatientsService {
     ]);
 
     return {
-      data: patients,
+      data: patients.map((patient) => this.decoratePatient(patient)),
       pagination: {
         page,
         limit,
@@ -523,7 +650,7 @@ export class PatientsService {
       include: { _count: { select: { encounters: true } } },
     });
 
-    const header = 'Nombre,RUT,Edad,Sexo,Previsión,Trabajo,Domicilio,Atenciones,Creado';
+    const header = 'Nombre,RUT,Edad,Sexo,Previsión,Modo registro,Estado completitud,Trabajo,Domicilio,Atenciones,Creado';
     const rows = patients.map((p) => {
       const fields = [
         this.toCsvCell(p.nombre || ''),
@@ -531,6 +658,8 @@ export class PatientsService {
         this.toCsvCell(p.edad),
         this.toCsvCell(p.sexo),
         this.toCsvCell(p.prevision),
+        this.toCsvCell(p.registrationMode),
+        this.toCsvCell(p.completenessStatus),
         this.toCsvCell(p.trabajo),
         this.toCsvCell(p.domicilio),
         this.toCsvCell(p._count.encounters),
@@ -565,9 +694,14 @@ export class PatientsService {
         rutExemptReason: true,
         nombre: true,
         edad: true,
+        edadMeses: true,
         sexo: true,
         trabajo: true,
         prevision: true,
+        registrationMode: true,
+        completenessStatus: true,
+        demographicsVerifiedAt: true,
+        demographicsVerifiedById: true,
         domicilio: true,
         createdAt: true,
         updatedAt: true,
@@ -600,13 +734,13 @@ export class PatientsService {
 
     const { encounters, _count, ...summary } = patient;
 
-    return {
+    return this.decoratePatient({
       ...summary,
       metrics: {
         encounterCount: _count.encounters,
         lastEncounterAt: encounters[0]?.createdAt ?? null,
       },
-    };
+    });
   }
 
   async findById(user: RequestUser, id: string) {
@@ -657,11 +791,11 @@ export class PatientsService {
       }
     }
 
-    return {
+    return this.decoratePatient({
       ...patient,
       problems: patient.problems.map((problem) => this.formatProblem(problem)),
       tasks: patient.tasks.map((task) => this.formatTask(task)),
-    };
+    });
   }
 
   async findEncounterTimeline(user: RequestUser, patientId: string, page = 1, limit = 10) {
@@ -942,19 +1076,37 @@ export class PatientsService {
     }
 
     // Prepare update data
-    const updateData: Prisma.PatientUpdateInput = { ...updatePatientDto };
+    const updateData: Prisma.PatientUpdateInput = {};
+
+    if (updatePatientDto.nombre !== undefined) {
+      updateData.nombre = updatePatientDto.nombre.trim();
+    }
+
+    if (updatePatientDto.edad !== undefined) {
+      updateData.edad = updatePatientDto.edad;
+    }
+
+    if (updatePatientDto.edadMeses !== undefined) {
+      updateData.edadMeses = updatePatientDto.edadMeses;
+    }
+
+    if (updatePatientDto.sexo !== undefined) {
+      updateData.sexo = updatePatientDto.sexo;
+    }
+
+    if (updatePatientDto.prevision !== undefined) {
+      updateData.prevision = updatePatientDto.prevision;
+    }
 
     // Normalize optional strings
     const dtoTrabajo = updatePatientDto.trabajo;
     if (dtoTrabajo !== undefined) {
-      const trimmed = dtoTrabajo.trim();
-      updateData.trabajo = trimmed.length > 0 ? trimmed : null;
+      updateData.trabajo = this.normalizeNullableString(dtoTrabajo);
     }
 
     const dtoDomicilio = updatePatientDto.domicilio;
     if (dtoDomicilio !== undefined) {
-      const trimmed = dtoDomicilio.trim();
-      updateData.domicilio = trimmed.length > 0 ? trimmed : null;
+      updateData.domicilio = this.normalizeNullableString(dtoDomicilio);
     }
 
     // Handle RUT exemption rules consistently
@@ -985,25 +1137,47 @@ export class PatientsService {
 
     // Validate new RUT if changing (only when not exempt)
     const dtoRut = updatePatientDto.rut;
-    if (!nextRutExempt && dtoRut && dtoRut !== existingPatient.rut) {
-      const rutValidation = validateRut(dtoRut);
-      if (!rutValidation.valid) {
-        throw new BadRequestException('El RUT ingresado no es válido');
+    if (!nextRutExempt && dtoRut !== undefined) {
+      const trimmedRut = dtoRut?.trim() || '';
+
+      if (!trimmedRut) {
+        updateData.rut = null;
+      } else if (trimmedRut !== existingPatient.rut) {
+        const rutValidation = validateRut(trimmedRut);
+        if (!rutValidation.valid) {
+          throw new BadRequestException('El RUT ingresado no es válido');
+        }
+
+        const validatedRut = rutValidation.formatted as string;
+
+        const duplicateRut = await this.findDuplicateRut({
+          rut: validatedRut,
+          excludePatientId: id,
+        });
+
+        if (duplicateRut) {
+          throw new ConflictException('Ya existe un paciente con este RUT');
+        }
+
+        updateData.rut = validatedRut;
       }
-
-      const validatedRut = rutValidation.formatted as string;
-
-      const duplicateRut = await this.findDuplicateRut({
-        rut: validatedRut,
-        excludePatientId: id,
-      });
-
-      if (duplicateRut) {
-        throw new ConflictException('Ya existe un paciente con este RUT');
-      }
-
-      updateData.rut = validatedRut;
     }
+
+    const nextPatient = {
+      ...existingPatient,
+      ...updateData,
+    };
+
+    Object.assign(
+      updateData,
+      this.resolvePatientVerificationState({
+        currentPatient: existingPatient,
+        nextPatient,
+        actorId: user.id,
+        actorRole: user.role,
+        mode: 'UPDATE_FULL',
+      }),
+    );
 
     const patient = await this.prisma.patient.update({
       where: { id },
@@ -1022,7 +1196,7 @@ export class PatientsService {
       },
     });
 
-    return patient;
+    return this.decoratePatient(patient);
   }
 
   async updateAdminFields(user: RequestUser, patientId: string, dto: UpdatePatientAdminDto) {
@@ -1033,13 +1207,27 @@ export class PatientsService {
     if (dto.sexo !== undefined) updateData.sexo = dto.sexo;
     if (dto.prevision !== undefined) updateData.prevision = dto.prevision;
     if (dto.trabajo !== undefined) {
-      const trimmed = dto.trabajo.trim();
-      updateData.trabajo = trimmed.length > 0 ? trimmed : null;
+      updateData.trabajo = this.normalizeNullableString(dto.trabajo);
     }
     if (dto.domicilio !== undefined) {
-      const trimmed = dto.domicilio.trim();
-      updateData.domicilio = trimmed.length > 0 ? trimmed : null;
+      updateData.domicilio = this.normalizeNullableString(dto.domicilio);
     }
+
+    const nextPatient = {
+      ...existingPatient,
+      ...updateData,
+    };
+
+    Object.assign(
+      updateData,
+      this.resolvePatientVerificationState({
+        currentPatient: existingPatient,
+        nextPatient,
+        actorId: user.id,
+        actorRole: user.role,
+        mode: 'UPDATE_ADMIN',
+      }),
+    );
 
     const patient = await this.prisma.patient.update({
       where: { id: patientId },
@@ -1059,7 +1247,42 @@ export class PatientsService {
       },
     });
 
-    return patient;
+    return this.decoratePatient(patient);
+  }
+
+  async verifyDemographics(user: RequestUser, patientId: string) {
+    const patient = await this.assertPatientAccess(user, patientId);
+
+    const missingFields = getPatientDemographicsMissingFields(patient);
+    if (missingFields.length > 0) {
+      throw new BadRequestException('No se puede verificar una ficha con datos demográficos incompletos');
+    }
+
+    const updatedPatient = await this.prisma.patient.update({
+      where: { id: patientId },
+      data: this.resolvePatientVerificationState({
+        currentPatient: patient,
+        nextPatient: patient,
+        actorId: user.id,
+        actorRole: user.role,
+        mode: 'VERIFY',
+      }),
+      include: { history: true },
+    });
+
+    await this.auditService.log({
+      entityType: 'Patient',
+      entityId: updatedPatient.id,
+      userId: user.id,
+      action: 'UPDATE',
+      diff: {
+        before: patient,
+        after: updatedPatient,
+        scope: 'VERIFY_DEMOGRAPHICS',
+      },
+    });
+
+    return this.decoratePatient(updatedPatient);
   }
 
   async updateHistory(user: RequestUser, patientId: string, dto: UpdatePatientHistoryDto) {
@@ -1197,14 +1420,7 @@ export class PatientsService {
   async createProblem(
     user: RequestUser,
     patientId: string,
-    dto: {
-      label: string;
-      status?: string;
-      notes?: string;
-      severity?: string;
-      onsetDate?: string;
-      encounterId?: string;
-    },
+    dto: UpsertPatientProblemDto,
   ) {
     await this.assertPatientAccess(user, patientId);
 
@@ -1252,13 +1468,7 @@ export class PatientsService {
   async updateProblem(
     user: RequestUser,
     problemId: string,
-    dto: {
-      label?: string;
-      status?: string;
-      notes?: string;
-      severity?: string;
-      onsetDate?: string;
-    },
+    dto: UpdatePatientProblemDto,
   ) {
     const problem = await this.prisma.patientProblem.findUnique({
       where: { id: problemId },

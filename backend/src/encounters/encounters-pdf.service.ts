@@ -1,9 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import * as PDFDocument from 'pdfkit';
 import * as path from 'path';
+import {
+  getEncounterClinicalOutputBlock,
+  getEncounterClinicalOutputBlockMessage,
+  getPatientDemographicsMissingFields,
+} from '../common/utils/patient-completeness';
 
 const SEXO_MAP: Record<string, string> = {
   MASCULINO: 'Masculino',
@@ -71,6 +76,13 @@ export class EncountersPdfService {
 
     if (!encounter) {
       throw new NotFoundException('Atención no encontrada');
+    }
+
+    const clinicalOutputBlock = getEncounterClinicalOutputBlock(encounter.patient);
+    if (clinicalOutputBlock?.blockedActions.includes('EXPORT_OFFICIAL_DOCUMENTS')) {
+      throw new BadRequestException(
+        getEncounterClinicalOutputBlockMessage(clinicalOutputBlock, 'EXPORT_OFFICIAL_DOCUMENTS'),
+      );
     }
 
     return encounter;
@@ -368,6 +380,7 @@ export class EncountersPdfService {
       // ── 1. Identificación ──
       const ident = sectionsMap['IDENTIFICACION'] || {};
       const identificationDifferences = this.getIdentificationDifferenceLabels(encounter, ident);
+      const identificationMissingFields = getPatientDemographicsMissingFields(ident);
       sectionTitle(1, 'IDENTIFICACIÓN DEL PACIENTE');
       field('Nombre', ident.nombre || encounter.patient.nombre);
       field('RUT', ident.rut || encounter.patient.rut || 'Sin RUT');
@@ -376,6 +389,18 @@ export class EncountersPdfService {
       field('Previsión', PREVISION_MAP[ident.prevision] || ident.prevision);
       field('Trabajo', ident.trabajo);
       field('Domicilio', ident.domicilio);
+      if (identificationMissingFields.length > 0) {
+        doc.moveDown(0.3);
+        doc
+          .fontSize(9)
+          .font('Helvetica-Oblique')
+          .fillColor('#92400e')
+          .text(
+            `Aviso: la identificación registrada en esta atención quedó incompleta. Faltan campos demográficos clave: ${identificationMissingFields.join(', ')}.`,
+          )
+          .fillColor('#000000');
+        doc.fontSize(10).font('Helvetica');
+      }
       if (identificationDifferences.length > 0) {
         doc.moveDown(0.3);
         doc

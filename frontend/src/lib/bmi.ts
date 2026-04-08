@@ -1,4 +1,4 @@
-import { Patient } from '@/types';
+import { Patient, PatientSexo } from '@/types';
 
 type PediatricThresholds = {
   severeThinness: number;
@@ -58,7 +58,7 @@ const WHO_PEDIATRIC_THRESHOLDS: Record<'female' | 'male', Record<number, Pediatr
   },
 };
 
-const PEDIATRIC_SEX_MAP: Partial<Record<Patient['sexo'], 'female' | 'male'>> = {
+const PEDIATRIC_SEX_MAP: Partial<Record<PatientSexo, 'female' | 'male'>> = {
   FEMENINO: 'female',
   MASCULINO: 'male',
 };
@@ -92,7 +92,11 @@ function getAdultWhoClassification(bmi: number) {
   return 'Obesidad grado III';
 }
 
-function getPediatricWhoClassification(bmi: number, ageYears: number, sex: Patient['sexo']) {
+function getPediatricWhoClassification(bmi: number, ageYears: number, sex: PatientSexo | null | undefined) {
+  if (!sex) {
+    return null;
+  }
+
   const normalizedSex = PEDIATRIC_SEX_MAP[sex];
   if (!normalizedSex) {
     return null;

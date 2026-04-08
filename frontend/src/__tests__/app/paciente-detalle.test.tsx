@@ -7,6 +7,7 @@ import permissionContract from '../../../../shared/permission-contract.json';
 
 const pushMock = jest.fn();
 const apiGetMock = jest.fn();
+const apiPostMock = jest.fn();
 let currentUser = permissionContract[0].user as any;
 
 jest.mock('next/navigation', () => ({
@@ -29,7 +30,7 @@ jest.mock('@/stores/auth-store', () => ({
 jest.mock('@/lib/api', () => ({
   api: {
     get: (...args: any[]) => apiGetMock(...args),
-    post: jest.fn(),
+    post: (...args: any[]) => apiPostMock(...args),
     put: jest.fn(),
     delete: jest.fn(),
   },
@@ -72,6 +73,11 @@ beforeEach(() => {
           sexo: 'FEMENINO',
           trabajo: null,
           prevision: 'FONASA',
+          registrationMode: 'COMPLETO',
+          completenessStatus: 'VERIFICADA',
+          demographicsVerifiedAt: '2026-03-31T08:00:00.000Z',
+          demographicsVerifiedById: 'user-1',
+          demographicsMissingFields: [],
           domicilio: null,
           createdAt: '2026-03-31T08:00:00.000Z',
           updatedAt: '2026-03-31T08:00:00.000Z',
@@ -221,6 +227,75 @@ describe('PatientDetailPage', () => {
     },
   );
 
+  it('allows a doctor to verify a pending patient record from the detail page', async () => {
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/patients/patient-1') {
+        return Promise.resolve({
+          data: {
+            id: 'patient-1',
+            rut: '11.111.111-1',
+            rutExempt: false,
+            rutExemptReason: null,
+            nombre: 'Paciente Demo',
+            edad: 44,
+            sexo: 'FEMENINO',
+            trabajo: null,
+            prevision: 'FONASA',
+            registrationMode: 'RAPIDO',
+            completenessStatus: 'PENDIENTE_VERIFICACION',
+            demographicsVerifiedAt: null,
+            demographicsVerifiedById: null,
+            demographicsMissingFields: [],
+            domicilio: null,
+            createdAt: '2026-03-31T08:00:00.000Z',
+            updatedAt: '2026-03-31T08:00:00.000Z',
+            history: {},
+            problems: [],
+            tasks: [],
+          },
+        });
+      }
+
+      if (url === '/patients/patient-1/encounters?page=1&limit=10') {
+        return Promise.resolve({
+          data: {
+            data: [],
+            pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+          },
+        });
+      }
+
+      if (url === '/patients/patient-1/clinical-summary') {
+        return Promise.resolve({
+          data: {
+            patientId: 'patient-1',
+            generatedAt: '2026-03-31T09:00:00.000Z',
+            counts: { totalEncounters: 0, activeProblems: 0, pendingTasks: 0 },
+            latestEncounterSummary: null,
+            vitalTrend: [],
+            recentDiagnoses: [],
+            activeProblems: [],
+            pendingTasks: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    apiPostMock.mockResolvedValue({ data: { id: 'patient-1' } });
+
+    render(<PatientDetailPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findAllByText('Pendiente de verificación médica')).toHaveLength(3);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Validar ficha' }));
+
+    await waitFor(() => {
+      expect(apiPostMock).toHaveBeenCalledWith('/patients/patient-1/verify-demographics', {});
+    });
+  });
+
   it('does not show empty history state when stored history fields contain serialized content', async () => {
     apiGetMock.mockImplementation((url: string) => {
       if (url === '/patients/patient-1') {
@@ -235,6 +310,11 @@ describe('PatientDetailPage', () => {
             sexo: 'FEMENINO',
             trabajo: null,
             prevision: 'FONASA',
+            registrationMode: 'COMPLETO',
+            completenessStatus: 'VERIFICADA',
+            demographicsVerifiedAt: '2026-03-31T08:00:00.000Z',
+            demographicsVerifiedById: 'user-1',
+            demographicsMissingFields: [],
             domicilio: null,
             createdAt: '2026-03-31T08:00:00.000Z',
             updatedAt: '2026-03-31T08:00:00.000Z',

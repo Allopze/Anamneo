@@ -19,6 +19,7 @@ import { UpdatePatientDto } from './dto/update-patient.dto';
 import { UpdatePatientAdminDto } from './dto/update-patient-admin.dto';
 import { UpdatePatientHistoryDto } from './dto/update-patient-history.dto';
 import { UpsertPatientProblemDto } from './dto/upsert-patient-problem.dto';
+import { UpdatePatientProblemDto } from './dto/update-patient-problem.dto';
 import { UpsertPatientTaskDto } from './dto/upsert-patient-task.dto';
 import { UpdatePatientTaskStatusDto } from './dto/update-patient-task-status.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -164,6 +165,15 @@ export class PatientsController {
     return this.patientsService.updateAdminFields(user, id, dto);
   }
 
+  @Post(':id/verify-demographics')
+  @Roles('MEDICO')
+  verifyDemographics(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.patientsService.verifyDemographics(user, id);
+  }
+
   @Put(':id/history')
   @Roles('MEDICO', 'ASISTENTE')
   updateHistory(
@@ -188,7 +198,7 @@ export class PatientsController {
   @Roles('MEDICO', 'ASISTENTE')
   updateProblem(
     @Param('problemId', ParseUUIDPipe) problemId: string,
-    @Body() dto: Partial<UpsertPatientProblemDto>,
+    @Body() dto: UpdatePatientProblemDto,
     @CurrentUser() user: CurrentUserData,
   ) {
     return this.patientsService.updateProblem(user, problemId, dto);

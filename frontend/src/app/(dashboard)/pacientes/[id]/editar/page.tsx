@@ -15,17 +15,28 @@ import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { validateRut } from '@/lib/rut';
+import { getPatientCompletenessMeta } from '@/lib/patient';
+import type { PatientPrevision, PatientSexo } from '@/types';
 
 type EditForm = {
-  edad: number;
-  sexo: 'MASCULINO' | 'FEMENINO' | 'OTRO' | 'PREFIERE_NO_DECIR';
-  prevision: 'FONASA' | 'ISAPRE' | 'OTRA' | 'DESCONOCIDA';
-  trabajo?: string;
-  domicilio?: string;
+  edad: number | null;
+  sexo: PatientSexo | null;
+  prevision: PatientPrevision | null;
+  trabajo?: string | null;
+  domicilio?: string | null;
   nombre?: string;
-  rut?: string;
+  rut?: string | null;
   rutExempt?: boolean;
-  rutExemptReason?: string;
+  rutExemptReason?: string | null;
+};
+
+const parseOptionalNumber = (value: unknown) => {
+  if (value === '' || value === null || value === undefined) {
+    return null;
+  }
+
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 };
 
 export default function EditarPacientePage() {
@@ -47,11 +58,11 @@ export default function EditarPacientePage() {
 
   const editSchema = useMemo(() => {
     const base = z.object({
-      edad: z.number().min(0).max(150),
-      sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR']),
-      prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA']),
-      trabajo: z.string().optional(),
-      domicilio: z.string().optional(),
+      edad: z.number().min(0).max(150).nullable(),
+      sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR']).nullable(),
+      prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA']).nullable(),
+      trabajo: z.string().nullable().optional(),
+      domicilio: z.string().nullable().optional(),
     });
 
     if (!isDoctor) return base;
@@ -59,9 +70,9 @@ export default function EditarPacientePage() {
     return base
       .extend({
         nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-        rut: z.string().optional(),
+        rut: z.string().nullable().optional(),
         rutExempt: z.boolean().default(false),
-        rutExemptReason: z.string().optional(),
+        rutExemptReason: z.string().nullable().optional(),
       })
       .superRefine((val, ctx) => {
         const anyVal = val as EditForm;
@@ -86,9 +97,9 @@ export default function EditarPacientePage() {
   const editForm = useForm<EditForm>({
     resolver: zodResolver(editSchema),
     defaultValues: {
-      edad: 0,
-      sexo: 'MASCULINO',
-      prevision: 'FONASA',
+      edad: null,
+      sexo: null,
+      prevision: null,
       trabajo: '',
       domicilio: '',
       nombre: '',
@@ -114,7 +125,7 @@ export default function EditarPacientePage() {
     initializedPatientIdRef.current = patient.id;
 
     editForm.reset({
-      edad: patient.edad ?? 0,
+      edad: patient.edad,
       sexo: patient.sexo,
       prevision: patient.prevision,
       trabajo: patient.trabajo ?? '',
@@ -171,14 +182,14 @@ export default function EditarPacientePage() {
     if (isDoctor) {
       const payload: Partial<EditForm> = {
         ...common,
-        nombre: data.nombre,
+        nombre: data.nombre?.trim(),
         rutExempt: Boolean(data.rutExempt),
-        rutExemptReason: data.rutExemptReason,
+        rutExemptReason: data.rutExemptReason?.trim() || null,
       };
 
       if (!payload.rutExempt) {
         const rutVal = (data.rut ?? '').trim();
-        if (rutVal.length > 0) payload.rut = rutVal;
+        payload.rut = rutVal.length > 0 ? rutVal : null;
       }
 
       updateFullMutation.mutate(payload);
@@ -228,6 +239,7 @@ export default function EditarPacientePage() {
   }
 
   const rutExempt = editForm.watch('rutExempt');
+  const completenessMeta = getPatientCompletenessMeta(patient);
 
   return (
     <div className="max-w-3xl mx-auto animate-fade-in pb-12">
@@ -271,6 +283,11 @@ export default function EditarPacientePage() {
           Solo puedes editar datos administrativos del paciente.
         </div>
       )}
+
+      <div className="mb-6 rounded-lg border border-surface-muted/30 bg-surface-elevated p-4 text-sm text-ink-secondary">
+        <p className="font-medium text-ink-primary">{completenessMeta.label}</p>
+        <p className="mt-1">{completenessMeta.description}</p>
+      </div>
 
       {errorMsg && (
         <div className="mb-6">
@@ -339,7 +356,7 @@ export default function EditarPacientePage() {
               min={0}
               max={150}
               className={clsx('form-input', editForm.formState.errors.edad && 'form-input-error')}
-              {...editForm.register('edad', { valueAsNumber: true })}
+              {...editForm.register('edad', { setValueAs: parseOptionalNumber })}
             />
             {editForm.formState.errors.edad && (
               <p className="form-error">{editForm.formState.errors.edad.message}</p>
@@ -350,8 +367,11 @@ export default function EditarPacientePage() {
             <label className="form-label">Sexo</label>
             <select
               className={clsx('form-input', editForm.formState.errors.sexo && 'form-input-error')}
-              {...editForm.register('sexo')}
+              {...editForm.register('sexo', {
+                setValueAs: (value) => value === '' ? null : value,
+              })}
             >
+              <option value="">Sin definir</option>
               <option value="MASCULINO">Masculino</option>
               <option value="FEMENINO">Femenino</option>
               <option value="OTRO">Otro</option>
@@ -367,8 +387,11 @@ export default function EditarPacientePage() {
           <label className="form-label">Prevision</label>
           <select
             className={clsx('form-input', editForm.formState.errors.prevision && 'form-input-error')}
-            {...editForm.register('prevision')}
+            {...editForm.register('prevision', {
+              setValueAs: (value) => value === '' ? null : value,
+            })}
           >
+            <option value="">Sin definir</option>
             <option value="FONASA">FONASA</option>
             <option value="ISAPRE">ISAPRE</option>
             <option value="OTRA">Otra</option>

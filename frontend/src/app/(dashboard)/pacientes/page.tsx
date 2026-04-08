@@ -5,12 +5,16 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { Patient, SEXO_LABELS, PREVISION_LABELS } from '@/types';
+import { Patient } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { FiPlus, FiSearch, FiUser, FiChevronRight, FiCalendar, FiFileText, FiFilter, FiDownload, FiChevronDown } from 'react-icons/fi';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import toast from 'react-hot-toast';
+import {
+  formatPatientAge,
+  formatPatientPrevision,
+  formatPatientSex,
+  getPatientCompletenessMeta,
+} from '@/lib/patient';
 
 const SEXO_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -317,6 +321,7 @@ function PacientesContent() {
                 const patientHref = user?.isAdmin
                   ? `/pacientes/${patient.id}/administrativo`
                   : `/pacientes/${patient.id}`;
+                const completenessMeta = getPatientCompletenessMeta(patient);
                 const rowContent = (
                   <>
                     <div className="list-row-icon h-12 w-12 bg-surface-inset text-ink-secondary">
@@ -328,13 +333,16 @@ function PacientesContent() {
                           {patient.nombre}
                         </h3>
                         <span className="list-chip bg-surface-inset text-ink-secondary">
-                          {patient.edad} años
+                          {formatPatientAge(patient.edad, patient.edadMeses)}
+                        </span>
+                        <span className={`list-chip ${completenessMeta.badgeClassName}`}>
+                          {completenessMeta.label}
                         </span>
                       </div>
                       <div className="flex items-center gap-4 text-body text-ink-muted">
-                        {patient.rut && <span>{patient.rut}</span>}
-                        <span>{SEXO_LABELS[patient.sexo]}</span>
-                        <span>{PREVISION_LABELS[patient.prevision]}</span>
+                        <span>{patient.rut || 'Sin RUT'}</span>
+                        <span>{formatPatientSex(patient.sexo)}</span>
+                        <span>{formatPatientPrevision(patient.prevision)}</span>
                         {patient._count && (
                           <span className="flex items-center gap-1">
                             <FiCalendar className="w-3 h-3" />

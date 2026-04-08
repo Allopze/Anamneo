@@ -25,6 +25,11 @@ import {
   ENCOUNTER_SECTION_ORDER as SECTION_ORDER,
   getEncounterSectionSchemaVersion,
 } from '../common/utils/encounter-section-meta';
+import {
+  getEncounterClinicalOutputBlock,
+  getEncounterClinicalOutputBlockMessage,
+  getPatientDemographicsMissingFields,
+} from '../common/utils/patient-completeness';
 
 const REQUIRED_COMPLETION_SECTIONS: SectionKey[] = [
   'IDENTIFICACION',
@@ -594,6 +599,27 @@ export class EncountersService {
       return parsed;
     })();
 
+    const normalizedEdadMeses = (() => {
+      const edadMeses = data.edadMeses;
+
+      if (edadMeses === undefined || edadMeses === null || edadMeses === '') {
+        return undefined;
+      }
+
+      const parsed =
+        typeof edadMeses === 'number'
+          ? edadMeses
+          : typeof edadMeses === 'string'
+            ? Number.parseInt(edadMeses, 10)
+            : Number.NaN;
+
+      if (!Number.isInteger(parsed) || parsed < 0 || parsed > 11) {
+        throw new BadRequestException('La edad en meses debe ser un número entero entre 0 y 11');
+      }
+
+      return parsed;
+    })();
+
     const normalizedSexo = (() => {
       if (data.sexo === undefined || data.sexo === null || data.sexo === '') {
         return undefined;
@@ -638,6 +664,7 @@ export class EncountersService {
       ...(rutExemptReason !== undefined ? { rutExemptReason } : {}),
       ...(nombre !== undefined ? { nombre } : {}),
       ...(normalizedEdad !== undefined ? { edad: normalizedEdad } : {}),
+      ...(normalizedEdadMeses !== undefined ? { edadMeses: normalizedEdadMeses } : {}),
       ...(normalizedSexo !== undefined ? { sexo: normalizedSexo } : {}),
       ...(trabajo !== undefined ? { trabajo } : {}),
       ...(normalizedPrevision !== undefined ? { prevision: normalizedPrevision } : {}),
@@ -1194,6 +1221,13 @@ export class EncountersService {
       throw new ForbiddenException('No tiene permisos para completar esta atención');
     }
 
+    const clinicalOutputBlock = getEncounterClinicalOutputBlock(encounter.patient);
+    if (clinicalOutputBlock?.blockedActions.includes('COMPLETE_ENCOUNTER')) {
+      throw new BadRequestException(
+        getEncounterClinicalOutputBlockMessage(clinicalOutputBlock, 'COMPLETE_ENCOUNTER'),
+      );
+    }
+
     const sectionByKey = new Map(encounter.sections.map((section) => [section.sectionKey as SectionKey, section]));
 
     const incompleteSections = REQUIRED_COMPLETION_SECTIONS.filter((key) => {
@@ -1240,7 +1274,6 @@ export class EncountersService {
         reviewStatus: 'REVISADA_POR_MEDICO',
         reviewedAt: new Date(),
         reviewedById: userId,
-        reviewNote: sanitizedClosureNote,
         completedAt: new Date(),
         completedById: userId,
         closureNote: sanitizedClosureNote,
@@ -1542,12 +1575,16 @@ export class EncountersService {
       return SECTION_ORDER.indexOf(a.sectionKey) - SECTION_ORDER.indexOf(b.sectionKey);
     });
 
+    const clinicalOutputBlock = getEncounterClinicalOutputBlock(encounter.patient);
+
     return {
       ...encounter,
+      clinicalOutputBlock,
       identificationSnapshotStatus: this.buildIdentificationSnapshotStatus(encounter),
       patient: encounter.patient
         ? {
             ...encounter.patient,
+            demographicsMissingFields: getPatientDemographicsMissingFields(encounter.patient),
             history: encounter.patient.history,
             problems: (encounter.patient.problems || []).map((problem: any) => ({ ...problem })),
             tasks: (encounter.patient.tasks || []).map((task: any) => this.formatTask(task)),

@@ -10,6 +10,7 @@ import {
 } from '@/types';
 import { validateRut } from '@/lib/rut';
 import { SectionBlock, SectionIntro } from '@/components/sections/SectionPrimitives';
+import { formatPatientMissingFields, getIdentificationMissingFields } from '@/lib/patient';
 
 interface Props {
   data: IdentificacionData;
@@ -27,6 +28,7 @@ export default function IdentificacionSection({
   onRestoreFromPatient,
 }: Props) {
   const [rutError, setRutError] = useState<string | null>(null);
+  const missingFieldLabels = formatPatientMissingFields(getIdentificationMissingFields(data));
 
   const handleChange = (field: string, value: any) => {
     onChange({ ...data, [field]: value });
@@ -77,6 +79,19 @@ export default function IdentificacionSection({
                 Restaurar desde ficha maestra
               </button>
             )}
+          </div>
+        )}
+        {missingFieldLabels.length > 0 && (
+          <div className="mt-4 rounded-card border border-status-red/35 bg-status-red/10 p-4 text-sm text-status-red-text">
+            <div className="flex items-start gap-2">
+              <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <p className="font-medium">Identificación incompleta en esta atención</p>
+                <p className="mt-1">
+                  Faltan campos demográficos clave: {missingFieldLabels.join(', ')}.
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>

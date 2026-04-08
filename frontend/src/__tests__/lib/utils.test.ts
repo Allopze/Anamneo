@@ -60,6 +60,24 @@ describe('patientHistoryHasContent', () => {
       alergias: null,
     })).toBe(false);
   });
+
+  it('ignores metadata fields when clinical history is empty', () => {
+    expect(patientHistoryHasContent({
+      id: 'history-1',
+      patientId: 'patient-1',
+      updatedAt: '2026-04-08T00:00:00.000Z',
+      antecedentesMedicos: '{"items":[],"texto":""}',
+      antecedentesQuirurgicos: null,
+      antecedentesGinecoobstetricos: null,
+      antecedentesFamiliares: null,
+      habitos: null,
+      medicamentos: null,
+      alergias: null,
+      inmunizaciones: null,
+      antecedentesSociales: null,
+      antecedentesPersonales: null,
+    })).toBe(false);
+  });
 });
 
 describe('getFirstName', () => {
