@@ -158,6 +158,8 @@ export class UsersService {
         medicoId: true,
         isAdmin: true,
         active: true,
+        mustChangePassword: true,
+        totpEnabled: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -705,7 +707,7 @@ export class UsersService {
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     await this.prisma.user.update({
       where: { id },
-      data: { passwordHash },
+      data: { passwordHash, mustChangePassword: false },
     });
 
     await this.auditService.log({
@@ -740,7 +742,7 @@ export class UsersService {
     const passwordHash = await bcrypt.hash(normalizedPassword, BCRYPT_ROUNDS);
     await this.prisma.user.update({
       where: { id },
-      data: { passwordHash },
+      data: { passwordHash, mustChangePassword: true },
     });
 
     await this.auditService.log({

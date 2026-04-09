@@ -166,7 +166,7 @@ export default function AuditoriaPage() {
     <div className="animate-fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-header-title">Registro de auditoría</h1>
+          <h1 className="page-header-title">Auditoría</h1>
           <p className="page-header-description">Historial de cambios críticos y trazabilidad operativa del sistema.</p>
         </div>
       </div>

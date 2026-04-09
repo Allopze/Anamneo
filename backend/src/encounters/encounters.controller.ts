@@ -6,17 +6,19 @@ import {
   Body,
   Param,
   Query,
+  Req,
   Res,
   UseGuards,
   ParseUUIDPipe,
   BadRequestException,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { EncountersService } from './encounters.service';
 import { EncountersPdfService } from './encounters-pdf.service';
 import { CreateEncounterDto } from './dto/create-encounter.dto';
 import { CompleteEncounterDto } from './dto/complete-encounter.dto';
 import { ReopenEncounterDto } from './dto/reopen-encounter.dto';
+import { SignEncounterDto } from './dto/sign-encounter.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
 import { UpdateReviewStatusDto } from './dto/update-review-status.dto';
 import { ParseSectionKeyPipe } from '../common/parse-section-key.pipe';
@@ -146,6 +148,20 @@ export class EncountersController {
     @CurrentUser('id') userId: string,
   ) {
     return this.encountersService.complete(id, userId, dto.closureNote);
+  }
+
+  @Post(':id/sign')
+  @Roles('MEDICO')
+  sign(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SignEncounterDto,
+    @CurrentUser('id') userId: string,
+    @Req() req: Request,
+  ) {
+    return this.encountersService.sign(id, userId, dto.password, {
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
   }
 
   @Post(':id/reopen')

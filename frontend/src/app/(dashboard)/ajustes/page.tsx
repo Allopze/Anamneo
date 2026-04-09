@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { api } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 import {
   getDefaultInvitationTemplateHtml,
   getDefaultInvitationSubjectTemplate,
@@ -41,12 +41,75 @@ const passwordSchema = z
 
 type ProfileForm = z.infer<typeof profileSchema>;
 type PasswordForm = z.infer<typeof passwordSchema>;
+type AjustesTab = 'perfil' | 'centro' | 'correo' | 'sistema';
 
 export default function AjustesPage() {
+  return (
+    <Suspense fallback={
+      <div className="animate-fade-in max-w-5xl">
+        <div className="h-8 w-32 skeleton rounded-lg mb-4" />
+        <div className="h-10 w-64 skeleton rounded-lg mb-6" />
+        <div className="card"><div className="h-48 skeleton rounded-lg" /></div>
+      </div>
+    }>
+      <AjustesContent />
+    </Suspense>
+  );
+}
+
+function AjustesContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, setUser, logout } = useAuthStore();
   const queryClient = useQueryClient();
   const isAdmin = !!user?.isAdmin;
+
+  const validTabs = isAdmin
+    ? ['perfil', 'centro', 'correo', 'sistema'] as const
+    : ['perfil', 'sistema'] as const;
+  const tabFromUrl = searchParams.get('tab') as AjustesTab | null;
+  const initialTab = tabFromUrl && (validTabs as readonly string[]).includes(tabFromUrl)
+    ? tabFromUrl
+    : 'perfil';
+
+  const [activeTab, setActiveTabState] = useState<AjustesTab>(initialTab);
+
+  const setActiveTab = useCallback((tab: AjustesTab) => {
+    setActiveTabState(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', tab);
+    window.history.pushState(null, '', `?${params.toString()}`);
+  }, [searchParams]);
+
+  const handleTabKeyDown = useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const tabs = isAdmin
+      ? ['perfil', 'centro', 'correo', 'sistema'] as const
+      : ['perfil', 'sistema'] as const;
+    const currentIndex = (tabs as readonly string[]).indexOf(activeTab);
+    let nextIndex = currentIndex;
+
+    switch (e.key) {
+      case 'ArrowRight':
+        nextIndex = (currentIndex + 1) % tabs.length;
+        break;
+      case 'ArrowLeft':
+        nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        break;
+      case 'Home':
+        nextIndex = 0;
+        break;
+      case 'End':
+        nextIndex = tabs.length - 1;
+        break;
+      default:
+        return;
+    }
+
+    e.preventDefault();
+    const nextTab = tabs[nextIndex] as typeof activeTab;
+    setActiveTab(nextTab);
+    document.getElementById(`tab-${nextTab}`)?.focus();
+  }, [activeTab, isAdmin, setActiveTab]);
   const [showPassword, setShowPassword] = useState(false);
   const [smtpPasswordConfigured, setSmtpPasswordConfigured] = useState(false);
   const [previewSeed] = useState(() => new Date());
@@ -280,15 +343,55 @@ export default function AjustesPage() {
   });
 
   return (
-    <div className="animate-fade-in max-w-3xl">
+    <div className="animate-fade-in max-w-5xl">
       <div className="page-header">
         <div>
           <h1 className="page-header-title">Ajustes</h1>
-          <p className="page-header-description">Perfil, seguridad y configuración general del centro.</p>
+          <p className="page-header-description">
+            {isAdmin
+              ? 'Perfil, seguridad y configuración general del centro.'
+              : 'Perfil y seguridad de tu cuenta.'}
+          </p>
         </div>
       </div>
 
-      <div className="card mb-6">
+      {/* ── Tab navigation ─────────────────────── */}
+      <nav className="flex gap-1 mb-6 border-b border-surface-muted/40 pb-px overflow-x-auto scrollbar-none -mx-1 px-1" aria-label="Secciones de ajustes" role="tablist">
+        {([
+          { key: 'perfil' as const, label: 'Perfil y seguridad' },
+          ...(isAdmin ? [
+            { key: 'centro' as const, label: 'Centro médico' },
+            { key: 'correo' as const, label: 'Correo e invitaciones' },
+          ] : []),
+          { key: 'sistema' as const, label: 'Sistema' },
+        ]).map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            onKeyDown={handleTabKeyDown}
+            tabIndex={activeTab === tab.key ? 0 : -1}
+            className={`whitespace-nowrap px-4 py-2.5 text-sm font-bold rounded-t-xl transition-colors -mb-px ${
+              activeTab === tab.key
+                ? 'border-b-2 border-frame-dark text-ink bg-surface-elevated'
+                : 'text-ink-muted hover:text-ink hover:bg-surface-inset/60'
+            }`}
+            aria-selected={activeTab === tab.key}
+            role="tab"
+            id={`tab-${tab.key}`}
+            aria-controls={`tabpanel-${tab.key}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* ── Tab: Perfil y seguridad ─────────────── */}
+      {activeTab === 'perfil' && (
+        <div role="tabpanel" id="tabpanel-perfil" aria-labelledby="tab-perfil">
+      {/* Profile + Password — side by side on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="card">
         <div className="panel-header">
           <h2 className="panel-title">Datos personales</h2>
         </div>
@@ -302,9 +405,11 @@ export default function AjustesPage() {
               type="text"
               {...registerProfile('nombre')}
               className="input w-full"
+              aria-describedby={profileErrors.nombre ? 'nombre-error' : undefined}
+              aria-invalid={!!profileErrors.nombre}
             />
             {profileErrors.nombre && (
-              <p className="text-status-red text-xs mt-1">{profileErrors.nombre.message}</p>
+              <p id="nombre-error" className="text-status-red text-xs mt-1" role="alert">{profileErrors.nombre.message}</p>
             )}
           </div>
           <div>
@@ -316,14 +421,16 @@ export default function AjustesPage() {
               type="email"
               {...registerProfile('email')}
               className="input w-full"
+              aria-describedby={profileErrors.email ? 'email-error' : undefined}
+              aria-invalid={!!profileErrors.email}
             />
             {profileErrors.email && (
-              <p className="text-status-red text-xs mt-1">{profileErrors.email.message}</p>
+              <p id="email-error" className="text-status-red text-xs mt-1" role="alert">{profileErrors.email.message}</p>
             )}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-ink-muted">
-              Rol: <strong>{user?.role}</strong>
+          <div className="flex items-center gap-3 pt-1">
+            <span className="inline-flex items-center rounded-pill bg-surface-inset px-3 py-1 text-xs font-bold text-ink-secondary tracking-wide uppercase">
+              {user?.role}
             </span>
           </div>
           <button
@@ -336,7 +443,7 @@ export default function AjustesPage() {
         </form>
       </div>
 
-      <div className="card mb-6">
+      <div className="card">
         <div className="panel-header">
           <h2 className="panel-title">Cambiar contraseña</h2>
         </div>
@@ -356,9 +463,11 @@ export default function AjustesPage() {
               type={showPassword ? 'text' : 'password'}
               {...registerPassword('currentPassword')}
               className="input w-full"
+              aria-describedby={passwordErrors.currentPassword ? 'currentPassword-error' : undefined}
+              aria-invalid={!!passwordErrors.currentPassword}
             />
             {passwordErrors.currentPassword && (
-              <p className="text-status-red text-xs mt-1">
+              <p id="currentPassword-error" className="text-status-red text-xs mt-1" role="alert">
                 {passwordErrors.currentPassword.message}
               </p>
             )}
@@ -375,9 +484,11 @@ export default function AjustesPage() {
               type={showPassword ? 'text' : 'password'}
               {...registerPassword('newPassword')}
               className="input w-full"
+              aria-describedby={passwordErrors.newPassword ? 'newPassword-error' : undefined}
+              aria-invalid={!!passwordErrors.newPassword}
             />
             {passwordErrors.newPassword && (
-              <p className="text-status-red text-xs mt-1">{passwordErrors.newPassword.message}</p>
+              <p id="newPassword-error" className="text-status-red text-xs mt-1" role="alert">{passwordErrors.newPassword.message}</p>
             )}
           </div>
           <div>
@@ -392,9 +503,11 @@ export default function AjustesPage() {
               type={showPassword ? 'text' : 'password'}
               {...registerPassword('confirmPassword')}
               className="input w-full"
+              aria-describedby={passwordErrors.confirmPassword ? 'confirmPassword-error' : undefined}
+              aria-invalid={!!passwordErrors.confirmPassword}
             />
             {passwordErrors.confirmPassword && (
-              <p className="text-status-red text-xs mt-1">
+              <p id="confirmPassword-error" className="text-status-red text-xs mt-1" role="alert">
                 {passwordErrors.confirmPassword.message}
               </p>
             )}
@@ -416,9 +529,15 @@ export default function AjustesPage() {
           </button>
         </form>
       </div>
+      </div>{/* end grid */}
 
-      {user?.isAdmin && (
-        <>
+      <TwoFactorSection />
+        </div>
+      )}
+
+      {/* ── Tab: Centro médico (admin only) ───── */}
+      {activeTab === 'centro' && user?.isAdmin && (
+        <div role="tabpanel" id="tabpanel-centro" aria-labelledby="tab-centro">
           <div className="card mb-6 border-accent/20">
             <div className="panel-header">
               <h2 className="panel-title">Datos del centro médico</h2>
@@ -483,7 +602,12 @@ export default function AjustesPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
 
+      {/* ── Tab: Correo e invitaciones (admin only) */}
+      {activeTab === 'correo' && user?.isAdmin && (
+        <div role="tabpanel" id="tabpanel-correo" aria-labelledby="tab-correo">
           <div className="card mb-6 border-accent/20">
             <div className="panel-header">
               <h2 className="panel-title">Correo SMTP para invitaciones</h2>
@@ -731,10 +855,12 @@ export default function AjustesPage() {
               </p>
             </div>
           </div>
-        </>
+        </div>
       )}
 
-      <div className="card">
+      {/* ── Tab: Sistema ─────────────────────── */}
+      {activeTab === 'sistema' && (
+      <div role="tabpanel" id="tabpanel-sistema" aria-labelledby="tab-sistema" className="card">
         <div className="panel-header">
           <h2 className="panel-title">Información del sistema</h2>
         </div>
@@ -747,6 +873,181 @@ export default function AjustesPage() {
           </p>
         </div>
       </div>
+      )}
+    </div>
+  );
+}
+
+function TwoFactorSection() {
+  const { user, setUser } = useAuthStore();
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [totpCode, setTotpCode] = useState('');
+  const [disablePassword, setDisablePassword] = useState('');
+  const [error, setError] = useState('');
+
+  const setupMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post('/auth/2fa/setup');
+      return res.data as { qrCode?: string; qrCodeDataUrl?: string; secret: string };
+    },
+    onSuccess: (data) => {
+      setQrCode(data.qrCode ?? data.qrCodeDataUrl ?? null);
+      setError('');
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  });
+
+  const enableMutation = useMutation({
+    mutationFn: async (code: string) => {
+      await api.post('/auth/2fa/enable', { code });
+    },
+    onSuccess: () => {
+      toast.success('Autenticación de dos factores activada');
+      if (user) {
+        setUser({ ...user, totpEnabled: true });
+      }
+      setQrCode(null);
+      setTotpCode('');
+      setError('');
+    },
+    onError: () => {
+      setError('Código incorrecto. Verifica e intenta de nuevo.');
+    },
+  });
+
+  const disableMutation = useMutation({
+    mutationFn: async (password: string) => {
+      await api.post('/auth/2fa/disable', { password });
+    },
+    onSuccess: () => {
+      toast.success('Autenticación de dos factores desactivada');
+      if (user) {
+        setUser({ ...user, totpEnabled: false });
+      }
+      setDisablePassword('');
+      setError('');
+    },
+    onError: () => {
+      setError('Contraseña incorrecta.');
+    },
+  });
+
+  const isEnabled = !!user?.totpEnabled;
+
+  return (
+    <div className="card mb-6">
+      <div className="panel-header">
+        <h2 className="panel-title">Autenticación de dos factores (2FA)</h2>
+        {isEnabled ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-status-green/20 px-2.5 py-1 text-xs font-semibold text-status-green-text">
+            Activa
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-ink-muted">
+            Inactiva
+          </span>
+        )}
+      </div>
+
+      <p className="text-sm text-ink-muted mb-4">
+        La verificación en dos pasos agrega una capa extra de seguridad.
+        Al activarla, necesitarás un código de tu aplicación autenticadora cada vez que inicies sesión.
+      </p>
+
+      {error && (
+        <div className="mb-4 rounded-card border border-status-red/30 bg-status-red/10 px-3 py-2 text-sm text-status-red-text">
+          {error}
+        </div>
+      )}
+
+      {!isEnabled && !qrCode && (
+        <button
+          onClick={() => setupMutation.mutate()}
+          disabled={setupMutation.isPending}
+          className="btn btn-primary"
+        >
+          {setupMutation.isPending ? 'Configurando...' : 'Configurar 2FA'}
+        </button>
+      )}
+
+      {!isEnabled && qrCode && (
+        <div className="space-y-4">
+          <div className="flex items-start gap-4">
+            <div className="rounded-card border border-surface-muted/40 bg-white p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrCode} alt="Código QR para 2FA" width={180} height={180} />
+            </div>
+            <div className="flex-1 text-sm text-ink-secondary">
+              <p className="font-medium text-ink mb-2">Escanea este código QR</p>
+              <p>
+                Abre Google Authenticator, Authy u otra app compatible y escanea el código.
+                Luego ingresa el código de 6 dígitos para confirmar la activación.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="totp-enable-code" className="block text-sm font-medium text-ink-secondary mb-1">
+              Código de verificación
+            </label>
+            <input
+              id="totp-enable-code"
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={totpCode}
+              onChange={(e) => { setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setError(''); }}
+              placeholder="000000"
+              className="input w-48 text-center text-lg tracking-[0.2em]"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => enableMutation.mutate(totpCode)}
+              disabled={totpCode.length !== 6 || enableMutation.isPending}
+              className="btn btn-primary"
+            >
+              {enableMutation.isPending ? 'Activando...' : 'Activar 2FA'}
+            </button>
+            <button
+              onClick={() => { setQrCode(null); setTotpCode(''); setError(''); }}
+              className="btn btn-secondary"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isEnabled && (
+        <div className="space-y-4">
+          <p className="text-sm text-ink-secondary">
+            Para desactivar la verificación en dos pasos, ingresa tu contraseña actual.
+          </p>
+          <div>
+            <label htmlFor="disable-2fa-password" className="block text-sm font-medium text-ink-secondary mb-1">
+              Contraseña
+            </label>
+            <input
+              id="disable-2fa-password"
+              type="password"
+              autoComplete="current-password"
+              value={disablePassword}
+              onChange={(e) => { setDisablePassword(e.target.value); setError(''); }}
+              placeholder="Tu contraseña actual"
+              className="input w-full max-w-sm"
+            />
+          </div>
+          <button
+            onClick={() => disableMutation.mutate(disablePassword)}
+            disabled={!disablePassword.trim() || disableMutation.isPending}
+            className="btn btn-secondary text-status-red-text"
+          >
+            {disableMutation.isPending ? 'Desactivando...' : 'Desactivar 2FA'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

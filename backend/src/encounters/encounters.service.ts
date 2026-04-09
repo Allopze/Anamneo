@@ -8,10 +8,13 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 import { CreateEncounterDto } from './dto/create-encounter.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
 import { PREVISIONES, SEXOS, SectionKey, EncounterStatus } from '../common/types';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
+import { buildAccessiblePatientsWhere } from '../common/utils/patient-access';
 import { parseStoredJson } from '../common/utils/encounter-sections';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
 import {
@@ -26,10 +29,13 @@ import {
   getEncounterSectionSchemaVersion,
 } from '../common/utils/encounter-section-meta';
 import {
+  assertEncounterClinicalOutputAllowed,
   getEncounterClinicalOutputBlock,
-  getEncounterClinicalOutputBlockMessage,
   getPatientDemographicsMissingFields,
 } from '../common/utils/patient-completeness';
+import { sanitizeClinicalText } from '../common/utils/sanitize-html';
+import { encryptField, decryptField, isEncryptionEnabled } from '../common/utils/field-crypto';
+import { AlertsService } from '../alerts/alerts.service';
 
 const REQUIRED_COMPLETION_SECTIONS: SectionKey[] = [
   'IDENTIFICACION',
@@ -78,6 +84,11 @@ const REVISION_SISTEMAS_KEYS = [
   'ginecologico',
 ] as const;
 
+function serializeSectionData(data: unknown): string {
+  const json = JSON.stringify(data);
+  return isEncryptionEnabled() ? encryptField(json) : json;
+}
+
 function parseSectionData(rawData: unknown): unknown {
   return parseStoredJson(rawData, null);
 }
@@ -111,6 +122,7 @@ export class EncountersService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
+    private alertsService: AlertsService,
   ) {}
 
   private formatTask(task: any) {
@@ -129,12 +141,8 @@ export class EncountersService {
       throw new BadRequestException('La sección contiene campos de texto inválidos');
     }
 
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return undefined;
-    }
-
-    return trimmed.slice(0, maxLength);
+    const sanitized = sanitizeClinicalText(value, maxLength);
+    return sanitized || undefined;
   }
 
   private summarizeSectionAuditData(sectionKey: SectionKey, data: unknown, completed?: boolean) {
@@ -911,7 +919,7 @@ export class EncountersService {
                       : {};
                     return {
                       sectionKey: key,
-                      data: JSON.stringify(sectionData),
+                      data: serializeSectionData(sectionData),
                       schemaVersion: getEncounterSectionSchemaVersion(key),
                       completed: false,
                     };
@@ -980,7 +988,7 @@ export class EncountersService {
       },
     };
 
-    if (status && ['EN_PROGRESO', 'COMPLETADO', 'CANCELADO'].includes(status)) {
+    if (status && ['EN_PROGRESO', 'COMPLETADO', 'FIRMADO', 'CANCELADO'].includes(status)) {
       where.status = status;
     }
 
@@ -1161,6 +1169,10 @@ export class EncountersService {
       throw new ForbiddenException('No tiene permisos para editar esta atención');
     }
 
+    if (encounter.status === 'FIRMADO') {
+      throw new BadRequestException('No se puede editar una atención firmada. Los registros firmados son inmutables');
+    }
+
     if (encounter.status === 'COMPLETADO') {
       throw new BadRequestException('No se puede editar una atención completada');
     }
@@ -1190,7 +1202,7 @@ export class EncountersService {
     const updatedSection = await this.prisma.encounterSection.update({
       where: { id: section.id },
       data: {
-        data: JSON.stringify(sanitizedData),
+        data: serializeSectionData(sanitizedData),
         schemaVersion: getEncounterSectionSchemaVersion(sectionKey),
         completed: dto.completed ?? section.completed,
       },
@@ -1204,7 +1216,24 @@ export class EncountersService {
       diff: this.summarizeSectionAuditData(sectionKey, sanitizedData, dto.completed),
     });
 
-    return updatedSection;
+    const vitalSigns = sectionKey === 'EXAMEN_FISICO'
+      ? (sanitizedData as { signosVitales?: Record<string, string> }).signosVitales
+      : undefined;
+
+    // Auto-check vital signs for critical values
+    if (vitalSigns) {
+      this.alertsService
+        .checkVitalSigns(encounter.patientId, encounterId, vitalSigns, user.id)
+        .catch(() => {}); // fire-and-forget
+    }
+
+    const formattedSection = formatEncounterSectionForRead(updatedSection);
+
+    return {
+      ...updatedSection,
+      data: JSON.stringify(formattedSection.data ?? {}),
+      schemaVersion: formattedSection.schemaVersion,
+    };
   }
 
   async complete(id: string, userId: string, closureNote?: string) {
@@ -1221,12 +1250,7 @@ export class EncountersService {
       throw new ForbiddenException('No tiene permisos para completar esta atención');
     }
 
-    const clinicalOutputBlock = getEncounterClinicalOutputBlock(encounter.patient);
-    if (clinicalOutputBlock?.blockedActions.includes('COMPLETE_ENCOUNTER')) {
-      throw new BadRequestException(
-        getEncounterClinicalOutputBlockMessage(clinicalOutputBlock, 'COMPLETE_ENCOUNTER'),
-      );
-    }
+    assertEncounterClinicalOutputAllowed(encounter.patient, 'COMPLETE_ENCOUNTER');
 
     const sectionByKey = new Map(encounter.sections.map((section) => [section.sectionKey as SectionKey, section]));
 
@@ -1302,6 +1326,84 @@ export class EncountersService {
     return this.formatEncounter(updated);
   }
 
+  async sign(
+    id: string,
+    userId: string,
+    password: string,
+    context: { ipAddress?: string; userAgent?: string },
+  ) {
+    // Re-authenticate the signing user
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.active) {
+      throw new ForbiddenException('Usuario no encontrado o inactivo');
+    }
+    const validPassword = await bcrypt.compare(password, user.passwordHash);
+    if (!validPassword) {
+      throw new BadRequestException('Contraseña incorrecta. La firma requiere autenticación');
+    }
+
+    const encounter = await this.prisma.encounter.findUnique({
+      where: { id },
+      include: { sections: true },
+    });
+
+    if (!encounter) {
+      throw new NotFoundException('Atención no encontrada');
+    }
+
+    if (encounter.medicoId !== userId) {
+      throw new ForbiddenException('Solo el médico tratante puede firmar esta atención');
+    }
+
+    if (encounter.status !== 'COMPLETADO') {
+      throw new BadRequestException('Solo se pueden firmar atenciones completadas');
+    }
+
+    // Generate SHA-256 hash of clinical content (plaintext, key-independent)
+    const contentPayload = encounter.sections
+      .sort((a, b) => a.sectionKey.localeCompare(b.sectionKey))
+      .map((s) => {
+        const plain = typeof s.data === 'string' && s.data.startsWith('enc:')
+          ? decryptField(s.data)
+          : s.data;
+        return { key: s.sectionKey, data: plain };
+      });
+    const contentHash = crypto
+      .createHash('sha256')
+      .update(JSON.stringify(contentPayload))
+      .digest('hex');
+
+    const [signature] = await this.prisma.$transaction([
+      this.prisma.encounterSignature.create({
+        data: {
+          encounterId: id,
+          userId,
+          contentHash,
+          ipAddress: context.ipAddress ?? null,
+          userAgent: context.userAgent ?? null,
+        },
+      }),
+      this.prisma.encounter.update({
+        where: { id },
+        data: { status: 'FIRMADO' },
+      }),
+    ]);
+
+    await this.auditService.log({
+      entityType: 'Encounter',
+      entityId: id,
+      userId,
+      action: 'UPDATE',
+      diff: {
+        status: 'FIRMADO',
+        signatureId: signature.id,
+        contentHash,
+      },
+    });
+
+    return { signatureId: signature.id, contentHash, signedAt: signature.signedAt };
+  }
+
   async reopen(id: string, userId: string, note: string) {
     const encounter = await this.prisma.encounter.findUnique({
       where: { id },
@@ -1312,7 +1414,7 @@ export class EncountersService {
     }
 
     if (encounter.status !== 'COMPLETADO') {
-      throw new BadRequestException('Solo se pueden reabrir atenciones completadas');
+      throw new BadRequestException('Solo se pueden reabrir atenciones completadas (las firmadas son inmutables)');
     }
 
     if (encounter.medicoId !== userId) {
@@ -1481,6 +1583,7 @@ export class EncountersService {
 
   async getDashboard(user: RequestUser) {
     const medicoId = getEffectiveMedicoId(user);
+    const patientWhere = buildAccessiblePatientsWhere(user);
 
     const where = medicoId
       ? {
@@ -1491,7 +1594,18 @@ export class EncountersService {
         }
       : {};
 
-    const [enProgreso, completado, cancelado, pendingReview, recent, upcomingTasks] = await Promise.all([
+    const [
+      enProgreso,
+      completado,
+      cancelado,
+      pendingReview,
+      recent,
+      upcomingTasks,
+      patientIncomplete,
+      patientPendingVerification,
+      patientVerified,
+      overdueTasks,
+    ] = await Promise.all([
       this.prisma.encounter.count({ where: { ...where, status: 'EN_PROGRESO' } }),
       this.prisma.encounter.count({ where: { ...where, status: 'COMPLETADO' } }),
       this.prisma.encounter.count({ where: { ...where, status: 'CANCELADO' } }),
@@ -1530,6 +1644,17 @@ export class EncountersService {
           },
         },
       }),
+      this.prisma.patient.count({ where: { ...patientWhere, completenessStatus: 'INCOMPLETA' } }),
+      this.prisma.patient.count({ where: { ...patientWhere, completenessStatus: 'PENDIENTE_VERIFICACION' } }),
+      this.prisma.patient.count({ where: { ...patientWhere, completenessStatus: 'VERIFICADA' } }),
+      this.prisma.encounterTask.count({
+        where: {
+          patient: { archivedAt: null },
+          encounter: medicoId ? { medicoId } : undefined,
+          status: { in: ['PENDIENTE', 'EN_PROCESO'] },
+          dueDate: { lt: new Date(new Date().toISOString().split('T')[0]) },
+        },
+      }),
     ]);
 
     return {
@@ -1539,6 +1664,11 @@ export class EncountersService {
         cancelado,
         pendingReview,
         upcomingTasks: upcomingTasks.length,
+        patientIncomplete,
+        patientPendingVerification,
+        patientVerified,
+        patientNonVerified: patientIncomplete + patientPendingVerification,
+        overdueTasks,
         total: enProgreso + completado + cancelado,
       },
       recent: recent.map((enc) => ({

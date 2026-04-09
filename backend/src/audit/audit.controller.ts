@@ -40,4 +40,10 @@ export class AuditController {
   ) {
     return this.auditService.findByEntity(entityType, entityId);
   }
+
+  @Get('integrity/verify')
+  @UseGuards(AdminGuard)
+  verifyChain(@Query('limit') limit?: string) {
+    return this.auditService.verifyChain(limit ? parseInt(limit, 10) : 1000);
+  }
 }

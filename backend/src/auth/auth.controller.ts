@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, Patch, UseGuards, Res, UnauthorizedException, Param } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Get, Patch, UseGuards, Res, UnauthorizedException, Param, Req } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -7,6 +7,7 @@ import { RegisterWithInvitationDto } from './dto/register-with-invitation.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { VerifyTotpDto, DisableTotpDto, VerifyTotpLoginDto } from './dto/totp.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { UsersService } from '../users/users.service';
@@ -98,8 +99,13 @@ export class AuthController {
   @Throttle({ short: { limit: 5, ttl: 60000 } })
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const sessionContext = this.getSessionContext(res.req as Request);
-    const tokens = await this.authService.login(loginDto, sessionContext);
-    this.setAuthCookies(res, tokens);
+    const result = await this.authService.login(loginDto, sessionContext);
+
+    if ('requires2FA' in result) {
+      return { requires2FA: true, tempToken: result.tempToken };
+    }
+
+    this.setAuthCookies(res, result);
     return { message: 'Inicio de sesión exitoso' };
   }
 
@@ -156,5 +162,37 @@ export class AuthController {
 
     this.clearAuthCookies(res);
     return { message: 'Sesión cerrada' };
+  }
+
+  // ── 2FA / TOTP ──────────────────────────────────────────────────────
+
+  @Post('2fa/setup')
+  @UseGuards(JwtAuthGuard)
+  async setup2FA(@CurrentUser() user: CurrentUserData) {
+    return this.authService.setup2FA(user.id);
+  }
+
+  @Post('2fa/enable')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async enable2FA(@CurrentUser() user: CurrentUserData, @Body() dto: VerifyTotpDto) {
+    return this.authService.enable2FA(user.id, dto.code);
+  }
+
+  @Post('2fa/disable')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async disable2FA(@CurrentUser() user: CurrentUserData, @Body() dto: DisableTotpDto) {
+    return this.authService.disable2FA(user.id, dto.password);
+  }
+
+  @Post('2fa/verify')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
+  async verify2FA(@Body() dto: VerifyTotpLoginDto, @Res({ passthrough: true }) res: Response) {
+    const sessionContext = this.getSessionContext(res.req as Request);
+    const tokens = await this.authService.verify2FALogin(dto.tempToken, dto.code, sessionContext);
+    this.setAuthCookies(res, tokens);
+    return { message: 'Verificación 2FA exitosa' };
   }
 }

@@ -71,6 +71,7 @@ export class PatientsController {
     @Query('limit') limit?: number,
     @Query('sexo') sexo?: string,
     @Query('prevision') prevision?: string,
+    @Query('completenessStatus') completenessStatus?: string,
     @Query('edadMin') edadMin?: string,
     @Query('edadMax') edadMax?: string,
     @Query('clinicalSearch') clinicalSearch?: string,
@@ -78,7 +79,10 @@ export class PatientsController {
     @Query('sortOrder') sortOrder?: string,
   ) {
     return this.patientsService.findAll(user, search, page || 1, limit || 20, {
-      sexo, prevision, clinicalSearch,
+      sexo,
+      prevision,
+      completenessStatus: completenessStatus as 'INCOMPLETA' | 'PENDIENTE_VERIFICACION' | 'VERIFICADA' | undefined,
+      clinicalSearch,
       edadMin: edadMin ? parseInt(edadMin, 10) : undefined,
       edadMax: edadMax ? parseInt(edadMax, 10) : undefined,
       sortBy: sortBy as 'nombre' | 'edad' | 'createdAt' | 'updatedAt' | undefined,

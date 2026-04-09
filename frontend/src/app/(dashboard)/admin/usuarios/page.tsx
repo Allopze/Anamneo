@@ -329,7 +329,7 @@ export default function AdminUsuariosPage() {
     <div className="animate-fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-header-title">Administración de usuarios</h1>
+          <h1 className="page-header-title">Usuarios</h1>
           <p className="page-header-description">Crea médicos y asistentes, y administra sus relaciones operativas.</p>
         </div>
       </div>

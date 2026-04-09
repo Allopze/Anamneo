@@ -94,7 +94,7 @@ export default function PlantillasPage() {
     <div className="animate-fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-header-title">Plantillas de texto</h1>
+          <h1 className="page-header-title">Plantillas</h1>
           <p className="page-header-description">Bloques reutilizables para acelerar el registro clínico.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

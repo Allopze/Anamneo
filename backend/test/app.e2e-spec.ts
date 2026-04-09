@@ -755,6 +755,31 @@ describe('Application E2E Tests', () => {
       expect(res.body.demographicsMissingFields).toEqual([]);
     });
 
+    it('GET /api/encounters/stats/dashboard → exposes operational patient completeness counts', async () => {
+      const res = await req()
+        .get('/api/encounters/stats/dashboard')
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(res.body.counts.patientPendingVerification).toBeGreaterThanOrEqual(1);
+      expect(res.body.counts.patientVerified).toBeGreaterThanOrEqual(1);
+      expect(res.body.counts.patientNonVerified).toBeGreaterThanOrEqual(res.body.counts.patientPendingVerification);
+    });
+
+    it('GET /api/patients?completenessStatus=... → filters rows and returns operational summary counts', async () => {
+      const res = await req()
+        .get('/api/patients?completenessStatus=PENDIENTE_VERIFICACION')
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+      expect(res.body.data.every((patient: any) => patient.completenessStatus === 'PENDIENTE_VERIFICACION')).toBe(true);
+      expect(res.body.data.some((patient: any) => patient.id === quickPatientId)).toBe(true);
+      expect(res.body.summary.pendingVerification).toBeGreaterThanOrEqual(1);
+      expect(res.body.summary.verified).toBeGreaterThanOrEqual(1);
+      expect(res.body.summary.totalPatients).toBeGreaterThan(res.body.data.length);
+    });
+
     it('POST /api/patients/:id/verify-demographics → doctor verifies a completed quick registration', async () => {
       const res = await req()
         .post(`/api/patients/${quickPatientId}/verify-demographics`)

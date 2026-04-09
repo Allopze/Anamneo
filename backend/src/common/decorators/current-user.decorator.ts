@@ -7,6 +7,7 @@ export interface CurrentUserData {
   role: string;
   isAdmin?: boolean;
   medicoId?: string | null;
+  totpEnabled?: boolean;
 }
 
 export const CurrentUser = createParamDecorator(

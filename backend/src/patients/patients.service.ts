@@ -11,6 +11,7 @@ import { UpdatePatientProblemDto } from './dto/update-patient-problem.dto';
 import { validateRut } from '../common/utils/helpers';
 import { Prisma } from '@prisma/client';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
+import { buildAccessiblePatientsWhere } from '../common/utils/patient-access';
 import { parseStoredJson } from '../common/utils/encounter-sections';
 import { PATIENT_HISTORY_FIELD_KEYS, sanitizePatientHistoryFieldValue } from '../common/utils/patient-history';
 import { isDateOnlyBeforeToday, parseDateOnlyToStoredUtcDate, startOfUtcDay } from '../common/utils/local-date';
@@ -18,7 +19,7 @@ import {
   ENCOUNTER_SECTION_LABELS,
   ENCOUNTER_SECTION_ORDER,
 } from '../common/utils/encounter-section-meta';
-import { SectionKey } from '../common/types';
+import { PatientCompletenessStatus, SectionKey } from '../common/types';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
 import {
   getPatientDemographicsMissingFields,
@@ -342,6 +343,7 @@ export class PatientsService {
     filters?: {
       sexo?: string;
       prevision?: string;
+      completenessStatus?: PatientCompletenessStatus;
       edadMin?: number;
       edadMax?: number;
       clinicalSearch?: string;
@@ -352,19 +354,8 @@ export class PatientsService {
     const skip = (page - 1) * limit;
     const effectiveMedicoId = getEffectiveMedicoId(user);
 
-    // Scope: patients created by this medico OR with at least one encounter by them
-    const accessFilter: any = user.isAdmin
-      ? {}
-      : {
-          OR: [
-            { createdById: effectiveMedicoId },
-            { encounters: { some: { medicoId: effectiveMedicoId } } },
-          ],
-        };
-
-    const where: any = {
-      archivedAt: null,
-      ...accessFilter,
+    const baseWhere: Prisma.PatientWhereInput = {
+      ...buildAccessiblePatientsWhere(user),
       ...(search
         ? {
             AND: [
@@ -379,17 +370,18 @@ export class PatientsService {
         : {}),
     };
 
-    if (filters?.sexo) where.sexo = filters.sexo;
-    if (filters?.prevision) where.prevision = filters.prevision;
+    if (filters?.sexo) baseWhere.sexo = filters.sexo;
+    if (filters?.prevision) baseWhere.prevision = filters.prevision;
     if (filters?.edadMin !== undefined || filters?.edadMax !== undefined) {
-      where.edad = {};
-      if (filters.edadMin !== undefined) where.edad.gte = filters.edadMin;
-      if (filters.edadMax !== undefined) where.edad.lte = filters.edadMax;
+      const ageFilter: Prisma.IntNullableFilter = {};
+      if (filters.edadMin !== undefined) ageFilter.gte = filters.edadMin;
+      if (filters.edadMax !== undefined) ageFilter.lte = filters.edadMax;
+      baseWhere.edad = ageFilter;
     }
 
     if (filters?.clinicalSearch?.trim()) {
-      where.AND = [
-        ...(Array.isArray(where.AND) ? where.AND : []),
+      baseWhere.AND = [
+        ...(Array.isArray(baseWhere.AND) ? baseWhere.AND : []),
         {
           encounters: {
             some: {
@@ -408,11 +400,18 @@ export class PatientsService {
       ];
     }
 
+    const where: Prisma.PatientWhereInput = filters?.completenessStatus
+      ? {
+          ...baseWhere,
+          completenessStatus: filters.completenessStatus,
+        }
+      : baseWhere;
+
     const orderBy = filters?.sortBy
       ? { [filters.sortBy]: filters.sortOrder || 'asc' }
       : { createdAt: 'desc' as const };
 
-    const [patients, total] = await Promise.all([
+    const [patients, total, incompleteCount, pendingVerificationCount, verifiedCount] = await Promise.all([
       this.prisma.patient.findMany({
         where,
         skip,
@@ -425,10 +424,20 @@ export class PatientsService {
         },
       }),
       this.prisma.patient.count({ where }),
+      this.prisma.patient.count({ where: { ...baseWhere, completenessStatus: 'INCOMPLETA' } }),
+      this.prisma.patient.count({ where: { ...baseWhere, completenessStatus: 'PENDIENTE_VERIFICACION' } }),
+      this.prisma.patient.count({ where: { ...baseWhere, completenessStatus: 'VERIFICADA' } }),
     ]);
 
     return {
       data: patients.map((patient) => this.decoratePatient(patient)),
+      summary: {
+        totalPatients: incompleteCount + pendingVerificationCount + verifiedCount,
+        incomplete: incompleteCount,
+        pendingVerification: pendingVerificationCount,
+        verified: verifiedCount,
+        nonVerified: incompleteCount + pendingVerificationCount,
+      },
       pagination: {
         page,
         limit,

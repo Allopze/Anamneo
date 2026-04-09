@@ -45,6 +45,8 @@ import { extractDateOnly, formatDateOnly } from '@/lib/date';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import PatientAlerts from '@/components/PatientAlerts';
+import PatientConsents from '@/components/PatientConsents';
 import {
   formatPatientAge,
   formatPatientPrevision,
@@ -730,6 +732,14 @@ export default function PatientDetailPage() {
                 </div>
               </div>
             ) : null}
+          </div>
+
+          <div className="card">
+            <PatientAlerts patientId={patient.id} />
+          </div>
+
+          <div className="card">
+            <PatientConsents patientId={patient.id} />
           </div>
         </div>
 

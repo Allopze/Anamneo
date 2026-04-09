@@ -1,3 +1,5 @@
+import { BadRequestException } from '@nestjs/common';
+
 type PatientCompletenessShape = {
   rut?: string | null;
   rutExempt?: boolean | null;
@@ -36,18 +38,35 @@ export const PATIENT_DEMOGRAPHIC_FIELD_LABELS: Record<typeof PATIENT_DEMOGRAPHIC
   prevision: 'prevision',
 };
 
-export const ENCOUNTER_CLINICAL_OUTPUT_BLOCKED_ACTIONS = [
+export const ENCOUNTER_CLINICAL_OUTPUT_ACTIONS = [
   'COMPLETE_ENCOUNTER',
   'EXPORT_OFFICIAL_DOCUMENTS',
   'PRINT_CLINICAL_RECORD',
 ] as const;
 
+export const ENCOUNTER_CLINICAL_OUTPUT_BLOCKED_ACTIONS = ENCOUNTER_CLINICAL_OUTPUT_ACTIONS;
+
 export type PatientDemographicMissingField = typeof PATIENT_DEMOGRAPHIC_MISSING_FIELDS[number];
 export type PatientVerificationFieldKey = typeof PATIENT_VERIFICATION_FIELD_KEYS[number];
-export type EncounterClinicalOutputAction = typeof ENCOUNTER_CLINICAL_OUTPUT_BLOCKED_ACTIONS[number];
+export type EncounterClinicalOutputAction = typeof ENCOUNTER_CLINICAL_OUTPUT_ACTIONS[number];
+type EncounterClinicalOutputBlockedCompletenessStatus = 'INCOMPLETA' | 'PENDIENTE_VERIFICACION';
+
+const ENCOUNTER_CLINICAL_OUTPUT_ACTION_LABELS: Record<EncounterClinicalOutputAction, string> = {
+  COMPLETE_ENCOUNTER: 'completar la atención',
+  EXPORT_OFFICIAL_DOCUMENTS: 'emitir documentos clínicos oficiales',
+  PRINT_CLINICAL_RECORD: 'imprimir la ficha clínica',
+};
+
+const ENCOUNTER_CLINICAL_OUTPUT_BLOCK_POLICY: Record<
+  EncounterClinicalOutputBlockedCompletenessStatus,
+  readonly EncounterClinicalOutputAction[]
+> = {
+  INCOMPLETA: ENCOUNTER_CLINICAL_OUTPUT_ACTIONS,
+  PENDIENTE_VERIFICACION: ENCOUNTER_CLINICAL_OUTPUT_ACTIONS,
+};
 
 export type EncounterClinicalOutputBlock = {
-  completenessStatus: 'INCOMPLETA' | 'PENDIENTE_VERIFICACION';
+  completenessStatus: EncounterClinicalOutputBlockedCompletenessStatus;
   missingFields: PatientDemographicMissingField[];
   blockedActions: EncounterClinicalOutputAction[];
   reason: string;
@@ -103,16 +122,36 @@ export function getEncounterClinicalOutputBlock(
   return {
     completenessStatus,
     missingFields,
-    blockedActions: [...ENCOUNTER_CLINICAL_OUTPUT_BLOCKED_ACTIONS],
+    blockedActions: [...ENCOUNTER_CLINICAL_OUTPUT_BLOCK_POLICY[completenessStatus]],
     reason: buildEncounterClinicalOutputBlockReason(completenessStatus, missingFields),
   };
+}
+
+export function isEncounterClinicalOutputActionBlocked(
+  block: EncounterClinicalOutputBlock | null | undefined,
+  action: EncounterClinicalOutputAction,
+) {
+  return Boolean(block?.blockedActions.includes(action));
 }
 
 export function getEncounterClinicalOutputBlockMessage(
   block: EncounterClinicalOutputBlock,
   action: EncounterClinicalOutputAction,
 ): string {
-  return `No se puede ${getEncounterClinicalOutputActionLabel(action)}. ${block.reason}`;
+  return `No se puede ${ENCOUNTER_CLINICAL_OUTPUT_ACTION_LABELS[action]}. ${block.reason}`;
+}
+
+export function assertEncounterClinicalOutputAllowed(
+  patient: PatientClinicalOutputEligibilityShape | null | undefined,
+  action: EncounterClinicalOutputAction,
+) {
+  const block = getEncounterClinicalOutputBlock(patient);
+
+  if (!block || !isEncounterClinicalOutputActionBlocked(block, action)) {
+    return;
+  }
+
+  throw new BadRequestException(getEncounterClinicalOutputBlockMessage(block, action));
 }
 
 export function hasPatientVerificationFieldChanges(
@@ -164,7 +203,7 @@ function resolveEncounterClinicalOutputBlockStatus(
 }
 
 function buildEncounterClinicalOutputBlockReason(
-  completenessStatus: 'INCOMPLETA' | 'PENDIENTE_VERIFICACION',
+  completenessStatus: EncounterClinicalOutputBlockedCompletenessStatus,
   missingFields: PatientDemographicMissingField[],
 ): string {
   if (completenessStatus === 'INCOMPLETA') {
@@ -180,16 +219,4 @@ function buildEncounterClinicalOutputBlockReason(
 
 function formatMissingFieldLabels(fields: PatientDemographicMissingField[]) {
   return fields.map((field) => PATIENT_DEMOGRAPHIC_FIELD_LABELS[field] || field);
-}
-
-function getEncounterClinicalOutputActionLabel(action: EncounterClinicalOutputAction) {
-  if (action === 'COMPLETE_ENCOUNTER') {
-    return 'completar la atención';
-  }
-
-  if (action === 'EXPORT_OFFICIAL_DOCUMENTS') {
-    return 'emitir documentos clínicos oficiales';
-  }
-
-  return 'imprimir la ficha clínica';
 }

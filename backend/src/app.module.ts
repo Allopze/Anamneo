@@ -14,6 +14,9 @@ import { AttachmentsModule } from './attachments/attachments.module';
 import { AuditModule } from './audit/audit.module';
 import { TemplatesModule } from './templates/templates.module';
 import { SettingsModule } from './settings/settings.module';
+import { ConsentsModule } from './consents/consents.module';
+import { AlertsModule } from './alerts/alerts.module';
+import { Cie10Module } from './cie10/cie10.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -58,6 +61,9 @@ import { HealthController } from './health.controller';
     AuditModule,
     TemplatesModule,
     SettingsModule,
+    ConsentsModule,
+    AlertsModule,
+    Cie10Module,
   ],
   controllers: [HealthController],
   providers: [

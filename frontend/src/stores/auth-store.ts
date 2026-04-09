@@ -17,6 +17,8 @@ export interface User {
   role: 'MEDICO' | 'ASISTENTE' | 'ADMIN';
   isAdmin?: boolean;
   medicoId?: string | null;
+  mustChangePassword?: boolean;
+  totpEnabled?: boolean;
 }
 
 interface AuthState {

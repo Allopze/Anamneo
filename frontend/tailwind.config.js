@@ -28,16 +28,17 @@ module.exports = {
         /* ── Semantic text ────────────────────────────── */
         ink: {
           DEFAULT:  '#2b2b2b',
-          secondary:'#666666',
-          muted:    '#a3a3a3',
+          primary:  '#2b2b2b',
+          secondary:'#555555',
+          muted:    '#767676',
           onDark:   '#ffffff',
         },
         /* ── Chips & chart ────────────────────────────── */
         chip: {
-          DEFAULT:  '#666666',
+          DEFAULT:  '#555555',
           hover:    '#404040',
         },
-        chartGray:  '#a3a3a3',
+        chartGray:  '#767676',
         /* ── Soft status ──────────────────────────────── */
         status: {
           red:        '#D08C84',
@@ -52,8 +53,8 @@ module.exports = {
           100: '#f5f4f0',
           200: '#ebe9e4',
           300: '#e5e4e0',
-          400: '#a3a3a3',
-          500: '#666666',
+          400: '#767676',
+          500: '#555555',
           600: '#404040',
           700: '#2b2b2b',
           800: '#1a1a1a',

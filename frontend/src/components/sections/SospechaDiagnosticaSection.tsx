@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { FiPlus, FiTrash2, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { FiPlus, FiTrash2, FiArrowUp, FiArrowDown, FiSearch } from 'react-icons/fi';
 import { ConditionSuggestion, MotivoConsultaData, SospechaDiagnosticaData, SospechaDiagnostica } from '@/types';
 import { SectionAddButton, SectionBlock, SectionIconButton, SectionIntro } from '@/components/sections/SectionPrimitives';
+import { api } from '@/lib/api';
 
 interface Props {
   data: SospechaDiagnosticaData;
@@ -15,6 +16,26 @@ interface Props {
 export default function SospechaDiagnosticaSection({ data, onChange, readOnly, motivoConsultaData }: Props) {
   const sospechas: SospechaDiagnostica[] = data.sospechas || [];
   const didSeedRef = useRef(false);
+  const [cie10Query, setCie10Query] = useState<Record<string, string>>({});
+  const [cie10Results, setCie10Results] = useState<Record<string, Array<{ code: string; description: string }>>>({});
+  const cie10TimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const searchCie10 = useCallback(async (sospechaId: string, query: string) => {
+    setCie10Query((prev) => ({ ...prev, [sospechaId]: query }));
+    if (cie10TimerRef.current[sospechaId]) clearTimeout(cie10TimerRef.current[sospechaId]);
+    if (query.trim().length < 2) {
+      setCie10Results((prev) => ({ ...prev, [sospechaId]: [] }));
+      return;
+    }
+    cie10TimerRef.current[sospechaId] = setTimeout(async () => {
+      try {
+        const res = await api.get('/cie10/search', { params: { q: query, limit: 8 } });
+        setCie10Results((prev) => ({ ...prev, [sospechaId]: res.data }));
+      } catch {
+        setCie10Results((prev) => ({ ...prev, [sospechaId]: [] }));
+      }
+    }, 300);
+  }, []);
 
   // Pre-load the selected condition from Motivo de Consulta as first diagnostic suspicion
   useEffect(() => {
@@ -140,6 +161,70 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly, m
                 className="form-input form-textarea"
                 placeholder="Notas sobre esta sospecha diagnóstica..."
               />
+
+              {/* CIE-10 code */}
+              <div className="space-y-1">
+                {sospecha.codigoCie10 ? (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="rounded border border-accent-border bg-accent-subtle px-2 py-0.5 font-mono text-xs font-medium text-accent-text">
+                      {sospecha.codigoCie10}
+                    </span>
+                    <span className="text-ink-muted">{sospecha.descripcionCie10}</span>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = sospechas.map((s) =>
+                            s.id === sospecha.id ? { ...s, codigoCie10: undefined, descripcionCie10: undefined } : s
+                          );
+                          onChange({ ...data, sospechas: updated });
+                        }}
+                        className="text-xs text-ink-muted hover:text-red-600"
+                      >
+                        Quitar
+                      </button>
+                    )}
+                  </div>
+                ) : !readOnly ? (
+                  <div className="relative">
+                    <div className="flex items-center gap-1">
+                      <FiSearch className="h-3.5 w-3.5 text-ink-muted" />
+                      <input
+                        type="text"
+                        value={cie10Query[sospecha.id] || ''}
+                        onChange={(e) => searchCie10(sospecha.id, e.target.value)}
+                        className="form-input text-sm py-1"
+                        placeholder="Buscar código CIE-10..."
+                      />
+                    </div>
+                    {(cie10Results[sospecha.id]?.length ?? 0) > 0 && (
+                      <ul className="absolute z-10 mt-1 w-full rounded-md border border-border bg-surface shadow-lg max-h-48 overflow-y-auto">
+                        {cie10Results[sospecha.id].map((entry) => (
+                          <li key={entry.code}>
+                            <button
+                              type="button"
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-surface-hover"
+                              onClick={() => {
+                                const updated = sospechas.map((s) =>
+                                  s.id === sospecha.id
+                                    ? { ...s, codigoCie10: entry.code, descripcionCie10: entry.description }
+                                    : s
+                                );
+                                onChange({ ...data, sospechas: updated });
+                                setCie10Query((prev) => ({ ...prev, [sospecha.id]: '' }));
+                                setCie10Results((prev) => ({ ...prev, [sospecha.id]: [] }));
+                              }}
+                            >
+                              <span className="font-mono text-xs font-medium text-accent-text">{entry.code}</span>
+                              <span className="text-ink-muted truncate">{entry.description}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ) : null}
+              </div>
             </div>
           ))}
 

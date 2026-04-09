@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import { Attachment, Encounter, STATUS_LABELS, REVIEW_STATUS_LABELS } from '@/types';
-import { FiAlertTriangle, FiArrowLeft, FiFileText, FiPrinter, FiDownload, FiPaperclip } from 'react-icons/fi';
+import { FiAlertTriangle, FiArrowLeft, FiFileText, FiPrinter, FiDownload, FiPaperclip, FiShield } from 'react-icons/fi';
+import type { AxiosResponse } from 'axios';
+import SignEncounterModal from '@/components/common/SignEncounterModal';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -25,6 +27,7 @@ import {
   getIdentificationMissingFields,
   getPatientCompletenessMeta,
 } from '@/lib/patient';
+import { getEncounterClinicalOutputBlockReason } from '@/lib/clinical-output';
 
 function fallbackPdfFilename(encounter: Encounter | undefined, kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') {
   const patientName = (encounter?.patient?.nombre || 'Paciente')
@@ -59,8 +62,11 @@ function getFilenameFromDisposition(value?: string) {
 export default function FichaClinicaPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const isOperationalAdmin = !!user?.isAdmin;
+  const isDoctor = user?.role === 'MEDICO';
+  const [showSignModal, setShowSignModal] = useState(false);
 
   const { data: encounter, isLoading } = useQuery({
     queryKey: ['encounter', id],
@@ -72,17 +78,28 @@ export default function FichaClinicaPage() {
   });
 
   const clinicalOutputBlock = encounter?.clinicalOutputBlock ?? null;
-  const exportBlockedReason = clinicalOutputBlock?.blockedActions.includes('EXPORT_OFFICIAL_DOCUMENTS')
-    ? clinicalOutputBlock.reason
-    : null;
-  const printBlockedReason = clinicalOutputBlock?.blockedActions.includes('PRINT_CLINICAL_RECORD')
-    ? clinicalOutputBlock.reason
-    : null;
+  const exportBlockedReason = getEncounterClinicalOutputBlockReason(clinicalOutputBlock, 'EXPORT_OFFICIAL_DOCUMENTS');
+  const printBlockedReason = getEncounterClinicalOutputBlockReason(clinicalOutputBlock, 'PRINT_CLINICAL_RECORD');
 
   useEffect(() => {
     if (!isOperationalAdmin) return;
     router.replace('/');
   }, [isOperationalAdmin, router]);
+
+  const signMutation = useMutation<Encounter, unknown, string>({
+    mutationFn: async (password) => {
+      const response: AxiosResponse<Encounter> = await api.post(`/encounters/${id}/sign`, { password });
+      return response.data;
+    },
+    onSuccess: () => {
+      setShowSignModal(false);
+      toast.success('Atención firmada electrónicamente');
+      queryClient.invalidateQueries({ queryKey: ['encounter', id] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
 
   if (isOperationalAdmin) {
     return null;
@@ -236,60 +253,88 @@ export default function FichaClinicaPage() {
     <>
       {/* Print controls - hidden when printing */}
       <div className="no-print sticky top-0 z-30 bg-surface-elevated border-b border-surface-muted/30 px-4 py-3">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
+        <div className="flex items-center justify-between gap-3 max-w-4xl mx-auto">
+          {/* Group 1: Navigation */}
           <Link
             href={`/atenciones/${id}`}
-            className="flex items-center gap-2 text-ink-secondary hover:text-ink-primary"
+            className="btn btn-secondary flex items-center gap-2 shrink-0"
           >
-            <FiArrowLeft className="w-5 h-5" />
-            {encounter?.status === 'COMPLETADO' ? 'Volver al resumen' : 'Volver a edición'}
+            <FiArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">{encounter?.status === 'COMPLETADO' ? 'Resumen' : 'Edición'}</span>
           </Link>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleDownloadDocument('receta')}
-              className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-              disabled={Boolean(exportBlockedReason)}
-              title={exportBlockedReason ?? undefined}
-            >
-              <FiDownload className="w-4 h-4" />
-              Receta
-            </button>
-            <button
-              onClick={() => handleDownloadDocument('ordenes')}
-              className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-              disabled={Boolean(exportBlockedReason)}
-              title={exportBlockedReason ?? undefined}
-            >
-              <FiDownload className="w-4 h-4" />
-              Órdenes
-            </button>
-            <button
-              onClick={() => handleDownloadDocument('derivacion')}
-              className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-              disabled={Boolean(exportBlockedReason)}
-              title={exportBlockedReason ?? undefined}
-            >
-              <FiDownload className="w-4 h-4" />
-              Derivación
-            </button>
-            <button
-              onClick={handleDownloadPdf}
-              className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-              disabled={Boolean(exportBlockedReason)}
-              title={exportBlockedReason ?? undefined}
-            >
-              <FiDownload className="w-4 h-4" />
-              Descargar PDF
-            </button>
-            <button
-              onClick={handlePrint}
-              className={clsx('btn btn-primary flex items-center gap-2', printBlockedReason && 'cursor-not-allowed opacity-60')}
-              disabled={Boolean(printBlockedReason)}
-              title={printBlockedReason ?? undefined}
-            >
-              <FiPrinter className="w-4 h-4" />
-              Imprimir
-            </button>
+
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {/* Group 2: Document exports */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => handleDownloadDocument('receta')}
+                className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
+                disabled={Boolean(exportBlockedReason)}
+                title={exportBlockedReason ?? 'Descargar receta'}
+              >
+                <FiDownload className="w-4 h-4" />
+                <span className="hidden sm:inline">Receta</span>
+              </button>
+              <button
+                onClick={() => handleDownloadDocument('ordenes')}
+                className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
+                disabled={Boolean(exportBlockedReason)}
+                title={exportBlockedReason ?? 'Descargar órdenes'}
+              >
+                <FiDownload className="w-4 h-4" />
+                <span className="hidden sm:inline">Órdenes</span>
+              </button>
+              <button
+                onClick={() => handleDownloadDocument('derivacion')}
+                className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
+                disabled={Boolean(exportBlockedReason)}
+                title={exportBlockedReason ?? 'Descargar derivación'}
+              >
+                <FiDownload className="w-4 h-4" />
+                <span className="hidden sm:inline">Derivación</span>
+              </button>
+              <button
+                onClick={handleDownloadPdf}
+                className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
+                disabled={Boolean(exportBlockedReason)}
+                title={exportBlockedReason ?? 'Descargar PDF completo'}
+              >
+                <FiDownload className="w-4 h-4" />
+                <span className="hidden sm:inline">PDF</span>
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="hidden sm:block w-px h-6 bg-surface-muted/50 shrink-0" aria-hidden="true" />
+
+            {/* Group 3: Actions */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handlePrint}
+                className={clsx('btn btn-secondary flex items-center gap-2', printBlockedReason && 'cursor-not-allowed opacity-60')}
+                disabled={Boolean(printBlockedReason)}
+                title={printBlockedReason ?? 'Imprimir ficha'}
+              >
+                <FiPrinter className="w-4 h-4" />
+                <span className="hidden sm:inline">Imprimir</span>
+              </button>
+              {encounter.status === 'COMPLETADO' && isDoctor ? (
+                <button
+                  onClick={() => setShowSignModal(true)}
+                  disabled={signMutation.isPending}
+                  className="btn flex items-center gap-2 bg-status-red/15 border-status-red/40 text-status-red-text hover:bg-status-red/25 font-semibold"
+                >
+                  <FiShield className="w-4 h-4" />
+                  Firmar
+                </button>
+              ) : null}
+              {encounter.status === 'FIRMADO' ? (
+                <span className="inline-flex items-center gap-2 rounded-full border border-status-green/50 bg-status-green/20 px-3 py-1.5 text-xs font-semibold text-status-green-text">
+                  <FiShield className="w-3.5 h-3.5" />
+                  Firmada
+                </span>
+              ) : null}
+            </div>
           </div>
         </div>
         {clinicalOutputBlock ? (
@@ -319,17 +364,39 @@ export default function FichaClinicaPage() {
       {/* Clinical record content */}
       <div className={clsx('max-w-4xl mx-auto p-8 bg-surface-elevated print:p-0', clinicalOutputBlock && 'print:hidden')}>
         {/* Header */}
-        <header className="text-center border-b-2 border-ink-primary pb-4 mb-6">
-          <h1 className="text-2xl font-bold text-ink-primary">FICHA CLÍNICA</h1>
-          <p className="text-ink-secondary">
-            Fecha: {format(new Date(encounter.createdAt), "d 'de' MMMM 'de' yyyy, HH:mm", { locale: es })}
-          </p>
+        <header className="border-b-2 border-ink-primary pb-5 mb-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-ink-primary">Ficha Clínica</h1>
+              <p className="mt-1 text-sm text-ink-secondary">
+                {format(new Date(encounter.createdAt), "d 'de' MMMM 'de' yyyy, HH:mm", { locale: es })}
+              </p>
+              {encounter.createdBy?.nombre && (
+                <p className="mt-0.5 text-sm text-ink-muted">
+                  {encounter.createdBy.nombre}
+                </p>
+              )}
+            </div>
+            <span className={clsx(
+              'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold shrink-0',
+              encounter.status === 'FIRMADO'
+                ? 'border-status-green/50 bg-status-green/15 text-status-green-text'
+                : encounter.status === 'COMPLETADO'
+                ? 'border-accent/40 bg-accent/10 text-accent-text'
+                : encounter.status === 'CANCELADO'
+                ? 'border-status-red/40 bg-status-red/10 text-status-red-text'
+                : 'border-surface-muted/50 bg-surface-muted/30 text-ink-secondary'
+            )}>
+              {encounter.status === 'FIRMADO' && <FiShield className="w-3 h-3" />}
+              {STATUS_LABELS[encounter.status]}
+            </span>
+          </div>
         </header>
 
         {/* Patient identification */}
-        <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
-            1. IDENTIFICACIÓN DEL PACIENTE
+        <section className="mb-8">
+          <h2 className="ficha-section-heading">
+            1. Identificación del paciente
           </h2>
           {identificationMissingFields.length > 0 && (
             <div className="mb-4 rounded-2xl border border-status-red/35 bg-status-red/10 p-3 text-sm text-status-red-text">
@@ -370,16 +437,18 @@ export default function FichaClinicaPage() {
             <p><strong>Sexo:</strong> {formatPatientSex(identificacion.sexo)}</p>
             <p><strong>Previsión:</strong> {formatPatientPrevision(identificacion.prevision)}</p>
             <p><strong>Trabajo:</strong> {identificacion.trabajo || '-'}</p>
-            <p className="col-span-2"><strong>Domicilio:</strong> {identificacion.domicilio || '-'}</p>
           </div>
+          <p className="mt-2 text-sm"><strong>Domicilio:</strong> {identificacion.domicilio || '-'}</p>
         </section>
 
         {/* Motivo de consulta */}
-        <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
-            2. MOTIVO DE CONSULTA
+        <section className="mb-8">
+          <h2 className="ficha-section-heading">
+            2. Motivo de consulta
           </h2>
-          <p className="text-sm whitespace-pre-wrap">{motivoConsulta.texto || '-'}</p>
+          <div className="rounded-lg bg-surface-base/60 px-4 py-3">
+            <p className="text-sm whitespace-pre-wrap">{motivoConsulta.texto || '-'}</p>
+          </div>
           {motivoConsulta.afeccionSeleccionada && (
             <p className="text-sm mt-2 text-ink-secondary">
               <strong>Afección probable:</strong> {motivoConsulta.afeccionSeleccionada.name}
@@ -388,13 +457,16 @@ export default function FichaClinicaPage() {
         </section>
 
         {/* Anamnesis próxima */}
-        <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
-            3. ANAMNESIS PRÓXIMA
+        <section className="mb-8">
+          <h2 className="ficha-section-heading">
+            3. Anamnesis próxima
           </h2>
           <div className="text-sm space-y-2">
             {anamnesisProxima.relatoAmpliado && (
-              <p><strong>Relato:</strong> {anamnesisProxima.relatoAmpliado}</p>
+              <div className="rounded-lg bg-surface-base/60 px-4 py-3">
+                <p className="text-xs font-semibold text-ink-muted mb-1">Relato</p>
+                <p className="whitespace-pre-wrap">{anamnesisProxima.relatoAmpliado}</p>
+              </div>
             )}
             <div className="grid grid-cols-2 gap-2">
               {anamnesisProxima.inicio && <p><strong>Inicio:</strong> {anamnesisProxima.inicio}</p>}
@@ -413,9 +485,9 @@ export default function FichaClinicaPage() {
         </section>
 
         {/* Anamnesis remota */}
-        <section className="mb-6 print-break-before">
-          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
-            4. ANAMNESIS REMOTA
+        <section className="mb-8 print-break-before">
+          <h2 className="ficha-section-heading">
+            4. Anamnesis remota
           </h2>
           <div className="text-sm space-y-1">
             {Object.entries({
@@ -436,10 +508,10 @@ export default function FichaClinicaPage() {
           </div>
         </section>
 
-        {/* Examen físico */}
-        <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
-            5. REVISIÓN POR SISTEMAS
+        {/* Revisión por sistemas */}
+        <section className="mb-8">
+          <h2 className="ficha-section-heading">
+            5. Revisión por sistemas
           </h2>
           <div className="text-sm space-y-1">
             {revisionEntries.length > 0 ? (
@@ -453,9 +525,9 @@ export default function FichaClinicaPage() {
         </section>
 
         {/* Examen físico */}
-        <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
-            6. EXAMEN FÍSICO
+        <section className="mb-8">
+          <h2 className="ficha-section-heading">
+            6. Examen físico
           </h2>
           <div className="text-sm">
             {examenFisico.signosVitales && (
@@ -484,9 +556,9 @@ export default function FichaClinicaPage() {
         </section>
 
         {/* Sospecha diagnóstica */}
-        <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
-            7. SOSPECHA DIAGNÓSTICA
+        <section className="mb-8">
+          <h2 className="ficha-section-heading">
+            7. Sospecha diagnóstica
           </h2>
           {sospechaDiagnostica.sospechas?.length > 0 ? (
             <ol className="list-decimal list-inside text-sm space-y-1">
@@ -503,9 +575,9 @@ export default function FichaClinicaPage() {
         </section>
 
         {/* Tratamiento */}
-        <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
-            8. TRATAMIENTO
+        <section className="mb-8">
+          <h2 className="ficha-section-heading">
+            8. Tratamiento
           </h2>
           <div className="text-sm space-y-2">
             {treatmentPlan && <p><strong>Plan de tratamiento e indicaciones:</strong> {treatmentPlan}</p>}
@@ -552,9 +624,9 @@ export default function FichaClinicaPage() {
         </section>
 
         {/* Respuesta al tratamiento */}
-        <section className="mb-6">
-          <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
-            9. RESPUESTA AL TRATAMIENTO
+        <section className="mb-8">
+          <h2 className="ficha-section-heading">
+            9. Respuesta al tratamiento
           </h2>
           <div className="text-sm space-y-2">
             {respuestaTratamiento.evolucion && <p><strong>Evolución:</strong> {respuestaTratamiento.evolucion}</p>}
@@ -569,9 +641,9 @@ export default function FichaClinicaPage() {
 
         {/* Observaciones */}
         {(observaciones.resumenClinico || observaciones.observaciones) && (
-          <section className="mb-6">
-            <h2 className="text-lg font-bold border-b border-surface-muted/30 pb-1 mb-3">
-              10. OBSERVACIONES
+          <section className="mb-8">
+            <h2 className="ficha-section-heading">
+              10. Observaciones
             </h2>
             {observaciones.resumenClinico && (
               <div className="mb-3">
@@ -586,27 +658,34 @@ export default function FichaClinicaPage() {
         )}
 
         {/* Footer */}
-        <footer className="mt-12 pt-6 border-t border-surface-muted/30">
-          <div className="flex justify-between text-sm">
-            <p>
-              <strong>Profesional:</strong> {encounter.createdBy?.nombre || '-'}
-            </p>
-            <p>
-              <strong>Estado:</strong> {STATUS_LABELS[encounter.status]}
-            </p>
+        <footer className="mt-12 pt-6 border-t-2 border-ink-primary">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs font-semibold text-ink-muted mb-1">Profesional responsable</p>
+              <p className="font-medium text-ink-primary">{encounter.createdBy?.nombre || '-'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-ink-muted mb-1">Estado de la atención</p>
+              <p className="font-medium text-ink-primary">{STATUS_LABELS[encounter.status]}</p>
+              <p className="text-xs text-ink-secondary mt-0.5">{REVIEW_STATUS_LABELS[encounter.reviewStatus || 'NO_REQUIERE_REVISION']}</p>
+            </div>
           </div>
-          <div className="mt-2 text-sm">
-            <strong>Revisión:</strong> {REVIEW_STATUS_LABELS[encounter.reviewStatus || 'NO_REQUIERE_REVISION']}
-          </div>
-          <div className="mt-8 flex justify-end">
+          <div className="mt-10 flex justify-end">
             <div className="text-center">
-              <div className="w-48 border-t border-ink-primary pt-1">
-                <p className="text-sm">Firma y Timbre</p>
+              <div className="w-48 border-t border-ink-primary pt-2">
+                <p className="text-sm text-ink-secondary">Firma y Timbre</p>
               </div>
             </div>
           </div>
         </footer>
       </div>
+
+      <SignEncounterModal
+        open={showSignModal}
+        loading={signMutation.isPending}
+        onConfirm={(password) => signMutation.mutate(password)}
+        onClose={() => setShowSignModal(false)}
+      />
     </>
   );
 }

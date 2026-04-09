@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { AuthFrame } from '@/components/auth/AuthFrame';
-import { FiArrowRight, FiEye, FiEyeOff, FiLock, FiMail, FiShield, FiUser, FiUserPlus } from 'react-icons/fi';
+import { FiArrowRight, FiClipboard, FiEye, FiEyeOff, FiFileText, FiLock, FiMail, FiShield, FiUser, FiUserPlus, FiUsers } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const REGISTER_DRAFT_KEY = 'anamneo:draft:register';
@@ -50,40 +50,16 @@ const registerSchema = z.object({
 
 type RegisterForm = z.infer<typeof registerSchema>;
 
-const REGISTER_BOOTSTRAP_FEATURES = [
-  {
-    label: 'Implementación',
-    title: 'Puesta en marcha inicial',
-    description: 'Crea la cuenta administradora y deja el espacio listo para invitar al resto del equipo.',
-  },
-  {
-    label: 'Seguridad',
-    title: 'Accesos trazables',
-    description: 'Cada cuenta nace con rol explícito para mantener permisos y auditoría coherentes.',
-  },
-  {
-    label: 'Continuidad',
-    title: 'Base compartida para la atención',
-    description: 'Pacientes, atenciones y seguimientos quedan disponibles en el mismo entorno clínico.',
-  },
+const REGISTER_BOOTSTRAP_CHIPS = [
+  { icon: <FiShield className="h-3.5 w-3.5" />, label: 'Admin inicial' },
+  { icon: <FiUsers className="h-3.5 w-3.5" />, label: 'Gestión de equipo' },
+  { icon: <FiClipboard className="h-3.5 w-3.5" />, label: 'Flujo clínico' },
 ];
 
-const REGISTER_INVITATION_FEATURES = [
-  {
-    label: 'Invitación',
-    title: 'Alta guiada para el equipo',
-    description: 'El registro respeta el rol definido por invitación y reduce errores al incorporar usuarios.',
-  },
-  {
-    label: 'Operación',
-    title: 'Acceso alineado al flujo clínico',
-    description: 'Médicos, asistentes y admins entran con el nivel justo de permisos desde el primer acceso.',
-  },
-  {
-    label: 'Seguridad',
-    title: 'Activación con contexto',
-    description: 'La invitación valida el correo y conserva trazabilidad sobre cómo se habilitó la cuenta.',
-  },
+const REGISTER_INVITATION_CHIPS = [
+  { icon: <FiUserPlus className="h-3.5 w-3.5" />, label: 'Invitación' },
+  { icon: <FiShield className="h-3.5 w-3.5" />, label: 'Rol asignado' },
+  { icon: <FiFileText className="h-3.5 w-3.5" />, label: 'Trazabilidad' },
 ];
 
 export default function RegisterPage() {
@@ -227,7 +203,7 @@ export default function RegisterPage() {
   }, [invitationTokenFromQuery, setValue]);
 
   const isFormBusy = isSubmitting || isLoadingRoles;
-  const registerFeatures = isInvitationMode ? REGISTER_INVITATION_FEATURES : REGISTER_BOOTSTRAP_FEATURES;
+  const registerChips = isInvitationMode ? REGISTER_INVITATION_CHIPS : REGISTER_BOOTSTRAP_CHIPS;
 
   const onSubmit = async (data: RegisterForm) => {
     try {
@@ -250,6 +226,7 @@ export default function RegisterPage() {
         role: userResponse.data.role as 'MEDICO' | 'ASISTENTE' | 'ADMIN',
         isAdmin: !!userResponse.data.isAdmin,
         medicoId: userResponse.data.medicoId ?? null,
+        totpEnabled: !!userResponse.data.totpEnabled,
       });
 
       if (typeof window !== 'undefined') {
@@ -265,22 +242,16 @@ export default function RegisterPage() {
 
   return (
     <AuthFrame
-      eyebrow={isInvitationMode ? 'Acceso por Invitación' : 'Configuración Inicial'}
+      eyebrow={isInvitationMode ? 'Invitación' : 'Configuración Inicial'}
       title={
         isInvitationMode
-          ? 'Activa tu cuenta y entra al flujo de trabajo de tu equipo.'
-          : 'Configura la primera cuenta administradora del espacio clínico.'
+          ? 'Activa tu cuenta para operar.'
+          : 'Primera cuenta del espacio clínico.'
       }
-      description={
-        isInvitationMode
-          ? 'El registro valida tu invitación, conserva tu rol asignado y te deja listo para operar en Anamneo.'
-          : 'Este primer acceso deja preparada la base para invitar usuarios y empezar a registrar pacientes y atenciones.'
-      }
-      features={registerFeatures}
+      chips={registerChips}
       cardEyebrow="Registro"
       cardTitle="Crear cuenta"
-      cardDescription="Completa los datos esenciales para habilitar el acceso."
-      heroFootnote={`© ${new Date().getFullYear()} Anamneo. Sistema de gestión clínica y longitudinal.`}
+      cardDescription="Completa los datos para habilitar el acceso."
       footer={
         <p className="text-center text-ink-secondary">
           ¿Ya tienes cuenta?{' '}
@@ -290,19 +261,12 @@ export default function RegisterPage() {
         </p>
       }
     >
-      <div className="auth-note">
-        <div className="auth-note-icon">
-          <FiShield className="h-4 w-4" aria-hidden="true" />
+      {isInvitationMode && (
+        <div className="auth-note">
+          <span className="auth-badge-accent"><FiShield className="h-3.5 w-3.5" /> Invitación validada</span>
+          <span className="auth-badge"><FiLock className="h-3.5 w-3.5" /> Rol fijado</span>
         </div>
-        <div>
-          <p className="auth-note-title">{isInvitationMode ? 'Registro controlado' : 'Alta inicial protegida'}</p>
-          <p className="auth-note-copy">
-            {isInvitationMode
-              ? 'El rol y el correo pueden quedar fijados por la invitación para evitar desvíos de permisos.'
-              : 'Solo este registro crea la cuenta administradora inicial del entorno.'}
-          </p>
-        </div>
-      </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {invitationError ? (
@@ -375,6 +339,15 @@ export default function RegisterPage() {
           <label className="form-label">Rol</label>
           {isLoadingRoles ? (
             <p className="text-micro text-ink-muted">Cargando opciones disponibles…</p>
+          ) : isInvitationMode && availableRoles.length === 1 ? (
+            <>
+              <input type="hidden" value={availableRoles[0]} {...register('role')} />
+              <div className="auth-role-pill">
+                <FiLock className="auth-role-pill-icon" aria-hidden="true" />
+                {ROLE_OPTIONS[availableRoles[0]].label}
+              </div>
+              <p className="mt-2 text-micro text-ink-muted">Rol fijado por invitación.</p>
+            </>
           ) : (
             <>
               <div className="grid gap-3 grid-cols-1">
@@ -401,9 +374,7 @@ export default function RegisterPage() {
                 ))}
               </div>
               <p className="mt-2 text-micro text-ink-muted">
-                {isInvitationMode
-                  ? 'El rol fue fijado por la invitación.'
-                  : 'Solo esta alta inicial habilita la cuenta administradora base.'}
+                Solo esta alta inicial habilita la cuenta administradora base.
               </p>
             </>
           )}
@@ -483,7 +454,7 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={isFormBusy || !!invitationError}
-          className="btn btn-primary w-full gap-2 py-3"
+          className="btn btn-accent w-full gap-2 py-3"
         >
           {isSubmitting ? (
             <span className="flex items-center gap-2" aria-live="polite">

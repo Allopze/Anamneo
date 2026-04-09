@@ -14,10 +14,10 @@
   --accent: #eaf832;
   --accent-bright: #f3fe48;
   --ink: #2b2b2b;
-  --ink-secondary: #666666;
-  --ink-muted: #a3a3a3;
+  --ink-secondary: #555555;
+  --ink-muted: #767676;
   --ink-on-dark: #ffffff;
-  --chip: #666666;
+  --chip: #555555;
   --status-red: #D08C84;
   --status-yellow: #E5D86A;
   --status-green: #96B38A;
@@ -41,10 +41,10 @@ body {
   /* ── Forms ────────────────────── */
   .form-input,
   .input {
-    @apply w-full rounded-pill border border-surface-muted/55 bg-white px-5 py-3
+    @apply w-full rounded-pill border border-surface-muted bg-white px-5 py-3
            text-ink placeholder:text-ink-muted shadow-soft
            transition-[border-color,box-shadow,background-color] duration-200
-           focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/70;
+           focus:border-frame focus:outline-none focus:ring-2 focus:ring-frame/30;
   }
 
   .form-textarea,
@@ -86,6 +86,13 @@ body {
     @apply cursor-not-allowed;
   }
 
+  /* ── Custom Checkbox ───────────── */
+  input[type="checkbox"] {
+    @apply h-4 w-4 rounded border border-surface-muted bg-white
+           accent-frame-dark
+           cursor-pointer transition-colors;
+  }
+
   .dropdown-surface {
     @apply bg-surface-elevated rounded-card border border-surface-muted/40 shadow-dropdown;
     animation: dropdown-in 0.15s ease-out;
@@ -116,6 +123,16 @@ body {
     @apply border-status-red focus:ring-status-red focus:border-status-red;
   }
 
+  /* Automatic error styling via aria-invalid */
+  .form-input[aria-invalid="true"],
+  .input[aria-invalid="true"] {
+    @apply border-status-red;
+  }
+  .form-input[aria-invalid="true"]:focus,
+  .input[aria-invalid="true"]:focus {
+    @apply ring-status-red/30 border-status-red;
+  }
+
   .form-label {
     @apply block text-label font-medium text-ink-secondary mb-1.5;
   }
@@ -127,34 +144,39 @@ body {
   /* ── Buttons ──────────────────── */
   .btn {
     @apply inline-flex items-center justify-center rounded-pill px-5 py-3
-           font-bold transition-[background-color,border-color,color,box-shadow,transform] duration-200
-           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface-base
-           disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
+           text-sm font-bold transition-[background-color,border-color,color,box-shadow,transform] duration-200
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base
+           active:scale-[0.98];
   }
 
   .btn-primary {
-    @apply bg-frame text-white hover:bg-frame-dark
-           focus:ring-frame shadow-soft;
+    @apply bg-frame-dark text-white hover:bg-ink
+           focus-visible:ring-frame shadow-soft;
+  }
+
+  .btn:disabled {
+    @apply opacity-40 cursor-not-allowed pointer-events-none;
   }
 
   .btn-secondary {
-    @apply bg-white text-ink-secondary border border-surface-muted/60
-           hover:bg-surface-inset hover:text-ink focus:ring-surface-muted;
+    @apply bg-white text-ink-secondary border border-surface-muted
+           hover:bg-surface-inset hover:text-ink hover:border-ink-muted/40
+           focus-visible:ring-surface-muted;
   }
 
   .btn-accent {
     @apply bg-accent text-accent-text hover:bg-accent-bright
-           focus:ring-accent shadow-soft font-bold;
+           focus-visible:ring-accent shadow-soft font-bold;
   }
 
   .btn-success {
     @apply bg-status-green text-status-green-text hover:brightness-95
-           focus:ring-status-green;
+           focus-visible:ring-status-green;
   }
 
   .btn-danger {
-    @apply bg-status-red text-white hover:brightness-95
-           focus:ring-status-red;
+    @apply bg-status-red text-white hover:brightness-90
+           focus-visible:ring-status-red;
   }
 
   /* ── Cards ────────────────────── */
@@ -363,7 +385,7 @@ body {
   }
 
   .auth-hero {
-    @apply relative flex flex-col justify-between border-b border-frame/10 bg-frame px-5 py-6 text-white sm:px-6 sm:py-8 lg:min-h-screen lg:border-b-0 lg:px-12 lg:py-12;
+    @apply relative flex flex-col justify-center border-b border-frame/10 bg-frame px-5 py-6 text-white sm:px-6 sm:py-8 lg:min-h-screen lg:border-b-0 lg:px-12 lg:py-12;
     background:
       radial-gradient(circle at top left, rgba(234, 248, 50, 0.16), transparent 28%),
       linear-gradient(155deg, rgba(43, 43, 43, 0.92), rgba(64, 64, 64, 0.96));
@@ -378,34 +400,18 @@ body {
   }
 
   .auth-headline {
-    @apply max-w-xl text-[2rem] font-semibold leading-tight tracking-tight text-balance text-ink-onDark sm:text-[2.6rem];
+    @apply max-w-md text-[1.6rem] font-semibold leading-tight tracking-tight text-balance text-ink-onDark sm:text-[2rem];
   }
 
-  .auth-copy {
-    @apply mt-4 max-w-xl text-[1rem] leading-7 sm:text-[1.05rem];
-    color: rgba(255, 255, 255, 0.72);
+  .auth-chip-band {
+    @apply mt-6 flex flex-wrap gap-2;
   }
 
-  .auth-feature-grid {
-    @apply mt-8 grid gap-3 sm:grid-cols-3;
-  }
-
-  .auth-feature-card {
-    @apply rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-[2px];
-  }
-
-  .auth-feature-label {
-    @apply text-micro font-semibold uppercase tracking-[0.14em];
-    color: rgba(233, 243, 74, 0.9);
-  }
-
-  .auth-feature-title {
-    @apply mt-3 text-sm font-semibold text-ink-onDark;
-  }
-
-  .auth-feature-description {
-    @apply mt-2 text-sm leading-6;
-    color: rgba(255, 255, 255, 0.68);
+  .auth-chip {
+    @apply inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-micro font-medium tracking-wide;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.75);
   }
 
   .auth-footnote {
@@ -442,23 +448,33 @@ body {
   }
 
   .auth-note {
-    @apply mb-6 flex items-start gap-3 rounded-2xl border border-surface-muted/35 bg-surface-base/60 p-4;
+    @apply mb-6 flex flex-wrap items-center gap-2;
+  }
+
+  .auth-badge {
+    @apply inline-flex items-center gap-1.5 rounded-pill border border-surface-muted/40 bg-surface-base/55 px-3 py-1.5 text-micro font-medium text-ink-secondary;
+  }
+
+  .auth-badge-accent {
+    @apply inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-micro font-semibold text-accent-text;
+    border: 1px solid rgba(234, 248, 50, 0.3);
+    background: rgba(234, 248, 50, 0.1);
   }
 
   .auth-note-icon {
-    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/50 text-accent-text;
+    @apply hidden;
   }
 
   .auth-note-title {
-    @apply text-sm font-semibold text-ink;
+    @apply hidden;
   }
 
   .auth-note-copy {
-    @apply mt-1 text-sm leading-6 text-ink-secondary;
+    @apply hidden;
   }
 
   .auth-inline-link {
-    @apply inline-flex items-center gap-1 font-medium text-accent-text transition-colors hover:text-ink;
+    @apply inline-flex items-center gap-1 font-semibold text-ink transition-colors hover:text-frame;
   }
 
   .auth-inline-metrics {
@@ -467,6 +483,37 @@ body {
 
   .auth-inline-metric {
     @apply inline-flex items-center gap-2 rounded-pill border border-surface-muted/40 bg-surface-base/55 px-3 py-1.5 text-micro font-medium text-ink-secondary;
+  }
+
+  .auth-step-bar {
+    @apply mb-6 flex items-center gap-2;
+  }
+
+  .auth-step {
+    @apply inline-flex items-center gap-1.5 rounded-pill border border-surface-muted/35 bg-surface-base/50 px-3 py-1.5 text-micro font-medium text-ink-muted;
+  }
+
+  .auth-step-done {
+    @apply text-ink-secondary;
+    border-color: rgba(150, 179, 138, 0.4);
+    background: rgba(150, 179, 138, 0.12);
+  }
+
+  .auth-step-active {
+    @apply font-semibold text-accent-text;
+    border-color: rgba(234, 248, 50, 0.4);
+    background: rgba(234, 248, 50, 0.12);
+  }
+
+  .auth-role-pill {
+    @apply inline-flex items-center gap-2 rounded-pill px-4 py-2 text-sm font-semibold text-accent-text;
+    border: 1px solid rgba(234, 248, 50, 0.3);
+    background: rgba(234, 248, 50, 0.1);
+  }
+
+  .auth-role-pill-icon {
+    @apply h-4 w-4;
+    color: rgba(43, 43, 43, 0.7);
   }
 
   .auth-banner {
@@ -574,69 +621,76 @@ body {
     @apply w-px h-5 bg-white/[0.12] mx-1;
   }
 
-  /* ── KPI Bar (Level 2) ─────────── */
-  .header-kpi-bar {
-    @apply flex items-center justify-between gap-6 mx-3 lg:mx-6 mt-4 mb-1 px-6 py-3.5 rounded-card;
+  /* ── Smart Header Bar ────────────── */
+  .smart-header-bar {
+    @apply mx-3 mt-3 mb-1 flex items-center gap-3 rounded-card px-4 py-2 lg:mx-6 lg:mt-4 lg:px-5 lg:py-2.5;
     background: var(--surface-elevated);
-    box-shadow: 0 1px 3px rgba(43,43,43,0.04);
+    border: 1px solid rgba(0,0,0,0.04);
+    box-shadow: 0 1px 2px rgba(43,43,43,0.03);
+  }
+
+  .smart-header-chip {
+    @apply inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5
+           text-xs font-bold text-ink transition-all duration-150
+           hover:bg-surface-inset;
+  }
+
+  .smart-header-chip-active {
+    @apply bg-accent/15 text-accent-text;
+  }
+
+  .smart-header-chip-value {
+    @apply text-sm font-extrabold leading-none tracking-tight text-ink;
+  }
+
+  .smart-header-chip-label {
+    @apply hidden lg:inline text-[11px] font-medium text-ink-muted leading-none;
+  }
+
+  .smart-header-chip-mobile {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1
+           text-xs font-bold text-ink transition-all duration-150
+           hover:bg-surface-inset whitespace-nowrap;
+  }
+
+  .smart-header-actions {
+    @apply flex items-center gap-1 shrink-0;
+  }
+
+  .smart-header-action-btn {
+    @apply inline-flex items-center gap-1.5 rounded-pill px-2.5 py-2
+           text-ink-secondary transition-colors duration-150
+           hover:bg-surface-inset hover:text-ink;
+  }
+
+  .smart-header-dropdown {
+    @apply absolute right-0 top-full mt-1.5 z-50
+           w-52 rounded-card bg-surface-elevated py-1
+           shadow-dropdown border border-black/[0.06];
+    animation: fadeIn 0.12s ease-out;
+  }
+
+  .smart-header-dropdown-item {
+    @apply flex items-center gap-2.5 px-4 py-2.5
+           text-sm font-medium text-ink
+           transition-colors hover:bg-surface-inset;
+  }
+
+  .smart-header-alert-badge {
+    @apply absolute -top-1 -right-1 min-w-[18px] h-[18px]
+           flex items-center justify-center rounded-full
+           bg-status-red text-white text-[10px] font-bold leading-none
+           px-1;
   }
 
   .header-module-title {
     @apply text-[1.35rem] font-extrabold tracking-tight text-ink leading-tight;
   }
 
-  .header-kpi-grid {
-    @apply hidden md:flex items-center gap-5 lg:gap-7;
-  }
-
-  .header-kpi-item {
-    @apply flex items-center gap-2.5 cursor-default;
-  }
-
-  .header-kpi-icon {
-    @apply flex items-center justify-center w-7 h-7 rounded-full bg-surface-inset;
-  }
-
-  .header-kpi-content {
-    @apply flex items-baseline gap-1.5;
-  }
-
-  .header-kpi-value {
-    @apply text-[1.5rem] font-extrabold leading-none tracking-tight text-ink;
-  }
-
-  .header-kpi-unit {
-    @apply text-[11px] font-medium text-ink-muted leading-none tracking-wide;
-  }
-
-  /* ── Context Bar (Level 3) ─────── */
-  .header-context-bar {
-    @apply flex items-center justify-between mx-3 lg:mx-6 mb-1 px-6 py-2;
-  }
-
-  .header-context-chip {
-    @apply inline-flex items-center justify-center rounded-full
-           transition-all duration-200 outline-none
-           focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1;
-  }
-
-  .header-context-chip-filter {
-    @apply w-9 h-9 text-ink-secondary
-           border border-surface-muted/50 bg-surface-elevated
-           hover:bg-surface-muted/40 hover:text-ink hover:border-surface-muted
-           rounded-full;
-  }
-
-  .header-context-chip-action {
-    @apply w-9 h-9 text-white
-           bg-frame hover:bg-frame-dark
-           shadow-soft rounded-full;
-  }
-
-  .header-context-chip-active {
-    @apply bg-accent text-accent-text border-accent
-           hover:bg-accent-bright hover:text-accent-text hover:border-accent-bright
-           shadow-soft;
+  /* ── Ficha Clínica ─────── */
+  .ficha-section-heading {
+    @apply text-base font-bold text-ink-primary pl-3 mb-4
+           border-l-[3px] border-accent;
   }
 
   /* ── Mobile Header ─────────────── */
@@ -690,5 +744,28 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dropdown-surface { animation: none; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .skeleton {
+    animation: none;
+    background: var(--surface-muted);
+  }
+}
+
+/* ── Utilities ─────────────────────────────────────────────────────── */
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
 }

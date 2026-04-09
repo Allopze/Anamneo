@@ -5,10 +5,11 @@ import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import * as PDFDocument from 'pdfkit';
 import * as path from 'path';
 import {
+  assertEncounterClinicalOutputAllowed,
   getEncounterClinicalOutputBlock,
-  getEncounterClinicalOutputBlockMessage,
   getPatientDemographicsMissingFields,
 } from '../common/utils/patient-completeness';
+import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
 
 const SEXO_MAP: Record<string, string> = {
   MASCULINO: 'Masculino',
@@ -78,24 +79,16 @@ export class EncountersPdfService {
       throw new NotFoundException('Atención no encontrada');
     }
 
-    const clinicalOutputBlock = getEncounterClinicalOutputBlock(encounter.patient);
-    if (clinicalOutputBlock?.blockedActions.includes('EXPORT_OFFICIAL_DOCUMENTS')) {
-      throw new BadRequestException(
-        getEncounterClinicalOutputBlockMessage(clinicalOutputBlock, 'EXPORT_OFFICIAL_DOCUMENTS'),
-      );
-    }
+    assertEncounterClinicalOutputAllowed(encounter.patient, 'EXPORT_OFFICIAL_DOCUMENTS');
 
     return encounter;
   }
 
-  private buildSectionsMap(sections: Array<{ sectionKey: string; data: any }>) {
+  private buildSectionsMap(sections: Array<{ sectionKey: string; data: any; schemaVersion?: number | null }>) {
     const sectionsMap: Record<string, any> = {};
     for (const section of sections) {
-      const data =
-        typeof section.data === 'string'
-          ? JSON.parse(section.data)
-          : section.data;
-      sectionsMap[section.sectionKey] = data || {};
+      const normalizedSection = formatEncounterSectionForRead(section);
+      sectionsMap[section.sectionKey] = normalizedSection.data || {};
     }
 
     return sectionsMap;

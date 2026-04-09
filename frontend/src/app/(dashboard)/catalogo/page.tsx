@@ -203,7 +203,7 @@ export default function CatalogoPage() {
     <div className="animate-fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-header-title">Catálogo de Afecciones</h1>
+          <h1 className="page-header-title">Catálogo</h1>
           <p className="page-header-description">Base reutilizable para sugerencias y clasificación clínica.</p>
         </div>
         {isAdminUser ? (

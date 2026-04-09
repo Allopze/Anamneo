@@ -143,6 +143,38 @@ describe('AjustesPage', () => {
     });
   });
 
+  it('accepts qrCodeDataUrl when configuring 2FA', async () => {
+    authStoreState.user = {
+      id: 'med-1',
+      email: 'medico@anamneo.cl',
+      nombre: 'Medico Demo',
+      role: 'MEDICO',
+      isAdmin: false,
+      medicoId: null,
+      totpEnabled: false,
+    };
+
+    apiPostMock.mockImplementation((url: string) => {
+      if (url === '/auth/2fa/setup') {
+        return Promise.resolve({
+          data: {
+            secret: 'SECRET',
+            qrCodeDataUrl: 'data:image/png;base64,qr-demo',
+          },
+        });
+      }
+
+      return Promise.resolve({ data: {} });
+    });
+
+    render(<AjustesPage />, { wrapper: createWrapper() });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Configurar 2FA' }));
+
+    const qrImage = await screen.findByAltText('Código QR para 2FA');
+    expect(qrImage).toHaveAttribute('src', 'data:image/png;base64,qr-demo');
+  });
+
   it('logs out and redirects to login after changing password', async () => {
     render(<AjustesPage />, { wrapper: createWrapper() });
 

@@ -4,8 +4,9 @@ import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
+import clsx from 'clsx';
 import { api } from '@/lib/api';
-import { Patient } from '@/types';
+import { Patient, PATIENT_COMPLETENESS_STATUS_LABELS, PatientCompletenessStatus } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { FiPlus, FiSearch, FiUser, FiChevronRight, FiCalendar, FiFileText, FiFilter, FiDownload, FiChevronDown } from 'react-icons/fi';
 import toast from 'react-hot-toast';
@@ -32,12 +33,36 @@ const PREVISION_OPTIONS = [
   { value: 'DESCONOCIDA', label: 'Desconocida' },
 ];
 
+const COMPLETENESS_OPTIONS: Array<{ value: '' | PatientCompletenessStatus; label: string }> = [
+  { value: '', label: 'Todas las fichas' },
+  { value: 'INCOMPLETA', label: PATIENT_COMPLETENESS_STATUS_LABELS.INCOMPLETA },
+  { value: 'PENDIENTE_VERIFICACION', label: PATIENT_COMPLETENESS_STATUS_LABELS.PENDIENTE_VERIFICACION },
+  { value: 'VERIFICADA', label: PATIENT_COMPLETENESS_STATUS_LABELS.VERIFICADA },
+];
+
 const SORT_OPTIONS = [
   { value: 'createdAt', label: 'Fecha de registro' },
   { value: 'nombre', label: 'Nombre' },
   { value: 'edad', label: 'Edad' },
   { value: 'updatedAt', label: 'Última actualización' },
 ];
+
+interface PatientsResponse {
+  data: Patient[];
+  summary: {
+    totalPatients: number;
+    incomplete: number;
+    pendingVerification: number;
+    verified: number;
+    nonVerified: number;
+  };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
 
 export default function PacientesPage() {
   return (
@@ -67,6 +92,7 @@ function PacientesContent() {
   const filters = {
     sexo: searchParams.get('sexo') || '',
     prevision: searchParams.get('prevision') || '',
+    completenessStatus: searchParams.get('completenessStatus') || '',
     edadMin: searchParams.get('edadMin') || '',
     edadMax: searchParams.get('edadMax') || '',
     clinicalSearch: searchParams.get('clinicalSearch') || '',
@@ -95,6 +121,7 @@ function PacientesContent() {
     router.push(buildUrl({
       sexo: '',
       prevision: '',
+      completenessStatus: '',
       edadMin: '',
       edadMax: '',
       clinicalSearch: '',
@@ -104,7 +131,7 @@ function PacientesContent() {
     }));
   };
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<PatientsResponse>({
     queryKey: ['patients', search, page, filters],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -113,6 +140,7 @@ function PacientesContent() {
       params.set('limit', '10');
       if (filters.sexo) params.set('sexo', filters.sexo);
       if (filters.prevision) params.set('prevision', filters.prevision);
+      if (filters.completenessStatus) params.set('completenessStatus', filters.completenessStatus);
       if (filters.edadMin) params.set('edadMin', filters.edadMin);
       if (filters.edadMax) params.set('edadMax', filters.edadMax);
       if (filters.clinicalSearch) params.set('clinicalSearch', filters.clinicalSearch);
@@ -123,10 +151,37 @@ function PacientesContent() {
     },
   });
 
-  const hasPatients = data?.data?.length > 0;
+  const patients = data?.data ?? [];
+  const pagination = data?.pagination;
+  const hasPatients = patients.length > 0;
   const showEmptyCreatePatientCta = canCreate && !search && !isLoading && !error && !hasPatients;
   const showHeaderNewPatient = canCreate && !showEmptyCreatePatientCta;
   const showHeaderActions = showHeaderNewPatient || canCreateEncounterAllowed;
+  const activeCompletenessStatus = COMPLETENESS_OPTIONS.some((option) => option.value === filters.completenessStatus)
+    ? (filters.completenessStatus as PatientCompletenessStatus)
+    : undefined;
+  const completenessSummaryCards = data
+    ? [
+        {
+          status: 'INCOMPLETA' as const,
+          label: 'Fichas incompletas',
+          value: data.summary.incomplete,
+          description: 'Aún faltan datos mínimos de registro.',
+        },
+        {
+          status: 'PENDIENTE_VERIFICACION' as const,
+          label: 'Pendientes de validación',
+          value: data.summary.pendingVerification,
+          description: 'Recepción completó datos, falta validación médica.',
+        },
+        {
+          status: 'VERIFICADA' as const,
+          label: 'Verificadas',
+          value: data.summary.verified,
+          description: 'Listas para continuidad clínica sin bloqueo.',
+        },
+      ]
+    : [];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,6 +218,41 @@ function PacientesContent() {
         )}
       </div>
 
+      {!isLoading && data?.summary ? (
+        <section className="mb-5">
+          <div className="grid gap-3 md:grid-cols-3">
+            {completenessSummaryCards.map((card) => {
+              const isActive = filters.completenessStatus === card.status;
+
+              return (
+                <button
+                  key={card.status}
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => setFilter('completenessStatus', isActive ? '' : card.status)}
+                  className={clsx(
+                    'rounded-card border px-4 py-4 text-left transition-colors',
+                    isActive
+                      ? 'border-accent/50 bg-accent/12 shadow-soft'
+                      : 'border-surface-muted/30 bg-surface-elevated hover:bg-surface-inset/40'
+                  )}
+                >
+                  <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">{card.label}</p>
+                  <p className="mt-3 text-3xl font-extrabold tracking-tight text-ink">{card.value}</p>
+                  <p className="mt-2 text-sm text-ink-secondary">{card.description}</p>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-sm text-ink-secondary">
+            Universo visible: {data.summary.totalPatients} fichas. No verificadas: {data.summary.nonVerified}.
+            {activeCompletenessStatus
+              ? ` Mostrando ${data.pagination.total} registros dentro del filtro ${PATIENT_COMPLETENESS_STATUS_LABELS[activeCompletenessStatus].toLowerCase()}.`
+              : ''}
+          </p>
+        </section>
+      ) : null}
+
       <form onSubmit={handleSearch} className="mb-4">
         <div className="relative">
           <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
@@ -188,7 +278,7 @@ function PacientesContent() {
 
         {showFilters && (
           <div className="filter-surface">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
               <div>
                 <label className="block text-micro text-ink-muted mb-1">Sexo</label>
                 <select
@@ -207,6 +297,18 @@ function PacientesContent() {
                   onChange={(e) => setFilter('prevision', e.target.value)}
                 >
                   {PREVISION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-micro text-ink-muted mb-1">Completitud</label>
+                <select
+                  className="input w-full text-sm"
+                  value={filters.completenessStatus}
+                  onChange={(e) => setFilter('completenessStatus', e.target.value)}
+                >
+                  {COMPLETENESS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -265,6 +367,7 @@ function PacientesContent() {
             </div>
             <div className="flex items-center gap-3 mt-3">
               <button
+                type="button"
                 className="text-micro text-ink-secondary hover:text-ink hover:underline"
                 onClick={clearFilters}
               >
@@ -272,6 +375,7 @@ function PacientesContent() {
               </button>
               {user?.isAdmin && (
                 <button
+                  type="button"
                   className="flex items-center gap-1 text-micro text-ink-secondary hover:text-ink"
                   onClick={async () => {
                     try {
@@ -317,7 +421,7 @@ function PacientesContent() {
         ) : hasPatients ? (
           <>
             <div className="divide-y divide-surface-muted/30">
-              {data.data.map((patient: Patient) => {
+              {patients.map((patient: Patient) => {
                 const patientHref = user?.isAdmin
                   ? `/pacientes/${patient.id}/administrativo`
                   : `/pacientes/${patient.id}`;
@@ -364,11 +468,11 @@ function PacientesContent() {
             </div>
 
             {/* Pagination */}
-            {data.pagination && data.pagination.totalPages > 1 && (
+            {pagination && pagination.totalPages > 1 && (
               <div className="flex items-center justify-between p-4 border-t border-surface-muted/30">
                 <p className="text-body text-ink-secondary">
-                  Mostrando {(page - 1) * 10 + 1} - {Math.min(page * 10, data.pagination.total)} de{' '}
-                  {data.pagination.total} pacientes
+                  Mostrando {(page - 1) * 10 + 1} - {Math.min(page * 10, pagination.total)} de{' '}
+                  {pagination.total} pacientes
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -379,8 +483,8 @@ function PacientesContent() {
                     Anterior
                   </button>
                   <button
-                    onClick={() => setPage((p) => Math.min(data.pagination.totalPages, p + 1))}
-                    disabled={page === data.pagination.totalPages}
+                    onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+                    disabled={page === pagination.totalPages}
                     className="btn btn-secondary text-sm"
                   >
                     Siguiente

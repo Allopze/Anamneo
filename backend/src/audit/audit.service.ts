@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditAction, AuditReason, AuditResult } from '../common/types';
 import { getRequestId } from '../common/utils/request-context';
@@ -78,16 +79,34 @@ export class AuditService {
       );
     }
 
+    // Get hash of last audit entry for chain
+    const lastEntry = await this.prisma.auditLog.findFirst({
+      orderBy: { timestamp: 'desc' },
+      select: { integrityHash: true },
+    });
+    const previousHash = lastEntry?.integrityHash ?? 'GENESIS';
+
+    const data = {
+      entityType: input.entityType,
+      entityId: input.entityId,
+      userId: input.userId,
+      requestId: input.requestId ?? getRequestId() ?? null,
+      action: input.action as AuditAction,
+      reason,
+      result: input.result ?? inferAuditResult(input.action),
+      diff: sanitizedDiff ? JSON.stringify(sanitizedDiff) : null,
+    };
+
+    const integrityHash = crypto
+      .createHash('sha256')
+      .update(previousHash + JSON.stringify(data))
+      .digest('hex');
+
     return this.prisma.auditLog.create({
       data: {
-        entityType: input.entityType,
-        entityId: input.entityId,
-        userId: input.userId,
-        requestId: input.requestId ?? getRequestId() ?? null,
-        action: input.action as AuditAction,
-        reason,
-        result: input.result ?? inferAuditResult(input.action),
-        diff: sanitizedDiff ? JSON.stringify(sanitizedDiff) : null,
+        ...data,
+        integrityHash,
+        previousHash,
       } as Prisma.AuditLogUncheckedCreateInput,
     });
   }
@@ -294,5 +313,24 @@ export class AuditService {
     return SAFE_CLINICAL_STRING_KEYS.has(key)
       || DATE_ONLY_PATTERN.test(value)
       || ISO_DATE_TIME_PATTERN.test(value);
+  }
+
+  async verifyChain(limit = 1000): Promise<{ valid: boolean; checked: number; brokenAt?: string }> {
+    const entries = await this.prisma.auditLog.findMany({
+      orderBy: { timestamp: 'asc' },
+      take: limit,
+      select: { id: true, integrityHash: true, previousHash: true },
+    });
+
+    let expectedPreviousHash = 'GENESIS';
+    for (const entry of entries) {
+      if (!entry.integrityHash) continue; // skip legacy entries without hash
+      if (entry.previousHash !== expectedPreviousHash) {
+        return { valid: false, checked: entries.indexOf(entry), brokenAt: entry.id };
+      }
+      expectedPreviousHash = entry.integrityHash;
+    }
+
+    return { valid: true, checked: entries.length };
   }
 }

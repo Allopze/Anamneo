@@ -1,3 +1,5 @@
+import { decryptField } from './field-crypto';
+
 export function parseStoredJson<T = Record<string, unknown>>(value: unknown, fallback?: T): T {
   if (value && typeof value === 'object') {
     return value as T;
@@ -5,7 +7,8 @@ export function parseStoredJson<T = Record<string, unknown>>(value: unknown, fal
 
   if (typeof value === 'string') {
     try {
-      return JSON.parse(value) as T;
+      const raw = value.startsWith('enc:') ? decryptField(value) : value;
+      return JSON.parse(raw) as T;
     } catch {
       // Ignore malformed legacy payloads and fall through to fallback.
     }

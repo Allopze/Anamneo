@@ -38,6 +38,14 @@ const REVIEW_OPTIONS = [
 
 const PAGE_SIZE = 15;
 
+interface OperationalDashboardData {
+  counts: {
+    enProgreso: number;
+    pendingReview: number;
+    patientPendingVerification: number;
+  };
+}
+
 export default function AtencionesListPage() {
   return (
     <Suspense
@@ -148,6 +156,16 @@ function AtencionesListContent() {
     enabled: !isOperationalAdmin,
   });
 
+  const { data: operationalData } = useQuery<OperationalDashboardData>({
+    queryKey: ['encounters-operational-summary'],
+    queryFn: async () => {
+      const response = await api.get('/encounters/stats/dashboard');
+      return response.data;
+    },
+    enabled: !isOperationalAdmin,
+    staleTime: 60_000,
+  });
+
   if (isOperationalAdmin) {
     return null;
   }
@@ -184,6 +202,35 @@ function AtencionesListContent() {
           </div>
         ) : null}
       </div>
+
+      {operationalData ? (
+        <section className="mb-5 grid gap-3 md:grid-cols-3">
+          <Link
+            href="/atenciones?status=EN_PROGRESO"
+            className="rounded-card bg-surface-elevated px-4 py-4 shadow-soft transition-colors hover:bg-surface-inset/40"
+          >
+            <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">En curso</p>
+            <p className="mt-3 text-3xl font-extrabold tracking-tight text-ink">{operationalData.counts.enProgreso}</p>
+            <p className="mt-2 text-sm text-ink-secondary">Atenciones abiertas dentro del circuito activo.</p>
+          </Link>
+          <Link
+            href="/atenciones?reviewStatus=LISTA_PARA_REVISION"
+            className="rounded-card bg-surface-elevated px-4 py-4 shadow-soft transition-colors hover:bg-surface-inset/40"
+          >
+            <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">Pendientes de revisión</p>
+            <p className="mt-3 text-3xl font-extrabold tracking-tight text-ink">{operationalData.counts.pendingReview}</p>
+            <p className="mt-2 text-sm text-ink-secondary">Casos listos para revisión o cierre médico.</p>
+          </Link>
+          <Link
+            href="/pacientes?completenessStatus=PENDIENTE_VERIFICACION"
+            className="rounded-card bg-surface-elevated px-4 py-4 shadow-soft transition-colors hover:bg-surface-inset/40"
+          >
+            <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">Fichas por validar</p>
+            <p className="mt-3 text-3xl font-extrabold tracking-tight text-ink">{operationalData.counts.patientPendingVerification}</p>
+            <p className="mt-2 text-sm text-ink-secondary">Recepción completó datos y espera validación médica.</p>
+          </Link>
+        </section>
+      ) : null}
 
       <form onSubmit={handleSearch} className="mb-4">
         <label htmlFor="encounters-search" className="sr-only">

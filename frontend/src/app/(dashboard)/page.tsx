@@ -29,6 +29,11 @@ interface DashboardData {
     total: number;
     pendingReview: number;
     upcomingTasks: number;
+    overdueTasks: number;
+    patientIncomplete: number;
+    patientPendingVerification: number;
+    patientVerified: number;
+    patientNonVerified: number;
   };
   recent: Array<{
     id: string;

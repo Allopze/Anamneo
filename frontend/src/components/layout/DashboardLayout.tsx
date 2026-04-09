@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, Suspense } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
+import { useSessionTimeout } from '@/lib/useSessionTimeout';
+import toast from 'react-hot-toast';
 import {
   FiHome,
   FiUsers,
@@ -26,8 +28,7 @@ import clsx from 'clsx';
 import { getNameInitial } from '@/lib/utils';
 import OfflineBanner from '@/components/common/OfflineBanner';
 import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
-import HeaderKpiBar from './HeaderKpiBar';
-import HeaderContextBar from './HeaderContextBar';
+import SmartHeaderBar from './SmartHeaderBar';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -57,6 +58,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isAuthenticated, hasHydrated, login, logout } = useAuthStore();
+
+  // ── Session inactivity timeout ─────────────────────────────────────
+  useSessionTimeout(() => {
+    toast('Su sesión expirará pronto por inactividad', { icon: '⏱️' });
+  });
+
+  // ── Force password change redirect ─────────────────────────────────
+  useEffect(() => {
+    if (user?.mustChangePassword && pathname !== '/cambiar-contrasena') {
+      router.replace('/cambiar-contrasena');
+    }
+  }, [user?.mustChangePassword, pathname, router]);
+
   const isOperationalAdmin = !!user?.isAdmin;
   const primaryItems = isOperationalAdmin
     ? primaryNavigation.filter((item) => item.href === '/' || item.href === '/pacientes')
@@ -78,6 +92,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ id: string; type: 'patient' | 'encounter'; title: string; subtitle: string; href: string }[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchActiveIndex, setSearchActiveIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -113,6 +128,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           role: response.data.role as 'MEDICO' | 'ASISTENTE' | 'ADMIN',
           isAdmin: !!response.data.isAdmin,
           medicoId: response.data.medicoId ?? null,
+          mustChangePassword: !!response.data.mustChangePassword,
+          totpEnabled: !!response.data.totpEnabled,
         });
       } catch {
         if (cancelled) return;
@@ -193,6 +210,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
+    setSearchActiveIndex(-1);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => performSearch(value), 300);
   };
@@ -226,6 +244,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen bg-surface-base">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-pill focus:bg-frame-dark focus:text-white focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:shadow-elevated"
+      >
+        Saltar al contenido
+      </a>
       <OfflineBanner />
 
       {/* ── App Shell — Sidebar + Content ─────────────────────── */}
@@ -245,13 +269,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           {/* User card */}
-          <div className="px-6 pb-5 mb-4 border-b border-white/20">
+          <div className="px-4 pb-5 mb-4 border-b border-white/20">
             <div className="flex items-center gap-3 bg-frame-dark p-3 rounded-card">
               <div className="h-12 w-12 rounded-full bg-surface-inset flex items-center justify-center font-bold text-frame text-lg flex-shrink-0">
                 {getNameInitial(user?.nombre)}
               </div>
-              <div className="overflow-hidden">
-                <p className="text-sm font-bold text-white truncate">{user?.nombre}</p>
+              <div className="overflow-hidden min-w-0">
+                <p className="text-sm font-bold text-white truncate" title={user?.nombre}>{user?.nombre}</p>
                 <p className="text-xs text-white/50 font-medium capitalize truncate">
                   {user?.isAdmin ? 'Administrador' : user?.role === 'MEDICO' ? 'Médico' : 'Asistente'}
                 </p>
@@ -275,15 +299,35 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       setSearchOpen(false);
                       setSearchQuery('');
                       setSearchResults([]);
+                      setSearchActiveIndex(-1);
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setSearchActiveIndex((prev) =>
+                        prev < searchResults.length - 1 ? prev + 1 : 0
+                      );
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setSearchActiveIndex((prev) =>
+                        prev > 0 ? prev - 1 : searchResults.length - 1
+                      );
+                    } else if (e.key === 'Enter' && searchActiveIndex >= 0 && searchResults[searchActiveIndex]) {
+                      e.preventDefault();
+                      handleSearchNavigate(searchResults[searchActiveIndex].href);
                     }
                   }}
                   placeholder="Buscar… ⌘K"
+                  role="combobox"
+                  aria-expanded={searchOpen && !!searchQuery.trim()}
+                  aria-controls="search-results-listbox"
+                  aria-autocomplete="list"
+                  aria-activedescendant={searchActiveIndex >= 0 && searchResults[searchActiveIndex] ? `search-result-${searchResults[searchActiveIndex].id}` : undefined}
+                  aria-label="Buscar pacientes y atenciones"
                   className="w-full bg-white/[0.08] text-white placeholder:text-white/30 text-sm rounded-pill pl-10 pr-4 py-2.5 outline-none border border-white/[0.1] focus:border-accent/50 focus:bg-white/[0.12] transition-colors"
                 />
 
                 {/* Search results dropdown */}
                 {searchOpen && searchQuery.trim() && (
-                  <div className="absolute left-0 top-full mt-2 w-full bg-surface-elevated rounded-card shadow-dropdown border border-surface-muted/30 overflow-hidden z-50 animate-fade-in">
+                  <div id="search-results-listbox" role="listbox" aria-label="Resultados de búsqueda" className="absolute left-0 top-full mt-2 w-full bg-surface-elevated rounded-card shadow-dropdown border border-surface-muted/30 overflow-hidden z-50 animate-fade-in">
                     {searchLoading && (
                       <div className="flex items-center justify-center py-6">
                         <div className="animate-spin rounded-full h-5 w-5 border-2 border-accent border-t-transparent" />
@@ -299,8 +343,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         {searchResults.filter(r => r.type === 'patient').length > 0 && (
                           <div>
                             <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-muted">Pacientes</div>
-                            {searchResults.filter(r => r.type === 'patient').map((r) => (
-                              <button key={r.id} onClick={() => handleSearchNavigate(r.href)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-inset/50 transition-colors">
+                            {searchResults.filter(r => r.type === 'patient').map((r) => {
+                              const flatIndex = searchResults.indexOf(r);
+                              return (
+                              <button key={r.id} id={`search-result-${r.id}`} role="option" aria-selected={flatIndex === searchActiveIndex} onClick={() => handleSearchNavigate(r.href)} onMouseEnter={() => setSearchActiveIndex(flatIndex)} className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${flatIndex === searchActiveIndex ? 'bg-surface-inset/70' : 'hover:bg-surface-inset/50'}`}>
                                 <FiUser className="w-4 h-4 text-ink-muted shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-bold text-ink truncate">{r.title}</p>
@@ -308,14 +354,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                                 </div>
                                 <FiArrowRight className="w-3.5 h-3.5 text-ink-muted shrink-0" />
                               </button>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                         {searchResults.filter(r => r.type === 'encounter').length > 0 && (
                           <div>
                             <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-muted">Atenciones</div>
-                            {searchResults.filter(r => r.type === 'encounter').map((r) => (
-                              <button key={r.id} onClick={() => handleSearchNavigate(r.href)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-inset/50 transition-colors">
+                            {searchResults.filter(r => r.type === 'encounter').map((r) => {
+                              const flatIndex = searchResults.indexOf(r);
+                              return (
+                              <button key={r.id} id={`search-result-${r.id}`} role="option" aria-selected={flatIndex === searchActiveIndex} onClick={() => handleSearchNavigate(r.href)} onMouseEnter={() => setSearchActiveIndex(flatIndex)} className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${flatIndex === searchActiveIndex ? 'bg-surface-inset/70' : 'hover:bg-surface-inset/50'}`}>
                                 <FiFileText className="w-4 h-4 text-ink-muted shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-bold text-ink truncate">{r.title}</p>
@@ -323,7 +372,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                                 </div>
                                 <FiArrowRight className="w-3.5 h-3.5 text-ink-muted shrink-0" />
                               </button>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -346,10 +396,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     'w-full flex items-center px-4 py-3.5 text-sm font-bold rounded-pill transition-all',
                     isActive
                       ? 'bg-accent text-accent-text'
-                      : 'text-ink-muted hover:bg-frame-dark hover:text-white'
+                      : 'text-white/50 hover:bg-frame-dark hover:text-white'
                   )}
                 >
-                  <item.icon className={clsx('mr-4 h-5 w-5', isActive ? 'text-accent-text' : 'text-ink-muted')} />
+                  <item.icon className={clsx('mr-4 h-5 w-5', isActive ? 'text-accent-text' : 'text-white/40')} />
                   {item.name}
                 </Link>
               );
@@ -368,10 +418,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     'w-full flex items-center px-4 py-3.5 text-sm font-bold rounded-pill transition-all',
                     isActive
                       ? 'bg-accent text-accent-text'
-                      : 'text-ink-muted hover:bg-frame-dark hover:text-white'
+                      : 'text-white/50 hover:bg-frame-dark hover:text-white'
                   )}
                 >
-                  <item.icon className={clsx('mr-4 h-5 w-5', isActive ? 'text-accent-text' : 'text-ink-muted')} />
+                  <item.icon className={clsx('mr-4 h-5 w-5', isActive ? 'text-accent-text' : 'text-white/40')} />
                   {item.name}
                 </Link>
               );
@@ -382,7 +432,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="p-6">
             <button
               onClick={handleLogout}
-              className="flex items-center justify-center w-full px-4 py-3 text-sm font-bold text-ink-muted bg-frame-dark hover:text-white hover:bg-status-red rounded-pill transition-colors"
+              className="flex items-center justify-center w-full px-4 py-3 text-sm font-bold text-white/50 bg-frame-dark hover:text-white hover:bg-status-red rounded-pill transition-colors"
             >
               <FiLogOut className="mr-3 h-5 w-5" />
               Salir
@@ -449,15 +499,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* ── KPI + Context Bar ─────────────────────────────── */}
           <div className={clsx('flex-shrink-0', isEncounterWorkspace && 'hidden')}>
-            <HeaderKpiBar />
-            <Suspense fallback={null}>
-              <HeaderContextBar />
-            </Suspense>
+            <SmartHeaderBar onSearchOpen={() => setSearchOpen(true)} />
           </div>
 
           {/* ── Page Content ───────────────────────────────────── */}
-          <main
-            className={clsx(
+          <main            id="main-content"            className={clsx(
               'flex-1 overflow-auto',
               isEncounterWorkspace ? 'px-0 py-0' : 'px-3 py-6 lg:px-8 lg:py-8',
             )}

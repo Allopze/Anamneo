@@ -4,6 +4,8 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   AUTH_LOGIN: 'Autenticación exitosa',
   AUTH_LOGOUT: 'Cierre de sesión',
   AUTH_LOGIN_REJECTED: 'Credenciales rechazadas',
+  AUTH_2FA_ENABLED: 'Activación de autenticación de dos factores',
+  AUTH_2FA_DISABLED: 'Desactivación de autenticación de dos factores',
   PATIENT_CREATED: 'Alta de paciente',
   PATIENT_HISTORY_CREATED: 'Alta de historial maestro',
   PATIENT_UPDATED: 'Actualización de paciente',
@@ -26,6 +28,8 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   ATTACHMENT_UPLOADED: 'Carga de adjunto',
   ATTACHMENT_DOWNLOADED: 'Descarga de adjunto',
   ATTACHMENT_DELETED: 'Eliminación de adjunto',
+  CONSENT_GRANTED: 'Otorgamiento de consentimiento informado',
+  CONSENT_REVOKED: 'Revocación de consentimiento informado',
   USER_INVITATION_CREATED: 'Creación de invitación',
   USER_INVITATION_REVOKED: 'Revocación de invitación',
   USER_UPDATED: 'Actualización de usuario',
@@ -41,6 +45,8 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'Auth' && action === 'LOGIN') return 'AUTH_LOGIN';
   if (entityType === 'Auth' && action === 'LOGOUT') return 'AUTH_LOGOUT';
   if (entityType === 'Auth' && action === 'LOGIN_FAILED') return 'AUTH_LOGIN_REJECTED';
+  if (entityType === 'Auth' && action === 'UPDATE' && hasDiffValue(diff, 'totpEnabled', true)) return 'AUTH_2FA_ENABLED';
+  if (entityType === 'Auth' && action === 'UPDATE' && hasDiffValue(diff, 'totpEnabled', false)) return 'AUTH_2FA_DISABLED';
   if (entityType === 'Patient' && action === 'CREATE') return 'PATIENT_CREATED';
   if (entityType === 'Patient' && action === 'UPDATE' && hasDiffKey(diff, 'archivedAt')) return 'PATIENT_ARCHIVED';
   if (entityType === 'Patient' && action === 'UPDATE' && hasDiffKey(diff, 'restoredAt')) return 'PATIENT_RESTORED';
@@ -67,6 +73,8 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'Attachment' && action === 'CREATE') return 'ATTACHMENT_UPLOADED';
   if (entityType === 'Attachment' && action === 'DOWNLOAD') return 'ATTACHMENT_DOWNLOADED';
   if (entityType === 'Attachment' && action === 'DELETE') return 'ATTACHMENT_DELETED';
+  if (entityType === 'InformedConsent' && action === 'CREATE') return 'CONSENT_GRANTED';
+  if (entityType === 'InformedConsent' && action === 'UPDATE') return 'CONSENT_REVOKED';
   if (entityType === 'UserInvitation' && action === 'CREATE') return 'USER_INVITATION_CREATED';
   if (entityType === 'UserInvitation' && action === 'UPDATE') return 'USER_INVITATION_REVOKED';
   if (entityType === 'UserInvitation' && action === 'DELETE') return 'USER_INVITATION_REVOKED';
@@ -92,7 +100,7 @@ function hasDiffKey(diff: unknown, key: string) {
   return typeof diff === 'object' && diff !== null && key in diff;
 }
 
-function hasDiffValue(diff: unknown, key: string, value: string) {
+function hasDiffValue(diff: unknown, key: string, value: unknown) {
   if (typeof diff !== 'object' || diff === null || !(key in diff)) {
     return false;
   }

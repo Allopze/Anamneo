@@ -1,14 +1,18 @@
-import { Injectable, UnauthorizedException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import type { StringValue } from 'ms';
 import * as bcrypt from 'bcrypt';
+import * as QRCode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { AuditService } from '../audit/audit.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterWithInvitationDto } from './dto/register-with-invitation.dto';
 import { Role } from './dto/register.dto';
+
+const otplibAdapterPath = require.resolve('@otplib/v12-adapter');
+const { authenticator } = require(otplibAdapterPath) as typeof import('@otplib/v12-adapter');
 
 // ── Account lockout ────────────────────────────────────────────────────
 const MAX_FAILED_ATTEMPTS = 5;
@@ -229,7 +233,7 @@ export class AuthService {
     return user;
   }
 
-  async login(loginDto: LoginDto, sessionContext?: SessionContext): Promise<AuthTokens> {
+  async login(loginDto: LoginDto, sessionContext?: SessionContext): Promise<AuthTokens | { requires2FA: true; tempToken: string }> {
     const email = this.normalizeEmail(loginDto.email);
     const now = new Date();
 
@@ -283,6 +287,16 @@ export class AuthService {
         },
       })
       .catch(() => {}); // fire-and-forget
+
+    // Check if 2FA is enabled
+    const fullUser = await this.prisma.user.findUnique({ where: { id: user.id }, select: { totpEnabled: true } });
+    if (fullUser?.totpEnabled) {
+      const tempToken = this.jwtService.sign(
+        { sub: user.id, purpose: '2fa' },
+        { expiresIn: '5m' },
+      );
+      return { requires2FA: true, tempToken };
+    }
 
     return this.issueTokens(user, sessionContext);
   }
@@ -397,5 +411,91 @@ export class AuthService {
     });
 
     return { accessToken, refreshToken };
+  }
+
+  // ── 2FA / TOTP ──────────────────────────────────────────────────────
+
+  async setup2FA(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Usuario no encontrado');
+    if (user.totpEnabled) throw new BadRequestException('2FA ya está habilitado');
+
+    const secret = authenticator.generateSecret();
+    await this.prisma.user.update({ where: { id: userId }, data: { totpSecret: secret } });
+
+    const otpauthUrl = authenticator.keyuri(user.email, 'Anamneo', secret);
+    const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
+
+    return { secret, qrCode: qrCodeDataUrl, qrCodeDataUrl };
+  }
+
+  async enable2FA(userId: string, code: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.totpSecret) throw new BadRequestException('Primero debe configurar 2FA');
+    if (user.totpEnabled) throw new BadRequestException('2FA ya está habilitado');
+
+    const isValid = authenticator.verify({ token: code, secret: user.totpSecret });
+    if (!isValid) throw new BadRequestException('Código TOTP inválido');
+
+    await this.prisma.user.update({ where: { id: userId }, data: { totpEnabled: true } });
+
+    this.auditService.log({
+      entityType: 'Auth',
+      entityId: userId,
+      userId,
+      action: 'UPDATE',
+      reason: 'AUTH_2FA_ENABLED',
+      diff: { totpEnabled: true },
+    }).catch(() => {});
+
+    return { message: '2FA habilitado correctamente' };
+  }
+
+  async disable2FA(userId: string, password: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Usuario no encontrado');
+    if (!user.totpEnabled) throw new BadRequestException('2FA no está habilitado');
+
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) throw new UnauthorizedException('Contraseña incorrecta');
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { totpEnabled: false, totpSecret: null },
+    });
+
+    this.auditService.log({
+      entityType: 'Auth',
+      entityId: userId,
+      userId,
+      action: 'UPDATE',
+      reason: 'AUTH_2FA_DISABLED',
+      diff: { totpEnabled: false },
+    }).catch(() => {});
+
+    return { message: '2FA deshabilitado correctamente' };
+  }
+
+  async verify2FALogin(tempToken: string, code: string, sessionContext?: SessionContext): Promise<AuthTokens> {
+    let payload: { sub: string; purpose: string };
+    try {
+      payload = this.jwtService.verify(tempToken);
+    } catch {
+      throw new UnauthorizedException('Token temporal inválido o expirado');
+    }
+
+    if (payload.purpose !== '2fa') {
+      throw new UnauthorizedException('Token temporal inválido');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user || !user.active || !user.totpEnabled || !user.totpSecret) {
+      throw new UnauthorizedException('Usuario no encontrado o 2FA no configurado');
+    }
+
+    const isValid = authenticator.verify({ token: code, secret: user.totpSecret });
+    if (!isValid) throw new UnauthorizedException('Código TOTP inválido');
+
+    return this.issueTokens(user, sessionContext);
   }
 }

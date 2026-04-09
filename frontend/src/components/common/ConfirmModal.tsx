@@ -22,7 +22,7 @@ const variantStyles = {
   },
   warning: {
     icon: 'border border-status-yellow/65 bg-status-yellow/35 text-accent-text',
-    button: 'btn bg-status-yellow text-white hover:bg-status-yellow/80 focus:ring-status-yellow',
+    button: 'btn bg-status-yellow text-white hover:bg-status-yellow/80 focus-visible:ring-status-yellow',
   },
   info: {
     icon: 'border border-status-yellow/65 bg-status-yellow/35 text-accent-text',

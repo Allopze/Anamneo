@@ -4,37 +4,32 @@ import { ReactNode } from 'react';
 import clsx from 'clsx';
 import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
 
-interface AuthFeature {
+interface AuthChip {
+  icon: ReactNode;
   label: string;
-  title: string;
-  description: string;
 }
 
 interface AuthFrameProps {
   eyebrow: string;
   title: string;
-  description: string;
-  features: AuthFeature[];
+  chips: AuthChip[];
   children: ReactNode;
   cardEyebrow: string;
   cardTitle: string;
-  cardDescription: string;
+  cardDescription?: string;
   footer: ReactNode;
-  heroFootnote?: string;
   className?: string;
 }
 
 export function AuthFrame({
   eyebrow,
   title,
-  description,
-  features,
+  chips,
   children,
   cardEyebrow,
   cardTitle,
   cardDescription,
   footer,
-  heroFootnote,
   className,
 }: AuthFrameProps) {
   return (
@@ -42,28 +37,24 @@ export function AuthFrame({
       <aside className="auth-hero">
         <div className="auth-hero-panel">
           <AnamneoLogo
-            className="mb-8 hidden lg:flex"
-            iconClassName="h-12 w-12"
-            textClassName="text-3xl font-bold text-ink-onDark"
+            className="mb-6 hidden lg:flex"
+            iconClassName="h-10 w-10"
+            textClassName="text-2xl font-bold text-ink-onDark"
             priority
           />
 
           <p className="auth-kicker">{eyebrow}</p>
           <h1 className="auth-headline">{title}</h1>
-          <p className="auth-copy">{description}</p>
 
-          <div className="auth-feature-grid">
-            {features.map((feature) => (
-              <article key={feature.title} className="auth-feature-card">
-                <p className="auth-feature-label">{feature.label}</p>
-                <h2 className="auth-feature-title">{feature.title}</h2>
-                <p className="auth-feature-description">{feature.description}</p>
-              </article>
+          <div className="auth-chip-band">
+            {chips.map((chip) => (
+              <span key={chip.label} className="auth-chip">
+                {chip.icon}
+                {chip.label}
+              </span>
             ))}
           </div>
         </div>
-
-        {heroFootnote ? <p className="auth-footnote">{heroFootnote}</p> : null}
       </aside>
 
       <main className="auth-panel">
@@ -78,7 +69,7 @@ export function AuthFrame({
 
             <p className="auth-card-kicker">{cardEyebrow}</p>
             <h2 className="auth-card-title">{cardTitle}</h2>
-            <p className="auth-card-description">{cardDescription}</p>
+            {cardDescription && <p className="auth-card-description">{cardDescription}</p>}
           </div>
 
           {children}

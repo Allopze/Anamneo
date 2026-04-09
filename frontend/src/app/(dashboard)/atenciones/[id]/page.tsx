@@ -36,6 +36,7 @@ import {
   getIdentificationMissingFields,
   getPatientCompletenessMeta,
 } from '@/lib/patient';
+import { getEncounterClinicalOutputBlockReason } from '@/lib/clinical-output';
 import {
   FiArrowLeft,
   FiCheck,
@@ -54,6 +55,7 @@ import {
   FiActivity,
   FiSlash,
   FiClock,
+  FiShield,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -68,6 +70,7 @@ import ClinicalAlerts from '@/components/ClinicalAlerts';
 import TemplateSelector from '@/components/TemplateSelector';
 
 import ConfirmModal from '@/components/common/ConfirmModal';
+import SignEncounterModal from '@/components/common/SignEncounterModal';
 
 const SectionLoadingFallback = () => (
   <div className="rounded-card border border-surface-muted/40 bg-surface-base/55 px-5 py-5 text-sm text-ink-secondary">
@@ -267,6 +270,7 @@ export default function EncounterWizardPage() {
     linkedOrderId: '',
   });
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
+  const [showSignModal, setShowSignModal] = useState(false);
   const [showDeleteAttachment, setShowDeleteAttachment] = useState<string | null>(null);
   const [quickTask, setQuickTask] = useState({ title: '', type: 'SEGUIMIENTO', dueDate: '' });
   const [reviewActionNote, setReviewActionNote] = useState('');
@@ -356,6 +360,19 @@ export default function EncounterWizardPage() {
         savedSnapshot = {};
       }
 
+      const normalizedSectionData = (() => {
+        const rawSectionData = response.data.data;
+        if (typeof rawSectionData !== 'string') {
+          return rawSectionData;
+        }
+
+        try {
+          return JSON.parse(rawSectionData);
+        } catch {
+          return variables.data;
+        }
+      })();
+
       savedSnapshot[variables.sectionKey] = variables.data;
       lastSavedRef.current = JSON.stringify(savedSnapshot);
       setSavedSnapshotJson(lastSavedRef.current);
@@ -370,7 +387,7 @@ export default function EncounterWizardPage() {
             section.sectionKey === variables.sectionKey
               ? {
                   ...section,
-                  data: response.data.data,
+                    data: normalizedSectionData,
                   completed: response.data.completed,
                 }
               : section
@@ -420,6 +437,22 @@ export default function EncounterWizardPage() {
       toast.success('Atención completada');
       queryClient.invalidateQueries({ queryKey: ['encounter', id] });
       router.push(`/atenciones/${id}/ficha`);
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Sign encounter mutation (FES)
+  const signMutation = useMutation<Encounter, unknown, string>({
+    mutationFn: async (password) => {
+      const response: AxiosResponse<Encounter> = await api.post(`/encounters/${id}/sign`, { password });
+      return response.data;
+    },
+    onSuccess: () => {
+      setShowSignModal(false);
+      toast.success('Atención firmada electrónicamente');
+      queryClient.invalidateQueries({ queryKey: ['encounter', id] });
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));
@@ -948,9 +981,10 @@ export default function EncounterWizardPage() {
   const patientCompletenessMeta = encounter?.patient ? getPatientCompletenessMeta(encounter.patient) : null;
   const identificationMissingFields = formatPatientMissingFields(getIdentificationMissingFields(identificationData));
   const clinicalOutputBlockReason = encounter?.clinicalOutputBlock?.reason ?? null;
-  const completionBlockedReason = encounter?.clinicalOutputBlock?.blockedActions.includes('COMPLETE_ENCOUNTER')
-    ? encounter.clinicalOutputBlock.reason
-    : null;
+  const completionBlockedReason = getEncounterClinicalOutputBlockReason(
+    encounter?.clinicalOutputBlock,
+    'COMPLETE_ENCOUNTER',
+  );
   const handleStartLinkedAttachment = (type: 'EXAMEN' | 'DERIVACION', orderId: string) => {
     setUploadError(null);
     setSelectedFile(null);
@@ -1382,6 +1416,17 @@ export default function EncounterWizardPage() {
                 >
                   <FiCheck className="h-4 w-4" />
                   Finalizar Atención
+                </button>
+              ) : null}
+
+              {encounter.status === 'COMPLETADO' && isDoctor ? (
+                <button
+                  onClick={() => setShowSignModal(true)}
+                  disabled={signMutation.isPending}
+                  className={TOOLBAR_PRIMARY_BUTTON_CLASS}
+                >
+                  <FiShield className="h-4 w-4" />
+                  Firmar Atención
                 </button>
               ) : null}
             </div>
@@ -1857,6 +1902,13 @@ export default function EncounterWizardPage() {
         confirmLabel="Eliminar"
         variant="danger"
         loading={deleteMutation.isPending}
+      />
+
+      <SignEncounterModal
+        open={showSignModal}
+        loading={signMutation.isPending}
+        onConfirm={(password) => signMutation.mutate(password)}
+        onClose={() => setShowSignModal(false)}
       />
     </div>
   );

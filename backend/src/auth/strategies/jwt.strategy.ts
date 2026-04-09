@@ -44,6 +44,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       role: user.role,
       isAdmin: user.isAdmin,
       medicoId: user.medicoId ?? null,
+      mustChangePassword: user.mustChangePassword ?? false,
+      totpEnabled: user.totpEnabled ?? false,
     };
   }
 }

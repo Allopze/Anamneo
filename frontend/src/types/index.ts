@@ -84,10 +84,13 @@ export interface EncounterIdentificationSnapshotStatus {
   sourcePatientUpdatedAt?: string | null;
 }
 
-export type EncounterClinicalOutputAction =
-  | 'COMPLETE_ENCOUNTER'
-  | 'EXPORT_OFFICIAL_DOCUMENTS'
-  | 'PRINT_CLINICAL_RECORD';
+export const ENCOUNTER_CLINICAL_OUTPUT_ACTIONS = [
+  'COMPLETE_ENCOUNTER',
+  'EXPORT_OFFICIAL_DOCUMENTS',
+  'PRINT_CLINICAL_RECORD',
+] as const;
+
+export type EncounterClinicalOutputAction = typeof ENCOUNTER_CLINICAL_OUTPUT_ACTIONS[number];
 
 export interface EncounterClinicalOutputBlock {
   completenessStatus: Extract<PatientCompletenessStatus, 'INCOMPLETA' | 'PENDIENTE_VERIFICACION'>;
@@ -100,7 +103,7 @@ export interface Encounter {
   id: string;
   patientId: string;
   createdById: string;
-  status: 'EN_PROGRESO' | 'COMPLETADO' | 'CANCELADO';
+  status: 'EN_PROGRESO' | 'COMPLETADO' | 'FIRMADO' | 'CANCELADO';
   reviewStatus?: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO';
   reviewRequestedAt?: string | null;
   reviewNote?: string | null;
@@ -385,6 +388,8 @@ export interface ExamenFisicoData {
 export interface SospechaDiagnostica {
   id: string;
   diagnostico: string;
+  codigoCie10?: string;
+  descripcionCie10?: string;
   prioridad: number;
   notas: string;
 }
@@ -501,6 +506,7 @@ export const PATIENT_DEMOGRAPHIC_FIELD_LABELS: Record<PatientDemographicMissingF
 export const STATUS_LABELS: Record<string, string> = {
   EN_PROGRESO: 'En progreso',
   COMPLETADO: 'Completado',
+  FIRMADO: 'Firmado',
   CANCELADO: 'Cancelado',
 };
 
