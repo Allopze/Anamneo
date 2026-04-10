@@ -9,7 +9,7 @@ import {
   EncounterIdentificationSnapshotStatus,
 } from '@/types';
 import { validateRut } from '@/lib/rut';
-import { SectionBlock, SectionIntro } from '@/components/sections/SectionPrimitives';
+import { SectionBlock } from '@/components/sections/SectionPrimitives';
 import { formatPatientMissingFields, getIdentificationMissingFields } from '@/lib/patient';
 
 interface Props {
@@ -51,8 +51,6 @@ export default function IdentificacionSection({
 
   return (
     <div className="flex flex-col gap-5">
-      <SectionIntro description="Confirma los datos administrativos y demográficos antes de continuar con la atención." />
-
       <div className="rounded-card border border-surface-muted/30 bg-surface-base/40 p-5">
         <p className="text-sm font-medium text-ink-primary">Snapshot administrativo de la atención</p>
         <p className="mt-2 text-sm text-ink-secondary">
@@ -96,7 +94,7 @@ export default function IdentificacionSection({
         )}
       </div>
 
-      <SectionBlock title="Datos personales" description="Identificación base del paciente en esta atención.">
+      <SectionBlock title="Datos personales">
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
@@ -192,7 +190,7 @@ export default function IdentificacionSection({
         </div>
       </SectionBlock>
 
-      <SectionBlock title="Contexto y contacto" description="Datos útiles para continuidad asistencial y contexto social básico.">
+      <SectionBlock title="Contexto y contacto">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="form-label">Trabajo / Ocupación</label>

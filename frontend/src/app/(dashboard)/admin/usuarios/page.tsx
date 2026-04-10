@@ -8,6 +8,7 @@ import { api, getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { FiPlus, FiUsers, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 type Role = 'MEDICO' | 'ASISTENTE' | 'ADMIN';
 
@@ -271,10 +272,16 @@ export default function AdminUsuariosPage() {
       return response.data;
     },
     onSuccess: () => {
+      setToggleConfirmUser(null);
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => {
+      setToggleConfirmUser(null);
+      toast.error(getErrorMessage(err));
+    },
   });
+
+  const [toggleConfirmUser, setToggleConfirmUser] = useState<AdminUserRow | null>(null);
 
   const revokeInvitationMutation = useMutation({
     mutationFn: async (invitationId: string) => {
@@ -733,7 +740,7 @@ export default function AdminUsuariosPage() {
                   </button>
                   <button
                     className={u.active ? 'btn btn-danger' : 'btn btn-secondary'}
-                    onClick={() => toggleActiveMutation.mutate(u)}
+                    onClick={() => setToggleConfirmUser(u)}
                     disabled={toggleActiveMutation.isPending || (u.isAdmin && u.active && activeAdminCount === 1)}
                   >
                     {u.active ? 'Desactivar' : 'Activar'}
@@ -760,6 +767,23 @@ export default function AdminUsuariosPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!toggleConfirmUser}
+        onClose={() => setToggleConfirmUser(null)}
+        onConfirm={() => {
+          if (toggleConfirmUser) toggleActiveMutation.mutate(toggleConfirmUser);
+        }}
+        title={toggleConfirmUser?.active ? 'Desactivar usuario' : 'Activar usuario'}
+        message={
+          toggleConfirmUser?.active
+            ? `¿Estás seguro de desactivar a ${toggleConfirmUser.nombre}? El usuario perderá acceso al sistema inmediatamente.`
+            : `¿Estás seguro de activar a ${toggleConfirmUser?.nombre}? El usuario podrá ingresar al sistema nuevamente.`
+        }
+        confirmLabel={toggleConfirmUser?.active ? 'Desactivar' : 'Activar'}
+        variant={toggleConfirmUser?.active ? 'danger' : 'info'}
+        loading={toggleActiveMutation.isPending}
+      />
     </div>
   );
 }

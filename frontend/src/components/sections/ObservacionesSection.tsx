@@ -2,7 +2,7 @@
 
 import { ObservacionesData } from '@/types';
 import VoiceDictationButton from '@/components/common/VoiceDictationButton';
-import { SectionBlock, SectionCallout, SectionFieldHeader, SectionIntro } from '@/components/sections/SectionPrimitives';
+import { SectionBlock, SectionCallout, SectionFieldHeader } from '@/components/sections/SectionPrimitives';
 
 interface Props {
   data: ObservacionesData;
@@ -17,9 +17,7 @@ export default function ObservacionesSection({ data, onChange, readOnly }: Props
 
   return (
     <div className="space-y-5">
-      <SectionIntro description="Cierra la atención con observaciones clínicas finales y, si hace falta, notas internas para el equipo." />
-
-      <SectionBlock title="Observaciones generales" description="Información adicional útil para el registro clínico o la lectura posterior de la atención.">
+      <SectionBlock title="Observaciones generales">
         <SectionFieldHeader
           label="Observaciones generales"
           action={!readOnly ? (
@@ -40,7 +38,7 @@ export default function ObservacionesSection({ data, onChange, readOnly }: Props
         />
       </SectionBlock>
 
-      <SectionBlock title="Notas internas" description="Notas operativas o recordatorios del equipo que no deben salir en la ficha impresa.">
+      <SectionBlock title="Notas internas">
         <SectionFieldHeader
           label="Notas internas"
           action={!readOnly ? (

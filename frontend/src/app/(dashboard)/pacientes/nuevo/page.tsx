@@ -145,6 +145,8 @@ export default function NuevoPacientePage() {
   } = useForm<PatientForm>({
     resolver: zodResolver(isDoctor ? fullPatientSchema : basePatientSchema),
     defaultValues: {
+      sexo: '' as any,
+      prevision: '' as any,
       rutExempt: false,
     },
   });

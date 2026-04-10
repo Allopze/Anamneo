@@ -1,6 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AnamnesisRemotaSection from '@/components/sections/AnamnesisRemotaSection';
+
+function getFieldTextarea(labelText: RegExp) {
+  const label = screen.getByText(labelText, { selector: 'label' });
+  const container = label.closest('.space-y-2')!;
+  return within(container as HTMLElement).getByRole('textbox');
+}
 
 describe('AnamnesisRemotaSection', () => {
   it('lets the user decouple the encounter snapshot and navigate to master history', async () => {
@@ -22,7 +28,7 @@ describe('AnamnesisRemotaSection', () => {
     );
 
     expect(
-      screen.getByPlaceholderText(/Enfermedades crónicas, hospitalizaciones previas/i),
+      getFieldTextarea(/Antecedentes médicos/i),
     ).toBeDisabled();
 
     expect(screen.getByText(/Snapshot cargado desde el historial del paciente/i)).toBeInTheDocument();
@@ -56,7 +62,7 @@ describe('AnamnesisRemotaSection', () => {
     );
 
     fireEvent.change(
-      screen.getByPlaceholderText(/Enfermedades crónicas, hospitalizaciones previas/i),
+      getFieldTextarea(/Antecedentes médicos/i),
       { target: { value: 'En tratamiento. Controlado' } },
     );
 
@@ -84,7 +90,7 @@ describe('AnamnesisRemotaSection', () => {
     );
 
     expect(
-      screen.getByPlaceholderText(/Enfermedades crónicas, hospitalizaciones previas/i),
+      getFieldTextarea(/Antecedentes médicos/i),
     ).toBeEnabled();
     expect(screen.queryByText(/Snapshot cargado desde el historial del paciente/i)).not.toBeInTheDocument();
   });

@@ -2,7 +2,7 @@
 
 import { RespuestaTratamientoData } from '@/types';
 import VoiceDictationButton from '@/components/common/VoiceDictationButton';
-import { SectionBlock, SectionFieldHeader, SectionIntro } from '@/components/sections/SectionPrimitives';
+import { SectionBlock, SectionFieldHeader } from '@/components/sections/SectionPrimitives';
 
 interface Props {
   data: RespuestaTratamientoData;
@@ -17,9 +17,7 @@ export default function RespuestaTratamientoSection({ data, onChange, readOnly }
 
   return (
     <div className="space-y-5">
-      <SectionIntro description="Documenta respuesta clínica, resultados disponibles y próximos pasos tras el tratamiento indicado." />
-
-      <SectionBlock title="Respuesta clínica" description="Evolución del paciente y resultados objetivos posteriores al tratamiento.">
+      <SectionBlock title="Respuesta clínica">
         <div className="space-y-4">
           <div>
             <SectionFieldHeader
@@ -36,7 +34,7 @@ export default function RespuestaTratamientoSection({ data, onChange, readOnly }
               disabled={readOnly}
               rows={4}
               className="form-input form-textarea"
-              placeholder="Describa cómo ha respondido el paciente al tratamiento indicado..."
+              placeholder=""
             />
           </div>
 
@@ -63,7 +61,7 @@ export default function RespuestaTratamientoSection({ data, onChange, readOnly }
         </div>
       </SectionBlock>
 
-      <SectionBlock title="Ajustes y seguimiento" description="Modificaciones al plan inicial y continuidad asistencial.">
+      <SectionBlock title="Ajustes y seguimiento">
         <div className="space-y-4">
           <div>
             <SectionFieldHeader

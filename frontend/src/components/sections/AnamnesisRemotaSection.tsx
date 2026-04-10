@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { FiAlertCircle, FiEdit2 } from 'react-icons/fi';
 import { parseHistoryField } from '@/lib/utils';
 import { AnamnesisRemotaData } from '@/types';
-import { SectionBlock, SectionCallout, SectionIntro } from '@/components/sections/SectionPrimitives';
+import { SectionBlock, SectionCallout } from '@/components/sections/SectionPrimitives';
 
 interface Props {
   data: AnamnesisRemotaData;
@@ -15,22 +15,21 @@ interface Props {
 }
 
 const HISTORY_FIELDS = [
-  { key: 'antecedentesMedicos', label: 'Antecedentes médicos', placeholder: 'Enfermedades crónicas, hospitalizaciones previas...' },
-  { key: 'antecedentesQuirurgicos', label: 'Antecedentes quirúrgicos', placeholder: 'Cirugías previas, fechas aproximadas...' },
-  { key: 'antecedentesGinecoobstetricos', label: 'Antecedentes ginecoobstétricos', placeholder: 'Menarquia, embarazos, menopausia...' },
-  { key: 'antecedentesFamiliares', label: 'Antecedentes familiares', placeholder: 'Enfermedades hereditarias, causas de muerte de familiares...' },
-  { key: 'habitos', label: 'Hábitos', placeholder: 'Tabaco, alcohol, drogas, ejercicio, alimentación...' },
-  { key: 'medicamentos', label: 'Uso de medicamentos', placeholder: 'Medicamentos actuales, dosis, frecuencia...' },
-  { key: 'alergias', label: 'Alergias', placeholder: 'Medicamentos, alimentos, ambientales...' },
-  { key: 'inmunizaciones', label: 'Inmunizaciones', placeholder: 'Vacunas recibidas, fechas...' },
-  { key: 'antecedentesSociales', label: 'Antecedentes sociales', placeholder: 'Vivienda, trabajo, relaciones, situación económica...' },
-  { key: 'antecedentesPersonales', label: 'Antecedentes personales', placeholder: 'Otros datos relevantes del paciente...' },
+  { key: 'antecedentesMedicos', label: 'Antecedentes médicos' },
+  { key: 'antecedentesQuirurgicos', label: 'Antecedentes quirúrgicos' },
+  { key: 'antecedentesGinecoobstetricos', label: 'Antecedentes ginecoobstétricos' },
+  { key: 'antecedentesFamiliares', label: 'Antecedentes familiares' },
+  { key: 'habitos', label: 'Hábitos' },
+  { key: 'medicamentos', label: 'Uso de medicamentos' },
+  { key: 'alergias', label: 'Alergias' },
+  { key: 'inmunizaciones', label: 'Inmunizaciones' },
+  { key: 'antecedentesSociales', label: 'Antecedentes sociales' },
+  { key: 'antecedentesPersonales', label: 'Antecedentes personales' },
 ];
 
 const HISTORY_GROUPS = [
   {
     title: 'Antecedentes clínicos',
-    description: 'Condiciones previas, cirugías y antecedentes familiares relevantes.',
     fields: [
       'antecedentesMedicos',
       'antecedentesQuirurgicos',
@@ -40,12 +39,10 @@ const HISTORY_GROUPS = [
   },
   {
     title: 'Medicaciones, alergias y hábitos',
-    description: 'Factores que impactan tratamiento, riesgo y conducta clínica.',
     fields: ['habitos', 'medicamentos', 'alergias', 'inmunizaciones'],
   },
   {
     title: 'Contexto personal y social',
-    description: 'Información útil para continuidad, adherencia y entorno del paciente.',
     fields: ['antecedentesSociales', 'antecedentesPersonales'],
   },
 ] as const;
@@ -76,7 +73,7 @@ export default function AnamnesisRemotaSection({
     onChange({ ...data, readonly: false });
   };
 
-  const renderField = (key: string, label: string, placeholder: string) => {
+  const renderField = (key: string, label: string) => {
     const fieldKey = key as keyof AnamnesisRemotaData;
     const rawVal = data[fieldKey];
     const val = parseHistoryField(rawVal);
@@ -105,7 +102,6 @@ export default function AnamnesisRemotaSection({
           disabled={effectiveReadOnly}
           rows={2}
           className="form-input form-textarea"
-          placeholder={placeholder}
         />
       </div>
     );
@@ -113,8 +109,6 @@ export default function AnamnesisRemotaSection({
 
   return (
     <div className="space-y-5">
-      <SectionIntro description="Antecedentes remotos cargados desde el historial del paciente. Si necesitas contextualizarlos para esta atención, primero desacopla el snapshot local; si necesitas cambiar el historial permanente, hazlo desde la ficha del paciente." />
-
       {isReadOnlyFromHistory && (
         <SectionCallout
           tone="warning"
@@ -153,13 +147,12 @@ export default function AnamnesisRemotaSection({
         <SectionBlock
           key={group.title}
           title={group.title}
-          description={group.description}
         >
           <div className="space-y-4">
             {group.fields.map((fieldKey) => {
               const field = HISTORY_FIELDS.find((item) => item.key === fieldKey);
               if (!field) return null;
-              return renderField(field.key, field.label, field.placeholder);
+              return renderField(field.key, field.label);
             })}
           </div>
         </SectionBlock>

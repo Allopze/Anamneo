@@ -54,17 +54,17 @@ export default function ConfirmModal({
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !loading) onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, loading]);
 
   if (!isOpen) return null;
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-ink-primary/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-ink-primary/50 backdrop-blur-sm" onClick={loading ? undefined : onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
           className="w-full max-w-md rounded-card border border-surface-muted/30 bg-surface-elevated shadow-dropdown"
@@ -90,6 +90,7 @@ export default function ConfirmModal({
                 onClick={onClose}
                 className="rounded-input p-2 text-ink-muted transition-colors hover:bg-surface-base/65 hover:text-ink-secondary"
                 aria-label="Cerrar"
+                disabled={loading}
               >
                 <FiX className="w-5 h-5" />
               </button>

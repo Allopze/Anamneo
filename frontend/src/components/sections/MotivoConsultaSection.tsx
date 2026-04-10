@@ -6,7 +6,7 @@ import { ConditionSuggestion, MotivoConsultaData, Encounter } from '@/types';
 import { FiInfo, FiCheck, FiSearch } from 'react-icons/fi';
 import clsx from 'clsx';
 import VoiceDictationButton from '@/components/common/VoiceDictationButton';
-import { SectionBlock, SectionCallout, SectionFieldHeader, SectionIntro } from '@/components/sections/SectionPrimitives';
+import { SectionBlock, SectionCallout, SectionFieldHeader } from '@/components/sections/SectionPrimitives';
 
 interface Props {
   data: MotivoConsultaData;
@@ -93,9 +93,7 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
 
   return (
     <div className="space-y-5">
-      <SectionIntro description="Registra el motivo principal expresado por el paciente. El sistema puede sugerir una afección para clasificar mejor la atención." />
-
-      <SectionBlock title="Relato principal" description="Describe en lenguaje clínico breve y fiel el motivo de consulta.">
+      <SectionBlock title="Relato principal">
         <SectionFieldHeader
           label="Describa el motivo de consulta del paciente"
           action={!readOnly ? (
@@ -116,7 +114,6 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
 
       <SectionBlock
         title="Sugerencias de afección"
-        description="Clasificación asistida para organizar la atención. No reemplaza criterio clínico."
         muted
         actions={isSearching ? <span className="text-xs text-ink-muted animate-pulse">Buscando...</span> : undefined}
       >

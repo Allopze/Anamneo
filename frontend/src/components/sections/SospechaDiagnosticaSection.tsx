@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { FiPlus, FiTrash2, FiArrowUp, FiArrowDown, FiSearch } from 'react-icons/fi';
 import { ConditionSuggestion, MotivoConsultaData, SospechaDiagnosticaData, SospechaDiagnostica } from '@/types';
-import { SectionAddButton, SectionBlock, SectionIconButton, SectionIntro } from '@/components/sections/SectionPrimitives';
+import { SectionAddButton, SectionBlock, SectionIconButton } from '@/components/sections/SectionPrimitives';
 import { api } from '@/lib/api';
 
 interface Props {
@@ -103,9 +103,7 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly, m
 
   return (
     <div className="space-y-5">
-      <SectionIntro description="Ordena las hipótesis diagnósticas por prioridad clínica. La primera corresponde a la principal." />
-
-      <SectionBlock title="Sospechas diagnósticas" description="Lista priorizada para apoyar el razonamiento clínico y el seguimiento.">
+      <SectionBlock title="Sospechas diagnósticas">
         <div className="space-y-3">
           {sospechas.map((sospecha, index) => (
             <div

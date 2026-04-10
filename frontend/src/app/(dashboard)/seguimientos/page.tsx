@@ -27,6 +27,14 @@ export default function SeguimientosPage() {
   const [type, setType] = useState(searchParams.get('type') || '');
   const [overdueOnly, setOverdueOnly] = useState(searchParams.get('overdueOnly') === 'true');
 
+  // Keep local state in sync when searchParams change (e.g. KPI chip navigation)
+  useEffect(() => {
+    setSearch(searchParams.get('search') || '');
+    setStatus(searchParams.get('status') || '');
+    setType(searchParams.get('type') || '');
+    setOverdueOnly(searchParams.get('overdueOnly') === 'true');
+  }, [searchParams]);
+
   // Keep URL in sync when filters change
   const updateUrl = useCallback(
     (s: string, st: string, t: string, od: boolean) => {

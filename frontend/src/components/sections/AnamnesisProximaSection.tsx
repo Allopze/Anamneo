@@ -2,7 +2,7 @@
 
 import { AnamnesisProximaData } from '@/types';
 import VoiceDictationButton from '@/components/common/VoiceDictationButton';
-import { SectionBlock, SectionFieldHeader, SectionIntro } from '@/components/sections/SectionPrimitives';
+import { SectionBlock, SectionFieldHeader } from '@/components/sections/SectionPrimitives';
 
 interface Props {
   data: AnamnesisProximaData;
@@ -17,9 +17,7 @@ export default function AnamnesisProximaSection({ data, onChange, readOnly }: Pr
 
   return (
     <div className="space-y-5">
-      <SectionIntro description="Profundiza el cuadro actual: inicio, evolución, moduladores y síntomas que acompañan el motivo principal." />
-
-      <SectionBlock title="Relato del cuadro actual" description="Narrativa clínica ampliada de la consulta.">
+      <SectionBlock title="Relato del cuadro actual">
         <SectionFieldHeader
           label="Relato ampliado"
           action={!readOnly ? (
@@ -36,11 +34,11 @@ export default function AnamnesisProximaSection({ data, onChange, readOnly }: Pr
           disabled={readOnly}
           rows={4}
           className="form-input form-textarea"
-          placeholder="Describa en detalle la evolución y características del cuadro actual..."
+          placeholder=""
         />
       </SectionBlock>
 
-      <SectionBlock title="Cronología y moduladores" description="Resume temporalidad y factores que empeoran o alivian el cuadro.">
+      <SectionBlock title="Cronología y moduladores">
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
@@ -111,7 +109,7 @@ export default function AnamnesisProximaSection({ data, onChange, readOnly }: Pr
         </div>
       </SectionBlock>
 
-      <SectionBlock title="Síntomas asociados" description="Hallazgos o síntomas que acompañan el cuadro principal.">
+      <SectionBlock title="Síntomas asociados">
         <SectionFieldHeader
           label="Síntomas asociados"
           action={!readOnly ? (
@@ -128,7 +126,7 @@ export default function AnamnesisProximaSection({ data, onChange, readOnly }: Pr
           disabled={readOnly}
           rows={3}
           className="form-input form-textarea"
-          placeholder="Otros síntomas que acompañan al cuadro principal..."
+          placeholder=""
         />
       </SectionBlock>
     </div>

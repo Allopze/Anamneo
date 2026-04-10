@@ -78,8 +78,17 @@ function AjustesContent() {
     setActiveTabState(tab);
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', tab);
-    window.history.pushState(null, '', `?${params.toString()}`);
-  }, [searchParams]);
+    router.push(`/ajustes?${params.toString()}`);
+  }, [searchParams, router]);
+
+  // Sync active tab when URL changes (e.g. browser back/forward)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as AjustesTab | null;
+    const resolved = tabParam && (validTabs as readonly string[]).includes(tabParam)
+      ? tabParam
+      : 'perfil';
+    setActiveTabState(resolved);
+  }, [searchParams, validTabs]);
 
   const handleTabKeyDown = useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
     const tabs = isAdmin

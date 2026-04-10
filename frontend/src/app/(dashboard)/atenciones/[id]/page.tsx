@@ -803,14 +803,7 @@ export default function EncounterWizardPage() {
     if (direction === 'prev' && currentSectionIndex > 0) {
       moveToSection(currentSectionIndex - 1);
     } else if (direction === 'next' && currentSectionIndex < sections.length - 1) {
-      if (canEdit && currentSection && !currentSection.completed) {
-        await persistSection({
-          sectionKey: currentSection.sectionKey,
-          completed: true,
-        });
-      } else {
-        saveCurrentSection();
-      }
+      saveCurrentSection();
 
       startSectionTransition(() => {
         setCurrentSectionIndex(currentSectionIndex + 1);
@@ -1399,13 +1392,26 @@ export default function EncounterWizardPage() {
                 </button>
               ) : null}
 
-              <Link
-                href={`/atenciones/${id}/ficha`}
+              <button
+                onClick={async () => {
+                  if (hasUnsavedChanges) {
+                    const sectionKey = activeSectionKeyRef.current;
+                    if (sectionKey) {
+                      const currentData = formDataRef.current[sectionKey];
+                      try {
+                        await saveSectionMutation.mutateAsync({ sectionKey, data: currentData });
+                      } catch {
+                        return;
+                      }
+                    }
+                  }
+                  router.push(`/atenciones/${id}/ficha`);
+                }}
                 className={TOOLBAR_BUTTON_CLASS}
               >
                 <FiEye className="h-4 w-4" />
                 Ficha Clínica
-              </Link>
+              </button>
 
               {canComplete ? (
                 <button

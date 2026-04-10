@@ -10,7 +10,6 @@ import {
   SectionCallout,
   SectionFieldHeader,
   SectionIconButton,
-  SectionIntro,
 } from '@/components/sections/SectionPrimitives';
 
 interface Props {
@@ -117,9 +116,7 @@ export default function TratamientoSection({
 
   return (
     <div className="space-y-5">
-      <SectionIntro description="Documenta el plan terapéutico, indicaciones y órdenes estructuradas usando un formato consistente y trazable." />
-
-      <SectionBlock title="Plan e indicaciones" description="Tratamiento general e instrucciones prácticas entregadas al paciente.">
+      <SectionBlock title="Plan e indicaciones">
         <div className="space-y-4">
           <div>
             <SectionFieldHeader
@@ -132,13 +129,13 @@ export default function TratamientoSection({
               disabled={readOnly}
               rows={4}
               className="form-input form-textarea"
-              placeholder="Describa el plan terapéutico, cuidados e indicaciones entregadas al paciente..."
+              placeholder=""
             />
           </div>
         </div>
       </SectionBlock>
 
-      <SectionBlock title="Medicamentos" description="Agrega medicamentos estructurados como mecanismo principal. El texto libre complementa si hace falta.">
+      <SectionBlock title="Medicamentos">
         <div className="space-y-2">
           {medicamentos.map((medicamento, index) => (
             <div key={medicamento.id} className="section-item-card grid grid-cols-1 gap-2 md:grid-cols-6">
@@ -249,7 +246,7 @@ export default function TratamientoSection({
         </div>
       </SectionBlock>
 
-      <SectionBlock title="Exámenes solicitados" description="Órdenes clínicas con estado y respaldo vinculado cuando corresponda.">
+      <SectionBlock title="Exámenes solicitados">
         <SectionFieldHeader
           label="Exámenes solicitados"
           action={!readOnly ? <VoiceDictationButton onTranscript={(text) => appendDictation('examenes', text)} /> : undefined}
@@ -329,7 +326,7 @@ export default function TratamientoSection({
         </div>
       </SectionBlock>
 
-      <SectionBlock title="Derivaciones" description="Interconsultas o derivaciones con seguimiento de estado y respaldo asociado.">
+      <SectionBlock title="Derivaciones">
         <SectionFieldHeader
           label="Derivaciones"
           action={!readOnly ? <VoiceDictationButton onTranscript={(text) => appendDictation('derivaciones', text)} /> : undefined}

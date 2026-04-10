@@ -3,7 +3,7 @@
 import { FiAlertTriangle } from 'react-icons/fi';
 import clsx from 'clsx';
 import { ExamenFisicoData, Patient } from '@/types';
-import { SectionBlock, SectionIntro } from '@/components/sections/SectionPrimitives';
+import { SectionBlock } from '@/components/sections/SectionPrimitives';
 import { getBmiInterpretation } from '@/lib/bmi';
 
 interface Props {
@@ -161,9 +161,7 @@ export default function ExamenFisicoSection({
 
   return (
     <div className="space-y-5">
-      <SectionIntro description="Registra signos vitales y hallazgos del examen segmentario usando el mismo orden en cada atención." />
-
-      <SectionBlock title="Estado general" description="Impresión global del paciente al momento de la evaluación.">
+      <SectionBlock title="Estado general">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="form-label">Impresión general</label>
@@ -192,7 +190,7 @@ export default function ExamenFisicoSection({
         </div>
       </SectionBlock>
 
-      <SectionBlock title="Signos vitales" description="Constantes fisiológicas y antropometría básica para seguimiento clínico.">
+      <SectionBlock title="Signos vitales">
         {hasAnyAlert && (
           <div className="mb-4 flex items-start gap-2 rounded-card border border-status-red/30 bg-status-red/8 px-4 py-3">
             <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-red-text" />
@@ -324,7 +322,7 @@ export default function ExamenFisicoSection({
         </div>
       </SectionBlock>
 
-      <SectionBlock title="Examen segmentario" description="Describe los hallazgos positivos o negativos relevantes por zona anatómica.">
+      <SectionBlock title="Examen segmentario">
         <div className="space-y-4">
           {BODY_PARTS.map(({ key, label }) => {
             const fieldKey = key as keyof ExamenFisicoData;

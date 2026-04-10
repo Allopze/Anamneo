@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { FiCheck, FiMinus } from 'react-icons/fi';
 import clsx from 'clsx';
 import { RevisionSistemasData } from '@/types';
-import { SectionBlock, SectionIntro } from '@/components/sections/SectionPrimitives';
+import { SectionBlock } from '@/components/sections/SectionPrimitives';
 
 interface Props {
   data: RevisionSistemasData;
@@ -82,9 +82,7 @@ export default function RevisionSistemasSection({ data, onChange, readOnly }: Pr
 
   return (
     <div className="space-y-5">
-      <SectionIntro description="Marca los sistemas con hallazgos positivos y deja una nota breve solo cuando aporte contexto clínico." />
-
-      <SectionBlock title="Revisión por sistemas" description="Cada sistema se activa solo si hay hallazgos o síntomas relevantes.">
+      <SectionBlock title="Revisión por sistemas">
         {/* All-negative toggle */}
         {!readOnly && (
           <button
