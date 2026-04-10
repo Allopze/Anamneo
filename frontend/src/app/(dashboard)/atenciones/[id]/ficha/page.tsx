@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -19,6 +19,7 @@ import {
   getRevisionSystemEntries,
   getTreatmentPlanText,
 } from '@/lib/clinical';
+import { useHeaderBarSlot } from '@/components/layout/HeaderBarSlotContext';
 import {
   formatPatientAge,
   formatPatientMissingFields,
@@ -64,6 +65,7 @@ export default function FichaClinicaPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const headerBarSlot = useHeaderBarSlot();
   const isOperationalAdmin = !!user?.isAdmin;
   const isDoctor = user?.role === 'MEDICO';
   const [showSignModal, setShowSignModal] = useState(false);
@@ -105,16 +107,16 @@ export default function FichaClinicaPage() {
     return null;
   }
 
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     if (printBlockedReason) {
       toast.error(printBlockedReason);
       return;
     }
 
     window.print();
-  };
+  }, [printBlockedReason]);
 
-  const handleDownloadAttachment = async (attachment: Attachment) => {
+  const handleDownloadAttachment = useCallback(async (attachment: Attachment) => {
     try {
       const response = await api.get(`/attachments/${attachment.id}/download`, {
         responseType: 'blob',
@@ -131,13 +133,9 @@ export default function FichaClinicaPage() {
     } catch {
       toast.error('Error al descargar el adjunto');
     }
-  };
+  }, []);
 
-  const handleDownloadPdf = async () => {
-    await handleDownloadDocument('pdf');
-  };
-
-  const handleDownloadDocument = async (kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') => {
+  const handleDownloadDocument = useCallback(async (kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') => {
     if (exportBlockedReason) {
       toast.error(exportBlockedReason);
       return;
@@ -163,7 +161,117 @@ export default function FichaClinicaPage() {
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
-  };
+  }, [encounter, exportBlockedReason, id]);
+
+  const handleDownloadPdf = useCallback(async () => {
+    await handleDownloadDocument('pdf');
+  }, [handleDownloadDocument]);
+
+  const toolbarActions = useMemo(() => {
+    if (!encounter) {
+      return null;
+    }
+
+    return (
+      <div className="flex min-w-0 items-center gap-2 overflow-x-auto py-0.5">
+        <Link
+          href={`/atenciones/${id}`}
+          className="btn btn-secondary flex shrink-0 items-center gap-2"
+        >
+          <FiArrowLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">{encounter.status === 'COMPLETADO' ? 'Resumen' : 'Edición'}</span>
+        </Link>
+
+        <div className="hidden h-6 w-px shrink-0 bg-surface-muted/50 lg:block" aria-hidden="true" />
+
+        <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
+          <button
+            onClick={() => handleDownloadDocument('receta')}
+            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
+            disabled={Boolean(exportBlockedReason)}
+            title={exportBlockedReason ?? 'Descargar receta'}
+          >
+            <FiDownload className="h-4 w-4" />
+            <span className="hidden sm:inline">Receta</span>
+          </button>
+          <button
+            onClick={() => handleDownloadDocument('ordenes')}
+            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
+            disabled={Boolean(exportBlockedReason)}
+            title={exportBlockedReason ?? 'Descargar órdenes'}
+          >
+            <FiDownload className="h-4 w-4" />
+            <span className="hidden sm:inline">Órdenes</span>
+          </button>
+          <button
+            onClick={() => handleDownloadDocument('derivacion')}
+            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
+            disabled={Boolean(exportBlockedReason)}
+            title={exportBlockedReason ?? 'Descargar derivación'}
+          >
+            <FiDownload className="h-4 w-4" />
+            <span className="hidden sm:inline">Derivación</span>
+          </button>
+          <button
+            onClick={handleDownloadPdf}
+            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
+            disabled={Boolean(exportBlockedReason)}
+            title={exportBlockedReason ?? 'Descargar PDF completo'}
+            aria-label="Descargar PDF"
+          >
+            <FiDownload className="h-4 w-4" />
+            <span className="hidden sm:inline">PDF</span>
+          </button>
+          <button
+            onClick={handlePrint}
+            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', printBlockedReason && 'cursor-not-allowed opacity-60')}
+            disabled={Boolean(printBlockedReason)}
+            title={printBlockedReason ?? 'Imprimir ficha'}
+          >
+            <FiPrinter className="h-4 w-4" />
+            <span className="hidden sm:inline">Imprimir</span>
+          </button>
+          {encounter.status === 'COMPLETADO' && isDoctor ? (
+            <button
+              onClick={() => setShowSignModal(true)}
+              disabled={signMutation.isPending}
+              className="btn flex shrink-0 items-center gap-2 border-status-red/40 bg-status-red/15 font-semibold text-status-red-text hover:bg-status-red/25"
+            >
+              <FiShield className="h-4 w-4" />
+              Firmar
+            </button>
+          ) : null}
+          {encounter.status === 'FIRMADO' ? (
+            <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-status-green/50 bg-status-green/20 px-3 py-1.5 text-xs font-semibold text-status-green-text">
+              <FiShield className="h-3.5 w-3.5" />
+              Firmada
+            </span>
+          ) : null}
+        </div>
+      </div>
+    );
+  }, [
+    encounter,
+    exportBlockedReason,
+    handleDownloadDocument,
+    handleDownloadPdf,
+    handlePrint,
+    id,
+    isDoctor,
+    printBlockedReason,
+    signMutation.isPending,
+  ]);
+
+  useEffect(() => {
+    if (!headerBarSlot || !toolbarActions) {
+      return;
+    }
+
+    headerBarSlot.setHeaderBarSlot(toolbarActions);
+    return () => {
+      headerBarSlot.setHeaderBarSlot(null);
+    };
+  }, [headerBarSlot, toolbarActions]);
 
   if (isLoading) {
     return (
@@ -251,94 +359,17 @@ export default function FichaClinicaPage() {
 
   return (
     <>
-      {/* Print controls - hidden when printing */}
-      <div className="no-print sticky top-0 z-30 bg-surface-elevated border-b border-surface-muted/30 px-4 py-3">
-        <div className="flex items-center justify-between gap-3 max-w-4xl mx-auto">
-          {/* Group 1: Navigation */}
-          <Link
-            href={`/atenciones/${id}`}
-            className="btn btn-secondary flex items-center gap-2 shrink-0"
-          >
-            <FiArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">{encounter?.status === 'COMPLETADO' ? 'Resumen' : 'Edición'}</span>
-          </Link>
-
-          <div className="flex items-center gap-2 overflow-x-auto">
-            {/* Group 2: Document exports */}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => handleDownloadDocument('receta')}
-                className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-                disabled={Boolean(exportBlockedReason)}
-                title={exportBlockedReason ?? 'Descargar receta'}
-              >
-                <FiDownload className="w-4 h-4" />
-                <span className="hidden sm:inline">Receta</span>
-              </button>
-              <button
-                onClick={() => handleDownloadDocument('ordenes')}
-                className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-                disabled={Boolean(exportBlockedReason)}
-                title={exportBlockedReason ?? 'Descargar órdenes'}
-              >
-                <FiDownload className="w-4 h-4" />
-                <span className="hidden sm:inline">Órdenes</span>
-              </button>
-              <button
-                onClick={() => handleDownloadDocument('derivacion')}
-                className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-                disabled={Boolean(exportBlockedReason)}
-                title={exportBlockedReason ?? 'Descargar derivación'}
-              >
-                <FiDownload className="w-4 h-4" />
-                <span className="hidden sm:inline">Derivación</span>
-              </button>
-              <button
-                onClick={handleDownloadPdf}
-                className={clsx('btn btn-secondary flex items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-                disabled={Boolean(exportBlockedReason)}
-                title={exportBlockedReason ?? 'Descargar PDF completo'}
-              >
-                <FiDownload className="w-4 h-4" />
-                <span className="hidden sm:inline">PDF</span>
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div className="hidden sm:block w-px h-6 bg-surface-muted/50 shrink-0" aria-hidden="true" />
-
-            {/* Group 3: Actions */}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={handlePrint}
-                className={clsx('btn btn-secondary flex items-center gap-2', printBlockedReason && 'cursor-not-allowed opacity-60')}
-                disabled={Boolean(printBlockedReason)}
-                title={printBlockedReason ?? 'Imprimir ficha'}
-              >
-                <FiPrinter className="w-4 h-4" />
-                <span className="hidden sm:inline">Imprimir</span>
-              </button>
-              {encounter.status === 'COMPLETADO' && isDoctor ? (
-                <button
-                  onClick={() => setShowSignModal(true)}
-                  disabled={signMutation.isPending}
-                  className="btn flex items-center gap-2 bg-status-red/15 border-status-red/40 text-status-red-text hover:bg-status-red/25 font-semibold"
-                >
-                  <FiShield className="w-4 h-4" />
-                  Firmar
-                </button>
-              ) : null}
-              {encounter.status === 'FIRMADO' ? (
-                <span className="inline-flex items-center gap-2 rounded-full border border-status-green/50 bg-status-green/20 px-3 py-1.5 text-xs font-semibold text-status-green-text">
-                  <FiShield className="w-3.5 h-3.5" />
-                  Firmada
-                </span>
-              ) : null}
-            </div>
+      {!headerBarSlot ? (
+        <div className="no-print sticky top-0 z-30 border-b border-surface-muted/30 bg-surface-elevated px-4 py-3">
+          <div className="mx-auto max-w-4xl">
+            {toolbarActions}
           </div>
         </div>
-        {clinicalOutputBlock ? (
-          <div className="mx-auto mt-3 max-w-4xl rounded-2xl border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
+      ) : null}
+
+      {clinicalOutputBlock ? (
+        <div className="no-print mx-auto mt-4 max-w-4xl px-4">
+          <div className="rounded-2xl border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
             <p className="font-medium">Salidas clinicas bloqueadas</p>
             <p className="mt-1">{clinicalOutputBlock.reason}</p>
             <Link
@@ -348,8 +379,8 @@ export default function FichaClinicaPage() {
               Revisar ficha administrativa
             </Link>
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {clinicalOutputBlock ? (
         <section className="hidden print:block px-8 py-12 text-center text-ink-primary">

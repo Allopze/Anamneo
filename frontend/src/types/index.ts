@@ -11,6 +11,7 @@ export interface Patient {
   rutExempt: boolean;
   rutExemptReason: string | null;
   nombre: string;
+  fechaNacimiento: string | null;
   edad: number | null;
   edadMeses?: number | null;
   sexo: PatientSexo | null;
@@ -266,6 +267,7 @@ export interface PatientAdminSummary {
   rutExempt: boolean;
   rutExemptReason: string | null;
   nombre: string;
+  fechaNacimiento: string | null;
   edad: number | null;
   edadMeses?: number | null;
   sexo: PatientSexo | null;

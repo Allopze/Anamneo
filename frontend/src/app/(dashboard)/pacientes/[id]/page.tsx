@@ -386,6 +386,12 @@ export default function PatientDetailPage() {
                 <dt className="text-sm text-ink-muted">Edad</dt>
                 <dd className="font-medium">{formatPatientAge(patient.edad, patient.edadMeses)}</dd>
               </div>
+              {patient.fechaNacimiento && (
+                <div>
+                  <dt className="text-sm text-ink-muted">Fecha de nacimiento</dt>
+                  <dd className="font-medium">{formatDateOnly(patient.fechaNacimiento)}</dd>
+                </div>
+              )}
               <div>
                 <dt className="text-sm text-ink-muted">Sexo</dt>
                 <dd className="font-medium">{formatPatientSex(patient.sexo)}</dd>

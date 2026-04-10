@@ -340,10 +340,6 @@ export default function CatalogoPage() {
                 Agrega o personaliza afecciones solo para tu instancia
               </p>
             </div>
-            <button className="btn btn-primary" onClick={openCreateForm}>
-              <FiPlus className="w-4 h-4 mr-2" />
-              Agregar afección
-            </button>
           </div>
 
           {formMode && (

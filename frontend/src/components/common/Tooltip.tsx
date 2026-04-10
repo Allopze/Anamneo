@@ -23,6 +23,7 @@ export default function Tooltip({
 }: TooltipProps) {
   const [visible, setVisible] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const id = useId();
   const tooltipId = `tooltip-${id}`;
 
@@ -35,6 +36,15 @@ export default function Tooltip({
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setVisible(false);
   }, []);
+
+  const handleBlur = useCallback(
+    (e: React.FocusEvent) => {
+      // Don't hide if focus moves to another element inside the wrapper
+      if (wrapperRef.current?.contains(e.relatedTarget as Node)) return;
+      hide();
+    },
+    [hide],
+  );
 
   useEffect(() => {
     return () => {
@@ -51,11 +61,12 @@ export default function Tooltip({
 
   return (
     <div
+      ref={wrapperRef}
       className="relative inline-flex"
       onMouseEnter={show}
       onMouseLeave={hide}
       onFocusCapture={show}
-      onBlurCapture={hide}
+      onBlurCapture={handleBlur}
       aria-describedby={visible ? tooltipId : undefined}
     >
       {children}

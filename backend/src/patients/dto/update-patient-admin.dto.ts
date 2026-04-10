@@ -1,7 +1,11 @@
-import { IsInt, IsIn, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsDateString, IsInt, IsIn, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Prevision, PREVISIONES, Sexo, SEXOS } from '../../common/types';
 
 export class UpdatePatientAdminDto {
+  @IsDateString({}, { message: 'La fecha de nacimiento debe ser una fecha válida' })
+  @IsOptional()
+  fechaNacimiento?: string | null;
+
   @IsInt()
   @Min(0, { message: 'La edad debe ser mayor a 0' })
   @Max(150, { message: 'La edad no puede ser mayor a 150' })

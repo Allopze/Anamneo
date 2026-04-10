@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import type { ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth-store';
@@ -29,6 +30,7 @@ import { getNameInitial } from '@/lib/utils';
 import OfflineBanner from '@/components/common/OfflineBanner';
 import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
 import SmartHeaderBar from './SmartHeaderBar';
+import { HeaderBarSlotContext } from './HeaderBarSlotContext';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -93,6 +95,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [searchResults, setSearchResults] = useState<{ id: string; type: 'patient' | 'encounter'; title: string; subtitle: string; href: string }[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchActiveIndex, setSearchActiveIndex] = useState(-1);
+  const [headerBarSlot, setHeaderBarSlot] = useState<ReactNode>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -100,9 +103,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [authCheckComplete, setAuthCheckComplete] = useState(false);
   const isEncounterWorkspace = /^\/atenciones\/[^/]+$/.test(pathname);
 
+  // Platform-aware shortcut hint
+  const shortcutHint = useMemo(() => {
+    if (typeof navigator === 'undefined') return '⌘K';
+    return /mac/i.test(navigator.platform) ? '⌘K' : 'Ctrl+K';
+  }, []);
+
   // Close menus on route change
   useEffect(() => {
     setMobileMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    setHeaderBarSlot(null);
   }, [pathname]);
 
   useEffect(() => {
@@ -315,7 +328,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       handleSearchNavigate(searchResults[searchActiveIndex].href);
                     }
                   }}
-                  placeholder="Buscar… ⌘K"
+                  placeholder={`Buscar… ${shortcutHint}`}
                   role="combobox"
                   aria-expanded={searchOpen && !!searchQuery.trim()}
                   aria-controls="search-results-listbox"
@@ -498,20 +511,27 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           )}
 
           {/* ── KPI + Context Bar ─────────────────────────────── */}
-          <div className={clsx('flex-shrink-0', isEncounterWorkspace && 'hidden')}>
-            <SmartHeaderBar onSearchOpen={() => setSearchOpen(true)} />
-          </div>
-
-          {/* ── Page Content ───────────────────────────────────── */}
-          <main            id="main-content"            className={clsx(
-              'flex-1 overflow-auto',
-              isEncounterWorkspace ? 'px-0 py-0' : 'px-3 py-6 lg:px-8 lg:py-8',
-            )}
-          >
-            <div className={clsx(!isEncounterWorkspace && 'max-w-7xl mx-auto')}>
-              {children}
+          <HeaderBarSlotContext.Provider value={{ setHeaderBarSlot }}>
+            <div className={clsx('flex-shrink-0', isEncounterWorkspace && 'hidden')}>
+              <SmartHeaderBar
+                onSearchOpen={() => setSearchOpen(true)}
+                contextSlot={headerBarSlot}
+              />
             </div>
-          </main>
+
+            {/* ── Page Content ───────────────────────────────────── */}
+            <main
+              id="main-content"
+              className={clsx(
+                'flex-1 overflow-auto',
+                isEncounterWorkspace ? 'px-0 py-0' : 'px-3 py-6 lg:px-8 lg:py-8',
+              )}
+            >
+              <div className={clsx(!isEncounterWorkspace && 'max-w-7xl mx-auto')}>
+                {children}
+              </div>
+            </main>
+          </HeaderBarSlotContext.Provider>
         </div>
       </div>
     </div>

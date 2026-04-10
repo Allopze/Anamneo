@@ -1,5 +1,6 @@
 import {
 	IsBoolean,
+	IsDateString,
 	IsIn,
 	IsInt,
 	IsOptional,
@@ -38,6 +39,10 @@ export class UpdatePatientDto {
 	@Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
 	@IsOptional()
 	nombre?: string;
+
+	@IsDateString({}, { message: 'La fecha de nacimiento debe ser una fecha válida' })
+	@IsOptional()
+	fechaNacimiento?: string | null;
 
 	@IsInt()
 	@Min(0, { message: 'La edad debe ser mayor a 0' })

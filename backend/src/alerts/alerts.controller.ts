@@ -33,6 +33,13 @@ export class AlertsController {
     return { count };
   }
 
+  @Get('unacknowledged')
+  @Roles('MEDICO', 'ASISTENTE')
+  async findRecentUnacknowledged(@CurrentUser() user: CurrentUserData) {
+    const alerts = await this.alertsService.findRecentUnacknowledged(user);
+    return { data: alerts };
+  }
+
   @Get('patient/:patientId')
   @Roles('MEDICO', 'ASISTENTE')
   findByPatient(

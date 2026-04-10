@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -17,6 +17,7 @@ import {
   FiPlus,
   FiBell,
   FiFileText,
+  FiArrowRight,
 } from 'react-icons/fi';
 import clsx from 'clsx';
 import Tooltip from '@/components/common/Tooltip';
@@ -49,7 +50,32 @@ interface KpiChip {
 
 interface SmartHeaderBarProps {
   onSearchOpen: () => void;
+  contextSlot?: React.ReactNode;
 }
+
+interface AlertSummary {
+  id: string;
+  type: string;
+  severity: string;
+  title: string;
+  message: string;
+  createdAt: string;
+  patient: { id: string; nombre: string };
+}
+
+const SEVERITY_STYLE: Record<string, string> = {
+  CRITICA: 'bg-status-red/20 text-status-red-text',
+  ALTA: 'bg-status-red/10 text-status-red-text',
+  MEDIA: 'bg-status-yellow/40 text-accent-text',
+  BAJA: 'bg-surface-muted text-ink-secondary',
+};
+
+const SEVERITY_LABEL: Record<string, string> = {
+  CRITICA: 'Crítica',
+  ALTA: 'Alta',
+  MEDIA: 'Media',
+  BAJA: 'Baja',
+};
 
 /* ─── Route config ────────────────────────────────────────── */
 
@@ -223,26 +249,67 @@ function isChipActive(chip: KpiChip, pathname: string, searchParams: URLSearchPa
 
 /* ─── Component ───────────────────────────────────────────── */
 
-export default function SmartHeaderBar({ onSearchOpen }: SmartHeaderBarProps) {
+export default function SmartHeaderBar({ onSearchOpen, contextSlot }: SmartHeaderBarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { canCreateEncounter, canCreatePatient } = useAuthStore();
   const isNonClinical = NON_CLINICAL_PREFIXES.some((p) => pathname.startsWith(p));
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [alertOpen, setAlertOpen] = useState(false);
   const createRef = useRef<HTMLDivElement>(null);
+  const alertRef = useRef<HTMLDivElement>(null);
+  const createItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
+  const alertItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
 
-  // Close create dropdown on outside click
+  // Platform-aware shortcut hint
+  const shortcutHint = useMemo(() => {
+    if (typeof navigator === 'undefined') return '⌘K';
+    return /mac/i.test(navigator.platform) ? '⌘K' : 'Ctrl+K';
+  }, []);
+
+  // Close dropdowns on outside click or Escape
   useEffect(() => {
-    if (!createOpen) return;
+    if (!createOpen && !alertOpen) return;
     const handleClick = (e: MouseEvent) => {
-      if (createRef.current && !createRef.current.contains(e.target as Node)) {
+      if (createOpen && createRef.current && !createRef.current.contains(e.target as Node)) {
         setCreateOpen(false);
+      }
+      if (alertOpen && alertRef.current && !alertRef.current.contains(e.target as Node)) {
+        setAlertOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setCreateOpen(false);
+        setAlertOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [createOpen]);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [createOpen, alertOpen]);
+
+  // Arrow key navigation helper for dropdown menus
+  const handleMenuKeyDown = useCallback(
+    (e: React.KeyboardEvent, itemsRef: React.MutableRefObject<(HTMLAnchorElement | null)[]>) => {
+      const items = itemsRef.current.filter(Boolean) as HTMLAnchorElement[];
+      if (!items.length) return;
+      const idx = items.indexOf(e.target as HTMLAnchorElement);
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        items[(idx + 1) % items.length]?.focus();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        items[(idx - 1 + items.length) % items.length]?.focus();
+      }
+    },
+    [],
+  );
 
   // ── Data queries ──────────────────────────────────────
   const { data, isLoading, isError } = useQuery<{ counts: DashboardCounts }>({
@@ -257,7 +324,7 @@ export default function SmartHeaderBar({ onSearchOpen }: SmartHeaderBarProps) {
     enabled: !isNonClinical,
   });
 
-  const { data: alertData } = useQuery<{ count: number }>({
+  const { data: alertData, isError: isAlertError } = useQuery<{ count: number }>({
     queryKey: ['alerts-unacknowledged-count'],
     queryFn: async () => {
       const res = await api.get('/alerts/unacknowledged-count');
@@ -269,13 +336,29 @@ export default function SmartHeaderBar({ onSearchOpen }: SmartHeaderBarProps) {
     enabled: !isNonClinical,
   });
 
+  const { data: alertListData, isLoading: isAlertListLoading } = useQuery<{ data: AlertSummary[] }>({
+    queryKey: ['alerts-unacknowledged-list'],
+    queryFn: async () => {
+      const res = await api.get('/alerts/unacknowledged');
+      return res.data;
+    },
+    staleTime: 60_000,
+    retry: 2,
+    enabled: alertOpen,
+  });
+
   if (isNonClinical) return null;
 
   const counts = data?.counts;
   const chips = getChipsForRoute(pathname, counts);
   const showSkeleton = isLoading && !counts;
-  const alertCount = alertData?.count ?? 0;
+  const alertCount = isAlertError ? null : (alertData?.count ?? 0);
   const showCreate = canCreateEncounter() || canCreatePatient();
+  const alertLabel = alertCount === null
+    ? 'Error al cargar alertas'
+    : alertCount > 0
+      ? `${alertCount} alertas sin reconocer`
+      : 'Sin alertas pendientes';
 
   return (
     <div className="smart-header-bar" role="region" aria-label="Indicadores y acciones rápidas">
@@ -296,6 +379,8 @@ export default function SmartHeaderBar({ onSearchOpen }: SmartHeaderBarProps) {
               <Link
                 key={chip.key}
                 href={chip.href}
+                title={chip.label}
+                aria-label={chip.label}
                 className={clsx(
                   'smart-header-chip-mobile',
                   active && 'smart-header-chip-active',
@@ -341,17 +426,23 @@ export default function SmartHeaderBar({ onSearchOpen }: SmartHeaderBarProps) {
         )}
       </div>
 
+      {contextSlot ? (
+        <div className="smart-header-context-slot">
+          {contextSlot}
+        </div>
+      ) : null}
+
       {/* ── Right: actions ────────────────────── */}
       <div className="smart-header-actions">
         {/* Search trigger */}
-        <Tooltip label="Buscar (⌘K)" side="bottom">
+        <Tooltip label={`Buscar (${shortcutHint})`} side="bottom">
           <button
             onClick={onSearchOpen}
             className="smart-header-action-btn"
             aria-label="Buscar"
           >
             <FiSearch className="w-4 h-4" />
-            <span className="hidden lg:inline text-xs text-ink-muted">⌘K</span>
+            <span className="hidden lg:inline text-xs text-ink-muted">{shortcutHint}</span>
           </button>
         </Tooltip>
 
@@ -364,17 +455,26 @@ export default function SmartHeaderBar({ onSearchOpen }: SmartHeaderBarProps) {
                 className="smart-header-action-btn"
                 aria-label="Crear nuevo"
                 aria-expanded={createOpen}
+                aria-haspopup="menu"
               >
                 <FiPlus className="w-4 h-4" />
               </button>
             </Tooltip>
 
             {createOpen && (
-              <div className="smart-header-dropdown">
+              <div
+                className="smart-header-dropdown"
+                role="menu"
+                aria-label="Crear nuevo"
+                onKeyDown={(e) => handleMenuKeyDown(e, createItemsRef)}
+              >
                 {canCreateEncounter() && (
                   <Link
+                    ref={(el) => { createItemsRef.current[0] = el; }}
                     href="/atenciones/nueva"
                     className="smart-header-dropdown-item"
+                    role="menuitem"
+                    tabIndex={0}
                     onClick={() => setCreateOpen(false)}
                   >
                     <FiFileText className="w-4 h-4 text-ink-secondary" />
@@ -383,8 +483,11 @@ export default function SmartHeaderBar({ onSearchOpen }: SmartHeaderBarProps) {
                 )}
                 {canCreatePatient() && (
                   <Link
+                    ref={(el) => { createItemsRef.current[1] = el; }}
                     href="/pacientes/nuevo"
                     className="smart-header-dropdown-item"
+                    role="menuitem"
+                    tabIndex={0}
                     onClick={() => setCreateOpen(false)}
                   >
                     <FiUsers className="w-4 h-4 text-ink-secondary" />
@@ -396,15 +499,83 @@ export default function SmartHeaderBar({ onSearchOpen }: SmartHeaderBarProps) {
           </div>
         )}
 
-        {/* Alert badge */}
-        <Tooltip label={alertCount > 0 ? `${alertCount} alertas sin reconocer` : 'Sin alertas pendientes'} side="bottom">
-          <div className="smart-header-action-btn relative" aria-label={`${alertCount} alertas sin reconocer`}>
-            <FiBell className="w-4 h-4" />
-            {alertCount > 0 && (
-              <span className="smart-header-alert-badge">{alertCount > 99 ? '99+' : alertCount}</span>
-            )}
-          </div>
-        </Tooltip>
+        {/* Alert badge + popover */}
+        <div ref={alertRef} className="relative">
+          <Tooltip label={alertLabel} side="bottom">
+            <button
+              type="button"
+              className="smart-header-action-btn relative"
+              aria-label={alertLabel}
+              aria-expanded={alertOpen}
+              aria-haspopup="true"
+              onClick={() => setAlertOpen(!alertOpen)}
+            >
+              <FiBell className={clsx('w-4 h-4', isAlertError && 'text-ink-muted')} />
+              {alertCount !== null && alertCount > 0 && (
+                <span className="smart-header-alert-badge">{alertCount > 99 ? '99+' : alertCount}</span>
+              )}
+            </button>
+          </Tooltip>
+
+          {alertOpen && (
+            <div
+              className="smart-header-alert-popover"
+              role="region"
+              aria-label="Alertas sin reconocer"
+            >
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-black/[0.06]">
+                <span className="text-sm font-bold text-ink">Alertas</span>
+                {alertCount !== null && alertCount > 0 && (
+                  <span className="text-xs font-medium text-ink-muted">{alertCount} pendientes</span>
+                )}
+              </div>
+
+              <div className="max-h-72 overflow-y-auto">
+                {isAlertListLoading ? (
+                  <div className="p-4 space-y-2">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-12 skeleton rounded-card" />
+                    ))}
+                  </div>
+                ) : isAlertError ? (
+                  <div className="p-4 text-sm text-ink-muted text-center">Error al cargar alertas</div>
+                ) : !alertListData?.data?.length ? (
+                  <div className="p-4 text-sm text-ink-muted text-center">Sin alertas pendientes</div>
+                ) : (
+                  <div
+                    className="py-1"
+                    onKeyDown={(e) => handleMenuKeyDown(e, alertItemsRef)}
+                  >
+                    {alertListData.data.map((alert, i) => (
+                      <Link
+                        key={alert.id}
+                        ref={(el) => { alertItemsRef.current[i] = el; }}
+                        href={`/pacientes/${alert.patient.id}`}
+                        className="smart-header-alert-item"
+                        tabIndex={0}
+                        onClick={() => setAlertOpen(false)}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={clsx(
+                            'inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none',
+                            SEVERITY_STYLE[alert.severity] || SEVERITY_STYLE.MEDIA,
+                          )}>
+                            {SEVERITY_LABEL[alert.severity] || alert.severity}
+                          </span>
+                          <span className="truncate text-sm font-medium text-ink">{alert.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-ink-muted truncate">{alert.patient.nombre}</span>
+                          <FiArrowRight className="w-3 h-3 text-ink-muted shrink-0" />
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

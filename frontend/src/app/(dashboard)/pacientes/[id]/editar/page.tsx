@@ -19,7 +19,7 @@ import { getPatientCompletenessMeta } from '@/lib/patient';
 import type { PatientPrevision, PatientSexo } from '@/types';
 
 type EditForm = {
-  edad: number | null;
+  fechaNacimiento: string;
   sexo: PatientSexo | null;
   prevision: PatientPrevision | null;
   trabajo?: string | null;
@@ -30,14 +30,24 @@ type EditForm = {
   rutExemptReason?: string | null;
 };
 
-const parseOptionalNumber = (value: unknown) => {
-  if (value === '' || value === null || value === undefined) {
-    return null;
-  }
+function calculateAgeFromBirthDate(dateValue: string): { edad: number; edadMeses: number } | null {
+  const [yearStr, monthStr, dayStr] = dateValue.split('-');
+  const year = Number.parseInt(yearStr ?? '', 10);
+  const month = Number.parseInt(monthStr ?? '', 10);
+  const day = Number.parseInt(dayStr ?? '', 10);
 
-  const parsed = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+
+  const birthDate = new Date(Date.UTC(year, month - 1, day));
+  if (birthDate.getUTCFullYear() !== year || birthDate.getUTCMonth() !== month - 1 || birthDate.getUTCDate() !== day) return null;
+
+  const now = new Date();
+  let totalMonths = (now.getUTCFullYear() - year) * 12 + (now.getUTCMonth() - (month - 1));
+  if (now.getUTCDate() < day) totalMonths -= 1;
+  if (totalMonths < 0 || Math.floor(totalMonths / 12) > 150) return null;
+
+  return { edad: Math.floor(totalMonths / 12), edadMeses: totalMonths % 12 };
+}
 
 export default function EditarPacientePage() {
   const { id } = useParams<{ id: string }>();
@@ -58,7 +68,7 @@ export default function EditarPacientePage() {
 
   const editSchema = useMemo(() => {
     const base = z.object({
-      edad: z.number().min(0).max(150).nullable(),
+      fechaNacimiento: z.string().optional().default(''),
       sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR']).nullable(),
       prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA']).nullable(),
       trabajo: z.string().nullable().optional(),
@@ -97,7 +107,7 @@ export default function EditarPacientePage() {
   const editForm = useForm<EditForm>({
     resolver: zodResolver(editSchema),
     defaultValues: {
-      edad: null,
+      fechaNacimiento: '',
       sexo: null,
       prevision: null,
       trabajo: '',
@@ -125,7 +135,7 @@ export default function EditarPacientePage() {
     initializedPatientIdRef.current = patient.id;
 
     editForm.reset({
-      edad: patient.edad,
+      fechaNacimiento: patient.fechaNacimiento ? patient.fechaNacimiento.slice(0, 10) : '',
       sexo: patient.sexo,
       prevision: patient.prevision,
       trabajo: patient.trabajo ?? '',
@@ -138,7 +148,7 @@ export default function EditarPacientePage() {
   }, [patient, editForm]);
 
   const updateAdminMutation = useMutation({
-    mutationFn: (payload: Pick<EditForm, 'edad' | 'sexo' | 'prevision' | 'trabajo' | 'domicilio'>) =>
+    mutationFn: (payload: Pick<EditForm, 'fechaNacimiento' | 'sexo' | 'prevision' | 'trabajo' | 'domicilio'> & { edad?: number | null; edadMeses?: number | null }) =>
       api.put(`/patients/${id}/admin`, payload),
     onSuccess: () => {
       toast.success('Paciente actualizado');
@@ -171,8 +181,14 @@ export default function EditarPacientePage() {
   const onSubmit = editForm.handleSubmit((data) => {
     setErrorMsg(null);
 
+    const calculatedAge = data.fechaNacimiento
+      ? calculateAgeFromBirthDate(data.fechaNacimiento)
+      : null;
+
     const common = {
-      edad: data.edad,
+      fechaNacimiento: data.fechaNacimiento || undefined,
+      edad: calculatedAge?.edad ?? null,
+      edadMeses: calculatedAge?.edadMeses ?? null,
       sexo: data.sexo,
       prevision: data.prevision,
       trabajo: data.trabajo ?? '',
@@ -180,7 +196,7 @@ export default function EditarPacientePage() {
     };
 
     if (isDoctor) {
-      const payload: Partial<EditForm> = {
+      const payload: Partial<EditForm> & { edad?: number | null; edadMeses?: number | null } = {
         ...common,
         nombre: data.nombre?.trim(),
         rutExempt: Boolean(data.rutExempt),
@@ -239,6 +255,11 @@ export default function EditarPacientePage() {
   }
 
   const rutExempt = editForm.watch('rutExempt');
+  const watchedFechaNacimiento = editForm.watch('fechaNacimiento');
+  const edadCalculada = useMemo(
+    () => watchedFechaNacimiento ? calculateAgeFromBirthDate(watchedFechaNacimiento) : null,
+    [watchedFechaNacimiento],
+  );
   const completenessMeta = getPatientCompletenessMeta(patient);
 
   return (
@@ -350,19 +371,35 @@ export default function EditarPacientePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="form-label">Edad</label>
+            <label className="form-label">Fecha de nacimiento</label>
             <input
-              type="number"
-              min={0}
-              max={150}
-              className={clsx('form-input', editForm.formState.errors.edad && 'form-input-error')}
-              {...editForm.register('edad', { setValueAs: parseOptionalNumber })}
+              type="date"
+              max={new Date().toISOString().split('T')[0]}
+              className={clsx('form-input', editForm.formState.errors.fechaNacimiento && 'form-input-error')}
+              {...editForm.register('fechaNacimiento')}
             />
-            {editForm.formState.errors.edad && (
-              <p className="form-error">{editForm.formState.errors.edad.message}</p>
+            {editForm.formState.errors.fechaNacimiento && (
+              <p className="form-error">{String(editForm.formState.errors.fechaNacimiento.message || '')}</p>
             )}
           </div>
 
+          <div>
+            <label className="form-label">Edad calculada</label>
+            <input
+              type="text"
+              readOnly
+              tabIndex={-1}
+              className="form-input bg-surface-inset text-ink-secondary cursor-default"
+              value={
+                edadCalculada
+                  ? `${edadCalculada.edad} años ${edadCalculada.edadMeses} meses`
+                  : 'Ingrese fecha de nacimiento'
+              }
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="form-label">Sexo</label>
             <select

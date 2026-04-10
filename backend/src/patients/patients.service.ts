@@ -235,6 +235,7 @@ export class PatientsService {
         rutExempt: createPatientDto.rutExempt || false,
         rutExemptReason: trimmedRutExemptReason || null,
         nombre: createPatientDto.nombre,
+        fechaNacimiento: createPatientDto.fechaNacimiento ? new Date(createPatientDto.fechaNacimiento) : null,
         edad: createPatientDto.edad,
         edadMeses: createPatientDto.edadMeses ?? null,
         sexo: createPatientDto.sexo,
@@ -702,6 +703,7 @@ export class PatientsService {
         rutExempt: true,
         rutExemptReason: true,
         nombre: true,
+        fechaNacimiento: true,
         edad: true,
         edadMeses: true,
         sexo: true,
@@ -1091,6 +1093,10 @@ export class PatientsService {
       updateData.nombre = updatePatientDto.nombre.trim();
     }
 
+    if (updatePatientDto.fechaNacimiento !== undefined) {
+      updateData.fechaNacimiento = updatePatientDto.fechaNacimiento ? new Date(updatePatientDto.fechaNacimiento) : null;
+    }
+
     if (updatePatientDto.edad !== undefined) {
       updateData.edad = updatePatientDto.edad;
     }
@@ -1212,6 +1218,9 @@ export class PatientsService {
     const existingPatient = await this.assertPatientAccess(user, patientId);
 
     const updateData: Prisma.PatientUpdateInput = {};
+    if (dto.fechaNacimiento !== undefined) {
+      updateData.fechaNacimiento = dto.fechaNacimiento ? new Date(dto.fechaNacimiento) : null;
+    }
     if (dto.edad !== undefined) updateData.edad = dto.edad;
     if (dto.sexo !== undefined) updateData.sexo = dto.sexo;
     if (dto.prevision !== undefined) updateData.prevision = dto.prevision;

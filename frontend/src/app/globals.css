@@ -657,6 +657,10 @@ body {
     @apply flex items-center gap-1 shrink-0;
   }
 
+  .smart-header-context-slot {
+    @apply flex min-w-0 flex-1 items-center justify-end overflow-x-auto;
+  }
+
   .smart-header-action-btn {
     @apply inline-flex items-center gap-1.5 rounded-pill px-2.5 py-2
            text-ink-secondary transition-colors duration-150
@@ -673,7 +677,8 @@ body {
   .smart-header-dropdown-item {
     @apply flex items-center gap-2.5 px-4 py-2.5
            text-sm font-medium text-ink
-           transition-colors hover:bg-surface-inset;
+           transition-colors hover:bg-surface-inset
+           focus:outline-none focus:bg-surface-inset;
   }
 
   .smart-header-alert-badge {
@@ -681,6 +686,19 @@ body {
            flex items-center justify-center rounded-full
            bg-status-red text-white text-[10px] font-bold leading-none
            px-1;
+  }
+
+  .smart-header-alert-popover {
+    @apply absolute right-0 top-full mt-1.5 z-50
+           w-80 rounded-card bg-surface-elevated
+           shadow-dropdown border border-black/[0.06];
+    animation: fadeIn 0.12s ease-out;
+  }
+
+  .smart-header-alert-item {
+    @apply block px-4 py-2.5
+           transition-colors hover:bg-surface-inset
+           focus:outline-none focus:bg-surface-inset;
   }
 
   .header-module-title {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,19 +13,57 @@ import toast from 'react-hot-toast';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { validateRut } from '@/lib/rut';
 
-function parseOptionalNumberInput(value: string) {
-  if (value === '') {
-    return undefined;
+type CalculatedAge = {
+  edad: number;
+  edadMeses: number;
+};
+
+function calculateAgeFromBirthDate(dateValue: string): CalculatedAge | null {
+  const [yearStr, monthStr, dayStr] = dateValue.split('-');
+  const year = Number.parseInt(yearStr ?? '', 10);
+  const month = Number.parseInt(monthStr ?? '', 10);
+  const day = Number.parseInt(dayStr ?? '', 10);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null;
   }
 
-  const parsedValue = Number.parseInt(value, 10);
-  return Number.isNaN(parsedValue) ? undefined : parsedValue;
+  const birthDate = new Date(Date.UTC(year, month - 1, day));
+  const isSameDate = birthDate.getUTCFullYear() === year
+    && birthDate.getUTCMonth() === month - 1
+    && birthDate.getUTCDate() === day;
+
+  if (!isSameDate) {
+    return null;
+  }
+
+  const now = new Date();
+  const nowYear = now.getUTCFullYear();
+  const nowMonth = now.getUTCMonth();
+  const nowDay = now.getUTCDate();
+
+  let totalMonths = (nowYear - year) * 12 + (nowMonth - (month - 1));
+  if (nowDay < day) {
+    totalMonths -= 1;
+  }
+
+  if (totalMonths < 0) {
+    return null;
+  }
+
+  const edad = Math.floor(totalMonths / 12);
+  const edadMeses = totalMonths % 12;
+
+  if (edad > 150) {
+    return null;
+  }
+
+  return { edad, edadMeses };
 }
 
 const basePatientObject = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  edad: z.number().min(0, 'La edad debe ser mayor a 0').max(150, 'Edad no valida').optional(),
-  edadMeses: z.number().min(0).max(11).optional(),
+  fechaNacimiento: z.string().optional(),
   sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR']).optional(),
   prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA']).optional(),
   rut: z.string().optional(),
@@ -54,8 +92,7 @@ const basePatientSchema = basePatientObject.superRefine((val, ctx) => {
 });
 
 const fullPatientSchema = basePatientObject.extend({
-  edad: z.number().min(0, 'La edad debe ser mayor a 0').max(150, 'Edad no valida'),
-  edadMeses: z.number().min(0).max(11).optional(),
+  fechaNacimiento: z.string().min(1, 'La fecha de nacimiento es obligatoria'),
   sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR']),
   prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA']),
 }).superRefine((val, ctx) => {
@@ -71,6 +108,14 @@ const fullPatientSchema = basePatientObject.extend({
       code: z.ZodIssueCode.custom,
       path: ['rut'],
       message: 'RUT inválido (ej: 12.345.678-5)',
+    });
+  }
+
+  if (!val.fechaNacimiento || !calculateAgeFromBirthDate(val.fechaNacimiento)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['fechaNacimiento'],
+      message: 'Debe ingresar una fecha de nacimiento válida',
     });
   }
 });
@@ -105,6 +150,12 @@ export default function NuevoPacientePage() {
   });
 
   const rutExempt = watch('rutExempt');
+  const fechaNacimiento = watch('fechaNacimiento');
+  const todayDateValue = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const edadCalculada = useMemo(
+    () => (fechaNacimiento ? calculateAgeFromBirthDate(fechaNacimiento) : null),
+    [fechaNacimiento],
+  );
 
   if (!canCreate) {
     return null;
@@ -120,11 +171,29 @@ export default function NuevoPacientePage() {
         ? (validateRut(normalizedRut).formatted ?? normalizedRut)
         : undefined;
       const normalizedRutExemptReason = data.rutExemptReason?.trim();
+      const calculatedAge = data.fechaNacimiento
+        ? calculateAgeFromBirthDate(data.fechaNacimiento)
+        : null;
+
+      if (isDoctor && !calculatedAge) {
+        setError('Debe ingresar una fecha de nacimiento válida');
+        setIsLoading(false);
+        return;
+      }
 
       const payload = isDoctor
         ? {
-            ...data,
+            nombre: data.nombre,
+            fechaNacimiento: data.fechaNacimiento || undefined,
+            edad: calculatedAge?.edad,
+            edadMeses: calculatedAge?.edadMeses,
+            sexo: data.sexo,
+            prevision: data.prevision,
+            trabajo: data.trabajo,
+            domicilio: data.domicilio,
+            centroMedico: data.centroMedico,
             rut: data.rutExempt ? undefined : formattedRut,
+            rutExempt: data.rutExempt,
             rutExemptReason: data.rutExempt ? normalizedRutExemptReason : undefined,
           }
         : {
@@ -231,35 +300,35 @@ export default function NuevoPacientePage() {
 
         {isDoctor && (
           <>
-        {/* Edad y Sexo */}
+        {/* Fecha de nacimiento y Sexo */}
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <label htmlFor="edad" className="form-label">
-              Edad (años) *
+            <label htmlFor="fechaNacimiento" className="form-label">
+              Fecha de nacimiento *
             </label>
             <input
-              id="edad"
-              type="number"
-              min="0"
-              max="150"
-              className={`form-input ${errors.edad ? 'form-input-error' : ''}`}
-              placeholder="Ej: 45"
-              {...register('edad', { valueAsNumber: true })}
+              id="fechaNacimiento"
+              type="date"
+              max={todayDateValue}
+              className={`form-input ${errors.fechaNacimiento ? 'form-input-error' : ''}`}
+              {...register('fechaNacimiento')}
             />
-            {errors.edad && <p className="form-error">{errors.edad.message}</p>}
+            {errors.fechaNacimiento && <p className="form-error">{errors.fechaNacimiento.message}</p>}
           </div>
           <div>
-            <label htmlFor="edadMeses" className="form-label">
-              Meses
+            <label htmlFor="edadCalculada" className="form-label">
+              Edad calculada
             </label>
             <input
-              id="edadMeses"
-              type="number"
-              min="0"
-              max="11"
-              className="form-input"
-              placeholder="Opcional"
-              {...register('edadMeses', { setValueAs: parseOptionalNumberInput })}
+              id="edadCalculada"
+              type="text"
+              readOnly
+              className="form-input bg-surface-muted/30"
+              value={
+                edadCalculada
+                  ? `${edadCalculada.edad} años ${edadCalculada.edadMeses} meses`
+                  : 'Completa la fecha de nacimiento'
+              }
             />
           </div>
           <div>

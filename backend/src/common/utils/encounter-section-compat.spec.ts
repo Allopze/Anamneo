@@ -46,4 +46,22 @@ describe('encounter-section-compat', () => {
       }),
     ).toThrow('newer than supported version');
   });
+
+  it('keeps unknown section keys readable without crashing', () => {
+    expect(
+      formatEncounterSectionForRead({
+        id: 'section-legacy',
+        sectionKey: 'PLAN_LEGACY',
+        schemaVersion: 3,
+        data: {
+          texto: 'Contenido legado',
+        },
+      }),
+    ).toMatchObject({
+      schemaVersion: 3,
+      data: {
+        texto: 'Contenido legado',
+      },
+    });
+  });
 });

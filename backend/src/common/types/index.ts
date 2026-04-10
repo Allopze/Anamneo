@@ -9,7 +9,7 @@ export type Prevision = 'FONASA' | 'ISAPRE' | 'OTRA' | 'DESCONOCIDA';
 export type PatientRegistrationMode = 'COMPLETO' | 'RAPIDO';
 export type PatientCompletenessStatus = 'INCOMPLETA' | 'PENDIENTE_VERIFICACION' | 'VERIFICADA';
 
-export type EncounterStatus = 'EN_PROGRESO' | 'COMPLETADO' | 'CANCELADO';
+export type EncounterStatus = 'EN_PROGRESO' | 'COMPLETADO' | 'FIRMADO' | 'CANCELADO';
 export type EncounterReviewStatus =
   | 'NO_REQUIERE_REVISION'
   | 'LISTA_PARA_REVISION'
@@ -61,6 +61,7 @@ export type AuditReason =
   | 'ENCOUNTER_CREATED'
   | 'ENCOUNTER_SECTION_UPDATED'
   | 'ENCOUNTER_COMPLETED'
+  | 'ENCOUNTER_SIGNED'
   | 'ENCOUNTER_REOPENED'
   | 'ENCOUNTER_CANCELLED'
   | 'ENCOUNTER_REVIEW_STATUS_UPDATED'

@@ -66,7 +66,7 @@ function AjustesContent() {
 
   const validTabs = isAdmin
     ? ['perfil', 'centro', 'correo', 'sistema'] as const
-    : ['perfil', 'sistema'] as const;
+    : ['perfil'] as const;
   const tabFromUrl = searchParams.get('tab') as AjustesTab | null;
   const initialTab = tabFromUrl && (validTabs as readonly string[]).includes(tabFromUrl)
     ? tabFromUrl
@@ -84,7 +84,7 @@ function AjustesContent() {
   const handleTabKeyDown = useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
     const tabs = isAdmin
       ? ['perfil', 'centro', 'correo', 'sistema'] as const
-      : ['perfil', 'sistema'] as const;
+      : ['perfil'] as const;
     const currentIndex = (tabs as readonly string[]).indexOf(activeTab);
     let nextIndex = currentIndex;
 
@@ -362,8 +362,8 @@ function AjustesContent() {
           ...(isAdmin ? [
             { key: 'centro' as const, label: 'Centro médico' },
             { key: 'correo' as const, label: 'Correo e invitaciones' },
+            { key: 'sistema' as const, label: 'Sistema' },
           ] : []),
-          { key: 'sistema' as const, label: 'Sistema' },
         ]).map((tab) => (
           <button
             key={tab.key}
@@ -859,7 +859,7 @@ function AjustesContent() {
       )}
 
       {/* ── Tab: Sistema ─────────────────────── */}
-      {activeTab === 'sistema' && (
+      {isAdmin && activeTab === 'sistema' && (
       <div role="tabpanel" id="tabpanel-sistema" aria-labelledby="tab-sistema" className="card">
         <div className="panel-header">
           <h2 className="panel-title">Información del sistema</h2>

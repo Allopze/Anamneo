@@ -52,6 +52,7 @@ model Patient {
   rutExempt       Boolean   @default(false) @map("rut_exempt")
   rutExemptReason String?   @map("rut_exempt_reason")
   nombre          String
+  fechaNacimiento DateTime?       @map("fecha_nacimiento")
   edad            Int?
   edadMeses       Int?            @map("edad_meses")
   sexo            String?

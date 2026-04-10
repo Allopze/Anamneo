@@ -162,7 +162,7 @@ describe('FichaClinicaPage clinical-output block', () => {
   it('disables print and official export actions when the patient record is pending verification', async () => {
     render(<FichaClinicaPage />, { wrapper: createWrapper() });
 
-    expect(await screen.findByText('FICHA CLÍNICA')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Receta' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Órdenes' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Derivación' })).toBeDisabled();

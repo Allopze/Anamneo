@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { PatientTask, TASK_STATUS_LABELS, TASK_TYPE_LABELS } from '@/types';
@@ -16,12 +16,30 @@ const TYPE_OPTIONS = ['', 'SEGUIMIENTO', 'EXAMEN', 'DERIVACION', 'TRAMITE'] as c
 
 export default function SeguimientosPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const isOperationalAdmin = !!user?.isAdmin;
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
-  const [type, setType] = useState('');
-  const [overdueOnly, setOverdueOnly] = useState(false);
+
+  // Initialise from URL search params so SmartHeaderBar chip links work
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [status, setStatus] = useState(searchParams.get('status') || '');
+  const [type, setType] = useState(searchParams.get('type') || '');
+  const [overdueOnly, setOverdueOnly] = useState(searchParams.get('overdueOnly') === 'true');
+
+  // Keep URL in sync when filters change
+  const updateUrl = useCallback(
+    (s: string, st: string, t: string, od: boolean) => {
+      const params = new URLSearchParams();
+      if (s.trim()) params.set('search', s.trim());
+      if (st) params.set('status', st);
+      if (t) params.set('type', t);
+      if (od) params.set('overdueOnly', 'true');
+      const qs = params.toString();
+      window.history.replaceState(null, '', qs ? `${pathname}?${qs}` : pathname);
+    },
+    [pathname],
+  );
 
   const queryKey = useMemo(() => ['task-inbox', search, status, type, overdueOnly], [search, status, type, overdueOnly]);
 
@@ -66,18 +84,27 @@ export default function SeguimientosPage() {
             <input
               className="form-input pl-10"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                updateUrl(e.target.value, status, type, overdueOnly);
+              }}
               placeholder="Buscar por tarea o paciente"
             />
           </div>
-          <select className="form-input" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select className="form-input" value={status} onChange={(e) => {
+            setStatus(e.target.value);
+            updateUrl(search, e.target.value, type, overdueOnly);
+          }}>
             {STATUS_OPTIONS.map((value) => (
               <option key={value} value={value}>
                 {value ? TASK_STATUS_LABELS[value] : 'Todos los estados'}
               </option>
             ))}
           </select>
-          <select className="form-input" value={type} onChange={(e) => setType(e.target.value)}>
+          <select className="form-input" value={type} onChange={(e) => {
+            setType(e.target.value);
+            updateUrl(search, status, e.target.value, overdueOnly);
+          }}>
             {TYPE_OPTIONS.map((value) => (
               <option key={value} value={value}>
                 {value ? TASK_TYPE_LABELS[value] : 'Todos los tipos'}
@@ -85,7 +112,11 @@ export default function SeguimientosPage() {
             ))}
           </select>
           <label className="flex items-center gap-2 rounded-card border border-surface-muted/30 px-3 py-2 text-sm text-ink-secondary">
-            <input type="checkbox" checked={overdueOnly} onChange={() => setOverdueOnly((v) => !v)} />
+            <input type="checkbox" checked={overdueOnly} onChange={() => {
+              const next = !overdueOnly;
+              setOverdueOnly(next);
+              updateUrl(search, status, type, next);
+            }} />
             Solo atrasados
           </label>
         </div>

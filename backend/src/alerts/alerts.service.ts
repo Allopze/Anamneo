@@ -117,4 +117,28 @@ export class AlertsService {
       },
     });
   }
+
+  async findRecentUnacknowledged(user: RequestUser, take = 10) {
+    const patientWhere = buildAccessiblePatientsWhere(user);
+
+    return this.prisma.clinicalAlert.findMany({
+      where: {
+        acknowledgedAt: null,
+        patient: patientWhere,
+      },
+      orderBy: [{ severity: 'desc' }, { createdAt: 'desc' }],
+      take,
+      select: {
+        id: true,
+        type: true,
+        severity: true,
+        title: true,
+        message: true,
+        createdAt: true,
+        patient: {
+          select: { id: true, nombre: true },
+        },
+      },
+    });
+  }
 }

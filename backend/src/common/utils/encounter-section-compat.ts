@@ -10,6 +10,15 @@ export function upgradeEncounterSectionData(params: {
   const { sectionKey } = params;
   const data = parseStoredJson<Record<string, unknown>>(params.data, {});
   const schemaDefinition = getEncounterSectionSchemaDefinition(sectionKey);
+
+  // Keep reads resilient when older or unexpected section keys are present in storage.
+  if (!schemaDefinition) {
+    return {
+      data,
+      schemaVersion: Math.max(1, params.schemaVersion ?? 1),
+    };
+  }
+
   const targetVersion = schemaDefinition.currentVersion;
   const initialVersion = Math.max(1, params.schemaVersion ?? 1);
 

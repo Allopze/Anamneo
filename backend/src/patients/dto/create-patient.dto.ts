@@ -4,6 +4,7 @@ import {
   IsIn,
   IsOptional,
   IsBoolean,
+  IsDateString,
   Min,
   Max,
   MinLength,
@@ -32,6 +33,10 @@ export class CreatePatientDto {
   @MaxLength(200, { message: 'El nombre no puede exceder 200 caracteres' })
   @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
   nombre: string;
+
+  @IsDateString({}, { message: 'La fecha de nacimiento debe ser una fecha válida' })
+  @IsOptional()
+  fechaNacimiento?: string;
 
   @IsInt()
   @Min(0, { message: 'La edad debe ser mayor a 0' })

@@ -21,6 +21,7 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   ENCOUNTER_CREATED: 'Creación de atención',
   ENCOUNTER_SECTION_UPDATED: 'Actualización de sección clínica',
   ENCOUNTER_COMPLETED: 'Cierre de atención',
+  ENCOUNTER_SIGNED: 'Firma de atención',
   ENCOUNTER_REOPENED: 'Reapertura de atención',
   ENCOUNTER_CANCELLED: 'Cancelación de atención',
   ENCOUNTER_REVIEW_STATUS_UPDATED: 'Cambio de estado de revisión',
@@ -66,6 +67,7 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'Encounter' && action === 'EXPORT') return 'ENCOUNTER_DOCUMENT_EXPORTED';
   if (entityType === 'Encounter' && action === 'UPDATE' && hasDiffKey(diff, 'reviewStatus')) return 'ENCOUNTER_REVIEW_STATUS_UPDATED';
   if (entityType === 'Encounter' && action === 'UPDATE' && hasDiffKey(diff, 'status') && hasDiffValue(diff, 'status', 'COMPLETADO')) return 'ENCOUNTER_COMPLETED';
+  if (entityType === 'Encounter' && action === 'UPDATE' && hasDiffKey(diff, 'status') && hasDiffValue(diff, 'status', 'FIRMADO')) return 'ENCOUNTER_SIGNED';
   if (entityType === 'Encounter' && action === 'UPDATE' && hasDiffKey(diff, 'status') && hasDiffValue(diff, 'status', 'EN_PROGRESO')) return 'ENCOUNTER_REOPENED';
   if (entityType === 'Encounter' && action === 'UPDATE' && hasDiffKey(diff, 'status') && hasDiffValue(diff, 'status', 'CANCELADO')) return 'ENCOUNTER_CANCELLED';
   if (entityType === 'EncounterSection' && action === 'UPDATE') return 'ENCOUNTER_SECTION_UPDATED';

@@ -47,13 +47,14 @@ describe('NuevoPacientePage', () => {
     apiPostMock.mockResolvedValue({ data: { id: 'patient-1' } });
   });
 
-  it('submits successfully when edadMeses is left blank', async () => {
+  it('submits successfully using fecha de nacimiento to calculate edad', async () => {
     const user = userEvent.setup();
+    const today = new Date().toISOString().split('T')[0];
 
     render(<NuevoPacientePage />);
 
     await user.type(screen.getByLabelText(/Nombre completo/i), 'Paciente Demo');
-    await user.type(screen.getByLabelText(/Edad \(años\)/i), '44');
+    await user.type(screen.getByLabelText(/Fecha de nacimiento/i), today);
     await user.selectOptions(screen.getByLabelText(/^Sexo/i), 'FEMENINO');
     await user.selectOptions(screen.getByLabelText(/Previsión de salud/i), 'FONASA');
     await user.click(screen.getByRole('button', { name: /Guardar paciente/i }));
@@ -63,7 +64,9 @@ describe('NuevoPacientePage', () => {
     });
 
     const payload = apiPostMock.mock.calls[0][1];
-    expect(payload.edadMeses).toBeUndefined();
+    expect(payload.fechaNacimiento).toBe(today);
+    expect(payload.edad).toBe(0);
+    expect(payload.edadMeses).toBe(0);
     expect(toastSuccessMock).toHaveBeenCalledWith('Paciente creado correctamente');
     expect(pushMock).toHaveBeenCalledWith('/pacientes/patient-1');
     expect(toastErrorMock).not.toHaveBeenCalled();

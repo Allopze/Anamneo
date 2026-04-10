@@ -5,6 +5,7 @@ describe('AuditService', () => {
     const prisma = {
       auditLog: {
         create: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
       },
     };
 
@@ -27,6 +28,7 @@ describe('AuditService', () => {
     const prisma = {
       auditLog: {
         create: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
       },
     };
 
@@ -53,6 +55,32 @@ describe('AuditService', () => {
     );
   });
 
+  it('accepts signed encounter updates because they are cataloged explicitly', async () => {
+    const prisma = {
+      auditLog: {
+        create: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+    };
+
+    const service = new AuditService(prisma as any);
+
+    await expect(
+      service.log({
+        entityType: 'Encounter',
+        entityId: 'encounter-1',
+        userId: 'user-1',
+        action: 'UPDATE',
+        diff: {
+          status: 'FIRMADO',
+          signatureId: 'signature-1',
+        },
+      }),
+    ).resolves.not.toThrow();
+
+    expect(prisma.auditLog.create).toHaveBeenCalled();
+  });
+
   // ── QW-1: PHI redaction regression tests ────────────────────────────
   // These tests guarantee that identifiable patient fields (nombre, rut,
   // domicilio, trabajo) are NEVER stored in plain text inside audit logs.
@@ -71,6 +99,7 @@ describe('AuditService', () => {
     return {
       auditLog: {
         create: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
       },
     };
   }
