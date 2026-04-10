@@ -373,9 +373,13 @@ export default function EncounterWizardPage() {
         }
       })();
 
-      savedSnapshot[variables.sectionKey] = variables.data;
+      savedSnapshot[variables.sectionKey] = normalizedSectionData;
       lastSavedRef.current = JSON.stringify(savedSnapshot);
       setSavedSnapshotJson(lastSavedRef.current);
+      setFormData((previous) => ({
+        ...previous,
+        [variables.sectionKey]: normalizedSectionData,
+      }));
 
       queryClient.setQueryData<Encounter | undefined>(['encounter', id], (previous) => {
         if (!previous) return previous;

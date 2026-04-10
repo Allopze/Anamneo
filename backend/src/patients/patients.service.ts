@@ -75,6 +75,15 @@ export class PatientsService {
     };
   }
 
+  private matchesClinicalSearch(rawData: unknown, clinicalSearch: string) {
+    const parsed = parseStoredJson(rawData, null);
+    if (parsed === null || parsed === undefined) {
+      return false;
+    }
+
+    return JSON.stringify(parsed).toLowerCase().includes(clinicalSearch);
+  }
+
   private resolvePatientVerificationState(params: {
     currentPatient?: Record<string, any> | null;
     nextPatient: Record<string, any>;
@@ -354,6 +363,7 @@ export class PatientsService {
   ) {
     const skip = (page - 1) * limit;
     const effectiveMedicoId = getEffectiveMedicoId(user);
+    const normalizedClinicalSearch = filters?.clinicalSearch?.trim().toLowerCase();
 
     const baseWhere: Prisma.PatientWhereInput = {
       ...buildAccessiblePatientsWhere(user),
@@ -380,27 +390,6 @@ export class PatientsService {
       baseWhere.edad = ageFilter;
     }
 
-    if (filters?.clinicalSearch?.trim()) {
-      baseWhere.AND = [
-        ...(Array.isArray(baseWhere.AND) ? baseWhere.AND : []),
-        {
-          encounters: {
-            some: {
-              ...(user.isAdmin ? {} : { medicoId: effectiveMedicoId }),
-              sections: {
-                some: {
-                  sectionKey: {
-                    in: ['MOTIVO_CONSULTA', 'ANAMNESIS_PROXIMA', 'REVISION_SISTEMAS'],
-                  },
-                  data: { contains: filters.clinicalSearch.trim() },
-                },
-              },
-            },
-          },
-        },
-      ];
-    }
-
     const where: Prisma.PatientWhereInput = filters?.completenessStatus
       ? {
           ...baseWhere,
@@ -411,6 +400,57 @@ export class PatientsService {
     const orderBy = filters?.sortBy
       ? { [filters.sortBy]: filters.sortOrder || 'asc' }
       : { createdAt: 'desc' as const };
+
+    if (normalizedClinicalSearch) {
+      const patients = await this.prisma.patient.findMany({
+        where,
+        orderBy,
+        include: {
+          _count: {
+            select: { encounters: true },
+          },
+          encounters: {
+            where: user.isAdmin ? undefined : { medicoId: effectiveMedicoId },
+            select: {
+              sections: {
+                where: {
+                  sectionKey: {
+                    in: ['MOTIVO_CONSULTA', 'ANAMNESIS_PROXIMA', 'REVISION_SISTEMAS'],
+                  },
+                },
+                select: { data: true },
+              },
+            },
+          },
+        },
+      });
+
+      const filteredPatients = patients
+        .filter((patient) => patient.encounters.some((encounter) => encounter.sections.some((section) => this.matchesClinicalSearch(section.data, normalizedClinicalSearch))))
+        .map(({ encounters, ...patient }) => patient);
+
+      const paginatedPatients = filteredPatients.slice(skip, skip + limit);
+      const incompleteCount = filteredPatients.filter((patient) => patient.completenessStatus === 'INCOMPLETA').length;
+      const pendingVerificationCount = filteredPatients.filter((patient) => patient.completenessStatus === 'PENDIENTE_VERIFICACION').length;
+      const verifiedCount = filteredPatients.filter((patient) => patient.completenessStatus === 'VERIFICADA').length;
+
+      return {
+        data: paginatedPatients.map((patient) => this.decoratePatient(patient)),
+        summary: {
+          totalPatients: filteredPatients.length,
+          incomplete: incompleteCount,
+          pendingVerification: pendingVerificationCount,
+          verified: verifiedCount,
+          nonVerified: incompleteCount + pendingVerificationCount,
+        },
+        pagination: {
+          page,
+          limit,
+          total: filteredPatients.length,
+          totalPages: Math.ceil(filteredPatients.length / limit),
+        },
+      };
+    }
 
     const [patients, total, incompleteCount, pendingVerificationCount, verifiedCount] = await Promise.all([
       this.prisma.patient.findMany({
@@ -1222,6 +1262,7 @@ export class PatientsService {
       updateData.fechaNacimiento = dto.fechaNacimiento ? new Date(dto.fechaNacimiento) : null;
     }
     if (dto.edad !== undefined) updateData.edad = dto.edad;
+    if (dto.edadMeses !== undefined) updateData.edadMeses = dto.edadMeses;
     if (dto.sexo !== undefined) updateData.sexo = dto.sexo;
     if (dto.prevision !== undefined) updateData.prevision = dto.prevision;
     if (dto.trabajo !== undefined) {

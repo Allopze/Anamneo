@@ -117,7 +117,7 @@ export function buildEncounterSummary(encounter: Encounter): string[] {
 
 export function extractStructuredMedicationLines(medications: StructuredMedication[] | undefined) {
   return (medications || [])
-    .map((item) => [item.nombre, item.dosis, item.frecuencia, item.duracion].filter(Boolean).join(' · '))
+    .map((item) => [item.nombre, item.dosis, item.via, item.frecuencia, item.duracion].filter(Boolean).join(' · '))
     .filter(Boolean);
 }
 

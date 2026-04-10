@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { STATUS_LABELS } from '@/types';
 import { FiSearch, FiUser, FiFileText, FiArrowRight } from 'react-icons/fi';
 
 interface SearchResult {
@@ -105,7 +106,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
             id: e.id,
             type: 'encounter',
             title: e.patient?.nombre || 'Atención',
-            subtitle: `${e.status === 'EN_PROGRESO' ? 'En progreso' : e.status === 'COMPLETADO' ? 'Completado' : 'Cancelado'} — ${new Date(e.createdAt).toLocaleDateString('es-CL')}`,
+            subtitle: `${STATUS_LABELS[e.status] || e.status} — ${new Date(e.createdAt).toLocaleDateString('es-CL')}`,
             href: `/atenciones/${e.id}`,
           });
         }

@@ -147,8 +147,18 @@ export default function EditarPacientePage() {
     });
   }, [patient, editForm]);
 
+  type UpdateAdminPayload = {
+    fechaNacimiento?: string | null;
+    edad?: number | null;
+    edadMeses?: number | null;
+    sexo: PatientSexo | null;
+    prevision: PatientPrevision | null;
+    trabajo?: string | null;
+    domicilio?: string | null;
+  };
+
   const updateAdminMutation = useMutation({
-    mutationFn: (payload: Pick<EditForm, 'fechaNacimiento' | 'sexo' | 'prevision' | 'trabajo' | 'domicilio'> & { edad?: number | null; edadMeses?: number | null }) =>
+    mutationFn: (payload: UpdateAdminPayload) =>
       api.put(`/patients/${id}/admin`, payload),
     onSuccess: () => {
       toast.success('Paciente actualizado');

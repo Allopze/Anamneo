@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
+import { STATUS_LABELS } from '@/types';
 import { useSessionTimeout } from '@/lib/useSessionTimeout';
 import toast from 'react-hot-toast';
 import {
@@ -218,7 +219,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       }
       if (encountersRes.status === 'fulfilled' && encountersRes.value.data?.data) {
         for (const enc of encountersRes.value.data.data) {
-          items.push({ id: enc.id, type: 'encounter', title: enc.patient?.nombre || 'Atención', subtitle: `${enc.status === 'EN_PROGRESO' ? 'En progreso' : enc.status === 'COMPLETADO' ? 'Completado' : 'Cancelado'} — ${new Date(enc.createdAt).toLocaleDateString('es-CL')}`, href: `/atenciones/${enc.id}` });
+          items.push({ id: enc.id, type: 'encounter', title: enc.patient?.nombre || 'Atención', subtitle: `${STATUS_LABELS[enc.status] || enc.status} — ${new Date(enc.createdAt).toLocaleDateString('es-CL')}`, href: `/atenciones/${enc.id}` });
         }
       }
       setSearchResults(items);

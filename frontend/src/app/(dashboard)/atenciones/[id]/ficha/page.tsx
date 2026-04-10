@@ -561,6 +561,14 @@ export default function FichaClinicaPage() {
             6. Examen físico
           </h2>
           <div className="text-sm">
+            {(examenFisico.estadoGeneral || examenFisico.estadoGeneralNotas) && (
+              <div className="mb-3">
+                <strong>Estado general:</strong>
+                <span className="ml-2">
+                  {[examenFisico.estadoGeneral, examenFisico.estadoGeneralNotas].filter(Boolean).join(' · ')}
+                </span>
+              </div>
+            )}
             {examenFisico.signosVitales && (
               <div className="mb-3">
                 <strong>Signos vitales:</strong>
@@ -620,7 +628,7 @@ export default function FichaClinicaPage() {
                 <strong>Medicamentos estructurados:</strong>
                 <ul className="list-disc list-inside mt-1">
                   {tratamiento.medicamentosEstructurados.map((item: any) => (
-                    <li key={item.id}>{[item.nombre, item.dosis, item.frecuencia, item.duracion].filter(Boolean).join(' · ')}</li>
+                    <li key={item.id}>{[item.nombre, item.dosis, item.via, item.frecuencia, item.duracion].filter(Boolean).join(' · ')}</li>
                   ))}
                 </ul>
               </div>

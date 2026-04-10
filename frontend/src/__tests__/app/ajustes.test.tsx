@@ -6,12 +6,14 @@ import AjustesPage from '@/app/(dashboard)/ajustes/page';
 import type { User } from '@/stores/auth-store';
 
 const replaceMock = jest.fn();
+const pushMock = jest.fn();
 const apiGetMock = jest.fn();
 const apiPutMock = jest.fn();
 const apiPostMock = jest.fn();
 const apiPatchMock = jest.fn();
 const setUserMock = jest.fn();
 const logoutMock = jest.fn();
+let searchParamsValue = '';
 
 const authStoreState: {
   user: User | null;
@@ -35,7 +37,8 @@ jest.mock('@/stores/auth-store', () => ({
 }));
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: replaceMock }),
+  useRouter: () => ({ replace: replaceMock, push: pushMock }),
+  useSearchParams: () => new URLSearchParams(searchParamsValue),
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -71,6 +74,7 @@ function createWrapper() {
 describe('AjustesPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    searchParamsValue = '';
     authStoreState.user = {
       id: 'admin-1',
       email: 'admin@anamneo.cl',
@@ -102,6 +106,7 @@ describe('AjustesPage', () => {
   });
 
   it('uses smtp.passwordConfigured without repopulating the SMTP password field', async () => {
+    searchParamsValue = 'tab=correo';
     render(<AjustesPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByText('Correo SMTP para invitaciones')).toBeInTheDocument();

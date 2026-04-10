@@ -4,9 +4,58 @@ import { CreateAlertDto } from './dto/alert.dto';
 import { RequestUser } from '../common/utils/medico-id';
 import { assertPatientAccess, buildAccessiblePatientsWhere } from '../common/utils/patient-access';
 
+const ALERT_SEVERITY_WEIGHT: Record<string, number> = {
+  CRITICA: 4,
+  ALTA: 3,
+  MEDIA: 2,
+  BAJA: 1,
+};
+
 @Injectable()
 export class AlertsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private sortAlertsByPriority<T extends { severity: string; createdAt: Date }>(alerts: T[]) {
+    return [...alerts].sort((left, right) => {
+      const severityDelta = (ALERT_SEVERITY_WEIGHT[right.severity] || 0) - (ALERT_SEVERITY_WEIGHT[left.severity] || 0);
+      if (severityDelta !== 0) {
+        return severityDelta;
+      }
+
+      return right.createdAt.getTime() - left.createdAt.getTime();
+    });
+  }
+
+  private async attachUserNames<
+    T extends {
+      createdById: string;
+      acknowledgedById?: string | null;
+    },
+  >(alerts: T[]) {
+    const userIds = Array.from(new Set(
+      alerts.flatMap((alert) => [alert.createdById, alert.acknowledgedById]).filter((value): value is string => Boolean(value)),
+    ));
+
+    if (userIds.length === 0) {
+      return alerts.map((alert) => ({
+        ...alert,
+        createdBy: null,
+        acknowledgedBy: null,
+      }));
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, nombre: true },
+    });
+    const userMap = new Map(users.map((user) => [user.id, user]));
+
+    return alerts.map((alert) => ({
+      ...alert,
+      createdBy: userMap.get(alert.createdById) || null,
+      acknowledgedBy: alert.acknowledgedById ? (userMap.get(alert.acknowledgedById) || null) : null,
+    }));
+  }
 
   async create(dto: CreateAlertDto, user: RequestUser) {
     await assertPatientAccess(this.prisma, user, dto.patientId);
@@ -27,13 +76,15 @@ export class AlertsService {
   async findByPatient(patientId: string, user: RequestUser, includeAcknowledged = false) {
     await assertPatientAccess(this.prisma, user, patientId);
 
-    return this.prisma.clinicalAlert.findMany({
+    const alerts = await this.prisma.clinicalAlert.findMany({
       where: {
         patientId,
         ...(includeAcknowledged ? {} : { acknowledgedAt: null }),
       },
-      orderBy: [{ severity: 'desc' }, { createdAt: 'desc' }],
     });
+
+    const sortedAlerts = this.sortAlertsByPriority(alerts);
+    return this.attachUserNames(sortedAlerts);
   }
 
   async acknowledge(id: string, user: RequestUser) {
@@ -121,13 +172,11 @@ export class AlertsService {
   async findRecentUnacknowledged(user: RequestUser, take = 10) {
     const patientWhere = buildAccessiblePatientsWhere(user);
 
-    return this.prisma.clinicalAlert.findMany({
+    const alerts = await this.prisma.clinicalAlert.findMany({
       where: {
         acknowledgedAt: null,
         patient: patientWhere,
       },
-      orderBy: [{ severity: 'desc' }, { createdAt: 'desc' }],
-      take,
       select: {
         id: true,
         type: true,
@@ -140,5 +189,7 @@ export class AlertsService {
         },
       },
     });
+
+    return this.sortAlertsByPriority(alerts).slice(0, take);
   }
 }

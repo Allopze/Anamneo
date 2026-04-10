@@ -103,7 +103,7 @@ describe('AuditoriaPage', () => {
   it('applies reason and result filters to the audit query', async () => {
     render(<AuditoriaPage />, { wrapper: createWrapper() });
 
-    await screen.findByText('Registro de auditoría');
+    await screen.findByText('Auditoría');
 
     await userEvent.selectOptions(screen.getByLabelText('Motivo'), 'PATIENT_EXPORT_CSV');
     await userEvent.selectOptions(screen.getByLabelText('Resultado'), 'SUCCESS');

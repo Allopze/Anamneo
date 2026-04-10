@@ -66,6 +66,18 @@ const IDENTIFICATION_SNAPSHOT_FIELD_META = [
 ] as const;
 
 const ORDER_STATUSES = ['PENDIENTE', 'RECIBIDO', 'REVISADO'] as const;
+const MEDICATION_ROUTES = [
+  'ORAL',
+  'IV',
+  'IM',
+  'SC',
+  'TOPICA',
+  'INHALATORIA',
+  'RECTAL',
+  'SUBLINGUAL',
+  'OFTALMICA',
+  'OTRA',
+] as const;
 const CHOSEN_MODES = ['AUTO', 'MANUAL'] as const;
 const REVIEW_NOTE_MIN_LENGTH = 10;
 const CLOSURE_NOTE_MIN_LENGTH = 15;
@@ -238,11 +250,22 @@ export class EncountersService {
 
     const nombre = this.sanitizeTextListField(record.nombre, 200);
     const dosis = this.sanitizeTextListField(record.dosis, 120);
+    const via = (() => {
+      if (record.via === undefined || record.via === null || record.via === '') {
+        return undefined;
+      }
+
+      if (typeof record.via !== 'string' || !MEDICATION_ROUTES.includes(record.via as typeof MEDICATION_ROUTES[number])) {
+        throw new BadRequestException(`La vía del medicamento estructurado #${index + 1} no es válida`);
+      }
+
+      return record.via;
+    })();
     const frecuencia = this.sanitizeTextListField(record.frecuencia, 120);
     const duracion = this.sanitizeTextListField(record.duracion, 120);
     const indicacion = this.sanitizeTextListField(record.indicacion, 400);
 
-    if (!nombre && !dosis && !frecuencia && !duracion && !indicacion) {
+    if (!nombre && !dosis && !via && !frecuencia && !duracion && !indicacion) {
       return null;
     }
 
@@ -250,6 +273,7 @@ export class EncountersService {
       id,
       ...(nombre !== undefined ? { nombre } : {}),
       ...(dosis !== undefined ? { dosis } : {}),
+      ...(via !== undefined ? { via } : {}),
       ...(frecuencia !== undefined ? { frecuencia } : {}),
       ...(duracion !== undefined ? { duracion } : {}),
       ...(indicacion !== undefined ? { indicacion } : {}),
@@ -352,6 +376,8 @@ export class EncountersService {
     }
 
     return {
+      ...(this.sanitizeTextListField(data.estadoGeneral, 60) !== undefined ? { estadoGeneral: this.sanitizeTextListField(data.estadoGeneral, 60) } : {}),
+      ...(this.sanitizeTextListField(data.estadoGeneralNotas, 500) !== undefined ? { estadoGeneralNotas: this.sanitizeTextListField(data.estadoGeneralNotas, 500) } : {}),
       ...(signosVitales ? { signosVitales } : {}),
       ...(this.sanitizeTextListField(data.cabeza, 2000) !== undefined ? { cabeza: this.sanitizeTextListField(data.cabeza, 2000) } : {}),
       ...(this.sanitizeTextListField(data.cuello, 2000) !== undefined ? { cuello: this.sanitizeTextListField(data.cuello, 2000) } : {}),

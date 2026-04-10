@@ -12,6 +12,12 @@ export class UpdatePatientAdminDto {
   @IsOptional()
   edad?: number | null;
 
+  @IsInt()
+  @Min(0)
+  @Max(11)
+  @IsOptional()
+  edadMeses?: number | null;
+
   @IsIn(SEXOS, { message: 'El sexo debe ser válido' })
   @IsOptional()
   sexo?: Sexo | null;

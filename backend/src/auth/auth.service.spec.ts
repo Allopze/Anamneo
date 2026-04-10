@@ -14,6 +14,9 @@ describe('AuthService', () => {
   let service: AuthService;
   let usersService: Partial<UsersService>;
   let prismaService: {
+    user: {
+      findUnique: jest.Mock;
+    };
     loginAttempt: {
       findUnique: jest.Mock;
       upsert: jest.Mock;
@@ -71,6 +74,9 @@ describe('AuthService', () => {
     };
 
     prismaService = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue({ totpEnabled: false }),
+      },
       loginAttempt: {
         findUnique: jest.fn().mockResolvedValue(null),
         upsert: jest.fn(),

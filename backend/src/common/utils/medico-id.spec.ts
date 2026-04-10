@@ -1,29 +1,19 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import { getEffectiveMedicoId } from './medico-id';
 
-const permissionContract = JSON.parse(
-  fs.readFileSync(path.resolve(__dirname, '../../../../shared/permission-contract.json'), 'utf8'),
-) as Array<{
-  id: string;
-  user: {
-    id: string;
-    role: 'MEDICO' | 'ASISTENTE' | 'ADMIN';
-    isAdmin?: boolean;
-    medicoId?: string | null;
-  };
-  expectations: {
-    canEditAntecedentes: boolean;
-  };
-}>;
+describe('getEffectiveMedicoId', () => {
+  it('returns the current user id for medico users', () => {
+    expect(getEffectiveMedicoId({ id: 'med-1', role: 'MEDICO' })).toBe('med-1');
+  });
 
-describe('medico-id permission contract', () => {
-  it.each(permissionContract)('matches backend access contract for $id', ({ user, expectations }) => {
-    if (expectations.canEditAntecedentes) {
-      expect(getEffectiveMedicoId(user)).toBe(user.role === 'ASISTENTE' ? user.medicoId : user.id);
-      return;
-    }
+  it('returns the current user id for admin users', () => {
+    expect(getEffectiveMedicoId({ id: 'admin-1', role: 'ADMIN', isAdmin: true })).toBe('admin-1');
+  });
 
-    expect(() => getEffectiveMedicoId(user)).toThrow();
+  it('returns the assigned medico id for assistants with assignment', () => {
+    expect(getEffectiveMedicoId({ id: 'assistant-1', role: 'ASISTENTE', medicoId: 'med-1' })).toBe('med-1');
+  });
+
+  it('throws for assistants without assigned medico', () => {
+    expect(() => getEffectiveMedicoId({ id: 'assistant-2', role: 'ASISTENTE', medicoId: null })).toThrow();
   });
 });

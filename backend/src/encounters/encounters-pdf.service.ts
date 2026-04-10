@@ -28,6 +28,7 @@ const PREVISION_MAP: Record<string, string> = {
 const STATUS_MAP: Record<string, string> = {
   EN_PROGRESO: 'En progreso',
   COMPLETADO: 'Completado',
+  FIRMADO: 'Firmado',
   CANCELADO: 'Cancelado',
 };
 
@@ -468,6 +469,10 @@ export class EncountersPdfService {
       // ── 6. Examen Físico ──
       const exFis = sectionsMap['EXAMEN_FISICO'] || {};
       sectionTitle(6, 'EXAMEN FÍSICO');
+      field(
+        'Estado general',
+        [exFis.estadoGeneral, exFis.estadoGeneralNotas].filter(Boolean).join(' · '),
+      );
       if (exFis.signosVitales) {
         const sv = exFis.signosVitales;
         doc.font('Helvetica-Bold').text('Signos vitales:');
@@ -525,7 +530,7 @@ export class EncountersPdfService {
         field(
           'Medicamentos estructurados',
           trat.medicamentosEstructurados
-            .map((item: any) => [item.nombre, item.dosis, item.frecuencia, item.duracion].filter(Boolean).join(' · '))
+            .map((item: any) => [item.nombre, item.dosis, item.via, item.frecuencia, item.duracion].filter(Boolean).join(' · '))
             .join(' | '),
         );
       }
@@ -675,7 +680,7 @@ export class EncountersPdfService {
           doc.font('Helvetica-Bold').text('Medicacion');
           if (Array.isArray(trat.medicamentosEstructurados) && trat.medicamentosEstructurados.length > 0) {
             trat.medicamentosEstructurados.forEach((item: any) => {
-              doc.text(`• ${[item.nombre, item.dosis, item.frecuencia, item.duracion].filter(Boolean).join(' · ')}`);
+              doc.text(`• ${[item.nombre, item.dosis, item.via, item.frecuencia, item.duracion].filter(Boolean).join(' · ')}`);
             });
           } else {
             doc.text(trat.receta || '-');
