@@ -78,6 +78,10 @@ interface AdminUserRow {
   updatedAt: string;
 }
 
+function getBrowserOrigin() {
+  return typeof window === 'undefined' ? '' : window.location.origin;
+}
+
 export default function AdminUsuariosPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -213,7 +217,7 @@ export default function AdminUsuariosPage() {
       return response.data as UserInvitationResponse;
     },
     onSuccess: async (invitation) => {
-      const inviteUrl = invitation.inviteUrl || `${window.location.origin}/register?token=${invitation.token}`;
+      const inviteUrl = invitation.inviteUrl || `${getBrowserOrigin()}/register?token=${invitation.token}`;
       setCreatedInvitation({
         email: invitation.email,
         inviteUrl,

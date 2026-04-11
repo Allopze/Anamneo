@@ -8,14 +8,19 @@ import clsx from 'clsx';
 import { api } from '@/lib/api';
 import { Patient, PATIENT_COMPLETENESS_STATUS_LABELS, PatientCompletenessStatus } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
-import { FiPlus, FiSearch, FiUser, FiChevronRight, FiCalendar, FiFileText, FiFilter, FiDownload, FiChevronDown } from 'react-icons/fi';
-import toast from 'react-hot-toast';
 import {
-  formatPatientAge,
-  formatPatientPrevision,
-  formatPatientSex,
-  getPatientCompletenessMeta,
-} from '@/lib/patient';
+  FiPlus,
+  FiSearch,
+  FiUser,
+  FiChevronRight,
+  FiCalendar,
+  FiFileText,
+  FiFilter,
+  FiDownload,
+  FiChevronDown,
+} from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { formatPatientAge, formatPatientPrevision, formatPatientSex, getPatientCompletenessMeta } from '@/lib/patient';
 
 const SEXO_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -61,17 +66,26 @@ interface PatientsResponse {
     limit: number;
     total: number;
     totalPages: number;
+    clinicalSearchCapped?: boolean;
   };
 }
 
 export default function PacientesPage() {
   return (
-    <Suspense fallback={
-      <div className="animate-fade-in">
-        <div className="h-8 skeleton rounded w-48 mb-6" />
-        <div className="card"><div className="space-y-4">{[...Array(5)].map((_, i) => (<div key={i} className="h-16 skeleton rounded-lg" />))}</div></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="animate-fade-in">
+          <div className="h-8 skeleton rounded w-48 mb-6" />
+          <div className="card">
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-16 skeleton rounded-lg" />
+              ))}
+            </div>
+          </div>
+        </div>
+      }
+    >
       <PacientesContent />
     </Suspense>
   );
@@ -103,7 +117,16 @@ function PacientesContent() {
   const buildUrl = (overrides: Record<string, string>) => {
     const next = new URLSearchParams();
     const merged = { search, ...filters, page: String(page), ...overrides };
-    Object.entries(merged).forEach(([k, v]) => { if (v && v !== '' && !(k === 'page' && v === '1') && !(k === 'sortBy' && v === 'createdAt') && !(k === 'sortOrder' && v === 'desc')) next.set(k, v); });
+    Object.entries(merged).forEach(([k, v]) => {
+      if (
+        v &&
+        v !== '' &&
+        !(k === 'page' && v === '1') &&
+        !(k === 'sortBy' && v === 'createdAt') &&
+        !(k === 'sortOrder' && v === 'desc')
+      )
+        next.set(k, v);
+    });
     const qs = next.toString();
     return `/pacientes${qs ? `?${qs}` : ''}`;
   };
@@ -118,17 +141,19 @@ function PacientesContent() {
   };
 
   const clearFilters = () => {
-    router.push(buildUrl({
-      sexo: '',
-      prevision: '',
-      completenessStatus: '',
-      edadMin: '',
-      edadMax: '',
-      clinicalSearch: '',
-      sortBy: 'createdAt',
-      sortOrder: 'desc',
-      page: '1',
-    }));
+    router.push(
+      buildUrl({
+        sexo: '',
+        prevision: '',
+        completenessStatus: '',
+        edadMin: '',
+        edadMax: '',
+        clinicalSearch: '',
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        page: '1',
+      }),
+    );
   };
 
   const { data, isLoading, error } = useQuery<PatientsResponse>({
@@ -234,7 +259,7 @@ function PacientesContent() {
                     'rounded-card border px-4 py-4 text-left transition-colors',
                     isActive
                       ? 'border-accent/50 bg-accent/12 shadow-soft'
-                      : 'border-surface-muted/30 bg-surface-elevated hover:bg-surface-inset/40'
+                      : 'border-surface-muted/30 bg-surface-elevated hover:bg-surface-inset/40',
                   )}
                 >
                   <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">{card.label}</p>
@@ -286,7 +311,11 @@ function PacientesContent() {
                   value={filters.sexo}
                   onChange={(e) => setFilter('sexo', e.target.value)}
                 >
-                  {SEXO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {SEXO_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -296,7 +325,11 @@ function PacientesContent() {
                   value={filters.prevision}
                   onChange={(e) => setFilter('prevision', e.target.value)}
                 >
-                  {PREVISION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {PREVISION_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -307,7 +340,9 @@ function PacientesContent() {
                   onChange={(e) => setFilter('completenessStatus', e.target.value)}
                 >
                   {COMPLETENESS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -350,7 +385,11 @@ function PacientesContent() {
                   value={filters.sortBy}
                   onChange={(e) => setFilter('sortBy', e.target.value)}
                 >
-                  {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {SORT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -387,7 +426,9 @@ function PacientesContent() {
                       a.click();
                       URL.revokeObjectURL(url);
                       toast.success('CSV descargado');
-                    } catch { toast.error('Error al exportar'); }
+                    } catch {
+                      toast.error('Error al exportar');
+                    }
                   }}
                 >
                   <FiDownload className="w-3.5 h-3.5" />
@@ -402,6 +443,13 @@ function PacientesContent() {
       {error && (
         <div className="card mb-6 p-4 bg-status-red/10 text-status-red-text text-body rounded-card">
           Error al cargar pacientes. Intente recargar la página.
+        </div>
+      )}
+
+      {pagination?.clinicalSearchCapped && (
+        <div className="card mb-4 border-status-yellow/35 bg-status-yellow/10 p-4 text-sm text-accent-text">
+          La búsqueda clínica se acotó a los primeros 500 pacientes visibles. Si falta un resultado, reduce filtros o
+          busca por nombre o RUT.
         </div>
       )}
 
@@ -439,9 +487,7 @@ function PacientesContent() {
                         <span className="list-chip bg-surface-inset text-ink-secondary">
                           {formatPatientAge(patient.edad, patient.edadMeses)}
                         </span>
-                        <span className={`list-chip ${completenessMeta.badgeClassName}`}>
-                          {completenessMeta.label}
-                        </span>
+                        <span className={`list-chip ${completenessMeta.badgeClassName}`}>{completenessMeta.label}</span>
                       </div>
                       <div className="flex items-center gap-4 text-body text-ink-muted">
                         <span>{patient.rut || 'Sin RUT'}</span>
@@ -471,8 +517,8 @@ function PacientesContent() {
             {pagination && pagination.totalPages > 1 && (
               <div className="flex items-center justify-between p-4 border-t border-surface-muted/30">
                 <p className="text-body text-ink-secondary">
-                  Mostrando {(page - 1) * 10 + 1} - {Math.min(page * 10, pagination.total)} de{' '}
-                  {pagination.total} pacientes
+                  Mostrando {(page - 1) * 10 + 1} - {Math.min(page * 10, pagination.total)} de {pagination.total}{' '}
+                  pacientes
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -500,7 +546,9 @@ function PacientesContent() {
             </div>
             <h3 className="empty-state-title">No hay pacientes</h3>
             <p className="empty-state-description">
-              {search ? 'No se encontraron pacientes que coincidan con tu búsqueda.' : 'Aún no has registrado ningún paciente. Comienza agregando uno para gestionar su historial médico.'}
+              {search
+                ? 'No se encontraron pacientes que coincidan con tu búsqueda.'
+                : 'Aún no has registrado ningún paciente. Comienza agregando uno para gestionar su historial médico.'}
             </p>
             {showEmptyCreatePatientCta && (
               <Link href="/pacientes/nuevo" className="empty-state-cta">

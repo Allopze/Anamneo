@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAlertDto } from './dto/alert.dto';
 import { RequestUser } from '../common/utils/medico-id';
@@ -14,6 +14,21 @@ const ALERT_SEVERITY_WEIGHT: Record<string, number> = {
 @Injectable()
 export class AlertsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async assertEncounterMatchesPatient(encounterId: string, patientId: string) {
+    const encounter = await this.prisma.encounter.findUnique({
+      where: { id: encounterId },
+      select: { patientId: true },
+    });
+
+    if (!encounter) {
+      throw new BadRequestException('La atención indicada no existe');
+    }
+
+    if (encounter.patientId !== patientId) {
+      throw new BadRequestException('La atención indicada no corresponde al paciente');
+    }
+  }
 
   private sortAlertsByPriority<T extends { severity: string; createdAt: Date }>(alerts: T[]) {
     return [...alerts].sort((left, right) => {
@@ -32,9 +47,13 @@ export class AlertsService {
       acknowledgedById?: string | null;
     },
   >(alerts: T[]) {
-    const userIds = Array.from(new Set(
-      alerts.flatMap((alert) => [alert.createdById, alert.acknowledgedById]).filter((value): value is string => Boolean(value)),
-    ));
+    const userIds = Array.from(
+      new Set(
+        alerts
+          .flatMap((alert) => [alert.createdById, alert.acknowledgedById])
+          .filter((value): value is string => Boolean(value)),
+      ),
+    );
 
     if (userIds.length === 0) {
       return alerts.map((alert) => ({
@@ -53,12 +72,16 @@ export class AlertsService {
     return alerts.map((alert) => ({
       ...alert,
       createdBy: userMap.get(alert.createdById) || null,
-      acknowledgedBy: alert.acknowledgedById ? (userMap.get(alert.acknowledgedById) || null) : null,
+      acknowledgedBy: alert.acknowledgedById ? userMap.get(alert.acknowledgedById) || null : null,
     }));
   }
 
   async create(dto: CreateAlertDto, user: RequestUser) {
     await assertPatientAccess(this.prisma, user, dto.patientId);
+
+    if (dto.encounterId) {
+      await this.assertEncounterMatchesPatient(dto.encounterId, dto.patientId);
+    }
 
     return this.prisma.clinicalAlert.create({
       data: {

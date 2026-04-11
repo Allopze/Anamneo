@@ -2,9 +2,12 @@ import { ForbiddenException } from '@nestjs/common';
 
 export type RequestUser = {
   id: string;
+  email?: string;
+  nombre?: string;
   role: string;
   isAdmin?: boolean;
   medicoId?: string | null;
+  totpEnabled?: boolean;
 };
 
 /**

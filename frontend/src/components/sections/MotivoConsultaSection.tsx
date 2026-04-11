@@ -29,6 +29,7 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
   const searchSuggestions = useCallback((text: string) => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (text.length < 3) {
+      lastSearchedText.current = '';
       setSuggestions([]);
       return;
     }
@@ -64,6 +65,16 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
   }, [data.texto, searchSuggestions]);
 
   const handleTextChange = (texto: string) => {
+    if (data.modoSeleccion === 'AUTO' && data.afeccionSeleccionada) {
+      onChange({
+        ...data,
+        texto,
+        afeccionSeleccionada: null,
+        modoSeleccion: undefined,
+      });
+      return;
+    }
+
     onChange({ ...data, texto });
   };
 
@@ -73,14 +84,16 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
       afeccionSeleccionada: condition,
       modoSeleccion: 'AUTO',
     });
-    
+
     // Log the selection
-    api.post(`/conditions/encounters/${encounter.id}/suggestion`, {
-      inputText: data.texto,
-      suggestions,
-      chosenConditionId: condition.id,
-      chosenMode: 'AUTO',
-    }).catch(console.error);
+    api
+      .post(`/conditions/encounters/${encounter.id}/suggestion`, {
+        inputText: data.texto,
+        suggestions,
+        chosenConditionId: condition.id,
+        chosenMode: 'AUTO',
+      })
+      .catch(console.error);
   };
 
   const handleManualSelection = () => {
@@ -96,11 +109,13 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
       <SectionBlock title="Relato principal">
         <SectionFieldHeader
           label="Describa el motivo de consulta del paciente"
-          action={!readOnly ? (
-            <VoiceDictationButton
-              onTranscript={(text) => handleTextChange(`${data.texto ? `${data.texto} ` : ''}${text}`.trim())}
-            />
-          ) : undefined}
+          action={
+            !readOnly ? (
+              <VoiceDictationButton
+                onTranscript={(text) => handleTextChange(`${data.texto ? `${data.texto} ` : ''}${text}`.trim())}
+              />
+            ) : undefined
+          }
         />
         <textarea
           value={data.texto || ''}
@@ -133,7 +148,7 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
                   'section-item-card w-full flex items-center justify-between text-left',
                   data.afeccionSeleccionada?.id === suggestion.id
                     ? 'section-item-card-selected'
-                    : 'hover:border-accent/60'
+                    : 'hover:border-accent/60',
                 )}
               >
                 <div className="flex items-center gap-3">
@@ -142,7 +157,7 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
                       'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
                       data.afeccionSeleccionada?.id === suggestion.id
                         ? 'bg-accent/100 text-white'
-                        : 'bg-surface-muted text-ink-secondary'
+                        : 'bg-surface-muted text-ink-secondary',
                     )}
                   >
                     {data.afeccionSeleccionada?.id === suggestion.id ? (
@@ -153,20 +168,14 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
                   </div>
                   <span className="font-medium text-ink-primary">{suggestion.name}</span>
                 </div>
-                {!readOnly && (
-                  <span className="text-sm text-accent-text">Usar esta</span>
-                )}
+                {!readOnly && <span className="text-sm text-accent-text">Usar esta</span>}
               </button>
             ))}
           </div>
         ) : data.texto && data.texto.length >= 3 ? (
-          <p className="text-sm text-ink-muted">
-            No se encontraron sugerencias para el texto ingresado.
-          </p>
+          <p className="text-sm text-ink-muted">No se encontraron sugerencias para el texto ingresado.</p>
         ) : (
-          <p className="text-sm text-ink-muted">
-            Escribe al menos 3 caracteres para ver sugerencias.
-          </p>
+          <p className="text-sm text-ink-muted">Escribe al menos 3 caracteres para ver sugerencias.</p>
         )}
 
         {/* Manual selection option */}
@@ -177,12 +186,10 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
               'mt-3 w-full rounded-xl border border-dashed p-3 text-left transition-colors',
               data.modoSeleccion === 'MANUAL'
                 ? 'border-status-yellow bg-status-yellow/10'
-                : 'border-dashed border-surface-muted/30 hover:border-surface-muted/40'
+                : 'border-dashed border-surface-muted/30 hover:border-surface-muted/40',
             )}
           >
-            <span className="text-sm text-ink-secondary">
-              Ninguna coincide exactamente. Mantener selección manual.
-            </span>
+            <span className="text-sm text-ink-secondary">Ninguna coincide exactamente. Mantener selección manual.</span>
           </button>
         )}
 
@@ -191,8 +198,8 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
             <div className="flex items-start gap-2 text-xs">
               <FiInfo className="mt-0.5 h-4 w-4 flex-shrink-0" />
               <p>
-                Sugerencia automática para clasificación; requiere criterio clínico.
-                Las sugerencias son solo para organización, no constituyen un diagnóstico.
+                Sugerencia automática para clasificación; requiere criterio clínico. Las sugerencias son solo para
+                organización, no constituyen un diagnóstico.
               </p>
             </div>
           </SectionCallout>
@@ -203,9 +210,7 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
         <SectionCallout tone="info" title="Afección seleccionada">
           <p>
             <strong>{data.afeccionSeleccionada.name}</strong>
-            <span className="ml-2 text-xs">
-              ({data.modoSeleccion === 'AUTO' ? 'Automático' : 'Manual'})
-            </span>
+            <span className="ml-2 text-xs">({data.modoSeleccion === 'AUTO' ? 'Automático' : 'Manual'})</span>
           </p>
         </SectionCallout>
       )}

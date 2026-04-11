@@ -57,8 +57,14 @@ export async function enqueueSave(save: Omit<PendingSave, 'id'>): Promise<void> 
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).add(save);
 
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error);
+    };
   });
 }
 
@@ -72,13 +78,23 @@ export async function getPendingSaves(): Promise<PendingSave[]> {
 
     request.onsuccess = () => {
       db.close();
-      const saves = (request.result as PendingSave[]).sort(
-        (a, b) => a.queuedAt.localeCompare(b.queuedAt),
-      );
+      const saves = (request.result as PendingSave[]).sort((a, b) => a.queuedAt.localeCompare(b.queuedAt));
       resolve(saves);
     };
-    request.onerror = () => { db.close(); reject(request.error); };
+    request.onerror = () => {
+      db.close();
+      reject(request.error);
+    };
   });
+}
+
+export function filterPendingSavesByUser(saves: PendingSave[], userId: string): PendingSave[] {
+  return saves.filter((save) => save.userId === userId);
+}
+
+export async function getPendingSavesForUser(userId: string): Promise<PendingSave[]> {
+  const saves = await getPendingSaves();
+  return filterPendingSavesByUser(saves, userId);
 }
 
 /** Remove a single queued save by its IndexedDB key. */
@@ -89,8 +105,14 @@ export async function removePendingSave(id: number): Promise<void> {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).delete(id);
 
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error);
+    };
   });
 }
 
@@ -102,9 +124,20 @@ export async function countPendingSaves(): Promise<number> {
     const tx = db.transaction(STORE_NAME, 'readonly');
     const request = tx.objectStore(STORE_NAME).count();
 
-    request.onsuccess = () => { db.close(); resolve(request.result); };
-    request.onerror = () => { db.close(); reject(request.error); };
+    request.onsuccess = () => {
+      db.close();
+      resolve(request.result);
+    };
+    request.onerror = () => {
+      db.close();
+      reject(request.error);
+    };
   });
+}
+
+export async function countPendingSavesForUser(userId: string): Promise<number> {
+  const saves = await getPendingSavesForUser(userId);
+  return saves.length;
 }
 
 /** Check whether an Axios error is a network failure (offline). */

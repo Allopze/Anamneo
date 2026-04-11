@@ -3,7 +3,7 @@
  * These document the explicit allowlist fields returned by the service layer.
  * They are NOT used for validation — only for contract documentation and typing.
  */
-import { PatientTaskResponseDto, UserRefDto } from '../patients/dto/patient-response.dto';
+import { PatientTaskResponseDto, UserRefDto } from '../../patients/dto/patient-response.dto';
 
 export class EncounterProgressDto {
   completed: number;
@@ -127,4 +127,5 @@ export class EncounterSectionUpdateResponseDto {
   updatedAt: Date;
   data: any;
   schemaVersion: number;
+  warnings?: string[];
 }

@@ -10,9 +10,7 @@ import { AuditService } from '../audit/audit.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterWithInvitationDto } from './dto/register-with-invitation.dto';
 import { Role } from './dto/register.dto';
-
-const otplibAdapterPath = require.resolve('@otplib/v12-adapter');
-const { authenticator } = require(otplibAdapterPath) as typeof import('@otplib/v12-adapter');
+import { authenticator } from '@otplib/v12-adapter';
 
 // ── Account lockout ────────────────────────────────────────────────────
 const MAX_FAILED_ATTEMPTS = 5;

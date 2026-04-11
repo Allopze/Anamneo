@@ -66,7 +66,7 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 | Variable | Default | Uso |
 |---|---|---|
 | `UPLOAD_MAX_SIZE` | `10485760` | Limite maximo por archivo |
-| `UPLOAD_DEST` | `./uploads` en ejemplo, `/app/uploads` en Docker | Destino de archivos |
+| `UPLOAD_DEST` | `./uploads` en ejemplo, `/app/uploads` en Docker | Destino de archivos. Debe permanecer dentro del directorio de la app |
 | `SENTRY_DSN` | vacio | Sentry backend |
 | `NEXT_PUBLIC_SENTRY_DSN` | vacio | Sentry frontend |
 

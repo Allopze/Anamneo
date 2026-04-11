@@ -21,6 +21,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  root-security:
+    name: Root Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies (root)
+        run: npm ci --ignore-scripts
+
+      - name: Audit root dependencies
+        run: npm audit --audit-level=high
+
   backend:
     name: Backend Tests & Build
     runs-on: ubuntu-latest

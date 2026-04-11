@@ -1,4 +1,4 @@
-import { isNetworkError } from '@/lib/offline-queue';
+import { filterPendingSavesByUser, isNetworkError } from '@/lib/offline-queue';
 
 describe('isNetworkError', () => {
   it('returns true for ERR_NETWORK code', () => {
@@ -19,5 +19,39 @@ describe('isNetworkError', () => {
 
   it('returns false for plain string', () => {
     expect(isNetworkError('fail')).toBe(false);
+  });
+});
+
+describe('filterPendingSavesByUser', () => {
+  it('keeps only saves for the active user', () => {
+    expect(
+      filterPendingSavesByUser(
+        [
+          {
+            id: 1,
+            encounterId: 'enc-1',
+            sectionKey: 'MOTIVO_CONSULTA',
+            data: { texto: 'A' },
+            queuedAt: '2026-04-11T10:00:00.000Z',
+            userId: 'user-1',
+          },
+          {
+            id: 2,
+            encounterId: 'enc-2',
+            sectionKey: 'TRATAMIENTO',
+            data: { plan: 'B' },
+            queuedAt: '2026-04-11T10:01:00.000Z',
+            userId: 'user-2',
+          },
+        ],
+        'user-1',
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: 1,
+        encounterId: 'enc-1',
+        userId: 'user-1',
+      }),
+    ]);
   });
 });

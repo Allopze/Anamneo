@@ -14,14 +14,13 @@ import { PatientsModule } from '../src/patients/patients.module';
 import { EncountersModule } from '../src/encounters/encounters.module';
 import { ConditionsModule } from '../src/conditions/conditions.module';
 import { AttachmentsModule } from '../src/attachments/attachments.module';
+import { ConsentsModule } from '../src/consents/consents.module';
+import { AlertsService } from '../src/alerts/alerts.service';
 import { AuditModule } from '../src/audit/audit.module';
 import { SettingsModule } from '../src/settings/settings.module';
 import { HealthController } from '../src/health.controller';
 import { requestTracingMiddleware } from '../src/common/utils/request-tracing';
-import {
-  ENCOUNTER_SECTION_ORDER,
-  getEncounterSectionSchemaVersion,
-} from '../src/common/utils/encounter-section-meta';
+import { ENCOUNTER_SECTION_ORDER, getEncounterSectionSchemaVersion } from '../src/common/utils/encounter-section-meta';
 
 // ── Test database setup ─────────────────────────────────────────────
 const TEST_DB_FILENAME = `test-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`;
@@ -55,12 +54,14 @@ describe('Application E2E Tests', () => {
   let app: INestApplication;
   let httpServer: any;
   let prisma: PrismaService;
+  let alertsService: AlertsService;
   let testDatabaseFilePath: string | null = null;
   let testSchemaSqlPath: string | null = null;
   let testUploadsDirectory: string | null = null;
 
   // Stored IDs used across tests
   let medicoUserId: string;
+  let assistantUserId: string;
   let patientId: string;
   let quickPatientId: string;
   let blockedPatientId: string;
@@ -120,11 +121,14 @@ describe('Application E2E Tests', () => {
     });
 
     // Build SQL from schema and execute it against the temporary SQLite DB.
-    const schemaSql = execSync('npx prisma migrate diff --from-empty --to-schema-datamodel ./prisma/schema.prisma --script', {
-      cwd: path.join(__dirname, '..'),
-      env: { ...process.env, DATABASE_URL: testDatabaseUrl },
-      stdio: 'pipe',
-    }).toString();
+    const schemaSql = execSync(
+      'npx prisma migrate diff --from-empty --to-schema-datamodel ./prisma/schema.prisma --script',
+      {
+        cwd: path.join(__dirname, '..'),
+        env: { ...process.env, DATABASE_URL: testDatabaseUrl },
+        stdio: 'pipe',
+      },
+    ).toString();
 
     fs.writeFileSync(testSchemaSqlPath, schemaSql, 'utf8');
 
@@ -144,6 +148,7 @@ describe('Application E2E Tests', () => {
         EncountersModule,
         ConditionsModule,
         AttachmentsModule,
+        ConsentsModule,
         AuditModule,
         SettingsModule,
       ],
@@ -151,6 +156,7 @@ describe('Application E2E Tests', () => {
     }).compile();
 
     prisma = moduleFixture.get(PrismaService);
+    alertsService = moduleFixture.get(AlertsService);
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
@@ -251,20 +257,14 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/auth/me → returns admin user', async () => {
-      const res = await req()
-        .get('/api/auth/me')
-        .set('Cookie', cookieHeader(adminCookies))
-        .expect(200);
+      const res = await req().get('/api/auth/me').set('Cookie', cookieHeader(adminCookies)).expect(200);
 
       expect(res.body.email).toBe('admin@test.com');
       expect(res.body.isAdmin).toBe(true);
     });
 
     it('GET /api/health/sqlite → 200 for admin with operational payload', async () => {
-      const res = await req()
-        .get('/api/health/sqlite')
-        .set('Cookie', cookieHeader(adminCookies))
-        .expect(200);
+      const res = await req().get('/api/health/sqlite').set('Cookie', cookieHeader(adminCookies)).expect(200);
 
       expect(['ok', 'degraded']).toContain(res.body.status);
       expect(res.body.database?.status).toBe('ok');
@@ -305,9 +305,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/auth/invitations/:token → validates invitation', async () => {
-      const res = await req()
-        .get(`/api/auth/invitations/${medicoInvitationToken}`)
-        .expect(200);
+      const res = await req().get(`/api/auth/invitations/${medicoInvitationToken}`).expect(200);
 
       expect(res.body.email).toBe('medico@test.com');
       expect(res.body.role).toBe('MEDICO');
@@ -328,10 +326,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/users/invitations → admin lists pending invitations', async () => {
-      const res = await req()
-        .get('/api/users/invitations')
-        .set('Cookie', cookieHeader(adminCookies))
-        .expect(200);
+      const res = await req().get('/api/users/invitations').set('Cookie', cookieHeader(adminCookies)).expect(200);
 
       const invitation = res.body.find((item: any) => item.id === revokedInvitationId);
 
@@ -351,9 +346,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/auth/invitations/:token → rejects revoked invitation', async () => {
-      await req()
-        .get(`/api/auth/invitations/${revokedInvitationToken}`)
-        .expect(403);
+      await req().get(`/api/auth/invitations/${revokedInvitationToken}`).expect(403);
     });
 
     it('POST /api/auth/register → medico user with invitation', async () => {
@@ -372,10 +365,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/auth/me → returns medico user', async () => {
-      const res = await req()
-        .get('/api/auth/me')
-        .set('Cookie', cookieHeader(medicoCookies))
-        .expect(200);
+      const res = await req().get('/api/auth/me').set('Cookie', cookieHeader(medicoCookies)).expect(200);
 
       expect(res.body.email).toBe('medico@test.com');
       expect(res.body.role).toBe('MEDICO');
@@ -397,6 +387,7 @@ describe('Application E2E Tests', () => {
         })
         .expect(201);
 
+      assistantUserId = res.body.id;
       expect(res.body.email).toBe('assistant@test.com');
       expect(res.body.medicoId).toBe(medicoUserId);
     });
@@ -412,10 +403,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/auth/me → returns assigned assistant user', async () => {
-      const res = await req()
-        .get('/api/auth/me')
-        .set('Cookie', cookieHeader(assistantCookies))
-        .expect(200);
+      const res = await req().get('/api/auth/me').set('Cookie', cookieHeader(assistantCookies)).expect(200);
 
       expect(res.body.role).toBe('ASISTENTE');
       expect(res.body.medicoId).toBe(medicoUserId);
@@ -509,10 +497,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('POST /api/auth/login → invalid credentials', async () => {
-      await req()
-        .post('/api/auth/login')
-        .send({ email: 'medico@test.com', password: 'WrongPass1' })
-        .expect(401);
+      await req().post('/api/auth/login').send({ email: 'medico@test.com', password: 'WrongPass1' }).expect(401);
     });
   });
 
@@ -635,10 +620,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/patients → list patients', async () => {
-      const res = await req()
-        .get('/api/patients')
-        .set('Cookie', cookieHeader(medicoCookies))
-        .expect(200);
+      const res = await req().get('/api/patients').set('Cookie', cookieHeader(medicoCookies)).expect(200);
 
       expect(res.body.data.length).toBeGreaterThanOrEqual(1);
       expect(res.body.pagination).toBeDefined();
@@ -646,10 +628,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/patients/:id → get patient', async () => {
-      const res = await req()
-        .get(`/api/patients/${patientId}`)
-        .set('Cookie', cookieHeader(medicoCookies))
-        .expect(200);
+      const res = await req().get(`/api/patients/${patientId}`).set('Cookie', cookieHeader(medicoCookies)).expect(200);
 
       expect(res.body.nombre).toBe('Paciente Test');
       expect(res.body.history).toBeDefined();
@@ -792,6 +771,19 @@ describe('Application E2E Tests', () => {
       expect(res.body.demographicsVerifiedById).toBeDefined();
     });
 
+    it('GET /api/patients/:id/admin-summary → keeps the real assistant as creator for quick registrations', async () => {
+      const res = await req()
+        .get(`/api/patients/${quickPatientId}/admin-summary`)
+        .set('Cookie', cookieHeader(adminCookies))
+        .expect(200);
+
+      expect(res.body.createdBy).toMatchObject({
+        id: assistantUserId,
+        nombre: 'Asistente Test',
+        email: 'assistant@test.com',
+      });
+    });
+
     it('PUT /api/patients/:id/history → admin gets 403 because history is clinical', async () => {
       await req()
         .put(`/api/patients/${patientId}/history`)
@@ -805,10 +797,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/patients/:id → admin gets 403 because the detail is clinical', async () => {
-      await req()
-        .get(`/api/patients/${patientId}`)
-        .set('Cookie', cookieHeader(adminCookies))
-        .expect(403);
+      await req().get(`/api/patients/${patientId}`).set('Cookie', cookieHeader(adminCookies)).expect(403);
     });
 
     it('GET /api/patients/:id/clinical-summary → admin gets 403 because the summary is clinical', async () => {
@@ -826,6 +815,12 @@ describe('Application E2E Tests', () => {
 
       expect(res.body.nombre).toBe('Paciente Actualizado');
       expect(res.body.metrics.encounterCount).toBe(0);
+      expect(res.body.createdBy).toMatchObject({
+        id: medicoUserId,
+        nombre: 'Dr. Updated',
+        email: 'medico@test.com',
+      });
+      expect(res.body.centroMedico).toBeNull();
       expect(res.body.history).toBeUndefined();
       expect(res.body.problems).toBeUndefined();
       expect(res.body.tasks).toBeUndefined();
@@ -857,10 +852,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/patients/:id → 404 when patient is archived', async () => {
-      await req()
-        .get(`/api/patients/${patientId}`)
-        .set('Cookie', cookieHeader(medicoCookies))
-        .expect(404);
+      await req().get(`/api/patients/${patientId}`).set('Cookie', cookieHeader(medicoCookies)).expect(404);
     });
 
     it('POST /api/patients/:id/restore → restore archived patient', async () => {
@@ -873,10 +865,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/patients/:id → available again after restore', async () => {
-      const res = await req()
-        .get(`/api/patients/${patientId}`)
-        .set('Cookie', cookieHeader(medicoCookies))
-        .expect(200);
+      const res = await req().get(`/api/patients/${patientId}`).set('Cookie', cookieHeader(medicoCookies)).expect(200);
 
       expect(res.body.id).toBe(patientId);
     });
@@ -923,19 +912,13 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/encounters → list encounters', async () => {
-      const res = await req()
-        .get('/api/encounters')
-        .set('Cookie', cookieHeader(medicoCookies))
-        .expect(200);
+      const res = await req().get('/api/encounters').set('Cookie', cookieHeader(medicoCookies)).expect(200);
 
       expect(res.body.data.length).toBeGreaterThanOrEqual(1);
     });
 
     it('GET /api/encounters → admin gets 403 because the encounter list is clinical', async () => {
-      await req()
-        .get('/api/encounters')
-        .set('Cookie', cookieHeader(adminCookies))
-        .expect(403);
+      await req().get('/api/encounters').set('Cookie', cookieHeader(adminCookies)).expect(403);
     });
 
     it('GET /api/encounters/:id → get encounter with sections', async () => {
@@ -1093,6 +1076,31 @@ describe('Application E2E Tests', () => {
           },
         })
         .expect(400);
+    });
+
+    it('PUT /api/encounters/:id/sections/EXAMEN_FISICO → returns a warning when auto-alert generation fails but the section still saves', async () => {
+      const spy = jest.spyOn(alertsService, 'checkVitalSigns').mockRejectedValueOnce(new Error('simulated failure'));
+
+      const res = await req()
+        .put(`/api/encounters/${encounterId}/sections/EXAMEN_FISICO`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: {
+            signosVitales: {
+              presionArterial: '180/120',
+              temperatura: '39.6',
+            },
+          },
+          completed: true,
+        })
+        .expect(200);
+
+      expect(res.body.sectionKey).toBe('EXAMEN_FISICO');
+      expect(res.body.warnings).toEqual([
+        'La sección se guardó, pero no se pudo completar la verificación automática de alertas por signos vitales.',
+      ]);
+
+      spy.mockRestore();
     });
 
     it('PUT /api/encounters/:id/sections/SOSPECHA_DIAGNOSTICA → rejects malformed ranked diagnoses', async () => {
@@ -1268,10 +1276,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/patients/tasks → admin gets 403 because the task inbox is clinical', async () => {
-      await req()
-        .get('/api/patients/tasks?search=Revisar')
-        .set('Cookie', cookieHeader(adminCookies))
-        .expect(403);
+      await req().get('/api/patients/tasks?search=Revisar').set('Cookie', cookieHeader(adminCookies)).expect(403);
     });
 
     it('GET /api/patients/tasks?overdueOnly=true → does not mark tasks due today as overdue', async () => {
@@ -1394,10 +1399,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/patients/:id → returns patient detail without embedding the encounter timeline', async () => {
-      const res = await req()
-        .get(`/api/patients/${patientId}`)
-        .set('Cookie', cookieHeader(medicoCookies))
-        .expect(200);
+      const res = await req().get(`/api/patients/${patientId}`).set('Cookie', cookieHeader(medicoCookies)).expect(200);
 
       expect(res.body.encounters).toBeUndefined();
     });
@@ -1448,9 +1450,7 @@ describe('Application E2E Tests', () => {
         .set('Cookie', cookieHeader(medicoCookies))
         .send({
           data: {
-            sospechas: [
-              { id: 'dx-1', diagnostico: 'Migraña', notas: 'probable' },
-            ],
+            sospechas: [{ id: 'dx-1', diagnostico: 'Migraña', notas: 'probable' }],
           },
           completed: true,
         })
@@ -1476,9 +1476,7 @@ describe('Application E2E Tests', () => {
       expect(Array.isArray(res.body.vitalTrend)).toBe(true);
       expect(res.body.vitalTrend[0]?.peso).toBe(70);
       expect(res.body.recentDiagnoses).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ label: 'Migraña', count: 1 }),
-        ]),
+        expect.arrayContaining([expect.objectContaining({ label: 'Migraña', count: 1 })]),
       );
       expect(res.body.latestEncounterSummary?.lines).toEqual(
         expect.arrayContaining([expect.stringContaining('Resumen: Paciente con buena respuesta inicial.')]),
@@ -1518,6 +1516,38 @@ describe('Application E2E Tests', () => {
 
       blockedEncounterId = res.body.id;
       expect(blockedEncounterId).toBeDefined();
+    });
+
+    it('POST /api/consents → 400 when encounterId does not belong to patientId', async () => {
+      const res = await req()
+        .post('/api/consents')
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          patientId,
+          encounterId: blockedEncounterId,
+          type: 'TRATAMIENTO',
+          description: 'Consentimiento inválido para validar asociación paciente-atención.',
+        })
+        .expect(400);
+
+      expect(String(res.body.message)).toContain('no corresponde al paciente');
+    });
+
+    it('POST /api/alerts → 400 when encounterId does not belong to patientId', async () => {
+      const res = await req()
+        .post('/api/alerts')
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          patientId,
+          encounterId: blockedEncounterId,
+          type: 'GENERAL',
+          severity: 'MEDIA',
+          title: 'Asociación inválida',
+          message: 'La atención no corresponde al paciente indicado.',
+        })
+        .expect(400);
+
+      expect(String(res.body.message)).toContain('no corresponde al paciente');
     });
 
     it('GET /api/encounters/:id/export/pdf → 400 while patient record remains incomplete', async () => {
@@ -1793,17 +1823,12 @@ describe('Application E2E Tests', () => {
   describe('Admin - Users', () => {
     // Re-login admin to get fresh cookies
     beforeAll(async () => {
-      const res = await req()
-        .post('/api/auth/login')
-        .send({ email: 'admin@test.com', password: 'Admin123' });
+      const res = await req().post('/api/auth/login').send({ email: 'admin@test.com', password: 'Admin123' });
       adminCookies = extractCookies(res);
     });
 
     it('GET /api/users → admin can list users', async () => {
-      const res = await req()
-        .get('/api/users')
-        .set('Cookie', cookieHeader(adminCookies))
-        .expect(200);
+      const res = await req().get('/api/users').set('Cookie', cookieHeader(adminCookies)).expect(200);
 
       expect(Array.isArray(res.body)).toBe(true);
       expect(res.body.length).toBeGreaterThanOrEqual(2);
@@ -1828,24 +1853,19 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/users → non-admin gets 403', async () => {
-      await req()
-        .get('/api/users')
-        .set('Cookie', cookieHeader(medicoCookies))
-        .expect(403);
+      await req().get('/api/users').set('Cookie', cookieHeader(medicoCookies)).expect(403);
     });
 
     it('GET /api/settings → admin can read settings', async () => {
-      const res = await req()
-        .get('/api/settings')
-        .set('Cookie', cookieHeader(adminCookies))
-        .expect(200);
+      const res = await req().get('/api/settings').set('Cookie', cookieHeader(adminCookies)).expect(200);
 
       expect(res.body['smtp.password']).toBeUndefined();
       expect(res.body['smtp.passwordConfigured']).toBe('false');
     });
 
     it('PUT /api/settings → admin can save invitation html template', async () => {
-      const template = '<html><body><img src="{{logoUrl}}" alt="{{clinicName}}" /><a href="{{inviteUrl}}">Entrar</a></body></html>';
+      const template =
+        '<html><body><img src="{{logoUrl}}" alt="{{clinicName}}" /><a href="{{inviteUrl}}">Entrar</a></body></html>';
       const res = await req()
         .put('/api/settings')
         .set('Cookie', cookieHeader(adminCookies))
@@ -1858,10 +1878,7 @@ describe('Application E2E Tests', () => {
 
       expect(Array.isArray(res.body)).toBe(true);
 
-      const settingsRes = await req()
-        .get('/api/settings')
-        .set('Cookie', cookieHeader(adminCookies))
-        .expect(200);
+      const settingsRes = await req().get('/api/settings').set('Cookie', cookieHeader(adminCookies)).expect(200);
 
       expect(settingsRes.body['smtp.password']).toBeUndefined();
       expect(settingsRes.body['smtp.passwordConfigured']).toBe('true');
@@ -1894,10 +1911,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/settings → non-admin gets 403', async () => {
-      await req()
-        .get('/api/settings')
-        .set('Cookie', cookieHeader(medicoCookies))
-        .expect(403);
+      await req().get('/api/settings').set('Cookie', cookieHeader(medicoCookies)).expect(403);
     });
   });
 
@@ -1994,10 +2008,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('GET /api/audit → non-admin gets 403', async () => {
-      await req()
-        .get('/api/audit')
-        .set('Cookie', cookieHeader(medicoCookies))
-        .expect(403);
+      await req().get('/api/audit').set('Cookie', cookieHeader(medicoCookies)).expect(403);
     });
   });
 
@@ -2018,10 +2029,7 @@ describe('Application E2E Tests', () => {
       const hasRefreshCookie = freshCookies.some((c) => c.startsWith('refresh_token='));
       expect(hasRefreshCookie).toBe(true);
 
-      const res = await req()
-        .post('/api/auth/refresh')
-        .set('Cookie', cookieHeader(freshCookies))
-        .expect(200);
+      const res = await req().post('/api/auth/refresh').set('Cookie', cookieHeader(freshCookies)).expect(200);
 
       expect(res.body.message).toBe('Tokens actualizados');
       const newCookies = extractCookies(res);
@@ -2069,11 +2077,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('POST /api/patients → missing required fields', async () => {
-      await req()
-        .post('/api/patients')
-        .set('Cookie', cookieHeader(medicoCookies))
-        .send({ nombre: 'Test' })
-        .expect(400);
+      await req().post('/api/patients').set('Cookie', cookieHeader(medicoCookies)).send({ nombre: 'Test' }).expect(400);
     });
   });
 
@@ -2085,6 +2089,10 @@ describe('Application E2E Tests', () => {
     let medico2PatientId: string;
     let medico2InvitationToken: string;
     let leakedEncounterId: string;
+    let leakedProblemId: string;
+    let leakedTaskId: string;
+    let leakedStandaloneProblemId: string;
+    let leakedStandaloneTaskId: string;
 
     it('Admin invites a second medico', async () => {
       const res = await req()
@@ -2138,10 +2146,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('Second medico cannot see first medico patients in list', async () => {
-      const res = await req()
-        .get('/api/patients')
-        .set('Cookie', cookieHeader(medico2Cookies))
-        .expect(200);
+      const res = await req().get('/api/patients').set('Cookie', cookieHeader(medico2Cookies)).expect(200);
 
       const ids = res.body.data.map((p: any) => p.id);
       expect(ids).not.toContain(patientId);
@@ -2149,10 +2154,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('First medico cannot see second medico patients in list', async () => {
-      const res = await req()
-        .get('/api/patients')
-        .set('Cookie', cookieHeader(medicoCookies))
-        .expect(200);
+      const res = await req().get('/api/patients').set('Cookie', cookieHeader(medicoCookies)).expect(200);
 
       const ids = res.body.data.map((p: any) => p.id);
       expect(ids).toContain(patientId);
@@ -2160,17 +2162,11 @@ describe('Application E2E Tests', () => {
     });
 
     it('Second medico cannot access first medico patient by ID', async () => {
-      await req()
-        .get(`/api/patients/${patientId}`)
-        .set('Cookie', cookieHeader(medico2Cookies))
-        .expect(404);
+      await req().get(`/api/patients/${patientId}`).set('Cookie', cookieHeader(medico2Cookies)).expect(404);
     });
 
     it('First medico cannot access second medico patient by ID', async () => {
-      await req()
-        .get(`/api/patients/${medico2PatientId}`)
-        .set('Cookie', cookieHeader(medicoCookies))
-        .expect(404);
+      await req().get(`/api/patients/${medico2PatientId}`).set('Cookie', cookieHeader(medicoCookies)).expect(404);
     });
 
     it('Second medico cannot create encounters for a patient outside their scope', async () => {
@@ -2210,9 +2206,128 @@ describe('Application E2E Tests', () => {
     });
 
     it('First medico still gets 404 when trying to open another medico encounter directly', async () => {
-      await req()
-        .get(`/api/encounters/${leakedEncounterId}`)
+      await req().get(`/api/encounters/${leakedEncounterId}`).set('Cookie', cookieHeader(medicoCookies)).expect(404);
+    });
+
+    it('Patient detail, encounter detail, summary and task inbox do not leak problems or tasks from another medico scope', async () => {
+      const [linkedProblem, linkedTask, standaloneProblem, standaloneTask] = await prisma.$transaction([
+        prisma.patientProblem.create({
+          data: {
+            patientId,
+            encounterId: leakedEncounterId,
+            createdById: medico2UserId,
+            label: 'Problema filtrado',
+            status: 'ACTIVO',
+          },
+        }),
+        prisma.encounterTask.create({
+          data: {
+            patientId,
+            encounterId: leakedEncounterId,
+            createdById: medico2UserId,
+            title: 'Seguimiento filtrado',
+            status: 'PENDIENTE',
+          },
+        }),
+        prisma.patientProblem.create({
+          data: {
+            patientId,
+            createdById: medico2UserId,
+            label: 'Problema standalone filtrado',
+            status: 'ACTIVO',
+          },
+        }),
+        prisma.encounterTask.create({
+          data: {
+            patientId,
+            createdById: medico2UserId,
+            title: 'Seguimiento standalone filtrado',
+            status: 'PENDIENTE',
+          },
+        }),
+      ]);
+
+      leakedProblemId = linkedProblem.id;
+      leakedTaskId = linkedTask.id;
+      leakedStandaloneProblemId = standaloneProblem.id;
+      leakedStandaloneTaskId = standaloneTask.id;
+
+      const patientRes = await req()
+        .get(`/api/patients/${patientId}`)
         .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+      expect(patientRes.body.problems.map((item: any) => item.id)).toContain(patientProblemId);
+      expect(patientRes.body.problems.map((item: any) => item.id)).not.toEqual(
+        expect.arrayContaining([leakedProblemId, leakedStandaloneProblemId]),
+      );
+      expect(patientRes.body.tasks.map((item: any) => item.id)).toContain(patientTaskId);
+      expect(patientRes.body.tasks.map((item: any) => item.id)).not.toEqual(
+        expect.arrayContaining([leakedTaskId, leakedStandaloneTaskId]),
+      );
+
+      const encounterRes = await req()
+        .get(`/api/encounters/${encounterId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+      expect(encounterRes.body.patient.problems.map((item: any) => item.id)).not.toEqual(
+        expect.arrayContaining([leakedProblemId, leakedStandaloneProblemId]),
+      );
+      expect(encounterRes.body.patient.tasks.map((item: any) => item.id)).not.toEqual(
+        expect.arrayContaining([leakedTaskId, leakedStandaloneTaskId]),
+      );
+
+      const summaryRes = await req()
+        .get(`/api/patients/${patientId}/clinical-summary`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+      expect(summaryRes.body.activeProblems.map((item: any) => item.id)).not.toEqual(
+        expect.arrayContaining([leakedProblemId, leakedStandaloneProblemId]),
+      );
+      expect(summaryRes.body.pendingTasks.map((item: any) => item.id)).not.toEqual(
+        expect.arrayContaining([leakedTaskId, leakedStandaloneTaskId]),
+      );
+
+      const inboxRes = await req().get('/api/patients/tasks').set('Cookie', cookieHeader(medicoCookies)).expect(200);
+      expect(inboxRes.body.data.map((item: any) => item.id)).not.toEqual(
+        expect.arrayContaining([leakedTaskId, leakedStandaloneTaskId]),
+      );
+    });
+
+    it('First medico cannot attach new problems or tasks to another medico encounter on the same patient', async () => {
+      await req()
+        .post(`/api/patients/${patientId}/problems`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          label: 'No debe vincularse',
+          encounterId: leakedEncounterId,
+        })
+        .expect(400);
+
+      await req()
+        .post(`/api/patients/${patientId}/tasks`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          title: 'No debe vincularse',
+          encounterId: leakedEncounterId,
+        })
+        .expect(400);
+    });
+
+    it('First medico cannot update another medico problem or task even if the patient is otherwise visible', async () => {
+      await req()
+        .put(`/api/patients/problems/${leakedStandaloneProblemId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          notes: 'Intento fuera de scope',
+        })
+        .expect(404);
+
+      await req()
+        .put(`/api/patients/tasks/${leakedStandaloneTaskId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          status: 'COMPLETADA',
+        })
         .expect(404);
     });
 
@@ -2237,10 +2352,7 @@ describe('Application E2E Tests', () => {
     });
 
     it('Admin can see all patients', async () => {
-      const res = await req()
-        .get('/api/patients')
-        .set('Cookie', cookieHeader(adminCookies))
-        .expect(200);
+      const res = await req().get('/api/patients').set('Cookie', cookieHeader(adminCookies)).expect(200);
 
       const ids = res.body.data.map((p: any) => p.id);
       expect(ids).toContain(patientId);

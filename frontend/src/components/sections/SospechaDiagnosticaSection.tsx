@@ -53,7 +53,7 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly, m
           id: Date.now().toString(),
           diagnostico: afeccion.name,
           prioridad: 1,
-          notas: `Sugerida automáticamente desde motivo de consulta (confianza: ${Math.round((afeccion.confidence ?? 0) * 100)}%)`,
+          notas: `Sugerida automáticamente desde motivo de consulta (confianza: ${Math.round(afeccion.confidence ?? 0)}%)`,
         },
       ],
     });
@@ -70,9 +70,7 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly, m
   };
 
   const updateSospecha = (id: string, field: keyof SospechaDiagnostica, value: any) => {
-    const updated = sospechas.map((s) =>
-      s.id === id ? { ...s, [field]: value } : s
-    );
+    const updated = sospechas.map((s) => (s.id === id ? { ...s, [field]: value } : s));
     onChange({ ...data, sospechas: updated });
   };
 
@@ -85,17 +83,14 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly, m
 
   const moveSospecha = (id: string, direction: 'up' | 'down') => {
     const index = sospechas.findIndex((s) => s.id === id);
-    if (
-      (direction === 'up' && index === 0) ||
-      (direction === 'down' && index === sospechas.length - 1)
-    ) {
+    if ((direction === 'up' && index === 0) || (direction === 'down' && index === sospechas.length - 1)) {
       return;
     }
 
     const newIndex = direction === 'up' ? index - 1 : index + 1;
     const updated = [...sospechas];
     [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
-    
+
     // Recalculate priorities
     const reordered = updated.map((s, i) => ({ ...s, prioridad: i + 1 }));
     onChange({ ...data, sospechas: reordered });
@@ -106,10 +101,7 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly, m
       <SectionBlock title="Sospechas diagnósticas">
         <div className="space-y-3">
           {sospechas.map((sospecha, index) => (
-            <div
-              key={sospecha.id}
-              className="section-item-card space-y-3"
-            >
+            <div key={sospecha.id} className="section-item-card space-y-3">
               <div className="flex items-center gap-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-full border border-status-yellow/65 bg-status-yellow/35 text-sm font-medium text-accent-text">
                   {sospecha.prioridad}
@@ -173,7 +165,7 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly, m
                         type="button"
                         onClick={() => {
                           const updated = sospechas.map((s) =>
-                            s.id === sospecha.id ? { ...s, codigoCie10: undefined, descripcionCie10: undefined } : s
+                            s.id === sospecha.id ? { ...s, codigoCie10: undefined, descripcionCie10: undefined } : s,
                           );
                           onChange({ ...data, sospechas: updated });
                         }}
@@ -206,7 +198,7 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly, m
                                 const updated = sospechas.map((s) =>
                                   s.id === sospecha.id
                                     ? { ...s, codigoCie10: entry.code, descripcionCie10: entry.description }
-                                    : s
+                                    : s,
                                 );
                                 onChange({ ...data, sospechas: updated });
                                 setCie10Query((prev) => ({ ...prev, [sospecha.id]: '' }));
@@ -234,9 +226,7 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly, m
           )}
 
           {sospechas.length === 0 && readOnly && (
-            <p className="py-4 text-center text-ink-muted">
-              No se registraron sospechas diagnósticas.
-            </p>
+            <p className="py-4 text-center text-ink-muted">No se registraron sospechas diagnósticas.</p>
           )}
         </div>
       </SectionBlock>

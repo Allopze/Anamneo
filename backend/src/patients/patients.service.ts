@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
@@ -11,14 +17,17 @@ import { UpdatePatientProblemDto } from './dto/update-patient-problem.dto';
 import { validateRut } from '../common/utils/helpers';
 import { Prisma } from '@prisma/client';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
-import { buildAccessiblePatientsWhere } from '../common/utils/patient-access';
+import {
+  buildAccessiblePatientsWhere,
+  buildEncounterTaskScopeWhere,
+  buildPatientProblemScopeWhere,
+  isClinicalRecordInMedicoScope,
+  isPatientOwnedByMedico,
+} from '../common/utils/patient-access';
 import { parseStoredJson } from '../common/utils/encounter-sections';
 import { PATIENT_HISTORY_FIELD_KEYS, sanitizePatientHistoryFieldValue } from '../common/utils/patient-history';
 import { isDateOnlyBeforeToday, parseDateOnlyToStoredUtcDate, startOfUtcDay } from '../common/utils/local-date';
-import {
-  ENCOUNTER_SECTION_LABELS,
-  ENCOUNTER_SECTION_ORDER,
-} from '../common/utils/encounter-section-meta';
+import { ENCOUNTER_SECTION_LABELS, ENCOUNTER_SECTION_ORDER } from '../common/utils/encounter-section-meta';
 import { PatientCompletenessStatus, SectionKey } from '../common/types';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
 import {
@@ -34,10 +43,7 @@ export class PatientsService {
     private auditService: AuditService,
   ) {}
 
-  private async findDuplicateRut(params: {
-    rut: string;
-    excludePatientId?: string;
-  }) {
+  private async findDuplicateRut(params: { rut: string; excludePatientId?: string }) {
     const { rut, excludePatientId } = params;
 
     return this.prisma.patient.findFirst({
@@ -89,9 +95,7 @@ export class PatientsService {
             status: problem.encounter.status,
           }
         : null,
-      createdBy: problem.createdBy
-        ? { id: problem.createdBy.id, nombre: problem.createdBy.nombre }
-        : null,
+      createdBy: problem.createdBy ? { id: problem.createdBy.id, nombre: problem.createdBy.nombre } : null,
     };
   }
 
@@ -122,6 +126,65 @@ export class PatientsService {
       ...(patient.tasks !== undefined && { tasks: patient.tasks.map((t: any) => this.formatTask(t)) }),
       ...(patient.encounters !== undefined && { encounters: patient.encounters }),
       ...(patient._count !== undefined && { _count: patient._count }),
+    };
+  }
+
+  private formatAdminSummary(patient: {
+    id: string;
+    rut: string | null;
+    rutExempt: boolean;
+    rutExemptReason: string | null;
+    nombre: string;
+    fechaNacimiento: Date | null;
+    edad: number | null;
+    edadMeses: number | null;
+    sexo: string | null;
+    trabajo: string | null;
+    prevision: string | null;
+    registrationMode: string;
+    completenessStatus: string;
+    demographicsVerifiedAt: Date | null;
+    demographicsVerifiedById: string | null;
+    domicilio: string | null;
+    centroMedico: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    createdBy: {
+      id: string;
+      nombre: string;
+      email: string;
+    } | null;
+    encounters: Array<{ createdAt: Date }>;
+    _count: { encounters: number };
+  }) {
+    const { encounters, _count, ...summary } = patient;
+
+    return {
+      id: summary.id,
+      rut: summary.rut,
+      rutExempt: summary.rutExempt,
+      rutExemptReason: summary.rutExemptReason,
+      nombre: summary.nombre,
+      fechaNacimiento: summary.fechaNacimiento,
+      edad: summary.edad,
+      edadMeses: summary.edadMeses,
+      sexo: summary.sexo,
+      trabajo: summary.trabajo,
+      prevision: summary.prevision,
+      registrationMode: summary.registrationMode,
+      completenessStatus: summary.completenessStatus,
+      demographicsVerifiedAt: summary.demographicsVerifiedAt,
+      demographicsVerifiedById: summary.demographicsVerifiedById,
+      demographicsMissingFields: getPatientDemographicsMissingFields(summary),
+      domicilio: summary.domicilio,
+      centroMedico: summary.centroMedico,
+      createdAt: summary.createdAt,
+      updatedAt: summary.updatedAt,
+      createdBy: summary.createdBy,
+      metrics: {
+        encounterCount: _count.encounters,
+        lastEncounterAt: encounters[0]?.createdAt ?? null,
+      },
     };
   }
 
@@ -173,9 +236,9 @@ export class PatientsService {
 
     if (actorRole === 'MEDICO') {
       if (
-        currentPatient?.completenessStatus === 'VERIFICADA'
-        && !verificationFieldsChanged
-        && currentPatient.demographicsVerifiedAt
+        currentPatient?.completenessStatus === 'VERIFICADA' &&
+        !verificationFieldsChanged &&
+        currentPatient.demographicsVerifiedAt
       ) {
         return {
           completenessStatus: 'VERIFICADA',
@@ -224,7 +287,12 @@ export class PatientsService {
 
     const patient = await this.prisma.patient.findUnique({
       where: { id: patientId },
-      include: { history: true },
+      include: {
+        history: true,
+        createdBy: {
+          select: { medicoId: true },
+        },
+      },
     });
 
     if (!patient || patient.archivedAt) {
@@ -232,7 +300,7 @@ export class PatientsService {
     }
 
     // Allow access if user created the patient or has encounters with them
-    if (!user.isAdmin && patient.createdById !== effectiveMedicoId) {
+    if (!user.isAdmin && !isPatientOwnedByMedico(patient, effectiveMedicoId)) {
       const hasEncounter = await this.prisma.encounter.findFirst({
         where: { patientId, medicoId: effectiveMedicoId },
         select: { id: true },
@@ -249,7 +317,7 @@ export class PatientsService {
     // Validate RUT if provided
     let formattedRut: string | undefined = undefined;
     const trimmedRutExemptReason = createPatientDto.rutExemptReason?.trim();
-    
+
     if (createPatientDto.rut && !createPatientDto.rutExempt) {
       const rutValidation = validateRut(createPatientDto.rut);
       if (!rutValidation.valid) {
@@ -278,7 +346,7 @@ export class PatientsService {
       actorRole: 'MEDICO',
       mode: 'CREATE_FULL',
       nextPatient: {
-        rut: createPatientDto.rutExempt ? null : (formattedRut || createPatientDto.rut || null),
+        rut: createPatientDto.rutExempt ? null : formattedRut || createPatientDto.rut || null,
         rutExempt: createPatientDto.rutExempt || false,
         rutExemptReason: trimmedRutExemptReason || null,
         edad: createPatientDto.edad,
@@ -290,7 +358,7 @@ export class PatientsService {
     const patient = await this.prisma.patient.create({
       data: {
         createdById: userId,
-        rut: createPatientDto.rutExempt ? null : (formattedRut || createPatientDto.rut || null),
+        rut: createPatientDto.rutExempt ? null : formattedRut || createPatientDto.rut || null,
         rutExempt: createPatientDto.rutExempt || false,
         rutExemptReason: trimmedRutExemptReason || null,
         nombre: createPatientDto.nombre,
@@ -325,8 +393,6 @@ export class PatientsService {
   }
 
   async createQuick(createPatientDto: CreatePatientQuickDto, user: RequestUser) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-
     // Validate RUT if provided
     let formattedRut: string | undefined = undefined;
     const trimmedRutExemptReason = createPatientDto.rutExemptReason?.trim();
@@ -355,8 +421,8 @@ export class PatientsService {
 
     const patient = await this.prisma.patient.create({
       data: {
-        createdById: effectiveMedicoId,
-        rut: createPatientDto.rutExempt ? null : (formattedRut || createPatientDto.rut || null),
+        createdById: user.id,
+        rut: createPatientDto.rutExempt ? null : formattedRut || createPatientDto.rut || null,
         rutExempt: createPatientDto.rutExempt || false,
         rutExemptReason: trimmedRutExemptReason || null,
         nombre: createPatientDto.nombre,
@@ -371,7 +437,7 @@ export class PatientsService {
           actorRole: user.role,
           mode: 'CREATE_QUICK',
           nextPatient: {
-            rut: createPatientDto.rutExempt ? null : (formattedRut || createPatientDto.rut || null),
+            rut: createPatientDto.rutExempt ? null : formattedRut || createPatientDto.rut || null,
             rutExempt: createPatientDto.rutExempt || false,
             rutExemptReason: trimmedRutExemptReason || null,
           },
@@ -393,7 +459,6 @@ export class PatientsService {
 
     return this.decoratePatient(patient);
   }
-
 
   async findAll(
     user: RequestUser,
@@ -421,10 +486,7 @@ export class PatientsService {
         ? {
             AND: [
               {
-                OR: [
-                  { nombre: { contains: search } },
-                  { rut: { contains: search } },
-                ],
+                OR: [{ nombre: { contains: search } }, { rut: { contains: search } }],
               },
             ],
           }
@@ -447,9 +509,7 @@ export class PatientsService {
         }
       : baseWhere;
 
-    const orderBy = filters?.sortBy
-      ? { [filters.sortBy]: filters.sortOrder || 'asc' }
-      : { createdAt: 'desc' as const };
+    const orderBy = filters?.sortBy ? { [filters.sortBy]: filters.sortOrder || 'asc' } : { createdAt: 'desc' as const };
 
     if (normalizedClinicalSearch) {
       const CLINICAL_SEARCH_CAP = 500;
@@ -478,12 +538,18 @@ export class PatientsService {
       });
 
       const filteredPatients = patients
-        .filter((patient) => patient.encounters.some((encounter) => encounter.sections.some((section) => this.matchesClinicalSearch(section.data, normalizedClinicalSearch))))
-        .map(({ encounters, ...patient }) => patient);
+        .filter((patient) =>
+          patient.encounters.some((encounter) =>
+            encounter.sections.some((section) => this.matchesClinicalSearch(section.data, normalizedClinicalSearch)),
+          ),
+        )
+        .map(({ encounters: _encounters, ...patient }) => patient);
 
       const paginatedPatients = filteredPatients.slice(skip, skip + limit);
       const incompleteCount = filteredPatients.filter((patient) => patient.completenessStatus === 'INCOMPLETA').length;
-      const pendingVerificationCount = filteredPatients.filter((patient) => patient.completenessStatus === 'PENDIENTE_VERIFICACION').length;
+      const pendingVerificationCount = filteredPatients.filter(
+        (patient) => patient.completenessStatus === 'PENDIENTE_VERIFICACION',
+      ).length;
       const verifiedCount = filteredPatients.filter((patient) => patient.completenessStatus === 'VERIFICADA').length;
 
       return {
@@ -551,17 +617,17 @@ export class PatientsService {
   }
 
   private toCsvCell(value: string | number | null | undefined) {
-    const normalized = value === null || value === undefined || value === ''
-      ? '-'
-      : String(value);
+    const normalized = value === null || value === undefined || value === '' ? '-' : String(value);
     const escaped = this.neutralizeCsvField(normalized).replace(/"/g, '""');
     return `"${escaped}"`;
   }
 
   private formatEncounterTimelineItem(encounter: any) {
     const sortedSections = [...(encounter.sections || [])].sort((a: any, b: any) => {
-      return ENCOUNTER_SECTION_ORDER.indexOf(a.sectionKey as SectionKey)
-        - ENCOUNTER_SECTION_ORDER.indexOf(b.sectionKey as SectionKey);
+      return (
+        ENCOUNTER_SECTION_ORDER.indexOf(a.sectionKey as SectionKey) -
+        ENCOUNTER_SECTION_ORDER.indexOf(b.sectionKey as SectionKey)
+      );
     });
 
     return {
@@ -608,8 +674,14 @@ export class PatientsService {
 
   private buildEncounterSummaryLines(encounter: any) {
     const motivo = this.getEncounterSectionData<{ texto?: string }>(encounter, 'MOTIVO_CONSULTA');
-    const diagnostico = this.getEncounterSectionData<{ sospechas?: Array<{ diagnostico?: string }> }>(encounter, 'SOSPECHA_DIAGNOSTICA');
-    const tratamiento = this.getEncounterSectionData<{ plan?: string; indicaciones?: string }>(encounter, 'TRATAMIENTO');
+    const diagnostico = this.getEncounterSectionData<{ sospechas?: Array<{ diagnostico?: string }> }>(
+      encounter,
+      'SOSPECHA_DIAGNOSTICA',
+    );
+    const tratamiento = this.getEncounterSectionData<{ plan?: string; indicaciones?: string }>(
+      encounter,
+      'TRATAMIENTO',
+    );
     const respuesta = this.getEncounterSectionData<{ planSeguimiento?: string }>(encounter, 'RESPUESTA_TRATAMIENTO');
     const observaciones = this.getEncounterSectionData<{ resumenClinico?: string }>(encounter, 'OBSERVACIONES');
     const treatmentPlan = tratamiento.plan?.trim() || tratamiento.indicaciones?.trim() || '';
@@ -631,11 +703,15 @@ export class PatientsService {
     return lines.slice(0, 4);
   }
 
-  private buildClinicalSummary(encounters: any[], patient: any, counts: {
-    totalEncounters: number;
-    activeProblems: number;
-    pendingTasks: number;
-  }) {
+  private buildClinicalSummary(
+    encounters: any[],
+    patient: any,
+    counts: {
+      totalEncounters: number;
+      activeProblems: number;
+      pendingTasks: number;
+    },
+  ) {
     const diagnosisMap = new Map<string, { label: string; count: number; lastSeenAt: Date }>();
     const vitalTrend = encounters
       .map((encounter) => {
@@ -659,7 +735,14 @@ export class PatientsService {
         };
       })
       .filter((item): item is NonNullable<typeof item> => item !== null)
-      .filter((item) => item.presionArterial || item.peso !== null || item.imc !== null || item.temperatura !== null || item.saturacionOxigeno !== null)
+      .filter(
+        (item) =>
+          item.presionArterial ||
+          item.peso !== null ||
+          item.imc !== null ||
+          item.temperatura !== null ||
+          item.saturacionOxigeno !== null,
+      )
       .slice(0, 6);
 
     for (const encounter of encounters) {
@@ -753,7 +836,8 @@ export class PatientsService {
       include: { _count: { select: { encounters: true } } },
     });
 
-    const header = 'Nombre,RUT,Edad,Sexo,Previsión,Modo registro,Estado completitud,Trabajo,Domicilio,Atenciones,Creado';
+    const header =
+      'Nombre,RUT,Edad,Sexo,Previsión,Modo registro,Estado completitud,Trabajo,Domicilio,Atenciones,Creado';
     const rows = patients.map((p) => {
       const fields = [
         this.toCsvCell(p.nombre || ''),
@@ -807,6 +891,7 @@ export class PatientsService {
         demographicsVerifiedAt: true,
         demographicsVerifiedById: true,
         domicilio: true,
+        centroMedico: true,
         createdAt: true,
         updatedAt: true,
         archivedAt: true,
@@ -836,15 +921,7 @@ export class PatientsService {
       throw new NotFoundException('Paciente no encontrado');
     }
 
-    const { encounters, _count, ...summary } = patient;
-
-    return this.decoratePatient({
-      ...summary,
-      metrics: {
-        encounterCount: _count.encounters,
-        lastEncounterAt: encounters[0]?.createdAt ?? null,
-      },
-    });
+    return this.formatAdminSummary(patient);
   }
 
   async findById(user: RequestUser, id: string) {
@@ -855,10 +932,8 @@ export class PatientsService {
       include: {
         history: true,
         problems: {
-          orderBy: [
-            { status: 'asc' },
-            { updatedAt: 'desc' },
-          ],
+          where: user.isAdmin ? undefined : buildPatientProblemScopeWhere(effectiveMedicoId),
+          orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
           include: {
             encounter: {
               select: { id: true, createdAt: true, status: true },
@@ -869,16 +944,16 @@ export class PatientsService {
           },
         },
         tasks: {
-          orderBy: [
-            { status: 'asc' },
-            { dueDate: 'asc' },
-            { createdAt: 'desc' },
-          ],
+          where: user.isAdmin ? undefined : buildEncounterTaskScopeWhere(effectiveMedicoId),
+          orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
           include: {
             createdBy: {
               select: { id: true, nombre: true },
             },
           },
+        },
+        createdBy: {
+          select: { medicoId: true },
         },
       },
     });
@@ -888,7 +963,7 @@ export class PatientsService {
     }
 
     // Verify access: user created patient or has encounters with them
-    if (!user.isAdmin && patient.createdById !== effectiveMedicoId) {
+    if (!user.isAdmin && !isPatientOwnedByMedico(patient, effectiveMedicoId)) {
       const hasEncounter = await this.prisma.encounter.findFirst({
         where: { patientId: id, medicoId: effectiveMedicoId },
         select: { id: true },
@@ -977,6 +1052,7 @@ export class PatientsService {
           id: true,
           problems: {
             where: {
+              ...(user.isAdmin ? {} : buildPatientProblemScopeWhere(effectiveMedicoId)),
               status: {
                 not: 'RESUELTO',
               },
@@ -993,6 +1069,7 @@ export class PatientsService {
           },
           tasks: {
             where: {
+              ...(user.isAdmin ? {} : buildEncounterTaskScopeWhere(effectiveMedicoId)),
               status: {
                 notIn: ['COMPLETADA', 'CANCELADA'],
               },
@@ -1032,6 +1109,7 @@ export class PatientsService {
       this.prisma.patientProblem.count({
         where: {
           patientId,
+          ...(user.isAdmin ? {} : buildPatientProblemScopeWhere(effectiveMedicoId)),
           status: {
             not: 'RESUELTO',
           },
@@ -1040,6 +1118,7 @@ export class PatientsService {
       this.prisma.encounterTask.count({
         where: {
           patientId,
+          ...(user.isAdmin ? {} : buildEncounterTaskScopeWhere(effectiveMedicoId)),
           status: {
             notIn: ['COMPLETADA', 'CANCELADA'],
           },
@@ -1076,39 +1155,39 @@ export class PatientsService {
     const skip = (page - 1) * limit;
 
     const effectiveMedicoId = getEffectiveMedicoId(user);
-
-    const where: Prisma.EncounterTaskWhereInput = {
-      patient: {
-        archivedAt: null,
-        ...(user.isAdmin
-          ? {}
-          : {
-              OR: [
-                { createdById: effectiveMedicoId },
-                { encounters: { some: { medicoId: effectiveMedicoId } } },
-              ],
-            }),
+    const whereClauses: Prisma.EncounterTaskWhereInput[] = [
+      {
+        patient: {
+          archivedAt: null,
+        },
       },
-    };
+    ];
+
+    if (!user.isAdmin) {
+      whereClauses.push(buildEncounterTaskScopeWhere(effectiveMedicoId));
+    }
 
     if (filters?.status) {
-      where.status = filters.status;
+      whereClauses.push({ status: filters.status });
     }
 
     if (filters?.type) {
-      where.type = filters.type;
+      whereClauses.push({ type: filters.type });
     }
 
     if (filters?.search?.trim()) {
-      where.OR = [
-        { title: { contains: filters.search.trim() } },
-        { details: { contains: filters.search.trim() } },
-        { patient: { nombre: { contains: filters.search.trim() } } },
-      ];
+      const search = filters.search.trim();
+      whereClauses.push({
+        OR: [
+          { title: { contains: search } },
+          { details: { contains: search } },
+          { patient: { nombre: { contains: search } } },
+        ],
+      });
     }
 
     if (filters?.overdueOnly) {
-      where.dueDate = { lt: startOfUtcDay(new Date()) };
+      whereClauses.push({ dueDate: { lt: startOfUtcDay(new Date()) } });
       if (filters?.status) {
         if (!['PENDIENTE', 'EN_PROCESO'].includes(filters.status)) {
           return {
@@ -1122,9 +1201,11 @@ export class PatientsService {
           };
         }
       } else {
-        where.status = { in: ['PENDIENTE', 'EN_PROCESO'] } as any;
+        whereClauses.push({ status: { in: ['PENDIENTE', 'EN_PROCESO'] } });
       }
     }
+
+    const where: Prisma.EncounterTaskWhereInput = whereClauses.length === 1 ? whereClauses[0] : { AND: whereClauses };
 
     const [tasks, total] = await Promise.all([
       this.prisma.encounterTask.findMany({
@@ -1148,9 +1229,7 @@ export class PatientsService {
       data: tasks.map((task) => ({
         ...this.formatTask(task),
         isOverdue: Boolean(
-          task.dueDate
-          && isDateOnlyBeforeToday(task.dueDate)
-          && ['PENDIENTE', 'EN_PROCESO'].includes(task.status),
+          task.dueDate && isDateOnlyBeforeToday(task.dueDate) && ['PENDIENTE', 'EN_PROCESO'].includes(task.status),
         ),
       })),
       pagination: {
@@ -1163,7 +1242,14 @@ export class PatientsService {
   }
 
   async update(id: string, updatePatientDto: UpdatePatientDto, user: RequestUser) {
-    const existingPatient = await this.prisma.patient.findUnique({ where: { id } });
+    const existingPatient = await this.prisma.patient.findUnique({
+      where: { id },
+      include: {
+        createdBy: {
+          select: { medicoId: true },
+        },
+      },
+    });
 
     if (!existingPatient) {
       throw new NotFoundException('Paciente no encontrado');
@@ -1174,7 +1260,7 @@ export class PatientsService {
     }
 
     const effectiveMedicoId = getEffectiveMedicoId(user);
-    if (!user.isAdmin && existingPatient.createdById !== effectiveMedicoId) {
+    if (!user.isAdmin && !isPatientOwnedByMedico(existingPatient, effectiveMedicoId)) {
       throw new ForbiddenException('No tiene permisos para editar este paciente');
     }
 
@@ -1440,13 +1526,20 @@ export class PatientsService {
 
   async remove(id: string, user: RequestUser) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
-    const patient = await this.prisma.patient.findUnique({ where: { id } });
+    const patient = await this.prisma.patient.findUnique({
+      where: { id },
+      include: {
+        createdBy: {
+          select: { medicoId: true },
+        },
+      },
+    });
 
     if (!patient) {
       throw new NotFoundException('Paciente no encontrado');
     }
 
-    if (!user.isAdmin && patient.createdById !== effectiveMedicoId) {
+    if (!user.isAdmin && !isPatientOwnedByMedico(patient, effectiveMedicoId)) {
       throw new ForbiddenException('No tiene permisos para archivar este paciente');
     }
 
@@ -1491,13 +1584,20 @@ export class PatientsService {
 
   async restore(id: string, user: RequestUser) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
-    const patient = await this.prisma.patient.findUnique({ where: { id } });
+    const patient = await this.prisma.patient.findUnique({
+      where: { id },
+      include: {
+        createdBy: {
+          select: { medicoId: true },
+        },
+      },
+    });
 
     if (!patient) {
       throw new NotFoundException('Paciente no encontrado');
     }
 
-    if (!user.isAdmin && patient.createdById !== effectiveMedicoId) {
+    if (!user.isAdmin && !isPatientOwnedByMedico(patient, effectiveMedicoId)) {
       throw new ForbiddenException('No tiene permisos para restaurar este paciente');
     }
 
@@ -1528,18 +1628,16 @@ export class PatientsService {
     return { message: 'Paciente restaurado correctamente' };
   }
 
-  async createProblem(
-    user: RequestUser,
-    patientId: string,
-    dto: UpsertPatientProblemDto,
-  ) {
+  async createProblem(user: RequestUser, patientId: string, dto: UpsertPatientProblemDto) {
     await this.assertPatientAccess(user, patientId);
+    const effectiveMedicoId = getEffectiveMedicoId(user);
 
     if (dto.encounterId) {
       const encounter = await this.prisma.encounter.findFirst({
         where: {
           id: dto.encounterId,
           patientId,
+          ...(user.isAdmin ? {} : { medicoId: effectiveMedicoId }),
         },
       });
 
@@ -1580,17 +1678,16 @@ export class PatientsService {
     return this.formatProblem(created);
   }
 
-  async updateProblem(
-    user: RequestUser,
-    problemId: string,
-    dto: UpdatePatientProblemDto,
-  ) {
+  async updateProblem(user: RequestUser, problemId: string, dto: UpdatePatientProblemDto) {
     const problem = await this.prisma.patientProblem.findUnique({
       where: { id: problemId },
       include: {
         patient: true,
         encounter: {
-          select: { id: true, createdAt: true, status: true },
+          select: { id: true, createdAt: true, status: true, medicoId: true },
+        },
+        createdBy: {
+          select: { medicoId: true },
         },
       },
     });
@@ -1600,6 +1697,10 @@ export class PatientsService {
     }
 
     await this.assertPatientAccess(user, problem.patientId);
+    const effectiveMedicoId = getEffectiveMedicoId(user);
+    if (!user.isAdmin && !isClinicalRecordInMedicoScope(problem, effectiveMedicoId)) {
+      throw new NotFoundException('Problema clínico no encontrado');
+    }
 
     const updated = await this.prisma.patientProblem.update({
       where: { id: problemId },
@@ -1608,9 +1709,12 @@ export class PatientsService {
         status: dto.status || problem.status,
         notes: dto.notes !== undefined ? dto.notes.trim() || null : problem.notes,
         severity: dto.severity !== undefined ? dto.severity.trim() || null : problem.severity,
-        onsetDate: dto.onsetDate !== undefined
-          ? (dto.onsetDate ? parseDateOnlyToStoredUtcDate(dto.onsetDate, 'La fecha de inicio') : null)
-          : problem.onsetDate,
+        onsetDate:
+          dto.onsetDate !== undefined
+            ? dto.onsetDate
+              ? parseDateOnlyToStoredUtcDate(dto.onsetDate, 'La fecha de inicio')
+              : null
+            : problem.onsetDate,
         resolvedAt: dto.status === 'RESUELTO' ? new Date() : dto.status ? null : problem.resolvedAt,
       },
       include: {
@@ -1648,12 +1752,14 @@ export class PatientsService {
     },
   ) {
     await this.assertPatientAccess(user, patientId);
+    const effectiveMedicoId = getEffectiveMedicoId(user);
 
     if (dto.encounterId) {
       const encounter = await this.prisma.encounter.findFirst({
         where: {
           id: dto.encounterId,
           patientId,
+          ...(user.isAdmin ? {} : { medicoId: effectiveMedicoId }),
         },
       });
 
@@ -1708,8 +1814,11 @@ export class PatientsService {
       where: { id: taskId },
       include: {
         patient: true,
+        encounter: {
+          select: { medicoId: true },
+        },
         createdBy: {
-          select: { id: true, nombre: true },
+          select: { id: true, nombre: true, medicoId: true },
         },
       },
     });
@@ -1719,6 +1828,10 @@ export class PatientsService {
     }
 
     await this.assertPatientAccess(user, task.patientId);
+    const effectiveMedicoId = getEffectiveMedicoId(user);
+    if (!user.isAdmin && !isClinicalRecordInMedicoScope(task, effectiveMedicoId)) {
+      throw new NotFoundException('Seguimiento no encontrado');
+    }
 
     const updated = await this.prisma.encounterTask.update({
       where: { id: taskId },
@@ -1728,10 +1841,18 @@ export class PatientsService {
         details: dto.details !== undefined ? dto.details.trim() || null : task.details,
         type: dto.type || task.type,
         priority: dto.priority || task.priority,
-        dueDate: dto.dueDate !== undefined
-          ? (dto.dueDate ? parseDateOnlyToStoredUtcDate(dto.dueDate, 'La fecha de vencimiento') : null)
-          : task.dueDate,
-        completedAt: dto.status === 'COMPLETADA' ? new Date() : dto.status && dto.status !== 'COMPLETADA' ? null : task.completedAt,
+        dueDate:
+          dto.dueDate !== undefined
+            ? dto.dueDate
+              ? parseDateOnlyToStoredUtcDate(dto.dueDate, 'La fecha de vencimiento')
+              : null
+            : task.dueDate,
+        completedAt:
+          dto.status === 'COMPLETADA'
+            ? new Date()
+            : dto.status && dto.status !== 'COMPLETADA'
+              ? null
+              : task.completedAt,
       },
       include: {
         createdBy: {

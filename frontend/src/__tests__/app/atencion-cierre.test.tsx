@@ -180,24 +180,27 @@ jest.mock('@/components/TemplateSelector', () => () => null);
 
 jest.mock('@/components/common/ConfirmModal', () => ({
   __esModule: true,
-  default: ({ isOpen, title, message, confirmLabel, onConfirm, onClose, loading }: any) => (
+  default: ({ isOpen, title, message, confirmLabel, onConfirm, onClose, loading }: any) =>
     isOpen ? (
       <div role="dialog" aria-label={title}>
         <h2>{title}</h2>
         <p>{message}</p>
-        <button type="button" onClick={onClose}>Cancelar</button>
-        <button type="button" onClick={onConfirm} disabled={loading}>{confirmLabel}</button>
+        <button type="button" onClick={onClose}>
+          Cancelar
+        </button>
+        <button type="button" onClick={onConfirm} disabled={loading}>
+          {confirmLabel}
+        </button>
       </div>
-    ) : null
-  ),
+    ) : null,
 }));
 
 jest.mock('react-hot-toast', () => ({
   __esModule: true,
-  default: {
+  default: Object.assign(jest.fn(), {
     success: jest.fn(),
     error: jest.fn(),
-  },
+  }),
 }));
 
 function createWrapper() {
@@ -275,7 +278,8 @@ describe('EncounterWizardPage closing workflow', () => {
               completenessStatus: 'PENDIENTE_VERIFICACION',
               missingFields: [],
               blockedActions: ['COMPLETE_ENCOUNTER', 'EXPORT_OFFICIAL_DOCUMENTS', 'PRINT_CLINICAL_RECORD'],
-              reason: 'La ficha maestra del paciente está pendiente de verificación médica antes de habilitar cierres y documentos clínicos oficiales.',
+              reason:
+                'La ficha maestra del paciente está pendiente de verificación médica antes de habilitar cierres y documentos clínicos oficiales.',
             },
           },
         });
@@ -289,7 +293,10 @@ describe('EncounterWizardPage closing workflow', () => {
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Finalizar Atención' })).toBeDisabled();
     expect(screen.getAllByText(/pendiente de verificación médica/i)).toHaveLength(2);
-    expect(screen.getByRole('link', { name: 'Revisar ficha administrativa' })).toHaveAttribute('href', '/pacientes/patient-1');
+    expect(screen.getByRole('link', { name: 'Revisar ficha administrativa' })).toHaveAttribute(
+      'href',
+      '/pacientes/patient-1',
+    );
     expect(apiPostMock).not.toHaveBeenCalled();
   });
 
@@ -321,5 +328,43 @@ describe('EncounterWizardPage closing workflow', () => {
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith('/atenciones/enc-1/ficha');
     });
+  });
+
+  it('shows a non-blocking warning toast when automatic vital-sign alerts could not be generated', async () => {
+    const user = userEvent.setup();
+
+    apiPutMock.mockResolvedValueOnce({
+      data: {
+        data: JSON.stringify({ notasInternas: 'Observación interna' }),
+        completed: false,
+        warnings: [
+          'La sección se guardó, pero no se pudo completar la verificación automática de alertas por signos vitales.',
+        ],
+      },
+    });
+
+    render(<EncounterWizardPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Notas rápidas' }));
+    await user.type(screen.getByPlaceholderText('Notas internas rápidas...'), 'Observación interna');
+    await user.click(screen.getByRole('button', { name: 'Guardar y cerrar' }));
+
+    await waitFor(() => {
+      expect(apiPutMock).toHaveBeenCalledWith('/encounters/enc-1/sections/OBSERVACIONES', {
+        data: { notasInternas: 'Observación interna' },
+        completed: undefined,
+      });
+    });
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith(
+        'La sección se guardó, pero no se pudo completar la verificación automática de alertas por signos vitales.',
+        { icon: '⚠️' },
+      );
+    });
+
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('Error al guardar'));
   });
 });

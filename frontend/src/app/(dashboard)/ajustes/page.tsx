@@ -64,9 +64,14 @@ function AjustesContent() {
   const queryClient = useQueryClient();
   const isAdmin = !!user?.isAdmin;
 
-  const validTabs = isAdmin
-    ? ['perfil', 'centro', 'correo', 'sistema'] as const
-    : ['perfil'] as const;
+  const validTabs = useMemo(
+    () => (
+      isAdmin
+        ? ['perfil', 'centro', 'correo', 'sistema'] as const
+        : ['perfil'] as const
+    ),
+    [isAdmin],
+  );
   const tabFromUrl = searchParams.get('tab') as AjustesTab | null;
   const initialTab = tabFromUrl && (validTabs as readonly string[]).includes(tabFromUrl)
     ? tabFromUrl
@@ -91,9 +96,7 @@ function AjustesContent() {
   }, [searchParams, validTabs]);
 
   const handleTabKeyDown = useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
-    const tabs = isAdmin
-      ? ['perfil', 'centro', 'correo', 'sistema'] as const
-      : ['perfil'] as const;
+    const tabs = validTabs;
     const currentIndex = (tabs as readonly string[]).indexOf(activeTab);
     let nextIndex = currentIndex;
 
@@ -118,7 +121,7 @@ function AjustesContent() {
     const nextTab = tabs[nextIndex] as typeof activeTab;
     setActiveTab(nextTab);
     document.getElementById(`tab-${nextTab}`)?.focus();
-  }, [activeTab, isAdmin, setActiveTab]);
+  }, [activeTab, setActiveTab, validTabs]);
   const [showPassword, setShowPassword] = useState(false);
   const [smtpPasswordConfigured, setSmtpPasswordConfigured] = useState(false);
   const [previewSeed] = useState(() => new Date());

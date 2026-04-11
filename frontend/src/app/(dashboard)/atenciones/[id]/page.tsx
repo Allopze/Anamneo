@@ -31,11 +31,7 @@ import {
 } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { buildGeneratedClinicalSummary } from '@/lib/clinical';
-import {
-  formatPatientMissingFields,
-  getIdentificationMissingFields,
-  getPatientCompletenessMeta,
-} from '@/lib/patient';
+import { formatPatientMissingFields, getIdentificationMissingFields, getPatientCompletenessMeta } from '@/lib/patient';
 import { getEncounterClinicalOutputBlockReason } from '@/lib/clinical-output';
 import {
   FiArrowLeft,
@@ -77,11 +73,22 @@ import EncounterAuditTimeline from '@/components/EncounterAuditTimeline';
 import { useOnlineStatus } from '@/lib/useOnlineStatus';
 import {
   enqueueSave,
-  getPendingSaves,
+  getPendingSavesForUser,
   removePendingSave,
-  countPendingSaves,
+  countPendingSavesForUser,
   isNetworkError,
 } from '@/lib/offline-queue';
+
+type SaveSectionResponse = {
+  id: string;
+  encounterId: string;
+  sectionKey: SectionKey;
+  completed: boolean;
+  updatedAt: string;
+  data: unknown;
+  schemaVersion: number;
+  warnings?: string[];
+};
 
 const SectionLoadingFallback = () => (
   <div className="rounded-card border border-surface-muted/40 bg-surface-base/55 px-5 py-5 text-sm text-ink-secondary">
@@ -153,23 +160,16 @@ const TOOLBAR_PRIMARY_BUTTON_CLASS =
 const TOOLBAR_SUCCESS_BUTTON_CLASS =
   'inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-input bg-status-green px-4 py-3 text-sm font-medium text-status-green-text transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-green/40 disabled:cursor-not-allowed disabled:opacity-50';
 
-const SURFACE_PANEL_CLASS =
-  'overflow-hidden rounded-card border border-frame/10 bg-surface-elevated shadow-soft';
+const SURFACE_PANEL_CLASS = 'overflow-hidden rounded-card border border-frame/10 bg-surface-elevated shadow-soft';
 
-const INNER_PANEL_CLASS =
-  'rounded-card border border-surface-muted/45 bg-surface-base/55';
+const INNER_PANEL_CLASS = 'rounded-card border border-surface-muted/45 bg-surface-base/55';
 
-const RAIL_PANEL_CLASS =
-  'overflow-hidden rounded-card border border-frame/10 bg-surface-elevated/78 shadow-soft';
+const RAIL_PANEL_CLASS = 'overflow-hidden rounded-card border border-frame/10 bg-surface-elevated/78 shadow-soft';
 
 const WORKSPACE_STICKY_OFFSET_CLASS = 'top-[110px]';
 
 // Sections only visible to doctors
-const MEDICO_ONLY_SECTIONS: SectionKey[] = [
-  'SOSPECHA_DIAGNOSTICA',
-  'TRATAMIENTO',
-  'RESPUESTA_TRATAMIENTO',
-];
+const MEDICO_ONLY_SECTIONS: SectionKey[] = ['SOSPECHA_DIAGNOSTICA', 'TRATAMIENTO', 'RESPUESTA_TRATAMIENTO'];
 
 const TEMPLATE_FIELD_BY_SECTION: Partial<Record<SectionKey, string>> = {
   MOTIVO_CONSULTA: 'texto',
@@ -240,13 +240,9 @@ const buildIdentificationSnapshotFromPatient = (encounter: Encounter) => ({
   domicilio: encounter.patient?.domicilio || '',
 });
 
-const formatDateTime = (value?: string | null) => (
-  value ? headerDateFormatter.format(new Date(value)) : '—'
-);
+const formatDateTime = (value?: string | null) => (value ? headerDateFormatter.format(new Date(value)) : '—');
 
-const formatCompactDate = (value?: string | null) => (
-  value ? compactDateFormatter.format(new Date(value)) : '—'
-);
+const formatCompactDate = (value?: string | null) => (value ? compactDateFormatter.format(new Date(value)) : '—');
 
 export default function EncounterWizardPage() {
   const { id } = useParams<{ id: string }>();
@@ -293,7 +289,11 @@ export default function EncounterWizardPage() {
   const syncingRef = useRef(false);
 
   // Fetch encounter data
-  const { data: encounter, isLoading, error } = useQuery({
+  const {
+    data: encounter,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['encounter', id],
     queryFn: async () => {
       const response = await api.get(`/encounters/${id}`);
@@ -320,17 +320,12 @@ export default function EncounterWizardPage() {
   const canEdit = canEditEncounter(user ?? null, encounter);
   const canUpload = canUploadAttachmentsPermission(user ?? null);
   const allSections = encounter?.sections;
-  const sections = useMemo(
-    () => {
-      const source = allSections ?? [];
-      return (
-      canViewMedicoOnlySections(user ?? null)
-        ? source
-        : source.filter((section) => !MEDICO_ONLY_SECTIONS.includes(section.sectionKey))
-      );
-    },
-    [allSections, user],
-  );
+  const sections = useMemo(() => {
+    const source = allSections ?? [];
+    return canViewMedicoOnlySections(user ?? null)
+      ? source
+      : source.filter((section) => !MEDICO_ONLY_SECTIONS.includes(section.sectionKey));
+  }, [allSections, user]);
   const currentSection = sections[currentSectionIndex];
 
   useEffect(() => {
@@ -344,16 +339,8 @@ export default function EncounterWizardPage() {
 
   // Save section mutation
   const saveSectionMutation = useMutation({
-    mutationFn: async ({
-      sectionKey,
-      data,
-      completed,
-    }: {
-      sectionKey: SectionKey;
-      data: any;
-      completed?: boolean;
-    }) => {
-      return api.put(`/encounters/${id}/sections/${sectionKey}`, {
+    mutationFn: async ({ sectionKey, data, completed }: { sectionKey: SectionKey; data: any; completed?: boolean }) => {
+      return api.put<SaveSectionResponse>(`/encounters/${id}/sections/${sectionKey}`, {
         data,
         completed,
       });
@@ -406,10 +393,10 @@ export default function EncounterWizardPage() {
             section.sectionKey === variables.sectionKey
               ? {
                   ...section,
-                    data: normalizedSectionData,
+                  data: normalizedSectionData,
                   completed: response.data.completed,
                 }
-              : section
+              : section,
           ),
         };
       });
@@ -428,11 +415,12 @@ export default function EncounterWizardPage() {
       setErrorSectionKey(null);
       setSaveStatus('saved');
       setLastSavedAt(new Date());
+      response.data.warnings?.forEach((warning) => {
+        toast(warning, { icon: '⚠️' });
+      });
       saveStatusTimerRef.current = setTimeout(() => {
         setSaveStatus('idle');
-        setSavedSectionKey((current) => (
-          current === variables.sectionKey ? null : current
-        ));
+        setSavedSectionKey((current) => (current === variables.sectionKey ? null : current));
       }, 2000);
     },
     onError: (err, variables) => {
@@ -447,7 +435,9 @@ export default function EncounterWizardPage() {
           completed: variables.completed,
           queuedAt: new Date().toISOString(),
           userId: user.id,
-        }).then(() => countPendingSaves()).then(setPendingSaveCount);
+        })
+          .then(() => countPendingSavesForUser(user.id))
+          .then(setPendingSaveCount);
         setSaveStatus('idle');
         toast('Sin conexión — guardado en cola local', { icon: '📡' });
         return;
@@ -493,7 +483,6 @@ export default function EncounterWizardPage() {
       toast.error(getErrorMessage(err));
     },
   });
-
 
   const attachmentsQuery = useQuery({
     queryKey: ['attachments', id],
@@ -630,9 +619,10 @@ export default function EncounterWizardPage() {
 
       // Detect stale draft: if the server has a newer updatedAt than the draft,
       // discard the draft to avoid restoring outdated clinical data.
-      const draftIsStale = storedDraft?.encounterUpdatedAt
-        && encounter.updatedAt
-        && new Date(encounter.updatedAt).getTime() > new Date(storedDraft.encounterUpdatedAt).getTime();
+      const draftIsStale =
+        storedDraft?.encounterUpdatedAt &&
+        encounter.updatedAt &&
+        new Date(encounter.updatedAt).getTime() > new Date(storedDraft.encounterUpdatedAt).getTime();
 
       const useDraft = storedDraft && !draftIsStale;
       const restoredFormData = useDraft ? storedDraft.formData : initialData;
@@ -643,10 +633,7 @@ export default function EncounterWizardPage() {
       lastSavedRef.current = JSON.stringify(restoredSavedSnapshot);
       setSavedSnapshotJson(lastSavedRef.current);
       setCurrentSectionIndex(
-        Math.min(
-          Math.max(useDraft ? storedDraft.currentSectionIndex : 0, 0),
-          Math.max(sections.length - 1, 0),
-        ),
+        Math.min(Math.max(useDraft ? storedDraft.currentSectionIndex : 0, 0), Math.max(sections.length - 1, 0)),
       );
 
       if (draftIsStale && storedDraft && hasEncounterDraftUnsavedChanges(storedDraft)) {
@@ -691,42 +678,49 @@ export default function EncounterWizardPage() {
     }
 
     clearEncounterDraft(encounter.id, user.id);
-  }, [currentSectionIndex, encounter?.id, encounter?.status, formData, savedSnapshotJson, user?.id]);
+  }, [currentSectionIndex, encounter?.id, encounter?.status, encounter?.updatedAt, formData, savedSnapshotJson, user?.id]);
 
   // Autosave logic — uses refs to avoid stale closures
-  const persistSection = useCallback(async ({
-    sectionKey,
-    completed,
-  }: {
-    sectionKey?: SectionKey;
-    completed?: boolean;
-  } = {}) => {
-    if (!canEdit) return;
-    if (!encounter?.sections) return;
+  const persistSection = useCallback(
+    async ({
+      sectionKey,
+      completed,
+    }: {
+      sectionKey?: SectionKey;
+      completed?: boolean;
+    } = {}) => {
+      if (!canEdit) return;
+      if (!encounter?.sections) return;
 
-    const targetSectionKey = sectionKey ?? activeSectionKeyRef.current;
-    if (!targetSectionKey) return;
+      const targetSectionKey = sectionKey ?? activeSectionKeyRef.current;
+      if (!targetSectionKey) return;
 
-    const currentData = formDataRef.current[targetSectionKey];
-    let savedSnapshot: Record<string, any> = {};
-    try { savedSnapshot = JSON.parse(lastSavedRef.current || '{}'); } catch { /* ignore */ }
-    const savedSectionData = JSON.stringify(savedSnapshot[targetSectionKey]);
-    const currentSectionData = JSON.stringify(currentData);
-    const persistedSection = sections.find((section) => section.sectionKey === targetSectionKey);
-    const shouldSaveData = currentSectionData !== savedSectionData;
-    const shouldSaveCompletion = completed !== undefined && persistedSection?.completed !== completed;
+      const currentData = formDataRef.current[targetSectionKey];
+      let savedSnapshot: Record<string, any> = {};
+      try {
+        savedSnapshot = JSON.parse(lastSavedRef.current || '{}');
+      } catch {
+        /* ignore */
+      }
+      const savedSectionData = JSON.stringify(savedSnapshot[targetSectionKey]);
+      const currentSectionData = JSON.stringify(currentData);
+      const persistedSection = sections.find((section) => section.sectionKey === targetSectionKey);
+      const shouldSaveData = currentSectionData !== savedSectionData;
+      const shouldSaveCompletion = completed !== undefined && persistedSection?.completed !== completed;
 
-    if (!shouldSaveData && !shouldSaveCompletion) {
-      return;
-    }
+      if (!shouldSaveData && !shouldSaveCompletion) {
+        return;
+      }
 
-    setSaveStatus('saving');
-    await saveSectionMutation.mutateAsync({
-      sectionKey: targetSectionKey,
-      data: currentData,
-      ...(completed !== undefined ? { completed } : {}),
-    });
-  }, [canEdit, encounter?.sections, saveSectionMutation, sections]);
+      setSaveStatus('saving');
+      await saveSectionMutation.mutateAsync({
+        sectionKey: targetSectionKey,
+        data: currentData,
+        ...(completed !== undefined ? { completed } : {}),
+      });
+    },
+    [canEdit, encounter?.sections, saveSectionMutation, sections],
+  );
 
   const saveCurrentSection = useCallback(() => {
     void persistSection();
@@ -758,12 +752,13 @@ export default function EncounterWizardPage() {
 
   // Sync offline queue when connectivity returns
   useEffect(() => {
-    if (!isOnline || syncingRef.current) return;
+    if (!isOnline || syncingRef.current || !user?.id) return;
 
+    const activeUserId = user.id;
     let cancelled = false;
 
     async function syncQueue() {
-      const saves = await getPendingSaves();
+      const saves = await getPendingSavesForUser(activeUserId);
       if (saves.length === 0 || cancelled) return;
 
       syncingRef.current = true;
@@ -772,10 +767,10 @@ export default function EncounterWizardPage() {
       for (const save of saves) {
         if (cancelled) break;
         try {
-          await api.put(
-            `/encounters/${save.encounterId}/sections/${save.sectionKey}`,
-            { data: save.data, completed: save.completed },
-          );
+          await api.put(`/encounters/${save.encounterId}/sections/${save.sectionKey}`, {
+            data: save.data,
+            completed: save.completed,
+          });
           await removePendingSave(save.id!);
           synced++;
         } catch {
@@ -784,7 +779,7 @@ export default function EncounterWizardPage() {
       }
 
       syncingRef.current = false;
-      const remaining = await countPendingSaves();
+      const remaining = await countPendingSavesForUser(activeUserId);
       if (!cancelled) {
         setPendingSaveCount(remaining);
         if (synced > 0) {
@@ -796,13 +791,20 @@ export default function EncounterWizardPage() {
 
     void syncQueue();
 
-    return () => { cancelled = true; };
-  }, [isOnline, id, queryClient]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isOnline, id, queryClient, user?.id]);
 
   // Load pending count on mount
   useEffect(() => {
-    void countPendingSaves().then(setPendingSaveCount);
-  }, []);
+    if (!user?.id) {
+      setPendingSaveCount(0);
+      return;
+    }
+
+    void countPendingSavesForUser(user.id).then(setPendingSaveCount);
+  }, [user?.id]);
 
   // Warn before leaving with unsaved changes
   useEffect(() => {
@@ -842,9 +844,7 @@ export default function EncounterWizardPage() {
   const handleSectionDataChange = (sectionKey: SectionKey, data: any) => {
     if (!canEdit) return;
     setFormData((prev) => ({ ...prev, [sectionKey]: data }));
-    setErrorSectionKey((current) => (
-      current === sectionKey ? null : current
-    ));
+    setErrorSectionKey((current) => (current === sectionKey ? null : current));
     setSaveStatus('idle');
   };
 
@@ -873,12 +873,8 @@ export default function EncounterWizardPage() {
     if (!targetField) return;
 
     const currentData = formData[currentSection.sectionKey] || {};
-    const existingValue = typeof currentData[targetField] === 'string'
-      ? currentData[targetField].trim()
-      : '';
-    const nextValue = existingValue
-      ? `${existingValue}\n\n${content}`.trim()
-      : content;
+    const existingValue = typeof currentData[targetField] === 'string' ? currentData[targetField].trim() : '';
+    const nextValue = existingValue ? `${existingValue}\n\n${content}`.trim() : content;
 
     handleSectionDataChange(currentSection.sectionKey, {
       ...currentData,
@@ -954,11 +950,11 @@ export default function EncounterWizardPage() {
   };
 
   const handleReviewStatusChange = (
-    reviewStatus: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO'
+    reviewStatus: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO',
   ) => {
     if (
-      (reviewStatus === 'LISTA_PARA_REVISION' || reviewStatus === 'REVISADA_POR_MEDICO')
-      && reviewActionNote.trim().length < REVIEW_NOTE_MIN_LENGTH
+      (reviewStatus === 'LISTA_PARA_REVISION' || reviewStatus === 'REVISADA_POR_MEDICO') &&
+      reviewActionNote.trim().length < REVIEW_NOTE_MIN_LENGTH
     ) {
       toast.error(`La nota de revisión debe tener al menos ${REVIEW_NOTE_MIN_LENGTH} caracteres`);
       return;
@@ -971,17 +967,13 @@ export default function EncounterWizardPage() {
   };
 
   const SectionComponent = currentSection ? SECTION_COMPONENTS[currentSection.sectionKey] : null;
-  const completedCount = useMemo(
-    () => sections.filter((section) => section.completed).length,
-    [sections],
-  );
+  const completedCount = useMemo(() => sections.filter((section) => section.completed).length, [sections]);
   const progressPercentage = sections.length > 0 ? (completedCount / sections.length) * 100 : 0;
   const canComplete = canCompleteEncounterPermission(user ?? null, encounter);
-  const attachments = useMemo(
-    () => attachmentsQuery.data ?? [],
-    [attachmentsQuery.data],
-  );
-  const tratamientoData = (formData.TRATAMIENTO ?? encounter?.sections?.find((section) => section.sectionKey === 'TRATAMIENTO')?.data ?? {}) as TratamientoData;
+  const attachments = useMemo(() => attachmentsQuery.data ?? [], [attachmentsQuery.data]);
+  const tratamientoData = (formData.TRATAMIENTO ??
+    encounter?.sections?.find((section) => section.sectionKey === 'TRATAMIENTO')?.data ??
+    {}) as TratamientoData;
   const examenesEstructurados = useMemo(
     () => (Array.isArray(tratamientoData.examenesEstructurados) ? tratamientoData.examenesEstructurados : []),
     [tratamientoData.examenesEstructurados],
@@ -990,53 +982,47 @@ export default function EncounterWizardPage() {
     () => (Array.isArray(tratamientoData.derivacionesEstructuradas) ? tratamientoData.derivacionesEstructuradas : []),
     [tratamientoData.derivacionesEstructuradas],
   );
-  const currentLinkedOrderType = uploadMeta.category === 'EXAMEN'
-    ? 'EXAMEN'
-    : uploadMeta.category === 'DERIVACION'
-    ? 'DERIVACION'
-    : '';
+  const currentLinkedOrderType =
+    uploadMeta.category === 'EXAMEN' ? 'EXAMEN' : uploadMeta.category === 'DERIVACION' ? 'DERIVACION' : '';
   const currentLinkableOrders: StructuredOrder[] = useMemo(
-    () => (
+    () =>
       currentLinkedOrderType === 'EXAMEN'
         ? examenesEstructurados
         : currentLinkedOrderType === 'DERIVACION'
-        ? derivacionesEstructuradas
-        : []
-    ),
+          ? derivacionesEstructuradas
+          : [],
     [currentLinkedOrderType, derivacionesEstructuradas, examenesEstructurados],
   );
   const linkedAttachmentsByOrderId = useMemo(
-    () => attachments.reduce<Record<string, Attachment[]>>((acc, attachment) => {
-      if (!attachment.linkedOrderId) {
+    () =>
+      attachments.reduce<Record<string, Attachment[]>>((acc, attachment) => {
+        if (!attachment.linkedOrderId) {
+          return acc;
+        }
+
+        if (!acc[attachment.linkedOrderId]) {
+          acc[attachment.linkedOrderId] = [];
+        }
+
+        acc[attachment.linkedOrderId].push(attachment);
         return acc;
-      }
-
-      if (!acc[attachment.linkedOrderId]) {
-        acc[attachment.linkedOrderId] = [];
-      }
-
-      acc[attachment.linkedOrderId].push(attachment);
-      return acc;
-    }, {}),
+      }, {}),
     [attachments],
   );
   const supportsTemplates = Boolean(currentSection && TEMPLATE_FIELD_BY_SECTION[currentSection.sectionKey]);
-  const generatedSummary = useMemo(
-    () => {
-      if (!encounter) {
-        return '';
-      }
+  const generatedSummary = useMemo(() => {
+    if (!encounter) {
+      return '';
+    }
 
-      return buildGeneratedClinicalSummary({
-        ...encounter,
-        sections: sections.map((section) => ({
-          ...section,
-          data: formData[section.sectionKey] ?? section.data,
-        })),
-      } as Encounter);
-    },
-    [encounter, formData, sections],
-  );
+    return buildGeneratedClinicalSummary({
+      ...encounter,
+      sections: sections.map((section) => ({
+        ...section,
+        data: formData[section.sectionKey] ?? section.data,
+      })),
+    } as Encounter);
+  }, [encounter, formData, sections]);
 
   const savedSnapshot = useMemo(() => {
     try {
@@ -1063,9 +1049,9 @@ export default function EncounterWizardPage() {
   const currentSectionState = currentSection ? getSectionUiState(currentSection) : 'idle';
   const currentSectionStatusMeta = SECTION_STATUS_META[currentSectionState];
   const identificationSnapshotStatus = encounter?.identificationSnapshotStatus;
-  const identificationData = ((formData.IDENTIFICACION
-    ?? encounter?.sections?.find((section) => section.sectionKey === 'IDENTIFICACION')?.data
-    ?? {}) as IdentificacionData);
+  const identificationData = (formData.IDENTIFICACION ??
+    encounter?.sections?.find((section) => section.sectionKey === 'IDENTIFICACION')?.data ??
+    {}) as IdentificacionData;
   const patientCompletenessMeta = encounter?.patient ? getPatientCompletenessMeta(encounter.patient) : null;
   const identificationMissingFields = formatPatientMissingFields(getIdentificationMissingFields(identificationData));
   const clinicalOutputBlockReason = encounter?.clinicalOutputBlock?.reason ?? null;
@@ -1125,31 +1111,26 @@ export default function EncounterWizardPage() {
     ? saveStatus === 'saving'
       ? 'Guardando…'
       : saveStatus === 'saved'
-      ? 'Cambios guardados'
-      : saveStatus === 'error'
-      ? 'Error al guardar'
-      : hasUnsavedChanges
-      ? 'Cambios sin guardar'
-      : lastSavedTimeStr
-      ? `Guardado a las ${lastSavedTimeStr}`
-      : saveStatus === 'error'
-      ? 'Error al guardar'
-      : hasUnsavedChanges
-      ? 'Cambios sin guardar'
-      : lastSavedTimeStr
-      ? `Guardado a las ${lastSavedTimeStr}`
-      : 'Sin cambios'
+        ? 'Cambios guardados'
+        : saveStatus === 'error'
+          ? 'Error al guardar'
+          : hasUnsavedChanges
+            ? 'Cambios sin guardar'
+            : lastSavedTimeStr
+              ? `Guardado a las ${lastSavedTimeStr}`
+              : 'Sin cambios'
     : null;
 
-  const saveStateToneClass = saveStatus === 'error'
-    ? 'text-status-red-text'
-    : saveStatus === 'saved'
-    ? 'text-status-green-text'
-    : saveStatus === 'saving'
-    ? 'text-ink'
-    : hasUnsavedChanges
-    ? 'text-accent-text'
-    : 'text-ink-secondary';
+  const saveStateToneClass =
+    saveStatus === 'error'
+      ? 'text-status-red-text'
+      : saveStatus === 'saved'
+        ? 'text-status-green-text'
+        : saveStatus === 'saving'
+          ? 'text-ink'
+          : hasUnsavedChanges
+            ? 'text-accent-text'
+            : 'text-ink-secondary';
 
   const SIDEBAR_TABS = [
     { key: 'revision' as const, label: 'Revisión', icon: FiActivity },
@@ -1170,9 +1151,7 @@ export default function EncounterWizardPage() {
               onClick={() => setSidebarTab(tab.key)}
               className={clsx(
                 'flex flex-1 items-center justify-center gap-2 px-3 py-3 text-sm font-medium transition-colors',
-                sidebarTab === tab.key
-                  ? 'border-b-2 border-accent text-ink'
-                  : 'text-ink-secondary hover:text-ink',
+                sidebarTab === tab.key ? 'border-b-2 border-accent text-ink' : 'text-ink-secondary hover:text-ink',
               )}
             >
               <tab.icon className="h-3.5 w-3.5" />
@@ -1182,242 +1161,235 @@ export default function EncounterWizardPage() {
         </div>
 
         {sidebarTab === 'revision' && (
-        <div className="px-5 py-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <FiActivity className="h-4 w-4 text-ink-secondary" />
-                <p className="text-sm font-semibold text-ink">
-                  {REVIEW_STATUS_LABELS[encounter.reviewStatus || 'NO_REQUIERE_REVISION']}
+          <div className="px-5 py-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <FiActivity className="h-4 w-4 text-ink-secondary" />
+                  <p className="text-sm font-semibold text-ink">
+                    {REVIEW_STATUS_LABELS[encounter.reviewStatus || 'NO_REQUIERE_REVISION']}
+                  </p>
+                </div>
+                <p className="mt-1 text-sm text-ink-secondary">
+                  {encounter.reviewedAt
+                    ? `Última revisión · ${formatDateTime(encounter.reviewedAt)}`
+                    : encounter.reviewRequestedAt
+                      ? `Solicitada · ${formatDateTime(encounter.reviewRequestedAt)}`
+                      : 'Sin revisión pendiente'}
                 </p>
               </div>
-              <p className="mt-1 text-sm text-ink-secondary">
-                {encounter.reviewedAt
-                  ? `Última revisión · ${formatDateTime(encounter.reviewedAt)}`
-                  : encounter.reviewRequestedAt
-                  ? `Solicitada · ${formatDateTime(encounter.reviewRequestedAt)}`
-                  : 'Sin revisión pendiente'}
-              </p>
             </div>
-          </div>
 
-          <label className="mt-5 block text-sm font-medium text-ink" htmlFor="review-note">
-            Nota de revisión
-          </label>
-          <textarea
-            id="review-note"
-            name="review_note"
-            className="form-input form-textarea mt-2 min-h-[132px]"
-            value={reviewActionNote}
-            onChange={(e) => setReviewActionNote(e.target.value)}
-            placeholder="Contexto clínico para la revisión médica…"
-            readOnly={!canEdit}
-          />
-          <p className="mt-2 text-xs text-ink-muted">
-            Obligatoria para enviar a revisión o marcar revisada. Mínimo {REVIEW_NOTE_MIN_LENGTH} caracteres.
-          </p>
+            <label className="mt-5 block text-sm font-medium text-ink" htmlFor="review-note">
+              Nota de revisión
+            </label>
+            <textarea
+              id="review-note"
+              name="review_note"
+              className="form-input form-textarea mt-2 min-h-[132px]"
+              value={reviewActionNote}
+              onChange={(e) => setReviewActionNote(e.target.value)}
+              placeholder="Contexto clínico para la revisión médica…"
+              readOnly={!canEdit}
+            />
+            <p className="mt-2 text-xs text-ink-muted">
+              Obligatoria para enviar a revisión o marcar revisada. Mínimo {REVIEW_NOTE_MIN_LENGTH} caracteres.
+            </p>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {!isDoctor && encounter.reviewStatus !== 'LISTA_PARA_REVISION' ? (
-              <button
-                className={TOOLBAR_BUTTON_CLASS}
-                onClick={() => handleReviewStatusChange('LISTA_PARA_REVISION')}
-                disabled={reviewStatusMutation.isPending}
-              >
-                Enviar a Revisión Médica
-              </button>
-            ) : null}
-            {isDoctor && encounter.reviewStatus !== 'REVISADA_POR_MEDICO' ? (
-              <button
-                className={TOOLBAR_BUTTON_CLASS}
-                onClick={() => handleReviewStatusChange('REVISADA_POR_MEDICO')}
-                disabled={reviewStatusMutation.isPending}
-              >
-                Marcar Revisada
-              </button>
-            ) : null}
-          </div>
-
-          <div className="mt-5 border-t border-surface-muted/35 pt-4">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold text-ink">Resumen Clínico Generado</h3>
-              {canEdit && generatedSummary ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {!isDoctor && encounter.reviewStatus !== 'LISTA_PARA_REVISION' ? (
                 <button
-                  type="button"
-                  className="text-sm font-medium text-ink-secondary transition-colors hover:text-ink"
-                  onClick={() => {
-                    const existing = formData.OBSERVACIONES || {};
-                    const updatedData = {
-                      ...existing,
-                      resumenClinico: generatedSummary,
-                    };
-                    handleSectionDataChange('OBSERVACIONES', updatedData);
-                    saveSectionMutation.mutate({ sectionKey: 'OBSERVACIONES', data: updatedData });
-                    toast.success('Resumen longitudinal guardado');
-                  }}
+                  className={TOOLBAR_BUTTON_CLASS}
+                  onClick={() => handleReviewStatusChange('LISTA_PARA_REVISION')}
+                  disabled={reviewStatusMutation.isPending}
                 >
-                  Guardar Resumen
+                  Enviar a Revisión Médica
+                </button>
+              ) : null}
+              {isDoctor && encounter.reviewStatus !== 'REVISADA_POR_MEDICO' ? (
+                <button
+                  className={TOOLBAR_BUTTON_CLASS}
+                  onClick={() => handleReviewStatusChange('REVISADA_POR_MEDICO')}
+                  disabled={reviewStatusMutation.isPending}
+                >
+                  Marcar Revisada
                 </button>
               ) : null}
             </div>
-            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink-secondary">
-              {generatedSummary || 'Completa más secciones para generar un resumen clínico automático.'}
-            </p>
+
+            <div className="mt-5 border-t border-surface-muted/35 pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-ink">Resumen Clínico Generado</h3>
+                {canEdit && generatedSummary ? (
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-ink-secondary transition-colors hover:text-ink"
+                    onClick={() => {
+                      const existing = formData.OBSERVACIONES || {};
+                      const updatedData = {
+                        ...existing,
+                        resumenClinico: generatedSummary,
+                      };
+                      handleSectionDataChange('OBSERVACIONES', updatedData);
+                      saveSectionMutation.mutate({ sectionKey: 'OBSERVACIONES', data: updatedData });
+                      toast.success('Resumen longitudinal guardado');
+                    }}
+                  >
+                    Guardar Resumen
+                  </button>
+                ) : null}
+              </div>
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink-secondary">
+                {generatedSummary || 'Completa más secciones para generar un resumen clínico automático.'}
+              </p>
+            </div>
           </div>
-        </div>
         )}
 
         {sidebarTab === 'apoyo' && (
-        <div className="px-5 py-5">
-          <div className="grid gap-2">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASS}
-              onClick={() => setIsAttachmentsOpen(true)}
-            >
-              Adjuntos de la Atención
-            </button>
-            {canEditAntecedentes() ? (
-              <Link
-                href={`/pacientes/${encounter.patientId}/historial`}
-                className={TOOLBAR_BUTTON_CLASS}
-              >
-                Antecedentes del Paciente
-              </Link>
-            ) : null}
-          </div>
+          <div className="px-5 py-5">
+            <div className="grid gap-2">
+              <button type="button" className={TOOLBAR_BUTTON_CLASS} onClick={() => setIsAttachmentsOpen(true)}>
+                Adjuntos de la Atención
+              </button>
+              {canEditAntecedentes() ? (
+                <Link href={`/pacientes/${encounter.patientId}/historial`} className={TOOLBAR_BUTTON_CLASS}>
+                  Antecedentes del Paciente
+                </Link>
+              ) : null}
+            </div>
 
-          <form
-            className="mt-5 flex flex-col gap-3 border-t border-surface-muted/35 pt-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              createTaskMutation.mutate();
-            }}
-          >
-            <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-              <FiClipboard className="h-4 w-4 text-ink-secondary" />
-              Seguimiento Rápido
-            </div>
-            <input
-              name="quick_task_title"
-              className="form-input"
-              value={quickTask.title}
-              onChange={(e) => setQuickTask((prev) => ({ ...prev, title: e.target.value }))}
-              placeholder="Ej.: revisar examen en 48 h…"
-            />
-            <div className="grid gap-2 sm:grid-cols-2">
-              <select
-                name="quick_task_type"
-                className="form-input"
-                value={quickTask.type}
-                onChange={(e) => setQuickTask((prev) => ({ ...prev, type: e.target.value }))}
-              >
-                {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-              <input
-                type="date"
-                name="quick_task_due_date"
-                className="form-input"
-                value={quickTask.dueDate}
-                onChange={(e) => setQuickTask((prev) => ({ ...prev, dueDate: e.target.value }))}
-              />
-            </div>
-            <button
-              type="submit"
-              className={TOOLBAR_PRIMARY_BUTTON_CLASS}
-              disabled={!quickTask.title.trim() || createTaskMutation.isPending}
+            <form
+              className="mt-5 flex flex-col gap-3 border-t border-surface-muted/35 pt-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                createTaskMutation.mutate();
+              }}
             >
-              {createTaskMutation.isPending ? 'Creando…' : 'Crear Seguimiento'}
-            </button>
-          </form>
-        </div>
+              <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <FiClipboard className="h-4 w-4 text-ink-secondary" />
+                Seguimiento Rápido
+              </div>
+              <input
+                name="quick_task_title"
+                className="form-input"
+                value={quickTask.title}
+                onChange={(e) => setQuickTask((prev) => ({ ...prev, title: e.target.value }))}
+                placeholder="Ej.: revisar examen en 48 h…"
+              />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <select
+                  name="quick_task_type"
+                  className="form-input"
+                  value={quickTask.type}
+                  onChange={(e) => setQuickTask((prev) => ({ ...prev, type: e.target.value }))}
+                >
+                  {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  name="quick_task_due_date"
+                  className="form-input"
+                  value={quickTask.dueDate}
+                  onChange={(e) => setQuickTask((prev) => ({ ...prev, dueDate: e.target.value }))}
+                />
+              </div>
+              <button
+                type="submit"
+                className={TOOLBAR_PRIMARY_BUTTON_CLASS}
+                disabled={!quickTask.title.trim() || createTaskMutation.isPending}
+              >
+                {createTaskMutation.isPending ? 'Creando…' : 'Crear Seguimiento'}
+              </button>
+            </form>
+          </div>
         )}
 
         {sidebarTab === 'cierre' && (
-        <div className="px-5 py-5">
-          <dl className="grid gap-3 text-sm">
-            <div className={INNER_PANEL_CLASS}>
-              <div className="px-4 py-3">
-                <dt className="text-xs font-medium text-ink-muted">Revisión</dt>
-                <dd className="mt-2 text-ink-secondary">
-                  Solicitada por {encounter.reviewRequestedBy?.nombre || '—'}
-                  {encounter.reviewRequestedAt ? ` · ${formatDateTime(encounter.reviewRequestedAt)}` : ''}
-                </dd>
-                <dd className="mt-1 text-ink-secondary">
-                  Revisada por {encounter.reviewedBy?.nombre || '—'}
-                  {encounter.reviewedAt ? ` · ${formatDateTime(encounter.reviewedAt)}` : ''}
-                </dd>
+          <div className="px-5 py-5">
+            <dl className="grid gap-3 text-sm">
+              <div className={INNER_PANEL_CLASS}>
+                <div className="px-4 py-3">
+                  <dt className="text-xs font-medium text-ink-muted">Revisión</dt>
+                  <dd className="mt-2 text-ink-secondary">
+                    Solicitada por {encounter.reviewRequestedBy?.nombre || '—'}
+                    {encounter.reviewRequestedAt ? ` · ${formatDateTime(encounter.reviewRequestedAt)}` : ''}
+                  </dd>
+                  <dd className="mt-1 text-ink-secondary">
+                    Revisada por {encounter.reviewedBy?.nombre || '—'}
+                    {encounter.reviewedAt ? ` · ${formatDateTime(encounter.reviewedAt)}` : ''}
+                  </dd>
+                </div>
               </div>
-            </div>
-            <div className={INNER_PANEL_CLASS}>
-              <div className="px-4 py-3">
-                <dt className="text-xs font-medium text-ink-muted">Cierre</dt>
-                <dd className="mt-2 text-ink-secondary">
-                  Cerrada por {encounter.completedBy?.nombre || '—'}
-                  {encounter.completedAt ? ` · ${formatDateTime(encounter.completedAt)}` : ''}
-                </dd>
+              <div className={INNER_PANEL_CLASS}>
+                <div className="px-4 py-3">
+                  <dt className="text-xs font-medium text-ink-muted">Cierre</dt>
+                  <dd className="mt-2 text-ink-secondary">
+                    Cerrada por {encounter.completedBy?.nombre || '—'}
+                    {encounter.completedAt ? ` · ${formatDateTime(encounter.completedAt)}` : ''}
+                  </dd>
+                </div>
               </div>
-            </div>
-          </dl>
+            </dl>
 
-          <div className="mt-5 flex items-center justify-between gap-3">
-            <label className="block text-sm font-medium text-ink" htmlFor="closure-note">
-              Nota de cierre
-            </label>
-            {canComplete && generatedSummary && !closureNote.trim() ? (
-              <button
-                type="button"
-                className="text-sm font-medium text-accent transition-colors hover:text-accent/80"
-                onClick={() => setClosureNote(generatedSummary)}
-              >
-                Usar resumen generado
-              </button>
+            <div className="mt-5 flex items-center justify-between gap-3">
+              <label className="block text-sm font-medium text-ink" htmlFor="closure-note">
+                Nota de cierre
+              </label>
+              {canComplete && generatedSummary && !closureNote.trim() ? (
+                <button
+                  type="button"
+                  className="text-sm font-medium text-accent transition-colors hover:text-accent/80"
+                  onClick={() => setClosureNote(generatedSummary)}
+                >
+                  Usar resumen generado
+                </button>
+              ) : null}
+            </div>
+            <textarea
+              id="closure-note"
+              name="closure_note"
+              className="form-input form-textarea mt-2 min-h-[132px]"
+              value={closureNote}
+              onChange={(e) => setClosureNote(e.target.value)}
+              placeholder="Resumen clínico del cierre y próximos pasos…"
+              readOnly={!canComplete}
+            />
+            <p className="mt-2 text-xs text-ink-muted">
+              Obligatoria para completar la atención. Mínimo {CLOSURE_NOTE_MIN_LENGTH} caracteres.
+            </p>
+
+            {encounter.tasks && encounter.tasks.length > 0 ? (
+              <div className="mt-5 border-t border-surface-muted/35 pt-4">
+                <h3 className="text-sm font-semibold text-ink">Seguimientos Vinculados</h3>
+                <div className="mt-3 flex flex-col gap-2">
+                  {encounter.tasks.slice(0, 4).map((task) => (
+                    <div
+                      key={task.id}
+                      className="flex items-center justify-between gap-3 rounded-input border border-surface-muted/45 bg-surface-base/45 px-4 py-3 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-ink">{task.title}</p>
+                        <p className="mt-1 text-xs text-ink-secondary">
+                          {TASK_TYPE_LABELS[task.type]} · {TASK_STATUS_LABELS[task.status]}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-xs text-ink-muted">
+                        {formatCompactDate(task.dueDate || task.createdAt)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : null}
           </div>
-          <textarea
-            id="closure-note"
-            name="closure_note"
-            className="form-input form-textarea mt-2 min-h-[132px]"
-            value={closureNote}
-            onChange={(e) => setClosureNote(e.target.value)}
-            placeholder="Resumen clínico del cierre y próximos pasos…"
-            readOnly={!canComplete}
-          />
-          <p className="mt-2 text-xs text-ink-muted">
-            Obligatoria para completar la atención. Mínimo {CLOSURE_NOTE_MIN_LENGTH} caracteres.
-          </p>
-
-          {encounter.tasks && encounter.tasks.length > 0 ? (
-            <div className="mt-5 border-t border-surface-muted/35 pt-4">
-              <h3 className="text-sm font-semibold text-ink">Seguimientos Vinculados</h3>
-              <div className="mt-3 flex flex-col gap-2">
-                {encounter.tasks.slice(0, 4).map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center justify-between gap-3 rounded-input border border-surface-muted/45 bg-surface-base/45 px-4 py-3 text-sm"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-ink">{task.title}</p>
-                      <p className="mt-1 text-xs text-ink-secondary">
-                        {TASK_TYPE_LABELS[task.type]} · {TASK_STATUS_LABELS[task.status]}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-xs text-ink-muted">
-                      {formatCompactDate(task.dueDate || task.createdAt)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </div>
         )}
 
-        {sidebarTab === 'historial' && (
-          <EncounterAuditTimeline encounterId={encounter.id} />
-        )}
+        {sidebarTab === 'historial' && <EncounterAuditTimeline encounterId={encounter.id} />}
       </section>
     </div>
   );
@@ -1460,10 +1432,7 @@ export default function EncounterWizardPage() {
                       </span>
                     </div>
                     <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-muted/45">
-                      <div
-                        className="h-full rounded-full bg-accent"
-                        style={{ width: `${progressPercentage}%` }}
-                      />
+                      <div className="h-full rounded-full bg-accent" style={{ width: `${progressPercentage}%` }} />
                     </div>
                   </div>
                 </div>
@@ -1568,9 +1537,9 @@ export default function EncounterWizardPage() {
         </div>
       </header>
 
-      {(identificationMissingFields.length > 0
-        || Boolean(encounter.patient?.completenessStatus && encounter.patient.completenessStatus !== 'VERIFICADA')
-        || Boolean(clinicalOutputBlockReason)) && (
+      {(identificationMissingFields.length > 0 ||
+        Boolean(encounter.patient?.completenessStatus && encounter.patient.completenessStatus !== 'VERIFICADA') ||
+        Boolean(clinicalOutputBlockReason)) && (
         <div className="px-4 pt-4 lg:px-8 xl:px-10">
           <div className="rounded-card border border-status-yellow/70 bg-status-yellow/40 p-4 text-sm text-accent-text">
             {identificationMissingFields.length > 0 ? (
@@ -1578,13 +1547,24 @@ export default function EncounterWizardPage() {
                 La identificación de esta atención sigue incompleta. Faltan: {identificationMissingFields.join(', ')}.
               </p>
             ) : null}
-            {patientCompletenessMeta && encounter.patient?.completenessStatus && encounter.patient.completenessStatus !== 'VERIFICADA' ? (
+            {patientCompletenessMeta &&
+            encounter.patient?.completenessStatus &&
+            encounter.patient.completenessStatus !== 'VERIFICADA' ? (
               <p className={identificationMissingFields.length > 0 ? 'mt-2' : ''}>
                 La ficha maestra del paciente está en estado "{patientCompletenessMeta.label.toLowerCase()}".
               </p>
             ) : null}
             {clinicalOutputBlockReason ? (
-              <p className={identificationMissingFields.length > 0 || Boolean(encounter.patient?.completenessStatus && encounter.patient.completenessStatus !== 'VERIFICADA') ? 'mt-2' : ''}>
+              <p
+                className={
+                  identificationMissingFields.length > 0 ||
+                  Boolean(
+                    encounter.patient?.completenessStatus && encounter.patient.completenessStatus !== 'VERIFICADA',
+                  )
+                    ? 'mt-2'
+                    : ''
+                }
+              >
                 {clinicalOutputBlockReason}
               </p>
             ) : null}
@@ -1626,7 +1606,7 @@ export default function EncounterWizardPage() {
                         'group grid w-full grid-cols-[36px_minmax(0,1fr)] items-start gap-3 rounded-card border px-4 py-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20',
                         isActive
                           ? 'border-frame/15 bg-surface-base shadow-soft'
-                          : 'border-transparent hover:border-surface-muted/40 hover:bg-surface-base/45'
+                          : 'border-transparent hover:border-surface-muted/40 hover:bg-surface-base/45',
                       )}
                       aria-current={isActive ? 'step' : undefined}
                     >
@@ -1636,18 +1616,18 @@ export default function EncounterWizardPage() {
                           isActive
                             ? 'border-status-yellow/70 bg-status-yellow text-accent-text'
                             : section.completed
-                            ? 'border-status-green/40 bg-status-green/14 text-status-green-text'
-                            : 'border-surface-muted/55 bg-surface-elevated text-ink-secondary'
+                              ? 'border-status-green/40 bg-status-green/14 text-status-green-text'
+                              : 'border-surface-muted/55 bg-surface-elevated text-ink-secondary',
                         )}
                       >
                         {section.completed ? <FiCheck className="h-3.5 w-3.5" /> : index + 1}
                       </span>
 
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-ink">
-                          {section.label}
-                        </span>
-                        <span className={clsx('mt-1 flex items-center gap-2 text-xs', sectionStatusMeta.badgeClassName)}>
+                        <span className="block truncate text-sm font-medium text-ink">{section.label}</span>
+                        <span
+                          className={clsx('mt-1 flex items-center gap-2 text-xs', sectionStatusMeta.badgeClassName)}
+                        >
                           <span className={clsx('h-1.5 w-1.5 rounded-full', sectionStatusMeta.dotClassName)} />
                           {sectionStatusMeta.label}
                         </span>
@@ -1681,23 +1661,25 @@ export default function EncounterWizardPage() {
                       )}
                     >
                       <span className={clsx('h-1.5 w-1.5 rounded-full', meta.dotClassName)} />
-                      <span className="whitespace-nowrap">{index + 1}. {section.label}</span>
+                      <span className="whitespace-nowrap">
+                        {index + 1}. {section.label}
+                      </span>
                     </button>
                   );
                 })}
               </nav>
             </div>
 
-            {encounter.patientId ? (
-              <ClinicalAlerts patientId={encounter.patientId} />
-            ) : null}
+            {encounter.patientId ? <ClinicalAlerts patientId={encounter.patientId} /> : null}
 
             <section className={SURFACE_PANEL_CLASS}>
               <div className="border-b border-surface-muted/40 px-5 py-4 sm:px-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-secondary">
-                      <span>Sección {currentSectionIndex + 1} de {sections.length}</span>
+                      <span>
+                        Sección {currentSectionIndex + 1} de {sections.length}
+                      </span>
                       <span className={clsx('flex items-center gap-2', currentSectionStatusMeta.badgeClassName)}>
                         <span className={clsx('h-1.5 w-1.5 rounded-full', currentSectionStatusMeta.dotClassName)} />
                         {currentSectionStatusMeta.label}
@@ -1725,8 +1707,14 @@ export default function EncounterWizardPage() {
                     onChange={(data: any) => handleSectionDataChange(currentSection.sectionKey, data)}
                     encounter={encounter}
                     readOnly={!canEdit || currentSection.sectionKey === 'IDENTIFICACION'}
-                    snapshotStatus={currentSection.sectionKey === 'IDENTIFICACION' ? identificationSnapshotStatus : undefined}
-                    onRestoreFromPatient={currentSection.sectionKey === 'IDENTIFICACION' && canEdit ? handleRestoreIdentificationFromPatient : undefined}
+                    snapshotStatus={
+                      currentSection.sectionKey === 'IDENTIFICACION' ? identificationSnapshotStatus : undefined
+                    }
+                    onRestoreFromPatient={
+                      currentSection.sectionKey === 'IDENTIFICACION' && canEdit
+                        ? handleRestoreIdentificationFromPatient
+                        : undefined
+                    }
                     patientId={encounter.patientId}
                     canEditPatientHistory={canEditAntecedentes()}
                     linkedAttachmentsByOrderId={linkedAttachmentsByOrderId}
@@ -1734,8 +1722,18 @@ export default function EncounterWizardPage() {
                     patientAge={identificationData.edad ?? encounter.patient?.edad}
                     patientAgeMonths={identificationData.edadMeses ?? encounter.patient?.edadMeses}
                     patientSexo={identificationData.sexo ?? encounter.patient?.sexo}
-                    motivoConsultaData={currentSection.sectionKey === 'SOSPECHA_DIAGNOSTICA' ? (formData.MOTIVO_CONSULTA ?? encounter?.sections?.find((s) => s.sectionKey === 'MOTIVO_CONSULTA')?.data) : undefined}
-                    allergyData={currentSection.sectionKey === 'TRATAMIENTO' ? (formData.ANAMNESIS_REMOTA?.alergias ?? encounter?.sections?.find((s) => s.sectionKey === 'ANAMNESIS_REMOTA')?.data?.alergias) : undefined}
+                    motivoConsultaData={
+                      currentSection.sectionKey === 'SOSPECHA_DIAGNOSTICA'
+                        ? (formData.MOTIVO_CONSULTA ??
+                          encounter?.sections?.find((s) => s.sectionKey === 'MOTIVO_CONSULTA')?.data)
+                        : undefined
+                    }
+                    allergyData={
+                      currentSection.sectionKey === 'TRATAMIENTO'
+                        ? (formData.ANAMNESIS_REMOTA?.alergias ??
+                          encounter?.sections?.find((s) => s.sectionKey === 'ANAMNESIS_REMOTA')?.data?.alergias)
+                        : undefined
+                    }
                   />
                 ) : (
                   <div className="rounded-card border border-surface-muted/40 bg-surface-base/55 px-5 py-5 text-sm text-ink-secondary">
@@ -1768,18 +1766,16 @@ export default function EncounterWizardPage() {
                       </button>
                     ) : null}
 
-
                     {currentSectionIndex < sections.length - 1 ? (
-                      <button
-                        onClick={() => handleNavigate('next')}
-                        className={TOOLBAR_PRIMARY_BUTTON_CLASS}
-                      >
+                      <button onClick={() => handleNavigate('next')} className={TOOLBAR_PRIMARY_BUTTON_CLASS}>
                         Siguiente
                         <FiChevronRight className="h-4 w-4" />
                       </button>
                     ) : (
                       <button
-                        onClick={() => currentSection && persistSection({ sectionKey: currentSection.sectionKey, completed: true })}
+                        onClick={() =>
+                          currentSection && persistSection({ sectionKey: currentSection.sectionKey, completed: true })
+                        }
                         disabled={saveSectionMutation.isPending || currentSection?.completed || !canEdit}
                         className={TOOLBAR_PRIMARY_BUTTON_CLASS}
                         title="Marcar como completa y guardar los últimos cambios"
@@ -1793,26 +1789,24 @@ export default function EncounterWizardPage() {
               </div>
             </section>
 
-            <div className="xl:hidden">
-              {secondaryColumn}
-            </div>
+            <div className="xl:hidden">{secondaryColumn}</div>
           </div>
         </main>
 
         <aside className="hidden xl:block">
-          <div className={clsx('sticky', WORKSPACE_STICKY_OFFSET_CLASS)}>
-            {secondaryColumn}
-          </div>
+          <div className={clsx('sticky', WORKSPACE_STICKY_OFFSET_CLASS)}>{secondaryColumn}</div>
         </aside>
       </div>
 
       {isAttachmentsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-ink/55 backdrop-blur-[1px]" onClick={() => setIsAttachmentsOpen(false)} />
           <div
-            className="absolute inset-0 bg-ink/55 backdrop-blur-[1px]"
-            onClick={() => setIsAttachmentsOpen(false)}
-          />
-          <div className="relative w-full max-w-3xl overflow-hidden rounded-card border border-frame/10 bg-surface-elevated shadow-dropdown" role="dialog" aria-modal="true" aria-label="Adjuntos de la atención">
+            className="relative w-full max-w-3xl overflow-hidden rounded-card border border-frame/10 bg-surface-elevated shadow-dropdown"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Adjuntos de la atención"
+          >
             <div className="flex items-start justify-between gap-3 border-b border-surface-muted/35 px-5 py-4">
               <div>
                 <h2 className="text-lg font-semibold text-ink">Adjuntos de la Atención</h2>
@@ -1844,7 +1838,9 @@ export default function EncounterWizardPage() {
                   <div className="grid gap-4 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
                     <div className="flex min-w-0 flex-col gap-3">
                       <div>
-                        <label className="form-label" htmlFor="attachment-file">Archivo</label>
+                        <label className="form-label" htmlFor="attachment-file">
+                          Archivo
+                        </label>
                         <input
                           id="attachment-file"
                           name="attachment_file"
@@ -1857,7 +1853,9 @@ export default function EncounterWizardPage() {
                         />
                       </div>
                       <div>
-                        <label className="form-label" htmlFor="attachment-description">Descripción</label>
+                        <label className="form-label" htmlFor="attachment-description">
+                          Descripción
+                        </label>
                         <input
                           id="attachment-description"
                           name="attachment_description"
@@ -1871,7 +1869,9 @@ export default function EncounterWizardPage() {
                     </div>
                     <div className="flex min-w-0 flex-col gap-3">
                       <div>
-                        <label className="form-label" htmlFor="attachment-category">Categoría</label>
+                        <label className="form-label" htmlFor="attachment-category">
+                          Categoría
+                        </label>
                         <select
                           id="attachment-category"
                           name="attachment_category"
@@ -1879,11 +1879,8 @@ export default function EncounterWizardPage() {
                           value={uploadMeta.category}
                           onChange={(e) => {
                             const nextCategory = e.target.value;
-                            const nextLinkedOrderType = nextCategory === 'EXAMEN'
-                              ? 'EXAMEN'
-                              : nextCategory === 'DERIVACION'
-                              ? 'DERIVACION'
-                              : '';
+                            const nextLinkedOrderType =
+                              nextCategory === 'EXAMEN' ? 'EXAMEN' : nextCategory === 'DERIVACION' ? 'DERIVACION' : '';
                             setUploadMeta((prev) => ({
                               ...prev,
                               category: nextCategory,
@@ -1931,7 +1928,9 @@ export default function EncounterWizardPage() {
 
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm text-ink-secondary">
-                      {selectedFile ? `Archivo seleccionado: ${selectedFile.name}` : 'Selecciona un archivo para subirlo a esta atención.'}
+                      {selectedFile
+                        ? `Archivo seleccionado: ${selectedFile.name}`
+                        : 'Selecciona un archivo para subirlo a esta atención.'}
                     </p>
                     <button
                       type="submit"
@@ -1944,17 +1943,13 @@ export default function EncounterWizardPage() {
                 </form>
               )}
 
-              {uploadError && (
-                <p className="mt-4 text-sm text-status-red-text">{uploadError}</p>
-              )}
+              {uploadError && <p className="mt-4 text-sm text-status-red-text">{uploadError}</p>}
 
               <div className="mt-5 overflow-hidden rounded-card border border-surface-muted/35">
                 {attachmentsQuery.isLoading ? (
                   <div className="p-4 text-sm text-ink-muted">Cargando adjuntos…</div>
                 ) : attachmentsQuery.error ? (
-                  <div className="p-4 text-sm text-status-red-text">
-                    {getErrorMessage(attachmentsQuery.error)}
-                  </div>
+                  <div className="p-4 text-sm text-status-red-text">{getErrorMessage(attachmentsQuery.error)}</div>
                 ) : attachments.length === 0 ? (
                   <div className="p-4 text-sm text-ink-muted">No hay archivos adjuntos.</div>
                 ) : (
@@ -1962,12 +1957,9 @@ export default function EncounterWizardPage() {
                     {attachments.map((attachment) => (
                       <li key={attachment.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
                         <div className="flex-1 min-w-0">
-                          <p className="truncate font-medium text-ink">
-                            {attachment.originalName}
-                          </p>
+                          <p className="truncate font-medium text-ink">{attachment.originalName}</p>
                           <p className="text-xs text-ink-muted">
-                            {formatFileSize(attachment.size)} ·{' '}
-                            {formatDateTime(attachment.uploadedAt)}
+                            {formatFileSize(attachment.size)} · {formatDateTime(attachment.uploadedAt)}
                             {attachment.uploadedBy?.nombre ? ` · ${attachment.uploadedBy.nombre}` : ''}
                           </p>
                           {(attachment.category || attachment.description) && (
@@ -1977,7 +1969,8 @@ export default function EncounterWizardPage() {
                           )}
                           {attachment.linkedOrderType && attachment.linkedOrderLabel && (
                             <p className="text-xs text-accent-text">
-                              Vinculado a {LINKABLE_ATTACHMENT_LABELS[attachment.linkedOrderType]}: {attachment.linkedOrderLabel}
+                              Vinculado a {LINKABLE_ATTACHMENT_LABELS[attachment.linkedOrderType]}:{' '}
+                              {attachment.linkedOrderLabel}
                             </p>
                           )}
                         </div>

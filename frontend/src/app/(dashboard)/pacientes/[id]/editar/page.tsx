@@ -225,6 +225,13 @@ export default function EditarPacientePage() {
     updateAdminMutation.mutate(common);
   });
 
+  const rutExempt = editForm.watch('rutExempt');
+  const watchedFechaNacimiento = editForm.watch('fechaNacimiento');
+  const edadCalculada = useMemo(
+    () => (watchedFechaNacimiento ? calculateAgeFromBirthDate(watchedFechaNacimiento) : null),
+    [watchedFechaNacimiento],
+  );
+
   if (isLoading) {
     return (
       <div className="max-w-3xl mx-auto animate-pulse">
@@ -264,12 +271,6 @@ export default function EditarPacientePage() {
     );
   }
 
-  const rutExempt = editForm.watch('rutExempt');
-  const watchedFechaNacimiento = editForm.watch('fechaNacimiento');
-  const edadCalculada = useMemo(
-    () => watchedFechaNacimiento ? calculateAgeFromBirthDate(watchedFechaNacimiento) : null,
-    [watchedFechaNacimiento],
-  );
   const completenessMeta = getPatientCompletenessMeta(patient);
 
   return (

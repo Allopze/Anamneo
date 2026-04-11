@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -15,7 +16,12 @@ import { CreateEncounterDto } from './dto/create-encounter.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
 import { PREVISIONES, SEXOS, SectionKey, EncounterStatus } from '../common/types';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
-import { buildAccessiblePatientsWhere } from '../common/utils/patient-access';
+import {
+  buildAccessiblePatientsWhere,
+  buildEncounterTaskScopeWhere,
+  buildPatientProblemScopeWhere,
+  isPatientOwnedByMedico,
+} from '../common/utils/patient-access';
 import { parseStoredJson } from '../common/utils/encounter-sections';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
 import {
@@ -52,6 +58,9 @@ const REQUIRED_SEMANTIC_SECTIONS: SectionKey[] = [
   'SOSPECHA_DIAGNOSTICA',
   'TRATAMIENTO',
 ];
+
+const VITAL_SIGNS_ALERT_GENERATION_WARNING =
+  'La sección se guardó, pero no se pudo completar la verificación automática de alertas por signos vitales.';
 
 const IDENTIFICATION_SNAPSHOT_FIELD_META = [
   { key: 'nombre', label: 'nombre' },
@@ -132,6 +141,8 @@ function hasMeaningfulContent(value: unknown): boolean {
 
 @Injectable()
 export class EncountersService {
+  private readonly logger = new Logger(EncountersService.name);
+
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
@@ -171,9 +182,10 @@ export class EncountersService {
   }
 
   private summarizeSectionAuditData(sectionKey: SectionKey, data: unknown, completed?: boolean) {
-    const topLevelKeys = typeof data === 'object' && data !== null && !Array.isArray(data)
-      ? Object.keys(data as Record<string, unknown>)
-      : [];
+    const topLevelKeys =
+      typeof data === 'object' && data !== null && !Array.isArray(data)
+        ? Object.keys(data as Record<string, unknown>)
+        : [];
 
     return {
       sectionKey,
@@ -215,12 +227,7 @@ export class EncountersService {
     return sanitized === undefined ? undefined : sanitized;
   }
 
-  private sanitizeNumericStringField(
-    value: unknown,
-    label: string,
-    min: number,
-    max: number,
-  ) {
+  private sanitizeNumericStringField(value: unknown, label: string, min: number, max: number) {
     const sanitized = this.sanitizeTextListField(value, 32);
     if (sanitized === undefined) {
       return undefined;
@@ -247,10 +254,7 @@ export class EncountersService {
     return sanitized;
   }
 
-  private sanitizeStructuredMedication(
-    item: unknown,
-    index: number,
-  ) {
+  private sanitizeStructuredMedication(item: unknown, index: number) {
     if (typeof item !== 'object' || item === null) {
       throw new BadRequestException(`Medicamento estructurado #${index + 1} inválido`);
     }
@@ -268,7 +272,10 @@ export class EncountersService {
         return undefined;
       }
 
-      if (typeof record.via !== 'string' || !MEDICATION_ROUTES.includes(record.via as typeof MEDICATION_ROUTES[number])) {
+      if (
+        typeof record.via !== 'string' ||
+        !MEDICATION_ROUTES.includes(record.via as (typeof MEDICATION_ROUTES)[number])
+      ) {
         throw new BadRequestException(`La vía del medicamento estructurado #${index + 1} no es válida`);
       }
 
@@ -293,11 +300,7 @@ export class EncountersService {
     };
   }
 
-  private sanitizeStructuredOrder(
-    item: unknown,
-    index: number,
-    label: 'examen' | 'derivación',
-  ) {
+  private sanitizeStructuredOrder(item: unknown, index: number, label: 'examen' | 'derivación') {
     if (typeof item !== 'object' || item === null) {
       throw new BadRequestException(`${label} estructurado #${index + 1} inválido`);
     }
@@ -316,7 +319,10 @@ export class EncountersService {
         return 'PENDIENTE';
       }
 
-      if (typeof record.estado !== 'string' || !ORDER_STATUSES.includes(record.estado as typeof ORDER_STATUSES[number])) {
+      if (
+        typeof record.estado !== 'string' ||
+        !ORDER_STATUSES.includes(record.estado as (typeof ORDER_STATUSES)[number])
+      ) {
         throw new BadRequestException(`El estado del ${label} estructurado #${index + 1} no es válido`);
       }
 
@@ -367,16 +373,38 @@ export class EncountersService {
           ? { presionArterial: this.sanitizePressureField(raw.presionArterial)! }
           : {}),
         ...(this.sanitizeNumericStringField(raw.frecuenciaCardiaca, 'La frecuencia cardiaca', 20, 250) !== undefined
-          ? { frecuenciaCardiaca: this.sanitizeNumericStringField(raw.frecuenciaCardiaca, 'La frecuencia cardiaca', 20, 250)! }
+          ? {
+              frecuenciaCardiaca: this.sanitizeNumericStringField(
+                raw.frecuenciaCardiaca,
+                'La frecuencia cardiaca',
+                20,
+                250,
+              )!,
+            }
           : {}),
-        ...(this.sanitizeNumericStringField(raw.frecuenciaRespiratoria, 'La frecuencia respiratoria', 5, 60) !== undefined
-          ? { frecuenciaRespiratoria: this.sanitizeNumericStringField(raw.frecuenciaRespiratoria, 'La frecuencia respiratoria', 5, 60)! }
+        ...(this.sanitizeNumericStringField(raw.frecuenciaRespiratoria, 'La frecuencia respiratoria', 5, 60) !==
+        undefined
+          ? {
+              frecuenciaRespiratoria: this.sanitizeNumericStringField(
+                raw.frecuenciaRespiratoria,
+                'La frecuencia respiratoria',
+                5,
+                60,
+              )!,
+            }
           : {}),
         ...(this.sanitizeNumericStringField(raw.temperatura, 'La temperatura', 35, 42) !== undefined
           ? { temperatura: this.sanitizeNumericStringField(raw.temperatura, 'La temperatura', 35, 42)! }
           : {}),
         ...(this.sanitizeNumericStringField(raw.saturacionOxigeno, 'La saturación de oxígeno', 0, 100) !== undefined
-          ? { saturacionOxigeno: this.sanitizeNumericStringField(raw.saturacionOxigeno, 'La saturación de oxígeno', 0, 100)! }
+          ? {
+              saturacionOxigeno: this.sanitizeNumericStringField(
+                raw.saturacionOxigeno,
+                'La saturación de oxígeno',
+                0,
+                100,
+              )!,
+            }
           : {}),
         ...(peso !== undefined ? { peso } : {}),
         ...(talla !== undefined ? { talla } : {}),
@@ -389,14 +417,28 @@ export class EncountersService {
     }
 
     return {
-      ...(this.sanitizeTextListField(data.estadoGeneral, 60) !== undefined ? { estadoGeneral: this.sanitizeTextListField(data.estadoGeneral, 60) } : {}),
-      ...(this.sanitizeTextListField(data.estadoGeneralNotas, 500) !== undefined ? { estadoGeneralNotas: this.sanitizeTextListField(data.estadoGeneralNotas, 500) } : {}),
+      ...(this.sanitizeTextListField(data.estadoGeneral, 60) !== undefined
+        ? { estadoGeneral: this.sanitizeTextListField(data.estadoGeneral, 60) }
+        : {}),
+      ...(this.sanitizeTextListField(data.estadoGeneralNotas, 500) !== undefined
+        ? { estadoGeneralNotas: this.sanitizeTextListField(data.estadoGeneralNotas, 500) }
+        : {}),
       ...(signosVitales ? { signosVitales } : {}),
-      ...(this.sanitizeTextListField(data.cabeza, 2000) !== undefined ? { cabeza: this.sanitizeTextListField(data.cabeza, 2000) } : {}),
-      ...(this.sanitizeTextListField(data.cuello, 2000) !== undefined ? { cuello: this.sanitizeTextListField(data.cuello, 2000) } : {}),
-      ...(this.sanitizeTextListField(data.torax, 2000) !== undefined ? { torax: this.sanitizeTextListField(data.torax, 2000) } : {}),
-      ...(this.sanitizeTextListField(data.abdomen, 2000) !== undefined ? { abdomen: this.sanitizeTextListField(data.abdomen, 2000) } : {}),
-      ...(this.sanitizeTextListField(data.extremidades, 2000) !== undefined ? { extremidades: this.sanitizeTextListField(data.extremidades, 2000) } : {}),
+      ...(this.sanitizeTextListField(data.cabeza, 2000) !== undefined
+        ? { cabeza: this.sanitizeTextListField(data.cabeza, 2000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.cuello, 2000) !== undefined
+        ? { cuello: this.sanitizeTextListField(data.cuello, 2000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.torax, 2000) !== undefined
+        ? { torax: this.sanitizeTextListField(data.torax, 2000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.abdomen, 2000) !== undefined
+        ? { abdomen: this.sanitizeTextListField(data.abdomen, 2000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.extremidades, 2000) !== undefined
+        ? { extremidades: this.sanitizeTextListField(data.extremidades, 2000) }
+        : {}),
     };
   }
 
@@ -447,11 +489,21 @@ export class EncountersService {
     })();
 
     return {
-      ...(this.sanitizeTextListField(data.plan, 4000) !== undefined ? { plan: this.sanitizeTextListField(data.plan, 4000) } : {}),
-      ...(this.sanitizeTextListField(data.indicaciones, 4000) !== undefined ? { indicaciones: this.sanitizeTextListField(data.indicaciones, 4000) } : {}),
-      ...(this.sanitizeTextListField(data.receta, 4000) !== undefined ? { receta: this.sanitizeTextListField(data.receta, 4000) } : {}),
-      ...(this.sanitizeTextListField(data.examenes, 3000) !== undefined ? { examenes: this.sanitizeTextListField(data.examenes, 3000) } : {}),
-      ...(this.sanitizeTextListField(data.derivaciones, 3000) !== undefined ? { derivaciones: this.sanitizeTextListField(data.derivaciones, 3000) } : {}),
+      ...(this.sanitizeTextListField(data.plan, 4000) !== undefined
+        ? { plan: this.sanitizeTextListField(data.plan, 4000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.indicaciones, 4000) !== undefined
+        ? { indicaciones: this.sanitizeTextListField(data.indicaciones, 4000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.receta, 4000) !== undefined
+        ? { receta: this.sanitizeTextListField(data.receta, 4000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.examenes, 3000) !== undefined
+        ? { examenes: this.sanitizeTextListField(data.examenes, 3000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.derivaciones, 3000) !== undefined
+        ? { derivaciones: this.sanitizeTextListField(data.derivaciones, 3000) }
+        : {}),
       ...(medicamentos !== undefined ? { medicamentosEstructurados: medicamentos } : {}),
       ...(examenes !== undefined ? { examenesEstructurados: examenes } : {}),
       ...(derivaciones !== undefined ? { derivacionesEstructuradas: derivaciones } : {}),
@@ -460,10 +512,18 @@ export class EncountersService {
 
   private sanitizeRespuestaTratamientoData(data: Record<string, unknown>) {
     return {
-      ...(this.sanitizeTextListField(data.evolucion, 4000) !== undefined ? { evolucion: this.sanitizeTextListField(data.evolucion, 4000) } : {}),
-      ...(this.sanitizeTextListField(data.resultadosExamenes, 4000) !== undefined ? { resultadosExamenes: this.sanitizeTextListField(data.resultadosExamenes, 4000) } : {}),
-      ...(this.sanitizeTextListField(data.ajustesTratamiento, 4000) !== undefined ? { ajustesTratamiento: this.sanitizeTextListField(data.ajustesTratamiento, 4000) } : {}),
-      ...(this.sanitizeTextListField(data.planSeguimiento, 4000) !== undefined ? { planSeguimiento: this.sanitizeTextListField(data.planSeguimiento, 4000) } : {}),
+      ...(this.sanitizeTextListField(data.evolucion, 4000) !== undefined
+        ? { evolucion: this.sanitizeTextListField(data.evolucion, 4000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.resultadosExamenes, 4000) !== undefined
+        ? { resultadosExamenes: this.sanitizeTextListField(data.resultadosExamenes, 4000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.ajustesTratamiento, 4000) !== undefined
+        ? { ajustesTratamiento: this.sanitizeTextListField(data.ajustesTratamiento, 4000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.planSeguimiento, 4000) !== undefined
+        ? { planSeguimiento: this.sanitizeTextListField(data.planSeguimiento, 4000) }
+        : {}),
     };
   }
 
@@ -506,7 +566,10 @@ export class EncountersService {
         return undefined;
       }
 
-      if (typeof data.modoSeleccion !== 'string' || !CHOSEN_MODES.includes(data.modoSeleccion as typeof CHOSEN_MODES[number])) {
+      if (
+        typeof data.modoSeleccion !== 'string' ||
+        !CHOSEN_MODES.includes(data.modoSeleccion as (typeof CHOSEN_MODES)[number])
+      ) {
         throw new BadRequestException('El modo de selección del motivo de consulta no es válido');
       }
 
@@ -514,7 +577,9 @@ export class EncountersService {
     })();
 
     return {
-      ...(this.sanitizeTextListField(data.texto, 4000) !== undefined ? { texto: this.sanitizeTextListField(data.texto, 4000) } : {}),
+      ...(this.sanitizeTextListField(data.texto, 4000) !== undefined
+        ? { texto: this.sanitizeTextListField(data.texto, 4000) }
+        : {}),
       ...(afeccionSeleccionada !== undefined ? { afeccionSeleccionada } : {}),
       ...(modoSeleccion !== undefined ? { modoSeleccion } : {}),
     };
@@ -522,12 +587,24 @@ export class EncountersService {
 
   private sanitizeAnamnesisProximaData(data: Record<string, unknown>) {
     return {
-      ...(this.sanitizeTextListField(data.relatoAmpliado, 5000) !== undefined ? { relatoAmpliado: this.sanitizeTextListField(data.relatoAmpliado, 5000) } : {}),
-      ...(this.sanitizeTextListField(data.inicio, 300) !== undefined ? { inicio: this.sanitizeTextListField(data.inicio, 300) } : {}),
-      ...(this.sanitizeTextListField(data.evolucion, 300) !== undefined ? { evolucion: this.sanitizeTextListField(data.evolucion, 300) } : {}),
-      ...(this.sanitizeTextListField(data.factoresAgravantes, 2000) !== undefined ? { factoresAgravantes: this.sanitizeTextListField(data.factoresAgravantes, 2000) } : {}),
-      ...(this.sanitizeTextListField(data.factoresAtenuantes, 2000) !== undefined ? { factoresAtenuantes: this.sanitizeTextListField(data.factoresAtenuantes, 2000) } : {}),
-      ...(this.sanitizeTextListField(data.sintomasAsociados, 3000) !== undefined ? { sintomasAsociados: this.sanitizeTextListField(data.sintomasAsociados, 3000) } : {}),
+      ...(this.sanitizeTextListField(data.relatoAmpliado, 5000) !== undefined
+        ? { relatoAmpliado: this.sanitizeTextListField(data.relatoAmpliado, 5000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.inicio, 300) !== undefined
+        ? { inicio: this.sanitizeTextListField(data.inicio, 300) }
+        : {}),
+      ...(this.sanitizeTextListField(data.evolucion, 300) !== undefined
+        ? { evolucion: this.sanitizeTextListField(data.evolucion, 300) }
+        : {}),
+      ...(this.sanitizeTextListField(data.factoresAgravantes, 2000) !== undefined
+        ? { factoresAgravantes: this.sanitizeTextListField(data.factoresAgravantes, 2000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.factoresAtenuantes, 2000) !== undefined
+        ? { factoresAtenuantes: this.sanitizeTextListField(data.factoresAtenuantes, 2000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.sintomasAsociados, 3000) !== undefined
+        ? { sintomasAsociados: this.sanitizeTextListField(data.sintomasAsociados, 3000) }
+        : {}),
     };
   }
 
@@ -618,9 +695,15 @@ export class EncountersService {
 
   private sanitizeObservacionesData(data: Record<string, unknown>) {
     return {
-      ...(this.sanitizeTextListField(data.observaciones, 5000) !== undefined ? { observaciones: this.sanitizeTextListField(data.observaciones, 5000) } : {}),
-      ...(this.sanitizeTextListField(data.notasInternas, 3000) !== undefined ? { notasInternas: this.sanitizeTextListField(data.notasInternas, 3000) } : {}),
-      ...(this.sanitizeTextListField(data.resumenClinico, 5000) !== undefined ? { resumenClinico: this.sanitizeTextListField(data.resumenClinico, 5000) } : {}),
+      ...(this.sanitizeTextListField(data.observaciones, 5000) !== undefined
+        ? { observaciones: this.sanitizeTextListField(data.observaciones, 5000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.notasInternas, 3000) !== undefined
+        ? { notasInternas: this.sanitizeTextListField(data.notasInternas, 3000) }
+        : {}),
+      ...(this.sanitizeTextListField(data.resumenClinico, 5000) !== undefined
+        ? { resumenClinico: this.sanitizeTextListField(data.resumenClinico, 5000) }
+        : {}),
     };
   }
 
@@ -633,11 +716,7 @@ export class EncountersService {
       }
 
       const parsed =
-        typeof edad === 'number'
-          ? edad
-          : typeof edad === 'string'
-            ? Number.parseInt(edad, 10)
-            : Number.NaN;
+        typeof edad === 'number' ? edad : typeof edad === 'string' ? Number.parseInt(edad, 10) : Number.NaN;
 
       if (!Number.isInteger(parsed) || parsed < 0 || parsed > 130) {
         throw new BadRequestException('La edad en identificación debe ser un número entero entre 0 y 130');
@@ -672,7 +751,7 @@ export class EncountersService {
         return undefined;
       }
 
-      if (typeof data.sexo !== 'string' || !SEXOS.includes(data.sexo as typeof SEXOS[number])) {
+      if (typeof data.sexo !== 'string' || !SEXOS.includes(data.sexo as (typeof SEXOS)[number])) {
         throw new BadRequestException('El sexo en identificación no es válido');
       }
 
@@ -684,18 +763,14 @@ export class EncountersService {
         return undefined;
       }
 
-      if (typeof data.prevision !== 'string' || !PREVISIONES.includes(data.prevision as typeof PREVISIONES[number])) {
+      if (typeof data.prevision !== 'string' || !PREVISIONES.includes(data.prevision as (typeof PREVISIONES)[number])) {
         throw new BadRequestException('La previsión en identificación no es válida');
       }
 
       return data.prevision;
     })();
 
-    if (
-      data.rutExempt !== undefined
-      && data.rutExempt !== null
-      && typeof data.rutExempt !== 'boolean'
-    ) {
+    if (data.rutExempt !== undefined && data.rutExempt !== null && typeof data.rutExempt !== 'boolean') {
       throw new BadRequestException('El indicador de exención de RUT no es válido');
     }
 
@@ -821,29 +896,30 @@ export class EncountersService {
     return JSON.stringify(value);
   }
 
-  private matchesCurrentPatientSnapshot(
-    encounter: { patient: any },
-    identificationData: Record<string, unknown>,
-  ) {
+  private matchesCurrentPatientSnapshot(encounter: { patient: any }, identificationData: Record<string, unknown>) {
     const patientSnapshot = this.buildIdentificationSnapshotFromPatient(encounter.patient);
 
-    return IDENTIFICATION_SNAPSHOT_FIELD_META.every(({ key }) => (
-      this.normalizeIdentificationComparisonValue(identificationData[key]) === this.normalizeIdentificationComparisonValue(patientSnapshot[key])
-    ));
+    return IDENTIFICATION_SNAPSHOT_FIELD_META.every(
+      ({ key }) =>
+        this.normalizeIdentificationComparisonValue(identificationData[key]) ===
+        this.normalizeIdentificationComparisonValue(patientSnapshot[key]),
+    );
   }
 
   private buildIdentificationSnapshotStatus(encounter: any) {
     const patientSnapshot = this.buildIdentificationSnapshotFromPatient(encounter.patient);
-    const identificationSection = (encounter.sections || []).find((section: any) => section.sectionKey === 'IDENTIFICACION');
+    const identificationSection = (encounter.sections || []).find(
+      (section: any) => section.sectionKey === 'IDENTIFICACION',
+    );
     const sectionData = parseSectionData(identificationSection?.data);
     const snapshotData =
-      typeof sectionData === 'object' && sectionData !== null
-        ? sectionData as Record<string, unknown>
-        : {};
+      typeof sectionData === 'object' && sectionData !== null ? (sectionData as Record<string, unknown>) : {};
 
-    const differingEntries = IDENTIFICATION_SNAPSHOT_FIELD_META.filter(({ key }) => (
-      this.normalizeIdentificationComparisonValue(snapshotData[key]) !== this.normalizeIdentificationComparisonValue(patientSnapshot[key])
-    ));
+    const differingEntries = IDENTIFICATION_SNAPSHOT_FIELD_META.filter(
+      ({ key }) =>
+        this.normalizeIdentificationComparisonValue(snapshotData[key]) !==
+        this.normalizeIdentificationComparisonValue(patientSnapshot[key]),
+    );
 
     return {
       isSnapshot: true,
@@ -856,9 +932,7 @@ export class EncountersService {
   }
 
   async create(patientId: string, createDto: CreateEncounterDto, user: RequestUser) {
-    let result:
-      | (ReturnType<EncountersService['formatEncounter']> & { reused: boolean })
-      | undefined;
+    let result: (ReturnType<EncountersService['formatEncounter']> & { reused: boolean }) | undefined;
 
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       try {
@@ -868,7 +942,12 @@ export class EncountersService {
             // Verify patient exists
             const patient = await tx.patient.findUnique({
               where: { id: patientId },
-              include: { history: true },
+              include: {
+                history: true,
+                createdBy: {
+                  select: { medicoId: true },
+                },
+              },
             });
 
             if (!patient) {
@@ -879,7 +958,7 @@ export class EncountersService {
               throw new BadRequestException('No se puede crear una atención para un paciente archivado');
             }
 
-            if (!user.isAdmin && patient.createdById !== effectiveMedicoId) {
+            if (!user.isAdmin && !isPatientOwnedByMedico(patient, effectiveMedicoId)) {
               const hasEncounterAccess = await tx.encounter.findFirst({
                 where: {
                   patientId,
@@ -940,22 +1019,23 @@ export class EncountersService {
                 status: 'EN_PROGRESO',
                 sections: {
                   create: SECTION_ORDER.map((key) => {
-                    const sectionData = key === 'IDENTIFICACION'
-                      ? {
-                          nombre: patient.nombre,
-                          edad: patient.edad,
-                          edadMeses: patient.edadMeses ?? undefined,
-                          sexo: patient.sexo,
-                          trabajo: patient.trabajo || '',
-                          prevision: patient.prevision,
-                          domicilio: patient.domicilio || '',
-                          rut: patient.rut || '',
-                          rutExempt: patient.rutExempt,
-                          rutExemptReason: patient.rutExemptReason || '',
-                        }
-                      : key === 'ANAMNESIS_REMOTA' && patient.history
-                      ? this.buildAnamnesisRemotaSnapshotFromHistory(patient.history)
-                      : {};
+                    const sectionData =
+                      key === 'IDENTIFICACION'
+                        ? {
+                            nombre: patient.nombre,
+                            edad: patient.edad,
+                            edadMeses: patient.edadMeses ?? undefined,
+                            sexo: patient.sexo,
+                            trabajo: patient.trabajo || '',
+                            prevision: patient.prevision,
+                            domicilio: patient.domicilio || '',
+                            rut: patient.rut || '',
+                            rutExempt: patient.rutExempt,
+                            rutExemptReason: patient.rutExemptReason || '',
+                          }
+                        : key === 'ANAMNESIS_REMOTA' && patient.history
+                          ? this.buildAnamnesisRemotaSnapshotFromHistory(patient.history)
+                          : {};
                     return {
                       sectionKey: key,
                       data: serializeSectionData(sectionData),
@@ -1085,18 +1165,20 @@ export class EncountersService {
         createdAt: enc.createdAt,
         updatedAt: enc.updatedAt,
         createdById: enc.createdById,
-        patient: enc.patient ? {
-          id: enc.patient.id,
-          rut: enc.patient.rut,
-          nombre: enc.patient.nombre,
-          fechaNacimiento: enc.patient.fechaNacimiento,
-          edad: enc.patient.edad,
-          sexo: enc.patient.sexo,
-          prevision: enc.patient.prevision,
-          registrationMode: enc.patient.registrationMode,
-          completenessStatus: enc.patient.completenessStatus,
-          demographicsMissingFields: getPatientDemographicsMissingFields(enc.patient),
-        } : undefined,
+        patient: enc.patient
+          ? {
+              id: enc.patient.id,
+              rut: enc.patient.rut,
+              nombre: enc.patient.nombre,
+              fechaNacimiento: enc.patient.fechaNacimiento,
+              edad: enc.patient.edad,
+              sexo: enc.patient.sexo,
+              prevision: enc.patient.prevision,
+              registrationMode: enc.patient.registrationMode,
+              completenessStatus: enc.patient.completenessStatus,
+              demographicsMissingFields: getPatientDemographicsMissingFields(enc.patient),
+            }
+          : undefined,
         createdBy: enc.createdBy,
         reviewRequestedBy: enc.reviewRequestedBy,
         reviewedBy: enc.reviewedBy,
@@ -1115,7 +1197,6 @@ export class EncountersService {
     };
   }
 
-
   async findById(id: string, user: RequestUser) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
 
@@ -1132,9 +1213,11 @@ export class EncountersService {
           include: {
             history: true,
             problems: {
+              where: buildPatientProblemScopeWhere(effectiveMedicoId),
               orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
             },
             tasks: {
+              where: buildEncounterTaskScopeWhere(effectiveMedicoId),
               orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
               include: {
                 createdBy: { select: { id: true, nombre: true } },
@@ -1229,12 +1312,7 @@ export class EncountersService {
     }));
   }
 
-  async updateSection(
-    encounterId: string,
-    sectionKey: SectionKey,
-    dto: UpdateSectionDto,
-    user: RequestUser,
-  ) {
+  async updateSection(encounterId: string, sectionKey: SectionKey, dto: UpdateSectionDto, user: RequestUser) {
     const encounter = await this.prisma.encounter.findUnique({
       where: { id: encounterId },
       include: { sections: true, patient: true },
@@ -1297,15 +1375,24 @@ export class EncountersService {
       diff: this.summarizeSectionAuditData(sectionKey, sanitizedData, dto.completed),
     });
 
-    const vitalSigns = sectionKey === 'EXAMEN_FISICO'
-      ? (sanitizedData as { signosVitales?: Record<string, string> }).signosVitales
-      : undefined;
+    const vitalSigns =
+      sectionKey === 'EXAMEN_FISICO'
+        ? (sanitizedData as { signosVitales?: Record<string, string> }).signosVitales
+        : undefined;
+
+    let warnings: string[] | undefined;
 
     // Auto-check vital signs for critical values
     if (vitalSigns) {
-      this.alertsService
-        .checkVitalSigns(encounter.patientId, encounterId, vitalSigns, user.id)
-        .catch(() => {}); // fire-and-forget
+      try {
+        await this.alertsService.checkVitalSigns(encounter.patientId, encounterId, vitalSigns, user.id);
+      } catch (error) {
+        this.logger.error(
+          `No se pudieron generar alertas automáticas de signos vitales para la atención ${encounterId}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+        warnings = [VITAL_SIGNS_ALERT_GENERATION_WARNING];
+      }
     }
 
     const formattedSection = formatEncounterSectionForRead(updatedSection);
@@ -1318,6 +1405,7 @@ export class EncountersService {
       updatedAt: updatedSection.updatedAt,
       data: JSON.stringify(formattedSection.data ?? {}),
       schemaVersion: formattedSection.schemaVersion,
+      ...(warnings ? { warnings } : {}),
     };
   }
 
@@ -1411,12 +1499,7 @@ export class EncountersService {
     return this.formatEncounter(updated);
   }
 
-  async sign(
-    id: string,
-    userId: string,
-    password: string,
-    context: { ipAddress?: string; userAgent?: string },
-  ) {
+  async sign(id: string, userId: string, password: string, context: { ipAddress?: string; userAgent?: string }) {
     // Re-authenticate the signing user
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.active) {
@@ -1448,15 +1531,10 @@ export class EncountersService {
     const contentPayload = encounter.sections
       .sort((a, b) => a.sectionKey.localeCompare(b.sectionKey))
       .map((s) => {
-        const plain = typeof s.data === 'string' && s.data.startsWith('enc:')
-          ? decryptField(s.data)
-          : s.data;
+        const plain = typeof s.data === 'string' && s.data.startsWith('enc:') ? decryptField(s.data) : s.data;
         return { key: s.sectionKey, data: plain };
       });
-    const contentHash = crypto
-      .createHash('sha256')
-      .update(JSON.stringify(contentPayload))
-      .digest('hex');
+    const contentHash = crypto.createHash('sha256').update(JSON.stringify(contentPayload)).digest('hex');
 
     const [signature] = await this.prisma.$transaction([
       this.prisma.encounterSignature.create({
@@ -1626,7 +1704,7 @@ export class EncountersService {
     const requiresNote = reviewStatus === 'LISTA_PARA_REVISION' || reviewStatus === 'REVISADA_POR_MEDICO';
     const sanitizedNote = requiresNote
       ? this.sanitizeRequiredWorkflowNote(note, 'La nota de revisión', REVIEW_NOTE_MIN_LENGTH, 500)
-      : this.sanitizeText(note, 500) ?? null;
+      : (this.sanitizeText(note, 500) ?? null);
 
     const updated = await this.prisma.encounter.update({
       where: { id },
@@ -1710,16 +1788,13 @@ export class EncountersService {
           patient: {
             archivedAt: null,
           },
-          encounter: medicoId ? { medicoId } : undefined,
+          ...(medicoId ? buildEncounterTaskScopeWhere(medicoId) : {}),
           status: {
             in: ['PENDIENTE', 'EN_PROCESO'],
           },
         },
         take: 6,
-        orderBy: [
-          { dueDate: 'asc' },
-          { createdAt: 'desc' },
-        ],
+        orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
         include: {
           patient: {
             select: { id: true, nombre: true, rut: true },
@@ -1735,7 +1810,7 @@ export class EncountersService {
       this.prisma.encounterTask.count({
         where: {
           patient: { archivedAt: null },
-          encounter: medicoId ? { medicoId } : undefined,
+          ...(medicoId ? buildEncounterTaskScopeWhere(medicoId) : {}),
           status: { in: ['PENDIENTE', 'EN_PROCESO'] },
           dueDate: { lt: new Date(new Date().toISOString().split('T')[0]) },
         },
@@ -1809,9 +1884,15 @@ export class EncountersService {
       identificationSnapshotStatus: this.buildIdentificationSnapshotStatus(encounter),
       createdBy: encounter.createdBy ? { id: encounter.createdBy.id, nombre: encounter.createdBy.nombre } : undefined,
       medico: encounter.medico ? { id: encounter.medico.id, nombre: encounter.medico.nombre } : undefined,
-      reviewRequestedBy: encounter.reviewRequestedBy ? { id: encounter.reviewRequestedBy.id, nombre: encounter.reviewRequestedBy.nombre } : undefined,
-      reviewedBy: encounter.reviewedBy ? { id: encounter.reviewedBy.id, nombre: encounter.reviewedBy.nombre } : undefined,
-      completedBy: encounter.completedBy ? { id: encounter.completedBy.id, nombre: encounter.completedBy.nombre } : undefined,
+      reviewRequestedBy: encounter.reviewRequestedBy
+        ? { id: encounter.reviewRequestedBy.id, nombre: encounter.reviewRequestedBy.nombre }
+        : undefined,
+      reviewedBy: encounter.reviewedBy
+        ? { id: encounter.reviewedBy.id, nombre: encounter.reviewedBy.nombre }
+        : undefined,
+      completedBy: encounter.completedBy
+        ? { id: encounter.completedBy.id, nombre: encounter.completedBy.nombre }
+        : undefined,
       signatures: encounter.signatures,
       attachments: encounter.attachments,
       consents: encounter.consents,
@@ -1887,9 +1968,7 @@ export class EncountersService {
       where: {
         OR: [
           { entityType: 'Encounter', entityId: encounterId },
-          ...(sectionIds.length > 0
-            ? [{ entityType: 'EncounterSection', entityId: { in: sectionIds } }]
-            : []),
+          ...(sectionIds.length > 0 ? [{ entityType: 'EncounterSection', entityId: { in: sectionIds } }] : []),
         ],
       },
       orderBy: { timestamp: 'desc' },
@@ -1904,15 +1983,13 @@ export class EncountersService {
     const userMap = new Map(users.map((u) => [u.id, u.nombre]));
 
     return logs.map((log) => {
-      const sectionKey =
-        log.entityType === 'EncounterSection'
-          ? sectionKeyMap.get(log.entityId) ?? null
-          : null;
+      const sectionKey = log.entityType === 'EncounterSection' ? (sectionKeyMap.get(log.entityId) ?? null) : null;
 
       const reason = log.reason as string | null;
-      const label = reason && reason in AUDIT_REASON_LABELS
-        ? AUDIT_REASON_LABELS[reason as keyof typeof AUDIT_REASON_LABELS]
-        : reason ?? log.action;
+      const label =
+        reason && reason in AUDIT_REASON_LABELS
+          ? AUDIT_REASON_LABELS[reason as keyof typeof AUDIT_REASON_LABELS]
+          : (reason ?? log.action);
 
       return {
         id: log.id,

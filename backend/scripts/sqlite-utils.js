@@ -137,13 +137,21 @@ function resolveBackupDir(dbPath, configuredBackupDir = process.env.SQLITE_BACKU
 }
 
 function resolveUploadsRoot(configuredUploadDest = process.env.UPLOAD_DEST) {
+  const appRoot = path.resolve(process.cwd());
   const uploadDest = configuredUploadDest && configuredUploadDest.trim().length > 0
     ? configuredUploadDest.trim()
     : './uploads';
 
-  return path.isAbsolute(uploadDest)
+  const absoluteUploadDest = path.isAbsolute(uploadDest)
     ? uploadDest
     : path.resolve(process.cwd(), uploadDest);
+  const relativeToAppRoot = path.relative(appRoot, absoluteUploadDest);
+
+  if (relativeToAppRoot.startsWith('..') || path.isAbsolute(relativeToAppRoot)) {
+    throw new Error(`UPLOAD_DEST debe permanecer dentro de ${appRoot}. Valor recibido: ${uploadDest}`);
+  }
+
+  return absoluteUploadDest;
 }
 
 function listBackupFiles(backupDir) {

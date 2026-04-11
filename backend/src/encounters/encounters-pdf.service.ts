@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
@@ -6,7 +6,6 @@ import * as PDFDocument from 'pdfkit';
 import * as path from 'path';
 import {
   assertEncounterClinicalOutputAllowed,
-  getEncounterClinicalOutputBlock,
   getPatientDemographicsMissingFields,
 } from '../common/utils/patient-completeness';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';

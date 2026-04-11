@@ -36,10 +36,10 @@ Eso orquesta:
 | `frontend` | `5555` | App Next.js |
 | `backup-cron` | n/a | Backup automatico SQLite |
 
-Tambien define dos volumenes persistentes:
+Tambien persiste datos en carpetas locales bajo `./runtime/`:
 
-- `db_data`
-- `uploads_data`
+- `./runtime/data`
+- `./runtime/uploads`
 
 ## Empaquetado de Release
 

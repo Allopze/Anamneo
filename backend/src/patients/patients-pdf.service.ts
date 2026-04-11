@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
+import { parseStoredJson } from '../common/utils/encounter-sections';
+import { buildPatientProblemScopeWhere, isPatientOwnedByMedico } from '../common/utils/patient-access';
 import * as PDFDocument from 'pdfkit';
 
 const PDF_LOCALE = 'es-CL';
@@ -37,10 +39,14 @@ export class PatientsPdfService {
       include: {
         history: true,
         problems: {
+          where: user.isAdmin ? undefined : buildPatientProblemScopeWhere(effectiveMedicoId),
           orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
           include: {
             createdBy: { select: { id: true, nombre: true } },
           },
+        },
+        createdBy: {
+          select: { medicoId: true },
         },
       },
     });
@@ -50,7 +56,7 @@ export class PatientsPdfService {
     }
 
     // Verify access
-    if (!user.isAdmin && patient.createdById !== effectiveMedicoId) {
+    if (!user.isAdmin && !isPatientOwnedByMedico(patient, effectiveMedicoId)) {
       const hasEncounter = await this.prisma.encounter.findFirst({
         where: { patientId, medicoId: effectiveMedicoId },
         select: { id: true },
@@ -64,6 +70,7 @@ export class PatientsPdfService {
       where: {
         patientId,
         status: { in: ['COMPLETADO', 'FIRMADO'] },
+        ...(user.isAdmin ? {} : { medicoId: effectiveMedicoId }),
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -74,12 +81,16 @@ export class PatientsPdfService {
 
     const pdfBuffer = await this.buildDocumentBuffer(
       `Historial Clínico Longitudinal - ${patient.nombre}`,
-      user.nombre || 'Sistema',
+      user.nombre || user.email || 'Sistema',
       (doc, pageWidth) => {
         const sectionTitle = (title: string) => {
           if (doc.y > doc.page.height - 100) doc.addPage();
           doc.fontSize(12).font('Helvetica-Bold').text(title);
-          doc.moveTo(doc.x, doc.y).lineTo(doc.x + pageWidth, doc.y).lineWidth(0.5).stroke();
+          doc
+            .moveTo(doc.x, doc.y)
+            .lineTo(doc.x + pageWidth, doc.y)
+            .lineWidth(0.5)
+            .stroke();
           doc.moveDown(0.3);
           doc.fontSize(10).font('Helvetica');
         };
@@ -92,19 +103,26 @@ export class PatientsPdfService {
 
         // ── Header ──
         doc.fontSize(18).font('Helvetica-Bold').text('HISTORIAL CLÍNICO LONGITUDINAL', { align: 'center' });
-        doc.fontSize(10).font('Helvetica').text(
-          `Generado: ${this.formatDateTime(new Date())}`,
-          { align: 'center' },
-        );
+        doc
+          .fontSize(10)
+          .font('Helvetica')
+          .text(`Generado: ${this.formatDateTime(new Date())}`, { align: 'center' });
         doc.moveDown(0.5);
-        doc.moveTo(doc.x, doc.y).lineTo(doc.x + pageWidth, doc.y).lineWidth(2).stroke();
+        doc
+          .moveTo(doc.x, doc.y)
+          .lineTo(doc.x + pageWidth, doc.y)
+          .lineWidth(2)
+          .stroke();
         doc.moveDown(1);
 
         // ── Demographics ──
         sectionTitle('IDENTIFICACIÓN DEL PACIENTE');
         field('Nombre', patient.nombre);
         field('RUT', patient.rut || 'Sin RUT');
-        field('Edad', patient.edad ? `${patient.edad} años${patient.edadMeses ? ` ${patient.edadMeses} meses` : ''}` : undefined);
+        field(
+          'Edad',
+          patient.edad ? `${patient.edad} años${patient.edadMeses ? ` ${patient.edadMeses} meses` : ''}` : undefined,
+        );
         field('Sexo', SEXO_MAP[patient.sexo ?? ''] || patient.sexo);
         field('Previsión', PREVISION_MAP[patient.prevision ?? ''] || patient.prevision);
         field('Trabajo', patient.trabajo);
@@ -125,12 +143,14 @@ export class PatientsPdfService {
             ['Medicamentos', 'medicamentos'],
             ['Alergias', 'alergias'],
             ['Inmunizaciones', 'inmunizaciones'],
+            ['Antecedentes sociales', 'antecedentesSociales'],
+            ['Antecedentes personales', 'antecedentesPersonales'],
           ];
           let hasAny = false;
           for (const [label, key] of historyFields) {
-            const val = (history as any)[key];
-            if (val && typeof val === 'string' && val.trim()) {
-              field(label, val.trim());
+            const text = this.formatHistoryFieldText((history as any)[key]);
+            if (text) {
+              field(label, text);
               hasAny = true;
             }
           }
@@ -164,13 +184,19 @@ export class PatientsPdfService {
 
             if (doc.y > doc.page.height - 150) doc.addPage();
 
-            doc.fontSize(13).font('Helvetica-Bold').text(
-              `ATENCIÓN ${i + 1} — ${this.formatDateTime(enc.createdAt)}`,
-            );
-            doc.fontSize(9).font('Helvetica').text(
-              `Profesional: ${enc.createdBy?.nombre || '-'} · Estado: ${enc.status}`,
-            );
-            doc.moveTo(doc.x, doc.y + 2).lineTo(doc.x + pageWidth, doc.y + 2).lineWidth(1).stroke();
+            doc
+              .fontSize(13)
+              .font('Helvetica-Bold')
+              .text(`ATENCIÓN ${i + 1} — ${this.formatDateTime(enc.createdAt)}`);
+            doc
+              .fontSize(9)
+              .font('Helvetica')
+              .text(`Profesional: ${enc.createdBy?.nombre || '-'} · Estado: ${enc.status}`);
+            doc
+              .moveTo(doc.x, doc.y + 2)
+              .lineTo(doc.x + pageWidth, doc.y + 2)
+              .lineWidth(1)
+              .stroke();
             doc.moveDown(0.5);
             doc.fontSize(10).font('Helvetica');
 
@@ -184,9 +210,7 @@ export class PatientsPdfService {
             const sosp = sectionsMap['SOSPECHA_DIAGNOSTICA'] || {};
             if (sosp.sospechas?.length > 0) {
               doc.font('Helvetica-Bold').text('Sospecha diagnóstica: ', { continued: true });
-              doc.font('Helvetica').text(
-                sosp.sospechas.map((s: any) => s.diagnostico).join(', '),
-              );
+              doc.font('Helvetica').text(sosp.sospechas.map((s: any) => s.diagnostico).join(', '));
             }
 
             // Treatment summary
@@ -253,6 +277,40 @@ export class PatientsPdfService {
     return `${plan}\n${indicaciones}`;
   }
 
+  private formatHistoryFieldText(value: unknown) {
+    const parsed = parseStoredJson(value, value);
+    if (!parsed) {
+      return '';
+    }
+
+    if (typeof parsed === 'string') {
+      return parsed.trim();
+    }
+
+    if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return '';
+    }
+
+    const record = parsed as Record<string, unknown>;
+    const items = Array.isArray(record.items)
+      ? record.items
+          .filter((item): item is string => typeof item === 'string')
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : [];
+    const text = typeof record.texto === 'string' ? record.texto.trim() : '';
+
+    if (!items.length) {
+      return text;
+    }
+
+    if (!text) {
+      return items.join(', ');
+    }
+
+    return `${items.join(', ')}. ${text}`;
+  }
+
   private formatDateTime(value: string | Date) {
     return new Intl.DateTimeFormat(PDF_LOCALE, {
       year: 'numeric',
@@ -291,12 +349,10 @@ export class PatientsPdfService {
         doc
           .fontSize(8)
           .font('Helvetica')
-          .text(
-            `Página ${i + 1} de ${totalPages}`,
-            doc.page.margins.left,
-            doc.page.height - 35,
-            { width: pageWidth, align: 'center' },
-          );
+          .text(`Página ${i + 1} de ${totalPages}`, doc.page.margins.left, doc.page.height - 35, {
+            width: pageWidth,
+            align: 'center',
+          });
       }
 
       doc.end();

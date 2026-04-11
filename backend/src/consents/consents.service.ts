@@ -59,8 +59,27 @@ export class ConsentsService {
     };
   }
 
+  private async assertEncounterMatchesPatient(encounterId: string, patientId: string) {
+    const encounter = await this.prisma.encounter.findUnique({
+      where: { id: encounterId },
+      select: { patientId: true },
+    });
+
+    if (!encounter) {
+      throw new BadRequestException('La atención indicada no existe');
+    }
+
+    if (encounter.patientId !== patientId) {
+      throw new BadRequestException('La atención indicada no corresponde al paciente');
+    }
+  }
+
   async create(dto: CreateConsentDto, user: RequestUser) {
     await assertPatientAccess(this.prisma, user, dto.patientId);
+
+    if (dto.encounterId) {
+      await this.assertEncounterMatchesPatient(dto.encounterId, dto.patientId);
+    }
 
     const consent = await this.prisma.informedConsent.create({
       data: {
@@ -92,9 +111,7 @@ export class ConsentsService {
       orderBy: { grantedAt: 'desc' },
     });
 
-    const userNames = await this.resolveUserNames(
-      Array.from(new Set(consents.map((consent) => consent.grantedById))),
-    );
+    const userNames = await this.resolveUserNames(Array.from(new Set(consents.map((consent) => consent.grantedById))));
 
     return consents.map((consent) => this.formatConsent(consent, userNames));
   }

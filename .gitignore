@@ -28,6 +28,7 @@ backend/prisma/backups/
 # Uploads / generated runtime data
 uploads/
 backend/uploads/
+runtime/
 
 # Logs
 npm-debug.log*

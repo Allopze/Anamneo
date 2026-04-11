@@ -103,10 +103,6 @@ export default function FichaClinicaPage() {
     },
   });
 
-  if (isOperationalAdmin) {
-    return null;
-  }
-
   const handlePrint = useCallback(() => {
     if (printBlockedReason) {
       toast.error(printBlockedReason);
@@ -272,6 +268,10 @@ export default function FichaClinicaPage() {
       headerBarSlot.setHeaderBarSlot(null);
     };
   }, [headerBarSlot, toolbarActions]);
+
+  if (isOperationalAdmin) {
+    return null;
+  }
 
   if (isLoading) {
     return (

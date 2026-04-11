@@ -1,13 +1,4 @@
-import type sanitizeHtmlType from 'sanitize-html';
-import type { IOptions } from 'sanitize-html';
-
-type SanitizeHtmlModule = typeof sanitizeHtmlType;
-
-const sanitizeHtmlImport = require('sanitize-html') as SanitizeHtmlModule & {
-  default?: SanitizeHtmlModule;
-};
-
-const sanitizeHtml = (sanitizeHtmlImport.default ?? sanitizeHtmlImport) as SanitizeHtmlModule;
+import sanitizeHtml, { type IOptions } from 'sanitize-html';
 
 /**
  * Strict clinical text sanitizer.

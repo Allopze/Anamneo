@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { parseStoredJson } from '../common/utils/encounter-sections';
+import { resolveUploadsRoot } from '../common/utils/uploads-root';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -92,7 +93,7 @@ export class AttachmentsService {
   ) {}
 
   private getUploadsRoot(): string {
-    return path.resolve(this.configService.get<string>('UPLOAD_DEST', './uploads'));
+    return resolveUploadsRoot(this.configService.get<string>('UPLOAD_DEST'));
   }
 
   private resolveStoragePath(storagePath: string): string {
