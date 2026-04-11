@@ -897,10 +897,10 @@ function TwoFactorSection() {
   const setupMutation = useMutation({
     mutationFn: async () => {
       const res = await api.post('/auth/2fa/setup');
-      return res.data as { qrCode?: string; qrCodeDataUrl?: string; secret: string };
+      return res.data as { qrCodeDataUrl: string; secret: string };
     },
     onSuccess: (data) => {
-      setQrCode(data.qrCode ?? data.qrCodeDataUrl ?? null);
+      setQrCode(data.qrCodeDataUrl ?? null);
       setError('');
     },
     onError: (err) => toast.error(getErrorMessage(err)),

@@ -25,7 +25,7 @@ export class TemplatesController {
   @Post()
   create(@CurrentUser() user: CurrentUserData, @Body() dto: CreateTemplateDto) {
     const medicoId = getEffectiveMedicoId(user);
-    return this.templatesService.create(medicoId, dto);
+    return this.templatesService.create(medicoId, user.id, dto);
   }
 
   @Post('install-defaults')
@@ -41,12 +41,12 @@ export class TemplatesController {
     @Body() dto: UpdateTemplateDto,
   ) {
     const medicoId = getEffectiveMedicoId(user);
-    return this.templatesService.update(id, medicoId, dto);
+    return this.templatesService.update(id, medicoId, user.id, dto);
   }
 
   @Delete(':id')
   delete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: CurrentUserData) {
     const medicoId = getEffectiveMedicoId(user);
-    return this.templatesService.delete(id, medicoId);
+    return this.templatesService.delete(id, medicoId, user.id);
   }
 }

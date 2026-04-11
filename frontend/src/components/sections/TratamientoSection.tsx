@@ -1,9 +1,11 @@
 'use client';
 
-import { Attachment, TratamientoData } from '@/types';
+import { useMemo } from 'react';
+import { Attachment, HistoryFieldValue, TratamientoData } from '@/types';
 import VoiceDictationButton from '@/components/common/VoiceDictationButton';
-import { FiPaperclip, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiAlertTriangle, FiPaperclip, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { getTreatmentPlanText } from '@/lib/clinical';
+import { parseHistoryField } from '@/lib/utils';
 import {
   SectionAddButton,
   SectionBlock,
@@ -18,6 +20,7 @@ interface Props {
   readOnly?: boolean;
   linkedAttachmentsByOrderId?: Record<string, Attachment[]>;
   onRequestAttachToOrder?: (type: 'EXAMEN' | 'DERIVACION', orderId: string) => void;
+  allergyData?: HistoryFieldValue | string;
 }
 
 export default function TratamientoSection({
@@ -26,11 +29,43 @@ export default function TratamientoSection({
   readOnly,
   linkedAttachmentsByOrderId,
   onRequestAttachToOrder,
+  allergyData,
 }: Props) {
   const createId = () =>
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  const allergyKeywords = useMemo(() => {
+    if (!allergyData) return [];
+    const parsed = parseHistoryField(allergyData);
+    const keywords: string[] = [];
+    if (Array.isArray(parsed?.items)) {
+      for (const item of parsed.items) {
+        if (typeof item === 'string' && item.trim()) {
+          keywords.push(item.trim().toLowerCase());
+        }
+      }
+    }
+    if (typeof parsed?.texto === 'string' && parsed.texto.trim()) {
+      for (const word of parsed.texto.split(/[,;.\n]+/)) {
+        const trimmed = word.trim().toLowerCase();
+        if (trimmed.length >= 3) keywords.push(trimmed);
+      }
+    }
+    return keywords;
+  }, [allergyData]);
+
+  function getAllergyMatch(medicationName: string): string | null {
+    if (!medicationName || allergyKeywords.length === 0) return null;
+    const lower = medicationName.toLowerCase();
+    for (const keyword of allergyKeywords) {
+      if (lower.includes(keyword) || keyword.includes(lower)) {
+        return keyword;
+      }
+    }
+    return null;
+  }
 
   const handleChange = (field: string, value: any) => {
     onChange({ ...data, [field]: value });
@@ -137,10 +172,12 @@ export default function TratamientoSection({
 
       <SectionBlock title="Medicamentos">
         <div className="space-y-2">
-          {medicamentos.map((medicamento, index) => (
+          {medicamentos.map((medicamento, index) => {
+            const allergyMatch = getAllergyMatch(medicamento.nombre || '');
+            return (
             <div key={medicamento.id} className="section-item-card grid grid-cols-1 gap-2 md:grid-cols-6">
               <input
-                className="form-input md:col-span-2"
+                className={`form-input md:col-span-2${allergyMatch ? ' !border-status-red/60 !ring-1 !ring-status-red/30' : ''}`}
                 placeholder="Medicamento"
                 value={medicamento.nombre || ''}
                 disabled={readOnly}
@@ -150,6 +187,14 @@ export default function TratamientoSection({
                   updateList('medicamentosEstructurados', next);
                 }}
               />
+              {allergyMatch && (
+                <div className="flex items-center gap-1.5 md:col-span-full" role="alert">
+                  <FiAlertTriangle className="h-3.5 w-3.5 shrink-0 text-status-red" />
+                  <span className="text-xs font-medium text-status-red-text">
+                    Posible alergia registrada: {allergyMatch}
+                  </span>
+                </div>
+              )}
               <input
                 className="form-input"
                 placeholder="Dosis"
@@ -215,7 +260,8 @@ export default function TratamientoSection({
                 }}
               />
             </div>
-          ))}
+            );
+          })}
           {!readOnly && (
             <SectionAddButton
               onClick={() =>

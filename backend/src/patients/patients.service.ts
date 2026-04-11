@@ -50,14 +50,38 @@ export class PatientsService {
 
   private formatTask(task: any) {
     return {
-      ...task,
+      id: task.id,
+      patientId: task.patientId,
+      encounterId: task.encounterId ?? null,
+      title: task.title,
+      details: task.details ?? null,
+      type: task.type,
+      priority: task.priority,
+      status: task.status,
+      dueDate: task.dueDate ?? null,
+      completedAt: task.completedAt ?? null,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+      isOverdue: task.isOverdue ?? undefined,
       createdBy: task.createdBy ? { id: task.createdBy.id, nombre: task.createdBy.nombre } : undefined,
+      patient: task.patient ? { id: task.patient.id, nombre: task.patient.nombre, rut: task.patient.rut } : undefined,
     };
   }
 
   private formatProblem(problem: any) {
     return {
-      ...problem,
+      id: problem.id,
+      patientId: problem.patientId,
+      encounterId: problem.encounterId ?? null,
+      createdById: problem.createdById ?? null,
+      label: problem.label,
+      status: problem.status,
+      notes: problem.notes ?? null,
+      severity: problem.severity ?? null,
+      onsetDate: problem.onsetDate ?? null,
+      resolvedAt: problem.resolvedAt ?? null,
+      createdAt: problem.createdAt,
+      updatedAt: problem.updatedAt,
       encounter: problem.encounter
         ? {
             id: problem.encounter.id,
@@ -65,13 +89,39 @@ export class PatientsService {
             status: problem.encounter.status,
           }
         : null,
+      createdBy: problem.createdBy
+        ? { id: problem.createdBy.id, nombre: problem.createdBy.nombre }
+        : null,
     };
   }
 
   private decoratePatient<T extends Record<string, any>>(patient: T) {
     return {
-      ...patient,
+      id: patient.id,
+      rut: patient.rut,
+      rutExempt: patient.rutExempt,
+      rutExemptReason: patient.rutExemptReason,
+      nombre: patient.nombre,
+      fechaNacimiento: patient.fechaNacimiento,
+      edad: patient.edad,
+      edadMeses: patient.edadMeses,
+      sexo: patient.sexo,
+      trabajo: patient.trabajo,
+      prevision: patient.prevision,
+      registrationMode: patient.registrationMode,
+      completenessStatus: patient.completenessStatus,
+      demographicsVerifiedAt: patient.demographicsVerifiedAt ?? null,
+      demographicsVerifiedById: patient.demographicsVerifiedById ?? null,
+      domicilio: patient.domicilio,
+      centroMedico: patient.centroMedico,
+      createdAt: patient.createdAt,
+      updatedAt: patient.updatedAt,
       demographicsMissingFields: getPatientDemographicsMissingFields(patient),
+      ...(patient.history !== undefined && { history: patient.history }),
+      ...(patient.problems !== undefined && { problems: patient.problems.map((p: any) => this.formatProblem(p)) }),
+      ...(patient.tasks !== undefined && { tasks: patient.tasks.map((t: any) => this.formatTask(t)) }),
+      ...(patient.encounters !== undefined && { encounters: patient.encounters }),
+      ...(patient._count !== undefined && { _count: patient._count }),
     };
   }
 
@@ -402,9 +452,11 @@ export class PatientsService {
       : { createdAt: 'desc' as const };
 
     if (normalizedClinicalSearch) {
+      const CLINICAL_SEARCH_CAP = 500;
       const patients = await this.prisma.patient.findMany({
         where,
         orderBy,
+        take: CLINICAL_SEARCH_CAP,
         include: {
           _count: {
             select: { encounters: true },
@@ -448,6 +500,7 @@ export class PatientsService {
           limit,
           total: filteredPatients.length,
           totalPages: Math.ceil(filteredPatients.length / limit),
+          clinicalSearchCapped: patients.length >= CLINICAL_SEARCH_CAP,
         },
       };
     }
@@ -810,6 +863,9 @@ export class PatientsService {
             encounter: {
               select: { id: true, createdAt: true, status: true },
             },
+            createdBy: {
+              select: { id: true, nombre: true },
+            },
           },
         },
         tasks: {
@@ -842,11 +898,7 @@ export class PatientsService {
       }
     }
 
-    return this.decoratePatient({
-      ...patient,
-      problems: patient.problems.map((problem) => this.formatProblem(problem)),
-      tasks: patient.tasks.map((task) => this.formatTask(task)),
-    });
+    return this.decoratePatient(patient);
   }
 
   async findEncounterTimeline(user: RequestUser, patientId: string, page = 1, limit = 10) {
@@ -1500,6 +1552,7 @@ export class PatientsService {
       data: {
         patientId,
         encounterId: dto.encounterId || null,
+        createdById: user.id,
         label: dto.label.trim(),
         status: dto.status || 'ACTIVO',
         notes: dto.notes?.trim() || null,
@@ -1509,6 +1562,9 @@ export class PatientsService {
       include: {
         encounter: {
           select: { id: true, createdAt: true, status: true },
+        },
+        createdBy: {
+          select: { id: true, nombre: true },
         },
       },
     });
@@ -1560,6 +1616,9 @@ export class PatientsService {
       include: {
         encounter: {
           select: { id: true, createdAt: true, status: true },
+        },
+        createdBy: {
+          select: { id: true, nombre: true },
         },
       },
     });

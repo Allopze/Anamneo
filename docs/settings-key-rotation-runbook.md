@@ -1,10 +1,14 @@
 # Runbook de Rotación de Claves de Ajustes
 
+Este documento complementa `security-and-permissions.md` y `sqlite-operations.md`. Mantiene el procedimiento especifico de rotacion para settings cifrados; no intenta reemplazar la vista general de seguridad del proyecto.
+
 ## Alcance
 
 Este runbook cubre la rotación de `SETTINGS_ENCRYPTION_KEY` y `SETTINGS_ENCRYPTION_KEYS` usadas para cifrar secretos persistidos en `Setting`, actualmente `smtp.password`.
 
 Mientras Anamneo no use un secret manager externo, estas claves deben vivir solo en variables de entorno seguras del despliegue y nunca en el repositorio ni en la base de datos.
+
+La fuente de verdad funcional sigue siendo el backend: `settings-encryption.ts`, el arranque seguro de `main.ts` y el storage persistido en `Setting`.
 
 ## Precondiciones
 

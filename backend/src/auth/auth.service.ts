@@ -426,7 +426,7 @@ export class AuthService {
     const otpauthUrl = authenticator.keyuri(user.email, 'Anamneo', secret);
     const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
 
-    return { secret, qrCode: qrCodeDataUrl, qrCodeDataUrl };
+    return { secret, qrCodeDataUrl };
   }
 
   async enable2FA(userId: string, code: string) {

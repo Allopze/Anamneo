@@ -1,5 +1,12 @@
 # Design Tokens — Anamneo Visual Refresh
 
+Este documento es la referencia viva del sistema visual actual. No es un souvenir del refactor UI: si cambian tokens semanticos, radios, escalas o sombras, el cambio deberia reflejarse aqui y en el codigo.
+
+Contexto relacionado:
+
+- arquitectura frontend: `frontend-architecture.md`
+- material historico del refactor: `archive/ui/`
+
 ## Paleta de Colores
 
 ```

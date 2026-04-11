@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
 import { api, getErrorMessage, PaginatedResponse } from '@/lib/api';
@@ -47,6 +50,24 @@ import clsx from 'clsx';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import PatientAlerts from '@/components/PatientAlerts';
 import PatientConsents from '@/components/PatientConsents';
+
+const PROBLEM_STATUSES = ['ACTIVO', 'CRONICO', 'EN_ESTUDIO', 'RESUELTO'] as const;
+const TASK_TYPES = ['SEGUIMIENTO', 'EXAMEN', 'DERIVACION', 'TRAMITE'] as const;
+
+const problemSchema = z.object({
+  label: z.string().min(2, 'Mínimo 2 caracteres').max(160, 'Máximo 160 caracteres'),
+  notes: z.string().max(1000, 'Máximo 1000 caracteres').optional().or(z.literal('')),
+  status: z.enum(PROBLEM_STATUSES),
+});
+type ProblemForm = z.infer<typeof problemSchema>;
+
+const taskSchema = z.object({
+  title: z.string().min(2, 'Mínimo 2 caracteres').max(160, 'Máximo 160 caracteres'),
+  details: z.string().max(1200, 'Máximo 1200 caracteres').optional().or(z.literal('')),
+  type: z.enum(TASK_TYPES),
+  dueDate: z.string().optional().or(z.literal('')),
+});
+type TaskForm = z.infer<typeof taskSchema>;
 import {
   formatPatientAge,
   formatPatientPrevision,
@@ -62,10 +83,18 @@ export default function PatientDetailPage() {
   const [conflictEncounters, setConflictEncounters] = useState<InProgressEncounterSummary[] | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [encounterPage, setEncounterPage] = useState(1);
-  const [newProblem, setNewProblem] = useState({ label: '', notes: '', status: 'ACTIVO' });
-  const [newTask, setNewTask] = useState({ title: '', details: '', type: 'SEGUIMIENTO', dueDate: '' });
   const [editingProblemId, setEditingProblemId] = useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+
+  const problemForm = useForm<ProblemForm>({
+    resolver: zodResolver(problemSchema),
+    defaultValues: { label: '', notes: '', status: 'ACTIVO' },
+  });
+
+  const taskForm = useForm<TaskForm>({
+    resolver: zodResolver(taskSchema),
+    defaultValues: { title: '', details: '', type: 'SEGUIMIENTO', dueDate: '' },
+  });
 
   const canEditAdminFields = canEditPatientAdmin();
   const canCreateEncounterAllowed = canCreateEncounter();
@@ -164,48 +193,48 @@ export default function PatientDetailPage() {
   };
 
   const createProblemMutation = useMutation({
-    mutationFn: async () => api.post(`/patients/${id}/problems`, newProblem),
+    mutationFn: async (data: ProblemForm) => api.post(`/patients/${id}/problems`, data),
     onSuccess: () => {
       toast.success('Problema agregado');
-      setNewProblem({ label: '', notes: '', status: 'ACTIVO' });
+      problemForm.reset();
       queryClient.invalidateQueries({ queryKey: ['patient', id] });
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
   const updateProblemMutation = useMutation({
-    mutationFn: async ({ problemId, payload }: { problemId: string; payload: Record<string, string> }) =>
+    mutationFn: async ({ problemId, payload }: { problemId: string; payload: Partial<ProblemForm> }) =>
       api.put(`/patients/problems/${problemId}`, payload),
     onSuccess: () => {
       toast.success('Problema actualizado');
       setEditingProblemId(null);
-      setNewProblem({ label: '', notes: '', status: 'ACTIVO' });
+      problemForm.reset();
       queryClient.invalidateQueries({ queryKey: ['patient', id] });
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
   const createTaskMutation = useMutation({
-    mutationFn: async () =>
+    mutationFn: async (data: TaskForm) =>
       api.post(`/patients/${id}/tasks`, {
-        ...newTask,
-        dueDate: newTask.dueDate || undefined,
+        ...data,
+        dueDate: data.dueDate || undefined,
       }),
     onSuccess: () => {
       toast.success('Seguimiento creado');
-      setNewTask({ title: '', details: '', type: 'SEGUIMIENTO', dueDate: '' });
+      taskForm.reset();
       queryClient.invalidateQueries({ queryKey: ['patient', id] });
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: async ({ taskId, payload }: { taskId: string; payload: Record<string, string> }) =>
+    mutationFn: async ({ taskId, payload }: { taskId: string; payload: Partial<TaskForm> & Record<string, string | undefined> }) =>
       api.put(`/patients/tasks/${taskId}`, payload),
     onSuccess: () => {
       toast.success('Seguimiento actualizado');
       setEditingTaskId(null);
-      setNewTask({ title: '', details: '', type: 'SEGUIMIENTO', dueDate: '' });
+      taskForm.reset();
       queryClient.invalidateQueries({ queryKey: ['patient', id] });
     },
     onError: (err) => toast.error(getErrorMessage(err)),
@@ -498,7 +527,7 @@ export default function PatientDetailPage() {
                             className="text-xs text-ink-secondary hover:text-ink-primary"
                             onClick={() => {
                               setEditingProblemId(problem.id);
-                              setNewProblem({
+                              problemForm.reset({
                                 label: problem.label,
                                 notes: problem.notes || '',
                                 status: problem.status,
@@ -523,54 +552,62 @@ export default function PatientDetailPage() {
               )}
             </div>
 
-            <div className="mt-4 space-y-2 border-t border-surface-muted/20 pt-4">
-              <input
-                className="form-input"
-                value={newProblem.label}
-                onChange={(e) => setNewProblem((prev) => ({ ...prev, label: e.target.value }))}
-                placeholder="Nuevo problema clínico"
-              />
-              <textarea
-                className="form-input form-textarea"
-                rows={2}
-                value={newProblem.notes}
-                onChange={(e) => setNewProblem((prev) => ({ ...prev, notes: e.target.value }))}
-                placeholder="Notas o contexto"
-              />
+            <form className="mt-4 space-y-2 border-t border-surface-muted/20 pt-4" onSubmit={problemForm.handleSubmit((data) => {
+              if (editingProblemId) {
+                updateProblemMutation.mutate({ problemId: editingProblemId, payload: data });
+                return;
+              }
+              createProblemMutation.mutate(data);
+            })}>
+              <div>
+                <input
+                  className={clsx('form-input', problemForm.formState.errors.label && 'border-status-red')}
+                  placeholder="Nuevo problema clínico"
+                  {...problemForm.register('label')}
+                />
+                {problemForm.formState.errors.label && (
+                  <p className="mt-1 text-xs text-status-red">{problemForm.formState.errors.label.message}</p>
+                )}
+              </div>
+              <div>
+                <textarea
+                  className={clsx('form-input form-textarea', problemForm.formState.errors.notes && 'border-status-red')}
+                  rows={2}
+                  placeholder="Notas o contexto"
+                  {...problemForm.register('notes')}
+                />
+                {problemForm.formState.errors.notes && (
+                  <p className="mt-1 text-xs text-status-red">{problemForm.formState.errors.notes.message}</p>
+                )}
+              </div>
               <select
                 className="form-input"
-                value={newProblem.status}
-                onChange={(e) => setNewProblem((prev) => ({ ...prev, status: e.target.value }))}
+                {...problemForm.register('status')}
               >
                 {Object.entries(PROBLEM_STATUS_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>
               <button
+                type="submit"
                 className="btn btn-secondary w-full"
-                onClick={() => {
-                  if (editingProblemId) {
-                    updateProblemMutation.mutate({ problemId: editingProblemId, payload: newProblem });
-                    return;
-                  }
-                  createProblemMutation.mutate();
-                }}
-                disabled={!newProblem.label.trim() || createProblemMutation.isPending || updateProblemMutation.isPending}
+                disabled={createProblemMutation.isPending || updateProblemMutation.isPending}
               >
                 {editingProblemId ? 'Actualizar problema' : 'Guardar problema'}
               </button>
               {editingProblemId && (
                 <button
+                  type="button"
                   className="btn btn-secondary w-full"
                   onClick={() => {
                     setEditingProblemId(null);
-                    setNewProblem({ label: '', notes: '', status: 'ACTIVO' });
+                    problemForm.reset();
                   }}
                 >
                   Cancelar edición
                 </button>
               )}
-            </div>
+            </form>
           </div>
 
           <div className="card">
@@ -600,7 +637,7 @@ export default function PatientDetailPage() {
                             className="text-xs text-ink-secondary hover:text-ink-primary"
                             onClick={() => {
                               setEditingTaskId(task.id);
-                              setNewTask({
+                              taskForm.reset({
                                 title: task.title,
                                 details: task.details || '',
                                 type: task.type,
@@ -626,25 +663,38 @@ export default function PatientDetailPage() {
               )}
             </div>
 
-            <div className="mt-4 space-y-2 border-t border-surface-muted/20 pt-4">
-              <input
-                className="form-input"
-                value={newTask.title}
-                onChange={(e) => setNewTask((prev) => ({ ...prev, title: e.target.value }))}
-                placeholder="Nuevo seguimiento o tarea"
-              />
-              <textarea
-                className="form-input form-textarea"
-                rows={2}
-                value={newTask.details}
-                onChange={(e) => setNewTask((prev) => ({ ...prev, details: e.target.value }))}
-                placeholder="Detalle clínico u operativo"
-              />
+            <form className="mt-4 space-y-2 border-t border-surface-muted/20 pt-4" onSubmit={taskForm.handleSubmit((data) => {
+              if (editingTaskId) {
+                updateTaskMutation.mutate({ taskId: editingTaskId, payload: data });
+                return;
+              }
+              createTaskMutation.mutate(data);
+            })}>
+              <div>
+                <input
+                  className={clsx('form-input', taskForm.formState.errors.title && 'border-status-red')}
+                  placeholder="Nuevo seguimiento o tarea"
+                  {...taskForm.register('title')}
+                />
+                {taskForm.formState.errors.title && (
+                  <p className="mt-1 text-xs text-status-red">{taskForm.formState.errors.title.message}</p>
+                )}
+              </div>
+              <div>
+                <textarea
+                  className={clsx('form-input form-textarea', taskForm.formState.errors.details && 'border-status-red')}
+                  rows={2}
+                  placeholder="Detalle clínico u operativo"
+                  {...taskForm.register('details')}
+                />
+                {taskForm.formState.errors.details && (
+                  <p className="mt-1 text-xs text-status-red">{taskForm.formState.errors.details.message}</p>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <select
                   className="form-input"
-                  value={newTask.type}
-                  onChange={(e) => setNewTask((prev) => ({ ...prev, type: e.target.value }))}
+                  {...taskForm.register('type')}
                 >
                   {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>{label}</option>
@@ -653,35 +703,29 @@ export default function PatientDetailPage() {
                 <input
                   type="date"
                   className="form-input"
-                  value={newTask.dueDate}
-                  onChange={(e) => setNewTask((prev) => ({ ...prev, dueDate: e.target.value }))}
+                  {...taskForm.register('dueDate')}
                 />
               </div>
               <button
+                type="submit"
                 className="btn btn-secondary w-full"
-                onClick={() => {
-                  if (editingTaskId) {
-                    updateTaskMutation.mutate({ taskId: editingTaskId, payload: newTask });
-                    return;
-                  }
-                  createTaskMutation.mutate();
-                }}
-                disabled={!newTask.title.trim() || createTaskMutation.isPending || updateTaskMutation.isPending}
+                disabled={createTaskMutation.isPending || updateTaskMutation.isPending}
               >
                 {editingTaskId ? 'Actualizar seguimiento' : 'Guardar seguimiento'}
               </button>
               {editingTaskId && (
                 <button
+                  type="button"
                   className="btn btn-secondary w-full"
                   onClick={() => {
                     setEditingTaskId(null);
-                    setNewTask({ title: '', details: '', type: 'SEGUIMIENTO', dueDate: '' });
+                    taskForm.reset();
                   }}
                 >
                   Cancelar edición
                 </button>
               )}
-            </div>
+            </form>
           </div>
 
           <div className="card">
@@ -760,7 +804,7 @@ export default function PatientDetailPage() {
             </div>
             
             {timelineEncounters.length > 0 ? (
-              <div className="relative">
+              <div className={clsx('relative transition-opacity duration-200', isTimelinePlaceholderData && 'opacity-50')}>
                 <div className="absolute left-5 top-0 bottom-0 w-px bg-surface-muted" />
 
                 <div className="space-y-4">

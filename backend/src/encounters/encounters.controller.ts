@@ -192,4 +192,13 @@ export class EncountersController {
   ) {
     return this.encountersService.updateReviewStatus(id, user, dto.reviewStatus, dto.note);
   }
+
+  @Get(':id/audit')
+  @Roles('MEDICO', 'ASISTENTE')
+  getAuditHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.encountersService.getAuditHistory(id, user);
+  }
 }

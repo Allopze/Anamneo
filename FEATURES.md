@@ -1,8 +1,10 @@
 # Propuesta de características (por rol)
 
-Este documento propone mejoras basadas en lo que **ya existe en el código** del proyecto (módulos NestJS + Prisma + pantallas Next.js). Está pensado como backlog útil para **médicos**, **asistentes** y **admins**.
+Este documento es el backlog funcional del producto. Sirve para priorizar mejoras y discutir alcance; no debe leerse como manual operativo ni como promesa contractual de que todo lo listado ya existe, funciona perfecto o fue bendecido por la realidad.
 
-**Alcance**: funcionalidades clínicas/operativas (no incluye infra/DB/observabilidad).
+El backlog se basa en lo que **ya existe en el código** del proyecto (módulos NestJS + Prisma + pantallas Next.js) y en huecos detectados durante auditorías recientes.
+
+**Alcance**: funcionalidades clínicas y operativas. Infraestructura, base de datos, release y observabilidad viven en `docs/`.
 
 ## Leyenda (Estado)
 
@@ -10,6 +12,12 @@ Este documento propone mejoras basadas en lo que **ya existe en el código** del
 - **[QW]**: quick win (principalmente UI/flujo; backend ya da soporte o requiere cambios mínimos)
 - **[BE]**: requiere cambios backend (DTO/endpoint/reglas/DB)
 - **[NEW]**: requiere un módulo nuevo (o cambios estructurales relevantes)
+
+## Como leer este archivo
+
+- Si necesitas operar el sistema o entender el comportamiento actual, revisa primero `README.md` y `docs/`.
+- Si necesitas entender que conviene construir despues, este archivo si es el lugar correcto.
+- Si una feature aparece como `[YA]`, igual conviene validar implementacion real y tests. La etiqueta no es una absolucion preventiva.
 
 ## Actualizaciones recientes (implementado)
 

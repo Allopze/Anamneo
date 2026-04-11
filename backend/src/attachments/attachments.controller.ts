@@ -15,6 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { AttachmentsService } from './attachments.service';
+import { UploadAttachmentDto } from './dto/upload-attachment.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -31,12 +32,7 @@ export class AttachmentsController {
   upload(
     @Param('encounterId', ParseUUIDPipe) encounterId: string,
     @UploadedFile() file: Express.Multer.File,
-    @Body() body: {
-      category?: string;
-      description?: string;
-      linkedOrderType?: string;
-      linkedOrderId?: string;
-    },
+    @Body() body: UploadAttachmentDto,
     @CurrentUser() user: CurrentUserData,
   ) {
     if (!file) {
@@ -75,6 +71,6 @@ export class AttachmentsController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserData,
   ) {
-    return this.attachmentsService.remove(id, user.id);
+    return this.attachmentsService.remove(id, user);
   }
 }

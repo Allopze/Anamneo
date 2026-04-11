@@ -342,7 +342,9 @@ export class AttachmentsService {
     };
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, user: RequestUser) {
+    const effectiveMedicoId = getEffectiveMedicoId(user);
+
     const attachment = await this.prisma.attachment.findUnique({
       where: { id },
       include: {
@@ -354,7 +356,7 @@ export class AttachmentsService {
       throw new NotFoundException('Archivo no encontrado');
     }
 
-    if (attachment.encounter.medicoId !== userId) {
+    if (attachment.encounter.medicoId !== effectiveMedicoId) {
       throw new ForbiddenException('No tiene permisos para eliminar este archivo');
     }
 
@@ -368,7 +370,7 @@ export class AttachmentsService {
     await this.auditService.log({
       entityType: 'Attachment',
       entityId: attachment.id,
-      userId,
+      userId: user.id,
       action: 'DELETE',
       diff: {
         deleted: {

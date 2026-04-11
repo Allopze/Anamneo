@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 const DEFAULT_TEMPLATE_PACK = [
   {
@@ -41,7 +42,10 @@ const DEFAULT_TEMPLATE_PACK = [
 
 @Injectable()
 export class TemplatesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditService,
+  ) {}
 
   async findByMedico(medicoId: string) {
     return this.prisma.textTemplate.findMany({
@@ -50,29 +54,59 @@ export class TemplatesService {
     });
   }
 
-  async create(medicoId: string, data: { name: string; category?: string; content: string; sectionKey?: string }) {
-    return this.prisma.textTemplate.create({
+  async create(medicoId: string, userId: string, data: { name: string; category?: string; content: string; sectionKey?: string }) {
+    const template = await this.prisma.textTemplate.create({
       data: { ...data, category: data.category || 'GENERAL', medicoId },
     });
+
+    await this.auditService.log({
+      entityType: 'TextTemplate',
+      entityId: template.id,
+      userId,
+      action: 'CREATE',
+      diff: { created: { id: template.id, name: template.name, category: template.category, sectionKey: template.sectionKey } },
+    });
+
+    return template;
   }
 
-  async update(id: string, medicoId: string, data: { name?: string; category?: string; content?: string; sectionKey?: string }) {
+  async update(id: string, medicoId: string, userId: string, data: { name?: string; category?: string; content?: string; sectionKey?: string }) {
     const template = await this.prisma.textTemplate.findUnique({ where: { id } });
     if (!template) throw new NotFoundException('Plantilla no encontrada');
     if (template.medicoId !== medicoId) throw new ForbiddenException('No tiene permisos para editar esta plantilla');
 
-    return this.prisma.textTemplate.update({
+    const updated = await this.prisma.textTemplate.update({
       where: { id },
       data,
     });
+
+    await this.auditService.log({
+      entityType: 'TextTemplate',
+      entityId: id,
+      userId,
+      action: 'UPDATE',
+      diff: { before: { name: template.name, category: template.category, content: template.content, sectionKey: template.sectionKey }, after: data },
+    });
+
+    return updated;
   }
 
-  async delete(id: string, medicoId: string) {
+  async delete(id: string, medicoId: string, userId: string) {
     const template = await this.prisma.textTemplate.findUnique({ where: { id } });
     if (!template) throw new NotFoundException('Plantilla no encontrada');
     if (template.medicoId !== medicoId) throw new ForbiddenException('No tiene permisos para eliminar esta plantilla');
 
-    return this.prisma.textTemplate.delete({ where: { id } });
+    await this.prisma.textTemplate.delete({ where: { id } });
+
+    await this.auditService.log({
+      entityType: 'TextTemplate',
+      entityId: id,
+      userId,
+      action: 'DELETE',
+      diff: { deleted: { id: template.id, name: template.name, category: template.category, sectionKey: template.sectionKey } },
+    });
+
+    return template;
   }
 
   async installDefaultPack(medicoId: string) {

@@ -8,6 +8,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { AUDIT_REASON_LABELS } from '../audit/audit-catalog';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { CreateEncounterDto } from './dto/create-encounter.dto';
@@ -139,7 +140,19 @@ export class EncountersService {
 
   private formatTask(task: any) {
     return {
-      ...task,
+      id: task.id,
+      patientId: task.patientId,
+      encounterId: task.encounterId ?? null,
+      title: task.title,
+      details: task.details ?? null,
+      type: task.type,
+      priority: task.priority,
+      status: task.status,
+      dueDate: task.dueDate ?? null,
+      completedAt: task.completedAt ?? null,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+      isOverdue: task.isOverdue ?? undefined,
       createdBy: task.createdBy ? { id: task.createdBy.id, nombre: task.createdBy.nombre } : undefined,
     };
   }
@@ -1060,7 +1073,34 @@ export class EncountersService {
 
     return {
       data: encounters.map((enc) => ({
-        ...enc,
+        id: enc.id,
+        patientId: enc.patientId,
+        status: enc.status,
+        reviewStatus: enc.reviewStatus,
+        reviewRequestedAt: enc.reviewRequestedAt,
+        reviewNote: enc.reviewNote,
+        reviewedAt: enc.reviewedAt,
+        completedAt: enc.completedAt,
+        closureNote: enc.closureNote,
+        createdAt: enc.createdAt,
+        updatedAt: enc.updatedAt,
+        createdById: enc.createdById,
+        patient: enc.patient ? {
+          id: enc.patient.id,
+          rut: enc.patient.rut,
+          nombre: enc.patient.nombre,
+          fechaNacimiento: enc.patient.fechaNacimiento,
+          edad: enc.patient.edad,
+          sexo: enc.patient.sexo,
+          prevision: enc.patient.prevision,
+          registrationMode: enc.patient.registrationMode,
+          completenessStatus: enc.patient.completenessStatus,
+          demographicsMissingFields: getPatientDemographicsMissingFields(enc.patient),
+        } : undefined,
+        createdBy: enc.createdBy,
+        reviewRequestedBy: enc.reviewRequestedBy,
+        reviewedBy: enc.reviewedBy,
+        completedBy: enc.completedBy,
         progress: {
           completed: enc.sections.filter((s) => s.completed).length,
           total: enc.sections.length,
@@ -1166,7 +1206,22 @@ export class EncountersService {
     });
 
     return encounters.map((enc) => ({
-      ...enc,
+      id: enc.id,
+      patientId: enc.patientId,
+      status: enc.status,
+      reviewStatus: enc.reviewStatus,
+      reviewRequestedAt: enc.reviewRequestedAt,
+      reviewNote: enc.reviewNote,
+      reviewedAt: enc.reviewedAt,
+      completedAt: enc.completedAt,
+      closureNote: enc.closureNote,
+      createdAt: enc.createdAt,
+      updatedAt: enc.updatedAt,
+      createdById: enc.createdById,
+      createdBy: enc.createdBy,
+      reviewRequestedBy: enc.reviewRequestedBy,
+      reviewedBy: enc.reviewedBy,
+      completedBy: enc.completedBy,
       progress: {
         completed: enc.sections.filter((s) => s.completed).length,
         total: enc.sections.length,
@@ -1256,7 +1311,11 @@ export class EncountersService {
     const formattedSection = formatEncounterSectionForRead(updatedSection);
 
     return {
-      ...updatedSection,
+      id: updatedSection.id,
+      encounterId: updatedSection.encounterId,
+      sectionKey: updatedSection.sectionKey,
+      completed: updatedSection.completed,
+      updatedAt: updatedSection.updatedAt,
       data: JSON.stringify(formattedSection.data ?? {}),
       schemaVersion: formattedSection.schemaVersion,
     };
@@ -1734,15 +1793,63 @@ export class EncountersService {
     const clinicalOutputBlock = getEncounterClinicalOutputBlock(encounter.patient);
 
     return {
-      ...encounter,
+      id: encounter.id,
+      patientId: encounter.patientId,
+      status: encounter.status,
+      reviewStatus: encounter.reviewStatus,
+      reviewRequestedAt: encounter.reviewRequestedAt ?? null,
+      reviewNote: encounter.reviewNote ?? null,
+      reviewedAt: encounter.reviewedAt ?? null,
+      completedAt: encounter.completedAt ?? null,
+      closureNote: encounter.closureNote ?? null,
+      createdAt: encounter.createdAt,
+      updatedAt: encounter.updatedAt,
+      createdById: encounter.createdById,
       clinicalOutputBlock,
       identificationSnapshotStatus: this.buildIdentificationSnapshotStatus(encounter),
+      createdBy: encounter.createdBy ? { id: encounter.createdBy.id, nombre: encounter.createdBy.nombre } : undefined,
+      medico: encounter.medico ? { id: encounter.medico.id, nombre: encounter.medico.nombre } : undefined,
+      reviewRequestedBy: encounter.reviewRequestedBy ? { id: encounter.reviewRequestedBy.id, nombre: encounter.reviewRequestedBy.nombre } : undefined,
+      reviewedBy: encounter.reviewedBy ? { id: encounter.reviewedBy.id, nombre: encounter.reviewedBy.nombre } : undefined,
+      completedBy: encounter.completedBy ? { id: encounter.completedBy.id, nombre: encounter.completedBy.nombre } : undefined,
+      signatures: encounter.signatures,
+      attachments: encounter.attachments,
+      consents: encounter.consents,
       patient: encounter.patient
         ? {
-            ...encounter.patient,
+            id: encounter.patient.id,
+            rut: encounter.patient.rut,
+            rutExempt: encounter.patient.rutExempt,
+            rutExemptReason: encounter.patient.rutExemptReason,
+            nombre: encounter.patient.nombre,
+            fechaNacimiento: encounter.patient.fechaNacimiento,
+            edad: encounter.patient.edad,
+            edadMeses: encounter.patient.edadMeses,
+            sexo: encounter.patient.sexo,
+            trabajo: encounter.patient.trabajo,
+            prevision: encounter.patient.prevision,
+            registrationMode: encounter.patient.registrationMode,
+            completenessStatus: encounter.patient.completenessStatus,
+            demographicsVerifiedAt: encounter.patient.demographicsVerifiedAt ?? null,
+            domicilio: encounter.patient.domicilio,
+            centroMedico: encounter.patient.centroMedico,
+            createdAt: encounter.patient.createdAt,
+            updatedAt: encounter.patient.updatedAt,
             demographicsMissingFields: getPatientDemographicsMissingFields(encounter.patient),
             history: encounter.patient.history,
-            problems: (encounter.patient.problems || []).map((problem: any) => ({ ...problem })),
+            problems: (encounter.patient.problems || []).map((problem: any) => ({
+              id: problem.id,
+              patientId: problem.patientId,
+              encounterId: problem.encounterId ?? null,
+              label: problem.label,
+              status: problem.status,
+              notes: problem.notes ?? null,
+              severity: problem.severity ?? null,
+              onsetDate: problem.onsetDate ?? null,
+              resolvedAt: problem.resolvedAt ?? null,
+              createdAt: problem.createdAt,
+              updatedAt: problem.updatedAt,
+            })),
             tasks: (encounter.patient.tasks || []).map((task: any) => this.formatTask(task)),
           }
         : encounter.patient,
@@ -1756,5 +1863,67 @@ export class EncountersService {
         order: SECTION_ORDER.indexOf(section.sectionKey as SectionKey),
       })),
     };
+  }
+
+  async getAuditHistory(encounterId: string, user: RequestUser) {
+    const effectiveMedicoId = getEffectiveMedicoId(user);
+
+    const encounter = await this.prisma.encounter.findFirst({
+      where: { id: encounterId, medicoId: effectiveMedicoId },
+      select: {
+        id: true,
+        sections: { select: { id: true, sectionKey: true } },
+      },
+    });
+
+    if (!encounter) {
+      throw new NotFoundException('Atención no encontrada');
+    }
+
+    const sectionIds = encounter.sections.map((s) => s.id);
+    const sectionKeyMap = new Map(encounter.sections.map((s) => [s.id, s.sectionKey]));
+
+    const logs = await this.prisma.auditLog.findMany({
+      where: {
+        OR: [
+          { entityType: 'Encounter', entityId: encounterId },
+          ...(sectionIds.length > 0
+            ? [{ entityType: 'EncounterSection', entityId: { in: sectionIds } }]
+            : []),
+        ],
+      },
+      orderBy: { timestamp: 'desc' },
+      take: 200,
+    });
+
+    const userIds = [...new Set(logs.map((l) => l.userId))];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, nombre: true },
+    });
+    const userMap = new Map(users.map((u) => [u.id, u.nombre]));
+
+    return logs.map((log) => {
+      const sectionKey =
+        log.entityType === 'EncounterSection'
+          ? sectionKeyMap.get(log.entityId) ?? null
+          : null;
+
+      const reason = log.reason as string | null;
+      const label = reason && reason in AUDIT_REASON_LABELS
+        ? AUDIT_REASON_LABELS[reason as keyof typeof AUDIT_REASON_LABELS]
+        : reason ?? log.action;
+
+      return {
+        id: log.id,
+        timestamp: log.timestamp,
+        action: log.action,
+        reason,
+        label,
+        userName: userMap.get(log.userId) ?? 'Sistema',
+        sectionKey,
+        sectionLabel: sectionKey ? (SECTION_LABELS[sectionKey as SectionKey] ?? sectionKey) : null,
+      };
+    });
   }
 }

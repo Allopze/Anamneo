@@ -56,6 +56,7 @@ import {
   FiSlash,
   FiClock,
   FiShield,
+  FiWifiOff,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -71,6 +72,16 @@ import TemplateSelector from '@/components/TemplateSelector';
 
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SignEncounterModal from '@/components/common/SignEncounterModal';
+import FloatingQuickNotes from '@/components/FloatingQuickNotes';
+import EncounterAuditTimeline from '@/components/EncounterAuditTimeline';
+import { useOnlineStatus } from '@/lib/useOnlineStatus';
+import {
+  enqueueSave,
+  getPendingSaves,
+  removePendingSave,
+  countPendingSaves,
+  isNetworkError,
+} from '@/lib/offline-queue';
 
 const SectionLoadingFallback = () => (
   <div className="rounded-card border border-surface-muted/40 bg-surface-base/55 px-5 py-5 text-sm text-ink-secondary">
@@ -249,11 +260,12 @@ export default function EncounterWizardPage() {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [savingSectionKey, setSavingSectionKey] = useState<SectionKey | null>(null);
   const [savedSectionKey, setSavedSectionKey] = useState<SectionKey | null>(null);
   const [errorSectionKey, setErrorSectionKey] = useState<SectionKey | null>(null);
   const [savedSnapshotJson, setSavedSnapshotJson] = useState('');
-  const [sidebarTab, setSidebarTab] = useState<'revision' | 'apoyo' | 'cierre'>('revision');
+  const [sidebarTab, setSidebarTab] = useState<'revision' | 'apoyo' | 'cierre' | 'historial'>('revision');
   const [elapsedMinutes, setElapsedMinutes] = useState(0);
   const lastSavedRef = useRef<string>('');
   const formDataRef = useRef<Record<string, any>>({});
@@ -276,6 +288,9 @@ export default function EncounterWizardPage() {
   const [reviewActionNote, setReviewActionNote] = useState('');
   const [closureNote, setClosureNote] = useState('');
   const initializedEncounterIdRef = useRef<string | null>(null);
+  const isOnline = useOnlineStatus();
+  const [pendingSaveCount, setPendingSaveCount] = useState(0);
+  const syncingRef = useRef(false);
 
   // Fetch encounter data
   const { data: encounter, isLoading, error } = useQuery({
@@ -412,6 +427,7 @@ export default function EncounterWizardPage() {
       setSavedSectionKey(variables.sectionKey);
       setErrorSectionKey(null);
       setSaveStatus('saved');
+      setLastSavedAt(new Date());
       saveStatusTimerRef.current = setTimeout(() => {
         setSaveStatus('idle');
         setSavedSectionKey((current) => (
@@ -422,6 +438,21 @@ export default function EncounterWizardPage() {
     onError: (err, variables) => {
       setSavingSectionKey(null);
       setSavedSectionKey(null);
+
+      if (isNetworkError(err) && id && user?.id) {
+        void enqueueSave({
+          encounterId: id,
+          sectionKey: variables.sectionKey,
+          data: variables.data,
+          completed: variables.completed,
+          queuedAt: new Date().toISOString(),
+          userId: user.id,
+        }).then(() => countPendingSaves()).then(setPendingSaveCount);
+        setSaveStatus('idle');
+        toast('Sin conexión — guardado en cola local', { icon: '📡' });
+        return;
+      }
+
       setErrorSectionKey(variables.sectionKey);
       setSaveStatus('error');
       toast.error('Error al guardar: ' + getErrorMessage(err));
@@ -596,8 +627,16 @@ export default function EncounterWizardPage() {
         initialData[section.sectionKey] = section.data;
       });
       const storedDraft = user?.id ? readEncounterDraft(encounter.id, user.id) : null;
-      const restoredFormData = storedDraft?.formData ?? initialData;
-      const restoredSavedSnapshot = storedDraft?.savedSnapshot ?? initialData;
+
+      // Detect stale draft: if the server has a newer updatedAt than the draft,
+      // discard the draft to avoid restoring outdated clinical data.
+      const draftIsStale = storedDraft?.encounterUpdatedAt
+        && encounter.updatedAt
+        && new Date(encounter.updatedAt).getTime() > new Date(storedDraft.encounterUpdatedAt).getTime();
+
+      const useDraft = storedDraft && !draftIsStale;
+      const restoredFormData = useDraft ? storedDraft.formData : initialData;
+      const restoredSavedSnapshot = useDraft ? storedDraft.savedSnapshot : initialData;
 
       setFormData(restoredFormData);
       formDataRef.current = restoredFormData;
@@ -605,12 +644,15 @@ export default function EncounterWizardPage() {
       setSavedSnapshotJson(lastSavedRef.current);
       setCurrentSectionIndex(
         Math.min(
-          Math.max(storedDraft?.currentSectionIndex ?? 0, 0),
+          Math.max(useDraft ? storedDraft.currentSectionIndex : 0, 0),
           Math.max(sections.length - 1, 0),
         ),
       );
 
-      if (storedDraft && hasEncounterDraftUnsavedChanges(storedDraft)) {
+      if (draftIsStale && storedDraft && hasEncounterDraftUnsavedChanges(storedDraft)) {
+        toast('Se descartó un borrador local porque la atención fue actualizada en otra sesión', { icon: '⚠️' });
+        if (user?.id) clearEncounterDraft(encounter.id, user.id);
+      } else if (useDraft && hasEncounterDraftUnsavedChanges(storedDraft)) {
         toast.success('Se restauró un borrador local de esta atención');
       }
     }
@@ -640,6 +682,7 @@ export default function EncounterWizardPage() {
       currentSectionIndex,
       formData,
       savedSnapshot,
+      encounterUpdatedAt: encounter.updatedAt,
     };
 
     if (hasEncounterDraftUnsavedChanges(draft)) {
@@ -712,6 +755,54 @@ export default function EncounterWizardPage() {
       }
     };
   }, [canEdit, hasUnsavedChanges, saveCurrentSection]);
+
+  // Sync offline queue when connectivity returns
+  useEffect(() => {
+    if (!isOnline || syncingRef.current) return;
+
+    let cancelled = false;
+
+    async function syncQueue() {
+      const saves = await getPendingSaves();
+      if (saves.length === 0 || cancelled) return;
+
+      syncingRef.current = true;
+      let synced = 0;
+
+      for (const save of saves) {
+        if (cancelled) break;
+        try {
+          await api.put(
+            `/encounters/${save.encounterId}/sections/${save.sectionKey}`,
+            { data: save.data, completed: save.completed },
+          );
+          await removePendingSave(save.id!);
+          synced++;
+        } catch {
+          break; // stop on first failure — will retry later
+        }
+      }
+
+      syncingRef.current = false;
+      const remaining = await countPendingSaves();
+      if (!cancelled) {
+        setPendingSaveCount(remaining);
+        if (synced > 0) {
+          toast.success(`${synced} cambio${synced > 1 ? 's' : ''} sincronizado${synced > 1 ? 's' : ''}`);
+          queryClient.invalidateQueries({ queryKey: ['encounter', id] });
+        }
+      }
+    }
+
+    void syncQueue();
+
+    return () => { cancelled = true; };
+  }, [isOnline, id, queryClient]);
+
+  // Load pending count on mount
+  useEffect(() => {
+    void countPendingSaves().then(setPendingSaveCount);
+  }, []);
 
   // Warn before leaving with unsaved changes
   useEffect(() => {
@@ -1026,6 +1117,10 @@ export default function EncounterWizardPage() {
     );
   }
 
+  const lastSavedTimeStr = lastSavedAt
+    ? lastSavedAt.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
+    : null;
+
   const saveStateLabel = canEdit
     ? saveStatus === 'saving'
       ? 'Guardando…'
@@ -1035,6 +1130,14 @@ export default function EncounterWizardPage() {
       ? 'Error al guardar'
       : hasUnsavedChanges
       ? 'Cambios sin guardar'
+      : lastSavedTimeStr
+      ? `Guardado a las ${lastSavedTimeStr}`
+      : saveStatus === 'error'
+      ? 'Error al guardar'
+      : hasUnsavedChanges
+      ? 'Cambios sin guardar'
+      : lastSavedTimeStr
+      ? `Guardado a las ${lastSavedTimeStr}`
       : 'Sin cambios'
     : null;
 
@@ -1052,6 +1155,7 @@ export default function EncounterWizardPage() {
     { key: 'revision' as const, label: 'Revisión', icon: FiActivity },
     { key: 'apoyo' as const, label: 'Apoyo', icon: FiClipboard },
     { key: 'cierre' as const, label: 'Cierre', icon: FiFileText },
+    { key: 'historial' as const, label: 'Historial', icon: FiClock },
   ];
 
   const secondaryColumn = (
@@ -1310,6 +1414,10 @@ export default function EncounterWizardPage() {
           ) : null}
         </div>
         )}
+
+        {sidebarTab === 'historial' && (
+          <EncounterAuditTimeline encounterId={encounter.id} />
+        )}
       </section>
     </div>
   );
@@ -1363,6 +1471,22 @@ export default function EncounterWizardPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+              {(!isOnline || pendingSaveCount > 0) && (
+                <div
+                  className={clsx(
+                    'inline-flex min-h-12 items-center gap-2 rounded-input border px-4 py-3 text-sm shadow-soft',
+                    !isOnline
+                      ? 'border-status-amber/40 bg-status-amber/10 text-status-amber-text'
+                      : 'border-accent/40 bg-accent/10 text-accent-text',
+                  )}
+                  role="status"
+                >
+                  <FiWifiOff className="h-4 w-4" />
+                  {!isOnline
+                    ? `Sin conexión${pendingSaveCount > 0 ? ` · ${pendingSaveCount} pendiente${pendingSaveCount > 1 ? 's' : ''}` : ''}`
+                    : `Sincronizando ${pendingSaveCount} cambio${pendingSaveCount > 1 ? 's' : ''}…`}
+                </div>
+              )}
               {canEdit && saveStateLabel ? (
                 <div
                   className={clsx(
@@ -1611,6 +1735,7 @@ export default function EncounterWizardPage() {
                     patientAgeMonths={identificationData.edadMeses ?? encounter.patient?.edadMeses}
                     patientSexo={identificationData.sexo ?? encounter.patient?.sexo}
                     motivoConsultaData={currentSection.sectionKey === 'SOSPECHA_DIAGNOSTICA' ? (formData.MOTIVO_CONSULTA ?? encounter?.sections?.find((s) => s.sectionKey === 'MOTIVO_CONSULTA')?.data) : undefined}
+                    allergyData={currentSection.sectionKey === 'TRATAMIENTO' ? (formData.ANAMNESIS_REMOTA?.alergias ?? encounter?.sections?.find((s) => s.sectionKey === 'ANAMNESIS_REMOTA')?.data?.alergias) : undefined}
                   />
                 ) : (
                   <div className="rounded-card border border-surface-muted/40 bg-surface-base/55 px-5 py-5 text-sm text-ink-secondary">
@@ -1886,6 +2011,18 @@ export default function EncounterWizardPage() {
           </div>
         </div>
       )}
+
+      <FloatingQuickNotes
+        value={(formData.OBSERVACIONES as any)?.notasInternas || ''}
+        disabled={!canEdit}
+        saving={saveSectionMutation.isPending}
+        onSave={(text) => {
+          const existing = formData.OBSERVACIONES || {};
+          const updatedData = { ...existing, notasInternas: text };
+          handleSectionDataChange('OBSERVACIONES', updatedData);
+          saveSectionMutation.mutate({ sectionKey: 'OBSERVACIONES', data: updatedData });
+        }}
+      />
 
       <ConfirmModal
         isOpen={showCompleteConfirm}

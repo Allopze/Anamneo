@@ -41,6 +41,7 @@ model User {
   conditionCatalogLocal ConditionCatalogLocal[]
   textTemplates         TextTemplate[]
   encounterTasks        EncounterTask[]
+  patientProblems       PatientProblem[]
 
   @@map("users")
 }
@@ -269,6 +270,7 @@ model PatientProblem {
   id          String    @id @default(uuid())
   patientId   String    @map("patient_id")
   encounterId String?   @map("encounter_id")
+  createdById String?   @map("created_by_id")
   label       String
   status      String    @default("ACTIVO")
   notes       String?
@@ -280,6 +282,7 @@ model PatientProblem {
 
   patient   Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
   encounter Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  createdBy User?      @relation(fields: [createdById], references: [id])
 
   @@index([patientId, status])
   @@map("patient_problems")

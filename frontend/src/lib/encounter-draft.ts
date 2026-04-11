@@ -8,6 +8,7 @@ export interface EncounterDraft {
   currentSectionIndex: number;
   formData: Record<string, unknown>;
   savedSnapshot: Record<string, unknown>;
+  encounterUpdatedAt?: string;
 }
 
 function getEncounterDraftKey(encounterId: string, userId: string) {
@@ -44,6 +45,9 @@ export function readEncounterDraft(encounterId: string, userId: string): Encount
       currentSectionIndex: Number(parsed.currentSectionIndex),
       formData: parsed.formData,
       savedSnapshot: parsed.savedSnapshot,
+      encounterUpdatedAt: typeof (parsed as any).encounterUpdatedAt === 'string'
+        ? (parsed as any).encounterUpdatedAt
+        : undefined,
     };
   } catch {
     return null;

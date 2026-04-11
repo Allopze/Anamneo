@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { PatientsService } from './patients.service';
+import { PatientsPdfService } from './patients-pdf.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreatePatientQuickDto } from './dto/create-patient-quick.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
@@ -31,7 +32,10 @@ import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.
 @Controller('patients')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PatientsController {
-  constructor(private readonly patientsService: PatientsService) {}
+  constructor(
+    private readonly patientsService: PatientsService,
+    private readonly patientsPdfService: PatientsPdfService,
+  ) {}
 
   @Post()
   @Roles('MEDICO')
@@ -226,6 +230,22 @@ export class PatientsController {
     @CurrentUser() user: CurrentUserData,
   ) {
     return this.patientsService.updateTaskStatus(user, taskId, dto);
+  }
+
+  @Get(':id/export/pdf')
+  @Roles('MEDICO', 'ASISTENTE')
+  async exportLongitudinalPdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserData,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.patientsPdfService.generateLongitudinalPdf(id, user);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="historial-${id}.pdf"`,
+      'Content-Length': buffer.length.toString(),
+    });
+    res.end(buffer);
   }
 
   @Delete(':id')
