@@ -79,6 +79,11 @@ import {
   countPendingSavesForUser,
   isNetworkError,
 } from '@/lib/offline-queue';
+import {
+  invalidateAlertOverviewQueries,
+  invalidateDashboardOverviewQueries,
+  invalidateTaskOverviewQueries,
+} from '@/lib/query-invalidation';
 
 type SaveSectionResponse = {
   id: string;
@@ -365,7 +370,7 @@ export default function EncounterWizardPage() {
       setErrorSectionKey(null);
       setSaveStatus('saving');
     },
-    onSuccess: (response, variables) => {
+    onSuccess: async (response, variables) => {
       let savedSnapshot: Record<string, any> = {};
       try {
         savedSnapshot = JSON.parse(lastSavedRef.current || '{}');
@@ -419,6 +424,9 @@ export default function EncounterWizardPage() {
       response.data.warnings?.forEach((warning) => {
         toast(warning, { icon: '⚠️' });
       });
+      if (variables.sectionKey === 'EXAMEN_FISICO') {
+        await invalidateAlertOverviewQueries(queryClient);
+      }
       saveStatusTimerRef.current = setTimeout(() => {
         setSaveStatus('idle');
         setSavedSectionKey((current) => (current === variables.sectionKey ? null : current));
@@ -455,12 +463,16 @@ export default function EncounterWizardPage() {
     mutationFn: async (payload) => {
       await api.post(`/encounters/${id}/complete`, payload);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       if (user?.id) {
         clearEncounterDraft(id, user.id);
       }
       toast.success('Atención completada');
-      queryClient.invalidateQueries({ queryKey: ['encounter', id] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['encounter', id] }),
+        invalidateDashboardOverviewQueries(queryClient),
+        invalidateTaskOverviewQueries(queryClient),
+      ]);
       router.push(`/atenciones/${id}/ficha`);
     },
     onError: (err) => {
@@ -540,10 +552,13 @@ export default function EncounterWizardPage() {
       reviewStatus: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO';
       note?: string;
     }) => api.put(`/encounters/${id}/review-status`, { reviewStatus, note }),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Estado de revisión actualizado');
-      queryClient.invalidateQueries({ queryKey: ['encounter', id] });
-      queryClient.invalidateQueries({ queryKey: ['patient', encounter?.patientId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['encounter', id] }),
+        queryClient.invalidateQueries({ queryKey: ['patient', encounter?.patientId] }),
+        invalidateDashboardOverviewQueries(queryClient),
+      ]);
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));
@@ -557,11 +572,15 @@ export default function EncounterWizardPage() {
         encounterId: id,
         dueDate: quickTask.dueDate || undefined,
       }),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Seguimiento creado');
       setQuickTask({ title: '', type: 'SEGUIMIENTO', dueDate: '' });
-      queryClient.invalidateQueries({ queryKey: ['encounter', id] });
-      queryClient.invalidateQueries({ queryKey: ['patient', encounter?.patientId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['encounter', id] }),
+        queryClient.invalidateQueries({ queryKey: ['patient', encounter?.patientId] }),
+        invalidateTaskOverviewQueries(queryClient),
+        invalidateDashboardOverviewQueries(queryClient),
+      ]);
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));

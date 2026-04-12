@@ -140,11 +140,38 @@ test('recovers the local draft after 401, login and return to the encounter', as
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        totalPatients: 1,
-        activeEncounters: 1,
-        completedEncounters: 0,
-        overdueTasks: 0,
+        counts: {
+          enProgreso: 1,
+          completado: 0,
+          cancelado: 0,
+          total: 1,
+          pendingReview: 0,
+          upcomingTasks: 0,
+          overdueTasks: 0,
+          patientIncomplete: 0,
+          patientPendingVerification: 0,
+          patientVerified: 1,
+          patientNonVerified: 0,
+        },
+        recent: [],
+        upcomingTasks: [],
       }),
+    });
+  });
+
+  await page.route('**/api/alerts/unacknowledged-count', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ count: 0 }),
+    });
+  });
+
+  await page.route('**/api/alerts/unacknowledged', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: [] }),
     });
   });
 

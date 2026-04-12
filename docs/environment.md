@@ -22,6 +22,7 @@ La fuente base para estas variables es `.env.example`, complementada por `docker
 | `JWT_REFRESH_EXPIRES_IN` | No | `7d` | TTL refresh token |
 | `CORS_ORIGIN` | Si | `http://localhost:5555,https://anamneo.cloudbox.lat` en ejemplo | Allowlist CORS backend |
 | `PORT` | No | `5678` backend / `5555` frontend | Puertos HTTP |
+| `APP_TIME_ZONE` | No | `America/Santiago` | Zona horaria clinica usada para comparaciones `date-only` (edad, vencimientos, seguimientos) |
 | `NEXT_PUBLIC_API_URL` | Si en despliegue frontend | `/api` en desarrollo recomendado | URL consumida por browser |
 | `APP_PUBLIC_URL` | No | `http://localhost:5555` en ejemplo | Links publicos en correos |
 | `TRUST_PROXY` | No | `false` | Ajuste de proxy para Nest |

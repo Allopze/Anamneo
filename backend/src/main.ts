@@ -15,6 +15,7 @@ function assertSafeConfig(configService: ConfigService) {
   const databaseUrl = configService.get<string>('DATABASE_URL');
   const jwtSecret = configService.get<string>('JWT_SECRET');
   const jwtRefreshSecret = configService.get<string>('JWT_REFRESH_SECRET');
+  const appTimeZone = configService.get<string>('APP_TIME_ZONE', 'America/Santiago');
   const settingsEncryptionKeys = resolveSettingsEncryptionSecrets(
     configService.get<string>('SETTINGS_ENCRYPTION_KEY'),
     configService.get<string>('SETTINGS_ENCRYPTION_KEYS'),
@@ -52,6 +53,17 @@ function assertSafeConfig(configService: ConfigService) {
 
   if (jwtSecret === jwtRefreshSecret) {
     throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be different values');
+  }
+
+  try {
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: appTimeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+  } catch {
+    throw new Error(`APP_TIME_ZONE is invalid: ${appTimeZone}`);
   }
 
   if (isProduction && (jwtSecret.length < 32 || jwtRefreshSecret.length < 32)) {

@@ -1,6 +1,43 @@
 import { BadRequestException } from '@nestjs/common';
 
 const DATE_ONLY_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
+const DEFAULT_APP_TIME_ZONE = 'America/Santiago';
+
+function resolveAppTimeZone() {
+  const configuredTimeZone = process.env.APP_TIME_ZONE?.trim() || DEFAULT_APP_TIME_ZONE;
+
+  try {
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: configuredTimeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+  } catch {
+    throw new Error(`APP_TIME_ZONE invalida: ${configuredTimeZone}`);
+  }
+
+  return configuredTimeZone;
+}
+
+function formatDateOnlyInAppTimeZone(value: Date) {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: resolveAppTimeZone(),
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(value);
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+
+  if (!year || !month || !day) {
+    throw new Error('No se pudo formatear la fecha en la zona horaria configurada');
+  }
+
+  return `${year}-${month}-${day}`;
+}
 
 function assertValidDateOnly(value: string, label: string) {
   const match = DATE_ONLY_REGEX.exec(value);
@@ -28,7 +65,7 @@ export function extractDateOnlyIso(value: string | Date, label = 'La fecha') {
       throw new BadRequestException(`${label} no es una fecha válida`);
     }
 
-    return value.toISOString().slice(0, 10);
+    return formatDateOnlyInAppTimeZone(value);
   }
 
   const trimmed = value.trim();
@@ -43,7 +80,7 @@ export function extractDateOnlyIso(value: string | Date, label = 'La fecha') {
     throw new BadRequestException(`${label} no es una fecha válida`);
   }
 
-  return parsed.toISOString().slice(0, 10);
+  return formatDateOnlyInAppTimeZone(parsed);
 }
 
 export function parseDateOnlyToStoredUtcDate(value: string, label = 'La fecha') {
@@ -57,20 +94,20 @@ export function startOfUtcDay(value: string | Date) {
 }
 
 export function isDateOnlyBeforeToday(value: string | Date, reference = new Date()) {
-  return extractDateOnlyIso(value) < extractDateOnlyIso(reference);
+  return extractDateOnlyIso(value) < todayLocalDateOnly(reference);
 }
 
 export function isDateOnlyAfterToday(value: string | Date, reference = new Date()) {
-  return extractDateOnlyIso(value) > extractDateOnlyIso(reference);
+  return extractDateOnlyIso(value) > todayLocalDateOnly(reference);
 }
 
-/** Returns today as YYYY-MM-DD in the server's local timezone. */
-export function todayLocalDateOnly(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+/** Returns today as YYYY-MM-DD in the configured app timezone. */
+export function todayLocalDateOnly(reference = new Date()): string {
+  if (Number.isNaN(reference.getTime())) {
+    throw new BadRequestException('La fecha de referencia no es válida');
+  }
+
+  return formatDateOnlyInAppTimeZone(reference);
 }
 
 export function calculateAgeFromBirthDate(

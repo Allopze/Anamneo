@@ -16,10 +16,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: 'E2E_DISABLE_PROXY_AUTH=true npm run dev',
     cwd: __dirname,
     port: 5555,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120000,
   },
-});
+}); 

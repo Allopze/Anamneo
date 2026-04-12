@@ -45,6 +45,10 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { extractDateOnly, formatDateOnly } from '@/lib/date';
+import {
+  invalidateDashboardOverviewQueries,
+  invalidateTaskOverviewQueries,
+} from '@/lib/query-invalidation';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -191,8 +195,9 @@ export default function PatientDetailPage() {
 
   const createEncounterMutation = useMutation({
     mutationFn: () => api.post(`/encounters/patient/${id}`, {}),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       const reused = Boolean((response.data as any)?.reused);
+      await invalidateDashboardOverviewQueries(queryClient);
       toast.success(reused ? 'Ya había una atención en curso. Abriendo…' : 'Atención creada');
       router.push(`/atenciones/${response.data.id}`);
     },
@@ -212,11 +217,13 @@ export default function PatientDetailPage() {
 
   const verifyDemographicsMutation = useMutation({
     mutationFn: () => api.post(`/patients/${id}/verify-demographics`, {}),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Ficha verificada');
-      queryClient.invalidateQueries({ queryKey: ['patient', id] });
-      queryClient.invalidateQueries({ queryKey: ['patients'] });
-      queryClient.invalidateQueries({ queryKey: ['patient-admin-summary', id] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['patient', id] }),
+        queryClient.invalidateQueries({ queryKey: ['patient-admin-summary', id] }),
+        invalidateDashboardOverviewQueries(queryClient),
+      ]);
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));
@@ -260,10 +267,14 @@ export default function PatientDetailPage() {
         ...data,
         dueDate: data.dueDate || undefined,
       }),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Seguimiento creado');
       taskForm.reset();
-      queryClient.invalidateQueries({ queryKey: ['patient', id] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['patient', id] }),
+        invalidateTaskOverviewQueries(queryClient),
+        invalidateDashboardOverviewQueries(queryClient),
+      ]);
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
@@ -271,11 +282,15 @@ export default function PatientDetailPage() {
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, payload }: { taskId: string; payload: Partial<TaskForm> & Record<string, string | undefined> }) =>
       api.put(`/patients/tasks/${taskId}`, payload),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Seguimiento actualizado');
       setEditingTaskId(null);
       taskForm.reset();
-      queryClient.invalidateQueries({ queryKey: ['patient', id] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['patient', id] }),
+        invalidateTaskOverviewQueries(queryClient),
+        invalidateDashboardOverviewQueries(queryClient),
+      ]);
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });

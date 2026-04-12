@@ -4,9 +4,25 @@ import {
   isDateOnlyBeforeToday,
   parseDateOnlyToStoredUtcDate,
   startOfUtcDay,
+  todayLocalDateOnly,
 } from './local-date';
 
 describe('local-date', () => {
+  const originalTimeZone = process.env.APP_TIME_ZONE;
+
+  beforeEach(() => {
+    process.env.APP_TIME_ZONE = 'America/Santiago';
+  });
+
+  afterAll(() => {
+    if (originalTimeZone === undefined) {
+      delete process.env.APP_TIME_ZONE;
+      return;
+    }
+
+    process.env.APP_TIME_ZONE = originalTimeZone;
+  });
+
   it('preserves valid date-only strings', () => {
     expect(extractDateOnlyIso('2026-03-31')).toBe('2026-03-31');
   });
@@ -27,8 +43,19 @@ describe('local-date', () => {
     expect(startOfUtcDay('2026-03-31').toISOString()).toBe('2026-03-31T00:00:00.000Z');
   });
 
-  it('compares date-only values without depending on local timezone offsets', () => {
+  it('maps Date references to the configured app timezone instead of raw UTC', () => {
+    expect(extractDateOnlyIso(new Date('2026-04-01T01:30:00.000Z'))).toBe('2026-03-31');
+    expect(todayLocalDateOnly(new Date('2026-04-01T01:30:00.000Z'))).toBe('2026-03-31');
+  });
+
+  it('compares date-only values against today in the configured app timezone', () => {
     expect(isDateOnlyBeforeToday('2026-03-30', new Date('2026-03-31T23:00:00.000Z'))).toBe(true);
-    expect(isDateOnlyBeforeToday('2026-03-31', new Date('2026-03-31T01:00:00.000Z'))).toBe(false);
+    expect(isDateOnlyBeforeToday('2026-03-31', new Date('2026-04-01T01:30:00.000Z'))).toBe(false);
+  });
+
+  it('rejects invalid configured timezones early', () => {
+    process.env.APP_TIME_ZONE = 'Mars/Olympus_Mons';
+
+    expect(() => todayLocalDateOnly(new Date('2026-03-31T12:00:00.000Z'))).toThrow('APP_TIME_ZONE invalida');
   });
 });

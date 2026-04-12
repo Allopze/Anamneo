@@ -17,6 +17,7 @@ import clsx from 'clsx';
 import { validateRut } from '@/lib/rut';
 import { getPatientCompletenessMeta } from '@/lib/patient';
 import { calculateAgeFromBirthDate, todayLocalDateString } from '@/lib/date';
+import { invalidateDashboardOverviewQueries } from '@/lib/query-invalidation';
 import type { PatientPrevision, PatientSexo } from '@/types';
 
 type EditForm = {
@@ -142,10 +143,12 @@ export default function EditarPacientePage() {
   const updateAdminMutation = useMutation({
     mutationFn: (payload: UpdateAdminPayload) =>
       api.put(`/patients/${id}/admin`, payload),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Paciente actualizado');
-      queryClient.invalidateQueries({ queryKey: ['patient', id] });
-      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['patient', id] }),
+        invalidateDashboardOverviewQueries(queryClient),
+      ]);
       router.push(`/pacientes/${id}`);
     },
     onError: (err) => {
@@ -157,10 +160,12 @@ export default function EditarPacientePage() {
 
   const updateFullMutation = useMutation({
     mutationFn: (payload: Partial<EditForm>) => api.put(`/patients/${id}`, payload),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Paciente actualizado');
-      queryClient.invalidateQueries({ queryKey: ['patient', id] });
-      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['patient', id] }),
+        invalidateDashboardOverviewQueries(queryClient),
+      ]);
       router.push(`/pacientes/${id}`);
     },
     onError: (err) => {

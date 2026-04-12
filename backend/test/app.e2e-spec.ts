@@ -1103,6 +1103,59 @@ describe('Application E2E Tests', () => {
       spy.mockRestore();
     });
 
+    it('PUT /api/encounters/:id/sections/EXAMEN_FISICO → does not recreate acknowledged auto-alerts for the same critical value', async () => {
+      await req()
+        .put(`/api/encounters/${encounterId}/sections/EXAMEN_FISICO`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: {
+            signosVitales: {
+              temperatura: '39.6',
+            },
+          },
+          completed: true,
+        })
+        .expect(200);
+
+      const initialAlertsRes = await req()
+        .get(`/api/alerts/patient/${patientId}?includeAcknowledged=true`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      const matchingAlerts = initialAlertsRes.body.filter(
+        (alert: any) => alert.message === 'Temperatura crítica: 39.6°C',
+      );
+
+      expect(matchingAlerts).toHaveLength(1);
+
+      await req()
+        .post(`/api/alerts/${matchingAlerts[0].id}/acknowledge`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(201);
+
+      await req()
+        .put(`/api/encounters/${encounterId}/sections/EXAMEN_FISICO`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: {
+            signosVitales: {
+              temperatura: '39.6',
+            },
+          },
+          completed: true,
+        })
+        .expect(200);
+
+      const afterRepeatRes = await req()
+        .get(`/api/alerts/patient/${patientId}?includeAcknowledged=true`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(
+        afterRepeatRes.body.filter((alert: any) => alert.message === 'Temperatura crítica: 39.6°C'),
+      ).toHaveLength(1);
+    });
+
     it('PUT /api/encounters/:id/sections/SOSPECHA_DIAGNOSTICA → rejects malformed ranked diagnoses', async () => {
       await req()
         .put(`/api/encounters/${encounterId}/sections/SOSPECHA_DIAGNOSTICA`)
@@ -2156,6 +2209,8 @@ describe('Application E2E Tests', () => {
     let leakedTaskId: string;
     let leakedStandaloneProblemId: string;
     let leakedStandaloneTaskId: string;
+    let leakedConsentId: string;
+    let leakedAlertId: string;
 
     it('Admin invites a second medico', async () => {
       const res = await req()
@@ -2392,6 +2447,74 @@ describe('Application E2E Tests', () => {
           status: 'COMPLETADA',
         })
         .expect(404);
+    });
+
+    it('Encounter-linked consents and alerts do not leak across medicos sharing the same patient', async () => {
+      const [consent, alert] = await prisma.$transaction([
+        prisma.informedConsent.create({
+          data: {
+            patientId,
+            encounterId: leakedEncounterId,
+            type: 'PROCEDIMIENTO',
+            description: 'Consentimiento del encuentro filtrado',
+            grantedById: medico2UserId,
+          },
+        }),
+        prisma.clinicalAlert.create({
+          data: {
+            patientId,
+            encounterId: leakedEncounterId,
+            type: 'GENERAL',
+            severity: 'ALTA',
+            title: 'Alerta del encuentro filtrado',
+            message: 'No deberia verse desde otro medico',
+            createdById: medico2UserId,
+          },
+        }),
+      ]);
+
+      leakedConsentId = consent.id;
+      leakedAlertId = alert.id;
+
+      const consentsRes = await req()
+        .get(`/api/consents/patient/${patientId}`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(consentsRes.body.map((item: any) => item.id)).not.toContain(leakedConsentId);
+
+      const alertsRes = await req()
+        .get(`/api/alerts/patient/${patientId}?includeAcknowledged=true`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(200);
+
+      expect(alertsRes.body.map((item: any) => item.id)).not.toContain(leakedAlertId);
+
+      await req()
+        .post(`/api/consents/${leakedConsentId}/revoke`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({ reason: 'Intento fuera de scope' })
+        .expect(404);
+
+      await req()
+        .post(`/api/alerts/${leakedAlertId}/acknowledge`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({})
+        .expect(404);
+
+      const medico2ConsentsRes = await req()
+        .get(`/api/consents/patient/${patientId}`)
+        .set('Cookie', cookieHeader(medico2Cookies))
+        .expect(200);
+
+      expect(medico2ConsentsRes.body.map((item: any) => item.id)).toContain(leakedConsentId);
+
+      const medico2AlertsRes = await req()
+        .get(`/api/alerts/patient/${patientId}?includeAcknowledged=true`)
+        .set('Cookie', cookieHeader(medico2Cookies))
+        .expect(200);
+
+      expect(medico2AlertsRes.body.map((item: any) => item.id)).toContain(leakedAlertId);
     });
 
     it('First medico cannot update second medico patient history or admin fields', async () => {

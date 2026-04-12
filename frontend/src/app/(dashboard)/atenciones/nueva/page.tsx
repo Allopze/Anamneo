@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
+import { invalidateDashboardOverviewQueries } from '@/lib/query-invalidation';
 import { useAuthStore } from '@/stores/auth-store';
 import { Patient } from '@/types';
 import { InProgressEncounterConflictModal, InProgressEncounterSummary } from '@/components/common/InProgressEncounterConflictModal';
@@ -14,6 +15,7 @@ import { formatPatientAge, getPatientCompletenessMeta } from '@/lib/patient';
 
 export default function NuevaAtencionPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user, canCreateEncounter, isMedico } = useAuthStore();
   const [search, setSearch] = useState('');
   const canCreate = canCreateEncounter();
@@ -39,8 +41,9 @@ export default function NuevaAtencionPage() {
 
   const createMutation = useMutation({
     mutationFn: (patientId: string) => api.post(`/encounters/patient/${patientId}`, {}),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       const reused = Boolean((response.data as any)?.reused);
+      await invalidateDashboardOverviewQueries(queryClient);
       toast.success(reused ? 'Ya había una atención en curso. Abriendo…' : 'Atención creada');
       router.push(`/atenciones/${response.data.id}`);
     },

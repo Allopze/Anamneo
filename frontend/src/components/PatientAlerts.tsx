@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
+import { invalidateAlertOverviewQueries } from '@/lib/query-invalidation';
 import { useAuthStore } from '@/stores/auth-store';
 import { FiAlertTriangle, FiCheck, FiBell } from 'react-icons/fi';
 import toast from 'react-hot-toast';
@@ -55,9 +56,12 @@ export default function PatientAlerts({ patientId }: PatientAlertsProps) {
     mutationFn: async (id: string) => {
       await api.post(`/alerts/${id}/acknowledge`);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Alerta reconocida');
-      queryClient.invalidateQueries({ queryKey: ['alerts', patientId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['alerts', patientId] }),
+        invalidateAlertOverviewQueries(queryClient),
+      ]);
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
