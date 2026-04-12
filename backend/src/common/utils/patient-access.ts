@@ -39,8 +39,11 @@ export function isPatientOwnedByMedico(
 export function buildPatientProblemScopeWhere(effectiveMedicoId: string): Prisma.PatientProblemWhereInput {
   return {
     OR: [
-      { encounter: { medicoId: effectiveMedicoId } },
+      { medicoId: effectiveMedicoId },
+      // Fallback for legacy records without denormalized medicoId
+      { medicoId: null, encounter: { medicoId: effectiveMedicoId } },
       {
+        medicoId: null,
         encounterId: null,
         OR: [{ createdById: effectiveMedicoId }, { createdBy: { medicoId: effectiveMedicoId } }],
       },
@@ -51,8 +54,11 @@ export function buildPatientProblemScopeWhere(effectiveMedicoId: string): Prisma
 export function buildEncounterTaskScopeWhere(effectiveMedicoId: string): Prisma.EncounterTaskWhereInput {
   return {
     OR: [
-      { encounter: { medicoId: effectiveMedicoId } },
+      { medicoId: effectiveMedicoId },
+      // Fallback for legacy records without denormalized medicoId
+      { medicoId: null, encounter: { medicoId: effectiveMedicoId } },
       {
+        medicoId: null,
         encounterId: null,
         OR: [{ createdById: effectiveMedicoId }, { createdBy: { medicoId: effectiveMedicoId } }],
       },

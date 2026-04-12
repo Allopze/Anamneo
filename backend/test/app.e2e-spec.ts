@@ -1175,7 +1175,7 @@ describe('Application E2E Tests', () => {
 
       expect(res.body.sectionKey).toBe('TRATAMIENTO');
       expect(res.body.completed).toBe(true);
-      const storedData = JSON.parse(res.body.data);
+      const storedData = res.body.data;
       expect(storedData.medicamentosEstructurados ?? []).toHaveLength(0);
       expect(storedData.examenesEstructurados ?? []).toHaveLength(1);
     });
@@ -1204,6 +1204,57 @@ describe('Application E2E Tests', () => {
         .expect(400);
     });
 
+    it('PUT /api/encounters/:id/sections/ANAMNESIS_REMOTA → marks optional section as not applicable', async () => {
+      const res = await req()
+        .put(`/api/encounters/${encounterId}/sections/ANAMNESIS_REMOTA`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: {},
+          completed: true,
+          notApplicable: true,
+          notApplicableReason: 'Paciente pediátrico sin antecedentes remotos relevantes',
+        })
+        .expect(200);
+
+      expect(res.body.notApplicable).toBe(true);
+      expect(res.body.completed).toBe(true);
+      expect(res.body.notApplicableReason).toBe('Paciente pediátrico sin antecedentes remotos relevantes');
+    });
+
+    it('PUT /api/encounters/:id/sections/MOTIVO_CONSULTA → rejects notApplicable on required section', async () => {
+      await req()
+        .put(`/api/encounters/${encounterId}/sections/MOTIVO_CONSULTA`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: { texto: 'Cefalea intensa' },
+          notApplicable: true,
+        })
+        .expect(400);
+    });
+
+    it('PUT /api/encounters/:id/sections → rejects notApplicable without reason', async () => {
+      await req()
+        .put(`/api/encounters/${encounterId}/sections/REVISION_SISTEMAS`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          data: {},
+          completed: true,
+          notApplicable: true,
+        })
+        .expect(400);
+    });
+
+    it('POST /api/encounters/:id/reconcile-identification → refreshes identification from patient master', async () => {
+      const res = await req()
+        .post(`/api/encounters/${encounterId}/reconcile-identification`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .expect(201);
+
+      expect(res.body.sectionKey).toBe('IDENTIFICACION');
+      expect(res.body.data).toBeDefined();
+      expect(typeof res.body.data.nombre).toBe('string');
+    });
+
     it('POST /api/patients/:id/problems → create patient problem', async () => {
       const onsetDate = '2026-03-18';
       const res = await req()
@@ -1220,6 +1271,7 @@ describe('Application E2E Tests', () => {
 
       expect(res.body.label).toBe('Hipertension arterial');
       expect(res.body.onsetDate.slice(0, 10)).toBe(onsetDate);
+      expect(res.body.medicoId).toBe(medicoUserId);
       patientProblemId = res.body.id;
     });
 
@@ -1263,6 +1315,7 @@ describe('Application E2E Tests', () => {
 
       expect(res.body.title).toBe('Revisar examen de control');
       expect(res.body.dueDate.slice(0, 10)).toBe(today);
+      expect(res.body.medicoId).toBe(medicoUserId);
       patientTaskId = res.body.id;
     });
 
@@ -1778,6 +1831,16 @@ describe('Application E2E Tests', () => {
       expect(res.body.reviewNote).toContain('autorización de cierre');
       expect(res.body.closureNote).toContain('plan quirúrgico');
       expect(res.body.completedBy?.id).toBe(medicoUserId);
+    });
+
+    it('POST /api/encounters/:id/complete → rejects double-complete on already completed encounter', async () => {
+      await req()
+        .post(`/api/encounters/${workflowEncounterId}/complete`)
+        .set('Cookie', cookieHeader(medicoCookies))
+        .send({
+          closureNote: 'Intento duplicado de cierre.',
+        })
+        .expect(400);
     });
 
     it('POST /api/encounters/:id/reopen → admin gets 403 because reopening is clinical', async () => {

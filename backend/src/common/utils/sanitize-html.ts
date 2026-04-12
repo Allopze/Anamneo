@@ -1,11 +1,11 @@
-import sanitizeHtml, { type IOptions } from 'sanitize-html';
+import * as sanitizeHtml from 'sanitize-html';
 
 /**
  * Strict clinical text sanitizer.
  * Strips ALL HTML tags and attributes — clinical free-text fields
  * must never contain executable markup.
  */
-const STRICT_OPTIONS: IOptions = {
+const STRICT_OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: [],
   allowedAttributes: {},
   disallowedTagsMode: 'recursiveEscape',

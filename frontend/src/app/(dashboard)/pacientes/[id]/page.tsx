@@ -50,6 +50,8 @@ import clsx from 'clsx';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import PatientAlerts from '@/components/PatientAlerts';
 import PatientConsents from '@/components/PatientConsents';
+import PatientContextBar from '@/components/PatientContextBar';
+import { useHeaderBarSlot } from '@/components/layout/HeaderBarSlotContext';
 
 const PROBLEM_STATUSES = ['ACTIVO', 'CRONICO', 'EN_ESTUDIO', 'RESUELTO'] as const;
 const TASK_TYPES = ['SEGUIMIENTO', 'EXAMEN', 'DERIVACION', 'TRAMITE'] as const;
@@ -85,6 +87,8 @@ export default function PatientDetailPage() {
   const [encounterPage, setEncounterPage] = useState(1);
   const [editingProblemId, setEditingProblemId] = useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [showFullVitals, setShowFullVitals] = useState(false);
+  const [selectedVitalKey, setSelectedVitalKey] = useState<'peso' | 'imc' | 'temperatura' | 'saturacionOxigeno'>('peso');
 
   const problemForm = useForm<ProblemForm>({
     resolver: zodResolver(problemSchema),
@@ -130,12 +134,48 @@ export default function PatientDetailPage() {
     },
     enabled: !user?.isAdmin,
   });
+
+  const { data: fullVitalsSummary } = useQuery({
+    queryKey: ['patient-clinical-summary', id, 'full-vitals'],
+    queryFn: async () => {
+      const response = await api.get(`/patients/${id}/clinical-summary?vitalHistory=full`);
+      return response.data as PatientClinicalSummary;
+    },
+    enabled: showFullVitals && !user?.isAdmin,
+  });
   const historyHasContent = patientHistoryHasContent(patient?.history);
+  const headerBarSlot = useHeaderBarSlot();
+
+  useEffect(() => {
+    if (!headerBarSlot || !patient) return;
+    headerBarSlot.setHeaderBarSlot(
+      <PatientContextBar
+        nombre={patient.nombre}
+        rut={patient.rut}
+        edad={patient.edad}
+        edadMeses={patient.edadMeses}
+        sexo={patient.sexo}
+        prevision={patient.prevision}
+        completenessStatus={patient.completenessStatus}
+      />,
+    );
+    return () => {
+      headerBarSlot.setHeaderBarSlot(null);
+    };
+  }, [headerBarSlot, patient]);
 
   useEffect(() => {
     if (!user?.isAdmin) return;
     router.replace('/pacientes');
   }, [router, user?.isAdmin]);
+
+  useEffect(() => {
+    setShowFullVitals(false);
+    setSelectedVitalKey('peso');
+    setEncounterPage(1);
+    setEditingProblemId(null);
+    setEditingTaskId(null);
+  }, [id]);
 
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/patients/${id}`),
@@ -280,7 +320,7 @@ export default function PatientDetailPage() {
 
   const timelineEncounters = encounterTimeline?.data || [];
   const encounterPagination = encounterTimeline?.pagination;
-  const vitalTrend = clinicalSummary?.vitalTrend || [];
+  const vitalTrend = (showFullVitals && fullVitalsSummary ? fullVitalsSummary.vitalTrend : clinicalSummary?.vitalTrend) || [];
   const pendingTasks = (patient.tasks || []).filter((task) => task.status !== 'COMPLETADA' && task.status !== 'CANCELADA');
   const activeProblems = (patient.problems || []).filter((problem) => problem.status !== 'RESUELTO');
   const resolvedProblemsCount = (patient.problems || []).length - activeProblems.length;
@@ -729,9 +769,20 @@ export default function PatientDetailPage() {
           </div>
 
           <div className="card">
-            <div className="flex items-center gap-2 mb-4">
-              <FiActivity className="w-5 h-5 text-accent-text" />
-              <h2 className="text-lg font-bold text-ink">Tendencias clínicas</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <FiActivity className="w-5 h-5 text-accent-text" />
+                <h2 className="text-lg font-bold text-ink">Tendencias clínicas</h2>
+              </div>
+              {vitalTrend.length > 0 && (
+                <button
+                  type="button"
+                  className="text-xs font-medium text-accent-text hover:text-ink transition-colors"
+                  onClick={() => setShowFullVitals((prev) => !prev)}
+                >
+                  {showFullVitals ? 'Ver resumen' : 'Ver historial completo'}
+                </button>
+              )}
             </div>
             {clinicalSummary?.recentDiagnoses?.length ? (
               <div className="mb-4 flex flex-wrap gap-2">
@@ -744,17 +795,54 @@ export default function PatientDetailPage() {
             ) : null}
             {vitalTrend.length > 0 ? (
               <div className="space-y-3">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-muted">Peso</p>
-                    <MiniTrendChart values={vitalTrend.map((item) => item.peso).filter((value): value is number => value !== null)} stroke="#0f766e" />
+                {showFullVitals && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {([
+                      { key: 'peso', label: 'Peso', unit: 'kg' },
+                      { key: 'imc', label: 'IMC', unit: '' },
+                      { key: 'temperatura', label: 'T°', unit: '°C' },
+                      { key: 'saturacionOxigeno', label: 'SatO₂', unit: '%' },
+                    ] as const).map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                          selectedVitalKey === key
+                            ? 'bg-accent-text text-surface-base'
+                            : 'bg-surface-muted/40 text-ink-muted hover:text-ink'
+                        }`}
+                        onClick={() => setSelectedVitalKey(key)}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
+                )}
+                {showFullVitals ? (
                   <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-muted">IMC</p>
-                    <MiniTrendChart values={vitalTrend.map((item) => item.imc).filter((value): value is number => value !== null)} stroke="#7c3aed" />
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-muted">
+                      {{ peso: 'Peso (kg)', imc: 'IMC', temperatura: 'Temperatura (°C)', saturacionOxigeno: 'Saturación O₂ (%)' }[selectedVitalKey]}
+                      {' · '}{vitalTrend.filter((item) => item[selectedVitalKey] !== null).length} registros
+                    </p>
+                    <MiniTrendChart
+                      values={vitalTrend.map((item) => item[selectedVitalKey]).filter((value): value is number => value !== null)}
+                      height={80}
+                      stroke={{ peso: '#0f766e', imc: '#7c3aed', temperatura: '#ea580c', saturacionOxigeno: '#2563eb' }[selectedVitalKey]}
+                    />
                   </div>
-                </div>
-                {vitalTrend.slice(0, 5).map((item) => (
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div>
+                      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-muted">Peso</p>
+                      <MiniTrendChart values={vitalTrend.map((item) => item.peso).filter((value): value is number => value !== null)} stroke="#0f766e" />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-muted">IMC</p>
+                      <MiniTrendChart values={vitalTrend.map((item) => item.imc).filter((value): value is number => value !== null)} stroke="#7c3aed" />
+                    </div>
+                  </div>
+                )}
+                {vitalTrend.slice(0, showFullVitals ? 12 : 5).map((item) => (
                   <div key={item.encounterId} className="rounded-card border border-surface-muted/30 p-3 text-sm">
                     <div className="font-medium text-ink-primary">
                       {format(new Date(item.createdAt), "d 'de' MMMM", { locale: es })}

@@ -42,6 +42,8 @@ model User {
   textTemplates         TextTemplate[]
   encounterTasks        EncounterTask[]
   patientProblems       PatientProblem[]
+  medicoPatientProblems PatientProblem[]  @relation("ProblemMedico")
+  medicoEncounterTasks  EncounterTask[]   @relation("TaskMedico")
 
   @@map("users")
 }
@@ -157,13 +159,15 @@ model EncounterSignature {
 }
 
 model EncounterSection {
-  id          String   @id @default(uuid())
-  encounterId String   @map("encounter_id")
-  sectionKey  String   @map("section_key")
-  data        String
-  schemaVersion Int    @default(1) @map("schema_version")
-  completed   Boolean  @default(false)
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                 String   @id @default(uuid())
+  encounterId        String   @map("encounter_id")
+  sectionKey         String   @map("section_key")
+  data               String
+  schemaVersion      Int      @default(1) @map("schema_version")
+  completed          Boolean  @default(false)
+  notApplicable      Boolean  @default(false) @map("not_applicable")
+  notApplicableReason String? @map("not_applicable_reason")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
 
@@ -271,6 +275,7 @@ model PatientProblem {
   patientId   String    @map("patient_id")
   encounterId String?   @map("encounter_id")
   createdById String?   @map("created_by_id")
+  medicoId    String?   @map("medico_id")
   label       String
   status      String    @default("ACTIVO")
   notes       String?
@@ -283,8 +288,10 @@ model PatientProblem {
   patient   Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
   encounter Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
   createdBy User?      @relation(fields: [createdById], references: [id])
+  medico    User?      @relation("ProblemMedico", fields: [medicoId], references: [id])
 
   @@index([patientId, status])
+  @@index([medicoId])
   @@map("patient_problems")
 }
 
@@ -293,6 +300,7 @@ model EncounterTask {
   patientId   String    @map("patient_id")
   encounterId String?   @map("encounter_id")
   createdById String    @map("created_by_id")
+  medicoId    String?   @map("medico_id")
   title       String
   details     String?
   type        String    @default("SEGUIMIENTO")
@@ -306,9 +314,11 @@ model EncounterTask {
   patient   Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
   encounter Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
   createdBy User       @relation(fields: [createdById], references: [id])
+  medico    User?      @relation("TaskMedico", fields: [medicoId], references: [id])
 
   @@index([patientId, status, dueDate])
   @@index([encounterId])
+  @@index([medicoId])
   @@map("encounter_tasks")
 }
 

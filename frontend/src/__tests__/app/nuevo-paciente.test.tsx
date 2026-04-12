@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import NuevoPacientePage from '@/app/(dashboard)/pacientes/nuevo/page';
+import { todayLocalDateString } from '@/lib/date';
 
 const pushMock = jest.fn();
 const toastSuccessMock = jest.fn();
@@ -49,7 +50,7 @@ describe('NuevoPacientePage', () => {
 
   it('submits successfully using fecha de nacimiento to calculate edad', async () => {
     const user = userEvent.setup();
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocalDateString();
 
     render(<NuevoPacientePage />);
 

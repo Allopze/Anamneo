@@ -205,6 +205,47 @@ describe('PatientDetailPage', () => {
     expect(await screen.findByText('Página 2 de 2')).toBeInTheDocument();
   });
 
+  it('shows vital selector pills and expanded chart when full vitals are toggled', async () => {
+    const originalImpl = apiGetMock.getMockImplementation()!;
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/patients/patient-1/clinical-summary?vitalHistory=full') {
+        return Promise.resolve({
+          data: {
+            patientId: 'patient-1',
+            generatedAt: '2026-03-31T09:00:00.000Z',
+            counts: { totalEncounters: 5, activeProblems: 0, pendingTasks: 0 },
+            latestEncounterSummary: null,
+            vitalTrend: [
+              { encounterId: 'enc-1', createdAt: '2026-03-31T08:00:00.000Z', presionArterial: '120/80', peso: 70, imc: 24.2, temperatura: 36.5, saturacionOxigeno: 98 },
+              { encounterId: 'enc-2', createdAt: '2026-03-28T08:00:00.000Z', presionArterial: '118/78', peso: 69, imc: 23.8, temperatura: 36.7, saturacionOxigeno: 97 },
+            ],
+            recentDiagnoses: [],
+            activeProblems: [],
+            pendingTasks: [],
+          },
+        });
+      }
+      return originalImpl(url);
+    });
+
+    render(<PatientDetailPage />, { wrapper: createWrapper() });
+
+    // Wait for summary to render, then toggle full vitals
+    expect(await screen.findByText('Ver historial completo')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('Ver historial completo'));
+
+    // Should now show selector pills
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Peso' })).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'IMC' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'T°' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'SatO₂' })).toBeInTheDocument();
+
+    // Toggle button should now say "Ver resumen"
+    expect(screen.getByText('Ver resumen')).toBeInTheDocument();
+  });
+
   it.each(permissionContract)(
     'shows antecedentes edit action according to permission contract for $id',
     async ({ user, expectations }) => {

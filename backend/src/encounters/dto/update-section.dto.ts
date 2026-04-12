@@ -1,4 +1,4 @@
-import { IsObject, IsBoolean, IsOptional } from 'class-validator';
+import { IsObject, IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class UpdateSectionDto {
   @IsObject()
@@ -7,6 +7,15 @@ export class UpdateSectionDto {
   @IsBoolean()
   @IsOptional()
   completed?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  notApplicable?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @MinLength(10, { message: 'El motivo debe tener al menos 10 caracteres' })
+  notApplicableReason?: string;
 }
 
 // Valid section keys for param validation

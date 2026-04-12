@@ -24,6 +24,7 @@ import {
   IdentificacionData,
   REVIEW_STATUS_LABELS,
   SectionKey,
+  SignEncounterResponse,
   StructuredOrder,
   TASK_STATUS_LABELS,
   TASK_TYPE_LABELS,
@@ -84,8 +85,9 @@ type SaveSectionResponse = {
   encounterId: string;
   sectionKey: SectionKey;
   completed: boolean;
+  notApplicable: boolean;
   updatedAt: string;
-  data: unknown;
+  data: Record<string, any>;
   schemaVersion: number;
   warnings?: string[];
 };
@@ -205,6 +207,11 @@ const SECTION_STATUS_META = {
     badgeClassName: 'text-status-green-text',
     dotClassName: 'bg-status-green',
   },
+  notApplicable: {
+    label: 'No aplica',
+    badgeClassName: 'text-ink-secondary',
+    dotClassName: 'bg-surface-muted',
+  },
   error: {
     label: 'Error',
     badgeClassName: 'text-status-red-text',
@@ -280,6 +287,8 @@ export default function EncounterWizardPage() {
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
   const [showDeleteAttachment, setShowDeleteAttachment] = useState<string | null>(null);
+  const [showNotApplicableModal, setShowNotApplicableModal] = useState(false);
+  const [notApplicableReason, setNotApplicableReason] = useState('');
   const [quickTask, setQuickTask] = useState({ title: '', type: 'SEGUIMIENTO', dueDate: '' });
   const [reviewActionNote, setReviewActionNote] = useState('');
   const [closureNote, setClosureNote] = useState('');
@@ -339,10 +348,12 @@ export default function EncounterWizardPage() {
 
   // Save section mutation
   const saveSectionMutation = useMutation({
-    mutationFn: async ({ sectionKey, data, completed }: { sectionKey: SectionKey; data: any; completed?: boolean }) => {
+    mutationFn: async ({ sectionKey, data, completed, notApplicable, notApplicableReason: reason }: { sectionKey: SectionKey; data: any; completed?: boolean; notApplicable?: boolean; notApplicableReason?: string }) => {
       return api.put<SaveSectionResponse>(`/encounters/${id}/sections/${sectionKey}`, {
         data,
         completed,
+        notApplicable,
+        ...(reason ? { notApplicableReason: reason } : {}),
       });
     },
     onMutate: (variables) => {
@@ -362,18 +373,7 @@ export default function EncounterWizardPage() {
         savedSnapshot = {};
       }
 
-      const normalizedSectionData = (() => {
-        const rawSectionData = response.data.data;
-        if (typeof rawSectionData !== 'string') {
-          return rawSectionData;
-        }
-
-        try {
-          return JSON.parse(rawSectionData);
-        } catch {
-          return variables.data;
-        }
-      })();
+      const normalizedSectionData = response.data.data;
 
       savedSnapshot[variables.sectionKey] = normalizedSectionData;
       lastSavedRef.current = JSON.stringify(savedSnapshot);
@@ -395,6 +395,7 @@ export default function EncounterWizardPage() {
                   ...section,
                   data: normalizedSectionData,
                   completed: response.data.completed,
+                  notApplicable: response.data.notApplicable,
                 }
               : section,
           ),
@@ -450,10 +451,9 @@ export default function EncounterWizardPage() {
   });
 
   // Complete encounter mutation
-  const completeMutation = useMutation<Encounter, unknown, CompleteEncounterPayload>({
+  const completeMutation = useMutation<void, unknown, CompleteEncounterPayload>({
     mutationFn: async (payload) => {
-      const response: AxiosResponse<Encounter> = await api.post(`/encounters/${id}/complete`, payload);
-      return response.data;
+      await api.post(`/encounters/${id}/complete`, payload);
     },
     onSuccess: () => {
       if (user?.id) {
@@ -469,9 +469,9 @@ export default function EncounterWizardPage() {
   });
 
   // Sign encounter mutation (FES)
-  const signMutation = useMutation<Encounter, unknown, string>({
+  const signMutation = useMutation<SignEncounterResponse, unknown, string>({
     mutationFn: async (password) => {
-      const response: AxiosResponse<Encounter> = await api.post(`/encounters/${id}/sign`, { password });
+      const response: AxiosResponse<SignEncounterResponse> = await api.post(`/encounters/${id}/sign`, { password });
       return response.data;
     },
     onSuccess: () => {
@@ -902,17 +902,47 @@ export default function EncounterWizardPage() {
     }
   };
 
+  const REQUIRED_SEMANTIC_SECTIONS: SectionKey[] = [
+    'MOTIVO_CONSULTA',
+    'EXAMEN_FISICO',
+    'SOSPECHA_DIAGNOSTICA',
+    'TRATAMIENTO',
+  ];
+
   const handleMarkNotApplicable = () => {
     if (!canEdit) return;
     if (!currentSection) return;
 
     const sectionKey = currentSection.sectionKey;
-    handleSectionDataChange(sectionKey, { ...formData[sectionKey], _notApplicable: true });
-    void persistSection({
+
+    if (REQUIRED_SEMANTIC_SECTIONS.includes(sectionKey)) {
+      toast.error('Esta sección es obligatoria y no se puede marcar como "No aplica"');
+      return;
+    }
+
+    setNotApplicableReason('');
+    setShowNotApplicableModal(true);
+  };
+
+  const handleConfirmNotApplicable = () => {
+    if (!currentSection) return;
+    if (notApplicableReason.trim().length < 10) {
+      toast.error('El motivo debe tener al menos 10 caracteres');
+      return;
+    }
+
+    const sectionKey = currentSection.sectionKey;
+    const currentData = formDataRef.current[sectionKey] ?? {};
+    saveSectionMutation.mutateAsync({
       sectionKey,
+      data: currentData,
       completed: true,
+      notApplicable: true,
+      notApplicableReason: notApplicableReason.trim(),
+    }).then(() => {
+      setShowNotApplicableModal(false);
+      toast.success('Sección marcada como no aplica');
     });
-    toast.success('Sección marcada como no aplica');
   };
 
   const handleComplete = async () => {
@@ -1041,6 +1071,7 @@ export default function EncounterWizardPage() {
     const isDirty = currentData !== savedData;
 
     if (isDirty) return 'dirty';
+    if (section.notApplicable) return 'notApplicable';
     if (section.completed) return 'completed';
     if (section.sectionKey === savedSectionKey) return 'saved';
     return 'idle';
@@ -1071,10 +1102,22 @@ export default function EncounterWizardPage() {
     setIsAttachmentsOpen(true);
   };
 
-  const handleRestoreIdentificationFromPatient = () => {
+  const handleRestoreIdentificationFromPatient = async () => {
     if (!encounter) return;
-    handleSectionDataChange('IDENTIFICACION', buildIdentificationSnapshotFromPatient(encounter));
-    toast.success('Se restauró la identificación desde la ficha maestra del paciente');
+    try {
+      const res = await api.post(`/encounters/${id}/reconcile-identification`);
+      const reconciledData = res.data.data as IdentificacionData;
+      handleSectionDataChange('IDENTIFICACION', reconciledData);
+      let snap: Record<string, any> = {};
+      try { snap = JSON.parse(lastSavedRef.current || '{}'); } catch { snap = {}; }
+      snap.IDENTIFICACION = reconciledData;
+      lastSavedRef.current = JSON.stringify(snap);
+      setSavedSnapshotJson(lastSavedRef.current);
+      queryClient.invalidateQueries({ queryKey: ['encounter', id] });
+      toast.success('Se restauró la identificación desde la ficha maestra del paciente');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
   };
 
   if (isOperationalAdmin) {
@@ -1424,6 +1467,25 @@ export default function EncounterWizardPage() {
                   <h1 className="mt-1 truncate text-[1.75rem] font-extrabold tracking-tight text-ink lg:text-[2rem]">
                     {encounter.patient?.nombre}
                   </h1>
+                  {encounter.patient && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-secondary">
+                      {encounter.patient.edad != null && (
+                        <span className="inline-flex items-center rounded-full border border-surface-muted/50 bg-surface-base px-2.5 py-1">
+                          {encounter.patient.edad} años{encounter.patient.edadMeses ? ` ${encounter.patient.edadMeses}m` : ''}
+                        </span>
+                      )}
+                      {encounter.patient.sexo && (
+                        <span className="inline-flex items-center rounded-full border border-surface-muted/50 bg-surface-base px-2.5 py-1">
+                          {encounter.patient.sexo}
+                        </span>
+                      )}
+                      {encounter.patient.prevision && (
+                        <span className="inline-flex items-center rounded-full border border-surface-muted/50 bg-surface-base px-2.5 py-1">
+                          {encounter.patient.prevision}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <div className="mt-4 max-w-2xl">
                     <div className="flex items-center justify-between gap-3 text-sm">
                       <span className="text-ink-secondary">Progreso de la atención</span>
@@ -1615,12 +1677,14 @@ export default function EncounterWizardPage() {
                           'mt-0.5 flex size-9 items-center justify-center rounded-input border text-xs font-semibold',
                           isActive
                             ? 'border-status-yellow/70 bg-status-yellow text-accent-text'
-                            : section.completed
-                              ? 'border-status-green/40 bg-status-green/14 text-status-green-text'
-                              : 'border-surface-muted/55 bg-surface-elevated text-ink-secondary',
+                            : section.notApplicable
+                              ? 'border-surface-muted/55 bg-surface-elevated text-ink-secondary'
+                              : section.completed
+                                ? 'border-status-green/40 bg-status-green/14 text-status-green-text'
+                                : 'border-surface-muted/55 bg-surface-elevated text-ink-secondary',
                         )}
                       >
-                        {section.completed ? <FiCheck className="h-3.5 w-3.5" /> : index + 1}
+                        {section.notApplicable ? <FiSlash className="h-3.5 w-3.5" /> : section.completed ? <FiCheck className="h-3.5 w-3.5" /> : index + 1}
                       </span>
 
                       <span className="min-w-0">
@@ -1631,6 +1695,11 @@ export default function EncounterWizardPage() {
                           <span className={clsx('h-1.5 w-1.5 rounded-full', sectionStatusMeta.dotClassName)} />
                           {sectionStatusMeta.label}
                         </span>
+                        {section.notApplicable && section.notApplicableReason && (
+                          <span className="mt-0.5 block truncate text-[11px] text-ink-muted" title={section.notApplicableReason}>
+                            {section.notApplicableReason}
+                          </span>
+                        )}
                       </span>
                     </button>
                   );
@@ -1754,10 +1823,10 @@ export default function EncounterWizardPage() {
                   </button>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {canEdit && currentSection?.sectionKey !== 'IDENTIFICACION' ? (
+                    {canEdit && currentSection?.sectionKey !== 'IDENTIFICACION' && !REQUIRED_SEMANTIC_SECTIONS.includes(currentSection?.sectionKey as SectionKey) ? (
                       <button
                         onClick={handleMarkNotApplicable}
-                        disabled={saveSectionMutation.isPending || currentSection?.completed}
+                        disabled={saveSectionMutation.isPending || currentSection?.completed || currentSection?.notApplicable}
                         className={TOOLBAR_BUTTON_CLASS}
                         title="Marcar esta sección como no aplica para este paciente"
                       >
@@ -2050,6 +2119,41 @@ export default function EncounterWizardPage() {
         onConfirm={(password) => signMutation.mutate(password)}
         onClose={() => setShowSignModal(false)}
       />
+
+      {showNotApplicableModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-card border border-surface-muted bg-surface-base p-6 shadow-lg">
+            <h3 className="text-base font-semibold text-ink">Marcar sección como &ldquo;No aplica&rdquo;</h3>
+            <p className="mt-2 text-sm text-ink-secondary">
+              Indique el motivo por el que esta sección no aplica para este paciente (mínimo 10 caracteres).
+            </p>
+            <textarea
+              value={notApplicableReason}
+              onChange={(e) => setNotApplicableReason(e.target.value)}
+              className="form-input mt-3 min-h-[80px] w-full resize-y"
+              placeholder="Ej: Paciente pediátrico, no corresponde revisión de sistemas…"
+              autoFocus
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowNotApplicableModal(false)}
+                className="btn btn-secondary"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmNotApplicable}
+                disabled={notApplicableReason.trim().length < 10 || saveSectionMutation.isPending}
+                className="btn btn-primary"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

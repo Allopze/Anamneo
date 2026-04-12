@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
-import { Attachment, Encounter, STATUS_LABELS, REVIEW_STATUS_LABELS } from '@/types';
+import { Attachment, Encounter, SignEncounterResponse, STATUS_LABELS, REVIEW_STATUS_LABELS } from '@/types';
 import { FiAlertTriangle, FiArrowLeft, FiFileText, FiPrinter, FiDownload, FiPaperclip, FiShield } from 'react-icons/fi';
 import type { AxiosResponse } from 'axios';
 import SignEncounterModal from '@/components/common/SignEncounterModal';
@@ -88,9 +88,9 @@ export default function FichaClinicaPage() {
     router.replace('/');
   }, [isOperationalAdmin, router]);
 
-  const signMutation = useMutation<Encounter, unknown, string>({
+  const signMutation = useMutation<SignEncounterResponse, unknown, string>({
     mutationFn: async (password) => {
-      const response: AxiosResponse<Encounter> = await api.post(`/encounters/${id}/sign`, { password });
+      const response: AxiosResponse<SignEncounterResponse> = await api.post(`/encounters/${id}/sign`, { password });
       return response.data;
     },
     onSuccess: () => {

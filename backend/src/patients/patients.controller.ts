@@ -139,9 +139,12 @@ export class PatientsController {
   @Roles('MEDICO', 'ASISTENTE')
   getClinicalSummary(
     @Param('id', ParseUUIDPipe) id: string,
+    @Query('vitalHistory') vitalHistory: string | undefined,
     @CurrentUser() user: CurrentUserData,
   ) {
-    return this.patientsService.getClinicalSummary(user, id);
+    return this.patientsService.getClinicalSummary(user, id, {
+      fullVitalHistory: vitalHistory === 'full',
+    });
   }
 
   @Get(':id')

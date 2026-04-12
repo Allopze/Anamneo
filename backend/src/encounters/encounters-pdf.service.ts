@@ -126,7 +126,7 @@ export class EncountersPdfService {
       return Number.isFinite(value) ? String(value) : '';
     }
 
-    return JSON.stringify(value);
+    return JSON.stringify(value, Object.keys(value as Record<string, unknown>).sort());
   }
 
   private getIdentificationDifferenceLabels(encounter: any, ident: Record<string, unknown>) {

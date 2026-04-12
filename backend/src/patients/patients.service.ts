@@ -26,7 +26,7 @@ import {
 } from '../common/utils/patient-access';
 import { parseStoredJson } from '../common/utils/encounter-sections';
 import { PATIENT_HISTORY_FIELD_KEYS, sanitizePatientHistoryFieldValue } from '../common/utils/patient-history';
-import { isDateOnlyBeforeToday, parseDateOnlyToStoredUtcDate, startOfUtcDay } from '../common/utils/local-date';
+import { isDateOnlyBeforeToday, parseDateOnlyToStoredUtcDate, startOfUtcDay, isDateOnlyAfterToday, calculateAgeFromBirthDate } from '../common/utils/local-date';
 import { ENCOUNTER_SECTION_LABELS, ENCOUNTER_SECTION_ORDER } from '../common/utils/encounter-section-meta';
 import { PatientCompletenessStatus, SectionKey } from '../common/types';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
@@ -59,6 +59,7 @@ export class PatientsService {
       id: task.id,
       patientId: task.patientId,
       encounterId: task.encounterId ?? null,
+      medicoId: task.medicoId ?? null,
       title: task.title,
       details: task.details ?? null,
       type: task.type,
@@ -79,6 +80,7 @@ export class PatientsService {
       id: problem.id,
       patientId: problem.patientId,
       encounterId: problem.encounterId ?? null,
+      medicoId: problem.medicoId ?? null,
       createdById: problem.createdById ?? null,
       label: problem.label,
       status: problem.status,
@@ -355,6 +357,14 @@ export class PatientsService {
       },
     });
 
+    if (createPatientDto.fechaNacimiento && isDateOnlyAfterToday(createPatientDto.fechaNacimiento)) {
+      throw new BadRequestException('La fecha de nacimiento no puede ser futura');
+    }
+
+    const resolvedAge = createPatientDto.fechaNacimiento
+      ? calculateAgeFromBirthDate(createPatientDto.fechaNacimiento)
+      : { edad: createPatientDto.edad, edadMeses: createPatientDto.edadMeses ?? null };
+
     const patient = await this.prisma.patient.create({
       data: {
         createdById: userId,
@@ -363,8 +373,8 @@ export class PatientsService {
         rutExemptReason: trimmedRutExemptReason || null,
         nombre: createPatientDto.nombre,
         fechaNacimiento: createPatientDto.fechaNacimiento ? new Date(createPatientDto.fechaNacimiento) : null,
-        edad: createPatientDto.edad,
-        edadMeses: createPatientDto.edadMeses ?? null,
+        edad: resolvedAge.edad,
+        edadMeses: resolvedAge.edadMeses ?? null,
         sexo: createPatientDto.sexo,
         trabajo: createPatientDto.trabajo,
         prevision: createPatientDto.prevision,
@@ -711,9 +721,10 @@ export class PatientsService {
       activeProblems: number;
       pendingTasks: number;
     },
+    options?: { fullVitals?: boolean },
   ) {
     const diagnosisMap = new Map<string, { label: string; count: number; lastSeenAt: Date }>();
-    const vitalTrend = encounters
+    let vitalTrend = encounters
       .map((encounter) => {
         const examen = this.getEncounterSectionData<{
           signosVitales?: Record<string, unknown>;
@@ -742,8 +753,10 @@ export class PatientsService {
           item.imc !== null ||
           item.temperatura !== null ||
           item.saturacionOxigeno !== null,
-      )
-      .slice(0, 6);
+      );
+    if (!options?.fullVitals) {
+      vitalTrend = vitalTrend.slice(0, 6);
+    }
 
     for (const encounter of encounters) {
       const diagnostico = this.getEncounterSectionData<{
@@ -1041,9 +1054,14 @@ export class PatientsService {
     };
   }
 
-  async getClinicalSummary(user: RequestUser, patientId: string) {
+  async getClinicalSummary(
+    user: RequestUser,
+    patientId: string,
+    options?: { fullVitalHistory?: boolean },
+  ) {
     await this.assertPatientAccess(user, patientId);
     const effectiveMedicoId = getEffectiveMedicoId(user);
+    const fullVitals = options?.fullVitalHistory === true;
 
     const [patient, encounters, activeProblemsCount, pendingTasksCount, totalEncounters] = await Promise.all([
       this.prisma.patient.findUniqueOrThrow({
@@ -1093,7 +1111,7 @@ export class PatientsService {
           medicoId: effectiveMedicoId,
         },
         orderBy: { createdAt: 'desc' },
-        take: 12,
+        ...(fullVitals ? {} : { take: 12 }),
         select: {
           id: true,
           createdAt: true,
@@ -1136,7 +1154,7 @@ export class PatientsService {
       totalEncounters,
       activeProblems: activeProblemsCount,
       pendingTasks: pendingTasksCount,
-    });
+    }, { fullVitals });
   }
 
   async findTasks(
@@ -1272,14 +1290,23 @@ export class PatientsService {
     }
 
     if (updatePatientDto.fechaNacimiento !== undefined) {
+      if (updatePatientDto.fechaNacimiento && isDateOnlyAfterToday(updatePatientDto.fechaNacimiento)) {
+        throw new BadRequestException('La fecha de nacimiento no puede ser futura');
+      }
       updateData.fechaNacimiento = updatePatientDto.fechaNacimiento ? new Date(updatePatientDto.fechaNacimiento) : null;
+
+      if (updatePatientDto.fechaNacimiento) {
+        const recalc = calculateAgeFromBirthDate(updatePatientDto.fechaNacimiento);
+        updateData.edad = recalc.edad;
+        updateData.edadMeses = recalc.edadMeses;
+      }
     }
 
-    if (updatePatientDto.edad !== undefined) {
+    if (updatePatientDto.fechaNacimiento === undefined && updatePatientDto.edad !== undefined) {
       updateData.edad = updatePatientDto.edad;
     }
 
-    if (updatePatientDto.edadMeses !== undefined) {
+    if (updatePatientDto.fechaNacimiento === undefined && updatePatientDto.edadMeses !== undefined) {
       updateData.edadMeses = updatePatientDto.edadMeses;
     }
 
@@ -1397,10 +1424,19 @@ export class PatientsService {
 
     const updateData: Prisma.PatientUpdateInput = {};
     if (dto.fechaNacimiento !== undefined) {
+      if (dto.fechaNacimiento && isDateOnlyAfterToday(dto.fechaNacimiento)) {
+        throw new BadRequestException('La fecha de nacimiento no puede ser futura');
+      }
       updateData.fechaNacimiento = dto.fechaNacimiento ? new Date(dto.fechaNacimiento) : null;
+
+      if (dto.fechaNacimiento) {
+        const recalc = calculateAgeFromBirthDate(dto.fechaNacimiento);
+        updateData.edad = recalc.edad;
+        updateData.edadMeses = recalc.edadMeses;
+      }
     }
-    if (dto.edad !== undefined) updateData.edad = dto.edad;
-    if (dto.edadMeses !== undefined) updateData.edadMeses = dto.edadMeses;
+    if (dto.fechaNacimiento === undefined && dto.edad !== undefined) updateData.edad = dto.edad;
+    if (dto.fechaNacimiento === undefined && dto.edadMeses !== undefined) updateData.edadMeses = dto.edadMeses;
     if (dto.sexo !== undefined) updateData.sexo = dto.sexo;
     if (dto.prevision !== undefined) updateData.prevision = dto.prevision;
     if (dto.trabajo !== undefined) {
@@ -1632,6 +1668,8 @@ export class PatientsService {
     await this.assertPatientAccess(user, patientId);
     const effectiveMedicoId = getEffectiveMedicoId(user);
 
+    let resolvedMedicoId = effectiveMedicoId;
+
     if (dto.encounterId) {
       const encounter = await this.prisma.encounter.findFirst({
         where: {
@@ -1644,6 +1682,8 @@ export class PatientsService {
       if (!encounter) {
         throw new BadRequestException('La atención asociada no existe para este paciente');
       }
+
+      resolvedMedicoId = encounter.medicoId;
     }
 
     const created = await this.prisma.patientProblem.create({
@@ -1651,6 +1691,7 @@ export class PatientsService {
         patientId,
         encounterId: dto.encounterId || null,
         createdById: user.id,
+        medicoId: resolvedMedicoId,
         label: dto.label.trim(),
         status: dto.status || 'ACTIVO',
         notes: dto.notes?.trim() || null,
@@ -1754,6 +1795,8 @@ export class PatientsService {
     await this.assertPatientAccess(user, patientId);
     const effectiveMedicoId = getEffectiveMedicoId(user);
 
+    let resolvedMedicoId = effectiveMedicoId;
+
     if (dto.encounterId) {
       const encounter = await this.prisma.encounter.findFirst({
         where: {
@@ -1766,6 +1809,8 @@ export class PatientsService {
       if (!encounter) {
         throw new BadRequestException('La atención asociada no existe para este paciente');
       }
+
+      resolvedMedicoId = encounter.medicoId;
     }
 
     const created = await this.prisma.encounterTask.create({
@@ -1773,6 +1818,7 @@ export class PatientsService {
         patientId,
         encounterId: dto.encounterId || null,
         createdById: user.id,
+        medicoId: resolvedMedicoId,
         title: dto.title.trim(),
         details: dto.details?.trim() || null,
         type: dto.type || 'SEGUIMIENTO',

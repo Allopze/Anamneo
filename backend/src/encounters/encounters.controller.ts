@@ -140,6 +140,15 @@ export class EncountersController {
     return this.encountersService.updateSection(id, sectionKey, updateDto, user);
   }
 
+  @Post(':id/reconcile-identification')
+  @Roles('MEDICO', 'ASISTENTE')
+  reconcileIdentification(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.encountersService.reconcileIdentificationSnapshot(id, user);
+  }
+
   @Post(':id/complete')
   @Roles('MEDICO')
   complete(

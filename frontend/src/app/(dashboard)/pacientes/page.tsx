@@ -21,6 +21,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { formatPatientAge, formatPatientPrevision, formatPatientSex, getPatientCompletenessMeta } from '@/lib/patient';
+import { todayLocalDateString } from '@/lib/date';
 
 const SEXO_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -422,7 +423,7 @@ function PacientesContent() {
                       const url = URL.createObjectURL(new Blob([res.data]));
                       const a = document.createElement('a');
                       a.href = url;
-                      a.download = `pacientes_${new Date().toISOString().slice(0, 10)}.csv`;
+                      a.download = `pacientes_${todayLocalDateString()}.csv`;
                       a.click();
                       URL.revokeObjectURL(url);
                       toast.success('CSV descargado');

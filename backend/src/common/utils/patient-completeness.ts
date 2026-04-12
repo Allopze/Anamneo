@@ -184,7 +184,11 @@ function normalizeCompletenessValue(value: unknown): string {
     return Number.isFinite(value) ? String(value) : '';
   }
 
-  return JSON.stringify(value);
+  if (typeof value === 'object') {
+    return JSON.stringify(value, Object.keys(value as Record<string, unknown>).sort());
+  }
+
+  return String(value);
 }
 
 function resolveEncounterClinicalOutputBlockStatus(

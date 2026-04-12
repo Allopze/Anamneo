@@ -59,3 +59,33 @@ export function startOfUtcDay(value: string | Date) {
 export function isDateOnlyBeforeToday(value: string | Date, reference = new Date()) {
   return extractDateOnlyIso(value) < extractDateOnlyIso(reference);
 }
+
+export function isDateOnlyAfterToday(value: string | Date, reference = new Date()) {
+  return extractDateOnlyIso(value) > extractDateOnlyIso(reference);
+}
+
+/** Returns today as YYYY-MM-DD in the server's local timezone. */
+export function todayLocalDateOnly(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function calculateAgeFromBirthDate(
+  fechaNacimiento: string | Date,
+  reference = new Date(),
+): { edad: number; edadMeses: number } {
+  const birthIso = extractDateOnlyIso(fechaNacimiento, 'Fecha de nacimiento');
+  const refIso = extractDateOnlyIso(reference);
+
+  const [bY, bM, bD] = birthIso.split('-').map(Number);
+  const [rY, rM, rD] = refIso.split('-').map(Number);
+
+  let totalMonths = (rY - bY) * 12 + (rM - bM);
+  if (rD < bD) totalMonths -= 1;
+  if (totalMonths < 0) totalMonths = 0;
+
+  return { edad: Math.floor(totalMonths / 12), edadMeses: totalMonths % 12 };
+}

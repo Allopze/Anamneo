@@ -13,8 +13,10 @@ RUN npm ci
 COPY . .
 
 # Set build-time environment variables
-ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_API_URL=/api
+ARG API_PROXY_TARGET=http://backend:5678/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV API_PROXY_TARGET=$API_PROXY_TARGET
 
 # Build the application
 RUN npm run build
@@ -26,23 +28,16 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+# Copy built assets with correct ownership (use built-in node user, uid 1000)
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
-# Copy built assets
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-# Set correct permissions
-RUN chown -R nextjs:nodejs /app
-
-USER nextjs
+USER node
 
 EXPOSE 5555
 
-ENV PORT 5555
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=5555
+ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "server.js"]

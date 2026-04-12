@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException, ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
 import type { StringValue } from 'ms';
 import * as bcrypt from 'bcrypt';
 import * as QRCode from 'qrcode';
@@ -36,15 +37,27 @@ type SessionContext = {
   sessionId?: string;
 };
 
+const TEMP_TOKEN_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 @Injectable()
 export class AuthService {
+  private usedTempTokenJtis = new Map<string, number>();
+
   constructor(
     private prisma: PrismaService,
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
     private auditService: AuditService,
-  ) {}
+  ) {
+    // Purge expired JTIs every 5 minutes
+    setInterval(() => {
+      const now = Date.now();
+      for (const [jti, expiresAt] of this.usedTempTokenJtis) {
+        if (expiresAt <= now) this.usedTempTokenJtis.delete(jti);
+      }
+    }, TEMP_TOKEN_TTL_MS).unref();
+  }
 
   private normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
@@ -289,8 +302,9 @@ export class AuthService {
     // Check if 2FA is enabled
     const fullUser = await this.prisma.user.findUnique({ where: { id: user.id }, select: { totpEnabled: true } });
     if (fullUser?.totpEnabled) {
+      const jti = crypto.randomUUID();
       const tempToken = this.jwtService.sign(
-        { sub: user.id, purpose: '2fa' },
+        { sub: user.id, purpose: '2fa', jti },
         { expiresIn: '5m' },
       );
       return { requires2FA: true, tempToken };
@@ -475,7 +489,7 @@ export class AuthService {
   }
 
   async verify2FALogin(tempToken: string, code: string, sessionContext?: SessionContext): Promise<AuthTokens> {
-    let payload: { sub: string; purpose: string };
+    let payload: { sub: string; purpose: string; jti?: string };
     try {
       payload = this.jwtService.verify(tempToken);
     } catch {
@@ -484,6 +498,14 @@ export class AuthService {
 
     if (payload.purpose !== '2fa') {
       throw new UnauthorizedException('Token temporal inválido');
+    }
+
+    // Enforce single-use: reject if jti was already consumed
+    if (payload.jti) {
+      if (this.usedTempTokenJtis.has(payload.jti)) {
+        throw new UnauthorizedException('Token temporal ya utilizado');
+      }
+      this.usedTempTokenJtis.set(payload.jti, Date.now() + TEMP_TOKEN_TTL_MS);
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });

@@ -12,54 +12,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { validateRut } from '@/lib/rut';
-
-type CalculatedAge = {
-  edad: number;
-  edadMeses: number;
-};
-
-function calculateAgeFromBirthDate(dateValue: string): CalculatedAge | null {
-  const [yearStr, monthStr, dayStr] = dateValue.split('-');
-  const year = Number.parseInt(yearStr ?? '', 10);
-  const month = Number.parseInt(monthStr ?? '', 10);
-  const day = Number.parseInt(dayStr ?? '', 10);
-
-  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
-    return null;
-  }
-
-  const birthDate = new Date(Date.UTC(year, month - 1, day));
-  const isSameDate = birthDate.getUTCFullYear() === year
-    && birthDate.getUTCMonth() === month - 1
-    && birthDate.getUTCDate() === day;
-
-  if (!isSameDate) {
-    return null;
-  }
-
-  const now = new Date();
-  const nowYear = now.getUTCFullYear();
-  const nowMonth = now.getUTCMonth();
-  const nowDay = now.getUTCDate();
-
-  let totalMonths = (nowYear - year) * 12 + (nowMonth - (month - 1));
-  if (nowDay < day) {
-    totalMonths -= 1;
-  }
-
-  if (totalMonths < 0) {
-    return null;
-  }
-
-  const edad = Math.floor(totalMonths / 12);
-  const edadMeses = totalMonths % 12;
-
-  if (edad > 150) {
-    return null;
-  }
-
-  return { edad, edadMeses };
-}
+import { calculateAgeFromBirthDate, todayLocalDateString } from '@/lib/date';
 
 const basePatientObject = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -153,7 +106,7 @@ export default function NuevoPacientePage() {
 
   const rutExempt = watch('rutExempt');
   const fechaNacimiento = watch('fechaNacimiento');
-  const todayDateValue = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayDateValue = useMemo(() => todayLocalDateString(), []);
   const edadCalculada = useMemo(
     () => (fechaNacimiento ? calculateAgeFromBirthDate(fechaNacimiento) : null),
     [fechaNacimiento],

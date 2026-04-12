@@ -29,7 +29,7 @@ import {
   sanitizePatientHistoryFieldValue,
   sanitizePatientHistoryPayload,
 } from '../common/utils/patient-history';
-import { isDateOnlyBeforeToday } from '../common/utils/local-date';
+import { isDateOnlyBeforeToday, todayLocalDateOnly } from '../common/utils/local-date';
 import {
   ENCOUNTER_SECTION_LABELS as SECTION_LABELS,
   ENCOUNTER_SECTION_ORDER as SECTION_ORDER,
@@ -893,7 +893,7 @@ export class EncountersService {
       return Number.isFinite(value) ? String(value) : '';
     }
 
-    return JSON.stringify(value);
+    return JSON.stringify(value, Object.keys(value as Record<string, unknown>).sort());
   }
 
   private matchesCurrentPatientSnapshot(encounter: { patient: any }, identificationData: Record<string, unknown>) {
@@ -1312,6 +1312,62 @@ export class EncountersService {
     }));
   }
 
+  async reconcileIdentificationSnapshot(encounterId: string, user: RequestUser) {
+    const encounter = await this.prisma.encounter.findUnique({
+      where: { id: encounterId },
+      include: { sections: true, patient: true },
+    });
+
+    if (!encounter) {
+      throw new NotFoundException('Atención no encontrada');
+    }
+
+    if (encounter.medicoId !== getEffectiveMedicoId(user)) {
+      throw new ForbiddenException('No tiene permisos para editar esta atención');
+    }
+
+    if (encounter.status !== 'EN_PROGRESO') {
+      throw new BadRequestException('Solo se puede reconciliar la identificación de atenciones en progreso');
+    }
+
+    const section = encounter.sections.find((s) => s.sectionKey === 'IDENTIFICACION');
+    if (!section) {
+      throw new NotFoundException('Sección de identificación no encontrada');
+    }
+
+    const snapshotData = this.buildIdentificationSnapshotFromPatient(encounter.patient);
+
+    const updatedSection = await this.prisma.encounterSection.update({
+      where: { id: section.id },
+      data: {
+        data: serializeSectionData(snapshotData),
+        schemaVersion: getEncounterSectionSchemaVersion('IDENTIFICACION'),
+      },
+    });
+
+    await this.auditService.log({
+      entityType: 'EncounterSection',
+      entityId: section.id,
+      userId: user.id,
+      action: 'UPDATE',
+      reason: 'ENCOUNTER_SECTION_UPDATED',
+      diff: { reconciledFields: IDENTIFICATION_SNAPSHOT_FIELD_META.map(({ key }) => key) },
+    });
+
+    const formattedSection = formatEncounterSectionForRead(updatedSection);
+
+    return {
+      id: updatedSection.id,
+      encounterId: updatedSection.encounterId,
+      sectionKey: updatedSection.sectionKey,
+      completed: updatedSection.completed,
+      notApplicable: updatedSection.notApplicable,
+      updatedAt: updatedSection.updatedAt,
+      data: formattedSection.data ?? {},
+      schemaVersion: formattedSection.schemaVersion,
+    };
+  }
+
   async updateSection(encounterId: string, sectionKey: SectionKey, dto: UpdateSectionDto, user: RequestUser) {
     const encounter = await this.prisma.encounter.findUnique({
       where: { id: encounterId },
@@ -1358,12 +1414,29 @@ export class EncountersService {
       );
     }
 
+    if (
+      dto.notApplicable &&
+      (sectionKey === 'IDENTIFICACION' || REQUIRED_SEMANTIC_SECTIONS.includes(sectionKey))
+    ) {
+      throw new BadRequestException(
+        'Esta sección es obligatoria y no se puede marcar como "No aplica"',
+      );
+    }
+
+    if (dto.notApplicable && !dto.notApplicableReason) {
+      throw new BadRequestException(
+        'Debe indicar un motivo al marcar la sección como "No aplica"',
+      );
+    }
+
     const updatedSection = await this.prisma.encounterSection.update({
       where: { id: section.id },
       data: {
         data: serializeSectionData(sanitizedData),
         schemaVersion: getEncounterSectionSchemaVersion(sectionKey),
         completed: dto.completed ?? section.completed,
+        notApplicable: dto.notApplicable ?? section.notApplicable,
+        notApplicableReason: dto.notApplicable ? (dto.notApplicableReason ?? section.notApplicableReason) : null,
       },
     });
 
@@ -1402,8 +1475,10 @@ export class EncountersService {
       encounterId: updatedSection.encounterId,
       sectionKey: updatedSection.sectionKey,
       completed: updatedSection.completed,
+      notApplicable: updatedSection.notApplicable,
+      notApplicableReason: updatedSection.notApplicableReason ?? null,
       updatedAt: updatedSection.updatedAt,
-      data: JSON.stringify(formattedSection.data ?? {}),
+      data: formattedSection.data ?? {},
       schemaVersion: formattedSection.schemaVersion,
       ...(warnings ? { warnings } : {}),
     };
@@ -1417,6 +1492,10 @@ export class EncountersService {
 
     if (!encounter) {
       throw new NotFoundException('Atención no encontrada');
+    }
+
+    if (encounter.status !== 'EN_PROGRESO') {
+      throw new BadRequestException('Solo se pueden completar atenciones en progreso');
     }
 
     if (encounter.medicoId !== userId) {
@@ -1689,6 +1768,10 @@ export class EncountersService {
       throw new BadRequestException('No se puede revisar una atención cancelada');
     }
 
+    if (encounter.status === 'FIRMADO') {
+      throw new BadRequestException('No se puede revisar una atención firmada. Los registros firmados son inmutables');
+    }
+
     if (reviewStatus === 'REVISADA_POR_MEDICO' && user.role !== 'MEDICO') {
       throw new ForbiddenException('Solo un médico puede marcar la atención como revisada');
     }
@@ -1812,7 +1895,7 @@ export class EncountersService {
           patient: { archivedAt: null },
           ...(medicoId ? buildEncounterTaskScopeWhere(medicoId) : {}),
           status: { in: ['PENDIENTE', 'EN_PROCESO'] },
-          dueDate: { lt: new Date(new Date().toISOString().split('T')[0]) },
+          dueDate: { lt: new Date(`${todayLocalDateOnly()}T00:00:00.000Z`) },
         },
       }),
     ]);

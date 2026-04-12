@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { validateRut } from '@/lib/rut';
 import { getPatientCompletenessMeta } from '@/lib/patient';
+import { calculateAgeFromBirthDate, todayLocalDateString } from '@/lib/date';
 import type { PatientPrevision, PatientSexo } from '@/types';
 
 type EditForm = {
@@ -29,25 +30,6 @@ type EditForm = {
   rutExempt?: boolean;
   rutExemptReason?: string | null;
 };
-
-function calculateAgeFromBirthDate(dateValue: string): { edad: number; edadMeses: number } | null {
-  const [yearStr, monthStr, dayStr] = dateValue.split('-');
-  const year = Number.parseInt(yearStr ?? '', 10);
-  const month = Number.parseInt(monthStr ?? '', 10);
-  const day = Number.parseInt(dayStr ?? '', 10);
-
-  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
-
-  const birthDate = new Date(Date.UTC(year, month - 1, day));
-  if (birthDate.getUTCFullYear() !== year || birthDate.getUTCMonth() !== month - 1 || birthDate.getUTCDate() !== day) return null;
-
-  const now = new Date();
-  let totalMonths = (now.getUTCFullYear() - year) * 12 + (now.getUTCMonth() - (month - 1));
-  if (now.getUTCDate() < day) totalMonths -= 1;
-  if (totalMonths < 0 || Math.floor(totalMonths / 12) > 150) return null;
-
-  return { edad: Math.floor(totalMonths / 12), edadMeses: totalMonths % 12 };
-}
 
 export default function EditarPacientePage() {
   const { id } = useParams<{ id: string }>();
@@ -385,7 +367,7 @@ export default function EditarPacientePage() {
             <label className="form-label">Fecha de nacimiento</label>
             <input
               type="date"
-              max={new Date().toISOString().split('T')[0]}
+              max={todayLocalDateString()}
               className={clsx('form-input', editForm.formState.errors.fechaNacimiento && 'form-input-error')}
               {...editForm.register('fechaNacimiento')}
             />

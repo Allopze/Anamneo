@@ -73,6 +73,8 @@ export interface EncounterSection {
   order: number;
   data: Record<string, any>;
   completed: boolean;
+  notApplicable: boolean;
+  notApplicableReason: string | null;
   updatedAt: string;
 }
 
@@ -142,10 +144,17 @@ export interface Encounter {
   };
 }
 
+export interface SignEncounterResponse {
+  signatureId: string;
+  contentHash: string;
+  signedAt: string;
+}
+
 export interface PatientProblem {
   id: string;
   patientId: string;
   encounterId?: string | null;
+  medicoId?: string | null;
   label: string;
   status: 'ACTIVO' | 'CRONICO' | 'EN_ESTUDIO' | 'RESUELTO';
   notes?: string | null;
@@ -165,6 +174,7 @@ export interface PatientTask {
   id: string;
   patientId: string;
   encounterId?: string | null;
+  medicoId?: string | null;
   title: string;
   details?: string | null;
   type: 'SEGUIMIENTO' | 'EXAMEN' | 'DERIVACION' | 'TRAMITE';
