@@ -97,6 +97,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchActiveIndex, setSearchActiveIndex] = useState(-1);
   const [headerBarSlot, setHeaderBarSlot] = useState<ReactNode>(null);
+  const headerBarSlotCtx = useMemo(() => ({ setHeaderBarSlot }), []);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -520,7 +521,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           )}
 
           {/* ── KPI + Context Bar ─────────────────────────────── */}
-          <HeaderBarSlotContext.Provider value={{ setHeaderBarSlot }}>
+          <HeaderBarSlotContext.Provider value={headerBarSlotCtx}>
             <div className={clsx('flex-shrink-0', isEncounterWorkspace && 'hidden')}>
               <SmartHeaderBar
                 onSearchOpen={() => {

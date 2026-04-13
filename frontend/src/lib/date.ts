@@ -3,6 +3,13 @@ import { es } from 'date-fns/locale';
 
 const DATE_ONLY_REGEX = /^(\d{4})-(\d{2})-(\d{2})/;
 
+const APP_TIME_ZONE = 'America/Santiago';
+
+/** Extract YYYY-MM-DD from a Date using the app timezone (America/Santiago). */
+function dateToYMD(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: APP_TIME_ZONE }).format(date);
+}
+
 export function extractDateOnly(value: string | Date | null | undefined) {
   if (!value) {
     return undefined;
@@ -13,10 +20,7 @@ export function extractDateOnly(value: string | Date | null | undefined) {
       return undefined;
     }
 
-    const y = value.getFullYear();
-    const m = String(value.getMonth() + 1).padStart(2, '0');
-    const d = String(value.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
+    return dateToYMD(value);
   }
 
   const trimmed = value.trim();
@@ -30,10 +34,7 @@ export function extractDateOnly(value: string | Date | null | undefined) {
     return undefined;
   }
 
-  const y = parsed.getFullYear();
-  const m = String(parsed.getMonth() + 1).padStart(2, '0');
-  const d = String(parsed.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return dateToYMD(parsed);
 }
 
 export function toDateOnlyDisplayDate(value: string | Date | null | undefined) {
@@ -49,13 +50,9 @@ export function formatDateOnly(
   return displayDate ? format(displayDate, pattern, { locale: es }) : '';
 }
 
-/** Returns today's date as YYYY-MM-DD in local time. */
+/** Returns today's date as YYYY-MM-DD in the app timezone (America/Santiago). */
 export function todayLocalDateString(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return dateToYMD(new Date());
 }
 
 export type CalculatedAge = {
@@ -66,8 +63,7 @@ export type CalculatedAge = {
 /**
  * Calculate age (years + months) from a YYYY-MM-DD date string.
  * Returns null for invalid, future, or implausible dates.
- * Uses local time for the "today" reference so the result matches
- * the user's wall-clock day regardless of UTC offset.
+ * Uses the app timezone (America/Santiago) for the "today" reference.
  */
 export function calculateAgeFromBirthDate(dateValue: string): CalculatedAge | null {
   const [yearStr, monthStr, dayStr] = dateValue.split('-');
@@ -88,9 +84,10 @@ export function calculateAgeFromBirthDate(dateValue: string): CalculatedAge | nu
     return null;
   }
 
-  const now = new Date();
-  let totalMonths = (now.getFullYear() - year) * 12 + (now.getMonth() - (month - 1));
-  if (now.getDate() < day) {
+  const todayStr = dateToYMD(new Date());
+  const [nowYear, nowMonth, nowDay] = todayStr.split('-').map(Number);
+  let totalMonths = (nowYear - year) * 12 + (nowMonth - month);
+  if (nowDay < day) {
     totalMonths -= 1;
   }
 

@@ -6,9 +6,10 @@ import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import { Attachment, Encounter, SignEncounterResponse, STATUS_LABELS, REVIEW_STATUS_LABELS } from '@/types';
-import { FiAlertTriangle, FiArrowLeft, FiFileText, FiPrinter, FiDownload, FiPaperclip, FiShield } from 'react-icons/fi';
+import { FiAlertTriangle, FiArrowLeft, FiFileText, FiPrinter, FiDownload, FiPaperclip, FiShield, FiEye } from 'react-icons/fi';
 import type { AxiosResponse } from 'axios';
 import SignEncounterModal from '@/components/common/SignEncounterModal';
+import AttachmentPreviewModal from '@/components/common/AttachmentPreviewModal';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -29,6 +30,12 @@ import {
   getPatientCompletenessMeta,
 } from '@/lib/patient';
 import { getEncounterClinicalOutputBlockReason } from '@/lib/clinical-output';
+
+const ESTADO_GENERAL_LABELS: Record<string, string> = {
+  BUEN_ESTADO: 'Buen estado general',
+  REGULAR_ESTADO: 'Regular estado general',
+  MAL_ESTADO: 'Mal estado general',
+};
 
 function fallbackPdfFilename(encounter: Encounter | undefined, kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') {
   const patientName = (encounter?.patient?.nombre || 'Paciente')
@@ -69,6 +76,7 @@ export default function FichaClinicaPage() {
   const isOperationalAdmin = !!user?.isAdmin;
   const isDoctor = user?.role === 'MEDICO';
   const [showSignModal, setShowSignModal] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
 
   const { data: encounter, isLoading } = useQuery({
     queryKey: ['encounter', id],
@@ -343,6 +351,14 @@ export default function FichaClinicaPage() {
                 </div>
                 <button
                   type="button"
+                  onClick={() => setPreviewAttachment(attachment)}
+                  className="no-print inline-flex items-center gap-1 text-xs font-medium text-accent-text hover:text-ink"
+                >
+                  <FiEye className="h-3.5 w-3.5" />
+                  Ver
+                </button>
+                <button
+                  type="button"
                   onClick={() => handleDownloadAttachment(attachment)}
                   className="no-print inline-flex items-center gap-1 text-xs font-medium text-accent-text hover:text-ink"
                 >
@@ -565,7 +581,7 @@ export default function FichaClinicaPage() {
               <div className="mb-3">
                 <strong>Estado general:</strong>
                 <span className="ml-2">
-                  {[examenFisico.estadoGeneral, examenFisico.estadoGeneralNotas].filter(Boolean).join(' · ')}
+                  {[ESTADO_GENERAL_LABELS[examenFisico.estadoGeneral as string] || examenFisico.estadoGeneral, examenFisico.estadoGeneralNotas].filter(Boolean).join(' · ')}
                 </span>
               </div>
             )}
@@ -724,6 +740,12 @@ export default function FichaClinicaPage() {
         loading={signMutation.isPending}
         onConfirm={(password) => signMutation.mutate(password)}
         onClose={() => setShowSignModal(false)}
+      />
+
+      <AttachmentPreviewModal
+        isOpen={!!previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+        attachment={previewAttachment}
       />
     </>
   );

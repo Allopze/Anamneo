@@ -3,8 +3,7 @@
 import { useMemo } from 'react';
 import { Attachment, HistoryFieldValue, TratamientoData } from '@/types';
 import VoiceDictationButton from '@/components/common/VoiceDictationButton';
-import { FiAlertTriangle, FiPaperclip, FiPlus, FiTrash2 } from 'react-icons/fi';
-import { getTreatmentPlanText } from '@/lib/clinical';
+import { FiAlertTriangle, FiEye, FiPaperclip, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { parseHistoryField } from '@/lib/utils';
 import {
   SectionAddButton,
@@ -20,6 +19,7 @@ interface Props {
   readOnly?: boolean;
   linkedAttachmentsByOrderId?: Record<string, Attachment[]>;
   onRequestAttachToOrder?: (type: 'EXAMEN' | 'DERIVACION', orderId: string) => void;
+  onPreviewAttachment?: (attachment: Attachment) => void;
   allergyData?: HistoryFieldValue | string;
 }
 
@@ -29,6 +29,7 @@ export default function TratamientoSection({
   readOnly,
   linkedAttachmentsByOrderId,
   onRequestAttachToOrder,
+  onPreviewAttachment,
   allergyData,
 }: Props) {
   const createId = () =>
@@ -74,7 +75,11 @@ export default function TratamientoSection({
   const medicamentos = data.medicamentosEstructurados || [];
   const examenes = data.examenesEstructurados || [];
   const derivaciones = data.derivacionesEstructuradas || [];
-  const planText = getTreatmentPlanText(data);
+  const planText = typeof data.plan === 'string'
+    ? data.plan
+    : typeof data.indicaciones === 'string'
+    ? data.indicaciones
+    : '';
 
   const appendDictation = (field: keyof TratamientoData, transcript: string) => {
     const previous = field === 'plan'
@@ -86,8 +91,9 @@ export default function TratamientoSection({
   };
 
   const handlePlanChange = (value: string) => {
+    const { indicaciones: _legacyIndicaciones, ...rest } = data;
     onChange({
-      ...data,
+      ...rest,
       plan: value,
     });
   };
@@ -135,11 +141,25 @@ export default function TratamientoSection({
           <div className="mt-3 space-y-2">
             {linkedAttachments.map((attachment) => (
               <div key={attachment.id} className="section-item-card px-3 py-2">
-                <div className="text-sm font-medium text-ink-primary">{attachment.originalName}</div>
-                <div className="text-xs text-ink-muted">
-                  {[attachment.description, attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleDateString('es-CL') : null]
-                    .filter(Boolean)
-                    .join(' · ')}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-ink-primary">{attachment.originalName}</div>
+                    <div className="text-xs text-ink-muted">
+                      {[attachment.description, attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleDateString('es-CL') : null]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </div>
+                  </div>
+                  {onPreviewAttachment && (
+                    <button
+                      type="button"
+                      onClick={() => onPreviewAttachment(attachment)}
+                      className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-accent-text hover:text-ink"
+                    >
+                      <FiEye className="h-3.5 w-3.5" />
+                      Ver
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -281,7 +301,7 @@ export default function TratamientoSection({
             label="Notas adicionales de receta (texto libre)"
             action={!readOnly ? <VoiceDictationButton onTranscript={(text) => appendDictation('receta', text)} /> : undefined}
           />
-          <textarea
+            <textarea
             value={data.receta || ''}
             onChange={(e) => handleChange('receta', e.target.value)}
             disabled={readOnly}

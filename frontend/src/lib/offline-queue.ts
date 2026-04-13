@@ -51,7 +51,9 @@ function openDb(): Promise<IDBDatabase> {
 
 /** Enqueue a failed section save for later retry. */
 export async function enqueueSave(save: Omit<PendingSave, 'id'>): Promise<void> {
-  if (!isIndexedDBAvailable()) return;
+  if (!isIndexedDBAvailable()) {
+    throw new Error('IndexedDB no disponible — no se puede encolar el guardado offline');
+  }
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');

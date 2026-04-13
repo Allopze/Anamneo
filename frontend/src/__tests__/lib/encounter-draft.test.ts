@@ -10,12 +10,12 @@ describe('encounter draft helpers', () => {
   const userId = 'user-1';
 
   beforeEach(() => {
-    window.sessionStorage.clear();
+    window.localStorage.clear();
   });
 
-  it('persists and restores encounter drafts from sessionStorage', () => {
+  it('persists and restores encounter drafts from localStorage', () => {
     writeEncounterDraft({
-      version: 1,
+      version: 2,
       encounterId,
       userId,
       currentSectionIndex: 2,
@@ -23,19 +23,21 @@ describe('encounter draft helpers', () => {
       savedSnapshot: { MOTIVO_CONSULTA: { texto: '' } },
     });
 
-    expect(readEncounterDraft(encounterId, userId)).toEqual({
-      version: 1,
+    const draft = readEncounterDraft(encounterId, userId);
+    expect(draft).toMatchObject({
+      version: 2,
       encounterId,
       userId,
       currentSectionIndex: 2,
       formData: { MOTIVO_CONSULTA: { texto: 'cefalea' } },
       savedSnapshot: { MOTIVO_CONSULTA: { texto: '' } },
     });
+    expect(draft?.savedAt).toBeDefined();
   });
 
   it('clears persisted drafts', () => {
     writeEncounterDraft({
-      version: 1,
+      version: 2,
       encounterId,
       userId,
       currentSectionIndex: 0,

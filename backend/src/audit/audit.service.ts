@@ -315,7 +315,8 @@ export class AuditService {
       || ISO_DATE_TIME_PATTERN.test(value);
   }
 
-  async verifyChain(limit = 1000): Promise<{ valid: boolean; checked: number; brokenAt?: string }> {
+  async verifyChain(limit = 1000): Promise<{ valid: boolean; checked: number; total: number; brokenAt?: string; warning?: string }> {
+    const total = await this.prisma.auditLog.count();
     const entries = await this.prisma.auditLog.findMany({
       orderBy: { timestamp: 'asc' },
       take: limit,
@@ -326,11 +327,15 @@ export class AuditService {
     for (const entry of entries) {
       if (!entry.integrityHash) continue; // skip legacy entries without hash
       if (entry.previousHash !== expectedPreviousHash) {
-        return { valid: false, checked: entries.indexOf(entry), brokenAt: entry.id };
+        return { valid: false, checked: entries.indexOf(entry), total, brokenAt: entry.id };
       }
       expectedPreviousHash = entry.integrityHash;
     }
 
-    return { valid: true, checked: entries.length };
+    const warning = total > entries.length
+      ? `Solo se verificaron ${entries.length} de ${total} entradas. Aumente el parámetro limit para una verificación completa.`
+      : undefined;
+
+    return { valid: true, checked: entries.length, total, warning };
   }
 }

@@ -361,6 +361,7 @@ export interface SystemReviewItem {
 }
 
 export interface RevisionSistemasData {
+  negativa?: boolean;
   psiquico?: SystemReviewItem;
   cabeza?: SystemReviewItem;
   cuello?: SystemReviewItem;

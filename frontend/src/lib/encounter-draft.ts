@@ -1,5 +1,6 @@
-const ENCOUNTER_DRAFT_VERSION = 1;
+const ENCOUNTER_DRAFT_VERSION = 2;
 const ENCOUNTER_DRAFT_PREFIX = 'anamneo:encounter-draft';
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface EncounterDraft {
   version: number;
@@ -9,6 +10,7 @@ export interface EncounterDraft {
   formData: Record<string, unknown>;
   savedSnapshot: Record<string, unknown>;
   encounterUpdatedAt?: string;
+  savedAt?: string;
 }
 
 function getEncounterDraftKey(encounterId: string, userId: string) {
@@ -23,7 +25,7 @@ export function readEncounterDraft(encounterId: string, userId: string): Encount
   if (typeof window === 'undefined') return null;
 
   try {
-    const raw = window.sessionStorage.getItem(getEncounterDraftKey(encounterId, userId));
+    const raw = window.localStorage.getItem(getEncounterDraftKey(encounterId, userId));
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as Partial<EncounterDraft>;
@@ -38,6 +40,12 @@ export function readEncounterDraft(encounterId: string, userId: string): Encount
       return null;
     }
 
+    // Expire drafts older than TTL
+    if (parsed.savedAt && Date.now() - new Date(parsed.savedAt).getTime() > DRAFT_TTL_MS) {
+      window.localStorage.removeItem(getEncounterDraftKey(encounterId, userId));
+      return null;
+    }
+
     return {
       version: ENCOUNTER_DRAFT_VERSION,
       encounterId: parsed.encounterId,
@@ -45,9 +53,10 @@ export function readEncounterDraft(encounterId: string, userId: string): Encount
       currentSectionIndex: Number(parsed.currentSectionIndex),
       formData: parsed.formData,
       savedSnapshot: parsed.savedSnapshot,
-      encounterUpdatedAt: typeof (parsed as any).encounterUpdatedAt === 'string'
-        ? (parsed as any).encounterUpdatedAt
+      encounterUpdatedAt: typeof parsed.encounterUpdatedAt === 'string'
+        ? parsed.encounterUpdatedAt
         : undefined,
+      savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : undefined,
     };
   } catch {
     return null;
@@ -57,15 +66,15 @@ export function readEncounterDraft(encounterId: string, userId: string): Encount
 export function writeEncounterDraft(draft: EncounterDraft): void {
   if (typeof window === 'undefined') return;
 
-  window.sessionStorage.setItem(
+  window.localStorage.setItem(
     getEncounterDraftKey(draft.encounterId, draft.userId),
-    JSON.stringify(draft),
+    JSON.stringify({ ...draft, savedAt: new Date().toISOString() }),
   );
 }
 
 export function clearEncounterDraft(encounterId: string, userId: string): void {
   if (typeof window === 'undefined') return;
-  window.sessionStorage.removeItem(getEncounterDraftKey(encounterId, userId));
+  window.localStorage.removeItem(getEncounterDraftKey(encounterId, userId));
 }
 
 export function hasEncounterDraftUnsavedChanges(draft: Pick<EncounterDraft, 'formData' | 'savedSnapshot'>): boolean {

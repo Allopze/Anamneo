@@ -212,4 +212,18 @@ describe('getRevisionSystemEntries', () => {
       },
     ]);
   });
+
+  it('returns an explicit negative summary when the review is negative', () => {
+    expect(
+      getRevisionSystemEntries({
+        negativa: true,
+      }),
+    ).toEqual([
+      {
+        key: 'negativa',
+        label: 'Resultado',
+        text: 'Negativa, nada que reportar',
+      },
+    ]);
+  });
 });

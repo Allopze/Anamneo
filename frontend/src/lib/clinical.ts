@@ -64,6 +64,16 @@ export function formatRevisionSystemLabel(key: string) {
 }
 
 export function getRevisionSystemEntries(revision: RevisionSistemasData | undefined) {
+  if (revision?.negativa) {
+    return [
+      {
+        key: 'negativa',
+        label: 'Resultado',
+        text: 'Negativa, nada que reportar',
+      },
+    ];
+  }
+
   return Object.entries(revision || {})
     .map(([key, value]) => {
       if (!value || typeof value !== 'object') {

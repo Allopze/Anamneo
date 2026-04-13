@@ -131,10 +131,16 @@ describe('encounter-level permissions', () => {
     expect(canEditEncounter(null, activeEncounter)).toBe(false);
   });
 
-  it('canCompleteEncounter — only medico on active', () => {
-    expect(canCompleteEncounter(medico, activeEncounter)).toBe(true);
+  it('canCompleteEncounter — only medico on active own encounter', () => {
+    const ownActiveEncounter = {
+      status: 'EN_PROGRESO',
+      createdBy: { id: '1' },
+    } as unknown as Encounter;
+    expect(canCompleteEncounter(medico, ownActiveEncounter)).toBe(true);
     expect(canCompleteEncounter(admin, activeEncounter)).toBe(false);
     expect(canCompleteEncounter(asistente, activeEncounter)).toBe(false);
     expect(canCompleteEncounter(medico, completedEncounter)).toBe(false);
+    // Medico cannot complete encounter created by someone else
+    expect(canCompleteEncounter(medico, activeEncounter)).toBe(false);
   });
 });

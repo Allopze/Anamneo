@@ -66,5 +66,10 @@ export function canCompleteEncounter(
   user: PermissionUser | null | undefined,
   encounter: Encounter | undefined,
 ) {
-  return Boolean(user && encounter?.status === 'EN_PROGRESO' && isMedicoUser(user));
+  return Boolean(
+    user &&
+    encounter?.status === 'EN_PROGRESO' &&
+    isMedicoUser(user) &&
+    encounter?.createdBy?.id === user.id,
+  );
 }

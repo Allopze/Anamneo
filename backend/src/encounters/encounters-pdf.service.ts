@@ -24,6 +24,12 @@ const PREVISION_MAP: Record<string, string> = {
   DESCONOCIDA: 'Desconocida',
 };
 
+const ESTADO_GENERAL_MAP: Record<string, string> = {
+  BUEN_ESTADO: 'Buen estado general',
+  REGULAR_ESTADO: 'Regular estado general',
+  MAL_ESTADO: 'Mal estado general',
+};
+
 const STATUS_MAP: Record<string, string> = {
   EN_PROGRESO: 'En progreso',
   COMPLETADO: 'Completado',
@@ -302,6 +308,7 @@ export class EncountersPdfService {
             {
               width: pageWidth,
               align: 'center',
+              lineBreak: false,
             },
           );
       }
@@ -470,7 +477,7 @@ export class EncountersPdfService {
       sectionTitle(6, 'EXAMEN FÍSICO');
       field(
         'Estado general',
-        [exFis.estadoGeneral, exFis.estadoGeneralNotas].filter(Boolean).join(' · '),
+        [ESTADO_GENERAL_MAP[exFis.estadoGeneral] || exFis.estadoGeneral, exFis.estadoGeneralNotas].filter(Boolean).join(' · '),
       );
       if (exFis.signosVitales) {
         const sv = exFis.signosVitales;

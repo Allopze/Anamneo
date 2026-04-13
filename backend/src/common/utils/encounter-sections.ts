@@ -1,4 +1,7 @@
+import { Logger } from '@nestjs/common';
 import { decryptField } from './field-crypto';
+
+const logger = new Logger('parseStoredJson');
 
 export function parseStoredJson<T = Record<string, unknown>>(value: unknown, fallback?: T): T {
   if (value && typeof value === 'object') {
@@ -9,12 +12,18 @@ export function parseStoredJson<T = Record<string, unknown>>(value: unknown, fal
     try {
       const raw = value.startsWith('enc:') ? decryptField(value) : value;
       return JSON.parse(raw) as T;
-    } catch {
-      // Ignore malformed legacy payloads and fall through to fallback.
+    } catch (err) {
+      logger.warn(
+        `Failed to parse/decrypt stored JSON (length=${value.length}, encrypted=${value.startsWith('enc:')}): ${err instanceof Error ? err.message : err}`,
+      );
     }
   }
 
-  return (fallback ?? ({} as T));
+  const fb = (fallback ?? ({} as T));
+  if (typeof fb === 'object' && fb !== null) {
+    return { ...fb, _parseError: true } as T;
+  }
+  return fb;
 }
 
 export function parseEncounterSection(section: { data: unknown }) {

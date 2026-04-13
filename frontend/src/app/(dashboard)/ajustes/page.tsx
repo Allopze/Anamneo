@@ -892,7 +892,7 @@ function AjustesContent() {
 
 function TwoFactorSection() {
   const { user, setUser } = useAuthStore();
-  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [totpCode, setTotpCode] = useState('');
   const [disablePassword, setDisablePassword] = useState('');
   const [error, setError] = useState('');
@@ -903,7 +903,7 @@ function TwoFactorSection() {
       return res.data as { qrCodeDataUrl: string; secret: string };
     },
     onSuccess: (data) => {
-      setQrCode(data.qrCodeDataUrl ?? null);
+      setQrCodeDataUrl(data.qrCodeDataUrl ?? null);
       setError('');
     },
     onError: (err) => toast.error(getErrorMessage(err)),
@@ -918,7 +918,7 @@ function TwoFactorSection() {
       if (user) {
         setUser({ ...user, totpEnabled: true });
       }
-      setQrCode(null);
+      setQrCodeDataUrl(null);
       setTotpCode('');
       setError('');
     },
@@ -972,7 +972,7 @@ function TwoFactorSection() {
         </div>
       )}
 
-      {!isEnabled && !qrCode && (
+      {!isEnabled && !qrCodeDataUrl && (
         <button
           onClick={() => setupMutation.mutate()}
           disabled={setupMutation.isPending}
@@ -982,12 +982,12 @@ function TwoFactorSection() {
         </button>
       )}
 
-      {!isEnabled && qrCode && (
+      {!isEnabled && qrCodeDataUrl && (
         <div className="space-y-4">
           <div className="flex items-start gap-4">
             <div className="rounded-card border border-surface-muted/40 bg-white p-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qrCode} alt="Código QR para 2FA" width={180} height={180} />
+              <img src={qrCodeDataUrl} alt="Código QR para 2FA" width={180} height={180} />
             </div>
             <div className="flex-1 text-sm text-ink-secondary">
               <p className="font-medium text-ink mb-2">Escanea este código QR</p>
@@ -1023,7 +1023,7 @@ function TwoFactorSection() {
               {enableMutation.isPending ? 'Activando...' : 'Activar 2FA'}
             </button>
             <button
-              onClick={() => { setQrCode(null); setTotpCode(''); setError(''); }}
+              onClick={() => { setQrCodeDataUrl(null); setTotpCode(''); setError(''); }}
               className="btn btn-secondary"
             >
               Cancelar

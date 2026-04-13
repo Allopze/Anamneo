@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { FiCheck, FiMinus } from 'react-icons/fi';
 import clsx from 'clsx';
-import { RevisionSistemasData } from '@/types';
+import { RevisionSistemasData, SystemReviewItem } from '@/types';
 import { SectionBlock } from '@/components/sections/SectionPrimitives';
 
 interface Props {
@@ -28,54 +27,53 @@ const SYSTEMS = [
 ];
 
 export default function RevisionSistemasSection({ data, onChange, readOnly }: Props) {
-  const anyChecked = SYSTEMS.some((s) => {
-    const d = data[s.key as keyof RevisionSistemasData];
-    return d && typeof d === 'object' && 'checked' in d && d.checked;
-  });
-  const [allNegative, setAllNegative] = useState(!anyChecked && Object.keys(data).length === 0);
+  const allNegative = data.negativa === true;
+
+  const getSystemData = (systemKey: string): SystemReviewItem => {
+    const current = data[systemKey as keyof RevisionSistemasData];
+    if (current && typeof current === 'object' && 'checked' in current) {
+      return current as SystemReviewItem;
+    }
+
+    return { checked: false, notas: '' };
+  };
 
   const handleToggle = (systemKey: string) => {
     if (readOnly) return;
-    
-    if (allNegative) setAllNegative(false);
-    const current = data[systemKey as keyof RevisionSistemasData] || { checked: false, notas: '' };
+
+    const current = getSystemData(systemKey);
     onChange({
       ...data,
+      negativa: false,
       [systemKey]: { ...current, checked: !current.checked },
     });
   };
 
   const handleNotasChange = (systemKey: string, notas: string) => {
-    const current = data[systemKey as keyof RevisionSistemasData] || { checked: false, notas: '' };
+    const current = getSystemData(systemKey);
     onChange({
       ...data,
+      negativa: false,
       [systemKey]: { ...current, notas },
     });
   };
 
   const handleAllNegativeToggle = () => {
     if (readOnly) return;
-    const next = !allNegative;
-    setAllNegative(next);
-    if (next) {
-      // Clear all checked systems
-      const cleared: Record<string, any> = {};
-      SYSTEMS.forEach((s) => {
-        cleared[s.key] = { checked: false, notas: '' };
-      });
-      onChange(cleared as RevisionSistemasData);
-    }
+
+    onChange(allNegative ? {} : { negativa: true });
   };
 
   const handleSuggestionClick = (systemKey: string, suggestion: string) => {
     if (readOnly) return;
-    const current = data[systemKey as keyof RevisionSistemasData] || { checked: true, notas: '' };
+    const current = getSystemData(systemKey);
     const existingNotas = typeof current === 'object' && 'notas' in current ? (current.notas || '') : '';
     const alreadyPresent = existingNotas.toLowerCase().includes(suggestion.toLowerCase());
     if (alreadyPresent) return;
     const newNotas = existingNotas ? `${existingNotas}, ${suggestion}` : suggestion;
     onChange({
       ...data,
+      negativa: false,
       [systemKey]: { checked: true, notas: newNotas },
     });
   };
@@ -116,7 +114,7 @@ export default function RevisionSistemasSection({ data, onChange, readOnly }: Pr
         {!allNegative && (
           <div className="space-y-3">
             {SYSTEMS.map(({ key, label, examples, suggestions }) => {
-              const systemData = data[key as keyof RevisionSistemasData] || { checked: false, notas: '' };
+              const systemData = getSystemData(key);
 
               return (
                 <div

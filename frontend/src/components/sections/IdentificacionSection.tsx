@@ -12,6 +12,18 @@ import { validateRut } from '@/lib/rut';
 import { SectionBlock } from '@/components/sections/SectionPrimitives';
 import { formatPatientMissingFields, getIdentificationMissingFields } from '@/lib/patient';
 
+/** Read-only display for a single field in the snapshot view. */
+function SnapshotField({ label, value }: { label: string; value?: string | number | null }) {
+  return (
+    <div>
+      <span className="form-label">{label}</span>
+      <p className="mt-1 min-h-[44px] rounded-input border border-surface-muted/30 bg-surface-base/40 px-5 py-3 text-sm text-ink">
+        {value != null && value !== '' ? value : <span className="text-ink-muted">—</span>}
+      </p>
+    </div>
+  );
+}
+
 interface Props {
   data: IdentificacionData;
   onChange: (data: IdentificacionData) => void;
@@ -96,6 +108,24 @@ export default function IdentificacionSection({
 
       <SectionBlock title="Datos personales">
         <div className="flex flex-col gap-4">
+          {readOnly ? (
+            <>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <SnapshotField label="Nombre completo" value={data.nombre} />
+                <SnapshotField
+                  label="RUT"
+                  value={data.rutExempt ? (data.rutExemptReason || 'Sin RUT') : data.rut}
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <SnapshotField label="Edad (años)" value={data.edad != null ? String(data.edad) : undefined} />
+                <SnapshotField label="Meses" value={data.edadMeses != null ? String(data.edadMeses) : undefined} />
+                <SnapshotField label="Sexo" value={data.sexo ? SEXO_LABELS[data.sexo] : undefined} />
+                <SnapshotField label="Previsión" value={data.prevision ? PREVISION_LABELS[data.prevision] : undefined} />
+              </div>
+            </>
+          ) : (
+          <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="form-label">Nombre completo</label>
@@ -151,7 +181,6 @@ export default function IdentificacionSection({
                   const nextValue = e.target.value;
                   handleChange('edadMeses', nextValue === '' ? undefined : parseInt(nextValue, 10));
                 }}
-                disabled={readOnly}
                 className="form-input"
                 placeholder="Opcional"
                 min={0}
@@ -187,10 +216,18 @@ export default function IdentificacionSection({
               </select>
             </div>
           </div>
+          </>
+          )}
         </div>
       </SectionBlock>
 
       <SectionBlock title="Contexto y contacto">
+        {readOnly ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <SnapshotField label="Trabajo / Ocupación" value={data.trabajo} />
+            <SnapshotField label="Domicilio" value={data.domicilio} />
+          </div>
+        ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="form-label">Trabajo / Ocupación</label>
@@ -213,6 +250,7 @@ export default function IdentificacionSection({
             />
           </div>
         </div>
+        )}
       </SectionBlock>
     </div>
   );

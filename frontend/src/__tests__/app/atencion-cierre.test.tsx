@@ -246,7 +246,7 @@ describe('EncounterWizardPage closing workflow', () => {
     apiDeleteMock.mockResolvedValue({ data: {} });
   });
 
-  it('blocks completion from the page when the closure note is too short', async () => {
+  it('allows completion even without a closure note', async () => {
     const user = userEvent.setup();
 
     render(<EncounterWizardPage />, { wrapper: createWrapper() });
@@ -254,12 +254,9 @@ describe('EncounterWizardPage closing workflow', () => {
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: 'Cierre' })[0]);
-    await user.type(screen.getByLabelText('Nota de cierre'), 'corta');
     await user.click(screen.getByRole('button', { name: 'Finalizar Atención' }));
 
-    expect(toast.error).toHaveBeenCalledWith('La nota de cierre debe tener al menos 15 caracteres');
-    expect(screen.queryByRole('dialog', { name: 'Finalizar atención' })).not.toBeInTheDocument();
-    expect(apiPostMock).not.toHaveBeenCalledWith('/encounters/enc-1/complete', expect.anything());
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
   it('disables encounter completion when the patient record is pending medical verification', async () => {

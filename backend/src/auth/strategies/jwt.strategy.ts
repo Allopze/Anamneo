@@ -6,16 +6,9 @@ import { JwtPayload } from '../auth.service';
 import { UsersService } from '../../users/users.service';
 import { Request } from 'express';
 
-// Extract JWT from cookie, fallback to Bearer header for backward compat
-function extractJwtFromCookieOrHeader(req: Request): string | null {
-  const fromCookie = req?.cookies?.access_token;
-  if (fromCookie) return fromCookie;
-  // Fallback to Authorization header
-  const authHeader = req?.headers?.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.slice(7);
-  }
-  return null;
+// Extract JWT strictly from HttpOnly cookie — no Bearer fallback
+function extractJwtFromCookie(req: Request): string | null {
+  return req?.cookies?.access_token ?? null;
 }
 
 @Injectable()
@@ -25,7 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private usersService: UsersService,
   ) {
     super({
-      jwtFromRequest: extractJwtFromCookieOrHeader,
+      jwtFromRequest: extractJwtFromCookie,
       ignoreExpiration: false,
       secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
     });

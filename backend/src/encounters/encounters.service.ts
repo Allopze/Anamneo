@@ -90,7 +90,6 @@ const MEDICATION_ROUTES = [
 ] as const;
 const CHOSEN_MODES = ['AUTO', 'MANUAL'] as const;
 const REVIEW_NOTE_MIN_LENGTH = 10;
-const CLOSURE_NOTE_MIN_LENGTH = 15;
 const REVISION_SISTEMAS_KEYS = [
   'psiquico',
   'cabeza',
@@ -617,6 +616,10 @@ export class EncountersService {
   }
 
   private sanitizeRevisionSistemasData(data: Record<string, unknown>) {
+    if (data.negativa !== undefined && typeof data.negativa !== 'boolean') {
+      throw new BadRequestException('El indicador negativa de revisión por sistemas no es válido');
+    }
+
     const sanitized: Record<string, unknown> = {};
 
     for (const key of REVISION_SISTEMAS_KEYS) {
@@ -645,6 +648,14 @@ export class EncountersService {
         checked,
         notas: notas ?? '',
       };
+    }
+
+    if (data.negativa === true) {
+      if (Object.keys(sanitized).length > 0) {
+        throw new BadRequestException('No se puede marcar revisión por sistemas negativa si existen hallazgos');
+      }
+
+      return { negativa: true };
     }
 
     return sanitized;
@@ -1536,12 +1547,7 @@ export class EncountersService {
       );
     }
 
-    const sanitizedClosureNote = this.sanitizeRequiredWorkflowNote(
-      closureNote,
-      'La nota de cierre',
-      CLOSURE_NOTE_MIN_LENGTH,
-      1000,
-    );
+    const sanitizedClosureNote = this.sanitizeText(closureNote, 1000) ?? null;
 
     const updated = await this.prisma.encounter.update({
       where: { id },
@@ -1784,10 +1790,7 @@ export class EncountersService {
       throw new ForbiddenException('Solo un médico puede despejar una revisión pendiente');
     }
 
-    const requiresNote = reviewStatus === 'LISTA_PARA_REVISION' || reviewStatus === 'REVISADA_POR_MEDICO';
-    const sanitizedNote = requiresNote
-      ? this.sanitizeRequiredWorkflowNote(note, 'La nota de revisión', REVIEW_NOTE_MIN_LENGTH, 500)
-      : (this.sanitizeText(note, 500) ?? null);
+    const sanitizedNote = this.sanitizeText(note, 500) ?? null;
 
     const updated = await this.prisma.encounter.update({
       where: { id },

@@ -87,8 +87,8 @@ export class PatientsController {
       prevision,
       completenessStatus: completenessStatus as 'INCOMPLETA' | 'PENDIENTE_VERIFICACION' | 'VERIFICADA' | undefined,
       clinicalSearch,
-      edadMin: edadMin ? parseInt(edadMin, 10) : undefined,
-      edadMax: edadMax ? parseInt(edadMax, 10) : undefined,
+      edadMin: edadMin ? (Number.isNaN(parseInt(edadMin, 10)) ? undefined : parseInt(edadMin, 10)) : undefined,
+      edadMax: edadMax ? (Number.isNaN(parseInt(edadMax, 10)) ? undefined : parseInt(edadMax, 10)) : undefined,
       sortBy: sortBy as 'nombre' | 'edad' | 'createdAt' | 'updatedAt' | undefined,
       sortOrder: (sortOrder || 'asc') as 'asc' | 'desc',
     });

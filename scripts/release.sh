@@ -26,13 +26,19 @@ mkdir -p "$RELEASE_DIR"
 
 echo "📦 Empaquetando release: $ZIP_NAME"
 
+# Create placeholder dirs so docker-compose volume mounts work out of the box
+mkdir -p runtime/data runtime/uploads
+
 zip -r "$RELEASE_DIR/$ZIP_NAME" \
   docker-compose.yml \
   .env.example \
   package.json \
   backend/ \
   frontend/ \
+  shared/ \
   scripts/dev-supervisor.sh \
+  runtime/data/ \
+  runtime/uploads/ \
   -x "*/node_modules/*" \
   -x "*/.next/*" \
   -x "*/dist/*" \
@@ -50,6 +56,7 @@ zip -r "$RELEASE_DIR/$ZIP_NAME" \
   -x "backend/prisma/dev.reset*" \
   -x "backend/uploads/*" \
   -x "frontend/out/*" \
+  -x "frontend/test-results/*" \
   -x "*/.env" \
   -x "*/.env.local" \
   -x "*/.env.development" \

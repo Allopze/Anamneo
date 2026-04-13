@@ -30,6 +30,7 @@ import {
   FiArrowLeft,
   FiCheckCircle,
   FiClipboard,
+  FiDownload,
   FiPlus,
   FiEdit2,
   FiTrash2,
@@ -93,6 +94,7 @@ export default function PatientDetailPage() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [showFullVitals, setShowFullVitals] = useState(false);
   const [selectedVitalKey, setSelectedVitalKey] = useState<'peso' | 'imc' | 'temperatura' | 'saturacionOxigeno'>('peso');
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const problemForm = useForm<ProblemForm>({
     resolver: zodResolver(problemSchema),
@@ -149,6 +151,28 @@ export default function PatientDetailPage() {
   });
   const historyHasContent = patientHistoryHasContent(patient?.history);
   const headerBarSlot = useHeaderBarSlot();
+
+  const handleExportHistorial = async () => {
+    if (!patient || exportingPdf) return;
+    setExportingPdf(true);
+    try {
+      const response = await api.get(`/patients/${id}/export/pdf`, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeName = (patient.nombre || 'Paciente').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]+/g, ' ').trim();
+      link.download = `${safeName} - Historial.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Error al exportar el historial clínico');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   useEffect(() => {
     if (!headerBarSlot || !patient) return;
@@ -407,6 +431,17 @@ export default function PatientDetailPage() {
                 <FiEdit2 className="w-4 h-4" />
                 Editar
               </Link>
+            )}
+
+            {patient.completenessStatus === 'VERIFICADA' && (
+              <button
+                onClick={handleExportHistorial}
+                disabled={exportingPdf}
+                className="btn btn-secondary flex items-center gap-2"
+              >
+                <FiDownload className="w-4 h-4" />
+                {exportingPdf ? 'Exportando...' : 'Historial PDF'}
+              </button>
             )}
 
             {isMedico() && (

@@ -30,7 +30,7 @@ async function hasValidatedAccessSession(request: NextRequest): Promise<boolean>
 }
 
 export async function proxy(request: NextRequest) {
-  if (process.env.E2E_DISABLE_PROXY_AUTH === 'true') {
+  if (process.env.NODE_ENV !== 'production' && process.env.E2E_DISABLE_PROXY_AUTH === 'true') {
     return NextResponse.next();
   }
 

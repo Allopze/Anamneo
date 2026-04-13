@@ -352,6 +352,7 @@ export class PatientsPdfService {
           .text(`Página ${i + 1} de ${totalPages}`, doc.page.margins.left, doc.page.height - 35, {
             width: pageWidth,
             align: 'center',
+            lineBreak: false,
           });
       }
 
