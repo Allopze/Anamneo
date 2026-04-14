@@ -9,6 +9,11 @@ import { CurrentUserData } from '../common/decorators/current-user.decorator';
 import { CreateLocalConditionDto } from './dto/create-local-condition.dto';
 import { UpdateLocalConditionDto } from './dto/update-local-condition.dto';
 import {
+  buildSuggestionLogMetadata,
+  CONDITION_SUGGESTION_RANKING_VERSION,
+} from './conditions-suggestion-log';
+import { validateSuggestionChoicePayload } from './conditions-suggestion-choice';
+import {
   normalizeConditionName,
   sanitizeStringArray,
   mergeUniqueStrings,
@@ -408,61 +413,6 @@ export class ConditionsService {
     return { message: 'Afección ocultada en la instancia', id: override.id };
   }
 
-  async importGlobalCsv(buffer: Buffer) {
-    const content = buffer.toString('utf-8');
-    if (!content.trim()) {
-      throw new BadRequestException('El CSV esta vacio');
-    }
-
-    const lines = content.replace(/\uFEFF/g, '').split(/\r?\n/);
-    const names: string[] = [];
-
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-      if (!line) continue;
-      if (names.length === 0 && line.toLowerCase() === 'name') {
-        continue;
-      }
-      const value = line.replace(/^"|"$/g, '').trim();
-      if (value.length === 0) continue;
-      names.push(value);
-    }
-
-    if (names.length === 0) {
-      throw new BadRequestException('No se encontraron nombres en el CSV');
-    }
-
-    const uniqueNames = Array.from(
-      new Map(names.map((name) => [name.toLowerCase(), name])).values()
-    );
-
-    const existing = await this.prisma.conditionCatalog.findMany();
-    const existingByName = new Map(existing.map((c) => [c.name.toLowerCase(), c]));
-
-    let created = 0;
-    let updated = 0;
-
-    const operations = uniqueNames.map((name) => {
-      const existingCondition = existingByName.get(name.toLowerCase());
-      if (existingCondition) {
-        updated += 1;
-        return this.prisma.conditionCatalog.update({
-          where: { id: existingCondition.id },
-          data: { name, active: true },
-        });
-      }
-      created += 1;
-      return this.prisma.conditionCatalog.create({
-        data: { name },
-      });
-    });
-
-    await this.prisma.$transaction(operations);
-    await this.similarityService.buildIndex();
-
-    return { created, updated, total: uniqueNames.length };
-  }
-
   async logSuggestion(
     encounterId: string,
     inputText: string,
@@ -475,6 +425,8 @@ export class ConditionsService {
         encounterId,
         inputText,
         topSuggestions: JSON.stringify(suggestions),
+        rankingVersion: CONDITION_SUGGESTION_RANKING_VERSION,
+        rankingMetadata: buildSuggestionLogMetadata(suggestions, chosenConditionId),
         chosenConditionId,
         chosenMode: chosenMode as ChosenMode,
       },
@@ -491,6 +443,8 @@ export class ConditionsService {
     },
     user: CurrentUserData,
   ) {
+    validateSuggestionChoicePayload(dto);
+
     const instanceId = getInstanceId(user);
     const encounter = await this.prisma.encounter.findFirst({
       where: {

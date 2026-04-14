@@ -61,6 +61,8 @@ Esto evita confiar ciegamente en la existencia de cookies. Tener una cookie no i
 - No mezcles chequeos de permisos UI con reglas de negocio backend: la UI oculta o informa, el backend decide.
 - Si cambias contratos de respuesta, revisa hooks, componentes y tests frontend de la misma area.
 - Si tocas autenticacion o layout privado, valida tambien `src/proxy.ts` y la experiencia de reload.
+- Ningun archivo fuente de frontend debe superar las 500 lineas y 300 lineas es el objetivo por defecto.
+- Si una pagina, componente o hook cruza 300 lineas, separa subcomponentes, hooks o constantes antes de seguir cargandolo.
 
 ## Testing Frontend
 

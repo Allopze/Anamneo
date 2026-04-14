@@ -1,17 +1,21 @@
-import { IsString, IsArray, IsIn, IsOptional, IsNumber, IsUUID, ValidateNested, ValidateIf, MaxLength } from 'class-validator';
+import { IsString, IsArray, IsIn, IsOptional, IsNumber, IsUUID, ValidateNested, ValidateIf, MaxLength, ArrayMaxSize, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class SuggestionItem {
-  @IsString()
+  @IsUUID(undefined, { message: 'Cada sugerencia debe incluir un id UUID válido' })
   id: string;
 
   @IsString()
+  @MaxLength(200)
   name: string;
 
   @IsNumber()
+  @Min(0)
   score: number;
 
   @IsNumber()
+  @Min(0)
+  @Max(100)
   confidence: number;
 }
 
@@ -21,6 +25,7 @@ export class SaveSuggestionDto {
   inputText: string;
 
   @IsArray()
+  @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => SuggestionItem)
   suggestions: SuggestionItem[];

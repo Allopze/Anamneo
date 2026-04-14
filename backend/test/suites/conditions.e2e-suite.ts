@@ -2,18 +2,72 @@ import { state, req, cookieHeader } from '../helpers/e2e-setup';
 
 export function conditionsSuite() {
   describe('Conditions', () => {
+    it('POST /api/conditions/import/csv/preview → admin can validate global csv with headers', async () => {
+      const res = await req()
+        .post('/api/conditions/import/csv/preview')
+        .set('Cookie', cookieHeader(state.adminCookies))
+        .attach(
+          'file',
+          Buffer.from(
+            [
+              'name,synonyms,tags',
+              'Hipertensión,"hta|presión, alta",cardio',
+              'Hipertension,control presión,riesgo',
+              'Diabetes,,metabolico',
+            ].join('\n'),
+          ),
+          {
+            filename: 'conditions-preview.csv',
+            contentType: 'text/csv',
+          },
+        )
+        .expect(201);
+
+      expect(res.body.detectedFormat).toBe('HEADER');
+      expect(res.body.totalRows).toBe(3);
+      expect(res.body.importableRows).toBe(2);
+      expect(res.body.duplicateRows).toBe(1);
+      expect(res.body.createCount).toBe(2);
+      expect(res.body.invalidRows).toEqual([]);
+      expect(res.body.preview[0].synonyms).toEqual(
+        expect.arrayContaining(['hta', 'presión, alta', 'control presión']),
+      );
+    });
+
     it('POST /api/conditions/import/csv → admin can import global csv', async () => {
       const res = await req()
         .post('/api/conditions/import/csv')
         .set('Cookie', cookieHeader(state.adminCookies))
-        .attach('file', Buffer.from('name\nHipertension\nDiabetes\n'), {
-          filename: 'conditions.csv',
-          contentType: 'text/csv',
-        })
+        .attach(
+          'file',
+          Buffer.from(
+            [
+              'name,synonyms,tags',
+              'Hipertensión,"hta|presión, alta",cardio',
+              'Hipertension,control presión,riesgo',
+              'Diabetes,,metabolico',
+            ].join('\n'),
+          ),
+          {
+            filename: 'conditions.csv',
+            contentType: 'text/csv',
+          },
+        )
         .expect(201);
 
       expect(res.body.total).toBe(2);
       expect(res.body.created).toBe(2);
+      expect(res.body.duplicateRows).toBe(1);
+
+      const list = await req()
+        .get('/api/conditions?search=Hipert')
+        .set('Cookie', cookieHeader(state.adminCookies))
+        .expect(200);
+
+      expect(list.body[0].synonyms).toEqual(
+        expect.arrayContaining(['hta', 'presión, alta', 'control presión']),
+      );
+      expect(list.body[0].tags).toEqual(expect.arrayContaining(['cardio', 'riesgo']));
     });
 
     it('POST /api/conditions/import/csv → medico cannot import global csv', async () => {

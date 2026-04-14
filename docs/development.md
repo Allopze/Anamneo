@@ -68,6 +68,14 @@ La sanitizacion evita que un entorno global roto contamine el desarrollo local:
 3. Ejecutar tests del area tocada antes de cerrar cambios.
 4. Si cambias auth, permisos o operaciones SQLite, revisar tambien la documentacion relacionada.
 
+## Guardrails de Codigo
+
+- Ningun archivo fuente mantenido a mano debe superar las 500 lineas.
+- El objetivo real es 300 lineas o menos por archivo.
+- Si un cambio te empuja por encima de 300, evalua separar helpers, componentes, hooks, DTOs o servicios antes de mergear.
+- Si un archivo supera 500 lineas, el trabajo no esta terminado aunque funcione.
+- Excepciones solo para artefactos generados, lockfiles o salidas de herramientas; nunca para codigo de aplicacion o tests mantenidos a mano.
+
 ## Troubleshooting Basico
 
 ### `DATABASE_URL is required` o placeholders invalidos

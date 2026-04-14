@@ -25,6 +25,20 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
   dataRef.current = data;
   const lastSearchedText = useRef<string>('');
 
+  const persistSuggestionChoice = useCallback(
+    (payload: { chosenConditionId: string | null; chosenMode: 'AUTO' | 'MANUAL' }) => {
+      api
+        .post(`/conditions/encounters/${encounter.id}/suggestion`, {
+          inputText: dataRef.current.texto || '',
+          suggestions,
+          chosenConditionId: payload.chosenConditionId,
+          chosenMode: payload.chosenMode,
+        })
+        .catch(console.error);
+    },
+    [encounter.id, suggestions],
+  );
+
   // Debounced search for suggestions
   const searchSuggestions = useCallback((text: string) => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -42,8 +56,12 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
         const response = await api.post('/conditions/suggest', { text, limit: 3 });
         setSuggestions(response.data);
 
-        // Auto-select top suggestion if none selected
-        if (response.data.length > 0 && !dataRef.current.afeccionSeleccionada) {
+        // Auto-select top suggestion only when the user has not explicitly forced manual mode.
+        if (
+          response.data.length > 0
+          && !dataRef.current.afeccionSeleccionada
+          && dataRef.current.modoSeleccion !== 'MANUAL'
+        ) {
           onChangeRef.current({
             ...dataRef.current,
             afeccionSeleccionada: response.data[0],
@@ -85,15 +103,7 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
       modoSeleccion: 'AUTO',
     });
 
-    // Log the selection
-    api
-      .post(`/conditions/encounters/${encounter.id}/suggestion`, {
-        inputText: data.texto,
-        suggestions,
-        chosenConditionId: condition.id,
-        chosenMode: 'AUTO',
-      })
-      .catch(console.error);
+    persistSuggestionChoice({ chosenConditionId: condition.id, chosenMode: 'AUTO' });
   };
 
   const handleManualSelection = () => {
@@ -102,6 +112,8 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
       modoSeleccion: 'MANUAL',
       afeccionSeleccionada: null,
     });
+
+    persistSuggestionChoice({ chosenConditionId: null, chosenMode: 'MANUAL' });
   };
 
   return (

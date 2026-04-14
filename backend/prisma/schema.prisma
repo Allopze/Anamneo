@@ -214,6 +214,8 @@ model ConditionSuggestionLog {
   encounterId       String   @map("encounter_id")
   inputText         String   @map("input_text")
   topSuggestions    String   @map("top_suggestions")
+  rankingVersion    String   @default("2026-04-name-synonyms-tags-v1") @map("ranking_version")
+  rankingMetadata   String   @default("{}") @map("ranking_metadata")
   chosenConditionId String?  @map("chosen_condition_id")
   chosenMode        String   @map("chosen_mode")
   createdAt         DateTime @default(now()) @map("created_at")

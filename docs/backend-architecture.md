@@ -55,6 +55,12 @@ Los controllers deberian enrutar, validar y delegar. Si un controller parece que
 
 Los services coordinan acceso a Prisma, reglas de dominio, autorizacion especifica y side effects como auditoria o correo.
 
+### Limite de tamano por archivo
+
+- Ningun archivo fuente de backend debe superar las 500 lineas.
+- 300 lineas es el objetivo por defecto; si un service empieza a crecer, se divide en helpers, sub-servicios o utilidades puras antes de seguir agregando casos.
+- Un service grande no se justifica por tener "mucha logica". Si la logica existe, se organiza.
+
 ### DTOs y validacion
 
 - el backend confia en DTOs con `class-validator`,

@@ -39,6 +39,46 @@ Implicacion funcional:
 
 Esto permite soporte diagnostico sin obligar a que todo conocimiento clinico viva en un unico catalogo global inmovil.
 
+### Sugerencias de afeccion en motivo de consulta
+
+- El backend genera sugerencias usando el catalogo global o el catalogo fusionado de la instancia, segun el rol del usuario.
+- El ranking ahora pondera mas fuerte coincidencias exactas o parciales en `name` que en sinonimos, y mas en sinonimos que en tags.
+- El texto normalizado sigue ignorando tildes y puntuacion para no penalizar escritura clinica rapida.
+- La UI puede auto-seleccionar la mejor sugerencia solo mientras el medico no haya forzado explicitamente el modo manual.
+- Cuando el medico confirma una sugerencia o decide mantener seleccion manual, la decision se registra en `ConditionSuggestionLog`.
+
+### Importacion CSV del catalogo global
+
+- Solo un usuario `ADMIN` puede validar o importar el CSV global de afecciones.
+- El formato recomendado usa encabezados: `name`, `synonyms`, `tags`.
+- `name` es obligatorio.
+- `synonyms` y `tags` aceptan multiples valores separados por `|`.
+- El formato legacy de una sola columna sigue soportado para cargas antiguas, pero no deberia usarse para catalogos nuevos.
+- La UI valida primero contra el parser real del backend y luego ejecuta la importacion.
+- Duplicados dentro del mismo archivo se consolidan por nombre normalizado antes de persistir.
+- Si la afeccion ya existe, la importacion actualiza nombre, fusiona sinonimos y tags, y reactiva entradas inactivas.
+
+### Mejora CSV en curso
+
+- Ya implementado: parser CSV formal, preview server-side y consolidacion de duplicados dentro del archivo.
+- Pendiente: persistir `normalizedName` e imponer unicidad a nivel de base de datos.
+- Pendiente: auditoria explicita de importaciones bulk del catalogo global.
+- Pendiente: definir si el CSV soportara control explicito de `active` en una fase posterior.
+
+### Mejora de sugerencias en curso
+
+- Ya implementado: ranking con mayor peso para coincidencias directas en nombre, luego sinonimos y despues tags.
+- Ya implementado: el modo manual deja de ser sobrescrito por una nueva auto-seleccion mientras el medico sigue escribiendo.
+- Ya implementado: la eleccion manual tambien queda registrada en `ConditionSuggestionLog`.
+- Ya implementado: el backend valida coherencia entre `chosenMode`, `chosenConditionId` y el arreglo `suggestions` antes de registrar la decision.
+- Ya implementado: existe cobertura e2e dedicada para obtener sugerencias y persistir decisiones manuales o rechazar payloads `AUTO` inconsistentes.
+- Ya implementado: `ConditionSuggestionLog` guarda `rankingVersion` y `rankingMetadata` serializada con cantidad de sugerencias, top suggestion y posicion/score/confidence de la opcion elegida.
+- Ya implementado: existe cobertura e2e para una decision `AUTO` valida que comprueba la persistencia de metadata del ranking.
+- Ya implementado: existe un `e2e-spec` aislado del flujo de sugerencias para validarlo sin depender del estado compartido de `app.e2e-spec.ts`.
+- Pendiente: validar si `ConditionSuggestionLog` debe guardar tambien el texto final persistido de la seccion y no solo el input enviado al endpoint.
+- Pendiente: definir si conviene agregar explicabilidad visible de la sugerencia en UI, por ejemplo motivo de coincidencia o campo matched.
+- Pendiente: decidir si la metadata persistida actual es suficiente o si conviene guardar tambien los campos exactos de matching usados para explicar la sugerencia.
+
 ## Tareas y Problemas
 
 - `PatientProblem` modela problemas clinicos activos o resueltos.

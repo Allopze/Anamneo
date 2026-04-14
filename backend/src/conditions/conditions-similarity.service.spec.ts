@@ -58,6 +58,11 @@ describe('ConditionsSimilarityService', () => {
       expect(results.length).toBeLessThanOrEqual(2);
     });
 
+    it('prioritizes exact name matches over broader field matches', async () => {
+      const results = await service.suggest('asma bronquial', 3);
+      expect(results[0].name).toBe('Asma bronquial');
+    });
+
     it('should include confidence scores', async () => {
       const results = await service.suggest('diabetes');
       expect(results.length).toBeGreaterThan(0);
@@ -97,6 +102,16 @@ describe('ConditionsSimilarityService', () => {
         '',
       );
       expect(results).toEqual([]);
+    });
+
+    it('prefers direct synonym evidence over shared tags', async () => {
+      const conditions = [
+        { id: 'a', name: 'Migraña', synonyms: ['dolor de cabeza'], tags: ['neurologico'] },
+        { id: 'b', name: 'Mareo', synonyms: ['vertigo'], tags: ['dolor de cabeza'] },
+      ];
+
+      const results = await service.suggestFromConditions(conditions, 'dolor de cabeza', 2);
+      expect(results[0].name).toBe('Migraña');
     });
   });
 

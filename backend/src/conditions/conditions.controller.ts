@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ConditionsService } from './conditions.service';
+import { ConditionsCsvService } from './conditions-csv.service';
 import { CreateConditionDto } from './dto/create-condition.dto';
 import { UpdateConditionDto } from './dto/update-condition.dto';
 import { SuggestConditionDto } from './dto/suggest-condition.dto';
@@ -31,7 +32,10 @@ import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.
 @Controller('conditions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ConditionsController {
-  constructor(private readonly conditionsService: ConditionsService) {}
+  constructor(
+    private readonly conditionsService: ConditionsService,
+    private readonly conditionsCsvService: ConditionsCsvService,
+  ) {}
 
   @Post()
   @UseGuards(AdminGuard)
@@ -52,15 +56,23 @@ export class ConditionsController {
     @CurrentUser() user: CurrentUserData,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    if (user.role !== 'ADMIN') {
-      throw new ForbiddenException('Solo un administrador con rol ADMIN puede importar CSV global');
-    }
+    return this.conditionsCsvService.importGlobalCsv(this.getCsvImportBuffer(user, file));
+  }
 
-    if (!file) {
-      throw new BadRequestException('Debe adjuntar un archivo CSV');
-    }
-
-    return this.conditionsService.importGlobalCsv(file.buffer);
+  @Post('import/csv/preview')
+  @UseGuards(AdminGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 1024 * 1024,
+      },
+    }),
+  )
+  previewCsv(
+    @CurrentUser() user: CurrentUserData,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.conditionsCsvService.previewGlobalCsv(this.getCsvImportBuffer(user, file));
   }
 
   @Get()
@@ -138,5 +150,17 @@ export class ConditionsController {
     @CurrentUser() user: CurrentUserData,
   ) {
     return this.conditionsService.saveSuggestionChoice(encounterId, dto, user);
+  }
+
+  private getCsvImportBuffer(user: CurrentUserData, file?: Express.Multer.File) {
+    if (user.role !== 'ADMIN') {
+      throw new ForbiddenException('Solo un administrador con rol ADMIN puede importar CSV global');
+    }
+
+    if (!file) {
+      throw new BadRequestException('Debe adjuntar un archivo CSV');
+    }
+
+    return file.buffer;
   }
 }
