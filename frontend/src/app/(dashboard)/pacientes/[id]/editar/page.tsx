@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { api, getErrorMessage } from '@/lib/api';
@@ -14,23 +13,11 @@ import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
-import { validateRut } from '@/lib/rut';
 import { getPatientCompletenessMeta } from '@/lib/patient';
 import { calculateAgeFromBirthDate, todayLocalDateString } from '@/lib/date';
 import { invalidateDashboardOverviewQueries } from '@/lib/query-invalidation';
 import type { PatientPrevision, PatientSexo } from '@/types';
-
-type EditForm = {
-  fechaNacimiento: string;
-  sexo: PatientSexo | null;
-  prevision: PatientPrevision | null;
-  trabajo?: string | null;
-  domicilio?: string | null;
-  nombre?: string;
-  rut?: string | null;
-  rutExempt?: boolean;
-  rutExemptReason?: string | null;
-};
+import { type EditForm, buildEditSchema } from './editar.constants';
 
 export default function EditarPacientePage() {
   const { id } = useParams<{ id: string }>();
@@ -49,43 +36,7 @@ export default function EditarPacientePage() {
     }
   }, [user, canEditAdminFields, router, id]);
 
-  const editSchema = useMemo(() => {
-    const base = z.object({
-      fechaNacimiento: z.string().optional().default(''),
-      sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR']).nullable(),
-      prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA']).nullable(),
-      trabajo: z.string().nullable().optional(),
-      domicilio: z.string().nullable().optional(),
-    });
-
-    if (!isDoctor) return base;
-
-    return base
-      .extend({
-        nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-        rut: z.string().nullable().optional(),
-        rutExempt: z.boolean().default(false),
-        rutExemptReason: z.string().nullable().optional(),
-      })
-      .superRefine((val, ctx) => {
-        const anyVal = val as EditForm;
-        if (anyVal.rutExempt) {
-          if (!anyVal.rutExemptReason || anyVal.rutExemptReason.trim().length === 0) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              path: ['rutExemptReason'],
-              message: 'Debe indicar el motivo de exencion de RUT',
-            });
-          }
-        } else if (anyVal.rut && anyVal.rut.trim().length > 0 && !validateRut(anyVal.rut).valid) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ['rut'],
-            message: 'RUT inválido (ej: 12.345.678-5)',
-          });
-        }
-      });
-  }, [isDoctor]);
+  const editSchema = useMemo(() => buildEditSchema(isDoctor), [isDoctor]);
 
   const editForm = useForm<EditForm>({
     resolver: zodResolver(editSchema),

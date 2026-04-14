@@ -1,5 +1,7 @@
 import {
+  getEncounterActionBlockReason,
   getEncounterClinicalOutputBlockReason,
+  getEncounterStatusOutputBlockReason,
   isEncounterClinicalOutputActionBlocked,
 } from '@/lib/clinical-output';
 import type { EncounterClinicalOutputBlock } from '@/types';
@@ -19,5 +21,18 @@ describe('clinical-output helpers', () => {
   it('returns the block reason only for blocked actions', () => {
     expect(getEncounterClinicalOutputBlockReason(block, 'EXPORT_OFFICIAL_DOCUMENTS')).toBe(block.reason);
     expect(getEncounterClinicalOutputBlockReason(null, 'PRINT_CLINICAL_RECORD')).toBeNull();
+  });
+
+  it('blocks official outputs while the encounter is not completed or signed', () => {
+    expect(getEncounterStatusOutputBlockReason('EN_PROGRESO', 'EXPORT_OFFICIAL_DOCUMENTS')).toContain(
+      'completada o firmada',
+    );
+    expect(getEncounterStatusOutputBlockReason('FIRMADO', 'PRINT_CLINICAL_RECORD')).toBeNull();
+  });
+
+  it('prioritizes encounter status restrictions over patient-completeness reasons for official outputs', () => {
+    expect(getEncounterActionBlockReason('EN_PROGRESO', block, 'PRINT_CLINICAL_RECORD')).toContain(
+      'completada o firmada',
+    );
   });
 });

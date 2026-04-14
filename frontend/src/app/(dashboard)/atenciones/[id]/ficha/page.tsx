@@ -1,281 +1,51 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, getErrorMessage } from '@/lib/api';
-import { Attachment, Encounter, SignEncounterResponse, STATUS_LABELS, REVIEW_STATUS_LABELS } from '@/types';
-import { FiAlertTriangle, FiArrowLeft, FiFileText, FiPrinter, FiDownload, FiPaperclip, FiShield, FiEye } from 'react-icons/fi';
-import type { AxiosResponse } from 'axios';
+import { STATUS_LABELS, REVIEW_STATUS_LABELS } from '@/types';
+import { FiAlertTriangle, FiShield } from 'react-icons/fi';
 import SignEncounterModal from '@/components/common/SignEncounterModal';
 import AttachmentPreviewModal from '@/components/common/AttachmentPreviewModal';
-import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import clsx from 'clsx';
-import { useAuthStore } from '@/stores/auth-store';
 import {
   formatHistoryFieldText,
-  getRevisionSystemEntries,
-  getTreatmentPlanText,
 } from '@/lib/clinical';
-import { useHeaderBarSlot } from '@/components/layout/HeaderBarSlotContext';
 import {
   formatPatientAge,
-  formatPatientMissingFields,
   formatPatientPrevision,
+  formatPatientRut,
   formatPatientSex,
-  getIdentificationMissingFields,
-  getPatientCompletenessMeta,
 } from '@/lib/patient';
-import { getEncounterClinicalOutputBlockReason } from '@/lib/clinical-output';
-
-const ESTADO_GENERAL_LABELS: Record<string, string> = {
-  BUEN_ESTADO: 'Buen estado general',
-  REGULAR_ESTADO: 'Regular estado general',
-  MAL_ESTADO: 'Mal estado general',
-};
-
-function fallbackPdfFilename(encounter: Encounter | undefined, kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') {
-  const patientName = (encounter?.patient?.nombre || 'Paciente')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9 ]+/g, ' ')
-    .trim();
-  const encounterDate = encounter?.createdAt
-    ? format(new Date(encounter.createdAt), 'yyyy-MM-dd')
-    : format(new Date(), 'yyyy-MM-dd');
-
-  if (kind === 'pdf') {
-    return `${patientName} - ${encounterDate}.pdf`;
-  }
-  return `${patientName} - ${kind} - ${encounterDate}.pdf`;
-}
-
-function getFilenameFromDisposition(value?: string) {
-  if (!value) {
-    return null;
-  }
-
-  const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(value);
-  if (utf8Match?.[1]) {
-    return decodeURIComponent(utf8Match[1]);
-  }
-
-  const classicMatch = /filename="?([^"]+)"?/i.exec(value);
-  return classicMatch?.[1] || null;
-}
+import { ESTADO_GENERAL_LABELS } from './ficha.constants';
+import { useFichaClinica } from './useFichaClinica';
+import { FichaToolbar } from './FichaToolbar';
+import { LinkedAttachments } from './LinkedAttachments';
 
 export default function FichaClinicaPage() {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const { user } = useAuthStore();
-  const headerBarSlot = useHeaderBarSlot();
-  const isOperationalAdmin = !!user?.isAdmin;
-  const isDoctor = user?.role === 'MEDICO';
-  const [showSignModal, setShowSignModal] = useState(false);
-  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
-
-  const { data: encounter, isLoading } = useQuery({
-    queryKey: ['encounter', id],
-    queryFn: async () => {
-      const response = await api.get(`/encounters/${id}`);
-      return response.data as Encounter;
-    },
-    enabled: !isOperationalAdmin,
-  });
-
-  const clinicalOutputBlock = encounter?.clinicalOutputBlock ?? null;
-  const exportBlockedReason = getEncounterClinicalOutputBlockReason(clinicalOutputBlock, 'EXPORT_OFFICIAL_DOCUMENTS');
-  const printBlockedReason = getEncounterClinicalOutputBlockReason(clinicalOutputBlock, 'PRINT_CLINICAL_RECORD');
-
-  useEffect(() => {
-    if (!isOperationalAdmin) return;
-    router.replace('/');
-  }, [isOperationalAdmin, router]);
-
-  const signMutation = useMutation<SignEncounterResponse, unknown, string>({
-    mutationFn: async (password) => {
-      const response: AxiosResponse<SignEncounterResponse> = await api.post(`/encounters/${id}/sign`, { password });
-      return response.data;
-    },
-    onSuccess: () => {
-      setShowSignModal(false);
-      toast.success('Atención firmada electrónicamente');
-      queryClient.invalidateQueries({ queryKey: ['encounter', id] });
-    },
-    onError: (err) => {
-      toast.error(getErrorMessage(err));
-    },
-  });
-
-  const handlePrint = useCallback(() => {
-    if (printBlockedReason) {
-      toast.error(printBlockedReason);
-      return;
-    }
-
-    window.print();
-  }, [printBlockedReason]);
-
-  const handleDownloadAttachment = useCallback(async (attachment: Attachment) => {
-    try {
-      const response = await api.get(`/attachments/${attachment.id}/download`, {
-        responseType: 'blob',
-      });
-      const blob = new Blob([response.data], { type: attachment.mime });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = attachment.originalName || 'archivo';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Error al descargar el adjunto');
-    }
-  }, []);
-
-  const handleDownloadDocument = useCallback(async (kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') => {
-    if (exportBlockedReason) {
-      toast.error(exportBlockedReason);
-      return;
-    }
-
-    try {
-      const endpoint = kind === 'pdf'
-        ? `/encounters/${id}/export/pdf`
-        : `/encounters/${id}/export/document/${kind}`;
-      const response = await api.get(endpoint, {
-        responseType: 'blob',
-      });
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = getFilenameFromDisposition(response.headers['content-disposition'])
-        || fallbackPdfFilename(encounter, kind);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    }
-  }, [encounter, exportBlockedReason, id]);
-
-  const handleDownloadPdf = useCallback(async () => {
-    await handleDownloadDocument('pdf');
-  }, [handleDownloadDocument]);
-
-  const toolbarActions = useMemo(() => {
-    if (!encounter) {
-      return null;
-    }
-
-    return (
-      <div className="flex min-w-0 items-center gap-2 overflow-x-auto py-0.5">
-        <Link
-          href={`/atenciones/${id}`}
-          className="btn btn-secondary flex shrink-0 items-center gap-2"
-        >
-          <FiArrowLeft className="h-4 w-4" />
-          <span className="hidden sm:inline">{encounter.status === 'COMPLETADO' ? 'Resumen' : 'Edición'}</span>
-        </Link>
-
-        <div className="hidden h-6 w-px shrink-0 bg-surface-muted/50 lg:block" aria-hidden="true" />
-
-        <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
-          <button
-            onClick={() => handleDownloadDocument('receta')}
-            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-            disabled={Boolean(exportBlockedReason)}
-            title={exportBlockedReason ?? 'Descargar receta'}
-          >
-            <FiDownload className="h-4 w-4" />
-            <span className="hidden sm:inline">Receta</span>
-          </button>
-          <button
-            onClick={() => handleDownloadDocument('ordenes')}
-            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-            disabled={Boolean(exportBlockedReason)}
-            title={exportBlockedReason ?? 'Descargar órdenes'}
-          >
-            <FiDownload className="h-4 w-4" />
-            <span className="hidden sm:inline">Órdenes</span>
-          </button>
-          <button
-            onClick={() => handleDownloadDocument('derivacion')}
-            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-            disabled={Boolean(exportBlockedReason)}
-            title={exportBlockedReason ?? 'Descargar derivación'}
-          >
-            <FiDownload className="h-4 w-4" />
-            <span className="hidden sm:inline">Derivación</span>
-          </button>
-          <button
-            onClick={handleDownloadPdf}
-            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-            disabled={Boolean(exportBlockedReason)}
-            title={exportBlockedReason ?? 'Descargar PDF completo'}
-            aria-label="Descargar PDF"
-          >
-            <FiDownload className="h-4 w-4" />
-            <span className="hidden sm:inline">PDF</span>
-          </button>
-          <button
-            onClick={handlePrint}
-            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', printBlockedReason && 'cursor-not-allowed opacity-60')}
-            disabled={Boolean(printBlockedReason)}
-            title={printBlockedReason ?? 'Imprimir ficha'}
-          >
-            <FiPrinter className="h-4 w-4" />
-            <span className="hidden sm:inline">Imprimir</span>
-          </button>
-          {encounter.status === 'COMPLETADO' && isDoctor ? (
-            <button
-              onClick={() => setShowSignModal(true)}
-              disabled={signMutation.isPending}
-              className="btn flex shrink-0 items-center gap-2 border-status-red/40 bg-status-red/15 font-semibold text-status-red-text hover:bg-status-red/25"
-            >
-              <FiShield className="h-4 w-4" />
-              Firmar
-            </button>
-          ) : null}
-          {encounter.status === 'FIRMADO' ? (
-            <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-status-green/50 bg-status-green/20 px-3 py-1.5 text-xs font-semibold text-status-green-text">
-              <FiShield className="h-3.5 w-3.5" />
-              Firmada
-            </span>
-          ) : null}
-        </div>
-      </div>
-    );
-  }, [
+  const {
+    id,
     encounter,
+    isLoading,
+    isOperationalAdmin,
+    isDoctor,
+    clinicalOutputBlock,
     exportBlockedReason,
+    printBlockedReason,
+    outputBlockReason,
+    showSignModal,
+    setShowSignModal,
+    previewAttachment,
+    setPreviewAttachment,
+    signMutation,
+    handlePrint,
+    handleDownloadAttachment,
     handleDownloadDocument,
     handleDownloadPdf,
-    handlePrint,
-    id,
-    isDoctor,
-    printBlockedReason,
-    signMutation.isPending,
-  ]);
-
-  useEffect(() => {
-    if (!headerBarSlot || !toolbarActions) {
-      return;
-    }
-
-    headerBarSlot.setHeaderBarSlot(toolbarActions);
-    return () => {
-      headerBarSlot.setHeaderBarSlot(null);
-    };
-  }, [headerBarSlot, toolbarActions]);
+    sectionData,
+    patientCompletenessMeta,
+    linkedAttachmentsByOrderId,
+  } = useFichaClinica();
 
   if (isOperationalAdmin) {
     return null;
@@ -297,97 +67,41 @@ export default function FichaClinicaPage() {
     );
   }
 
-  const sections = encounter.sections || [];
-  const identificacion = sections.find((s) => s.sectionKey === 'IDENTIFICACION')?.data || {};
-  const motivoConsulta = sections.find((s) => s.sectionKey === 'MOTIVO_CONSULTA')?.data || {};
-  const anamnesisProxima = sections.find((s) => s.sectionKey === 'ANAMNESIS_PROXIMA')?.data || {};
-  const anamnesisRemota = sections.find((s) => s.sectionKey === 'ANAMNESIS_REMOTA')?.data || {};
-  const revisionSistemas = sections.find((s) => s.sectionKey === 'REVISION_SISTEMAS')?.data || {};
-  const examenFisico = sections.find((s) => s.sectionKey === 'EXAMEN_FISICO')?.data || {};
-  const sospechaDiagnostica = sections.find((s) => s.sectionKey === 'SOSPECHA_DIAGNOSTICA')?.data || {};
-  const tratamiento = sections.find((s) => s.sectionKey === 'TRATAMIENTO')?.data || {};
-  const respuestaTratamiento = sections.find((s) => s.sectionKey === 'RESPUESTA_TRATAMIENTO')?.data || {};
-  const observaciones = sections.find((s) => s.sectionKey === 'OBSERVACIONES')?.data || {};
-  const revisionEntries = getRevisionSystemEntries(revisionSistemas);
-  const treatmentPlan = getTreatmentPlanText(tratamiento);
-  const identificationMissingFields = formatPatientMissingFields(getIdentificationMissingFields(identificacion));
-  const patientCompletenessMeta = encounter.patient ? getPatientCompletenessMeta(encounter.patient) : null;
-  const linkedAttachmentsByOrderId = (encounter.attachments || []).reduce<Record<string, Attachment[]>>((acc, attachment) => {
-    if (!attachment.linkedOrderId) {
-      return acc;
-    }
-
-    if (!acc[attachment.linkedOrderId]) {
-      acc[attachment.linkedOrderId] = [];
-    }
-
-    acc[attachment.linkedOrderId].push(attachment);
-    return acc;
-  }, {});
-
-  const renderLinkedAttachments = (orderId?: string) => {
-    if (!orderId) return null;
-
-    const attachments = linkedAttachmentsByOrderId[orderId] || [];
-    if (attachments.length === 0) return null;
-
-    return (
-      <div className="mt-2 rounded-card border border-surface-muted/30 bg-surface-base/40 p-3">
-        <div className="flex items-center gap-2 text-ink-secondary">
-          <FiPaperclip className="h-4 w-4" />
-          <span className="text-sm font-medium">Adjuntos vinculados</span>
-        </div>
-        <ul className="mt-2 space-y-2">
-          {attachments.map((attachment) => (
-            <li key={attachment.id} className="rounded-md bg-surface-elevated px-3 py-2">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-ink-primary">{attachment.originalName}</p>
-                  <p className="text-xs text-ink-muted">
-                    {[attachment.description, attachment.uploadedAt ? format(new Date(attachment.uploadedAt), "d MMM yyyy", { locale: es }) : null]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setPreviewAttachment(attachment)}
-                  className="no-print inline-flex items-center gap-1 text-xs font-medium text-accent-text hover:text-ink"
-                >
-                  <FiEye className="h-3.5 w-3.5" />
-                  Ver
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadAttachment(attachment)}
-                  className="no-print inline-flex items-center gap-1 text-xs font-medium text-accent-text hover:text-ink"
-                >
-                  <FiDownload className="h-3.5 w-3.5" />
-                  Descargar
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  };
+  const {
+    identificacion,
+    motivoConsulta,
+    anamnesisProxima,
+    anamnesisRemota,
+    examenFisico,
+    sospechaDiagnostica,
+    tratamiento,
+    respuestaTratamiento,
+    observaciones,
+    revisionEntries,
+    treatmentPlan,
+    identificationMissingFields,
+  } = sectionData;
 
   return (
     <>
-      {!headerBarSlot ? (
-        <div className="no-print sticky top-0 z-30 border-b border-surface-muted/30 bg-surface-elevated px-4 py-3">
-          <div className="mx-auto max-w-4xl">
-            {toolbarActions}
-          </div>
-        </div>
-      ) : null}
+      <FichaToolbar
+        id={id}
+        encounter={encounter}
+        isDoctor={isDoctor}
+        exportBlockedReason={exportBlockedReason}
+        printBlockedReason={printBlockedReason}
+        signIsPending={signMutation.isPending}
+        onDownloadDocument={handleDownloadDocument}
+        onDownloadPdf={handleDownloadPdf}
+        onPrint={handlePrint}
+        onSign={() => setShowSignModal(true)}
+      />
 
-      {clinicalOutputBlock ? (
+      {outputBlockReason ? (
         <div className="no-print mx-auto mt-4 max-w-4xl px-4">
           <div className="rounded-2xl border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
             <p className="font-medium">Salidas clinicas bloqueadas</p>
-            <p className="mt-1">{clinicalOutputBlock.reason}</p>
+            <p className="mt-1">{outputBlockReason}</p>
             <Link
               href={`/pacientes/${encounter.patientId}`}
               className="mt-3 inline-flex items-center gap-2 rounded-full border border-status-yellow/70 px-3 py-1.5 text-xs font-semibold text-accent-text transition-colors hover:bg-status-yellow/55"
@@ -398,12 +112,15 @@ export default function FichaClinicaPage() {
         </div>
       ) : null}
 
-      {clinicalOutputBlock ? (
+      {outputBlockReason ? (
         <section className="hidden print:block px-8 py-12 text-center text-ink-primary">
           <h1 className="text-2xl font-bold">Impresión bloqueada</h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-ink-secondary">
-            Esta ficha no puede imprimirse mientras la identificación administrativa del paciente siga incompleta o pendiente de verificación médica.
-            Completa o valida la ficha administrativa y utiliza el circuito oficial de documentos una vez habilitado.
+            {outputBlockReason}
+          </p>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-ink-secondary">
+            Completa o firma la atención y valida la ficha administrativa si corresponde antes de usar el circuito
+            oficial de documentos.
           </p>
         </section>
       ) : null}
@@ -479,7 +196,14 @@ export default function FichaClinicaPage() {
           )}
           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
             <p><strong>Nombre:</strong> {identificacion.nombre || '-'}</p>
-            <p><strong>RUT:</strong> {identificacion.rut || 'Sin RUT'}</p>
+            <p>
+              <strong>RUT:</strong>{' '}
+              {formatPatientRut(
+                identificacion.rut,
+                identificacion.rutExempt ?? encounter.patient?.rutExempt,
+                identificacion.rutExemptReason ?? encounter.patient?.rutExemptReason,
+              )}
+            </p>
             <p><strong>Edad:</strong> {formatPatientAge(identificacion.edad, identificacion.edadMeses)}</p>
             <p><strong>Sexo:</strong> {formatPatientSex(identificacion.sexo)}</p>
             <p><strong>Previsión:</strong> {formatPatientPrevision(identificacion.prevision)}</p>
@@ -620,6 +344,8 @@ export default function FichaClinicaPage() {
               {sospechaDiagnostica.sospechas.map((s: any, i: number) => (
                 <li key={i}>
                   <strong>{s.diagnostico}</strong>
+                  {s.codigoCie10 && <span className="text-ink-secondary"> ({s.codigoCie10})</span>}
+                  {s.descripcionCie10 && <span className="text-ink-secondary"> · {s.descripcionCie10}</span>}
                   {s.notas && <span className="text-ink-secondary"> - {s.notas}</span>}
                 </li>
               ))}
@@ -656,7 +382,7 @@ export default function FichaClinicaPage() {
                   {tratamiento.examenesEstructurados.map((item: any) => (
                     <li key={item.id} className="rounded-card border border-surface-muted/30 px-3 py-2">
                       <div>{[item.nombre, item.indicacion, item.estado].filter(Boolean).join(' · ')}</div>
-                      {renderLinkedAttachments(item.id)}
+                      <LinkedAttachments orderId={item.id} attachmentsByOrderId={linkedAttachmentsByOrderId} onPreview={setPreviewAttachment} onDownload={handleDownloadAttachment} />
                     </li>
                   ))}
                 </ul>
@@ -669,7 +395,7 @@ export default function FichaClinicaPage() {
                   {tratamiento.derivacionesEstructuradas.map((item: any) => (
                     <li key={item.id} className="rounded-card border border-surface-muted/30 px-3 py-2">
                       <div>{[item.nombre, item.indicacion, item.estado].filter(Boolean).join(' · ')}</div>
-                      {renderLinkedAttachments(item.id)}
+                      <LinkedAttachments orderId={item.id} attachmentsByOrderId={linkedAttachmentsByOrderId} onPreview={setPreviewAttachment} onDownload={handleDownloadAttachment} />
                     </li>
                   ))}
                 </ul>

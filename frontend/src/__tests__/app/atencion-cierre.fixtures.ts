@@ -1,0 +1,140 @@
+import type { User } from '@/stores/auth-store';
+
+export const authStoreState: {
+  user: User | null;
+  isMedico: () => boolean;
+  canEditAntecedentes: () => boolean;
+} = {
+  user: {
+    id: 'med-1',
+    email: 'medico@anamneo.cl',
+    nombre: 'Dra. Rivera',
+    role: 'MEDICO',
+    isAdmin: false,
+    medicoId: null,
+  },
+  isMedico: () => true,
+  canEditAntecedentes: () => true,
+};
+
+export const encounterResponse = {
+  id: 'enc-1',
+  patientId: 'patient-1',
+  createdById: 'med-1',
+  status: 'EN_PROGRESO',
+  reviewStatus: 'NO_REQUIERE_REVISION',
+  reviewRequestedAt: null,
+  reviewNote: null,
+  reviewedAt: null,
+  completedAt: null,
+  closureNote: null,
+  createdAt: '2026-04-08T12:00:00.000Z',
+  updatedAt: '2026-04-08T12:00:00.000Z',
+  patient: {
+    id: 'patient-1',
+    rut: '11.111.111-1',
+    rutExempt: false,
+    rutExemptReason: null,
+    nombre: 'Paciente Demo',
+    edad: 44,
+    sexo: 'FEMENINO',
+    trabajo: null,
+    prevision: 'FONASA',
+    domicilio: null,
+    createdAt: '2026-04-08T12:00:00.000Z',
+    updatedAt: '2026-04-08T12:00:00.000Z',
+  },
+  createdBy: {
+    id: 'med-1',
+    nombre: 'Dra. Rivera',
+  },
+  completedBy: null,
+  reviewedBy: null,
+  reviewRequestedBy: null,
+  tasks: [],
+  sections: [
+    {
+      id: 'sec-1',
+      encounterId: 'enc-1',
+      sectionKey: 'IDENTIFICACION',
+      schemaVersion: 1,
+      label: 'Identificación',
+      order: 0,
+      data: {
+        nombre: 'Paciente Demo',
+        rut: '11.111.111-1',
+        rutExempt: false,
+      },
+      completed: true,
+      updatedAt: '2026-04-08T12:00:00.000Z',
+    },
+    {
+      id: 'sec-2',
+      encounterId: 'enc-1',
+      sectionKey: 'MOTIVO_CONSULTA',
+      schemaVersion: 1,
+      label: 'Motivo de Consulta',
+      order: 1,
+      data: {
+        texto: 'Consulta por cefalea persistente.',
+      },
+      completed: true,
+      updatedAt: '2026-04-08T12:00:00.000Z',
+    },
+    {
+      id: 'sec-3',
+      encounterId: 'enc-1',
+      sectionKey: 'EXAMEN_FISICO',
+      schemaVersion: 1,
+      label: 'Examen Físico',
+      order: 2,
+      data: {
+        peso: 70,
+      },
+      completed: true,
+      updatedAt: '2026-04-08T12:00:00.000Z',
+    },
+    {
+      id: 'sec-4',
+      encounterId: 'enc-1',
+      sectionKey: 'SOSPECHA_DIAGNOSTICA',
+      schemaVersion: 1,
+      label: 'Sospecha Diagnóstica',
+      order: 3,
+      data: {
+        sospechas: [{ id: 'dx-1', diagnostico: 'Migraña', prioridad: 1, notas: '' }],
+      },
+      completed: true,
+      updatedAt: '2026-04-08T12:00:00.000Z',
+    },
+    {
+      id: 'sec-5',
+      encounterId: 'enc-1',
+      sectionKey: 'TRATAMIENTO',
+      schemaVersion: 1,
+      label: 'Tratamiento',
+      order: 4,
+      data: {
+        plan: 'Manejo analgésico y control en 48 horas.',
+      },
+      completed: true,
+      updatedAt: '2026-04-08T12:00:00.000Z',
+    },
+    {
+      id: 'sec-6',
+      encounterId: 'enc-1',
+      sectionKey: 'OBSERVACIONES',
+      schemaVersion: 1,
+      label: 'Observaciones',
+      order: 5,
+      data: {
+        observaciones: '',
+        notasInternas: '',
+      },
+      completed: false,
+      notApplicable: false,
+      notApplicableReason: null,
+      updatedAt: '2026-04-08T12:00:00.000Z',
+    },
+  ],
+};

@@ -15,43 +15,10 @@ import {
   FiChevronRight,
   FiCalendar,
   FiFileText,
-  FiFilter,
-  FiDownload,
-  FiChevronDown,
 } from 'react-icons/fi';
-import toast from 'react-hot-toast';
 import { formatPatientAge, formatPatientPrevision, formatPatientSex, getPatientCompletenessMeta } from '@/lib/patient';
-import { todayLocalDateString } from '@/lib/date';
-
-const SEXO_OPTIONS = [
-  { value: '', label: 'Todos' },
-  { value: 'MASCULINO', label: 'Masculino' },
-  { value: 'FEMENINO', label: 'Femenino' },
-  { value: 'OTRO', label: 'Otro' },
-  { value: 'PREFIERE_NO_DECIR', label: 'Prefiere no decir' },
-];
-
-const PREVISION_OPTIONS = [
-  { value: '', label: 'Todas' },
-  { value: 'FONASA', label: 'Fonasa' },
-  { value: 'ISAPRE', label: 'Isapre' },
-  { value: 'OTRA', label: 'Otra' },
-  { value: 'DESCONOCIDA', label: 'Desconocida' },
-];
-
-const COMPLETENESS_OPTIONS: Array<{ value: '' | PatientCompletenessStatus; label: string }> = [
-  { value: '', label: 'Todas las fichas' },
-  { value: 'INCOMPLETA', label: PATIENT_COMPLETENESS_STATUS_LABELS.INCOMPLETA },
-  { value: 'PENDIENTE_VERIFICACION', label: PATIENT_COMPLETENESS_STATUS_LABELS.PENDIENTE_VERIFICACION },
-  { value: 'VERIFICADA', label: PATIENT_COMPLETENESS_STATUS_LABELS.VERIFICADA },
-];
-
-const SORT_OPTIONS = [
-  { value: 'createdAt', label: 'Fecha de registro' },
-  { value: 'nombre', label: 'Nombre' },
-  { value: 'edad', label: 'Edad' },
-  { value: 'updatedAt', label: 'Última actualización' },
-];
+import { COMPLETENESS_OPTIONS, type PatientFilters } from './pacientes.constants';
+import PatientsFilterPanel from './PatientsFilterPanel';
 
 interface PatientsResponse {
   data: Patient[];
@@ -101,10 +68,9 @@ function PacientesContent() {
   const search = searchParams.get('search') || '';
   const [searchInput, setSearchInput] = useState(search);
   const page = Number(searchParams.get('page') || '1');
-  const [showFilters, setShowFilters] = useState(false);
 
   // Read filters from URL searchParams
-  const filters = {
+  const filters: PatientFilters = {
     sexo: searchParams.get('sexo') || '',
     prevision: searchParams.get('prevision') || '',
     completenessStatus: searchParams.get('completenessStatus') || '',
@@ -292,154 +258,12 @@ function PacientesContent() {
         </div>
       </form>
 
-      <div className="mb-4">
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 text-body text-ink-secondary hover:text-ink font-medium mb-2"
-        >
-          <FiFilter className="w-4 h-4" />
-          Filtros avanzados
-          <FiChevronDown className={`w-3 h-3 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-        </button>
-
-        {showFilters && (
-          <div className="filter-surface">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
-              <div>
-                <label className="block text-micro text-ink-muted mb-1">Sexo</label>
-                <select
-                  className="input w-full text-sm"
-                  value={filters.sexo}
-                  onChange={(e) => setFilter('sexo', e.target.value)}
-                >
-                  {SEXO_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-micro text-ink-muted mb-1">Previsión</label>
-                <select
-                  className="input w-full text-sm"
-                  value={filters.prevision}
-                  onChange={(e) => setFilter('prevision', e.target.value)}
-                >
-                  {PREVISION_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-micro text-ink-muted mb-1">Completitud</label>
-                <select
-                  className="input w-full text-sm"
-                  value={filters.completenessStatus}
-                  onChange={(e) => setFilter('completenessStatus', e.target.value)}
-                >
-                  {COMPLETENESS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-micro text-ink-muted mb-1">Edad mín</label>
-                <input
-                  type="number"
-                  className="input w-full text-sm"
-                  value={filters.edadMin}
-                  onChange={(e) => setFilter('edadMin', e.target.value)}
-                  placeholder="0"
-                  min={0}
-                />
-              </div>
-              <div>
-                <label className="block text-micro text-ink-muted mb-1">Edad máx</label>
-                <input
-                  type="number"
-                  className="input w-full text-sm"
-                  value={filters.edadMax}
-                  onChange={(e) => setFilter('edadMax', e.target.value)}
-                  placeholder="120"
-                  min={0}
-                />
-              </div>
-              <div className="col-span-2 md:col-span-2 lg:col-span-2">
-                <label className="block text-micro text-ink-muted mb-1">Motivo o síntoma</label>
-                <input
-                  type="text"
-                  className="input w-full text-sm"
-                  value={filters.clinicalSearch}
-                  onChange={(e) => setFilter('clinicalSearch', e.target.value)}
-                  placeholder="Ej: cefalea, tos, dolor abdominal..."
-                />
-              </div>
-              <div>
-                <label className="block text-micro text-ink-muted mb-1">Ordenar</label>
-                <select
-                  className="input w-full text-sm"
-                  value={filters.sortBy}
-                  onChange={(e) => setFilter('sortBy', e.target.value)}
-                >
-                  {SORT_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-micro text-ink-muted mb-1">Orden</label>
-                <select
-                  className="input w-full text-sm"
-                  value={filters.sortOrder}
-                  onChange={(e) => setFilter('sortOrder', e.target.value)}
-                >
-                  <option value="asc">Ascendente</option>
-                  <option value="desc">Descendente</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 mt-3">
-              <button
-                type="button"
-                className="text-micro text-ink-secondary hover:text-ink hover:underline"
-                onClick={clearFilters}
-              >
-                Limpiar filtros
-              </button>
-              {user?.isAdmin && (
-                <button
-                  type="button"
-                  className="flex items-center gap-1 text-micro text-ink-secondary hover:text-ink"
-                  onClick={async () => {
-                    try {
-                      const res = await api.get('/patients/export/csv', { responseType: 'blob' });
-                      const url = URL.createObjectURL(new Blob([res.data]));
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `pacientes_${todayLocalDateString()}.csv`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                      toast.success('CSV descargado');
-                    } catch {
-                      toast.error('Error al exportar');
-                    }
-                  }}
-                >
-                  <FiDownload className="w-3.5 h-3.5" />
-                  Exportar CSV
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      <PatientsFilterPanel
+        filters={filters}
+        isAdmin={!!user?.isAdmin}
+        onFilterChange={setFilter}
+        onClearFilters={clearFilters}
+      />
 
       {error && (
         <div className="card mb-6 p-4 bg-status-red/10 text-status-red-text text-body rounded-card">
@@ -475,8 +299,8 @@ function PacientesContent() {
                   ? `/pacientes/${patient.id}/administrativo`
                   : `/pacientes/${patient.id}`;
                 const completenessMeta = getPatientCompletenessMeta(patient);
-                const rowContent = (
-                  <>
+                return (
+                  <Link key={patient.id} href={patientHref} className="group list-row">
                     <div className="list-row-icon h-12 w-12 bg-surface-inset text-ink-secondary">
                       <FiUser className="w-6 h-6" />
                     </div>
@@ -503,12 +327,6 @@ function PacientesContent() {
                       </div>
                     </div>
                     <FiChevronRight className="w-5 h-5 text-ink-muted group-hover:text-ink" />
-                  </>
-                );
-
-                return (
-                  <Link key={patient.id} href={patientHref} className="group list-row">
-                    {rowContent}
                   </Link>
                 );
               })}

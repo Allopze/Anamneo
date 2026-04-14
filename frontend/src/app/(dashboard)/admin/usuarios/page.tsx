@@ -1,336 +1,52 @@
 'use client';
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { api, getErrorMessage } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth-store';
-import { FiPlus, FiUsers, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiCheck } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
-import ConfirmModal from '@/components/common/ConfirmModal';
-
-type Role = 'MEDICO' | 'ASISTENTE' | 'ADMIN';
-
-type InvitationStatus = 'PENDIENTE' | 'ACEPTADA' | 'REVOCADA' | 'EXPIRADA';
-
-const INVITATION_STATUS_LABELS: Record<InvitationStatus, string> = {
-  PENDIENTE: 'Pendiente',
-  ACEPTADA: 'Aceptada',
-  REVOCADA: 'Revocada',
-  EXPIRADA: 'Expirada',
-};
-
-const INVITATION_STATUS_STYLES: Record<InvitationStatus, string> = {
-  PENDIENTE: 'border border-status-yellow/60 bg-status-yellow/30 text-accent-text',
-  ACEPTADA: 'bg-status-green/20 text-status-green',
-  REVOCADA: 'bg-surface-muted text-ink-secondary',
-  EXPIRADA: 'border border-status-yellow/70 bg-status-yellow/40 text-accent-text',
-};
-
-function formatInvitationDate(value: string) {
-  return new Date(value).toLocaleString('es-CL', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  });
-}
-
-interface UserInvitationResponse {
-  id: string;
-  email: string;
-  role: Role;
-  medicoId?: string | null;
-  expiresAt: string;
-  token: string;
-  inviteUrl?: string | null;
-  emailSent: boolean;
-  emailError?: string | null;
-}
-
-interface CreatedInvitationState {
-  email: string;
-  inviteUrl: string;
-  emailSent: boolean;
-  emailError?: string | null;
-}
-
-interface AdminInvitationRow {
-  id: string;
-  email: string;
-  role: Role;
-  medicoId?: string | null;
-  invitedById: string;
-  expiresAt: string;
-  acceptedAt?: string | null;
-  revokedAt?: string | null;
-  createdAt: string;
-}
-
-interface AdminUserRow {
-  id: string;
-  email: string;
-  nombre: string;
-  role: Role;
-  active: boolean;
-  isAdmin?: boolean;
-  medicoId?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-function getBrowserOrigin() {
-  return typeof window === 'undefined' ? '' : window.location.origin;
-}
+import { getErrorMessage } from '@/lib/api';
+import {
+  type Role,
+  INVITATION_STATUS_LABELS,
+  INVITATION_STATUS_STYLES,
+  formatInvitationDate,
+} from './usuarios.constants';
+import { useUsuarios } from './useUsuarios';
+import { UsersCard } from './UsersCard';
 
 export default function AdminUsuariosPage() {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const { isAdmin, user } = useAuthStore();
-
-  const [createForm, setCreateForm] = useState({
-    email: '',
-    role: 'MEDICO' as Role,
-    medicoId: '' as string,
-  });
-  const [createdInvitation, setCreatedInvitation] = useState<CreatedInvitationState | null>(null);
-
-  const [editingUser, setEditingUser] = useState<AdminUserRow | null>(null);
-  const [editForm, setEditForm] = useState({
-    nombre: '',
-    email: '',
-    password: '',
-    role: 'MEDICO' as Role,
-    medicoId: '' as string,
-    active: true,
-  });
-
-  // Validation helpers
-  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const getPasswordError = (password: string, required: boolean) => {
-    const value = password;
-
-    if (!required && value.trim().length === 0) return null;
-    if (value.length < 8) return 'Contraseña debe tener al menos 8 caracteres';
-    if (value.length > 72) return 'Contraseña no puede exceder 72 caracteres';
-    if (/\s/.test(value)) return 'Contraseña no puede contener espacios';
-    if (!/[A-Z]/.test(value) || !/[a-z]/.test(value) || !/[0-9]/.test(value)) {
-      return 'Contraseña debe contener mayúscula, minúscula y número';
-    }
-
-    return null;
-  };
-
-  const getCreateErrors = useCallback(() => {
-    const errors: string[] = [];
-    if (!isValidEmail(createForm.email)) errors.push('Email inválido');
-    if (createForm.role === 'ASISTENTE' && !createForm.medicoId) {
-      errors.push('Debe asignar el asistente a un médico');
-    }
-
-    return errors;
-  }, [createForm]);
-  const createErrors = getCreateErrors();
-
-  const getEditErrors = useCallback(() => {
-    const errors: string[] = [];
-    if (editForm.nombre.trim().length < 2) errors.push('Nombre debe tener al menos 2 caracteres');
-    if (!isValidEmail(editForm.email)) errors.push('Email inválido');
-
-    const passwordError = getPasswordError(editForm.password, false);
-    if (passwordError) errors.push(passwordError);
-
-    return errors;
-  }, [editForm]);
-  const editErrors = getEditErrors();
-
-  const generateTemporaryPassword = useCallback(() => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-    const randomValues = new Uint32Array(12);
-    window.crypto.getRandomValues(randomValues);
-    let generated = '';
-    for (let i = 0; i < randomValues.length; i += 1) {
-      generated += chars.charAt(randomValues[i] % chars.length);
-    }
-    return `T${generated.slice(1, 11)}1`;
-  }, []);
-
-  useEffect(() => {
-    if (!isAdmin()) {
-      router.push('/pacientes');
-    }
-  }, [isAdmin, router]);
-
-  const { data: users, isLoading, error } = useQuery({
-    queryKey: ['admin-users'],
-    queryFn: async () => {
-      const response = await api.get('/users');
-      return response.data as AdminUserRow[];
-    },
-    enabled: isAdmin(),
-  });
-
   const {
-    data: invitations,
-    isLoading: isLoadingInvitations,
-    error: invitationsError,
-  } = useQuery({
-    queryKey: ['user-invitations'],
-    queryFn: async () => {
-      const response = await api.get('/users/invitations');
-      return response.data as AdminInvitationRow[];
-    },
-    enabled: isAdmin(),
-  });
-
-  const medicos = useMemo(() => {
-    return (users || []).filter((u) => u.role === 'MEDICO' && u.active);
-  }, [users]);
-
-  const activeAdminCount = useMemo(() => (
-    (users || []).filter((candidate) => candidate.isAdmin && candidate.active).length
-  ), [users]);
-
-  const assistantGroups = useMemo(() => {
-    return medicos.map((medico) => ({
-      medico,
-      assistants: (users || []).filter((candidate) => candidate.role === 'ASISTENTE' && candidate.medicoId === medico.id),
-    }));
-  }, [medicos, users]);
-
-  const getInvitationStatus = useCallback((invitation: AdminInvitationRow): InvitationStatus => {
-    if (invitation.acceptedAt) return 'ACEPTADA';
-    if (invitation.revokedAt) return 'REVOCADA';
-    if (new Date(invitation.expiresAt).getTime() <= Date.now()) return 'EXPIRADA';
-    return 'PENDIENTE';
-  }, []);
-
-  const createInvitationMutation = useMutation({
-    mutationFn: async () => {
-      const payload: any = {
-        email: createForm.email,
-        role: createForm.role,
-      };
-      if (createForm.role === 'ASISTENTE') {
-        payload.medicoId = createForm.medicoId || undefined;
-      }
-      const response = await api.post('/users/invitations', payload);
-      return response.data as UserInvitationResponse;
-    },
-    onSuccess: async (invitation) => {
-      const inviteUrl = invitation.inviteUrl || `${getBrowserOrigin()}/register?token=${invitation.token}`;
-      setCreatedInvitation({
-        email: invitation.email,
-        inviteUrl,
-        emailSent: invitation.emailSent,
-        emailError: invitation.emailError,
-      });
-      setCreateForm({ email: '', role: 'MEDICO', medicoId: '' });
-      queryClient.invalidateQueries({ queryKey: ['user-invitations'] });
-
-      if (invitation.emailSent) {
-        toast.success('Invitación enviada por correo');
-        return;
-      }
-
-      try {
-        await navigator.clipboard.writeText(inviteUrl);
-        toast.success('Invitación creada. Se copió el enlace manual');
-      } catch {
-        toast.success('Invitación creada. Comparte el enlace manualmente');
-      }
-    },
-    onError: (err) => toast.error(getErrorMessage(err)),
-  });
-
-  const updateUserMutation = useMutation({
-    mutationFn: async () => {
-      if (!editingUser) return;
-      const payload: any = {
-        nombre: editForm.nombre,
-        email: editForm.email,
-        role: editForm.role,
-        active: editForm.active,
-      };
-      if (editForm.password?.trim()) payload.password = editForm.password;
-      if (editForm.role === 'ASISTENTE') {
-        payload.medicoId = editForm.medicoId || null;
-      } else {
-        payload.medicoId = null;
-      }
-      const response = await api.put(`/users/${editingUser.id}`, payload);
-      return response.data;
-    },
-    onSuccess: () => {
-      toast.success('Usuario actualizado');
-      setEditingUser(null);
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-    },
-    onError: (err) => toast.error(getErrorMessage(err)),
-  });
-
-  const toggleActiveMutation = useMutation({
-    mutationFn: async (user: AdminUserRow) => {
-      const response = await api.put(`/users/${user.id}`, {
-        active: !user.active,
-      });
-      return response.data;
-    },
-    onSuccess: () => {
-      setToggleConfirmUser(null);
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-    },
-    onError: (err) => {
-      setToggleConfirmUser(null);
-      toast.error(getErrorMessage(err));
-    },
-  });
-
-  const [toggleConfirmUser, setToggleConfirmUser] = useState<AdminUserRow | null>(null);
-
-  const revokeInvitationMutation = useMutation({
-    mutationFn: async (invitationId: string) => {
-      const response = await api.delete(`/users/invitations/${invitationId}`);
-      return response.data as { id: string; revokedAt: string };
-    },
-    onSuccess: () => {
-      toast.success('Invitación revocada');
-      queryClient.invalidateQueries({ queryKey: ['user-invitations'] });
-    },
-    onError: (err) => toast.error(getErrorMessage(err)),
-  });
-
-  const resetPasswordMutation = useMutation({
-    mutationFn: async ({ userId, temporaryPassword }: { userId: string; temporaryPassword: string }) => {
-      const response = await api.post(`/users/${userId}/reset-password`, { temporaryPassword });
-      return response.data as { message: string };
-    },
-    onSuccess: (data) => {
-      toast.success(data.message);
-    },
-    onError: (err) => toast.error(getErrorMessage(err)),
-  });
-
-  const startEdit = (user: AdminUserRow) => {
-    setEditingUser(user);
-    setEditForm({
-      nombre: user.nombre,
-      email: user.email,
-      password: '',
-      role: user.role,
-      medicoId: user.medicoId || '',
-      active: user.active,
-    });
-  };
-
-  const prefillAssistantForMedico = (medico: AdminUserRow) => {
-    setCreateForm({
-      email: '',
-      role: 'ASISTENTE',
-      medicoId: medico.id,
-    });
-    setCreatedInvitation(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+    user,
+    isAdmin,
+    users,
+    invitations,
+    medicos,
+    activeAdminCount,
+    assistantGroups,
+    isLoading,
+    isLoadingInvitations,
+    error,
+    invitationsError,
+    createForm,
+    setCreateForm,
+    createErrors,
+    createdInvitation,
+    createInvitationMutation,
+    editingUser,
+    setEditingUser,
+    editForm,
+    setEditForm,
+    editErrors,
+    updateUserMutation,
+    toggleConfirmUser,
+    setToggleConfirmUser,
+    toggleActiveMutation,
+    revokeInvitationMutation,
+    resetPasswordMutation,
+    generateTemporaryPassword,
+    getInvitationStatus,
+    startEdit,
+    prefillAssistantForMedico,
+  } = useUsuarios();
 
   if (!isAdmin()) {
     return null;
@@ -669,124 +385,17 @@ export default function AdminUsuariosPage() {
         </div>
       )}
 
-      <div className="card">
-        <div className="panel-header">
-          <h2 className="panel-title">Usuarios</h2>
-        </div>
-
-        {isLoading ? (
-          <div className="space-y-3">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-12 skeleton rounded" />
-            ))}
-          </div>
-        ) : users && users.length > 0 ? (
-          <div className="divide-y divide-surface-muted/30">
-            {users.map((u) => (
-              <div key={u.id} className="group list-row flex-col sm:flex-row sm:items-center">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-ink-primary truncate">{u.nombre}</span>
-                    {u.isAdmin && (
-                      <span className="list-chip border border-status-yellow/60 bg-status-yellow/30 text-accent-text">
-                        Admin
-                      </span>
-                    )}
-                    <span className="list-chip bg-surface-muted text-ink-secondary">
-                      {u.role === 'MEDICO' ? 'Médico' : u.role === 'ADMIN' ? 'Administrador' : 'Asistente'}
-                    </span>
-                    <span
-                      className={
-                        'list-chip ' +
-                        (u.active ? 'bg-status-green/20 text-status-green' : 'bg-surface-muted text-ink-muted')
-                      }
-                    >
-                      {u.active ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </div>
-                  <div className="text-sm text-ink-muted truncate">{u.email}</div>
-                  {u.role === 'ASISTENTE' && u.medicoId && (
-                    <div className="text-xs text-ink-muted">Asignado a médico: {users?.find(m => m.id === u.medicoId)?.nombre || u.medicoId}</div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button className="btn btn-secondary" onClick={() => startEdit(u)}>
-                    Editar
-                  </button>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      if (confirm(`¿Resetear la contraseña de ${u.nombre}?`)) {
-                        const temporaryPassword = window.prompt(
-                          `Ingresa una contraseña temporal para ${u.nombre}`,
-                          generateTemporaryPassword(),
-                        );
-                        if (!temporaryPassword) {
-                          return;
-                        }
-
-                        const temporaryPasswordError = getPasswordError(temporaryPassword.trim(), true);
-                        if (temporaryPasswordError) {
-                          toast.error(temporaryPasswordError);
-                          return;
-                        }
-
-                        resetPasswordMutation.mutate({
-                          userId: u.id,
-                          temporaryPassword: temporaryPassword.trim(),
-                        });
-                      }
-                    }}
-                    disabled={resetPasswordMutation.isPending}
-                  >
-                    Reset pass
-                  </button>
-                  <button
-                    className={u.active ? 'btn btn-danger' : 'btn btn-secondary'}
-                    onClick={() => setToggleConfirmUser(u)}
-                    disabled={toggleActiveMutation.isPending || (u.isAdmin && u.active && activeAdminCount === 1)}
-                  >
-                    {u.active ? 'Desactivar' : 'Activar'}
-                  </button>
-                </div>
-                {u.isAdmin && u.active && activeAdminCount === 1 && (
-                  <p className="text-xs text-accent-text">
-                    Último administrador activo.
-                  </p>
-                )}
-                {user?.id === u.id && (
-                  <p className="text-xs text-ink-muted">Sesión actual</p>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <FiUsers className="h-10 w-10 text-accent-text" />
-            </div>
-            <h3 className="empty-state-title">Sin usuarios cargados</h3>
-            <p className="empty-state-description">No hay usuarios registrados todavía en esta instancia.</p>
-          </div>
-        )}
-      </div>
-
-      <ConfirmModal
-        isOpen={!!toggleConfirmUser}
-        onClose={() => setToggleConfirmUser(null)}
-        onConfirm={() => {
-          if (toggleConfirmUser) toggleActiveMutation.mutate(toggleConfirmUser);
-        }}
-        title={toggleConfirmUser?.active ? 'Desactivar usuario' : 'Activar usuario'}
-        message={
-          toggleConfirmUser?.active
-            ? `¿Estás seguro de desactivar a ${toggleConfirmUser.nombre}? El usuario perderá acceso al sistema inmediatamente.`
-            : `¿Estás seguro de activar a ${toggleConfirmUser?.nombre}? El usuario podrá ingresar al sistema nuevamente.`
-        }
-        confirmLabel={toggleConfirmUser?.active ? 'Desactivar' : 'Activar'}
-        variant={toggleConfirmUser?.active ? 'danger' : 'info'}
-        loading={toggleActiveMutation.isPending}
+      <UsersCard
+        users={users}
+        isLoading={isLoading}
+        currentUserId={user?.id}
+        activeAdminCount={activeAdminCount}
+        toggleConfirmUser={toggleConfirmUser}
+        setToggleConfirmUser={setToggleConfirmUser}
+        toggleActiveMutation={toggleActiveMutation}
+        resetPasswordMutation={resetPasswordMutation}
+        generateTemporaryPassword={generateTemporaryPassword}
+        startEdit={startEdit}
       />
     </div>
   );

@@ -16,6 +16,8 @@ export interface PendingSave {
   sectionKey: string;
   data: unknown;
   completed?: boolean;
+  notApplicable?: boolean;
+  notApplicableReason?: string;
   queuedAt: string;
   userId: string;
 }

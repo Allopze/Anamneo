@@ -54,4 +54,30 @@ describe('filterPendingSavesByUser', () => {
       }),
     ]);
   });
+
+  it('preserves offline metadata used for not-applicable retries', () => {
+    expect(
+      filterPendingSavesByUser(
+        [
+          {
+            id: 3,
+            encounterId: 'enc-3',
+            sectionKey: 'OBSERVACIONES',
+            data: {},
+            completed: true,
+            notApplicable: true,
+            notApplicableReason: 'No corresponde en este control',
+            queuedAt: '2026-04-11T10:02:00.000Z',
+            userId: 'user-1',
+          },
+        ],
+        'user-1',
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        notApplicable: true,
+        notApplicableReason: 'No corresponde en este control',
+      }),
+    ]);
+  });
 });

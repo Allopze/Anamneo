@@ -21,30 +21,14 @@ import {
 import { api } from '@/lib/api';
 import { Encounter, REVIEW_STATUS_LABELS, STATUS_LABELS } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
-
-const STATUS_OPTIONS = [
-  { value: '', label: 'Todos los estados' },
-  { value: 'EN_PROGRESO', label: STATUS_LABELS.EN_PROGRESO },
-  { value: 'COMPLETADO', label: STATUS_LABELS.COMPLETADO },
-  { value: 'CANCELADO', label: STATUS_LABELS.CANCELADO },
-];
-
-const REVIEW_OPTIONS = [
-  { value: '', label: 'Todas las revisiones' },
-  { value: 'NO_REQUIERE_REVISION', label: REVIEW_STATUS_LABELS.NO_REQUIERE_REVISION },
-  { value: 'LISTA_PARA_REVISION', label: REVIEW_STATUS_LABELS.LISTA_PARA_REVISION },
-  { value: 'REVISADA_POR_MEDICO', label: REVIEW_STATUS_LABELS.REVISADA_POR_MEDICO },
-];
-
-const PAGE_SIZE = 15;
-
-interface OperationalDashboardData {
-  counts: {
-    enProgreso: number;
-    pendingReview: number;
-    patientPendingVerification: number;
-  };
-}
+import {
+  STATUS_OPTIONS,
+  REVIEW_OPTIONS,
+  PAGE_SIZE,
+  type OperationalDashboardData,
+  getStatusChipClassName,
+  getReviewChipClassName,
+} from './atenciones.constants';
 
 export default function AtencionesListPage() {
   return (
@@ -458,27 +442,5 @@ function AtencionesListContent() {
         )}
       </div>
     </div>
-  );
-}
-
-function getStatusChipClassName(status: Encounter['status']) {
-  return clsx(
-    'list-chip',
-    status === 'COMPLETADO'
-      ? 'bg-status-green/20 text-status-green'
-      : status === 'EN_PROGRESO'
-        ? 'border border-status-yellow/70 bg-status-yellow/35 text-accent-text'
-        : 'bg-surface-base text-ink-secondary'
-  );
-}
-
-function getReviewChipClassName(reviewStatus?: Encounter['reviewStatus']) {
-  return clsx(
-    'list-chip',
-    reviewStatus === 'REVISADA_POR_MEDICO'
-      ? 'bg-frame text-white'
-      : reviewStatus === 'LISTA_PARA_REVISION'
-        ? 'border border-status-yellow/70 bg-status-yellow/30 text-accent-text'
-        : 'bg-surface-inset text-ink-secondary'
   );
 }

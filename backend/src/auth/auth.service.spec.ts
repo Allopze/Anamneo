@@ -3,107 +3,43 @@ import { AuthService } from './auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
+import { UsersSessionService } from '../users/users-session.service';
+import { UsersInvitationService } from '../users/users-invitation.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { mockUser, mockSession, createMockServices } from './auth.service.spec.fixtures';
 
 jest.mock('bcrypt');
 
 describe('AuthService', () => {
   let service: AuthService;
-  let usersService: Partial<UsersService>;
-  let prismaService: {
-    user: {
-      findUnique: jest.Mock;
-    };
-    loginAttempt: {
-      findUnique: jest.Mock;
-      upsert: jest.Mock;
-      update: jest.Mock;
-      deleteMany: jest.Mock;
-    };
-  };
-  let jwtService: Partial<JwtService>;
-  let configService: Partial<ConfigService>;
-  let auditService: { log: jest.Mock };
-
-  const mockUser = {
-    id: 'user-1',
-    email: 'test@example.com',
-    passwordHash: '$2b$10$hashedpassword',
-    nombre: 'Test User',
-    role: 'MEDICO',
-    isAdmin: false,
-    active: true,
-    refreshTokenVersion: 1,
-  };
-
-  const mockSession = {
-    id: 'session-1',
-    userId: 'user-1',
-    tokenVersion: 1,
-    userAgent: null,
-    ipAddress: null,
-    revokedAt: null,
-  };
+  let usersService: ReturnType<typeof createMockServices>['usersService'];
+  let sessionService: ReturnType<typeof createMockServices>['sessionService'];
+  let invitationService: ReturnType<typeof createMockServices>['invitationService'];
+  let prismaService: ReturnType<typeof createMockServices>['prismaService'];
+  let jwtService: ReturnType<typeof createMockServices>['jwtService'];
+  let configService: ReturnType<typeof createMockServices>['configService'];
+  let auditService: ReturnType<typeof createMockServices>['auditService'];
 
   beforeEach(async () => {
-    usersService = {
-      findByEmail: jest.fn(),
-      countUsers: jest.fn(),
-      countActiveAdmins: jest.fn(),
-      create: jest.fn(),
-      findById: jest.fn().mockResolvedValue({
-        id: 'medico-1',
-        role: 'MEDICO',
-        active: true,
-      }),
-      findAuthById: jest.fn().mockResolvedValue(mockUser),
-      findInvitationByToken: jest.fn().mockResolvedValue(null),
-      acceptInvitation: jest.fn(),
-      rotateRefreshTokenVersion: jest.fn().mockResolvedValue(2),
-      createSession: jest.fn().mockResolvedValue(mockSession),
-      findActiveSessionById: jest.fn().mockResolvedValue(mockSession),
-      rotateSessionTokenVersion: jest.fn().mockResolvedValue({
-        ...mockSession,
-        tokenVersion: 2,
-      }),
-      revokeSessionById: jest.fn(),
-      revokeAllSessionsForUser: jest.fn(),
-    };
-
-    prismaService = {
-      user: {
-        findUnique: jest.fn().mockResolvedValue({ totpEnabled: false }),
-      },
-      loginAttempt: {
-        findUnique: jest.fn().mockResolvedValue(null),
-        upsert: jest.fn(),
-        update: jest.fn(),
-        deleteMany: jest.fn(),
-      },
-    };
-
-    jwtService = {
-      sign: jest.fn().mockReturnValue('mock-jwt-token'),
-      verify: jest.fn(),
-    };
-
-    configService = {
-      get: jest.fn().mockReturnValue('test-secret'),
-      getOrThrow: jest.fn().mockReturnValue('test-refresh-secret'),
-    };
-
-    auditService = {
-      log: jest.fn().mockResolvedValue(undefined),
-    };
+    const mocks = createMockServices();
+    usersService = mocks.usersService;
+    sessionService = mocks.sessionService;
+    invitationService = mocks.invitationService;
+    prismaService = mocks.prismaService;
+    jwtService = mocks.jwtService;
+    configService = mocks.configService;
+    auditService = mocks.auditService;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: PrismaService, useValue: prismaService },
         { provide: UsersService, useValue: usersService },
+        { provide: UsersSessionService, useValue: sessionService },
+        { provide: UsersInvitationService, useValue: invitationService },
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
         { provide: AuditService, useValue: auditService },
@@ -138,7 +74,7 @@ describe('AuthService', () => {
     it('should register subsequent users with requested role', async () => {
       (usersService.findByEmail as jest.Mock).mockResolvedValue(null);
       (usersService.countActiveAdmins as jest.Mock).mockResolvedValue(1);
-      (usersService.findInvitationByToken as jest.Mock).mockResolvedValue({
+      (invitationService.findInvitationByToken as jest.Mock).mockResolvedValue({
         id: 'invite-1',
         email: 'test2@example.com',
         role: 'ASISTENTE',
@@ -162,7 +98,7 @@ describe('AuthService', () => {
           medicoId: 'medico-1',
         }),
       );
-      expect(usersService.acceptInvitation).toHaveBeenCalledWith('invite-1');
+      expect(invitationService.acceptInvitation).toHaveBeenCalledWith('invite-1');
     });
 
     it('should throw ForbiddenException if ADMIN is requested and an active admin already exists', async () => {
@@ -198,7 +134,7 @@ describe('AuthService', () => {
     it('should reject invitation role mismatch', async () => {
       (usersService.findByEmail as jest.Mock).mockResolvedValue(null);
       (usersService.countActiveAdmins as jest.Mock).mockResolvedValue(1);
-      (usersService.findInvitationByToken as jest.Mock).mockResolvedValue({
+      (invitationService.findInvitationByToken as jest.Mock).mockResolvedValue({
         id: 'invite-1',
         email: 'doctor@example.com',
         role: 'ASISTENTE',
@@ -221,7 +157,7 @@ describe('AuthService', () => {
     it('should reject invitation when assigned medico is inactive', async () => {
       (usersService.findByEmail as jest.Mock).mockResolvedValue(null);
       (usersService.countActiveAdmins as jest.Mock).mockResolvedValue(1);
-      (usersService.findInvitationByToken as jest.Mock).mockResolvedValue({
+      (invitationService.findInvitationByToken as jest.Mock).mockResolvedValue({
         id: 'invite-1',
         email: 'assistant@example.com',
         role: 'ASISTENTE',
@@ -348,9 +284,9 @@ describe('AuthService', () => {
         sid: 'session-1',
         sv: 1,
       });
-      (usersService.findAuthById as jest.Mock).mockResolvedValue(mockUser);
-      (usersService.findActiveSessionById as jest.Mock).mockResolvedValue(mockSession);
-      (usersService.rotateSessionTokenVersion as jest.Mock).mockResolvedValue({
+      (sessionService.findAuthById as jest.Mock).mockResolvedValue(mockUser);
+      (sessionService.findActiveSessionById as jest.Mock).mockResolvedValue(mockSession);
+      (sessionService.rotateSessionTokenVersion as jest.Mock).mockResolvedValue({
         ...mockSession,
         tokenVersion: 2,
       });

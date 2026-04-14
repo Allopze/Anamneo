@@ -5,72 +5,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditAction, AuditReason, AuditResult } from '../common/types';
 import { getRequestId } from '../common/utils/request-context';
 import { inferAuditReason, inferAuditResult } from './audit-catalog';
-
-interface LogInput {
-  entityType: string;
-  entityId: string;
-  userId: string;
-  action: AuditAction;
-  reason?: AuditReason;
-  result?: AuditResult;
-  diff?: any;
-  requestId?: string;
-}
-
-const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const ISO_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
-const CLINICAL_ENTITY_TYPES = new Set([
-  'Patient',
-  'PatientHistory',
-  'Encounter',
-  'EncounterSection',
-  'PatientProblem',
-  'EncounterTask',
-]);
-const SAFE_CLINICAL_STRING_KEYS = new Set([
-  'id',
-  'patientId',
-  'encounterId',
-  'createdById',
-  'archivedById',
-  'reviewRequestedById',
-  'reviewedById',
-  'completedById',
-  'uploadedById',
-  'linkedOrderId',
-  'linkedOrderType',
-  'linkedOrderLabel',
-  'status',
-  'reviewStatus',
-  'sectionKey',
-  'scope',
-  'format',
-  'mime',
-  'category',
-  'type',
-  'priority',
-  'result',
-  'reason',
-  'createdAt',
-  'updatedAt',
-  'archivedAt',
-  'restoredAt',
-  'previousArchivedAt',
-  'reviewRequestedAt',
-  'reviewedAt',
-  'completedAt',
-  'dueDate',
-  'onsetDate',
- ]);
-const SENSITIVE_FIELDS = ['passwordHash', 'password', 'refreshToken', 'accessToken'];
+import { LogInput, sanitizeDiff, parseDateFilter } from './audit-helpers';
 
 @Injectable()
 export class AuditService {
   constructor(private prisma: PrismaService) {}
 
   async log(input: LogInput) {
-    // Remove sensitive data from diff
-    const sanitizedDiff = this.sanitizeDiff(input.entityType, input.diff);
+    const sanitizedDiff = sanitizeDiff(input.entityType, input.diff);
     const reason = input.reason ?? inferAuditReason(input.entityType, input.action, input.diff);
 
     if (reason === 'AUDIT_UNSPECIFIED') {
@@ -136,8 +78,8 @@ export class AuditService {
     if (filters?.requestId) where.requestId = { contains: filters.requestId.trim() };
     if (filters?.dateFrom || filters?.dateTo) {
       where.timestamp = {};
-      if (filters.dateFrom) where.timestamp.gte = this.parseDateFilter(filters.dateFrom, 'start');
-      if (filters.dateTo) where.timestamp.lte = this.parseDateFilter(filters.dateTo, 'end');
+      if (filters.dateFrom) where.timestamp.gte = parseDateFilter(filters.dateFrom, 'start');
+      if (filters.dateTo) where.timestamp.lte = parseDateFilter(filters.dateTo, 'end');
     }
 
     const [logs, total] = await Promise.all([
@@ -193,126 +135,6 @@ export class AuditService {
         totalPages: Math.ceil(total / limit),
       },
     };
-  }
-
-  private sanitizeDiff(entityType: string, diff: any): any {
-    if (!diff) return null;
-
-    const sanitized = JSON.parse(JSON.stringify(diff));
-    const shouldMinimizeClinicalPayload = CLINICAL_ENTITY_TYPES.has(entityType);
-
-    if (shouldMinimizeClinicalPayload) {
-      return this.minimizeClinicalDiff(entityType, sanitized);
-    }
-
-    const removeSensitive = (obj: any) => {
-      if (typeof obj !== 'object' || obj === null) return;
-
-      for (const key of SENSITIVE_FIELDS) {
-        if (key in obj) {
-          obj[key] = '[REDACTED]';
-        }
-      }
-
-      for (const value of Object.values(obj)) {
-        if (typeof value === 'object') {
-          removeSensitive(value);
-        }
-      }
-    };
-
-    removeSensitive(sanitized);
-    return sanitized;
-  }
-
-  private parseDateFilter(value: string, boundary: 'start' | 'end') {
-    if (DATE_ONLY_PATTERN.test(value)) {
-      const time = boundary === 'start' ? '00:00:00.000' : '23:59:59.999';
-      return new Date(`${value}T${time}Z`);
-    }
-
-    return new Date(value);
-  }
-
-  private minimizeClinicalDiff(entityType: string, diff: any) {
-    if (typeof diff !== 'object' || diff === null) {
-      return {
-        redacted: true,
-        entityType,
-        valueType: typeof diff,
-      };
-    }
-
-    const summarized = this.summarizeClinicalValue(diff, undefined);
-    if (typeof summarized !== 'object' || summarized === null || Array.isArray(summarized)) {
-      return {
-        redacted: true,
-        entityType,
-        summary: summarized,
-      };
-    }
-
-    return {
-      entityType,
-      ...summarized,
-    };
-  }
-
-  private summarizeClinicalValue(value: unknown, key?: string): unknown {
-    if (value === null || value === undefined) {
-      return null;
-    }
-
-    if (typeof value === 'string') {
-      if (key && this.shouldKeepClinicalStringValue(key, value)) {
-        return value;
-      }
-
-      return {
-        redacted: true,
-        length: value.length,
-      };
-    }
-
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      return value;
-    }
-
-    if (Array.isArray(value)) {
-      return {
-        redacted: true,
-        itemCount: value.length,
-      };
-    }
-
-    if (typeof value !== 'object') {
-      return {
-        redacted: true,
-        valueType: typeof value,
-      };
-    }
-
-    const summary: Record<string, unknown> = {
-      redacted: true,
-      fieldCount: Object.keys(value).length,
-    };
-
-    for (const [childKey, childValue] of Object.entries(value)) {
-      if (SENSITIVE_FIELDS.includes(childKey)) {
-        summary[childKey] = '[REDACTED]';
-        continue;
-      }
-
-      summary[childKey] = this.summarizeClinicalValue(childValue, childKey);
-    }
-
-    return summary;
-  }
-
-  private shouldKeepClinicalStringValue(key: string, value: string) {
-    return SAFE_CLINICAL_STRING_KEYS.has(key)
-      || DATE_ONLY_PATTERN.test(value)
-      || ISO_DATE_TIME_PATTERN.test(value);
   }
 
   async verifyChain(limit = 1000): Promise<{ valid: boolean; checked: number; total: number; brokenAt?: string; warning?: string }> {

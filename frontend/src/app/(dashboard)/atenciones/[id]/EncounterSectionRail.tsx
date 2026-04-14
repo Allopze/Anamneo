@@ -1,0 +1,342 @@
+import clsx from 'clsx';
+import {
+  FiCheck,
+  FiSlash,
+  FiChevronDown,
+  FiChevronsLeft,
+  FiChevronsRight,
+} from 'react-icons/fi';
+import type { Encounter, SectionKey } from '@/types';
+import type { EncounterWizardHook } from './useEncounterWizard';
+import {
+  RAIL_PANEL_CLASS,
+  SECTION_STATUS_META,
+  WORKSPACE_STICKY_OFFSET_CLASS,
+} from './encounter-wizard.constants';
+
+type Props = Pick<
+  EncounterWizardHook,
+  | 'sections'
+  | 'currentSectionIndex'
+  | 'railCollapsed'
+  | 'setRailCollapsed'
+  | 'railCompletedCollapsed'
+  | 'setRailCompletedCollapsed'
+  | 'getSectionUiState'
+  | 'moveToSection'
+>;
+
+export default function EncounterSectionRail({
+  sections,
+  currentSectionIndex,
+  railCollapsed,
+  setRailCollapsed,
+  railCompletedCollapsed,
+  setRailCompletedCollapsed,
+  getSectionUiState,
+  moveToSection,
+}: Props) {
+  const completedOrNACount = sections.filter((s) => s.completed || s.notApplicable).length;
+
+  return (
+    <aside className="hidden xl:block">
+      <div className={clsx('sticky', WORKSPACE_STICKY_OFFSET_CLASS)}>
+        <div className={clsx(RAIL_PANEL_CLASS, 'transition-all duration-200')}>
+          {/* Header — hidden when collapsed */}
+          {!railCollapsed && (
+            <div className="border-b border-surface-muted/35 px-5 py-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-ink">Secciones</h2>
+                <span className="text-xs font-medium text-ink-secondary">
+                  {completedOrNACount}/{sections.length}
+                </span>
+              </div>
+              <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-surface-muted/50">
+                <div
+                  className="h-full rounded-full bg-status-green transition-all duration-300"
+                  style={{ width: `${(completedOrNACount / sections.length) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+          {/* Collapsed mini-progress */}
+          {railCollapsed && (
+            <div className="px-2 pt-3 pb-1">
+              <div className="mx-auto h-1 w-full overflow-hidden rounded-full bg-surface-muted/50">
+                <div
+                  className="h-full rounded-full bg-status-green transition-all duration-300"
+                  style={{ width: `${(completedOrNACount / sections.length) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          <nav
+            className={clsx('flex flex-col gap-1 py-2', railCollapsed ? 'items-center px-1.5' : 'px-3')}
+            aria-label="Secciones de la atención"
+          >
+            {renderSectionItems({
+              sections,
+              currentSectionIndex,
+              railCollapsed,
+              railCompletedCollapsed,
+              setRailCompletedCollapsed,
+              getSectionUiState,
+              moveToSection,
+            })}
+          </nav>
+
+          {/* Rail collapse toggle */}
+          <div className={clsx('border-t border-surface-muted/35', railCollapsed ? 'px-1.5 py-2' : 'px-3 py-2')}>
+            <button
+              type="button"
+              onClick={() =>
+                setRailCollapsed((prev: boolean) => {
+                  const next = !prev;
+                  localStorage.setItem('anamneo:encounter-rail-collapsed', next ? '1' : '0');
+                  return next;
+                })
+              }
+              className="flex w-full items-center justify-center gap-2 rounded-card border border-transparent px-2 py-2 text-xs font-medium text-ink-secondary transition-colors hover:border-surface-muted/40 hover:bg-surface-base/45"
+              aria-label={railCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
+              title={railCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
+            >
+              {railCollapsed ? (
+                <FiChevronsRight className="h-4 w-4" />
+              ) : (
+                <>
+                  <FiChevronsLeft className="h-4 w-4" />
+                  <span>Colapsar</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+// ─── Internal helpers ──────────────────────────────────────────
+
+type SectionType = NonNullable<Encounter['sections']>[number];
+
+function renderSectionItems({
+  sections,
+  currentSectionIndex,
+  railCollapsed,
+  railCompletedCollapsed,
+  setRailCompletedCollapsed,
+  getSectionUiState,
+  moveToSection,
+}: {
+  sections: SectionType[];
+  currentSectionIndex: number;
+  railCollapsed: boolean;
+  railCompletedCollapsed: boolean;
+  setRailCompletedCollapsed: (fn: (v: boolean) => boolean) => void;
+  getSectionUiState: (s: SectionType) => keyof typeof SECTION_STATUS_META;
+  moveToSection: (i: number) => void;
+}) {
+  const doneCount = sections.filter(
+    (s, i) => (s.completed || s.notApplicable) && i !== currentSectionIndex,
+  ).length;
+  const shouldOfferCollapse = doneCount >= 3;
+  const collapsibleItems: React.ReactNode[] = [];
+  const fixedItems: (React.ReactNode | 'SLOT')[] = [];
+
+  sections.forEach((section, index) => {
+    const sectionState = getSectionUiState(section);
+    const sectionStatusMeta = SECTION_STATUS_META[sectionState];
+    const isActive = index === currentSectionIndex;
+    const isDone = section.completed || section.notApplicable;
+    const isCollapsible = isDone && !isActive && shouldOfferCollapse;
+
+    const node = railCollapsed ? (
+      <SectionDot
+        key={section.id}
+        section={section}
+        index={index}
+        isActive={isActive}
+        onClick={() => moveToSection(index)}
+      />
+    ) : (
+      <SectionRow
+        key={section.id}
+        section={section}
+        index={index}
+        isActive={isActive}
+        sectionStatusMeta={sectionStatusMeta}
+        onClick={() => moveToSection(index)}
+      />
+    );
+
+    if (isCollapsible) {
+      collapsibleItems.push(node);
+    } else {
+      if (collapsibleItems.length > 0 && fixedItems[fixedItems.length - 1] !== 'SLOT') {
+        fixedItems.push('SLOT');
+      }
+      fixedItems.push(node);
+    }
+  });
+
+  if (collapsibleItems.length > 0 && !fixedItems.includes('SLOT')) {
+    fixedItems.push('SLOT');
+  }
+
+  if (!shouldOfferCollapse || railCollapsed) {
+    return [...fixedItems, ...collapsibleItems];
+  }
+
+  return fixedItems.map((item, i) => {
+    if (item === 'SLOT') {
+      return (
+        <div key="collapsible-group">
+          <button
+            type="button"
+            onClick={() => setRailCompletedCollapsed((p: boolean) => !p)}
+            aria-expanded={!railCompletedCollapsed}
+            className="flex w-full items-center gap-2.5 rounded-card border border-transparent px-3 py-2 text-left text-xs font-medium text-ink-secondary transition-colors hover:border-surface-muted/40 hover:bg-surface-base/45"
+          >
+            <span className="flex size-7 items-center justify-center rounded-input border border-status-green/40 bg-status-green/14 text-status-green-text">
+              <FiCheck className="h-3 w-3" />
+            </span>
+            <span>{doneCount} completas</span>
+            <FiChevronDown
+              className={clsx(
+                'ml-auto h-3.5 w-3.5 transition-transform duration-200',
+                !railCompletedCollapsed && 'rotate-180',
+              )}
+            />
+          </button>
+          <div
+            className="grid transition-[grid-template-rows] duration-200 ease-out"
+            style={{ gridTemplateRows: railCompletedCollapsed ? '0fr' : '1fr' }}
+          >
+            <div className="overflow-hidden">
+              <div className="flex flex-col gap-1 pt-1">{collapsibleItems}</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return item;
+  });
+}
+
+function SectionDot({
+  section,
+  index,
+  isActive,
+  onClick,
+}: {
+  section: SectionType;
+  index: number;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={section.label}
+      className={clsx(
+        'flex size-9 items-center justify-center rounded-input border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20',
+        isActive
+          ? 'border-frame/15 bg-surface-base shadow-soft'
+          : 'border-transparent shadow-none hover:border-surface-muted/40 hover:bg-surface-base/45',
+      )}
+      aria-current={isActive ? 'step' : undefined}
+      aria-label={section.label}
+    >
+      <span
+        className={clsx(
+          'flex size-7 items-center justify-center rounded-input border text-[11px] font-semibold transition-colors duration-200',
+          isActive
+            ? 'border-status-yellow/70 bg-status-yellow text-accent-text'
+            : section.notApplicable
+              ? 'border-surface-muted/55 bg-surface-elevated text-ink-secondary'
+              : section.completed
+                ? 'border-status-green/40 bg-status-green/14 text-status-green-text'
+                : 'border-surface-muted/55 bg-surface-elevated text-ink-secondary',
+        )}
+      >
+        {section.notApplicable ? (
+          <FiSlash className="h-3.5 w-3.5" />
+        ) : section.completed ? (
+          <FiCheck className="h-3.5 w-3.5" />
+        ) : (
+          index + 1
+        )}
+      </span>
+    </button>
+  );
+}
+
+function SectionRow({
+  section,
+  index,
+  isActive,
+  sectionStatusMeta,
+  onClick,
+}: {
+  section: SectionType;
+  index: number;
+  isActive: boolean;
+  sectionStatusMeta: (typeof SECTION_STATUS_META)[keyof typeof SECTION_STATUS_META];
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={clsx(
+        'group grid w-full grid-cols-[28px_minmax(0,1fr)] items-start gap-2.5 rounded-card border px-3 py-2.5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20',
+        isActive
+          ? 'border-frame/15 bg-surface-base shadow-soft'
+          : 'border-transparent shadow-none hover:border-surface-muted/40 hover:bg-surface-base/45',
+      )}
+      aria-current={isActive ? 'step' : undefined}
+    >
+      <span
+        className={clsx(
+          'flex size-7 items-center justify-center rounded-input border text-[11px] font-semibold transition-colors duration-200',
+          isActive
+            ? 'border-status-yellow/70 bg-status-yellow text-accent-text'
+            : section.notApplicable
+              ? 'border-surface-muted/55 bg-surface-elevated text-ink-secondary'
+              : section.completed
+                ? 'border-status-green/40 bg-status-green/14 text-status-green-text'
+                : 'border-surface-muted/55 bg-surface-elevated text-ink-secondary',
+        )}
+      >
+        {section.notApplicable ? (
+          <FiSlash className="h-3.5 w-3.5" />
+        ) : section.completed ? (
+          <FiCheck className="h-3.5 w-3.5" />
+        ) : (
+          index + 1
+        )}
+      </span>
+
+      <span className="min-w-0">
+        <span className="block text-sm font-medium leading-snug text-ink">{section.label}</span>
+        {!(sectionStatusMeta as any).hidden && (
+          <span className={clsx('mt-1 flex items-center gap-2 text-xs', sectionStatusMeta.badgeClassName)}>
+            <span className={clsx('h-1.5 w-1.5 rounded-full', sectionStatusMeta.dotClassName)} />
+            {sectionStatusMeta.label}
+          </span>
+        )}
+        {section.notApplicable && section.notApplicableReason && (
+          <span
+            className="mt-0.5 block truncate text-[11px] text-ink-muted"
+            title={section.notApplicableReason}
+          >
+            {section.notApplicableReason}
+          </span>
+        )}
+      </span>
+    </button>
+  );
+}

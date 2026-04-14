@@ -3,55 +3,21 @@ import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'crypto';
 import * as nodemailer from 'nodemailer';
 import { SettingsService } from '../settings/settings.service';
-
-type InvitationRole = 'MEDICO' | 'ASISTENTE' | 'ADMIN';
-
-type InvitationEmailPayload = {
-  email: string;
-  role: InvitationRole;
-  token: string;
-  expiresAt: Date;
-  assignedMedicoName?: string | null;
-};
-
-type InvitationEmailResult = {
-  sent: boolean;
-  reason: string | null;
-  inviteUrl: string | null;
-  subject: string | null;
-};
-
-type MailSettingsOverrides = {
-  clinicName?: string | null;
-  appPublicUrl?: string | null;
-  smtpHost?: string | null;
-  smtpPort?: string | null;
-  smtpSecure?: boolean | null;
-  smtpUser?: string | null;
-  smtpPassword?: string | null;
-  smtpFromEmail?: string | null;
-  smtpFromName?: string | null;
-  invitationTemplateHtml?: string | null;
-  invitationSubject?: string | null;
-};
-
-type ResolvedMailSettings = {
-  clinicName: string;
-  appPublicUrl: string | null;
-  host: string | null;
-  port: number | null;
-  secure: boolean;
-  user: string | null;
-  password: string | null;
-  fromEmail: string | null;
-  fromName: string | null;
-  templateHtml: string | null;
-  subjectTemplate: string;
-  canSend: boolean;
-  misconfiguration: string | null;
-};
-
-const DEFAULT_INVITATION_SUBJECT = 'Invitacion a {{clinicName}}';
+import {
+  DEFAULT_INVITATION_SUBJECT,
+  pickValue,
+  parsePort,
+  parseBoolean,
+  normalizePublicUrl,
+  escapeHtml,
+  formatFromAddress,
+  buildLogoUrl,
+  renderTemplate,
+  type InvitationEmailPayload,
+  type InvitationEmailResult,
+  type MailSettingsOverrides,
+  type ResolvedMailSettings,
+} from './mail-helpers';
 
 @Injectable()
 export class MailService {
@@ -62,82 +28,6 @@ export class MailService {
     private readonly configService: ConfigService,
   ) {}
 
-  private pickValue(...values: Array<string | null | undefined>) {
-    for (const value of values) {
-      const normalized = value?.trim();
-      if (normalized) {
-        return normalized;
-      }
-    }
-
-    return null;
-  }
-
-  private parsePort(value: string | null) {
-    if (!value) {
-      return null;
-    }
-
-    const port = Number.parseInt(value, 10);
-    if (Number.isNaN(port) || port < 1 || port > 65535) {
-      return null;
-    }
-
-    return port;
-  }
-
-  private parseBoolean(value: string | boolean | null | undefined, fallback: boolean) {
-    if (typeof value === 'boolean') {
-      return value;
-    }
-
-    if (!value) {
-      return fallback;
-    }
-
-    return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
-  }
-
-  private normalizePublicUrl(value: string | null) {
-    if (!value) {
-      return null;
-    }
-
-    return value.replace(/\/+$/, '');
-  }
-
-  private escapeHtml(value: string) {
-    return value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  private formatFromAddress(fromEmail: string, fromName: string | null) {
-    if (!fromName) {
-      return fromEmail;
-    }
-
-    return `"${fromName.replace(/"/g, '\\"')}" <${fromEmail}>`;
-  }
-
-  private buildLogoUrl(appPublicUrl: string | null) {
-    if (!appPublicUrl) {
-      return null;
-    }
-
-    return `${appPublicUrl}/anamneo-logo.svg`;
-  }
-
-  private renderTemplate(template: string, replacements: Record<string, string>) {
-    return Object.entries(replacements).reduce(
-      (rendered, [key, value]) => rendered.split(`{{${key}}}`).join(value),
-      template,
-    );
-  }
-
   private buildDefaultInvitationHtml(
     clinicName: string,
     inviteUrl: string,
@@ -147,8 +37,8 @@ export class MailService {
     logoUrl: string | null,
   ) {
     const logoMarkup = logoUrl
-      ? `<img src="${this.escapeHtml(logoUrl)}" alt="${this.escapeHtml(clinicName)}" style="display:block; width:168px; max-width:100%; margin:0 auto 18px;" />`
-      : `<div style="display:inline-block; padding:10px 18px; border-radius:999px; background:#ccfbf1; color:#115e59; font-weight:700;">${this.escapeHtml(clinicName)}</div>`;
+      ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(clinicName)}" style="display:block; width:168px; max-width:100%; margin:0 auto 18px;" />`
+      : `<div style="display:inline-block; padding:10px 18px; border-radius:999px; background:#ccfbf1; color:#115e59; font-weight:700;">${escapeHtml(clinicName)}</div>`;
 
     return `
       <div style="font-family:Arial,sans-serif; background:#f8fafc; padding:24px; color:#0f172a;">
@@ -158,13 +48,13 @@ export class MailService {
             <p style="margin:0; color:#0f766e; font-size:13px; text-transform:uppercase; letter-spacing:0.16em;">Bienvenida</p>
           </div>
           <p style="margin:0 0 12px; color:#475569;">Hola,</p>
-          <h1 style="margin:0 0 16px; font-size:24px; line-height:1.3;">Invitacion a ${this.escapeHtml(clinicName)}</h1>
-          <p style="margin:0 0 12px; color:#475569;">Has sido invitado a la plataforma con perfil de <strong>${this.escapeHtml(roleLabel)}</strong>.</p>
+          <h1 style="margin:0 0 16px; font-size:24px; line-height:1.3;">Invitacion a ${escapeHtml(clinicName)}</h1>
+          <p style="margin:0 0 12px; color:#475569;">Has sido invitado a la plataforma con perfil de <strong>${escapeHtml(roleLabel)}</strong>.</p>
           ${assignedMedicoSection}
-          <p style="margin:0 0 20px; color:#475569;">La invitacion vence el <strong>${this.escapeHtml(expirationLabel)}</strong>.</p>
-          <a href="${this.escapeHtml(inviteUrl)}" style="display:inline-block; padding:12px 20px; border-radius:999px; background:#0f766e; color:#ffffff; text-decoration:none; font-weight:600;">Completar registro</a>
+          <p style="margin:0 0 20px; color:#475569;">La invitacion vence el <strong>${escapeHtml(expirationLabel)}</strong>.</p>
+          <a href="${escapeHtml(inviteUrl)}" style="display:inline-block; padding:12px 20px; border-radius:999px; background:#0f766e; color:#ffffff; text-decoration:none; font-weight:600;">Completar registro</a>
           <p style="margin:20px 0 0; color:#64748b; font-size:14px;">Si el boton no funciona, copia este enlace:</p>
-          <p style="margin:8px 0 0; color:#0f172a; font-size:14px; word-break:break-all;">${this.escapeHtml(inviteUrl)}</p>
+          <p style="margin:8px 0 0; color:#0f172a; font-size:14px; word-break:break-all;">${escapeHtml(inviteUrl)}</p>
         </div>
       </div>
     `;
@@ -172,58 +62,58 @@ export class MailService {
 
   private async resolveMailSettings(overrides: MailSettingsOverrides = {}): Promise<ResolvedMailSettings> {
     const settings = await this.settingsService.getAll();
-    const clinicName = this.pickValue(overrides.clinicName, settings['clinic.name'], 'Anamneo') ?? 'Anamneo';
-    const appPublicUrl = this.normalizePublicUrl(this.pickValue(
+    const clinicName = pickValue(overrides.clinicName, settings['clinic.name'], 'Anamneo') ?? 'Anamneo';
+    const appPublicUrl = normalizePublicUrl(pickValue(
       overrides.appPublicUrl,
       settings['app.publicUrl'],
       this.configService.get<string>('APP_PUBLIC_URL'),
       this.configService.get<string>('FRONTEND_PUBLIC_URL'),
     ));
-    const host = this.pickValue(
+    const host = pickValue(
       overrides.smtpHost,
       settings['smtp.host'],
       this.configService.get<string>('SMTP_HOST'),
     );
-    const port = this.parsePort(this.pickValue(
+    const port = parsePort(pickValue(
       overrides.smtpPort,
       settings['smtp.port'],
       this.configService.get<string>('SMTP_PORT'),
     ));
-    const secure = this.parseBoolean(
-      overrides.smtpSecure ?? this.pickValue(
+    const secure = parseBoolean(
+      overrides.smtpSecure ?? pickValue(
         settings['smtp.secure'],
         this.configService.get<string>('SMTP_SECURE'),
       ),
       port === 465,
     );
-    const user = this.pickValue(
+    const user = pickValue(
       overrides.smtpUser,
       settings['smtp.user'],
       this.configService.get<string>('SMTP_USER'),
     );
-    const password = this.pickValue(
+    const password = pickValue(
       overrides.smtpPassword,
       settings['smtp.password'],
       this.configService.get<string>('SMTP_PASSWORD'),
     );
-    const fromEmail = this.pickValue(
+    const fromEmail = pickValue(
       overrides.smtpFromEmail,
       settings['smtp.fromEmail'],
       this.configService.get<string>('SMTP_FROM_EMAIL'),
       settings['clinic.email'],
       user,
     );
-    const fromName = this.pickValue(
+    const fromName = pickValue(
       overrides.smtpFromName,
       settings['smtp.fromName'],
       this.configService.get<string>('SMTP_FROM_NAME'),
       clinicName,
     );
-    const templateHtml = this.pickValue(
+    const templateHtml = pickValue(
       overrides.invitationTemplateHtml,
       settings['email.invitationTemplateHtml'],
     );
-    const subjectTemplate = this.pickValue(
+    const subjectTemplate = pickValue(
       overrides.invitationSubject,
       settings['email.invitationSubject'],
       this.configService.get<string>('INVITATION_EMAIL_SUBJECT'),
@@ -302,14 +192,14 @@ export class MailService {
       ? `Medico asignado: ${payload.assignedMedicoName}`
       : null;
     const assignedMedicoSection = payload.assignedMedicoName
-      ? `<p style="margin:0 0 12px; color:#475569;">Medico asignado: <strong>${this.escapeHtml(payload.assignedMedicoName)}</strong></p>`
+      ? `<p style="margin:0 0 12px; color:#475569;">Medico asignado: <strong>${escapeHtml(payload.assignedMedicoName)}</strong></p>`
       : '';
     const expirationLabel = payload.expiresAt.toLocaleString('es-CL', {
       dateStyle: 'short',
       timeStyle: 'short',
     });
-    const logoUrl = this.buildLogoUrl(settings.appPublicUrl);
-    const subject = this.renderTemplate(
+    const logoUrl = buildLogoUrl(settings.appPublicUrl);
+    const subject = renderTemplate(
       options?.isTest ? `Prueba: ${settings.subjectTemplate}` : settings.subjectTemplate,
       {
         clinicName: settings.clinicName,
@@ -338,15 +228,15 @@ export class MailService {
       .join('\n');
 
     const htmlBody = settings.templateHtml
-      ? this.renderTemplate(settings.templateHtml, {
-          clinicName: this.escapeHtml(settings.clinicName),
-          recipientEmail: this.escapeHtml(payload.email),
-          inviteUrl: this.escapeHtml(inviteUrl),
-          roleLabel: this.escapeHtml(roleLabel),
-          expirationLabel: this.escapeHtml(expirationLabel),
-          assignedMedicoName: this.escapeHtml(payload.assignedMedicoName ?? ''),
+      ? renderTemplate(settings.templateHtml, {
+          clinicName: escapeHtml(settings.clinicName),
+          recipientEmail: escapeHtml(payload.email),
+          inviteUrl: escapeHtml(inviteUrl),
+          roleLabel: escapeHtml(roleLabel),
+          expirationLabel: escapeHtml(expirationLabel),
+          assignedMedicoName: escapeHtml(payload.assignedMedicoName ?? ''),
           assignedMedicoSection,
-          logoUrl: this.escapeHtml(logoUrl ?? ''),
+          logoUrl: escapeHtml(logoUrl ?? ''),
           year: String(new Date().getFullYear()),
         })
       : this.buildDefaultInvitationHtml(
@@ -360,7 +250,7 @@ export class MailService {
 
     try {
       await transporter.sendMail({
-        from: this.formatFromAddress(settings.fromEmail, settings.fromName),
+        from: formatFromAddress(settings.fromEmail, settings.fromName),
         to: payload.email,
         subject,
         text: textBody,

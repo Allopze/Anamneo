@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConditionsSimilarityService, SuggestionResult } from './conditions-similarity.service';
 import { CreateConditionDto } from './dto/create-condition.dto';
@@ -8,6 +8,14 @@ import { ChosenMode } from '../common/types';
 import { CurrentUserData } from '../common/decorators/current-user.decorator';
 import { CreateLocalConditionDto } from './dto/create-local-condition.dto';
 import { UpdateLocalConditionDto } from './dto/update-local-condition.dto';
+import {
+  normalizeConditionName,
+  sanitizeStringArray,
+  mergeUniqueStrings,
+  parseStringArray,
+  toConditionResponse,
+  getInstanceId,
+} from './conditions-helpers';
 
 @Injectable()
 export class ConditionsService {
@@ -16,43 +24,8 @@ export class ConditionsService {
     private similarityService: ConditionsSimilarityService,
   ) {}
 
-  private normalizeConditionName(name: string): string {
-    return name
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .toLowerCase();
-  }
-
-  private sanitizeStringArray(values?: string[]): string[] {
-    return (values || []).map((value) => value.trim()).filter(Boolean);
-  }
-
-  private mergeUniqueStrings(existing: string[], incoming: string[]): string[] {
-    const merged: string[] = [];
-    const seen = new Set<string>();
-
-    for (const value of [...existing, ...incoming]) {
-      const trimmedValue = value.trim();
-      if (!trimmedValue) {
-        continue;
-      }
-
-      const key = this.normalizeConditionName(trimmedValue);
-      if (seen.has(key)) {
-        continue;
-      }
-
-      seen.add(key);
-      merged.push(trimmedValue);
-    }
-
-    return merged;
-  }
-
   private async findLocalConditionDuplicates(instanceId: string, name: string, excludeId?: string) {
-    const normalizedName = this.normalizeConditionName(name);
+    const normalizedName = normalizeConditionName(name);
     const localConditions = await this.prisma.conditionCatalogLocal.findMany({
       where: { medicoId: instanceId },
       orderBy: [{ active: 'desc' }, { hidden: 'asc' }, { createdAt: 'asc' }],
@@ -63,7 +36,7 @@ export class ConditionsService {
         return false;
       }
 
-      return this.normalizeConditionName(condition.name) === normalizedName;
+      return normalizeConditionName(condition.name) === normalizedName;
     });
   }
 
@@ -82,47 +55,8 @@ export class ConditionsService {
     return condition;
   }
 
-  private parseStringArray(value: unknown): string[] {
-    if (!value) return [];
-    if (Array.isArray(value)) return value.filter(Boolean);
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  }
-
-  private getInstanceId(user: CurrentUserData): string {
-    if (!user) {
-      throw new ForbiddenException('Usuario no autenticado');
-    }
-    if (user.role === 'MEDICO') return user.id;
-    if (user.role === 'ASISTENTE' && user.medicoId) return user.medicoId;
-    throw new ForbiddenException('No tiene una instancia asignada');
-  }
-
-  private toConditionResponse(
-    condition: { id: string; name: string; synonyms?: unknown; tags?: unknown; active: boolean },
-    scope: 'GLOBAL' | 'LOCAL',
-    baseConditionId?: string | null,
-  ) {
-    return {
-      id: condition.id,
-      name: condition.name,
-      synonyms: this.parseStringArray(condition.synonyms),
-      tags: this.parseStringArray(condition.tags),
-      active: condition.active,
-      scope,
-      baseConditionId: baseConditionId ?? null,
-    };
-  }
-
   private async getMergedConditions(user: CurrentUserData, search?: string) {
-    const instanceId = this.getInstanceId(user);
+    const instanceId = getInstanceId(user);
     const searchLower = search?.trim().toLowerCase();
 
     const [globalConditions, localConditions] = await Promise.all([
@@ -147,7 +81,7 @@ export class ConditionsService {
       }
     }
 
-    const merged: ReturnType<ConditionsService['toConditionResponse']>[] = [];
+    const merged: ReturnType<typeof toConditionResponse>[] = [];
 
     for (const condition of globalConditions) {
       const local = localByBase.get(condition.id);
@@ -156,20 +90,20 @@ export class ConditionsService {
           continue;
         }
         merged.push(
-          this.toConditionResponse(
+          toConditionResponse(
             local,
             'LOCAL',
             condition.id,
           )
         );
       } else {
-        merged.push(this.toConditionResponse(condition, 'GLOBAL'));
+        merged.push(toConditionResponse(condition, 'GLOBAL'));
       }
     }
 
     for (const local of localOnly) {
       if (local.hidden || !local.active) continue;
-      merged.push(this.toConditionResponse(local, 'LOCAL'));
+      merged.push(toConditionResponse(local, 'LOCAL'));
     }
 
     const filtered = searchLower
@@ -186,7 +120,7 @@ export class ConditionsService {
         where,
         orderBy: { name: 'asc' },
       });
-      return conditions.map((condition) => this.toConditionResponse(condition, 'GLOBAL'));
+      return conditions.map((condition) => toConditionResponse(condition, 'GLOBAL'));
     }
 
     return this.getMergedConditions(user, search);
@@ -260,10 +194,10 @@ export class ConditionsService {
   }
 
   async createLocal(user: CurrentUserData, dto: CreateLocalConditionDto) {
-    const instanceId = this.getInstanceId(user);
+    const instanceId = getInstanceId(user);
     const trimmedName = dto.name?.trim();
-    const sanitizedSynonyms = this.sanitizeStringArray(dto.synonyms);
-    const sanitizedTags = this.sanitizeStringArray(dto.tags);
+    const sanitizedSynonyms = sanitizeStringArray(dto.synonyms);
+    const sanitizedTags = sanitizeStringArray(dto.tags);
 
     if (!trimmedName || trimmedName.length < 2) {
       throw new BadRequestException('El nombre debe tener al menos 2 caracteres');
@@ -295,14 +229,14 @@ export class ConditionsService {
             baseConditionId: dto.baseConditionId,
             name: trimmedName,
             synonyms: JSON.stringify(
-              this.mergeUniqueStrings(
-                this.parseStringArray(existingByName.synonyms),
+              mergeUniqueStrings(
+                parseStringArray(existingByName.synonyms),
                 sanitizedSynonyms,
               ),
             ),
             tags: JSON.stringify(
-              this.mergeUniqueStrings(
-                this.parseStringArray(existingByName.tags),
+              mergeUniqueStrings(
+                parseStringArray(existingByName.tags),
                 sanitizedTags,
               ),
             ),
@@ -312,7 +246,7 @@ export class ConditionsService {
         });
 
         return {
-          ...this.toConditionResponse(updated, 'LOCAL', dto.baseConditionId),
+          ...toConditionResponse(updated, 'LOCAL', dto.baseConditionId),
           deduplicatedByName: true,
         };
       }
@@ -342,7 +276,7 @@ export class ConditionsService {
         },
       });
 
-      return this.toConditionResponse(upserted, 'LOCAL', dto.baseConditionId);
+      return toConditionResponse(upserted, 'LOCAL', dto.baseConditionId);
     }
 
     if (existingByName) {
@@ -351,14 +285,14 @@ export class ConditionsService {
         data: {
           name: trimmedName,
           synonyms: JSON.stringify(
-            this.mergeUniqueStrings(
-              this.parseStringArray(existingByName.synonyms),
+            mergeUniqueStrings(
+              parseStringArray(existingByName.synonyms),
               sanitizedSynonyms,
             ),
           ),
           tags: JSON.stringify(
-            this.mergeUniqueStrings(
-              this.parseStringArray(existingByName.tags),
+            mergeUniqueStrings(
+              parseStringArray(existingByName.tags),
               sanitizedTags,
             ),
           ),
@@ -368,7 +302,7 @@ export class ConditionsService {
       });
 
       return {
-        ...this.toConditionResponse(updated, 'LOCAL', updated.baseConditionId ?? null),
+        ...toConditionResponse(updated, 'LOCAL', updated.baseConditionId ?? null),
         deduplicatedByName: true,
       };
     }
@@ -382,11 +316,11 @@ export class ConditionsService {
       },
     });
 
-    return this.toConditionResponse(created, 'LOCAL');
+    return toConditionResponse(created, 'LOCAL');
   }
 
   async updateLocal(user: CurrentUserData, id: string, dto: UpdateLocalConditionDto) {
-    const instanceId = this.getInstanceId(user);
+    const instanceId = getInstanceId(user);
     const existing = await this.prisma.conditionCatalogLocal.findFirst({
       where: { id, medicoId: instanceId },
     });
@@ -403,19 +337,19 @@ export class ConditionsService {
 
     const updateData: Record<string, unknown> = {};
     if (dto.name) updateData.name = dto.name.trim();
-    if (dto.synonyms) updateData.synonyms = JSON.stringify(this.sanitizeStringArray(dto.synonyms));
-    if (dto.tags) updateData.tags = JSON.stringify(this.sanitizeStringArray(dto.tags));
+    if (dto.synonyms) updateData.synonyms = JSON.stringify(sanitizeStringArray(dto.synonyms));
+    if (dto.tags) updateData.tags = JSON.stringify(sanitizeStringArray(dto.tags));
 
     const updated = await this.prisma.conditionCatalogLocal.update({
       where: { id },
       data: updateData,
     });
 
-    return this.toConditionResponse(updated, 'LOCAL', updated.baseConditionId ?? null);
+    return toConditionResponse(updated, 'LOCAL', updated.baseConditionId ?? null);
   }
 
   async removeLocal(user: CurrentUserData, id: string) {
-    const instanceId = this.getInstanceId(user);
+    const instanceId = getInstanceId(user);
     const existing = await this.prisma.conditionCatalogLocal.findFirst({
       where: { id, medicoId: instanceId },
     });
@@ -440,7 +374,7 @@ export class ConditionsService {
   }
 
   async hideBaseCondition(user: CurrentUserData, baseConditionId: string) {
-    const instanceId = this.getInstanceId(user);
+    const instanceId = getInstanceId(user);
     const base = await this.prisma.conditionCatalog.findUnique({
       where: { id: baseConditionId },
     });
@@ -557,7 +491,7 @@ export class ConditionsService {
     },
     user: CurrentUserData,
   ) {
-    const instanceId = this.getInstanceId(user);
+    const instanceId = getInstanceId(user);
     const encounter = await this.prisma.encounter.findFirst({
       where: {
         id: encounterId,

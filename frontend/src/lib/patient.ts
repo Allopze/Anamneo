@@ -76,6 +76,24 @@ export function formatPatientPrevision(prevision?: string | null) {
   return PREVISION_LABELS[prevision] || prevision;
 }
 
+export function formatPatientRut(
+  rut?: string | null,
+  rutExempt?: boolean | null,
+  rutExemptReason?: string | null,
+) {
+  const normalizedRut = typeof rut === 'string' ? rut.trim() : '';
+  if (normalizedRut) {
+    return normalizedRut;
+  }
+
+  const normalizedReason = typeof rutExemptReason === 'string' ? rutExemptReason.trim() : '';
+  if (rutExempt && normalizedReason) {
+    return `Sin RUT (${normalizedReason})`;
+  }
+
+  return 'Sin RUT';
+}
+
 export function formatPatientMissingFields(fields?: PatientDemographicMissingField[] | null) {
   return (fields || []).map((field) => PATIENT_DEMOGRAPHIC_FIELD_LABELS[field] || field);
 }

@@ -173,4 +173,36 @@ describe('FichaClinicaPage clinical-output block', () => {
     expect(screen.getAllByText(/pendiente de verificación médica/i)).toHaveLength(3);
     expect(screen.getByRole('link', { name: 'Revisar ficha administrativa' })).toHaveAttribute('href', '/pacientes/patient-1');
   });
+
+  it('disables official outputs when the encounter is not yet completed even if the patient is verified', async () => {
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/encounters/enc-1') {
+        return Promise.resolve({
+          data: {
+            ...encounterResponse,
+            status: 'EN_PROGRESO',
+            clinicalOutputBlock: null,
+            patient: {
+              ...encounterResponse.patient,
+              registrationMode: 'COMPLETO',
+              completenessStatus: 'VERIFICADA',
+              demographicsMissingFields: [],
+            },
+          },
+        });
+      }
+
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    render(<FichaClinicaPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Receta' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Órdenes' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Derivación' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Descargar PDF' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Imprimir' })).toBeDisabled();
+    expect(screen.getAllByText(/completada o firmada/i)).toHaveLength(2);
+  });
 });

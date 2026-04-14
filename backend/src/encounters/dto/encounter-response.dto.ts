@@ -59,11 +59,29 @@ export class EncounterSectionResponseDto {
   encounterId: string;
   sectionKey: string;
   completed: boolean;
+  notApplicable: boolean;
+  notApplicableReason: string | null;
   updatedAt: Date;
   data: any;
   schemaVersion?: number;
   label: string;
   order: number;
+}
+
+export class EncounterClinicalOutputBlockDto {
+  completenessStatus: string;
+  missingFields: string[];
+  blockedActions: string[];
+  reason: string;
+}
+
+export class EncounterIdentificationSnapshotStatusDto {
+  isSnapshot: boolean;
+  hasDifferences: boolean;
+  differingFields: string[];
+  differingFieldLabels: string[];
+  snapshotCreatedAt: Date;
+  sourcePatientUpdatedAt?: Date | null;
 }
 
 export class EncounterDetailPatientDto {
@@ -104,8 +122,8 @@ export class EncounterDetailResponseDto {
   createdAt: Date;
   updatedAt: Date;
   createdById: string;
-  clinicalOutputBlock: string | null;
-  identificationSnapshotStatus: string | null;
+  clinicalOutputBlock: EncounterClinicalOutputBlockDto | null;
+  identificationSnapshotStatus: EncounterIdentificationSnapshotStatusDto | null;
   createdBy?: UserRefDto;
   medico?: UserRefDto;
   reviewRequestedBy?: UserRefDto;
@@ -124,6 +142,8 @@ export class EncounterSectionUpdateResponseDto {
   encounterId: string;
   sectionKey: string;
   completed: boolean;
+  notApplicable: boolean;
+  notApplicableReason: string | null;
   updatedAt: Date;
   data: any;
   schemaVersion: number;

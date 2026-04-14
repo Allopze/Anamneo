@@ -10,6 +10,7 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { UsersInvitationService } from './users-invitation.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { CreateUserInvitationDto } from './dto/create-user-invitation.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -35,7 +36,10 @@ class ResetPasswordDto {
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard, AdminGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly invitationService: UsersInvitationService,
+  ) {}
 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
@@ -47,12 +51,12 @@ export class UsersController {
     @CurrentUser() user: CurrentUserData,
     @Body() dto: CreateUserInvitationDto,
   ) {
-    return this.usersService.createInvitation(user.id, dto);
+    return this.invitationService.createInvitation(user.id, dto);
   }
 
   @Get('invitations')
   findInvitations() {
-    return this.usersService.listInvitations();
+    return this.invitationService.listInvitations();
   }
 
   @Get()
@@ -79,7 +83,7 @@ export class UsersController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') actorUserId: string,
   ) {
-    return this.usersService.revokeInvitation(id, actorUserId);
+    return this.invitationService.revokeInvitation(id, actorUserId);
   }
 
   @Delete(':id')

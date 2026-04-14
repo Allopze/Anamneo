@@ -1,12 +1,13 @@
-import { Injectable, UnauthorizedException, ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import type { StringValue } from 'ms';
 import * as bcrypt from 'bcrypt';
-import * as QRCode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
+import { UsersSessionService } from '../users/users-session.service';
+import { UsersInvitationService } from '../users/users-invitation.service';
 import { AuditService } from '../audit/audit.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterWithInvitationDto } from './dto/register-with-invitation.dto';
@@ -46,6 +47,8 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private usersService: UsersService,
+    private sessionService: UsersSessionService,
+    private invitationService: UsersInvitationService,
     private jwtService: JwtService,
     private configService: ConfigService,
     private auditService: AuditService,
@@ -132,7 +135,7 @@ export class AuthService {
   }
 
   async getInvitationPreview(token: string) {
-    const invitation = await this.usersService.findInvitationByToken(token);
+    const invitation = await this.invitationService.findInvitationByToken(token);
 
     if (!invitation) {
       throw new ForbiddenException('La invitación es inválida o expiró');
@@ -160,14 +163,14 @@ export class AuthService {
     const hasAdmin = adminCount > 0;
     const invitationToken = registerDto.invitationToken?.trim();
 
-    let invitation: Awaited<ReturnType<UsersService['findInvitationByToken']>> | null = null;
+    let invitation: Awaited<ReturnType<UsersInvitationService['findInvitationByToken']>> | null = null;
 
     if (hasAdmin) {
       if (!invitationToken) {
         throw new ForbiddenException('El registro público está deshabilitado. Debe usar una invitación válida');
       }
 
-      invitation = await this.usersService.findInvitationByToken(invitationToken);
+      invitation = await this.invitationService.findInvitationByToken(invitationToken);
       if (!invitation) {
         throw new ForbiddenException('La invitación es inválida o expiró');
       }
@@ -210,7 +213,7 @@ export class AuthService {
     });
 
     if (invitation) {
-      await this.usersService.acceptInvitation(invitation.id);
+      await this.invitationService.acceptInvitation(invitation.id);
     }
 
     // Generate and return tokens
@@ -319,7 +322,7 @@ export class AuthService {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
 
-      const user = await this.usersService.findAuthById(payload.sub);
+      const user = await this.sessionService.findAuthById(payload.sub);
       if (!user || !user.active) {
         throw new UnauthorizedException('Usuario no encontrado o inactivo');
       }
@@ -332,7 +335,7 @@ export class AuthService {
         throw new UnauthorizedException('Token de refresco inválido');
       }
 
-      const session = await this.usersService.findActiveSessionById(payload.sid);
+      const session = await this.sessionService.findActiveSessionById(payload.sid);
       if (!session || session.userId !== user.id || session.tokenVersion !== payload.sv) {
         throw new UnauthorizedException('Token de refresco inválido');
       }
@@ -355,15 +358,15 @@ export class AuthService {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
 
-      const user = await this.usersService.findAuthById(payload.sub);
+      const user = await this.sessionService.findAuthById(payload.sub);
       if (!user || !user.active) {
         return;
       }
 
       if (typeof payload.sid === 'string') {
-        await this.usersService.revokeSessionById(payload.sid);
+        await this.sessionService.revokeSessionById(payload.sid);
       } else {
-        await this.usersService.rotateRefreshTokenVersion(user.id);
+        await this.sessionService.rotateRefreshTokenVersion(user.id);
       }
 
       // Audit logout
@@ -382,22 +385,22 @@ export class AuthService {
   }
 
   async revokeUserSessions(userId: string): Promise<void> {
-    await this.usersService.rotateRefreshTokenVersion(userId);
-    await this.usersService.revokeAllSessionsForUser(userId);
+    await this.sessionService.rotateRefreshTokenVersion(userId);
+    await this.sessionService.revokeAllSessionsForUser(userId);
   }
 
   private async issueTokens(
     user: { id: string; email: string; role: string },
     sessionContext?: SessionContext,
   ): Promise<AuthTokens> {
-    const authUser = await this.usersService.findAuthById(user.id);
+    const authUser = await this.sessionService.findAuthById(user.id);
     if (!authUser || !authUser.active) {
       throw new UnauthorizedException('Usuario no encontrado o inactivo');
     }
 
     const session = sessionContext?.sessionId
-      ? await this.usersService.rotateSessionTokenVersion(sessionContext.sessionId, sessionContext)
-      : await this.usersService.createSession(authUser.id, sessionContext);
+      ? await this.sessionService.rotateSessionTokenVersion(sessionContext.sessionId, sessionContext)
+      : await this.sessionService.createSession(authUser.id, sessionContext);
 
     if (!session || session.userId !== authUser.id) {
       throw new UnauthorizedException('Sesión inválida');
@@ -426,67 +429,6 @@ export class AuthService {
   }
 
   // ── 2FA / TOTP ──────────────────────────────────────────────────────
-
-  async setup2FA(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new UnauthorizedException('Usuario no encontrado');
-    if (user.totpEnabled) throw new BadRequestException('2FA ya está habilitado');
-
-    const secret = authenticator.generateSecret();
-    await this.prisma.user.update({ where: { id: userId }, data: { totpSecret: secret } });
-
-    const otpauthUrl = authenticator.keyuri(user.email, 'Anamneo', secret);
-    const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
-
-    return { secret, qrCodeDataUrl };
-  }
-
-  async enable2FA(userId: string, code: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !user.totpSecret) throw new BadRequestException('Primero debe configurar 2FA');
-    if (user.totpEnabled) throw new BadRequestException('2FA ya está habilitado');
-
-    const isValid = authenticator.verify({ token: code, secret: user.totpSecret });
-    if (!isValid) throw new BadRequestException('Código TOTP inválido');
-
-    await this.prisma.user.update({ where: { id: userId }, data: { totpEnabled: true } });
-
-    this.auditService.log({
-      entityType: 'Auth',
-      entityId: userId,
-      userId,
-      action: 'UPDATE',
-      reason: 'AUTH_2FA_ENABLED',
-      diff: { totpEnabled: true },
-    }).catch(() => {});
-
-    return { message: '2FA habilitado correctamente' };
-  }
-
-  async disable2FA(userId: string, password: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new UnauthorizedException('Usuario no encontrado');
-    if (!user.totpEnabled) throw new BadRequestException('2FA no está habilitado');
-
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isPasswordValid) throw new UnauthorizedException('Contraseña incorrecta');
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { totpEnabled: false, totpSecret: null },
-    });
-
-    this.auditService.log({
-      entityType: 'Auth',
-      entityId: userId,
-      userId,
-      action: 'UPDATE',
-      reason: 'AUTH_2FA_DISABLED',
-      diff: { totpEnabled: false },
-    }).catch(() => {});
-
-    return { message: '2FA deshabilitado correctamente' };
-  }
 
   async verify2FALogin(tempToken: string, code: string, sessionContext?: SessionContext): Promise<AuthTokens> {
     let payload: { sub: string; purpose: string; jti?: string };

@@ -3,9 +3,6 @@ import { UsersService } from './users.service';
 
 describe('UsersService', () => {
   let service: UsersService;
-  let mailService: {
-    sendInvitationEmail: jest.Mock;
-  };
   let auditService: {
     log: jest.Mock;
   };
@@ -26,15 +23,11 @@ describe('UsersService', () => {
       },
     };
 
-    mailService = {
-      sendInvitationEmail: jest.fn(),
-    };
-
     auditService = {
       log: jest.fn(),
     };
 
-    service = new UsersService(prisma as any, mailService as any, auditService as any);
+    service = new UsersService(prisma as any, auditService as any);
   });
 
   describe('update', () => {

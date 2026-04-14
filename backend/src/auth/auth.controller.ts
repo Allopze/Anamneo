@@ -2,6 +2,7 @@ import { Controller, Post, Body, HttpCode, HttpStatus, Get, Patch, UseGuards, Re
 import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
+import { AuthTotpService } from './auth-totp.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterWithInvitationDto } from './dto/register-with-invitation.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -32,6 +33,7 @@ export class AuthController {
 
   constructor(
     private authService: AuthService,
+    private authTotpService: AuthTotpService,
     private usersService: UsersService,
     private configService: ConfigService,
   ) {
@@ -169,21 +171,21 @@ export class AuthController {
   @Post('2fa/setup')
   @UseGuards(JwtAuthGuard)
   async setup2FA(@CurrentUser() user: CurrentUserData) {
-    return this.authService.setup2FA(user.id);
+    return this.authTotpService.setup2FA(user.id);
   }
 
   @Post('2fa/enable')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async enable2FA(@CurrentUser() user: CurrentUserData, @Body() dto: VerifyTotpDto) {
-    return this.authService.enable2FA(user.id, dto.code);
+    return this.authTotpService.enable2FA(user.id, dto.code);
   }
 
   @Post('2fa/disable')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async disable2FA(@CurrentUser() user: CurrentUserData, @Body() dto: DisableTotpDto) {
-    return this.authService.disable2FA(user.id, dto.password);
+    return this.authTotpService.disable2FA(user.id, dto.password);
   }
 
   @Post('2fa/verify')

@@ -2,27 +2,19 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
-import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
-import { parseStoredJson } from '../common/utils/encounter-sections';
 import { buildPatientProblemScopeWhere, isPatientOwnedByMedico } from '../common/utils/patient-access';
+import { assertEncounterClinicalOutputAllowed } from '../common/utils/patient-completeness';
 import * as PDFDocument from 'pdfkit';
-
-const PDF_LOCALE = 'es-CL';
-const PDF_TIME_ZONE = 'America/Santiago';
-
-const SEXO_MAP: Record<string, string> = {
-  MASCULINO: 'Masculino',
-  FEMENINO: 'Femenino',
-  OTRO: 'Otro',
-  PREFIERE_NO_DECIR: 'Prefiere no decir',
-};
-
-const PREVISION_MAP: Record<string, string> = {
-  FONASA: 'FONASA',
-  ISAPRE: 'ISAPRE',
-  OTRA: 'Otra',
-  DESCONOCIDA: 'Desconocida',
-};
+import {
+  SEXO_MAP,
+  PREVISION_MAP,
+  formatRutDisplay,
+  formatSospechaDiagnosticaLabel,
+  buildSectionsMap,
+  getTreatmentPlanText,
+  formatHistoryFieldText,
+  formatDateTime,
+} from './patients-pdf-helpers';
 
 @Injectable()
 export class PatientsPdfService {
@@ -66,6 +58,8 @@ export class PatientsPdfService {
       }
     }
 
+    assertEncounterClinicalOutputAllowed(patient, 'EXPORT_OFFICIAL_DOCUMENTS');
+
     const encounters = await this.prisma.encounter.findMany({
       where: {
         patientId,
@@ -106,7 +100,7 @@ export class PatientsPdfService {
         doc
           .fontSize(10)
           .font('Helvetica')
-          .text(`Generado: ${this.formatDateTime(new Date())}`, { align: 'center' });
+          .text(`Generado: ${formatDateTime(new Date())}`, { align: 'center' });
         doc.moveDown(0.5);
         doc
           .moveTo(doc.x, doc.y)
@@ -118,7 +112,7 @@ export class PatientsPdfService {
         // ── Demographics ──
         sectionTitle('IDENTIFICACIÓN DEL PACIENTE');
         field('Nombre', patient.nombre);
-        field('RUT', patient.rut || 'Sin RUT');
+        field('RUT', formatRutDisplay(patient));
         field(
           'Edad',
           patient.edad ? `${patient.edad} años${patient.edadMeses ? ` ${patient.edadMeses} meses` : ''}` : undefined,
@@ -148,7 +142,7 @@ export class PatientsPdfService {
           ];
           let hasAny = false;
           for (const [label, key] of historyFields) {
-            const text = this.formatHistoryFieldText((history as any)[key]);
+            const text = formatHistoryFieldText((history as any)[key]);
             if (text) {
               field(label, text);
               hasAny = true;
@@ -180,14 +174,14 @@ export class PatientsPdfService {
         } else {
           for (let i = 0; i < encounters.length; i++) {
             const enc = encounters[i];
-            const sectionsMap = this.buildSectionsMap(enc.sections);
+            const sectionsMap = buildSectionsMap(enc.sections);
 
             if (doc.y > doc.page.height - 150) doc.addPage();
 
             doc
               .fontSize(13)
               .font('Helvetica-Bold')
-              .text(`ATENCIÓN ${i + 1} — ${this.formatDateTime(enc.createdAt)}`);
+              .text(`ATENCIÓN ${i + 1} — ${formatDateTime(enc.createdAt)}`);
             doc
               .fontSize(9)
               .font('Helvetica')
@@ -210,12 +204,14 @@ export class PatientsPdfService {
             const sosp = sectionsMap['SOSPECHA_DIAGNOSTICA'] || {};
             if (sosp.sospechas?.length > 0) {
               doc.font('Helvetica-Bold').text('Sospecha diagnóstica: ', { continued: true });
-              doc.font('Helvetica').text(sosp.sospechas.map((s: any) => s.diagnostico).join(', '));
+              doc
+                .font('Helvetica')
+                .text(sosp.sospechas.map((s: any) => formatSospechaDiagnosticaLabel(s)).join(', '));
             }
 
             // Treatment summary
             const trat = sectionsMap['TRATAMIENTO'] || {};
-            const plan = this.getTreatmentPlanText(trat);
+            const plan = getTreatmentPlanText(trat);
             if (plan) {
               field('Plan', plan);
             }
@@ -258,68 +254,6 @@ export class PatientsPdfService {
     });
 
     return pdfBuffer;
-  }
-
-  private buildSectionsMap(sections: Array<{ sectionKey: string; data: any; schemaVersion?: number | null }>) {
-    const result: Record<string, any> = {};
-    for (const section of sections) {
-      const normalized = formatEncounterSectionForRead(section);
-      result[section.sectionKey] = normalized.data || {};
-    }
-    return result;
-  }
-
-  private getTreatmentPlanText(trat: Record<string, any>) {
-    const plan = typeof trat.plan === 'string' ? trat.plan.trim() : '';
-    const indicaciones = typeof trat.indicaciones === 'string' ? trat.indicaciones.trim() : '';
-    if (!plan) return indicaciones;
-    if (!indicaciones || indicaciones === plan) return plan;
-    return `${plan}\n${indicaciones}`;
-  }
-
-  private formatHistoryFieldText(value: unknown) {
-    const parsed = parseStoredJson(value, value);
-    if (!parsed) {
-      return '';
-    }
-
-    if (typeof parsed === 'string') {
-      return parsed.trim();
-    }
-
-    if (typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return '';
-    }
-
-    const record = parsed as Record<string, unknown>;
-    const items = Array.isArray(record.items)
-      ? record.items
-          .filter((item): item is string => typeof item === 'string')
-          .map((item) => item.trim())
-          .filter(Boolean)
-      : [];
-    const text = typeof record.texto === 'string' ? record.texto.trim() : '';
-
-    if (!items.length) {
-      return text;
-    }
-
-    if (!text) {
-      return items.join(', ');
-    }
-
-    return `${items.join(', ')}. ${text}`;
-  }
-
-  private formatDateTime(value: string | Date) {
-    return new Intl.DateTimeFormat(PDF_LOCALE, {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: PDF_TIME_ZONE,
-    }).format(new Date(value));
   }
 
   private async buildDocumentBuffer(

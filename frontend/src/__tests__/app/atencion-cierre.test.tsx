@@ -5,7 +5,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import EncounterWizardPage from '@/app/(dashboard)/atenciones/[id]/page';
 import toast from 'react-hot-toast';
-import type { User } from '@/stores/auth-store';
+import { authStoreState, encounterResponse } from './atencion-cierre.fixtures';
 
 const pushMock = jest.fn();
 const replaceMock = jest.fn();
@@ -13,129 +13,10 @@ const apiGetMock = jest.fn();
 const apiPostMock = jest.fn();
 const apiPutMock = jest.fn();
 const apiDeleteMock = jest.fn();
-
-const authStoreState: {
-  user: User | null;
-  isMedico: () => boolean;
-  canEditAntecedentes: () => boolean;
-} = {
-  user: {
-    id: 'med-1',
-    email: 'medico@anamneo.cl',
-    nombre: 'Dra. Rivera',
-    role: 'MEDICO',
-    isAdmin: false,
-    medicoId: null,
-  },
-  isMedico: () => true,
-  canEditAntecedentes: () => true,
-};
-
-const encounterResponse = {
-  id: 'enc-1',
-  patientId: 'patient-1',
-  createdById: 'med-1',
-  status: 'EN_PROGRESO',
-  reviewStatus: 'NO_REQUIERE_REVISION',
-  reviewRequestedAt: null,
-  reviewNote: null,
-  reviewedAt: null,
-  completedAt: null,
-  closureNote: null,
-  createdAt: '2026-04-08T12:00:00.000Z',
-  updatedAt: '2026-04-08T12:00:00.000Z',
-  patient: {
-    id: 'patient-1',
-    rut: '11.111.111-1',
-    rutExempt: false,
-    rutExemptReason: null,
-    nombre: 'Paciente Demo',
-    edad: 44,
-    sexo: 'FEMENINO',
-    trabajo: null,
-    prevision: 'FONASA',
-    domicilio: null,
-    createdAt: '2026-04-08T12:00:00.000Z',
-    updatedAt: '2026-04-08T12:00:00.000Z',
-  },
-  createdBy: {
-    id: 'med-1',
-    nombre: 'Dra. Rivera',
-  },
-  completedBy: null,
-  reviewedBy: null,
-  reviewRequestedBy: null,
-  tasks: [],
-  sections: [
-    {
-      id: 'sec-1',
-      encounterId: 'enc-1',
-      sectionKey: 'IDENTIFICACION',
-      schemaVersion: 1,
-      label: 'Identificación',
-      order: 0,
-      data: {
-        nombre: 'Paciente Demo',
-        rut: '11.111.111-1',
-        rutExempt: false,
-      },
-      completed: true,
-      updatedAt: '2026-04-08T12:00:00.000Z',
-    },
-    {
-      id: 'sec-2',
-      encounterId: 'enc-1',
-      sectionKey: 'MOTIVO_CONSULTA',
-      schemaVersion: 1,
-      label: 'Motivo de Consulta',
-      order: 1,
-      data: {
-        texto: 'Consulta por cefalea persistente.',
-      },
-      completed: true,
-      updatedAt: '2026-04-08T12:00:00.000Z',
-    },
-    {
-      id: 'sec-3',
-      encounterId: 'enc-1',
-      sectionKey: 'EXAMEN_FISICO',
-      schemaVersion: 1,
-      label: 'Examen Físico',
-      order: 2,
-      data: {
-        peso: 70,
-      },
-      completed: true,
-      updatedAt: '2026-04-08T12:00:00.000Z',
-    },
-    {
-      id: 'sec-4',
-      encounterId: 'enc-1',
-      sectionKey: 'SOSPECHA_DIAGNOSTICA',
-      schemaVersion: 1,
-      label: 'Sospecha Diagnóstica',
-      order: 3,
-      data: {
-        diagnosticos: [{ label: 'Migraña', principal: true }],
-      },
-      completed: true,
-      updatedAt: '2026-04-08T12:00:00.000Z',
-    },
-    {
-      id: 'sec-5',
-      encounterId: 'enc-1',
-      sectionKey: 'TRATAMIENTO',
-      schemaVersion: 1,
-      label: 'Tratamiento',
-      order: 4,
-      data: {
-        plan: 'Manejo analgésico y control en 48 horas.',
-      },
-      completed: true,
-      updatedAt: '2026-04-08T12:00:00.000Z',
-    },
-  ],
-};
+const enqueueSaveMock = jest.fn();
+const getPendingSavesForUserMock = jest.fn();
+const removePendingSaveMock = jest.fn();
+const countPendingSavesForUserMock = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({ id: 'enc-1' }),
@@ -162,6 +43,14 @@ jest.mock('@/lib/api', () => ({
     delete: (...args: any[]) => apiDeleteMock(...args),
   },
   getErrorMessage: (error: any) => error?.message || 'Error desconocido',
+}));
+
+jest.mock('@/lib/offline-queue', () => ({
+  enqueueSave: (...args: any[]) => enqueueSaveMock(...args),
+  getPendingSavesForUser: (...args: any[]) => getPendingSavesForUserMock(...args),
+  removePendingSave: (...args: any[]) => removePendingSaveMock(...args),
+  countPendingSavesForUser: (...args: any[]) => countPendingSavesForUserMock(...args),
+  isNetworkError: (error: any) => error?.code === 'ERR_NETWORK' || !error?.response,
 }));
 
 jest.mock('@/lib/encounter-draft', () => ({
@@ -219,6 +108,10 @@ function createWrapper() {
 describe('EncounterWizardPage closing workflow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    enqueueSaveMock.mockResolvedValue(undefined);
+    getPendingSavesForUserMock.mockResolvedValue([]);
+    removePendingSaveMock.mockResolvedValue(undefined);
+    countPendingSavesForUserMock.mockResolvedValue(0);
 
     apiGetMock.mockImplementation((url: string) => {
       if (url === '/encounters/enc-1') {
@@ -344,15 +237,22 @@ describe('EncounterWizardPage closing workflow', () => {
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Notas rápidas' }));
+    await user.click(screen.getAllByRole('button', { name: 'Apoyo' })[0]);
+    await user.click(screen.getAllByRole('button', { name: 'Notas rápidas internas' })[0]);
     await user.type(screen.getByPlaceholderText('Notas internas rápidas...'), 'Observación interna');
-    await user.click(screen.getByRole('button', { name: 'Guardar y cerrar' }));
+    await user.click(screen.getByTitle('Guardar y cerrar'));
 
     await waitFor(() => {
-      expect(apiPutMock).toHaveBeenCalledWith('/encounters/enc-1/sections/OBSERVACIONES', {
-        data: { notasInternas: 'Observación interna' },
-        completed: undefined,
-      });
+      expect(apiPutMock).toHaveBeenCalledWith(
+        '/encounters/enc-1/sections/OBSERVACIONES',
+        expect.objectContaining({
+          data: {
+            observaciones: '',
+            notasInternas: 'Observación interna',
+          },
+          completed: undefined,
+        }),
+      );
     });
 
     await waitFor(() => {
@@ -363,5 +263,35 @@ describe('EncounterWizardPage closing workflow', () => {
     });
 
     expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('Error al guardar'));
+  });
+
+  it('keeps notApplicable fields when a not-applicable save falls back to the offline queue', async () => {
+    const user = userEvent.setup();
+
+    apiPutMock.mockRejectedValueOnce({ code: 'ERR_NETWORK' });
+    countPendingSavesForUserMock.mockResolvedValueOnce(1);
+
+    render(<EncounterWizardPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole('button', { name: /Observaciones/i })[0]);
+    expect(await screen.findByRole('heading', { name: 'Observaciones' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'No aplica' }));
+    await user.type(screen.getByPlaceholderText(/Paciente pediátrico/i), 'No corresponde para este seguimiento.');
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+
+    await waitFor(() => {
+      expect(enqueueSaveMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          encounterId: 'enc-1',
+          sectionKey: 'OBSERVACIONES',
+          completed: true,
+          notApplicable: true,
+          notApplicableReason: 'No corresponde para este seguimiento.',
+          userId: 'med-1',
+        }),
+      );
+    });
   });
 });

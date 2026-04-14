@@ -1,63 +1,30 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import * as PDFDocument from 'pdfkit';
-import * as path from 'path';
 import {
   assertEncounterClinicalOutputAllowed,
-  getPatientDemographicsMissingFields,
 } from '../common/utils/patient-completeness';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
-
-const SEXO_MAP: Record<string, string> = {
-  MASCULINO: 'Masculino',
-  FEMENINO: 'Femenino',
-  OTRO: 'Otro',
-  PREFIERE_NO_DECIR: 'Prefiere no decir',
-};
-
-const PREVISION_MAP: Record<string, string> = {
-  FONASA: 'FONASA',
-  ISAPRE: 'ISAPRE',
-  OTRA: 'Otra',
-  DESCONOCIDA: 'Desconocida',
-};
-
-const ESTADO_GENERAL_MAP: Record<string, string> = {
-  BUEN_ESTADO: 'Buen estado general',
-  REGULAR_ESTADO: 'Regular estado general',
-  MAL_ESTADO: 'Mal estado general',
-};
-
-const STATUS_MAP: Record<string, string> = {
-  EN_PROGRESO: 'En progreso',
-  COMPLETADO: 'Completado',
-  FIRMADO: 'Firmado',
-  CANCELADO: 'Cancelado',
-};
-
-const REVIEW_STATUS_MAP: Record<string, string> = {
-  NO_REQUIERE_REVISION: 'Sin revision pendiente',
-  LISTA_PARA_REVISION: 'Pendiente de revision medica',
-  REVISADA_POR_MEDICO: 'Revisada por medico',
-};
-
-const IDENTIFICATION_SNAPSHOT_FIELD_META = [
-  { key: 'nombre', label: 'nombre' },
-  { key: 'rut', label: 'RUT' },
-  { key: 'rutExempt', label: 'exención de RUT' },
-  { key: 'rutExemptReason', label: 'motivo de exención' },
-  { key: 'edad', label: 'edad' },
-  { key: 'edadMeses', label: 'edad (meses)' },
-  { key: 'sexo', label: 'sexo' },
-  { key: 'prevision', label: 'previsión' },
-  { key: 'trabajo', label: 'trabajo' },
-  { key: 'domicilio', label: 'domicilio' },
-] as const;
-
-const PDF_LOCALE = 'es-CL';
-const PDF_TIME_ZONE = 'America/Santiago';
+import {
+  SEXO_MAP,
+  PREVISION_MAP,
+  ESTADO_GENERAL_MAP,
+  STATUS_MAP,
+  REVIEW_STATUS_MAP,
+  ANAMNESIS_REMOTA_FIELD_LABELS,
+  buildEncounterDocumentFilename,
+  formatEncounterDateTime,
+  formatRutDisplay,
+  formatSospechaDiagnosticaLabel,
+  getIdentificationDifferenceLabels,
+  getTreatmentPlanText,
+  formatHistoryFieldText,
+  formatRevisionSystemEntries,
+  getRutDisplayData,
+  getPatientDemographicsMissingFields,
+} from './encounters-pdf.helpers';
 
 @Injectable()
 export class EncountersPdfService {
@@ -66,7 +33,7 @@ export class EncountersPdfService {
     private readonly auditService: AuditService,
   ) {}
 
-  private async loadEncounterForPdf(encounterId: string, user: RequestUser) {
+  private async loadEncounterForPdf(encounterId: string, user: RequestUser, requireCompletedStatus = true) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
 
     const encounter = await this.prisma.encounter.findFirst({
@@ -87,6 +54,14 @@ export class EncountersPdfService {
 
     assertEncounterClinicalOutputAllowed(encounter.patient, 'EXPORT_OFFICIAL_DOCUMENTS');
 
+    if (requireCompletedStatus) {
+      if (encounter.status !== 'COMPLETADO' && encounter.status !== 'FIRMADO') {
+        throw new BadRequestException(
+          'Solo se pueden emitir documentos clínicos oficiales desde atenciones completadas o firmadas',
+        );
+      }
+    }
+
     return encounter;
   }
 
@@ -100,93 +75,9 @@ export class EncountersPdfService {
     return sectionsMap;
   }
 
-  private buildIdentificationSnapshotFromPatient(patient: any) {
-    return {
-      nombre: patient?.nombre ?? '',
-      rut: patient?.rut ?? '',
-      rutExempt: Boolean(patient?.rutExempt),
-      rutExemptReason: patient?.rutExemptReason ?? '',
-      edad: patient?.edad ?? '',
-      edadMeses: patient?.edadMeses ?? null,
-      sexo: patient?.sexo ?? '',
-      prevision: patient?.prevision ?? '',
-      trabajo: patient?.trabajo ?? '',
-      domicilio: patient?.domicilio ?? '',
-    };
-  }
-
-  private normalizeIdentificationComparisonValue(value: unknown) {
-    if (value === null || value === undefined) {
-      return '';
-    }
-
-    if (typeof value === 'string') {
-      return value.trim();
-    }
-
-    if (typeof value === 'boolean') {
-      return value ? 'true' : 'false';
-    }
-
-    if (typeof value === 'number') {
-      return Number.isFinite(value) ? String(value) : '';
-    }
-
-    return JSON.stringify(value, Object.keys(value as Record<string, unknown>).sort());
-  }
-
-  private getIdentificationDifferenceLabels(encounter: any, ident: Record<string, unknown>) {
-    const patientSnapshot = this.buildIdentificationSnapshotFromPatient(encounter.patient);
-
-    return IDENTIFICATION_SNAPSHOT_FIELD_META
-      .filter(({ key }) => (
-        this.normalizeIdentificationComparisonValue(ident[key]) !== this.normalizeIdentificationComparisonValue(patientSnapshot[key])
-      ))
-      .map(({ label }) => label);
-  }
-
-  private formatEncounterDateTime(value: string | Date) {
-    return new Intl.DateTimeFormat(PDF_LOCALE, {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: PDF_TIME_ZONE,
-    }).format(new Date(value));
-  }
-
-  private formatEncounterDateOnly(value: string | Date) {
-    return new Intl.DateTimeFormat(PDF_LOCALE, {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      timeZone: PDF_TIME_ZONE,
-    }).format(new Date(value)).replace(/\//g, '-');
-  }
-
-  private sanitizeFilenameSegment(value: string | undefined | null) {
-    const normalized = (value || 'Paciente')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9 ]+/g, ' ')
-      .trim();
-
-    return path.basename(normalized || 'paciente');
-  }
-
-  private buildEncounterDocumentFilename(encounter: any, prefix: string) {
-    const patientName = this.sanitizeFilenameSegment(encounter?.patient?.nombre);
-    const encounterDate = this.formatEncounterDateOnly(encounter?.createdAt || new Date());
-    if (prefix === 'ficha_clinica') {
-      return `${patientName} - ${encounterDate}.pdf`;
-    }
-    return `${patientName} - ${prefix} - ${encounterDate}.pdf`;
-  }
-
   async getPdfFilename(encounterId: string, user: RequestUser) {
     const encounter = await this.loadEncounterForPdf(encounterId, user);
-    return this.buildEncounterDocumentFilename(encounter, 'ficha_clinica');
+    return buildEncounterDocumentFilename(encounter, 'ficha_clinica');
   }
 
   async getFocusedPdfFilename(
@@ -194,79 +85,8 @@ export class EncountersPdfService {
     kind: 'receta' | 'ordenes' | 'derivacion',
     user: RequestUser,
   ) {
-    const encounter = await this.loadEncounterForPdf(encounterId, user);
-    return this.buildEncounterDocumentFilename(encounter, kind);
-  }
-
-  private getTreatmentPlanText(trat: Record<string, any>) {
-    const plan = typeof trat.plan === 'string' ? trat.plan.trim() : '';
-    const indicaciones = typeof trat.indicaciones === 'string' ? trat.indicaciones.trim() : '';
-
-    if (!plan) {
-      return indicaciones;
-    }
-
-    if (!indicaciones || indicaciones === plan) {
-      return plan;
-    }
-
-    return `${plan}\n\nIndicaciones adicionales:\n${indicaciones}`;
-  }
-
-  private formatHistoryFieldText(value: unknown) {
-    if (!value) {
-      return '';
-    }
-
-    if (typeof value === 'string') {
-      return value.trim();
-    }
-
-    if (typeof value !== 'object' || Array.isArray(value)) {
-      return '';
-    }
-
-    const record = value as Record<string, unknown>;
-    const items = Array.isArray(record.items)
-      ? record.items
-          .filter((item): item is string => typeof item === 'string')
-          .map((item) => item.trim())
-          .filter(Boolean)
-      : [];
-    const text = typeof record.texto === 'string' ? record.texto.trim() : '';
-
-    if (!items.length) {
-      return text;
-    }
-
-    if (!text) {
-      return items.join(', ');
-    }
-
-    return `${items.join(', ')}. ${text}`;
-  }
-
-  private formatRevisionSystemEntries(revision: Record<string, any>) {
-    return Object.entries(revision || {})
-      .map(([key, value]) => {
-        if (!value || typeof value !== 'object') {
-          return null;
-        }
-
-        const checked = Boolean((value as { checked?: boolean }).checked);
-        const rawNotes = (value as { notas?: string }).notas;
-        const notes = typeof rawNotes === 'string' ? rawNotes.trim() : '';
-
-        if (!checked && !notes) {
-          return null;
-        }
-
-        return {
-          label: key.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase()),
-          text: notes || 'Sin hallazgos descritos',
-        };
-      })
-      .filter((entry): entry is { label: string; text: string } => entry !== null);
+    const encounter = await this.loadEncounterForPdf(encounterId, user, false);
+    return buildEncounterDocumentFilename(encounter, kind);
   }
 
   private async buildDocumentBuffer(
@@ -334,7 +154,7 @@ export class EncountersPdfService {
         .fontSize(10)
         .font('Helvetica')
         .text(
-          `Fecha: ${this.formatEncounterDateTime(encounter.createdAt)}`,
+          `Fecha: ${formatEncounterDateTime(encounter.createdAt)}`,
           { align: 'center' },
         );
       doc.moveDown(0.5);
@@ -379,11 +199,11 @@ export class EncountersPdfService {
 
       // ── 1. Identificación ──
       const ident = sectionsMap['IDENTIFICACION'] || {};
-      const identificationDifferences = this.getIdentificationDifferenceLabels(encounter, ident);
+      const identificationDifferences = getIdentificationDifferenceLabels(encounter, ident);
       const identificationMissingFields = getPatientDemographicsMissingFields(ident);
       sectionTitle(1, 'IDENTIFICACIÓN DEL PACIENTE');
       field('Nombre', ident.nombre || encounter.patient.nombre);
-      field('RUT', ident.rut || encounter.patient.rut || 'Sin RUT');
+      field('RUT', formatRutDisplay(getRutDisplayData(ident, encounter.patient)));
       field('Edad', ident.edad ? `${ident.edad} años${ident.edadMeses ? ` ${ident.edadMeses} meses` : ''}` : undefined);
       field('Sexo', SEXO_MAP[ident.sexo] || ident.sexo);
       field('Previsión', PREVISION_MAP[ident.prevision] || ident.prevision);
@@ -441,20 +261,8 @@ export class EncountersPdfService {
       // ── 4. Anamnesis remota ──
       const anRem = sectionsMap['ANAMNESIS_REMOTA'] || {};
       sectionTitle(4, 'ANAMNESIS REMOTA');
-      const remoteFields: [string, string][] = [
-        ['Antecedentes médicos', 'antecedentesMedicos'],
-        ['Antecedentes quirúrgicos', 'antecedentesQuirurgicos'],
-        ['Antecedentes ginecoobstétricos', 'antecedentesGinecoobstetricos'],
-        ['Antecedentes familiares', 'antecedentesFamiliares'],
-        ['Hábitos', 'habitos'],
-        ['Medicamentos', 'medicamentos'],
-        ['Alergias', 'alergias'],
-        ['Inmunizaciones', 'inmunizaciones'],
-        ['Antecedentes sociales', 'antecedentesSociales'],
-        ['Antecedentes personales', 'antecedentesPersonales'],
-      ];
-      for (const [label, key] of remoteFields) {
-        const text = this.formatHistoryFieldText(anRem[key]);
+      for (const [label, key] of ANAMNESIS_REMOTA_FIELD_LABELS) {
+        const text = formatHistoryFieldText(anRem[key]);
         if (text) field(label, text);
       }
       doc.moveDown(0.5);
@@ -462,7 +270,7 @@ export class EncountersPdfService {
       // ── 5. Revisión por sistemas ──
       const revSis = sectionsMap['REVISION_SISTEMAS'] || {};
       sectionTitle(5, 'REVISIÓN POR SISTEMAS');
-      const revEntries = this.formatRevisionSystemEntries(revSis);
+      const revEntries = formatRevisionSystemEntries(revSis);
       if (revEntries.length > 0) {
         for (const entry of revEntries) {
           field(entry.label, entry.text);
@@ -512,7 +320,7 @@ export class EncountersPdfService {
         sosp.sospechas.forEach((s: any, i: number) => {
           doc
             .font('Helvetica-Bold')
-            .text(`${i + 1}. ${s.diagnostico}`, { continued: !!s.notas });
+            .text(`${i + 1}. ${formatSospechaDiagnosticaLabel(s)}`, { continued: !!s.notas });
           if (s.notas) {
             doc.font('Helvetica').text(` - ${s.notas}`);
           } else {
@@ -526,7 +334,7 @@ export class EncountersPdfService {
 
       // ── 8. Tratamiento ──
       const trat = sectionsMap['TRATAMIENTO'] || {};
-      const treatmentPlan = this.getTreatmentPlanText(trat);
+      const treatmentPlan = getTreatmentPlanText(trat);
       sectionTitle(8, 'TRATAMIENTO');
       field('Plan de tratamiento e indicaciones', treatmentPlan);
       field('Receta', trat.receta);
@@ -644,7 +452,7 @@ export class EncountersPdfService {
     kind: 'receta' | 'ordenes' | 'derivacion',
     user: RequestUser,
   ): Promise<Buffer> {
-    const encounter = await this.loadEncounterForPdf(encounterId, user);
+    const encounter = await this.loadEncounterForPdf(encounterId, user, false);
     const sectionsMap = this.buildSectionsMap(encounter.sections);
     const ident = sectionsMap['IDENTIFICACION'] || {};
     const trat = sectionsMap['TRATAMIENTO'] || {};
@@ -653,7 +461,7 @@ export class EncountersPdfService {
       ordenes: 'ORDEN DE EXAMENES',
       derivacion: 'INTERCONSULTA / DERIVACION',
     } as const;
-    const treatmentPlan = this.getTreatmentPlanText(trat);
+    const treatmentPlan = getTreatmentPlanText(trat);
 
     const pdfBuffer = await this.buildDocumentBuffer(
       `${titleMap[kind]} - ${encounter.patient.nombre}`,
@@ -667,12 +475,12 @@ export class EncountersPdfService {
 
         doc.fontSize(18).font('Helvetica-Bold').text(titleMap[kind], { align: 'center' });
         doc.fontSize(10).font('Helvetica').text(
-          `Fecha: ${this.formatEncounterDateTime(encounter.createdAt)}`,
+          `Fecha: ${formatEncounterDateTime(encounter.createdAt)}`,
           { align: 'center' },
         );
         doc.moveDown(1);
         field('Paciente', ident.nombre || encounter.patient.nombre);
-        field('RUT', ident.rut || encounter.patient.rut || 'Sin RUT');
+        field('RUT', formatRutDisplay(getRutDisplayData(ident, encounter.patient)));
         field('Edad', ident.edad ? `${ident.edad} años` : undefined);
         field('Profesional', encounter.createdBy?.nombre || '-');
         doc.moveDown(1);

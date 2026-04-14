@@ -5,102 +5,19 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api, getErrorMessage, PaginatedResponse } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
-import { FiChevronLeft, FiChevronRight, FiFilter, FiShield, FiX } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiFilter, FiShield } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-
-interface AuditLogEntry {
-  id: string;
-  entityType: string;
-  entityId: string;
-  userId: string;
-  requestId?: string | null;
-  action: string;
-  reason?: string | null;
-  result: string;
-  diff: string | null;
-  timestamp: string;
-}
-
-interface AdminUserRow {
-  id: string;
-  nombre: string;
-  email: string;
-}
-
-const ACTION_LABELS: Record<string, { label: string; color: string }> = {
-  CREATE: { label: 'Creación', color: 'bg-green-100 text-green-700' },
-  UPDATE: { label: 'Actualización', color: 'border border-status-yellow/60 bg-status-yellow/30 text-accent-text' },
-  DELETE: { label: 'Eliminación', color: 'bg-status-red/20 text-status-red' },
-  EXPORT: { label: 'Exportación', color: 'bg-sky-100 text-sky-700' },
-  DOWNLOAD: { label: 'Descarga', color: 'bg-amber-100 text-amber-700' },
-  PASSWORD_CHANGED: { label: 'Cambio de contraseña', color: 'bg-orange-100 text-orange-700' },
-  LOGIN: { label: 'Inicio de sesión', color: 'bg-emerald-100 text-emerald-700' },
-  LOGOUT: { label: 'Cierre de sesión', color: 'bg-slate-200 text-slate-700' },
-  LOGIN_FAILED: { label: 'Login fallido', color: 'bg-rose-100 text-rose-700' },
-};
-
-const ENTITY_LABELS: Record<string, string> = {
-  Patient: 'Paciente',
-  Encounter: 'Atención',
-  EncounterSection: 'Sección',
-  User: 'Usuario',
-  ConditionCatalog: 'Catálogo',
-  ConditionCatalogLocal: 'Catálogo local',
-  Attachment: 'Adjunto',
-  UserInvitation: 'Invitación',
-  PatientExport: 'Exportación pacientes',
-  Auth: 'Autenticación',
-  Setting: 'Configuración',
-};
-
-const RESULT_LABELS: Record<string, { label: string; color: string }> = {
-  SUCCESS: { label: 'Exitoso', color: 'bg-green-100 text-green-700' },
-  REJECTED: { label: 'Rechazado', color: 'bg-amber-100 text-amber-700' },
-  ERROR: { label: 'Error', color: 'bg-status-red/20 text-status-red' },
-};
-
-const REASON_LABELS: Record<string, string> = {
-  AUTH_LOGIN: 'Login',
-  AUTH_LOGOUT: 'Logout',
-  AUTH_LOGIN_REJECTED: 'Login rechazado',
-  AUTH_2FA_ENABLED: '2FA activado',
-  AUTH_2FA_DISABLED: '2FA desactivado',
-  PATIENT_CREATED: 'Alta de paciente',
-  PATIENT_UPDATED: 'Actualización de paciente',
-  PATIENT_ADMIN_UPDATED: 'Actualización administrativa',
-  PATIENT_HISTORY_UPDATED: 'Historial maestro',
-  PATIENT_PROBLEM_CREATED: 'Alta de problema',
-  PATIENT_PROBLEM_UPDATED: 'Actualización de problema',
-  PATIENT_TASK_CREATED: 'Alta de seguimiento',
-  PATIENT_TASK_UPDATED: 'Actualización de seguimiento',
-  PATIENT_ARCHIVED: 'Archivo de paciente',
-  PATIENT_RESTORED: 'Restauración de paciente',
-  PATIENT_EXPORT_CSV: 'Exportación de pacientes',
-  ENCOUNTER_CREATED: 'Creación de atención',
-  ENCOUNTER_SECTION_UPDATED: 'Actualización de sección',
-  ENCOUNTER_COMPLETED: 'Cierre de atención',
-  ENCOUNTER_SIGNED: 'Firma de atención',
-  ENCOUNTER_REOPENED: 'Reapertura de atención',
-  ENCOUNTER_CANCELLED: 'Cancelación de atención',
-  ENCOUNTER_REVIEW_STATUS_UPDATED: 'Cambio de revisión',
-  ENCOUNTER_DOCUMENT_EXPORTED: 'Exportación documental',
-  ATTACHMENT_UPLOADED: 'Carga de adjunto',
-  ATTACHMENT_DOWNLOADED: 'Descarga de adjunto',
-  ATTACHMENT_DELETED: 'Borrado de adjunto',
-  CONSENT_GRANTED: 'Consentimiento otorgado',
-  CONSENT_REVOKED: 'Consentimiento revocado',
-  USER_INVITATION_CREATED: 'Creación de invitación',
-  USER_INVITATION_REVOKED: 'Revocación de invitación',
-  USER_UPDATED: 'Actualización de usuario',
-  USER_DEACTIVATED: 'Desactivación de usuario',
-  USER_PROFILE_UPDATED: 'Actualización de perfil',
-  USER_PASSWORD_CHANGED: 'Cambio de contraseña',
-  USER_PASSWORD_RESET: 'Reset de contraseña',
-  SETTINGS_UPDATED: 'Actualización de ajustes',
-  AUDIT_UNSPECIFIED: 'Sin clasificar',
-};
+import {
+  ACTION_LABELS,
+  ENTITY_LABELS,
+  REASON_LABELS,
+  RESULT_LABELS,
+  type AdminUserRow,
+  type AuditLogEntry,
+} from './auditoria.constants';
+import AuditDetailModal from './AuditDetailModal';
 
 export default function AuditoriaPage() {
   const router = useRouter();
@@ -157,15 +74,6 @@ export default function AuditoriaPage() {
   const pagination = data?.pagination;
 
   if (!isAdmin()) return null;
-
-  const selectedLogDiff = (() => {
-    if (!selectedLog?.diff) return null;
-    try {
-      return JSON.stringify(JSON.parse(selectedLog.diff), null, 2);
-    } catch {
-      return selectedLog.diff;
-    }
-  })();
 
   return (
     <div className="animate-fade-in">
@@ -460,61 +368,11 @@ export default function AuditoriaPage() {
       </div>
 
       {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-ink-primary/50" onClick={() => setSelectedLog(null)} />
-          <div className="relative w-full max-w-3xl rounded-2xl border border-surface-muted/30 bg-surface-elevated shadow-xl">
-            <div className="flex items-start justify-between gap-3 border-b border-surface-muted/30 p-5">
-              <div>
-                <h2 className="text-lg font-bold text-ink">Detalle de auditoría</h2>
-                <p className="text-sm text-ink-muted">
-                  {ENTITY_LABELS[selectedLog.entityType] || selectedLog.entityType} ·{' '}
-                  {ACTION_LABELS[selectedLog.action]?.label || selectedLog.action}
-                </p>
-              </div>
-              <button className="btn btn-secondary" onClick={() => setSelectedLog(null)}>
-                <FiX className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="grid gap-4 p-5 md:grid-cols-2">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-ink-muted">Usuario</p>
-                <p className="text-sm text-ink-secondary">
-                  {usersMap.get(selectedLog.userId)?.nombre || selectedLog.userId}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-ink-muted">Fecha</p>
-                <p className="text-sm text-ink-secondary">
-                  {format(new Date(selectedLog.timestamp), "dd MMM yyyy HH:mm:ss", { locale: es })}
-                </p>
-              </div>
-              <div className="md:col-span-2">
-                <p className="text-xs uppercase tracking-wide text-ink-muted">Request ID</p>
-                <p className="text-sm font-mono text-ink-secondary">
-                  {selectedLog.requestId || 'No disponible'}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-ink-muted">Motivo</p>
-                <p className="text-sm text-ink-secondary">
-                  {REASON_LABELS[selectedLog.reason || 'AUDIT_UNSPECIFIED'] || selectedLog.reason || 'Sin clasificar'}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-ink-muted">Resultado</p>
-                <p className="text-sm text-ink-secondary">
-                  {(RESULT_LABELS[selectedLog.result] || RESULT_LABELS.SUCCESS).label}
-                </p>
-              </div>
-              <div className="md:col-span-2">
-                <p className="text-xs uppercase tracking-wide text-ink-muted">Diff redactado</p>
-                <pre className="mt-2 max-h-[24rem] overflow-auto rounded-card border border-surface-muted/30 bg-surface-inset/40 p-4 text-xs text-ink-secondary">
-                  {selectedLogDiff || 'Sin diff disponible'}
-                </pre>
-              </div>
-            </div>
-          </div>
-        </div>
+        <AuditDetailModal
+          log={selectedLog}
+          usersMap={usersMap}
+          onClose={() => setSelectedLog(null)}
+        />
       )}
     </div>
   );

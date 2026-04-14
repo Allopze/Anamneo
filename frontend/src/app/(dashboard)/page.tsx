@@ -7,103 +7,26 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import clsx from 'clsx';
 import {
-  FiActivity,
-  FiAlertTriangle,
   FiChevronRight,
   FiClipboard,
   FiClock,
   FiFileText,
   FiPlus,
-  FiSettings,
   FiUsers,
-  FiX,
 } from 'react-icons/fi';
 import { api } from '@/lib/api';
 import { formatDateOnly } from '@/lib/date';
 import { getFirstName } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
-import { PatientTask, STATUS_LABELS, TASK_TYPE_LABELS } from '@/types';
-
-interface DashboardData {
-  counts: {
-    enProgreso: number;
-    completado: number;
-    cancelado: number;
-    total: number;
-    pendingReview: number;
-    upcomingTasks: number;
-    overdueTasks: number;
-    patientIncomplete: number;
-    patientPendingVerification: number;
-    patientVerified: number;
-    patientNonVerified: number;
-  };
-  recent: Array<{
-    id: string;
-    patientId: string;
-    patientName: string;
-    patientRut: string | null;
-    createdByName: string;
-    status: string;
-    createdAt: string;
-    updatedAt: string;
-    progress: { completed: number; total: number };
-  }>;
-  upcomingTasks: PatientTask[];
-}
-
-const sectionAnimation = (delay: number) => ({
-  animationDelay: `${delay}ms`,
-  animationFillMode: 'both' as const,
-});
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Buenos días';
-  if (hour < 19) return 'Buenas tardes';
-  return 'Buenas noches';
-}
-
-/* ────────────────────────────────────────────────────────────── */
-/*  Admin quick-access cards                                      */
-/* ────────────────────────────────────────────────────────────── */
-
-const ADMIN_CARDS = [
-  {
-    href: '/admin/usuarios',
-    label: 'Gestión de usuarios',
-    description: 'Invitar, editar roles y recuperar accesos.',
-    icon: FiUsers,
-  },
-  {
-    href: '/admin/auditoria',
-    label: 'Auditoría',
-    description: 'Revisar trazabilidad y exportes del sistema.',
-    icon: FiActivity,
-  },
-  {
-    href: '/pacientes',
-    label: 'Padrón de pacientes',
-    description: 'Consultar el registro administrativo y exportar CSV.',
-    icon: FiClipboard,
-  },
-  {
-    href: '/catalogo',
-    label: 'Catálogo clínico',
-    description: 'Mantener diagnósticos y sinónimos globales.',
-    icon: FiFileText,
-  },
-  {
-    href: '/ajustes',
-    label: 'Ajustes del sistema',
-    description: 'Configurar correo, plantillas e identidad del centro.',
-    icon: FiSettings,
-  },
-];
-
-/* ────────────────────────────────────────────────────────────── */
-/*  Main component                                                */
-/* ────────────────────────────────────────────────────────────── */
+import { TASK_TYPE_LABELS } from '@/types';
+import {
+  ADMIN_CARDS,
+  type DashboardData,
+  getGreeting,
+  sectionAnimation,
+} from './dashboard.constants';
+import OverdueAlertSection from './OverdueAlertSection';
+import RecentActivitySection from './RecentActivitySection';
 
 export default function DashboardPage() {
   const { user, canCreateEncounter, canCreatePatient } = useAuthStore();
@@ -307,52 +230,11 @@ export default function DashboardPage() {
 
       {/* ── Overdue tasks alert ───────────────────────────── */}
       {showOverdueAlert && (
-        <section
-          className="animate-fade-in overflow-hidden rounded-card border border-status-red/30 bg-status-red/8 shadow-soft"
-          style={sectionAnimation(40)}
-          role="alert"
-        >
-          <div className="flex items-start gap-4 px-5 py-4 sm:px-6">
-            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-status-red/20 text-status-red">
-              <FiAlertTriangle className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base font-bold text-ink">
-                {overdueCount === 1 ? 'Tienes 1 tarea atrasada' : `Tienes ${overdueCount} tareas atrasadas`}
-              </h2>
-              <div className="mt-2 space-y-1">
-                {overdueTasks.slice(0, 4).map((task) => (
-                  <Link
-                    key={task.id}
-                    href={`/pacientes/${task.patient?.id ?? task.patientId}`}
-                    className="flex items-center gap-2 text-sm text-ink-secondary transition-colors hover:text-ink"
-                  >
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-status-red" />
-                    <span className="truncate font-medium">{task.title}</span>
-                    <span className="shrink-0 text-ink-muted">· {task.patient?.nombre ?? 'Paciente'}</span>
-                  </Link>
-                ))}
-                {overdueCount > 4 && (
-                  <p className="text-sm text-ink-muted">y {overdueCount - 4} más…</p>
-                )}
-              </div>
-              <Link
-                href="/seguimientos?overdueOnly=true"
-                className="mt-3 inline-flex text-sm font-bold text-status-red-text transition-colors hover:text-status-red"
-              >
-                Ver todas las tareas atrasadas
-                <FiChevronRight className="ml-1 mt-0.5 h-3.5 w-3.5" />
-              </Link>
-            </div>
-            <button
-              onClick={dismissOverdueAlert}
-              className="rounded-input p-2 text-ink-muted transition-colors hover:bg-surface-base/65 hover:text-ink-secondary"
-              aria-label="Descartar alerta"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
-          </div>
-        </section>
+        <OverdueAlertSection
+          overdueCount={overdueCount}
+          overdueTasks={overdueTasks}
+          onDismiss={dismissOverdueAlert}
+        />
       )}
 
       {/* ── Bottom grid: In-progress + Upcoming tasks ─────── */}
@@ -488,74 +370,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Actividad reciente — full width */}
-        <section
-          className="animate-fade-in overflow-hidden rounded-card bg-surface-elevated shadow-soft xl:col-span-2"
-          style={sectionAnimation(220)}
-        >
-          <div className="flex flex-col gap-3 border-b border-surface-muted/30 px-5 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-6">
-            <div>
-              <h2 className="text-lg font-bold tracking-tight text-ink">Actividad reciente</h2>
-              <p className="mt-1 text-sm text-ink-secondary">Últimas atenciones registradas con estado y avance.</p>
-            </div>
-            <Link href="/atenciones" className="text-sm font-bold text-ink-secondary transition-colors hover:text-ink">
-              Ir al historial
-            </Link>
-          </div>
-
-          {isLoading ? (
-            <div className="space-y-3 px-5 py-5 sm:px-6">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 rounded-2xl skeleton" />
-              ))}
-            </div>
-          ) : recentEncounters.length > 0 ? (
-            <div className="divide-y divide-surface-muted/30">
-              {recentEncounters.map((encounter) => (
-                <Link
-                  key={encounter.id}
-                  href={`/atenciones/${encounter.id}`}
-                  className="group grid gap-3 px-5 py-4 transition-colors hover:bg-surface-inset/40 sm:px-6 lg:grid-cols-[minmax(0,1.2fr)_180px_140px_32px] lg:items-center"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={clsx(
-                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
-                          encounter.status === 'COMPLETADO'
-                            ? 'bg-status-green/18 text-status-green-text'
-                            : encounter.status === 'EN_PROGRESO'
-                              ? 'bg-accent/20 text-accent-text'
-                              : 'bg-surface-muted/30 text-ink-secondary'
-                        )}
-                      >
-                        <FiFileText className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-ink">{encounter.patientName}</p>
-                        <p className="mt-1 truncate text-sm text-ink-secondary">
-                          {encounter.patientRut || 'Sin RUT'} · {encounter.createdByName}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-sm">
-                    <p className="font-bold text-ink">{STATUS_LABELS[encounter.status]}</p>
-                    <p className="mt-1 text-ink-secondary">{format(new Date(encounter.updatedAt), "d MMM, HH:mm", { locale: es })}</p>
-                  </div>
-                  <div className="text-sm">
-                    <p className="font-medium text-ink">{encounter.progress.completed}/{encounter.progress.total}</p>
-                    <p className="mt-1 text-ink-secondary">secciones</p>
-                  </div>
-                  <FiChevronRight className="hidden h-4 w-4 shrink-0 text-ink-muted transition-colors group-hover:text-ink lg:block" />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="px-5 py-8 sm:px-6">
-              <p className="text-sm text-ink-secondary">No hay atenciones recientes para mostrar.</p>
-            </div>
-          )}
-        </section>
+        <RecentActivitySection encounters={recentEncounters} isLoading={isLoading} />
       </div>
     </div>
   );
