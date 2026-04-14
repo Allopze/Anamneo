@@ -40,7 +40,7 @@ interface DashboardSidebarProps {
   onSearchActiveIndexChange: (index: number) => void;
   onSearchClose: () => void;
   onLogout: () => void;
-  searchInputRef: React.RefObject<HTMLInputElement | null>;
+  searchInputRef: React.Ref<HTMLInputElement>;
 }
 
 export default function DashboardSidebar({

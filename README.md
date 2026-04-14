@@ -75,6 +75,8 @@ docker compose exec backend npm run prisma:migrate:prod
 docker compose exec backend npm run prisma:seed
 ```
 
+El `docker-compose.yml` de este repo publica backend y frontend en loopback por defecto. Eso tambien es intencional: para uso internet-facing este producto esta pensado para publicarse detras de Cloudflare Tunnel con `cloudflared`, apuntando al frontend local y manteniendo `/api` same-origin.
+
 La guia completa esta en [docs/deployment-and-release.md](docs/deployment-and-release.md).
 
 ## Flujo diario de desarrollo
@@ -116,6 +118,7 @@ Si quieres el mapa tecnico de verdad, no el resumen para humanos cansados, ve a:
 ## Notas operativas honestas
 
 - El frontend habla con `/api` same-origin y Next.js reescribe al backend. Forzar llamadas directas desde el navegador suele romper cookies y luego aparecen teorias conspirativas sobre la autenticacion.
+- En produccion, el despliegue esperado es `Docker Compose + cloudflared`; no exponer `:5678` a internet y no abrir `:5555` directo salvo que realmente sepas por que estas rompiendo el modelo soportado.
 - SQLite en produccion esta soportado solo con habilitacion explicita. Funciona, pero exige disciplina operativa; no es un amuleto.
 - El script de release empaqueta una entrega reproducible en `releases/`, pero hoy no genera tags ni changelog aunque el optimismo corporativo a veces sugiera lo contrario.
 - La rotacion de secretos SMTP esta documentada en [docs/settings-key-rotation-runbook.md](docs/settings-key-rotation-runbook.md).

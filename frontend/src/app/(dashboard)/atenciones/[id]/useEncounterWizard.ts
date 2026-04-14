@@ -366,6 +366,7 @@ export function useEncounterWizard() {
     mutationFn: (attachmentId: string) => api.delete(`/attachments/${attachmentId}`),
     onSuccess: () => {
       toast.success('Archivo eliminado');
+      setShowDeleteAttachment(null);
       queryClient.invalidateQueries({ queryKey: ['attachments', id] });
     },
     onError: (err) => toast.error(getErrorMessage(err)),
@@ -835,6 +836,17 @@ export function useEncounterWizard() {
     localStorage.setItem('anamneo:encounter-drawer-open', '1');
   }, []);
 
+  const generatedSummary = useMemo(() => {
+    if (!encounter) return '';
+    return buildGeneratedClinicalSummary({
+      ...encounter,
+      sections: sections.map((section) => ({
+        ...section,
+        data: formData[section.sectionKey] ?? section.data,
+      })),
+    } as Encounter);
+  }, [encounter, formData, sections]);
+
   const handleSaveGeneratedSummary = useCallback(() => {
     const existing = formData.OBSERVACIONES || {};
     const updatedData = { ...existing, resumenClinico: generatedSummary };
@@ -909,16 +921,6 @@ export function useEncounterWizard() {
     [attachments],
   );
   const supportsTemplates = Boolean(currentSection && TEMPLATE_FIELD_BY_SECTION[currentSection.sectionKey]);
-  const generatedSummary = useMemo(() => {
-    if (!encounter) return '';
-    return buildGeneratedClinicalSummary({
-      ...encounter,
-      sections: sections.map((section) => ({
-        ...section,
-        data: formData[section.sectionKey] ?? section.data,
-      })),
-    } as Encounter);
-  }, [encounter, formData, sections]);
 
   const savedSnapshot = useMemo(() => {
     try {

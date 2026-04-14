@@ -48,7 +48,6 @@ export function usePatientDetail() {
   const canCreateEncounterAllowed = canCreateEncounter();
   const isDoctor = isMedico();
 
-  // Queries
   const { data: patient, isLoading, error } = useQuery({
     queryKey: ['patient', id],
     queryFn: async () => {
@@ -90,13 +89,11 @@ export function usePatientDetail() {
     enabled: showFullVitals && !user?.isAdmin,
   });
 
-  // Derived
   const historyHasContent = patientHistoryHasContent(patient?.history);
   const headerBarSlot = useHeaderBarSlot();
   const completenessMeta = patient ? getPatientCompletenessMeta(patient) : null;
   const vitalTrend = (showFullVitals && fullVitalsSummary ? fullVitalsSummary.vitalTrend : clinicalSummary?.vitalTrend) || [];
 
-  // Effects
   useEffect(() => {
     if (!headerBarSlot || !patient) return;
     headerBarSlot.setHeaderBarSlot(
@@ -128,7 +125,6 @@ export function usePatientDetail() {
     setEditingTaskId(null);
   }, [id]);
 
-  // Mutations
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/patients/${id}`),
     onSuccess: () => {
@@ -268,35 +264,40 @@ export function usePatientDetail() {
 
     // Clinical summary & vitals
     clinicalSummary,
+    fullVitalsSummary,
     vitalTrend,
-    showFullVitals,
-    setShowFullVitals,
     selectedVitalKey,
     setSelectedVitalKey,
+    showFullVitals,
+    setShowFullVitals,
 
-    // Problems
-    editingProblemId,
-    setEditingProblemId,
+    // Forms
     problemForm,
-    createProblemMutation,
-    updateProblemMutation,
-
-    // Tasks
-    editingTaskId,
-    setEditingTaskId,
     taskForm,
-    createTaskMutation,
-    updateTaskMutation,
 
-    // Actions
-    conflictEncounters,
-    setConflictEncounters,
+    // Dialog state
     showDeleteConfirm,
     setShowDeleteConfirm,
+    conflictEncounters,
+    setConflictEncounters,
+
+    // Editing state
+    editingProblemId,
+    setEditingProblemId,
+    editingTaskId,
+    setEditingTaskId,
+
+    // Mutation state
     exportingPdf,
     deleteMutation,
     createEncounterMutation,
     verifyDemographicsMutation,
+    createProblemMutation,
+    updateProblemMutation,
+    createTaskMutation,
+    updateTaskMutation,
+
+    // Actions
     handleExportHistorial,
     handleDelete: () => setShowDeleteConfirm(true),
     confirmDelete: () => {

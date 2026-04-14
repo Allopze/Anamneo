@@ -9,7 +9,7 @@ interface MobileSearchOverlayProps {
   searchResults: SearchResult[];
   searchLoading: boolean;
   searchActiveIndex: number;
-  inputRef: React.RefObject<HTMLInputElement | null>;
+  inputRef: React.Ref<HTMLInputElement>;
   onSearchChange: (value: string) => void;
   onSearchNavigate: (href: string) => void;
   onActiveIndexChange: (index: number) => void;

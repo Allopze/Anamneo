@@ -49,10 +49,22 @@ export default function EncounterAttachmentsModal({
   deleteMutation,
   handleDownload,
   setIsAttachmentsOpen,
+  showDeleteAttachment,
+  setShowDeleteAttachment,
 }: Props) {
+  const attachmentPendingDeletion = showDeleteAttachment
+    ? attachments.find((attachment) => attachment.id === showDeleteAttachment) ?? null
+    : null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-ink/55 backdrop-blur-[1px]" onClick={() => setIsAttachmentsOpen(false)} />
+      <div
+        className="absolute inset-0 bg-ink/55 backdrop-blur-[1px]"
+        onClick={() => {
+          setShowDeleteAttachment(null);
+          setIsAttachmentsOpen(false);
+        }}
+      />
       <div
         className="relative w-full max-w-3xl overflow-hidden rounded-card border border-frame/10 bg-surface-elevated shadow-dropdown"
         role="dialog"
@@ -68,7 +80,10 @@ export default function EncounterAttachmentsModal({
           </div>
           <button
             className={TOOLBAR_BUTTON_CLASS}
-            onClick={() => setIsAttachmentsOpen(false)}
+            onClick={() => {
+              setShowDeleteAttachment(null);
+              setIsAttachmentsOpen(false);
+            }}
             aria-label="Cerrar adjuntos"
           >
             <FiX className="h-4 w-4" />
@@ -76,6 +91,36 @@ export default function EncounterAttachmentsModal({
         </div>
 
         <div className="px-5 py-5">
+          {attachmentPendingDeletion ? (
+            <div className="mb-5 rounded-card border border-status-red/30 bg-status-red/10 p-4">
+              <p className="text-sm font-medium text-status-red-text">
+                Vas a eliminar {attachmentPendingDeletion.originalName}.
+              </p>
+              <p className="mt-1 text-sm text-ink-secondary">
+                Esta acción borra el archivo de la atención y del disco. Si fue un clic accidental, cancélalo ahora.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowDeleteAttachment(null)}
+                  disabled={deleteMutation.isPending}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-input bg-status-red px-4 py-3 text-sm font-medium text-white transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-red/35 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => deleteMutation.mutate(attachmentPendingDeletion.id)}
+                  disabled={deleteMutation.isPending}
+                >
+                  <FiTrash2 className="h-4 w-4" />
+                  {deleteMutation.isPending ? 'Eliminando…' : 'Confirmar eliminación'}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           {canUpload && (
             <form
               onSubmit={(e) => {
@@ -217,7 +262,7 @@ export default function EncounterAttachmentsModal({
               <AttachmentList
                 attachments={attachments}
                 isDoctor={isDoctor}
-                deleteMutation={deleteMutation}
+                onDeleteClick={(attachmentId) => setShowDeleteAttachment(attachmentId)}
                 onDownload={handleDownload}
               />
             )}
@@ -231,12 +276,12 @@ export default function EncounterAttachmentsModal({
 function AttachmentList({
   attachments,
   isDoctor,
-  deleteMutation,
+  onDeleteClick,
   onDownload,
 }: {
   attachments: Attachment[];
   isDoctor: boolean;
-  deleteMutation: EncounterWizardHook['deleteMutation'];
+  onDeleteClick: (attachmentId: string) => void;
   onDownload: (a: Attachment) => void;
 }) {
   return (
@@ -270,8 +315,7 @@ function AttachmentList({
             {isDoctor && (
               <button
                 type="button"
-                onClick={() => deleteMutation.mutate(attachment.id)}
-                disabled={deleteMutation.isPending}
+                onClick={() => onDeleteClick(attachment.id)}
                 className="inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-input bg-status-red px-4 py-3 text-sm font-medium text-white transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-red/35 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FiTrash2 className="h-4 w-4" />

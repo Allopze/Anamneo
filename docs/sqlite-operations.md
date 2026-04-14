@@ -41,6 +41,7 @@ SQLite esta soportado en este proyecto, incluso en produccion, pero no como excu
 3. Mantener restore drill al menos semanal.
 4. Configurar `SQLITE_ALERT_WEBHOOK_URL`.
 5. Revisar health checks y crecimiento del WAL.
+6. Si usas Docker Compose, asegúrate de que `backup-cron` monte `./runtime/uploads` en modo lectura y use `UPLOAD_DEST=/app/uploads`; si no, puedes terminar con backups válidos de la base pero sin adjuntos reales.
 
 ## Comandos Operativos
 
@@ -93,6 +94,7 @@ Checklist minimo:
 - confirma `SQLITE_BACKUP_DIR`,
 - confirma permisos de escritura,
 - verifica el contenedor `backup-cron` o el cron del host,
+- confirma que `backup-cron` vea el mismo volumen de uploads que usa `backend`,
 - y configura el webhook de alertas si aun no existe.
 
 ### Base bloqueada

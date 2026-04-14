@@ -6,4 +6,9 @@ export class RegisterWithInvitationDto extends RegisterDto {
   @IsString({ message: 'La invitación es inválida' })
   @MinLength(32, { message: 'La invitación es inválida' })
   invitationToken?: string;
+
+  @IsOptional()
+  @IsString({ message: 'El token de instalación es inválido' })
+  @MinLength(16, { message: 'El token de instalación es inválido' })
+  bootstrapToken?: string;
 }

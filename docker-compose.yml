@@ -42,7 +42,7 @@ services:
       INVITATION_EMAIL_SUBJECT: ${INVITATION_EMAIL_SUBJECT:-Invitacion a {{clinicName}}}
       SENTRY_DSN: ${SENTRY_DSN:-}
     ports:
-      - "${BACKEND_PORT:-5678}:5678"
+      - "${BACKEND_BIND_HOST:-127.0.0.1}:${BACKEND_PORT:-5678}:5678"
     volumes:
       - ./runtime/data:/app/data
       - ./runtime/uploads:/app/uploads
@@ -74,7 +74,7 @@ services:
       PORT: 5555
       HOSTNAME: "0.0.0.0"
     ports:
-      - "${FRONTEND_PORT:-5555}:5555"
+      - "${FRONTEND_BIND_HOST:-127.0.0.1}:${FRONTEND_PORT:-5555}:5555"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:5555"]
       interval: 10s
@@ -98,9 +98,11 @@ services:
       ALLOW_SQLITE_IN_PRODUCTION: "true"
       SQLITE_BACKUP_DIR: /app/data/backups
       SQLITE_BACKUP_RETENTION_DAYS: ${SQLITE_BACKUP_RETENTION_DAYS:-14}
+      UPLOAD_DEST: /app/uploads
       BACKUP_CRON_SCHEDULE: ${BACKUP_CRON_SCHEDULE:-0 */6 * * *}
     volumes:
       - ./runtime/data:/app/data
+      - ./runtime/uploads:/app/uploads:ro
     entrypoint: ["sh", "-c"]
     command:
       - |

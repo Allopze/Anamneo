@@ -5,10 +5,13 @@ La fuente base para estas variables es `.env.example`, complementada por `docker
 ## Reglas Que Si Importan
 
 - `JWT_SECRET` y `JWT_REFRESH_SECRET` son obligatorias y deben ser distintas.
+- `BOOTSTRAP_TOKEN` debe existir en produccion para proteger el primer registro administrador.
 - En produccion, ambas deben tener al menos 32 caracteres.
+- En produccion, `BOOTSTRAP_TOKEN` tambien debe tener al menos 32 caracteres.
 - Si usas SQLite en produccion, debes habilitarlo explicitamente con `ALLOW_SQLITE_IN_PRODUCTION=true`.
 - En produccion, el backend exige `SETTINGS_ENCRYPTION_KEY` o `SETTINGS_ENCRYPTION_KEYS` validas.
 - El frontend debe hablar con `/api` same-origin siempre que sea posible para preservar cookies `HttpOnly`.
+- El despliegue soportado para publicar la app a internet es `Docker Compose + cloudflared`, no exponer los puertos de Compose directamente a internet.
 
 ## Variables Principales
 
@@ -20,8 +23,11 @@ La fuente base para estas variables es `.env.example`, complementada por `docker
 | `JWT_EXPIRES_IN` | No | `15m` | TTL access token |
 | `JWT_REFRESH_SECRET` | Si | Ninguno valido | Firma de refresh token |
 | `JWT_REFRESH_EXPIRES_IN` | No | `7d` | TTL refresh token |
+| `BOOTSTRAP_TOKEN` | Si en produccion | Ninguno valido | Token requerido para crear la primera cuenta administradora |
 | `CORS_ORIGIN` | Si | `http://localhost:5555,https://anamneo.cloudbox.lat` en ejemplo | Allowlist CORS backend |
 | `PORT` | No | `5678` backend / `5555` frontend | Puertos HTTP |
+| `BACKEND_BIND_HOST` | No | `127.0.0.1` | Host de bind del puerto backend en Docker Compose |
+| `FRONTEND_BIND_HOST` | No | `127.0.0.1` | Host de bind del puerto frontend en Docker Compose |
 | `APP_TIME_ZONE` | No | `America/Santiago` | Zona horaria clinica usada para comparaciones `date-only` (edad, vencimientos, seguimientos) |
 | `NEXT_PUBLIC_API_URL` | Si en despliegue frontend | `/api` en desarrollo recomendado | URL consumida por browser |
 | `APP_PUBLIC_URL` | No | `http://localhost:5555` en ejemplo | Links publicos en correos |
@@ -79,11 +85,16 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 - Mantiene `NEXT_PUBLIC_API_URL=/api`.
 - Permite SQLite sin habilitacion extra porque `NODE_ENV` no es `production`.
 
-### Produccion con Docker Compose
+### Produccion con Docker Compose + cloudflared
 
 - `docker-compose.yml` exige `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN` y `NEXT_PUBLIC_API_URL`.
 - El frontend recibe `NEXT_PUBLIC_API_URL` como argumento de build y tambien como variable de runtime.
 - El backend aplica chequeos de seguridad al arrancar y falla rapido si encuentra placeholders.
+- `BACKEND_BIND_HOST` y `FRONTEND_BIND_HOST` deberian quedarse en `127.0.0.1` salvo que tengas un motivo muy claro para abrirlos.
+- `APP_PUBLIC_URL` y `CORS_ORIGIN` deben apuntar al hostname HTTPS publico que entrega Cloudflare Tunnel.
+- `NEXT_PUBLIC_API_URL` debe mantenerse en `/api` para preservar cookies `HttpOnly` y same-origin.
+- `cloudflared` debe publicar el frontend local, por ejemplo `http://localhost:5555`; el backend no necesita quedar expuesto publicamente.
+- El primer registro administrador requerira `BOOTSTRAP_TOKEN`; el deploy no deberia considerarse listo hasta validar ese flujo en una ventana controlada.
 
 ## Consejo Practico
 

@@ -31,6 +31,7 @@ export const registerSchema = z.object({
     .regex(/[0-9]/, 'Debe contener al menos un número')
     .regex(/^\S+$/, 'La contraseña no puede contener espacios'),
   confirmPassword: z.string(),
+  bootstrapToken: z.string().trim().max(255, 'El token de instalación es demasiado largo').optional(),
   role: z.enum(['ADMIN', 'MEDICO', 'ASISTENTE']),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Las contraseñas no coinciden',

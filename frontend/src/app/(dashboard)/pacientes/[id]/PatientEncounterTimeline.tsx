@@ -11,7 +11,8 @@ import {
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Encounter, PaginatedResponse } from '@/types';
+import type { Encounter } from '@/types';
+import type { PaginatedResponse } from '@/lib/api';
 import { REVIEW_STATUS_LABELS, STATUS_LABELS } from '@/types';
 import { buildEncounterSummary } from '@/lib/clinical';
 import type { PatientDetailHook } from './usePatientDetail';

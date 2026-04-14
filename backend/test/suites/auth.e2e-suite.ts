@@ -1,16 +1,45 @@
 import { state, req, extractCookies, cookieHeader } from '../helpers/e2e-setup';
 
+const TEST_BOOTSTRAP_TOKEN = 'bootstrap-token-e2e-0123456789abcdef';
+
 export function authSuite() {
   describe('Auth - Bootstrap', () => {
     it('GET /api/auth/bootstrap → empty DB', async () => {
+      process.env.BOOTSTRAP_TOKEN = TEST_BOOTSTRAP_TOKEN;
       const res = await req().get('/api/auth/bootstrap').expect(200);
       expect(res.body.isEmpty).toBe(true);
       expect(res.body.userCount).toBe(0);
+      expect(res.body.requiresBootstrapToken).toBe(true);
     });
   });
 
   describe('Auth - Register Admin', () => {
-    it('POST /api/auth/register → first user becomes admin', async () => {
+    it('POST /api/auth/register → rejects first admin without bootstrap token', async () => {
+      await req()
+        .post('/api/auth/register')
+        .send({
+          email: 'admin@test.com',
+          password: 'Admin123',
+          nombre: 'Admin Test',
+          role: 'ADMIN',
+        })
+        .expect(403);
+    });
+
+    it('POST /api/auth/register → rejects first admin with invalid bootstrap token', async () => {
+      await req()
+        .post('/api/auth/register')
+        .send({
+          email: 'admin@test.com',
+          password: 'Admin123',
+          nombre: 'Admin Test',
+          role: 'ADMIN',
+          bootstrapToken: 'bootstrap-token-e2e-invalid-secret',
+        })
+        .expect(403);
+    });
+
+    it('POST /api/auth/register → first user becomes admin with bootstrap token', async () => {
       const res = await req()
         .post('/api/auth/register')
         .send({
@@ -18,6 +47,7 @@ export function authSuite() {
           password: 'Admin123',
           nombre: 'Admin Test',
           role: 'ADMIN',
+          bootstrapToken: TEST_BOOTSTRAP_TOKEN,
         })
         .expect(201);
 

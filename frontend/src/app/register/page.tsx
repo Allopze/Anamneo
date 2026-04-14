@@ -33,10 +33,13 @@ export default function RegisterPage() {
   const [invitationEmail, setInvitationEmail] = useState<string | null>(null);
   const [invitationError, setInvitationError] = useState<string | null>(null);
   const [isInvitationMode, setIsInvitationMode] = useState(false);
+  const [requiresBootstrapToken, setRequiresBootstrapToken] = useState(false);
 
   const {
     register,
     handleSubmit,
+    clearErrors,
+    setError,
     setValue,
     watch,
     formState: { errors, isSubmitting },
@@ -104,6 +107,7 @@ export default function RegisterPage() {
 
         if (response.data?.hasAdmin) {
           setIsInvitationMode(true);
+          setRequiresBootstrapToken(false);
 
           if (!invitationTokenFromQuery) {
             setInvitationError('Necesita una invitación válida para crear una cuenta.');
@@ -137,6 +141,7 @@ export default function RegisterPage() {
         }
 
         setIsInvitationMode(false);
+  setRequiresBootstrapToken(Boolean(response.data?.requiresBootstrapToken));
         setInvitationToken(null);
         setInvitationEmail(null);
         setAvailableRoles(['ADMIN']);
@@ -164,6 +169,16 @@ export default function RegisterPage() {
   const registerChips = isInvitationMode ? REGISTER_INVITATION_CHIPS : REGISTER_BOOTSTRAP_CHIPS;
 
   const onSubmit = async (data: RegisterForm) => {
+    const bootstrapToken = data.bootstrapToken?.trim();
+
+    if (requiresBootstrapToken && !bootstrapToken) {
+      setError('bootstrapToken', {
+        type: 'manual',
+        message: 'Ingresa el token de instalación para habilitar el primer administrador.',
+      });
+      return;
+    }
+
     try {
       // Register sets HttpOnly cookies automatically
       await api.post('/auth/register', {
@@ -172,6 +187,7 @@ export default function RegisterPage() {
         nombre: data.nombre,
         role: data.role,
         invitationToken: invitationToken || undefined,
+        bootstrapToken: requiresBootstrapToken ? bootstrapToken : undefined,
       });
 
       // Fetch user profile using the cookie-based session
@@ -236,6 +252,12 @@ export default function RegisterPage() {
         {isLoadingRoles ? (
           <div className="auth-banner auth-banner-muted" aria-live="polite">
             Validando si este registro requiere invitación…
+          </div>
+        ) : null}
+
+        {!isInvitationMode && requiresBootstrapToken ? (
+          <div className="auth-banner auth-banner-muted" aria-live="polite">
+            Este registro inicial requiere el token de instalación configurado en el servidor.
           </div>
         ) : null}
 
@@ -408,6 +430,39 @@ export default function RegisterPage() {
             ) : null}
           </div>
         </div>
+
+        {!isInvitationMode && requiresBootstrapToken ? (
+          <div>
+            <label htmlFor="bootstrapToken" className="form-label">
+              Token de instalación
+            </label>
+            <div className="relative">
+              <FiShield className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
+              <input
+                id="bootstrapToken"
+                type="password"
+                autoComplete="off"
+                spellCheck={false}
+                {...register('bootstrapToken', {
+                  onChange: () => clearErrors('bootstrapToken'),
+                })}
+                disabled={isFormBusy}
+                className={`form-input pl-10 ${errors.bootstrapToken ? 'form-input-error' : ''}`}
+                placeholder="Token privado de instalación"
+                aria-invalid={!!errors.bootstrapToken}
+                aria-describedby={errors.bootstrapToken ? 'bootstrap-token-error' : 'bootstrap-token-help'}
+              />
+            </div>
+            {errors.bootstrapToken ? (
+              <p id="bootstrap-token-error" className="form-error" role="alert">
+                {errors.bootstrapToken.message}
+              </p>
+            ) : null}
+            <p id="bootstrap-token-help" className="mt-1 text-micro text-ink-muted">
+              Solo se usa para crear la primera cuenta administradora cuando el sistema todavía no tiene admins.
+            </p>
+          </div>
+        ) : null}
 
         <button
           type="submit"

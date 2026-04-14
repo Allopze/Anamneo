@@ -41,6 +41,33 @@ Tambien persiste datos en carpetas locales bajo `./runtime/`:
 - `./runtime/data`
 - `./runtime/uploads`
 
+Los puertos publicados por Compose quedan atados a loopback por defecto (`127.0.0.1`). Eso es intencional. Este producto esta pensado para publicarse detras de `cloudflared`, no para exponer `:5555` o `:5678` directo a internet y despues preguntarse por que las cookies `Secure` no cooperan.
+
+## Modelo Soportado De Publicacion
+
+El despliegue internet-facing soportado para este proyecto es:
+
+1. `docker compose up -d --build` en el host.
+2. Backend y frontend publicados solo en loopback del host.
+3. `cloudflared` corriendo en el mismo host y exponiendo por HTTPS el frontend local.
+4. El navegador entra por el hostname publico y Next.js mantiene `/api` same-origin hacia el backend interno.
+
+Esto importa porque auth usa cookies `HttpOnly` y `Secure` en produccion. Si publicas el stack por HTTP directo, el problema no es "que Next a veces se pone raro"; el problema es que el despliegue quedo mal planteado.
+
+Segun la configuracion local administrada documentada por Cloudflare Tunnel, el tunnel publica un `hostname` y lo enruta a un `service` local mediante reglas `ingress`, con una regla catch-all al final. Para Anamneo el flujo recomendado es exponer el frontend local y dejar que Next resuelva `/api` de forma interna:
+
+```yml
+tunnel: <uuid-del-tunnel>
+credentials-file: /etc/cloudflared/<uuid-del-tunnel>.json
+
+ingress:
+	- hostname: anamneo.example.com
+		service: http://localhost:5555
+	- service: http_status:404
+```
+
+No expongas `:5678` al publico. El backend debe quedar detras del frontend same-origin o dentro de la red local del host.
+
 ## Empaquetado de Release
 
 ```bash
@@ -94,6 +121,8 @@ docker compose up -d --build
 docker compose exec backend npm run prisma:migrate:prod
 ```
 
+Hasta aca el stack queda listo en el host, no publicado a internet. La publicacion soportada ocurre cuando `cloudflared` enruta tu hostname HTTPS al frontend local.
+
 Si el entorno requiere seed inicial:
 
 ```bash
@@ -102,11 +131,12 @@ docker compose exec backend npm run prisma:seed
 
 ## Smoke Checks
 
-1. `GET /api/health` responde OK.
-2. El frontend carga en `:5555`.
-3. Login, refresh de sesion y navegacion privada funcionan.
-4. Si aplica, `GET /api/health/sqlite` no reporta alertas graves.
-5. SMTP y Sentry estan configurados si el entorno lo exige.
+1. `GET http://127.0.0.1:<BACKEND_PORT>/api/health` responde OK en el host.
+2. El frontend carga localmente en `http://127.0.0.1:<FRONTEND_PORT>`.
+3. El hostname HTTPS publicado por `cloudflared` responde y carga la app.
+4. Login, refresh de sesion y navegacion privada funcionan a traves del hostname HTTPS publico.
+5. Si aplica, `GET http://127.0.0.1:<BACKEND_PORT>/api/health/sqlite` no reporta alertas graves.
+6. SMTP y Sentry estan configurados si el entorno lo exige.
 
 ## Rollback
 

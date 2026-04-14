@@ -8,6 +8,7 @@ La seguridad de Anamneo mezcla controles de arranque, autenticacion por cookies,
 
 - `DATABASE_URL` ausente o placeholder,
 - `JWT_SECRET` o `JWT_REFRESH_SECRET` ausentes o placeholders,
+- `BOOTSTRAP_TOKEN` ausente, placeholder o demasiado corto en produccion,
 - secrets iguales entre access y refresh,
 - secrets demasiado cortos en produccion,
 - SQLite en produccion sin `ALLOW_SQLITE_IN_PRODUCTION=true`,
@@ -25,6 +26,8 @@ La seguridad de Anamneo mezcla controles de arranque, autenticacion por cookies,
 | Bloqueo de intentos | `LoginAttempt` registra fallos y ventana de bloqueo |
 
 El frontend no se guia solo por la presencia de cookies: `src/proxy.ts` valida sesion real consultando `/api/auth/me` antes de decidir redirecciones sensibles.
+
+Cuando el sistema aun no tiene un admin activo, el primer registro requiere `BOOTSTRAP_TOKEN`. La idea es simple: una instancia vacia expuesta a internet no debe quedar al alcance del primer visitante que encuentre `/register`.
 
 ## Roles y Contrato Base
 

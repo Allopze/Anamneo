@@ -16,6 +16,7 @@ function assertSafeConfig(configService: ConfigService) {
   const jwtSecret = configService.get<string>('JWT_SECRET');
   const jwtRefreshSecret = configService.get<string>('JWT_REFRESH_SECRET');
   const appTimeZone = configService.get<string>('APP_TIME_ZONE', 'America/Santiago');
+  const bootstrapToken = configService.get<string>('BOOTSTRAP_TOKEN')?.trim();
   const settingsEncryptionKeys = resolveSettingsEncryptionSecrets(
     configService.get<string>('SETTINGS_ENCRYPTION_KEY'),
     configService.get<string>('SETTINGS_ENCRYPTION_KEYS'),
@@ -26,6 +27,7 @@ function assertSafeConfig(configService: ConfigService) {
   const placeholderValues = new Set([
     'replace-with-a-secure-random-secret',
     'replace-with-a-different-secure-random-secret',
+    'replace-with-a-secure-bootstrap-token',
     'change_this_in_production',
     'change_this_refresh_secret_too',
   ]);
@@ -68,6 +70,16 @@ function assertSafeConfig(configService: ConfigService) {
 
   if (isProduction && (jwtSecret.length < 32 || jwtRefreshSecret.length < 32)) {
     throw new Error('JWT secrets must be at least 32 characters in production');
+  }
+
+  if (isProduction) {
+    if (!bootstrapToken) {
+      throw new Error('BOOTSTRAP_TOKEN must be configured in production');
+    }
+
+    if (placeholderValues.has(bootstrapToken) || bootstrapToken.length < 32) {
+      throw new Error('BOOTSTRAP_TOKEN must be non-placeholder and at least 32 characters in production');
+    }
   }
 
   if (isProduction) {

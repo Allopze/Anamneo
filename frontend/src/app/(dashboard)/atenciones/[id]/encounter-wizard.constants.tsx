@@ -1,4 +1,5 @@
 import dynamic from 'next/dynamic';
+import type { ComponentType } from 'react';
 import type { SectionKey } from '@/types';
 
 // ─── Dynamic section component map ──────────────────────────────
@@ -9,7 +10,7 @@ const SectionLoadingFallback = () => (
   </div>
 );
 
-export const SECTION_COMPONENTS: Record<SectionKey, React.ComponentType<any>> = {
+export const SECTION_COMPONENTS: Record<SectionKey, ComponentType<any>> = {
   IDENTIFICACION: dynamic(() => import('@/components/sections/IdentificacionSection'), {
     loading: SectionLoadingFallback,
   }),

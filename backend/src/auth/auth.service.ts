@@ -66,6 +66,30 @@ export class AuthService {
     return email.trim().toLowerCase();
   }
 
+  private getConfiguredBootstrapToken(): string | null {
+    const token = this.configService.get<string>('BOOTSTRAP_TOKEN')?.trim();
+    return token ? token : null;
+  }
+
+  private hasValidBootstrapToken(candidateToken: string | undefined, expectedToken: string | null) {
+    if (!expectedToken) {
+      return true;
+    }
+
+    const normalizedCandidate = candidateToken?.trim();
+    if (!normalizedCandidate) {
+      return false;
+    }
+
+    const expectedBuffer = Buffer.from(expectedToken);
+    const candidateBuffer = Buffer.from(normalizedCandidate);
+    if (expectedBuffer.length !== candidateBuffer.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(expectedBuffer, candidateBuffer);
+  }
+
   private async clearExpiredLockout(email: string, now: Date) {
     const loginAttempt = await this.prisma.loginAttempt.findUnique({
       where: { email },
@@ -162,6 +186,8 @@ export class AuthService {
     const adminCount = await this.usersService.countActiveAdmins();
     const hasAdmin = adminCount > 0;
     const invitationToken = registerDto.invitationToken?.trim();
+    const bootstrapToken = registerDto.bootstrapToken?.trim();
+    const configuredBootstrapToken = this.getConfiguredBootstrapToken();
 
     let invitation: Awaited<ReturnType<UsersInvitationService['findInvitationByToken']>> | null = null;
 
@@ -198,8 +224,14 @@ export class AuthService {
       }
     }
 
-    if (!hasAdmin && requestedRole !== 'ADMIN') {
-      throw new ForbiddenException('El primer registro debe crear la cuenta administradora inicial');
+    if (!hasAdmin) {
+      if (requestedRole !== 'ADMIN') {
+        throw new ForbiddenException('El primer registro debe crear la cuenta administradora inicial');
+      }
+
+      if (!this.hasValidBootstrapToken(bootstrapToken, configuredBootstrapToken)) {
+        throw new ForbiddenException('El registro inicial requiere un token de instalación válido');
+      }
     }
 
     // Create user (users service handles password hashing)
@@ -224,10 +256,12 @@ export class AuthService {
     const userCount = await this.usersService.countUsers();
     const adminCount = await this.usersService.countActiveAdmins();
     const hasAdmin = adminCount > 0;
+    const requiresBootstrapToken = !hasAdmin && Boolean(this.getConfiguredBootstrapToken());
     return {
       userCount,
       isEmpty: userCount === 0,
       hasAdmin,
+      requiresBootstrapToken,
       registerableRoles: hasAdmin ? ([] as const) : (['ADMIN'] as const),
     };
   }
