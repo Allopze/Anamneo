@@ -10,7 +10,6 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   reporter: 'list',
-  globalSetup: './tests/e2e/global-setup.ts',
   use: {
     baseURL: 'http://127.0.0.1:5555',
     trace: 'retain-on-failure',
@@ -23,7 +22,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'node dist/src/main',
+      command: 'node scripts/e2e-webserver.js',
       cwd: backendRoot,
       port: 5678,
       reuseExistingServer: false,

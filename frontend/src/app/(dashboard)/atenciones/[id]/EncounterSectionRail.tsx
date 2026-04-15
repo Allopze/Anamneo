@@ -144,6 +144,7 @@ function renderSectionItems({
   const shouldOfferCollapse = doneCount >= 3;
   const collapsibleItems: React.ReactNode[] = [];
   const fixedItems: (React.ReactNode | 'SLOT')[] = [];
+  let hasInsertedCollapsibleSlot = false;
 
   sections.forEach((section, index) => {
     const sectionState = getSectionUiState(section);
@@ -174,15 +175,17 @@ function renderSectionItems({
     if (isCollapsible) {
       collapsibleItems.push(node);
     } else {
-      if (collapsibleItems.length > 0 && fixedItems[fixedItems.length - 1] !== 'SLOT') {
+      if (collapsibleItems.length > 0 && !hasInsertedCollapsibleSlot) {
         fixedItems.push('SLOT');
+        hasInsertedCollapsibleSlot = true;
       }
       fixedItems.push(node);
     }
   });
 
-  if (collapsibleItems.length > 0 && !fixedItems.includes('SLOT')) {
+  if (collapsibleItems.length > 0 && !hasInsertedCollapsibleSlot) {
     fixedItems.push('SLOT');
+    hasInsertedCollapsibleSlot = true;
   }
 
   if (!shouldOfferCollapse || railCollapsed) {

@@ -99,6 +99,48 @@
 - Validación final: `npm --prefix backend run build` pasa; `npm --prefix frontend run typecheck` pasa; `docker compose config` resuelve correctamente.
 - Pendientes tras esta pasada: ampliar cobertura E2E Playwright a flujos clínicos.
 
+### Pasada 14 - 2026-04-15
+
+- Cobertura E2E clínica ampliada y estabilizada: Playwright ya valida flujo clínico real contra backend y frontend levantados de forma full-stack para alta completa de paciente, navegación a ficha, búsqueda del paciente y creación de atención con guardado de `Motivo de consulta`. La preparación destructiva de la base SQLite de test salió de `globalSetup` y pasó al arranque del backend E2E, eliminando la carrera que dejaba el proceso vivo apuntando a un archivo recreado durante la ejecución.
+- Alcance del cambio: `backend/scripts/e2e-webserver.js` (nuevo entrypoint E2E que resetea DB/uploads, corre `prisma migrate deploy`, seed y luego arranca Nest), `frontend/playwright.config.ts` (backend `webServer` usa el nuevo script y se elimina `globalSetup`), `frontend/tests/e2e/global-setup.ts` (eliminado), `frontend/tests/e2e/workflow-clinical.spec.ts` (suite clínica estabilizada y sin logs/diagnósticos temporales).
+- Validación final: `npm --prefix backend run build` pasa; `cd frontend && npx playwright test tests/e2e/workflow-clinical.spec.ts --project=chromium --reporter=list` pasa con 4/4 tests en ~54 s.
+- Pendientes tras esta pasada: extender Playwright a adjuntos y firma clínica para cubrir el resto del camino crítico browser real.
+
+### Pasada 15 - 2026-04-15
+
+- Adjuntos cubiertos en browser real: la suite Playwright clínica ahora valida apertura del panel lateral de apoyo, apertura del modal de adjuntos, carga real de un PDF permitido, persistencia visible del archivo y render posterior del item cargado dentro de la atención. Para evitar falsos negativos del harness, la suite dejó de reloguear por UI en cada test y reutiliza las cookies de la sesión médico creada en `beforeAll`, eliminando choques con el throttler de login.
+- Alcance del cambio: `frontend/tests/e2e/workflow-clinical.spec.ts` (nuevo caso `upload attachment to encounter`, helper de sesión reutilizando cookies, submit robusto del form de adjuntos), `frontend/tests/e2e/fixtures/resultado-laboratorio-e2e.pdf` (fixture PDF mínima válida para upload E2E).
+- Validación final: la batería clínica completa vuelve a correr con el nuevo caso de adjuntos incluido y el caso `upload attachment to encounter` queda verde dentro de la suite consolidada.
+- Pendientes tras esta pasada: cerrar firma clínica browser real y revisar el warning React `collapsible-group` detectado durante navegación profunda del wizard.
+
+### Pasada 16 - 2026-04-15
+
+- Firma clínica cubierta en browser real: la suite Playwright ya completa las secciones obligatorias restantes (`EXAMEN_FISICO`, `SOSPECHA_DIAGNOSTICA`, `TRATAMIENTO`), registra nota de cierre, finaliza la atención desde el wizard, navega a ficha clínica y ejecuta la firma electrónica simple con contraseña del médico tratante, verificando tanto el badge `Firmada` como el toast `Atención firmada electrónicamente`.
+- Alcance del cambio: `frontend/tests/e2e/workflow-clinical.spec.ts` (nuevo caso `complete and sign encounter clinically`, helpers de navegación/completitud alineados con el wizard real y assertions finales no ambiguas).
+- Validación final: `cd frontend && npx playwright test tests/e2e/workflow-clinical.spec.ts --project=chromium --reporter=list` pasa con 6/6 tests en ~59 s.
+- Pendientes tras esta pasada: investigar y corregir el warning React `Encountered two children with the same key, \`collapsible-group\`` que aparece repetidamente durante la navegación de secciones; ya no bloquea la suite, pero indica deuda real de renderizado.
+
+### Pasada 17 - 2026-04-15
+
+- Warning React del wizard corregido: la rail de secciones podía insertar múltiples placeholders `SLOT` para el grupo colapsable de secciones completadas, lo que renderizaba más de un bloque con la misma key `collapsible-group` y provocaba warnings repetidos durante la navegación profunda. El rail ahora inserta un único grupo colapsable por render.
+- Alcance del cambio: `frontend/src/app/(dashboard)/atenciones/[id]/EncounterSectionRail.tsx` (lógica de inserción del bloque colapsable corregida para evitar duplicados).
+- Validación final: `cd frontend && npx playwright test tests/e2e/workflow-clinical.spec.ts --project=chromium --reporter=list` pasa con 6/6 tests en ~60 s y la salida ya no muestra el warning `Encountered two children with the same key, \`collapsible-group\``.
+- Pendientes tras esta pasada: retomar la reducción de los monolitos todavía fuera de objetivo (`useEncounterWizard`, `encounters.service`, `patients.service`, `encounters.e2e-suite`).
+
+### Pasada 18 - 2026-04-15
+
+- Suite E2E de encuentros desarmada sin cambiar comportamiento: `backend/test/suites/encounters.e2e-suite.ts` dejó de concentrar más de mil líneas y pasó a ser un coordinador mínimo de 13 líneas que registra tres grupos secuenciales. La cobertura quedó repartida en `encounters-sections.e2e-group.ts` (438 líneas), `encounters-followup.e2e-group.ts` (458 líneas) y `encounters-workflow.e2e-group.ts` (176 líneas), todos por debajo del umbral de 500 líneas.
+- Alcance del cambio: `backend/test/suites/encounters.e2e-suite.ts`, `backend/test/suites/encounters/encounters-sections.e2e-group.ts`, `backend/test/suites/encounters/encounters-followup.e2e-group.ts` y `backend/test/suites/encounters/encounters-workflow.e2e-group.ts`.
+- Validación final: `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests en ~28 s después del split. La validación filtrada solo por nombre `Encounters` no es representativa para esta suite porque depende del estado armado por `Auth` y `Patients` dentro del mismo `app.e2e-spec.ts`.
+- Pendientes tras esta pasada: retomar la reducción de los monolitos todavía fuera de objetivo (`useEncounterWizard`, `encounters.service`, `patients.service`, `encounters-sanitize`, `encounters-pdf.service`).
+
+### Pasada 19 - 2026-04-15
+
+- Servicio PDF de encuentros reducido sin alterar la exportación clínica: `backend/src/encounters/encounters-pdf.service.ts` bajó de 556 a 194 líneas extrayendo los renderers completos de ficha clínica y documentos focalizados a `backend/src/encounters/encounters-pdf.renderers.ts` (343 líneas). El servicio quedó como orquestador de carga, buffer y auditoría, mientras el render quedó encapsulado en funciones puras reutilizables.
+- Alcance del cambio: `backend/src/encounters/encounters-pdf.service.ts` y `backend/src/encounters/encounters-pdf.renderers.ts`.
+- Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` vuelve a pasar con 174/174 tests en ~27 s, incluyendo los casos de `GET /api/encounters/:id/export/document/receta`, `ordenes` y `derivacion`.
+- Pendientes tras esta pasada: retomar la reducción de los monolitos todavía fuera de objetivo (`useEncounterWizard`, `encounters.service`, `patients.service`, `encounters-sanitize`).
+
 > Actualizacion 2026-04-14: C2 quedo mitigado en el repo. `docker-compose.yml` ahora publica backend y frontend solo en loopback por defecto, y la documentacion de despliegue/entorno deja explicito que este producto esta pensado para publicarse detras de Cloudflare Tunnel con `cloudflared` y HTTPS.
 
 ## 1. Resumen ejecutivo
@@ -121,7 +163,7 @@ Conclusión corta: la base técnica no es mala. De hecho, tiene varias decisione
 
 Los pendientes más relevantes ahora son:
 
-1. Ampliar la cobertura E2E Playwright a flujos clínicos (adjuntos, atenciones, firma).
+1. Retomar la reducción de los monolitos todavía fuera de objetivo (`useEncounterWizard`, `encounters.service`, `patients.service`, `encounters-sanitize`).
 
 ## 2. Veredicto de producción
 
@@ -129,7 +171,7 @@ Veredicto actual: **Go condicionado**.
 
 No hace falta rehacer el sistema ni migrarlo de inmediato a una arquitectura más compleja. Para el tamaño real del producto, eso sería overkill. Las fallas operativas y de seguridad que sí justificaban un `No-Go` inicial ya fueron mitigadas en estas pasadas. Lo que queda es suficiente para exigir seguimiento cercano, pero ya no para descartar el release por bloqueo inmediato.
 
-Para sostener ese **Go condicionado** sin autoengaño, las correcciones de bloqueo ya fueron cerradas. Lo que queda abierto es ampliar la red de seguridad E2E.
+Para sostener ese **Go condicionado** sin autoengaño, las correcciones de bloqueo ya fueron cerradas. Lo que queda abierto ya no es cobertura clínica crítica ni warnings visibles del flujo principal, sino deuda de implementación que conviene bajar antes de seguir ampliando el producto.
 
 ## 3. Hallazgos críticos
 
@@ -187,10 +229,8 @@ Lo que sí veo es tensión de mantenibilidad:
 
 - `backend/src/patients/patients.service.ts`: 1480 líneas.
 - `backend/src/encounters/encounters.service.ts`: 1226 líneas.
-- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts`: 1110 líneas.
-- `backend/test/suites/encounters.e2e-suite.ts`: 1068 líneas.
+- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts`: 1112 líneas.
 - `backend/src/encounters/encounters-sanitize.ts`: 928 líneas.
-- `backend/src/encounters/encounters-pdf.service.ts`: 556 líneas.
 
 Eso ya contradice la regla del proyecto de no superar 500 líneas por archivo y dificulta detectar regresiones. No es un bloqueador inmediato de producción por sí solo, pero sí explica por qué aparecen errores evitables en refactors recientes.
 
@@ -211,9 +251,9 @@ Problemas relevantes:
 1. La duplicación principal de `/auth/me` en rutas privadas ya se redujo, pero el frontend sigue dependiendo bastante de bootstrap de sesión en cliente y eso conviene vigilarlo con pruebas reales.
 2. Las regresiones recientes de build y prerender ya se corrigieron, pero dejaron claro que side effects durante render y módulos demasiado grandes siguen siendo puntos frágiles.
 
-E2E browser real: en la pasada 11 se creó infraestructura Playwright full-stack con `frontend/tests/e2e/smoke.spec.ts` que levanta backend+frontend reales, registra un admin bootstrap, verifica dashboard con sidebar, y prueba redirect de rutas privadas sin sesión. Esto establece la base para ampliar cobertura E2E sobre adjuntos y flujos clínicos.
+E2E browser real: en la pasada 11 se creó infraestructura Playwright full-stack con `frontend/tests/e2e/smoke.spec.ts` que levanta backend+frontend reales, registra un admin bootstrap, verifica dashboard con sidebar, y prueba redirect de rutas privadas sin sesión. En las pasadas 14, 15, 16 y 17 esa base quedó ampliada con `frontend/tests/e2e/workflow-clinical.spec.ts`, que ahora cubre alta completa de paciente, búsqueda, navegación a ficha, creación de atención con guardado de `Motivo de consulta`, carga de adjuntos y firma electrónica simple, sin emitir warnings React en el rail clínico durante la navegación validada.
 
-Mi lectura práctica: el frontend volvió a un estado liberable con una red de seguridad E2E real establecida. Lo que le falta no es otro gran refactor visual, sino ampliar esa red y menos fragilidad en puntos críticos de sesión y navegación.
+Mi lectura práctica: el frontend volvió a un estado liberable con una red de seguridad E2E real establecida. Lo que le falta no es otro gran refactor visual, sino bajar la fragilidad de los módulos grandes que todavía concentran demasiada lógica.
 
 ## 6. Backend
 
@@ -320,13 +360,13 @@ Lo bueno:
 - `.github/workflows/ci.yml` no es decorativo: corre secret scan, audits, lint, typecheck, tests y builds.
 - El backend tiene una superficie de pruebas relativamente amplia entre unitarias y e2e.
 
-Lo insuficiente (mejorado en pasada 11):
+Lo insuficiente (mejorado en pasadas 11, 14, 15, 16 y 17):
 
 1. ~~El frontend browser E2E hoy es un solo spec.~~ Ya hay 2 smoke specs full-stack con Playwright: registro bootstrap + dashboard, y redirect de rutas privadas.
 2. ~~Ese spec no representa una navegación completa contra backend real.~~ Los nuevos smoke tests levantan backend y frontend reales contra una DB de test dedicada.
-3. Todavía falta cubrir flujos clínicos (adjuntos, atenciones, firma) en E2E browser.
+3. Ya existe cobertura clínica real para alta de paciente, búsqueda, creación de atención, adjuntos y firma en E2E browser, y la navegación profunda validada del wizard quedó sin warnings React visibles en la salida de Playwright tras la corrección de la rail.
 
-La conclusión aquí ya no es que no existe red E2E. La infraestructura está montada y funcional. Lo que falta es **ampliar la cobertura a flujos clínicos críticos**.
+La conclusión aquí ya no es que no existe red E2E. La infraestructura está montada, es estable contra backend real y ya cubre el camino clínico crítico completo sin warnings visibles en el flujo validado. Lo que falta es **sostener esa base mientras se reduce deuda estructural**.
 
 ## 13. DevOps y operación
 
@@ -339,7 +379,7 @@ Problemas confirmados:
 
 Orden de remediación recomendado:
 
-1. Ampliar la cobertura E2E Playwright a flujos clínicos (adjuntos, atenciones, firma).
+1. Reducir el tamaño de `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts`, que sigue concentrando demasiada lógica clínica y de UI.
 2. ~~Integrar restore drills y rollback operativo al flujo de despliegue.~~ Hecho en pasada 12.
 3. ~~Completar endurecimiento de infraestructura alrededor de storage y backups.~~ Hecho en pasada 13.
 
@@ -358,4 +398,4 @@ No porque el sistema haya quedado perfecto, sino porque los bloqueadores directo
 - el arranque del backend ya no migra por sorpresa,
 - y el runtime Docker del backend dejó de cargar todo el lastre de desarrollo.
 
-Lo que queda abierto sigue importando, pero ya no justifica decir que el sistema está fuera de estado productivo. El trabajo pendiente ahora es menos vistoso y más útil: ampliar la cobertura E2E a flujos clínicos y endurecer la infraestructura de cifrado en reposo.
+Lo que queda abierto sigue importando, pero ya no justifica decir que el sistema está fuera de estado productivo. El trabajo pendiente ahora es menos vistoso y más útil: seguir bajando la deuda de modularidad que todavía quedó en hooks y servicios grandes.

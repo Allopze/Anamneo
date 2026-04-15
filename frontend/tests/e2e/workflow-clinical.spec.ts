@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import path from 'path';
+import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 
 /**
  * Clinical workflow E2E: patient → encounter → section editing.
@@ -12,12 +13,17 @@ const ADMIN_PASSWORD = 'TestPass123!';
 const MEDICO_EMAIL = 'medico@e2e-test.local';
 const MEDICO_PASSWORD = 'MedicoPass123!';
 const BOOTSTRAP_TOKEN = 'e2e-bootstrap-token';
+const ATTACHMENT_FIXTURE_PATH = path.resolve(__dirname, 'fixtures', 'resultado-laboratorio-e2e.pdf');
 
 const sidebar = (page: Page) =>
   page.getByRole('navigation', { name: 'Navegación principal' });
+const sectionRail = (page: Page) =>
+  page.getByRole('navigation', { name: 'Secciones de la atención' });
 
 test.describe('Clinical flow: patient → encounter → sections', () => {
   test.describe.configure({ mode: 'serial' });
+  let encounterPath = '';
+  let medicoAuthCookies: Awaited<ReturnType<BrowserContext['cookies']>> = [];
 
   // Setup: register admin (UI) → create invitation (API) → register medico (UI)
   test.beforeAll(async ({ browser }) => {
@@ -37,7 +43,6 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     );
     await adminPage.getByRole('button', { name: /Crear cuenta/i }).click();
     const registerResp = await registerPromise;
-    console.log(`[beforeAll] Admin register: ${registerResp.status()}`);
     expect(registerResp.status(), 'Admin registration should return 201').toBe(201);
 
     // Wait for registration to complete and navigate away from register page
@@ -47,7 +52,6 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     const inviteResp = await adminPage.request.post('/api/users/invitations', {
       data: { email: MEDICO_EMAIL, role: 'MEDICO' },
     });
-    console.log(`[beforeAll] Invite: ${inviteResp.status()}`);
     expect(inviteResp.ok()).toBeTruthy();
     const { token: inviteToken } = await inviteResp.json();
     await adminCtx.close();
@@ -69,42 +73,60 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     );
     await medicoPage.getByRole('button', { name: /Crear cuenta/i }).click();
     const medicoRegResp = await medicoRegPromise;
-    const medicoRegBody = await medicoRegResp.text();
-    console.log(`[beforeAll] Medico register: ${medicoRegResp.status()} ${medicoRegBody}`);
     expect(medicoRegResp.status(), 'Medico registration should return 201').toBe(201);
 
     // Wait for registration to complete
     await medicoPage.waitForURL((url) => !url.toString().includes('/register'), { timeout: 20000 });
 
-    // Check DB directly
-    const { execSync } = require('child_process');
-    const dbPath = '/home/allopze/dev/Anamneo/backend/prisma/e2e-playwright.db';
-    const dbCheck = execSync(`sqlite3 "${dbPath}" "SELECT count(*) FROM users; SELECT email FROM users;"`).toString();
-    console.log(`[beforeAll] DB check after medico reg: ${dbCheck.trim()}`);
-
-    // Check via health endpoint too
-    const healthResp = await medicoPage.request.get('/api/health');
-    console.log(`[beforeAll] Health: ${healthResp.status()}`);
+    medicoAuthCookies = await medicoCtx.cookies();
+    expect(medicoAuthCookies.length, 'Medico auth cookies should be captured after registration').toBeGreaterThan(0);
 
     await medicoCtx.close();
   });
 
   async function loginAsMedico(page: Page) {
-    await page.goto('/login');
-    await page.getByLabel('Correo electrónico').fill(MEDICO_EMAIL);
-    await page.getByLabel('Contraseña').fill(MEDICO_PASSWORD);
-
-    const loginPromise = page.waitForResponse(
-      (r) => r.url().includes('/auth/login') && r.request().method() === 'POST',
-    );
-    await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-    const loginResp = await loginPromise;
-    const loginBody = await loginResp.text();
-    console.log(`[loginAsMedico] ${loginResp.status()} ${loginBody}`);
-    expect(loginResp.status(), `Login failed with ${loginResp.status()}: ${loginBody}`).toBe(200);
-
-    await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: 15000 });
+    expect(medicoAuthCookies, 'Medico auth cookies should be available from beforeAll setup').not.toHaveLength(0);
+    await page.context().addCookies(medicoAuthCookies);
+    await page.goto('/');
     await expect(sidebar(page)).toBeVisible({ timeout: 15000 });
+  }
+
+  async function openEncounter(page: Page) {
+    expect(encounterPath, 'Encounter path should be captured by the encounter creation test').toBeTruthy();
+    await page.goto(encounterPath);
+    await expect(page).toHaveURL(/\/atenciones\/[a-zA-Z0-9-]+/);
+    await expect(
+      page.getByRole('heading', { name: /identificación del paciente|anamnesis próxima|motivo de consulta/i }).first(),
+    ).toBeVisible({ timeout: 15000 });
+  }
+
+  async function goToSection(page: Page, sectionName: string) {
+    await sectionRail(page).getByRole('button', { name: new RegExp(sectionName, 'i') }).click();
+    await expect(page.getByRole('heading', { name: sectionName })).toBeVisible({ timeout: 5000 });
+  }
+
+  async function openDrawerTab(page: Page, tabName: string) {
+    await page.getByRole('button', { name: /abrir panel lateral/i }).click();
+    const drawer = page.getByRole('dialog', { name: 'Panel lateral de la atención' });
+    await expect(drawer).toBeVisible({ timeout: 5000 });
+    await drawer.getByRole('button', { name: tabName }).click();
+    return drawer;
+  }
+
+  async function completeVisibleSection(page: Page, nextSectionName?: string) {
+    const nextButton = page.getByRole('button', { name: 'Siguiente' });
+    if (await nextButton.isVisible().catch(() => false)) {
+      await nextButton.click();
+      if (nextSectionName) {
+        await expect(page.getByRole('heading', { name: nextSectionName })).toBeVisible({ timeout: 5000 });
+      }
+      return;
+    }
+
+    const completeButton = page.getByRole('button', { name: 'Completar' });
+    await expect(completeButton).toBeVisible({ timeout: 5000 });
+    await completeButton.click();
+    await expect(completeButton).toBeHidden({ timeout: 10000 });
   }
 
   test('create patient with full registration', async ({ page }) => {
@@ -118,7 +140,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
 
     // Fill full registration
     await page.getByLabel('Nombre completo').fill('María Eugenia Flores Tapia');
-    await page.getByLabel('RUT').fill('12.345.678-5');
+    await page.getByLabel('RUT', { exact: true }).fill('12.345.678-5');
     await page.getByLabel('Fecha de nacimiento').fill('1980-06-15');
     await page.getByLabel('Sexo').selectOption('FEMENINO');
     await page.getByLabel('Previsión de salud').selectOption('FONASA');
@@ -184,25 +206,106 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
       timeout: 15000,
     });
 
-    // Encounter header shows patient name
+    // Wait for the first visible section of the wizard to load
     await expect(
-      page.getByRole('heading', { name: 'María Eugenia Flores Tapia' }),
+      page.getByRole('heading', { name: 'Identificación del paciente' }),
     ).toBeVisible();
 
     // Navigate past Identificación to Motivo de Consulta
     await page.getByRole('button', { name: /siguiente/i }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Motivo de consulta' }),
+    ).toBeVisible({ timeout: 5000 });
 
     // Fill the motivo textarea
-    const textarea = page.locator('textarea');
+    const textarea = page.getByPlaceholder(/paciente refiere dolor de cabeza intenso/i);
     await expect(textarea).toBeVisible({ timeout: 5000 });
     await textarea.fill(
       'Dolor abdominal agudo de 3 días de evolución, localizado en fosa ilíaca derecha.',
     );
 
     // Save and verify
-    await page.getByRole('button', { name: 'Guardar Ahora' }).click();
-    await expect(page.locator('[role="status"]')).toContainText(/guardad/i, {
+    const saveButton = page.getByRole('button', { name: 'Guardar Ahora' });
+    await saveButton.click();
+    await expect(
+      page.getByRole('status').filter({ hasText: /cambios guardados|guardado a las|sin cambios/i }),
+    ).toBeVisible({
       timeout: 10000,
     });
+    await expect(saveButton).toBeDisabled();
+
+    await page.getByRole('button', { name: /siguiente/i }).click();
+    await expect(page.getByRole('heading', { name: 'Anamnesis próxima' })).toBeVisible({ timeout: 5000 });
+    encounterPath = new URL(page.url()).pathname;
+  });
+
+  test('upload attachment to encounter', async ({ page }) => {
+    test.setTimeout(60_000);
+    await loginAsMedico(page);
+    await openEncounter(page);
+
+    const drawer = await openDrawerTab(page, 'Apoyo');
+    await drawer.getByRole('button', { name: 'Adjuntos de la Atención' }).click();
+
+    const attachmentsDialog = page.getByRole('dialog', { name: 'Adjuntos de la atención' });
+    await expect(attachmentsDialog).toBeVisible({ timeout: 5000 });
+    await attachmentsDialog.locator('#attachment-file').setInputFiles(ATTACHMENT_FIXTURE_PATH);
+    await attachmentsDialog.locator('#attachment-description').fill('Resultado de laboratorio cargado desde Playwright');
+    const uploadResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/attachments/encounter/') && response.request().method() === 'POST',
+    );
+    await attachmentsDialog.locator('form').evaluate((form: HTMLFormElement) => form.requestSubmit());
+    const uploadResponse = await uploadResponsePromise;
+    expect(uploadResponse.status(), await uploadResponse.text()).toBe(201);
+
+    await expect(
+      attachmentsDialog.getByText('resultado-laboratorio-e2e.pdf'),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      attachmentsDialog.getByText('GENERAL · Resultado de laboratorio cargado desde Playwright'),
+    ).toBeVisible({ timeout: 10000 });
+    await attachmentsDialog.getByRole('button', { name: 'Cerrar adjuntos' }).click({ force: true });
+  });
+
+  test('complete and sign encounter clinically', async ({ page }) => {
+    test.setTimeout(90_000);
+    await loginAsMedico(page);
+    await openEncounter(page);
+
+    await goToSection(page, 'Examen físico');
+    await page.getByPlaceholder('120/80').fill('120/80');
+    await completeVisibleSection(page, 'Sospecha diagnóstica');
+
+    await page.getByRole('button', { name: /agregar sospecha diagnóstica/i }).click();
+    const diagnosisInput = page.getByPlaceholder('Diagnóstico sospechado...');
+    await diagnosisInput.fill('Apendicitis aguda probable');
+    await completeVisibleSection(page, 'Tratamiento');
+
+    await page.getByRole('button', { name: /agregar medicamento/i }).click();
+    await page.getByPlaceholder('Medicamento').fill('Paracetamol');
+    await completeVisibleSection(page, 'Respuesta al tratamiento');
+
+    const drawer = await openDrawerTab(page, 'Cierre');
+    await drawer.locator('#drawer-closure-note').fill(
+      'Paciente estable al cierre. Se indican analgésicos, control y reevaluación precoz ante signos de alarma.',
+    );
+    await drawer.getByRole('button', { name: 'Cerrar panel' }).click();
+
+    await page.getByRole('button', { name: 'Finalizar Atención' }).click();
+    const completionDialog = page.getByRole('alertdialog', { name: 'Finalizar atención' });
+    await expect(completionDialog).toBeVisible({ timeout: 5000 });
+    await completionDialog.getByRole('button', { name: 'Finalizar atención' }).click();
+
+    await expect(page).toHaveURL(/\/atenciones\/[a-zA-Z0-9-]+\/ficha$/, { timeout: 15000 });
+    await expect(page.getByRole('button', { name: 'Firmar' })).toBeVisible({ timeout: 10000 });
+
+    await page.getByRole('button', { name: 'Firmar' }).click();
+    const signDialog = page.getByRole('heading', { name: 'Firma Electrónica Simple' });
+    await expect(signDialog).toBeVisible({ timeout: 5000 });
+    await page.getByLabel('Contraseña de su cuenta').fill(MEDICO_PASSWORD);
+    await page.getByRole('button', { name: 'Firmar Atención' }).click();
+
+    await expect(page.getByText('Firmada', { exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Atención firmada electrónicamente')).toBeVisible({ timeout: 10000 });
   });
 });
