@@ -74,6 +74,7 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 |---|---|---|
 | `UPLOAD_MAX_SIZE` | `10485760` | Limite maximo por archivo |
 | `UPLOAD_DEST` | `./uploads` en ejemplo, `/app/uploads` en Docker | Destino de archivos. Debe permanecer dentro del directorio de la app |
+| `ENCRYPTION_AT_REST_CONFIRMED` | `false` | Confirma que el host tiene cifrado de filesystem (LUKS/dm-crypt) en los volumenes de datos clinicos. Si no se confirma, el backend emite un warning en produccion |
 | `SENTRY_DSN` | vacio | Sentry backend |
 | `NEXT_PUBLIC_SENTRY_DSN` | vacio | Sentry frontend |
 

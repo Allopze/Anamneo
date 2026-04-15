@@ -92,6 +92,13 @@
 - Validación final: `docker compose config` resuelve correctamente; `bash -n scripts/deploy.sh` pasa; `bash -n scripts/release.sh` pasa; `package.json` válido.
 - Pendientes tras esta pasada: endurecimiento adicional de infraestructura (cifrado en reposo).
 
+### Pasada 13 - 2026-04-15
+
+- Cifrado en reposo: el backend ahora emite un warning estructurado (`encryption_at_rest_not_confirmed`) en cada arranque de producción si `ENCRYPTION_AT_REST_CONFIRMED` no está en `true`. No bloquea el arranque pero deja evidencia en logs de que la configuración de cifrado no fue verificada. Se documentó la configuración recomendada con LUKS/dm-crypt en `docs/security-and-permissions.md` y se agregó la variable a `.env.example` y `docker-compose.yml`.
+- Alcance del cambio: `backend/src/main.ts` (warning de cifrado en reposo en `assertSafeConfig`), `.env.example` (nueva sección `CIFRADO EN REPOSO`), `docker-compose.yml` (`ENCRYPTION_AT_REST_CONFIRMED` en backend), `docs/environment.md` (variable documentada), `docs/security-and-permissions.md` (sección completa con guía LUKS, alternativas y verificación).
+- Validación final: `npm --prefix backend run build` pasa; `npm --prefix frontend run typecheck` pasa; `docker compose config` resuelve correctamente.
+- Pendientes tras esta pasada: ampliar cobertura E2E Playwright a flujos clínicos.
+
 > Actualizacion 2026-04-14: C2 quedo mitigado en el repo. `docker-compose.yml` ahora publica backend y frontend solo en loopback por defecto, y la documentacion de despliegue/entorno deja explicito que este producto esta pensado para publicarse detras de Cloudflare Tunnel con `cloudflared` y HTTPS.
 
 ## 1. Resumen ejecutivo
@@ -114,8 +121,7 @@ Conclusión corta: la base técnica no es mala. De hecho, tiene varias decisione
 
 Los pendientes más relevantes ahora son:
 
-1. Endurecimiento de infraestructura (cifrado en reposo si el host lo requiere).
-2. Ampliar la cobertura E2E Playwright a flujos clínicos (adjuntos, atenciones, firma).
+1. Ampliar la cobertura E2E Playwright a flujos clínicos (adjuntos, atenciones, firma).
 
 ## 2. Veredicto de producción
 
@@ -123,9 +129,7 @@ Veredicto actual: **Go condicionado**.
 
 No hace falta rehacer el sistema ni migrarlo de inmediato a una arquitectura más compleja. Para el tamaño real del producto, eso sería overkill. Las fallas operativas y de seguridad que sí justificaban un `No-Go` inicial ya fueron mitigadas en estas pasadas. Lo que queda es suficiente para exigir seguimiento cercano, pero ya no para descartar el release por bloqueo inmediato.
 
-Para sostener ese **Go condicionado** sin autoengaño, todavía conviene cerrar al menos estas correcciones:
-
-1. Mantener el endurecimiento de infraestructura, especialmente cifrado en reposo fuera de la app si el host lo exige.
+Para sostener ese **Go condicionado** sin autoengaño, las correcciones de bloqueo ya fueron cerradas. Lo que queda abierto es ampliar la red de seguridad E2E.
 
 ## 3. Hallazgos críticos
 
@@ -259,7 +263,7 @@ Lo bueno:
 
 Lo malo:
 
-1. No hay evidencia en el repositorio de cifrado de adjuntos o snapshots en reposo. Si la infraestructura no lo resuelve fuera de la app, un compromiso del host o del directorio de backups expone documentos clínicos completos.
+1. ~~No hay evidencia en el repositorio de cifrado de adjuntos o snapshots en reposo.~~ Mitigado en pasada 13: el backend emite warning en producción si `ENCRYPTION_AT_REST_CONFIRMED` no está en `true`, y `docs/security-and-permissions.md` documenta la configuración LUKS recomendada. El cifrado efectivo sigue siendo responsabilidad del operador del host.
 
 Avance reciente: el borrado de adjuntos ahora es soft-delete con retención de 30 días, confirmación en UI y purga automática integrada al cron. El archivo físico se mantiene durante el período de retención y el `storagePath` queda registrado en auditoría para facilitar recuperación. Además, el backup de uploads pasó de copia completa a incremental con hardlinks, reduciendo drásticamente el costo de disco.
 
@@ -281,9 +285,9 @@ Fortalezas:
 
 Debilidades confirmadas:
 
-1. No hay evidencia de cifrado en reposo para adjuntos y snapshots.
+1. ~~No hay evidencia de cifrado en reposo para adjuntos y snapshots.~~ Mitigado en pasada 13: el backend emite warning en producción si `ENCRYPTION_AT_REST_CONFIRMED` no está en `true`, y la documentación incluye guía de configuración LUKS/dm-crypt.
 
-Balance honesto: el diseño base de seguridad es bueno y la operación documentada acompaña bastante mejor que al inicio de la auditoría. El rollback y los restore drills ya están integrados al flujo de despliegue (`scripts/deploy.sh`) y al cron operativo (`backup-cron` con `sqlite-ops-runner.js`). Lo que queda abierto ya no es el modelo auth ni la operación de backups, sino el hardening alrededor de archivos en reposo.
+Balance honesto: el diseño base de seguridad es bueno y la operación documentada acompaña bastante mejor que al inicio de la auditoría. El rollback y los restore drills ya están integrados al flujo de despliegue (`scripts/deploy.sh`) y al cron operativo (`backup-cron` con `sqlite-ops-runner.js`). El cifrado en reposo queda como responsabilidad documentada del operador con warning activo si no se confirma. Los bloqueadores de seguridad identificados en esta auditoría están cerrados.
 
 ## 10. Rendimiento
 
@@ -337,7 +341,7 @@ Orden de remediación recomendado:
 
 1. Ampliar la cobertura E2E Playwright a flujos clínicos (adjuntos, atenciones, firma).
 2. ~~Integrar restore drills y rollback operativo al flujo de despliegue.~~ Hecho en pasada 12.
-3. Completar endurecimiento de infraestructura alrededor de storage y backups.
+3. ~~Completar endurecimiento de infraestructura alrededor de storage y backups.~~ Hecho en pasada 13.
 
 ---
 

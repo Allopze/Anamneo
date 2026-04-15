@@ -78,6 +78,57 @@ Estos items no son teoria; ya fueron observados y deberian tratarse como deuda a
 - el frontend de consentimientos espera un shape mas rico que el que algunas respuestas backend entregan hoy,
 - la actualizacion de secciones de encounter puede devolver `data` serializada y contaminar cache cliente si se consume sin normalizar.
 
+## Cifrado en Reposo
+
+Anamneo cifra settings sensibles (como credenciales SMTP) a nivel de aplicacion con `SETTINGS_ENCRYPTION_KEY`. Sin embargo, los adjuntos clinicos, la base de datos SQLite y los snapshots de backup se almacenan sin cifrado propio en el filesystem.
+
+La proteccion de esos datos en reposo es responsabilidad de la infraestructura del host, no de la aplicacion. La recomendacion es usar cifrado de filesystem completo.
+
+### Configuracion Recomendada (Linux / LUKS)
+
+1. Crear un volumen cifrado LUKS para el directorio `runtime/`:
+
+```bash
+# Crear particion cifrada (ajustar dispositivo)
+sudo cryptsetup luksFormat /dev/sdX1
+sudo cryptsetup luksOpen /dev/sdX1 anamneo-data
+sudo mkfs.ext4 /dev/mapper/anamneo-data
+sudo mount /dev/mapper/anamneo-data /ruta/anamneo/runtime
+```
+
+2. Configurar apertura automatica al arranque (via keyfile o TPM):
+
+```bash
+# Con keyfile
+sudo dd if=/dev/urandom of=/root/.luks-keyfile bs=512 count=1
+sudo chmod 400 /root/.luks-keyfile
+sudo cryptsetup luksAddKey /dev/sdX1 /root/.luks-keyfile
+```
+
+3. Agregar entrada a `/etc/crypttab` y `/etc/fstab`.
+
+4. Confirmar en `.env`:
+
+```bash
+ENCRYPTION_AT_REST_CONFIRMED=true
+```
+
+### Alternativas
+
+- **VPS con disco cifrado por defecto**: algunos proveedores (Hetzner, DigitalOcean) ofrecen cifrado de volumen. Verificar que cubre el directorio de datos.
+- **macOS**: FileVault cubre el disco completo.
+- **Windows**: BitLocker para el volumen de datos.
+
+### Verificacion
+
+En produccion, si `ENCRYPTION_AT_REST_CONFIRMED` no esta en `true`, el backend emite un warning en cada arranque:
+
+```
+encryption_at_rest_not_confirmed: Clinical attachments and database backups are stored unencrypted on disk.
+```
+
+Ese warning no bloquea el arranque, pero si aparece en produccion, alguien deberia preguntar por que.
+
 ## Reglas Practicas
 
 1. Los permisos visibles en UI son ayuda de UX, no seguridad real.
