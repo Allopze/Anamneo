@@ -54,7 +54,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         ? ['query', 'info', 'warn', 'error']
         : ['error'],
       ...(resolvedDatabaseUrl
-        ? { datasources: { db: { url: resolvedDatabaseUrl } } }
+        ? { datasourceUrl: resolvedDatabaseUrl }
         : {}),
     });
 

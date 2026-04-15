@@ -2,7 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 import * as path from 'path';
 
 const backendRoot = path.resolve(__dirname, '../backend');
-const testDbUrl = 'file:./e2e-playwright.db';
+const testDbPath = path.join(backendRoot, 'prisma', 'e2e-playwright.db');
+const testDbUrl = `file:${testDbPath}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -53,6 +54,7 @@ export default defineConfig({
       env: {
         ...process.env,
         API_PROXY_TARGET: 'http://127.0.0.1:5678/api',
+        E2E_DISABLE_PROXY_AUTH: 'true',
       },
     },
   ],

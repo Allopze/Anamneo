@@ -4,7 +4,7 @@ import * as fs from 'fs';
 
 const BACKEND_ROOT = path.resolve(__dirname, '../../../backend');
 const TEST_DB = path.join(BACKEND_ROOT, 'prisma', 'e2e-playwright.db');
-const TEST_DB_URL = `file:./e2e-playwright.db`;
+const TEST_DB_URL = `file:${TEST_DB}`;
 
 export default async function globalSetup() {
   // Clean previous test database
