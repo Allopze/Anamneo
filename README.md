@@ -70,8 +70,9 @@ La primera cuenta creada desde `/register` obtiene bootstrap de administrador. D
 
 ```bash
 cp .env.example .env
-docker compose up -d --build
-docker compose exec backend npm run prisma:migrate:prod
+docker compose build
+docker compose run --rm --no-deps backend npx prisma migrate deploy
+docker compose up -d
 docker compose exec backend npm run prisma:seed
 ```
 

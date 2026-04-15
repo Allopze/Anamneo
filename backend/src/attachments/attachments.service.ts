@@ -230,7 +230,7 @@ export class AttachmentsService {
     }
 
     return this.prisma.attachment.findMany({
-      where: { encounterId },
+      where: { encounterId, deletedAt: null },
       select: {
         id: true,
         originalName: true,
@@ -260,7 +260,7 @@ export class AttachmentsService {
       },
     });
 
-    if (!attachment) {
+    if (!attachment || attachment.deletedAt) {
       throw new NotFoundException('Archivo no encontrado');
     }
 
@@ -296,18 +296,21 @@ export class AttachmentsService {
       throw new ForbiddenException('No tiene permisos para eliminar este archivo');
     }
 
-    const resolvedPath = this.resolveStoragePath(attachment.storagePath);
+    if (attachment.deletedAt) {
+      throw new NotFoundException('Archivo no encontrado');
+    }
 
-    // Delete physical file
-    await this.safeUnlink(resolvedPath);
-
-    await this.prisma.attachment.delete({ where: { id } });
+    // Soft-delete: mark as deleted, keep the physical file for retention period
+    await this.prisma.attachment.update({
+      where: { id },
+      data: { deletedAt: new Date(), deletedById: user.id },
+    });
 
     await this.auditService.log({
       entityType: 'Attachment',
       entityId: attachment.id,
       userId: user.id,
-      action: 'DELETE',
+      action: 'SOFT_DELETE',
       diff: {
         deleted: {
           id: attachment.id,
@@ -316,6 +319,7 @@ export class AttachmentsService {
           originalName: attachment.originalName,
           mime: attachment.mime,
           size: attachment.size,
+          storagePath: attachment.storagePath,
           category: attachment.category,
           linkedOrderType: attachment.linkedOrderType,
           linkedOrderId: attachment.linkedOrderId,
@@ -323,7 +327,35 @@ export class AttachmentsService {
       },
     });
 
-    return { message: 'Archivo eliminado correctamente' };
+    return { message: 'Archivo movido a papelera' };
+  }
+
+  async purgeExpiredAttachments(retentionDays: number = 30): Promise<{ purged: number; errors: string[] }> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - retentionDays);
+
+    const expired = await this.prisma.attachment.findMany({
+      where: {
+        deletedAt: { not: null, lte: cutoff },
+      },
+      select: { id: true, storagePath: true, originalName: true },
+    });
+
+    let purged = 0;
+    const errors: string[] = [];
+
+    for (const att of expired) {
+      try {
+        const resolvedPath = this.resolveStoragePath(att.storagePath);
+        await this.safeUnlink(resolvedPath);
+        await this.prisma.attachment.delete({ where: { id: att.id } });
+        purged++;
+      } catch (err) {
+        errors.push(`${att.id} (${att.originalName}): ${(err as Error).message}`);
+      }
+    }
+
+    return { purged, errors };
   }
 
   async logDownload(id: string, userId: string) {

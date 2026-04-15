@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveProxyDecision } from './lib/proxy-session';
+import { resolveProxyDecision, shouldValidateSessionRemotely } from './lib/proxy-session';
 
 const AUTH_ME_PATH = '/api/auth/me';
 
@@ -38,7 +38,9 @@ export async function proxy(request: NextRequest) {
   const hasAccessToken = request.cookies.has('access_token');
   const hasRefreshToken = request.cookies.has('refresh_token');
   const hasSessionCookie = hasAccessToken || hasRefreshToken;
-  const hasValidatedSession = await hasValidatedAccessSession(request);
+  const hasValidatedSession = shouldValidateSessionRemotely(pathname)
+    ? await hasValidatedAccessSession(request)
+    : hasAccessToken;
 
   const decision = resolveProxyDecision({
     pathname,

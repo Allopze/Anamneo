@@ -11,7 +11,7 @@ SQLite esta soportado en este proyecto, incluso en produccion, pero no como excu
 | Monitor | `npm run db:monitor` | Chequea WAL, integridad y condiciones de advertencia |
 | Runner completo | `npm run db:ops` | Backup + restore drill + monitor + alerta |
 | Monitor rapido | `npm run db:ops:monitor` | Solo validacion operativa con notificacion |
-| Docker cron | servicio `backup-cron` | Ejecuta backup automatico cada `BACKUP_CRON_SCHEDULE` |
+| Docker cron | servicio `backup-cron` | Ejecuta `sqlite-ops-runner.js --mode=all` (backup + restore drill periódico + monitor + alertas) y purga de adjuntos eliminados |
 
 ## Variables Que Gobiernan la Operacion
 
@@ -38,10 +38,11 @@ SQLite esta soportado en este proyecto, incluso en produccion, pero no como excu
 
 1. Habilitar SQLite explicitamente.
 2. Mantener backup automatico cada 6 horas o mejor.
-3. Mantener restore drill al menos semanal.
+3. El restore drill se ejecuta automáticamente dentro de `backup-cron` según `SQLITE_RESTORE_DRILL_FREQUENCY_DAYS` (default: 7 días).
 4. Configurar `SQLITE_ALERT_WEBHOOK_URL`.
 5. Revisar health checks y crecimiento del WAL.
 6. Si usas Docker Compose, asegúrate de que `backup-cron` monte `./runtime/uploads` en modo lectura y use `UPLOAD_DEST=/app/uploads`; si no, puedes terminar con backups válidos de la base pero sin adjuntos reales.
+7. Usar `npm run deploy` (o `scripts/deploy.sh`) para despliegues con backup pre-migración y rollback automático.
 
 ## Comandos Operativos
 

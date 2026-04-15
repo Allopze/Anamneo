@@ -26,11 +26,13 @@ RUN apk add --no-cache openssl
 
 WORKDIR /app
 
+# Install only runtime dependencies while keeping Prisma CLI available for explicit migrate steps
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/prisma ./prisma
+RUN npm ci --omit=dev
+
 # Copy built artifacts with correct ownership (use built-in node user, uid 1000)
 COPY --from=builder --chown=node:node /app/dist ./dist
-COPY --from=builder --chown=node:node /app/node_modules ./node_modules
-COPY --from=builder --chown=node:node /app/package*.json ./
-COPY --from=builder --chown=node:node /app/prisma ./prisma
 COPY --from=builder --chown=node:node /app/scripts ./scripts
 
 # Create writable data directories
@@ -41,4 +43,4 @@ USER node
 
 EXPOSE 5678
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]
+CMD ["node", "dist/src/main"]

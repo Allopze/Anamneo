@@ -18,7 +18,8 @@ Eso orquesta:
 ### Backend
 
 - `backend/package.json` usa `nest build`.
-- El arranque productivo real puede pasar por `start:prod:migrate`, que ejecuta `prisma migrate deploy` antes de `node dist/main`.
+- El contenedor productivo ya no ejecuta `prisma migrate deploy` en cada arranque.
+- La migracion soportada en produccion es un paso explicito de release: `docker compose run --rm --no-deps backend npx prisma migrate deploy`.
 
 ### Frontend
 
@@ -47,10 +48,11 @@ Los puertos publicados por Compose quedan atados a loopback por defecto (`127.0.
 
 El despliegue internet-facing soportado para este proyecto es:
 
-1. `docker compose up -d --build` en el host.
-2. Backend y frontend publicados solo en loopback del host.
-3. `cloudflared` corriendo en el mismo host y exponiendo por HTTPS el frontend local.
-4. El navegador entra por el hostname publico y Next.js mantiene `/api` same-origin hacia el backend interno.
+1. `docker compose build` en el host.
+2. `docker compose run --rm --no-deps backend npx prisma migrate deploy` en el host.
+3. Backend y frontend publicados solo en loopback del host.
+4. `cloudflared` corriendo en el mismo host y exponiendo por HTTPS el frontend local.
+5. El navegador entra por el hostname publico y Next.js mantiene `/api` same-origin hacia el backend interno.
 
 Esto importa porque auth usa cookies `HttpOnly` y `Secure` en produccion. Si publicas el stack por HTTP directo, el problema no es "que Next a veces se pone raro"; el problema es que el despliegue quedo mal planteado.
 
@@ -117,9 +119,28 @@ Si quieres un release serio, corre primero build, typecheck y tests relevantes. 
 unzip anamneo-<timestamp>.zip -d anamneo
 cd anamneo
 cp .env.example .env
-docker compose up -d --build
-docker compose exec backend npm run prisma:migrate:prod
+docker compose build
+docker compose run --rm --no-deps backend npx prisma migrate deploy
+docker compose up -d
 ```
+
+### Despliegue Automatizado (recomendado)
+
+```bash
+unzip anamneo-<timestamp>.zip -d anamneo
+cd anamneo
+cp .env.example .env
+docker compose build
+npm run deploy
+```
+
+El script `scripts/deploy.sh` ejecuta:
+
+1. Backup pre-migración de la DB activa (con WAL y SHM si existen).
+2. Restore drill sobre el backup para validar que es utilizable.
+3. `prisma migrate deploy`.
+4. Si la migración falla, ofrece rollback automático al estado previo.
+5. `docker compose up -d` y espera health check del backend.
 
 Hasta aca el stack queda listo en el host, no publicado a internet. La publicacion soportada ocurre cuando `cloudflared` enruta tu hostname HTTPS al frontend local.
 
@@ -140,13 +161,26 @@ docker compose exec backend npm run prisma:seed
 
 ## Rollback
 
-No hay un flujo automatizado de rollback. Hoy el rollback depende de:
+El rollback está integrado en `scripts/deploy.sh`. Si la migración falla durante el deploy, el script ofrece restaurar automáticamente el backup pre-migración.
 
-- tener un artefacto anterior,
-- restaurar variables compatibles,
-- y contar con backup valido de la base si hubo migraciones o cambios de datos.
+Para rollback manual fuera del script:
 
-Antes de desplegar cambios delicados en persistencia, trata el backup como requisito y no como una costumbre optimista.
+```bash
+docker compose down
+cp runtime/data/backups/pre-deploy-<timestamp>.db runtime/data/anamneo.db
+docker compose up -d
+```
+
+Si la migración ya se aplicó y necesitas volver atrás:
+
+1. Identifica el backup pre-deploy más reciente en `runtime/data/backups/`.
+2. Detén los servicios: `docker compose down`.
+3. Restaura la DB: `cp runtime/data/backups/pre-deploy-<timestamp>.db runtime/data/anamneo.db`.
+4. Si existen, restaura WAL y SHM con el mismo prefijo.
+5. Levanta: `docker compose up -d`.
+6. Verifica: `curl http://127.0.0.1:5678/api/health`.
+
+El cron de backup (`backup-cron`) ahora ejecuta `sqlite-ops-runner.js --mode=all`, que incluye backup + restore drill periódico + monitor + alertas. Los restore drills se ejecutan automáticamente según `SQLITE_RESTORE_DRILL_FREQUENCY_DAYS` (default: 7 días).
 
 ## Referencias
 

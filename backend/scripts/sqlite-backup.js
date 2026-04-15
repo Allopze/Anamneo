@@ -79,22 +79,76 @@ function collectDirectoryStats(directoryPath) {
   };
 }
 
+function findLatestUploadsSnapshot(backupDir) {
+  const uploadsDir = path.join(backupDir, 'uploads');
+  if (!fs.existsSync(uploadsDir)) return null;
+
+  const entries = fs.readdirSync(uploadsDir, { withFileTypes: true })
+    .filter(e => e.isDirectory() && e.name.startsWith('anamneo-'))
+    .map(e => ({ name: e.name, path: path.join(uploadsDir, e.name) }))
+    .sort((a, b) => b.name.localeCompare(a.name));
+
+  return entries.length > 0 ? entries[0].path : null;
+}
+
 function createUploadsSnapshot(uploadsRoot, backupDir, timestamp) {
   const snapshotRelativePath = path.join('uploads', `anamneo-${timestamp}`);
   const snapshotPath = path.join(backupDir, snapshotRelativePath);
+  const previousSnapshot = findLatestUploadsSnapshot(backupDir);
 
   fs.rmSync(snapshotPath, { recursive: true, force: true });
-  fs.mkdirSync(path.dirname(snapshotPath), { recursive: true });
+  fs.mkdirSync(snapshotPath, { recursive: true });
+
+  let copiedFiles = 0;
+  let linkedFiles = 0;
 
   if (fs.existsSync(uploadsRoot)) {
-    fs.cpSync(uploadsRoot, snapshotPath, { recursive: true });
-  } else {
-    fs.mkdirSync(snapshotPath, { recursive: true });
+    const walk = (relDir) => {
+      const srcDir = path.join(uploadsRoot, relDir);
+      const dstDir = path.join(snapshotPath, relDir);
+      const prevDir = previousSnapshot ? path.join(previousSnapshot, relDir) : null;
+
+      if (relDir) fs.mkdirSync(dstDir, { recursive: true });
+
+      for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+        const relPath = path.join(relDir, entry.name);
+        if (entry.isDirectory()) {
+          walk(relPath);
+          continue;
+        }
+        if (!entry.isFile()) continue;
+
+        const srcPath = path.join(uploadsRoot, relPath);
+        const dstPath = path.join(snapshotPath, relPath);
+        const prevPath = prevDir ? path.join(prevDir, entry.name) : null;
+
+        // Try hardlink from previous snapshot if file unchanged (same size + mtime)
+        if (prevPath && fs.existsSync(prevPath)) {
+          try {
+            const srcStat = fs.statSync(srcPath);
+            const prevStat = fs.statSync(prevPath);
+            if (srcStat.size === prevStat.size && srcStat.mtimeMs === prevStat.mtimeMs) {
+              fs.linkSync(prevPath, dstPath);
+              linkedFiles++;
+              continue;
+            }
+          } catch {
+            // Fall through to copy
+          }
+        }
+
+        fs.copyFileSync(srcPath, dstPath);
+        copiedFiles++;
+      }
+    };
+    walk('');
   }
 
   return {
     snapshotRelativePath,
     snapshotPath,
+    copiedFiles,
+    linkedFiles,
     ...collectDirectoryStats(snapshotPath),
   };
 }
@@ -192,6 +246,8 @@ async function main() {
         uploadsFileCount: uploadsSnapshot.fileCount,
         uploadsDirectoryCount: uploadsSnapshot.directoryCount,
         uploadsTotalSizeBytes: uploadsSnapshot.totalSizeBytes,
+        uploadsCopiedFiles: uploadsSnapshot.copiedFiles,
+        uploadsLinkedFiles: uploadsSnapshot.linkedFiles,
       }, null, 2)}\n`,
       'utf8',
     );
@@ -208,6 +264,8 @@ async function main() {
       uploadsRoot,
       uploadsSnapshotPath: uploadsSnapshot.snapshotPath,
       uploadsFileCount: uploadsSnapshot.fileCount,
+      uploadsCopiedFiles: uploadsSnapshot.copiedFiles,
+      uploadsLinkedFiles: uploadsSnapshot.linkedFiles,
       uploadsTotalSizeBytes: uploadsSnapshot.totalSizeBytes,
       retentionDays,
       removedExpired,

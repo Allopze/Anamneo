@@ -37,6 +37,7 @@ model User {
   reviewedEncounters    Encounter[]             @relation("EncounterReviewedBy")
   completedEncounters   Encounter[]             @relation("EncounterCompletedBy")
   attachments           Attachment[]
+  deletedAttachments    Attachment[]  @relation("AttachmentDeletedBy")
   sessions              UserSession[]
   conditionCatalogLocal ConditionCatalogLocal[]
   textTemplates         TextTemplate[]
@@ -263,12 +264,16 @@ model Attachment {
   linkedOrderType  String?  @map("linked_order_type")
   linkedOrderId    String?  @map("linked_order_id")
   linkedOrderLabel String?  @map("linked_order_label")
-  uploadedAt   DateTime @default(now()) @map("uploaded_at")
+  uploadedAt   DateTime  @default(now()) @map("uploaded_at")
+  deletedAt    DateTime? @map("deleted_at")
+  deletedById  String?   @map("deleted_by_id")
 
   encounter  Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
   uploadedBy User      @relation(fields: [uploadedById], references: [id])
+  deletedBy  User?     @relation("AttachmentDeletedBy", fields: [deletedById], references: [id])
 
   @@index([encounterId, linkedOrderType, linkedOrderId])
+  @@index([deletedAt])
   @@map("attachments")
 }
 

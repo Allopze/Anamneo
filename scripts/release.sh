@@ -12,7 +12,9 @@ set -euo pipefail
 # Deploy en servidor destino:
 #   unzip anamneo-*.zip -d anamneo && cd anamneo
 #   cp .env.example .env   # editar con valores reales
-#   docker compose up -d --build
+#   docker compose build
+#   docker compose run --rm --no-deps backend npx prisma migrate deploy
+#   docker compose up -d
 # ============================================================
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -74,4 +76,9 @@ echo "📋 Para desplegar:"
 echo "   1. Copiar el zip al servidor"
 echo "   2. unzip $ZIP_NAME -d anamneo && cd anamneo"
 echo "   3. cp .env.example .env  # editar con valores de producción"
-echo "   4. docker compose up -d --build"
+echo "   4. docker compose build"
+echo "   5. npm run deploy  # backup + migrate + restore drill + up"
+echo ""
+echo "   (alternativa manual sin rollback automático):"
+echo "   5. docker compose run --rm --no-deps backend npx prisma migrate deploy"
+echo "   6. docker compose up -d"

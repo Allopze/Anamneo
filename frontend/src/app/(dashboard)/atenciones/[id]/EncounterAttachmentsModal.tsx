@@ -97,7 +97,7 @@ export default function EncounterAttachmentsModal({
                 Vas a eliminar {attachmentPendingDeletion.originalName}.
               </p>
               <p className="mt-1 text-sm text-ink-secondary">
-                Esta acción borra el archivo de la atención y del disco. Si fue un clic accidental, cancélalo ahora.
+                El archivo dejará de ser visible y se eliminará del disco tras 30 días. Si fue un clic accidental, cancélalo ahora.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button

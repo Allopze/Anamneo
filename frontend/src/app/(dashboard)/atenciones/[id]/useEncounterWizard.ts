@@ -365,7 +365,7 @@ export function useEncounterWizard() {
   const deleteMutation = useMutation({
     mutationFn: (attachmentId: string) => api.delete(`/attachments/${attachmentId}`),
     onSuccess: () => {
-      toast.success('Archivo eliminado');
+      toast.success('Archivo movido a papelera');
       setShowDeleteAttachment(null);
       queryClient.invalidateQueries({ queryKey: ['attachments', id] });
     },

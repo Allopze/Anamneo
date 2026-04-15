@@ -1,4 +1,16 @@
-import { resolveProxyDecision } from '@/lib/proxy-session';
+import { resolveProxyDecision, shouldValidateSessionRemotely } from '@/lib/proxy-session';
+
+describe('shouldValidateSessionRemotely', () => {
+  it('validates public auth routes remotely', () => {
+    expect(shouldValidateSessionRemotely('/login')).toBe(true);
+    expect(shouldValidateSessionRemotely('/register')).toBe(true);
+  });
+
+  it('skips remote validation for protected routes', () => {
+    expect(shouldValidateSessionRemotely('/')).toBe(false);
+    expect(shouldValidateSessionRemotely('/pacientes')).toBe(false);
+  });
+});
 
 describe('resolveProxyDecision', () => {
   it('redirects protected routes without session cookies', () => {

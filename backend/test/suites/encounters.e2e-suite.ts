@@ -864,7 +864,7 @@ export function encountersSuite() {
         .set('Cookie', cookieHeader(state.medicoCookies))
         .expect(200);
 
-      expect(res.body.message).toContain('eliminado');
+      expect(res.body.message).toContain('papelera');
     });
 
     it('POST /api/encounters/:id/complete → 400 when required sections are missing', async () => {

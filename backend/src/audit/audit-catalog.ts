@@ -29,6 +29,7 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   ATTACHMENT_UPLOADED: 'Carga de adjunto',
   ATTACHMENT_DOWNLOADED: 'Descarga de adjunto',
   ATTACHMENT_DELETED: 'Eliminación de adjunto',
+  ATTACHMENT_SOFT_DELETED: 'Adjunto movido a papelera',
   CONSENT_GRANTED: 'Otorgamiento de consentimiento informado',
   CONSENT_REVOKED: 'Revocación de consentimiento informado',
   USER_INVITATION_CREATED: 'Creación de invitación',
@@ -75,6 +76,7 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'Attachment' && action === 'CREATE') return 'ATTACHMENT_UPLOADED';
   if (entityType === 'Attachment' && action === 'DOWNLOAD') return 'ATTACHMENT_DOWNLOADED';
   if (entityType === 'Attachment' && action === 'DELETE') return 'ATTACHMENT_DELETED';
+  if (entityType === 'Attachment' && action === 'SOFT_DELETE') return 'ATTACHMENT_SOFT_DELETED';
   if (entityType === 'InformedConsent' && action === 'CREATE') return 'CONSENT_GRANTED';
   if (entityType === 'InformedConsent' && action === 'UPDATE') return 'CONSENT_REVOKED';
   if (entityType === 'UserInvitation' && action === 'CREATE') return 'USER_INVITATION_CREATED';

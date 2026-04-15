@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
@@ -9,15 +9,30 @@ import toast from 'react-hot-toast';
 
 export default function CambiarContrasenaPage() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, logout, hasHydrated } = useAuthStore();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  if (!user?.mustChangePassword) {
+  useEffect(() => {
+    if (!hasHydrated || user?.mustChangePassword) {
+      return;
+    }
+
     router.replace('/');
+  }, [hasHydrated, router, user?.mustChangePassword]);
+
+  if (!hasHydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-frame border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!user?.mustChangePassword) {
     return null;
   }
 

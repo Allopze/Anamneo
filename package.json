@@ -24,6 +24,7 @@
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
     "release": "bash scripts/release.sh",
+    "deploy": "bash scripts/deploy.sh",
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org alejandro-lopez-zelaya --project node-nestjs .next && sentry-cli sourcemaps upload --org alejandro-lopez-zelaya --project node-nestjs .next"
   },
   "devDependencies": {

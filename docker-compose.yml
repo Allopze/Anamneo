@@ -99,15 +99,17 @@ services:
       SQLITE_BACKUP_DIR: /app/data/backups
       SQLITE_BACKUP_RETENTION_DAYS: ${SQLITE_BACKUP_RETENTION_DAYS:-14}
       UPLOAD_DEST: /app/uploads
+      ATTACHMENT_SOFT_DELETE_RETENTION_DAYS: ${ATTACHMENT_SOFT_DELETE_RETENTION_DAYS:-30}
       BACKUP_CRON_SCHEDULE: ${BACKUP_CRON_SCHEDULE:-0 */6 * * *}
     volumes:
       - ./runtime/data:/app/data
-      - ./runtime/uploads:/app/uploads:ro
+      - ./runtime/uploads:/app/uploads
     entrypoint: ["sh", "-c"]
     command:
       - |
-        echo "$$BACKUP_CRON_SCHEDULE node /app/scripts/sqlite-backup.js >> /proc/1/fd/1 2>&1" > /tmp/crontab
+        echo "$$BACKUP_CRON_SCHEDULE node /app/scripts/sqlite-ops-runner.js --mode=all --notify=on-failure && node /app/scripts/purge-deleted-attachments.js >> /proc/1/fd/1 2>&1" > /tmp/crontab
         crontab /tmp/crontab
-        echo "Backup cron started: $$BACKUP_CRON_SCHEDULE"
-        node /app/scripts/sqlite-backup.js
+        echo "Backup cron started: $$BACKUP_CRON_SCHEDULE (ops-runner: backup + restore-drill + monitor)"
+        node /app/scripts/sqlite-ops-runner.js --mode=all --notify=on-failure
+        node /app/scripts/purge-deleted-attachments.js
         crond -f -l 2
