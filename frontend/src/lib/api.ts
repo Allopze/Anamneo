@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/stores/auth-store';
 import { buildLoginRedirectPath, getCurrentAppPath } from '@/lib/login-redirect';
+import { clearAuthSessionPrefill } from './auth-session';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 const REFRESH_ENDPOINT = '/auth/refresh';
@@ -35,6 +36,7 @@ async function refreshSession(): Promise<void> {
 
 async function clearSessionAndRedirectToLogin(): Promise<void> {
   useAuthStore.getState().logout();
+  clearAuthSessionPrefill();
 
   try {
     await axios.post(`${API_URL}${LOGOUT_ENDPOINT}`, {}, { withCredentials: true });

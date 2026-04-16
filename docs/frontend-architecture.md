@@ -42,6 +42,8 @@ La app usa same-origin `/api` en el navegador. `frontend/next.config.js` reescri
 - valida sesion real consultando `GET /api/auth/me`,
 - y decide si una ruta publica o privada debe continuar o redirigir.
 
+Cuando el usuario inicia sesion, el frontend reutiliza el usuario devuelto por `POST /auth/login`, `POST /auth/register` o `POST /auth/2fa/verify` y guarda un prefill de una sola vez para que `DashboardLayout` no tenga que volver a pedir `/auth/me` en la navegacion inmediata despues del login.
+
 Esto evita confiar ciegamente en la existencia de cookies. Tener una cookie no implica tener una sesion valida; solo implica que alguien dejo una cookie.
 
 ## Estado y Librerias Cliente

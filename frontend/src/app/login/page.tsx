@@ -10,6 +10,7 @@ import axios from 'axios';
 import { api, getErrorMessage } from '@/lib/api';
 import { sanitizeRedirectPath } from '@/lib/login-redirect';
 import { useAuthStore } from '@/stores/auth-store';
+import { stashAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
 import { FiArrowRight, FiCheck, FiClipboard, FiFileText, FiLock, FiMail, FiShield, FiUsers } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { AuthFrame } from '@/components/auth/AuthFrame';
@@ -74,18 +75,9 @@ export default function LoginPage() {
         return;
       }
 
-      // Fetch user profile using the cookie-based session
-      const userResponse = await api.get('/auth/me');
-
-      login({
-        id: userResponse.data.id,
-        email: userResponse.data.email,
-        nombre: userResponse.data.nombre,
-        role: userResponse.data.role as 'MEDICO' | 'ASISTENTE' | 'ADMIN',
-        isAdmin: !!userResponse.data.isAdmin,
-        medicoId: userResponse.data.medicoId ?? null,
-        totpEnabled: !!userResponse.data.totpEnabled,
-      });
+      const sessionUser = loginResponse.data.user;
+      login(toAuthUser(sessionUser));
+      stashAuthSessionPrefill(sessionUser);
 
       toast.success('¡Bienvenido!');
       router.push(sanitizeRedirectPath(searchParams.get('from'), '/'));
@@ -105,19 +97,11 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      await api.post('/auth/2fa/verify', { tempToken, code: data.code });
+      const verifyResponse = await api.post('/auth/2fa/verify', { tempToken, code: data.code });
 
-      const userResponse = await api.get('/auth/me');
-
-      login({
-        id: userResponse.data.id,
-        email: userResponse.data.email,
-        nombre: userResponse.data.nombre,
-        role: userResponse.data.role as 'MEDICO' | 'ASISTENTE' | 'ADMIN',
-        isAdmin: !!userResponse.data.isAdmin,
-        medicoId: userResponse.data.medicoId ?? null,
-        totpEnabled: !!userResponse.data.totpEnabled,
-      });
+      const sessionUser = verifyResponse.data.user;
+      login(toAuthUser(sessionUser));
+      stashAuthSessionPrefill(sessionUser);
 
       toast.success('¡Bienvenido!');
       router.push(sanitizeRedirectPath(searchParams.get('from'), '/'));

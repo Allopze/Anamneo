@@ -32,6 +32,17 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+export interface SessionUser {
+  id: string;
+  email: string;
+  nombre: string;
+  role: string;
+  isAdmin: boolean;
+  medicoId: string | null;
+  mustChangePassword: boolean;
+  totpEnabled: boolean;
+}
+
 type SessionContext = {
   userAgent?: string | null;
   ipAddress?: string | null;
@@ -60,6 +71,53 @@ export class AuthService {
         if (expiresAt <= now) this.usedTempTokenJtis.delete(jti);
       }
     }, TEMP_TOKEN_TTL_MS).unref();
+  }
+
+  private toSessionUser(user: {
+    id: string;
+    email: string;
+    nombre: string;
+    role: string;
+    isAdmin?: boolean | null;
+    medicoId?: string | null;
+    mustChangePassword?: boolean | null;
+    totpEnabled?: boolean | null;
+    active?: boolean | null;
+  }): SessionUser {
+    if (!user.active) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo');
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      nombre: user.nombre,
+      role: user.role,
+      isAdmin: !!user.isAdmin,
+      medicoId: user.medicoId ?? null,
+      mustChangePassword: !!user.mustChangePassword,
+      totpEnabled: !!user.totpEnabled,
+    };
+  }
+
+  async getSessionUserByEmail(email: string): Promise<SessionUser> {
+    const user = await this.usersService.findByEmail(this.normalizeEmail(email));
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo');
+    }
+
+    return this.toSessionUser(user);
+  }
+
+  async getSessionUserById(userId: string): Promise<SessionUser> {
+    const user = await this.usersService.findById(userId);
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo');
+    }
+
+    return this.toSessionUser(user);
   }
 
   private normalizeEmail(email: string): string {
@@ -464,7 +522,11 @@ export class AuthService {
 
   // ── 2FA / TOTP ──────────────────────────────────────────────────────
 
-  async verify2FALogin(tempToken: string, code: string, sessionContext?: SessionContext): Promise<AuthTokens> {
+  async verify2FALogin(
+    tempToken: string,
+    code: string,
+    sessionContext?: SessionContext,
+  ): Promise<{ tokens: AuthTokens; userId: string }> {
     let payload: { sub: string; purpose: string; jti?: string };
     try {
       payload = this.jwtService.verify(tempToken);
@@ -492,6 +554,9 @@ export class AuthService {
     const isValid = authenticator.verify({ token: code, secret: user.totpSecret });
     if (!isValid) throw new UnauthorizedException('Código TOTP inválido');
 
-    return this.issueTokens(user, sessionContext);
+    return {
+      tokens: await this.issueTokens(user, sessionContext),
+      userId: user.id,
+    };
   }
 }

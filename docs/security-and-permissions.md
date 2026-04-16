@@ -27,6 +27,8 @@ La seguridad de Anamneo mezcla controles de arranque, autenticacion por cookies,
 
 El frontend no se guia solo por la presencia de cookies: `src/proxy.ts` valida sesion real consultando `/api/auth/me` antes de decidir redirecciones sensibles.
 
+En el camino caliente de autenticacion, `login`, `register` y `2fa/verify` devuelven tambien el usuario de sesion sanitizado. El frontend usa ese payload para hidratar el store y evitar un segundo roundtrip inmediato a `/auth/me`, pero sigue reservando `GET /auth/me` para el bootstrap real cuando se entra al dashboard sin ese contexto reciente.
+
 Cuando el sistema aun no tiene un admin activo, el primer registro requiere `BOOTSTRAP_TOKEN`. La idea es simple: una instancia vacia expuesta a internet no debe quedar al alcance del primer visitante que encuentre `/register`.
 
 ## Roles y Contrato Base

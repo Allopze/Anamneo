@@ -156,6 +156,14 @@
 - Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests en 26.457 s.
 - Pendientes tras esta pasada: retomar la reducción de los monolitos todavía fuera de objetivo (`useEncounterWizard`, `encounters.service`, `patients.service`).
 
+### Pasada 22 - 2026-04-16
+
+- Eliminado el roundtrip inmediato a `/auth/me` en el camino caliente de auth: `POST /auth/login`, `POST /auth/register` y `POST /auth/2fa/verify` ahora devuelven el usuario de sesión sanitizado junto a las cookies, y el frontend lo reutiliza para hidratar el store y un prefill de sesión de una sola vez antes de montar el dashboard.
+- Alcance del cambio: `backend/src/auth/auth.service.ts`, `backend/src/auth/auth.controller.ts`, `backend/test/suites/auth.e2e-suite.ts`, `frontend/src/lib/auth-session.ts`, `frontend/src/lib/api.ts`, `frontend/src/components/layout/DashboardLayout.tsx`, `frontend/src/app/login/page.tsx`, `frontend/src/app/register/page.tsx` y `frontend/src/__tests__/app/login.test.tsx`.
+- Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests; `npm --prefix frontend run typecheck` pasa; `npm --prefix frontend run build` pasa; `npm --prefix frontend test -- --runInBand --runTestsByPath src/__tests__/app/login.test.tsx` pasa; `npm --prefix frontend run test:e2e -- tests/e2e/smoke.spec.ts` pasa; `npm --prefix frontend run test:e2e -- tests/e2e/workflow-clinical.spec.ts` pasa.
+- Nota operativa del harness: `smoke.spec.ts` y `workflow-clinical.spec.ts` comparten la misma base de datos de E2E, así que deben validarse en invocaciones separadas o con un solo worker; juntos compiten por el bootstrap inicial.
+- Pendientes tras esta pasada: retomar la reducción de los monolitos todavía fuera de objetivo (`useEncounterWizard`, `encounters.service`, `patients.service`).
+
 > Actualizacion 2026-04-14: C2 quedo mitigado en el repo. `docker-compose.yml` ahora publica backend y frontend solo en loopback por defecto, y la documentacion de despliegue/entorno deja explicito que este producto esta pensado para publicarse detras de Cloudflare Tunnel con `cloudflared` y HTTPS.
 
 ## 1. Resumen ejecutivo
@@ -259,15 +267,17 @@ Estado actual del frontend: **liberable con deuda puntual, no perfecto**.
 Puntos positivos:
 
 - Hay `error.tsx`, `loading.tsx` y `not-found.tsx` en el App Router.
-- La navegación privada usa validación de sesión en borde y bootstrap de estado en cliente.
+- La navegación privada usa validación de sesión en borde y bootstrap de estado en cliente; el hot path de login/registro ya reutiliza la respuesta autenticada para evitar un `/auth/me` inmediato.
 - El contrato de login redirect está saneado en `frontend/src/lib/login-redirect.ts`, evitando open redirect trivial.
 
 Problemas relevantes:
 
-1. La duplicación principal de `/auth/me` en rutas privadas ya se redujo, pero el frontend sigue dependiendo bastante de bootstrap de sesión en cliente y eso conviene vigilarlo con pruebas reales.
+1. La duplicación principal de `/auth/me` en rutas privadas ya se redujo, pero el frontend sigue dependiendo bastante de bootstrap de sesión en cliente para cold boots y eso conviene vigilarlo con pruebas reales.
 2. Las regresiones recientes de build y prerender ya se corrigieron, pero dejaron claro que side effects durante render y módulos demasiado grandes siguen siendo puntos frágiles.
 
 E2E browser real: en la pasada 11 se creó infraestructura Playwright full-stack con `frontend/tests/e2e/smoke.spec.ts` que levanta backend+frontend reales, registra un admin bootstrap, verifica dashboard con sidebar, y prueba redirect de rutas privadas sin sesión. En las pasadas 14, 15, 16 y 17 esa base quedó ampliada con `frontend/tests/e2e/workflow-clinical.spec.ts`, que ahora cubre alta completa de paciente, búsqueda, navegación a ficha, creación de atención con guardado de `Motivo de consulta`, carga de adjuntos y firma electrónica simple, sin emitir warnings React en el rail clínico durante la navegación validada.
+
+En la pasada 22 se validó además que el bootstrap de sesión del dashboard consume el usuario recién autenticado sin volver a pedir `/auth/me` inmediatamente, y se verificó que el smoke y el workflow clínico pasan cuando se ejecutan por separado sobre el mismo harness de E2E.
 
 Mi lectura práctica: el frontend volvió a un estado liberable con una red de seguridad E2E real establecida. Lo que le falta no es otro gran refactor visual, sino bajar la fragilidad de los módulos grandes que todavía concentran demasiada lógica.
 

@@ -52,6 +52,8 @@ export function authSuite() {
         .expect(201);
 
       expect(res.body.message).toBe('Registro exitoso');
+      expect(res.body.user.email).toBe('admin@test.com');
+      expect(res.body.user.role).toBe('ADMIN');
       state.adminCookies = extractCookies(res);
       expect(state.adminCookies.length).toBeGreaterThanOrEqual(2);
     });
@@ -159,6 +161,8 @@ export function authSuite() {
         })
         .expect(201);
 
+      expect(res.body.user.email).toBe('medico@test.com');
+      expect(res.body.user.role).toBe('MEDICO');
       state.medicoCookies = extractCookies(res);
     });
 
@@ -196,6 +200,8 @@ export function authSuite() {
         .send({ email: 'assistant@test.com', password: 'Assist123' })
         .expect(200);
 
+      expect(res.body.user.email).toBe('assistant@test.com');
+      expect(res.body.user.role).toBe('ASISTENTE');
       state.assistantCookies = extractCookies(res);
       expect(state.assistantCookies.length).toBeGreaterThanOrEqual(2);
     });
@@ -216,6 +222,7 @@ export function authSuite() {
         .expect(200);
 
       expect(res.body.message).toBe('Inicio de sesión exitoso');
+      expect(res.body.user.email).toBe('medico@test.com');
       state.medicoCookies = extractCookies(res);
     });
 

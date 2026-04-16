@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
+import { stashAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
 import { AuthFrame } from '@/components/auth/AuthFrame';
 import { FiArrowRight, FiEye, FiEyeOff, FiLock, FiMail, FiShield, FiUser, FiUserPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
@@ -181,7 +182,7 @@ export default function RegisterPage() {
 
     try {
       // Register sets HttpOnly cookies automatically
-      await api.post('/auth/register', {
+      const registerResponse = await api.post('/auth/register', {
         email: data.email,
         password: data.password,
         nombre: data.nombre,
@@ -190,18 +191,9 @@ export default function RegisterPage() {
         bootstrapToken: requiresBootstrapToken ? bootstrapToken : undefined,
       });
 
-      // Fetch user profile using the cookie-based session
-      const userResponse = await api.get('/auth/me');
-
-      login({
-        id: userResponse.data.id,
-        email: userResponse.data.email,
-        nombre: userResponse.data.nombre || data.nombre,
-        role: userResponse.data.role as 'MEDICO' | 'ASISTENTE' | 'ADMIN',
-        isAdmin: !!userResponse.data.isAdmin,
-        medicoId: userResponse.data.medicoId ?? null,
-        totpEnabled: !!userResponse.data.totpEnabled,
-      });
+      const sessionUser = registerResponse.data.user;
+      login(toAuthUser(sessionUser));
+      stashAuthSessionPrefill(sessionUser);
 
       if (typeof window !== 'undefined') {
         window.sessionStorage.removeItem(REGISTER_DRAFT_KEY);

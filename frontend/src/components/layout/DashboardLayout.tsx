@@ -30,6 +30,7 @@ import DashboardSidebar from './DashboardSidebar';
 import type { NavItem } from './DashboardSidebar';
 import MobileSearchOverlay from './MobileSearchOverlay';
 import { useDashboardSearch } from './useDashboardSearch';
+import { clearAuthSessionPrefill, consumeAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -119,20 +120,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     let cancelled = false;
 
     const bootstrapSession = async () => {
+      const sessionPrefill = consumeAuthSessionPrefill();
+      if (sessionPrefill) {
+        if (cancelled) return;
+
+        login(toAuthUser(sessionPrefill));
+        setAuthCheckComplete(true);
+        return;
+      }
+
       try {
         const response = await api.get('/auth/me');
         if (cancelled) return;
 
-        login({
-          id: response.data.id,
-          email: response.data.email,
-          nombre: response.data.nombre,
-          role: response.data.role as 'MEDICO' | 'ASISTENTE' | 'ADMIN',
-          isAdmin: !!response.data.isAdmin,
-          medicoId: response.data.medicoId ?? null,
-          mustChangePassword: !!response.data.mustChangePassword,
-          totpEnabled: !!response.data.totpEnabled,
-        });
+        login(toAuthUser(response.data));
       } catch {
         if (cancelled) return;
         logout();
@@ -175,6 +176,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     } catch {
       // Clear local state even if server call fails
     }
+    clearAuthSessionPrefill();
     logout();
     router.replace('/login');
   };

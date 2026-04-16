@@ -93,7 +93,8 @@ export class AuthController {
     const sessionContext = this.getSessionContext(res.req as Request);
     const result = await this.authService.register(registerDto, sessionContext);
     this.setAuthCookies(res, result);
-    return { message: 'Registro exitoso' };
+    const user = await this.authService.getSessionUserByEmail(registerDto.email);
+    return { message: 'Registro exitoso', user };
   }
 
   @Post('login')
@@ -108,7 +109,8 @@ export class AuthController {
     }
 
     this.setAuthCookies(res, result);
-    return { message: 'Inicio de sesión exitoso' };
+    const user = await this.authService.getSessionUserByEmail(loginDto.email);
+    return { message: 'Inicio de sesión exitoso', user };
   }
 
   @Post('refresh')
@@ -193,8 +195,9 @@ export class AuthController {
   @Throttle({ short: { limit: 5, ttl: 60000 } })
   async verify2FA(@Body() dto: VerifyTotpLoginDto, @Res({ passthrough: true }) res: Response) {
     const sessionContext = this.getSessionContext(res.req as Request);
-    const tokens = await this.authService.verify2FALogin(dto.tempToken, dto.code, sessionContext);
-    this.setAuthCookies(res, tokens);
-    return { message: 'Verificación 2FA exitosa' };
+    const result = await this.authService.verify2FALogin(dto.tempToken, dto.code, sessionContext);
+    this.setAuthCookies(res, result.tokens);
+    const user = await this.authService.getSessionUserById(result.userId);
+    return { message: 'Verificación 2FA exitosa', user };
   }
 }

@@ -73,15 +73,18 @@ describe('LoginPage', () => {
   });
 
   it('submits valid credentials and redirects', async () => {
-    apiPostMock.mockResolvedValueOnce({});
-    apiGetMock.mockResolvedValueOnce({
+    apiPostMock.mockResolvedValueOnce({
       data: {
-        id: '1',
-        email: 'doc@test.cl',
-        nombre: 'Dr. Test',
-        role: 'MEDICO',
-        isAdmin: false,
-        medicoId: null,
+        user: {
+          id: '1',
+          email: 'doc@test.cl',
+          nombre: 'Dr. Test',
+          role: 'MEDICO',
+          isAdmin: false,
+          medicoId: null,
+          mustChangePassword: false,
+          totpEnabled: false,
+        },
       },
     });
 
@@ -97,21 +100,25 @@ describe('LoginPage', () => {
         email: 'doc@test.cl',
         password: 'Password1',
       });
+      expect(apiGetMock).not.toHaveBeenCalled();
       expect(pushMock).toHaveBeenCalledWith('/');
     });
   });
 
   it('uses the safe from parameter when returning after login', async () => {
     fromParam = '/atenciones/enc-1?panel=review';
-    apiPostMock.mockResolvedValueOnce({});
-    apiGetMock.mockResolvedValueOnce({
+    apiPostMock.mockResolvedValueOnce({
       data: {
-        id: '1',
-        email: 'doc@test.cl',
-        nombre: 'Dr. Test',
-        role: 'MEDICO',
-        isAdmin: false,
-        medicoId: null,
+        user: {
+          id: '1',
+          email: 'doc@test.cl',
+          nombre: 'Dr. Test',
+          role: 'MEDICO',
+          isAdmin: false,
+          medicoId: null,
+          mustChangePassword: false,
+          totpEnabled: false,
+        },
       },
     });
 
@@ -123,6 +130,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     await waitFor(() => {
+      expect(apiGetMock).not.toHaveBeenCalled();
       expect(pushMock).toHaveBeenCalledWith('/atenciones/enc-1?panel=review');
     });
   });
