@@ -31,6 +31,7 @@ import type { NavItem } from './DashboardSidebar';
 import MobileSearchOverlay from './MobileSearchOverlay';
 import { useDashboardSearch } from './useDashboardSearch';
 import { clearAuthSessionPrefill, consumeAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
+import { buildLoginRedirectPath, getCurrentAppPath } from '@/lib/login-redirect';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -150,6 +151,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       cancelled = true;
     };
   }, [authCheckComplete, hasHydrated, login, logout, mounted]);
+
+  useEffect(() => {
+    if (!mounted || !hasHydrated || !authCheckComplete || isAuthenticated) {
+      return;
+    }
+
+    router.replace(buildLoginRedirectPath(getCurrentAppPath(window.location)));
+  }, [authCheckComplete, hasHydrated, isAuthenticated, mounted, router]);
 
   // ── Cmd+K global shortcut ──────────────────────────────────────────
   useEffect(() => {

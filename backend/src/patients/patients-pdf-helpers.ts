@@ -56,7 +56,25 @@ export function getTreatmentPlanText(trat: Record<string, any>) {
   return `${plan}\n${indicaciones}`;
 }
 
+function isJsonLikeHistoryString(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith('enc:')) return true;
+
+  const firstChar = trimmed[0];
+  return firstChar === '{' || firstChar === '[' || firstChar === '"';
+}
+
 export function formatHistoryFieldText(value: unknown) {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+
+    if (!isJsonLikeHistoryString(trimmed)) {
+      return trimmed;
+    }
+  }
+
   const parsed = parseStoredJson(value, value);
   if (!parsed) return '';
 

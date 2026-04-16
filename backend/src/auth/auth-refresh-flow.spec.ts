@@ -1,0 +1,159 @@
+import { UnauthorizedException } from '@nestjs/common';
+import { refreshTokensFlow } from './auth-refresh-flow';
+
+describe('refreshTokensFlow', () => {
+  let jwtService: any;
+  let configService: any;
+  let sessionService: any;
+  let issueTokens: jest.Mock;
+
+  beforeEach(() => {
+    jwtService = {
+      verify: jest.fn(),
+    };
+
+    configService = {
+      get: jest.fn().mockReturnValue('refresh-secret'),
+    };
+
+    sessionService = {
+      findAuthById: jest.fn(),
+      findActiveSessionById: jest.fn(),
+    };
+
+    issueTokens = jest.fn().mockResolvedValue({
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    });
+  });
+
+  it('returns new tokens when refresh payload and session metadata are valid', async () => {
+    jwtService.verify.mockReturnValue({
+      sub: 'user-1',
+      rv: 4,
+      sid: 'session-1',
+      sv: 2,
+    });
+    sessionService.findAuthById.mockResolvedValue({
+      id: 'user-1',
+      email: 'medico@test.com',
+      role: 'MEDICO',
+      active: true,
+      refreshTokenVersion: 4,
+    });
+    sessionService.findActiveSessionById.mockResolvedValue({
+      id: 'session-1',
+      userId: 'user-1',
+      tokenVersion: 2,
+    });
+
+    const result = await refreshTokensFlow({
+      jwtService,
+      configService,
+      sessionService,
+      refreshToken: 'refresh-token',
+      sessionContext: { userAgent: 'jest' },
+      issueTokens,
+    });
+
+    expect(result).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
+    expect(issueTokens).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'user-1', email: 'medico@test.com', role: 'MEDICO' }),
+      {
+        userAgent: 'jest',
+        sessionId: 'session-1',
+      },
+    );
+  });
+
+  it('throws UnauthorizedException when jwt verification fails', async () => {
+    jwtService.verify.mockImplementation(() => {
+      throw new Error('invalid token');
+    });
+
+    await expect(
+      refreshTokensFlow({
+        jwtService,
+        configService,
+        sessionService,
+        refreshToken: 'bad-token',
+        issueTokens,
+      }),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('throws UnauthorizedException when refresh token version does not match user version', async () => {
+    jwtService.verify.mockReturnValue({
+      sub: 'user-1',
+      rv: 3,
+      sid: 'session-1',
+      sv: 2,
+    });
+    sessionService.findAuthById.mockResolvedValue({
+      id: 'user-1',
+      active: true,
+      refreshTokenVersion: 4,
+    });
+
+    await expect(
+      refreshTokensFlow({
+        jwtService,
+        configService,
+        sessionService,
+        refreshToken: 'refresh-token',
+        issueTokens,
+      }),
+    ).rejects.toThrow('Token de refresco inválido');
+  });
+
+  it('throws UnauthorizedException when sid/sv metadata is missing', async () => {
+    jwtService.verify.mockReturnValue({
+      sub: 'user-1',
+      rv: 4,
+    });
+    sessionService.findAuthById.mockResolvedValue({
+      id: 'user-1',
+      active: true,
+      refreshTokenVersion: 4,
+    });
+
+    await expect(
+      refreshTokensFlow({
+        jwtService,
+        configService,
+        sessionService,
+        refreshToken: 'refresh-token',
+        issueTokens,
+      }),
+    ).rejects.toThrow('Token de refresco inválido');
+  });
+
+  it('throws UnauthorizedException when active session does not match payload/session owner', async () => {
+    jwtService.verify.mockReturnValue({
+      sub: 'user-1',
+      rv: 4,
+      sid: 'session-1',
+      sv: 2,
+    });
+    sessionService.findAuthById.mockResolvedValue({
+      id: 'user-1',
+      active: true,
+      refreshTokenVersion: 4,
+    });
+    sessionService.findActiveSessionById.mockResolvedValue({
+      id: 'session-1',
+      userId: 'other-user',
+      tokenVersion: 2,
+    });
+
+    await expect(
+      refreshTokensFlow({
+        jwtService,
+        configService,
+        sessionService,
+        refreshToken: 'refresh-token',
+        issueTokens,
+      }),
+    ).rejects.toThrow('Token de refresco inválido');
+  });
+});

@@ -341,6 +341,83 @@
 - Validación final: `npm --prefix backend run typecheck` pasa; `npm --prefix backend run test -- --runInBand --testPathPattern=auth.service.spec.ts` pasa con 1/1 suite y 16/16 tests; `npm --prefix backend run test` pasa con 31/31 suites y 182/182 tests; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 1/1 suite y 174/174 tests.
 - Pendientes tras esta pasada: mantener monitoreo del warning intermitente `Router action dispatched before initialization` en Playwright, seguir observando el warning no bloqueante de `parseStoredJson`, y sumar cobertura unitaria focalizada para los nuevos módulos `auth-token-issuance`, `auth-2fa-flow` y `auth-refresh-flow`.
 
+### Pasada 45 - 2026-04-16
+
+- Cobertura unitaria focalizada agregada para los nuevos módulos de auth extraídos en pasada 44: `backend/src/auth/auth-token-issuance.spec.ts`, `backend/src/auth/auth-2fa-flow.spec.ts` y `backend/src/auth/auth-refresh-flow.spec.ts`.
+- `backend/src/auth/auth.service.spec.ts` extendido con casos específicos de 2FA solicitados: rechazo por single-use de token temporal (reuso de `jti`) y rechazo cuando `purpose` del token no es `2fa`.
+- Cobertura e2e específica de 2FA end-to-end añadida en `backend/test/suites/auth.e2e-suite.ts`: setup de secreto, enable de 2FA, login que retorna `requires2FA/tempToken`, verify exitoso y rechazo de reuso del `tempToken`.
+- Alcance del cambio: `backend/src/auth/auth-token-issuance.spec.ts` (nuevo), `backend/src/auth/auth-2fa-flow.spec.ts` (nuevo), `backend/src/auth/auth-refresh-flow.spec.ts` (nuevo), `backend/src/auth/auth.service.spec.ts`, `backend/test/suites/auth.e2e-suite.ts` y `backend/test/helpers/e2e-setup.ts`.
+- Validación final: `npm --prefix backend run typecheck` pasa; `npm --prefix backend run test -- --runInBand --runTestsByPath src/auth/auth-token-issuance.spec.ts src/auth/auth-2fa-flow.spec.ts src/auth/auth-refresh-flow.spec.ts src/auth/auth.service.spec.ts` pasa con 4/4 suites y 33/33 tests; `npm --prefix backend run test` pasa con 34/34 suites y 199/199 tests; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 1/1 suite y 179/179 tests.
+- Pendientes tras esta pasada: mantener monitoreo del warning intermitente `Router action dispatched before initialization` en Playwright y seguir observando el warning no bloqueante de `parseStoredJson` para preservar señal de CI.
+
+### Pasada 46 - 2026-04-16
+
+- Cobertura unitaria dedicada agregada para `backend/src/auth/auth-totp.service.ts` con una nueva suite `backend/src/auth/auth-totp.service.spec.ts`, cubriendo `setup2FA`, `enable2FA` y `disable2FA` en caminos felices y rechazos esperados (usuario inexistente, 2FA ya habilitado/no habilitado, código TOTP inválido y contraseña inválida).
+- Alcance del cambio: `backend/src/auth/auth-totp.service.spec.ts` (nuevo).
+- Validación final: `npm --prefix backend run typecheck` pasa; `npm --prefix backend run test -- --runInBand --runTestsByPath src/auth/auth-totp.service.spec.ts` pasa con 1/1 suite y 11/11 tests; `npm --prefix backend run test` pasa con 35/35 suites y 210/210 tests.
+- Pendientes tras esta pasada: mantener monitoreo del warning intermitente `Router action dispatched before initialization` en Playwright y seguir observando el warning no bloqueante de `parseStoredJson` para preservar señal de CI.
+
+### Pasada 47 - 2026-04-16
+
+- `AuthTotpService` endurecido con tests de tolerancia a fallos de auditoría: `enable2FA` y `disable2FA` ahora tienen cobertura explícita de comportamiento fire-and-forget cuando `auditService.log` rechaza, verificando que el flujo principal sigue devolviendo éxito.
+- Cobertura e2e negativa de 2FA ampliada en `backend/test/suites/auth.e2e-suite.ts`: se añadieron casos para código TOTP inválido y token temporal expirado, manteniendo además verify exitoso y rechazo por reuso de `tempToken`.
+- Monitoreo de warnings solicitado:
+	- Playwright clínico (`npm --prefix frontend run test:e2e -- tests/e2e/workflow-clinical.spec.ts`) pasa con 6/6 y **no** reprodujo `Router action dispatched before initialization` en esta corrida.
+	- Backend unit completo (`npm --prefix backend run test`) pasa con 35/35 suites y 212/212 tests; el warning no bloqueante de `parseStoredJson` **sigue presente** en una ocurrencia.
+- Alcance del cambio: `backend/src/auth/auth-totp.service.spec.ts` y `backend/test/suites/auth.e2e-suite.ts`.
+- Validación final: `npm --prefix backend run typecheck` pasa; `npm --prefix backend run test -- --runInBand --runTestsByPath src/auth/auth-totp.service.spec.ts` pasa con 1/1 suite y 13/13 tests; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 1/1 suite y 181/181 tests; `npm --prefix backend run test` pasa con 35/35 suites y 212/212 tests.
+- Pendientes tras esta pasada: mantener monitoreo del warning intermitente `Router action dispatched before initialization` en Playwright y seguir observando/reduciendo el warning no bloqueante de `parseStoredJson` para preservar señal de CI.
+
+### Pasada 48 - 2026-04-16
+
+- Flujo post-login inspeccionado end-to-end: no se detectó regresión activa en el contrato de `GET /auth/me`, pero sí un caso de UX degradada en frontend cuando el bootstrap de sesión falla y deja la shell privada en estado de carga sin salida explícita.
+- Corrección aplicada en `frontend/src/components/layout/DashboardLayout.tsx`: se añadió fallback de redirección segura a login cuando el bootstrap termina sin sesión autenticada (`authCheckComplete && !isAuthenticated`), reutilizando `buildLoginRedirectPath(getCurrentAppPath(...))` para conservar retorno seguro y evitar estado colgado en rutas privadas.
+- Rebuild solicitado completado: `npm --prefix backend run build` pasa.
+- Validación funcional del plan:
+	- `npm --prefix frontend run typecheck` pasa.
+	- `npm --prefix frontend run test -- --runInBand` pasa con 35/35 suites y 190/190 tests.
+	- `npm --prefix frontend run test:e2e -- tests/e2e/workflow-clinical.spec.ts` pasa con 6/6 (se observó una corrida intermitente previa con 404 en ficha clínica, no reproducida en re-run inmediato).
+	- `npm --prefix frontend run test:e2e -- tests/e2e/smoke.spec.ts` pasa con 2/2 tests de auth/redirect.
+- Alcance del cambio: `frontend/src/components/layout/DashboardLayout.tsx` y `AUDITORIA_PRODUCCION.md`.
+- Pendientes tras esta pasada: mantener monitoreo del warning intermitente `Router action dispatched before initialization` en Playwright y seguir observando/reduciendo el warning no bloqueante de `parseStoredJson` para preservar señal de CI.
+
+### Pasada 49 - 2026-04-16
+
+- Monitoreo de warning de router endurecido en Playwright: `frontend/tests/e2e/workflow-clinical.spec.ts` ahora captura mensajes de consola que contengan `Router action dispatched before initialization`, adjunta un artefacto de ejecución (`router-init-warning-monitor.txt`) y registra anotación con conteo por corrida.
+- Guardia funcional anti-falso-verde agregada en firma clínica: después de navegar a `/atenciones/:id/ficha`, la suite exige ausencia explícita de la pantalla de 404 (`Página no encontrada` / `Volver al inicio`) antes de continuar con la acción `Firmar`.
+- Artefactos de falla ampliados para triage en E2E frontend: `frontend/playwright.config.ts` conserva ahora `trace`, `video` y `screenshot` en fallos.
+- Alcance del cambio: `frontend/tests/e2e/workflow-clinical.spec.ts`, `frontend/playwright.config.ts` y `AUDITORIA_PRODUCCION.md`.
+- Validación final: `npm --prefix frontend run typecheck` pasa; `npm --prefix frontend run test:e2e -- tests/e2e/workflow-clinical.spec.ts` pasa con 6/6 tests.
+- Pendientes tras esta pasada: mantener monitoreo del warning intermitente `Router action dispatched before initialization` en Playwright (ahora con evidencia estructurada por corrida) y seguir observando/reduciendo el warning no bloqueante de `parseStoredJson` para preservar señal de CI.
+
+### Pasada 50 - 2026-04-16
+
+- Reducción de ruido no bloqueante en `parseStoredJson`: `formatHistoryFieldText` en `backend/src/patients/patients-pdf-helpers.ts` ahora evita parseo JSON cuando el valor es texto plano clínico (no JSON-like ni cifrado), preservando parseo para payloads JSON y `enc:`.
+- Cobertura de regresión agregada en `backend/src/patients/patients-pdf.service.spec.ts`: nuevo caso que valida que texto plano no dispara warnings de parseo durante formateo de historial clínico.
+- Resultado de señal tras el ajuste: en la corrida completa `npm --prefix backend run test` no se observaron ocurrencias de `Failed to parse/decrypt stored JSON`.
+- Alcance del cambio: `backend/src/patients/patients-pdf-helpers.ts`, `backend/src/patients/patients-pdf.service.spec.ts` y `AUDITORIA_PRODUCCION.md`.
+- Validación final: `npm --prefix backend run typecheck` pasa; `npm --prefix backend run test -- --runInBand --runTestsByPath src/patients/patients-pdf.service.spec.ts` pasa con 1/1 suite y 4/4 tests; `npm --prefix backend run test` pasa con 35/35 suites y 213/213 tests.
+- Pendientes tras esta pasada: mantener monitoreo del warning intermitente `Router action dispatched before initialization` en Playwright y sostener vigilancia de señal de `parseStoredJson` para detectar regresiones futuras (baseline actual: 0 ocurrencias en run completo).
+
+### Pasada 51 - 2026-04-16
+
+- El monitoreo de estabilidad Playwright dejó de depender de `--repeat-each`: `frontend/package.json` ahora expone `test:e2e:workflow-clinical:repeat` como 3 corridas independientes del workflow clínico, cada una con su propio ciclo de `webServer`/SQLite, evitando colisiones de bootstrap compartido.
+- `docs/testing.md` quedó actualizado con el comando recomendado para medición de estabilidad y la advertencia explícita de no usar `--repeat-each` sobre `workflow-clinical.spec.ts` dentro del mismo proceso.
+- Baseline de estabilidad medido con el nuevo runner: `npm --prefix frontend run test:e2e:workflow-clinical:repeat` pasa con 3/3 corridas independientes (18/18 tests agregados).
+- Alcance del cambio: `frontend/package.json`, `docs/testing.md` y `AUDITORIA_PRODUCCION.md`.
+- Validación final: `npm --prefix frontend run test:e2e:workflow-clinical:repeat` pasa con 3 corridas consecutivas verdes.
+- Pendientes tras esta pasada: sostener monitoreo del warning intermitente `Router action dispatched before initialization` usando el runner estable y automatizar su evidencia en CI junto con artefactos de Playwright.
+
+### Pasada 52 - 2026-04-16
+
+- Automatización CI agregada para sostener la base E2E frontend: `.github/workflows/ci.yml` ahora incluye un job `frontend-e2e` que instala Chromium, ejecuta `npm run test:e2e:smoke` y `npm run test:e2e:workflow-clinical`, y publica `frontend/test-results` / `frontend/playwright-report` como artifacts en caso de fallo.
+- Señal backend endurecida en CI: el job backend ahora captura la salida de `npm test` y falla si reaparecen warnings `parseStoredJson` / `Failed to parse/decrypt stored JSON`, alineando la pipeline con el baseline 0 de la pasada 50.
+- Scripts dedicados de frontend ya validados localmente: `npm --prefix frontend run test:e2e:smoke` pasa con 2/2 tests y `npm --prefix frontend run test:e2e:workflow-clinical` pasa con 6/6 tests.
+- Validación estructural de CI completada: `.github/workflows/ci.yml` parsea correctamente tras el cambio.
+- Alcance del cambio: `.github/workflows/ci.yml`, `frontend/package.json`, `docs/testing.md` y `AUDITORIA_PRODUCCION.md`.
+- Validación final: `python3` parse de `.github/workflows/ci.yml` OK; `npm --prefix frontend run test:e2e:smoke` OK; `npm --prefix frontend run test:e2e:workflow-clinical` OK.
+- Pendientes tras esta pasada: mantener monitoreo del warning intermitente `Router action dispatched before initialization` con la instrumentación actual y observar si la CI nueva captura evidencia útil en próximas corridas reales.
+
 > Actualizacion 2026-04-14: C2 quedo mitigado en el repo. `docker-compose.yml` ahora publica backend y frontend solo en loopback por defecto, y la documentacion de despliegue/entorno deja explicito que este producto esta pensado para publicarse detras de Cloudflare Tunnel con `cloudflared` y HTTPS.
 
 ## 1. Resumen ejecutivo
@@ -359,13 +436,12 @@ Audité el estado actual del repositorio como si hoy hubiera que desplegarlo par
 
 También validé con Context7 dos puntos que guiaron las últimas mitigaciones: en Next.js los Client Components se prerenderizan durante `next build`, así que side effects como `router.replace` o acceso a browser APIs deben moverse fuera del render; y Prisma recomienda ejecutar `prisma migrate deploy` como paso explícito de despliegue/CI, no como efecto lateral en cada arranque del proceso principal.
 
-Conclusión corta: la base técnica no es mala. De hecho, tiene varias decisiones correctas para una app clínica pequeña: sesiones con rotación, cookies HttpOnly, TOTP, trazabilidad, validación de archivos y CI útil. Después de las pasadas de mitigación de hoy, C1, C2, C3 y C4 quedaron corregidos en código, C5 quedó mitigado en UX, el warning de prerender desapareció, el audit productivo del frontend quedó limpio, la duplicación principal de `/auth/me` fue reducida y el flujo de release quedó más controlado.
+Conclusión corta: la base técnica no es mala. De hecho, tiene varias decisiones correctas para una app clínica pequeña: sesiones con rotación, cookies HttpOnly, TOTP, trazabilidad, validación de archivos y CI útil. Después de las pasadas de mitigación de hoy, C1, C2, C3 y C4 quedaron corregidos en código, C5 quedó mitigado en UX, el warning de prerender desapareció, el audit productivo del frontend quedó limpio, la duplicación principal de `/auth/me` fue reducida, el flujo de release quedó más controlado y el baseline actual del warning `parseStoredJson` quedó en 0 ocurrencias durante la corrida completa de tests backend.
 
 Los pendientes más relevantes ahora son:
 
 1. Mantener monitoreo del warning `Router action dispatched before initialization` en Playwright para confirmar que se mantiene como ruido intermitente y no regresión funcional.
-2. Vigilar la recurrencia del warning no bloqueante de `parseStoredJson` en unit tests para evitar ruido que enmascare fallas reales.
-3. Añadir pruebas unitarias focalizadas para `backend/src/auth/auth-token-issuance.ts`, `backend/src/auth/auth-2fa-flow.ts` y `backend/src/auth/auth-refresh-flow.ts` para blindar las nuevas fachadas extraídas.
+2. Mantener vigilancia sobre `parseStoredJson` para detectar regresiones futuras, tomando como baseline actual 0 ocurrencias en la corrida completa `npm --prefix backend run test`.
 
 ## 2. Veredicto de producción
 
@@ -606,6 +682,7 @@ Lo insuficiente (mejorado en pasadas 11, 14, 15, 16 y 17):
 1. ~~El frontend browser E2E hoy es un solo spec.~~ Ya hay 2 smoke specs full-stack con Playwright: registro bootstrap + dashboard, y redirect de rutas privadas.
 2. ~~Ese spec no representa una navegación completa contra backend real.~~ Los nuevos smoke tests levantan backend y frontend reales contra una DB de test dedicada.
 3. Ya existe cobertura clínica real para alta de paciente, búsqueda, creación de atención, adjuntos y firma en E2E browser, y la navegación profunda validada del wizard quedó sin warnings React visibles en la salida de Playwright tras la corrección de la rail.
+4. En backend e2e, el flujo de auth ahora también cubre 2FA de punta a punta (setup, enable, challenge de login y verify con rechazo de reuso de token temporal) desde la pasada 45.
 
 La conclusión aquí ya no es que no existe red E2E. La infraestructura está montada, es estable contra backend real y ya cubre el camino clínico crítico completo sin warnings visibles en el flujo validado. Lo que falta es **sostener esa base mientras se reduce deuda estructural**.
 
@@ -628,9 +705,10 @@ Orden de remediación recomendado:
 6. ~~Ejecutar split incremental de `backend/src/auth/auth.service.ts` con patrón de delegación corta (primero lockout/login, luego register/bootstrap).~~ Hecho en pasada 43.
 7. Mantener monitoreo del warning `Router action dispatched before initialization` en Playwright: en la pasada 33 no se reprodujo y hoy está clasificado como ruido intermitente de harness/hidratación.
 8. Vigilar la recurrencia del warning no bloqueante de `parseStoredJson` en unit tests para preservar señal clara de CI.
-9. Añadir pruebas unitarias focalizadas para `backend/src/auth/auth-token-issuance.ts`, `backend/src/auth/auth-2fa-flow.ts` y `backend/src/auth/auth-refresh-flow.ts` tras la pasada 44.
+9. ~~Añadir pruebas unitarias focalizadas para `backend/src/auth/auth-token-issuance.ts`, `backend/src/auth/auth-2fa-flow.ts` y `backend/src/auth/auth-refresh-flow.ts` tras la pasada 44.~~ Hecho en pasada 45.
 10. ~~Integrar restore drills y rollback operativo al flujo de despliegue.~~ Hecho en pasada 12.
 11. ~~Completar endurecimiento de infraestructura alrededor de storage y backups.~~ Hecho en pasada 13.
+12. ~~Añadir pruebas unitarias dedicadas para `backend/src/auth/auth-totp.service.ts` (`setup2FA`, `enable2FA`, `disable2FA`).~~ Hecho en pasada 46.
 
 ---
 

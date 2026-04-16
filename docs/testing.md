@@ -12,6 +12,9 @@ Anamneo tiene tres superficies de pruebas principales: Jest backend, Jest fronte
 | Frontend unit | `npm --prefix frontend run test` | Jest con `next/jest` |
 | Frontend watch | `npm --prefix frontend run test:watch` | Loop de desarrollo |
 | Frontend e2e | `npm --prefix frontend run test:e2e` | Playwright sobre `frontend/tests/e2e` |
+| Frontend e2e smoke | `npm --prefix frontend run test:e2e:smoke` | Smoke auth/rutas con 1 worker |
+| Frontend e2e workflow | `npm --prefix frontend run test:e2e:workflow-clinical` | Flujo clinico serial con 1 worker |
+| Frontend e2e workflow repeat | `npm --prefix frontend run test:e2e:workflow-clinical:repeat` | Ejecuta 3 corridas independientes para monitoreo de estabilidad |
 
 ## Backend
 
@@ -54,6 +57,7 @@ Importante:
 - Playwright levanta el frontend, no el backend.
 - Si la prueba requiere trafico real contra `/api`, necesitas el backend disponible en `:5678`.
 - El proxy de Next.js reescribe `/api/*` al backend configurado, por lo que una API caida no se arregla con optimismo.
+- `workflow-clinical.spec.ts` comparte bootstrap y estado de datos por corrida; para medir estabilidad usa corridas independientes con `npm --prefix frontend run test:e2e:workflow-clinical:repeat` en vez de `--repeat-each` dentro de un mismo proceso de Playwright.
 
 ## Flujo Recomendado Antes de Cerrar Cambios
 

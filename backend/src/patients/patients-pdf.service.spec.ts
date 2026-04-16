@@ -64,6 +64,19 @@ describe('PatientsPdfService', () => {
     expect(formatHistoryFieldText(null)).toBe('');
   });
 
+  it('does not log parse warnings for plain-text history values', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    try {
+      const baselineCalls = warnSpy.mock.calls.length;
+      expect(formatHistoryFieldText('Texto libre de control clínico')).toBe('Texto libre de control clínico');
+      const newCalls = warnSpy.mock.calls.slice(baselineCalls);
+      expect(newCalls).toHaveLength(0);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it('blocks longitudinal export when the patient record is not enabled for official clinical output', async () => {
     const prisma = {
       patient: {

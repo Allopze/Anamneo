@@ -1,5 +1,5 @@
 import path from 'path';
-import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { test, expect, type BrowserContext, type ConsoleMessage, type Page } from '@playwright/test';
 
 /**
  * Clinical workflow E2E: patient → encounter → section editing.
@@ -14,11 +14,31 @@ const MEDICO_EMAIL = 'medico@e2e-test.local';
 const MEDICO_PASSWORD = 'MedicoPass123!';
 const BOOTSTRAP_TOKEN = 'e2e-bootstrap-token';
 const ATTACHMENT_FIXTURE_PATH = path.resolve(__dirname, 'fixtures', 'resultado-laboratorio-e2e.pdf');
+const ROUTER_INIT_WARNING = 'Router action dispatched before initialization';
 
 const sidebar = (page: Page) =>
   page.getByRole('navigation', { name: 'Navegación principal' });
 const sectionRail = (page: Page) =>
   page.getByRole('navigation', { name: 'Secciones de la atención' });
+
+function createRouterWarningMonitor(page: Page) {
+  const warnings: string[] = [];
+  const onConsole = (message: ConsoleMessage) => {
+    const text = message.text();
+    if (text.includes(ROUTER_INIT_WARNING)) {
+      warnings.push(`[${message.type()}] ${text}`);
+    }
+  };
+
+  page.on('console', onConsole);
+
+  return {
+    warnings,
+    detach() {
+      page.off('console', onConsole);
+    },
+  };
+}
 
 test.describe('Clinical flow: patient → encounter → sections', () => {
   test.describe.configure({ mode: 'serial' });
@@ -267,45 +287,64 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     await attachmentsDialog.getByRole('button', { name: 'Cerrar adjuntos' }).click({ force: true });
   });
 
-  test('complete and sign encounter clinically', async ({ page }) => {
+  test('complete and sign encounter clinically', async ({ page }, testInfo) => {
     test.setTimeout(90_000);
-    await loginAsMedico(page);
-    await openEncounter(page);
+    const warningMonitor = createRouterWarningMonitor(page);
 
-    await goToSection(page, 'Examen físico');
-    await page.getByPlaceholder('120/80').fill('120/80');
-    await completeVisibleSection(page, 'Sospecha diagnóstica');
+    try {
+      await loginAsMedico(page);
+      await openEncounter(page);
 
-    await page.getByRole('button', { name: /agregar sospecha diagnóstica/i }).click();
-    const diagnosisInput = page.getByPlaceholder('Diagnóstico sospechado...');
-    await diagnosisInput.fill('Apendicitis aguda probable');
-    await completeVisibleSection(page, 'Tratamiento');
+      await goToSection(page, 'Examen físico');
+      await page.getByPlaceholder('120/80').fill('120/80');
+      await completeVisibleSection(page, 'Sospecha diagnóstica');
 
-    await page.getByRole('button', { name: /agregar medicamento/i }).click();
-    await page.getByPlaceholder('Medicamento').fill('Paracetamol');
-    await completeVisibleSection(page, 'Respuesta al tratamiento');
+      await page.getByRole('button', { name: /agregar sospecha diagnóstica/i }).click();
+      const diagnosisInput = page.getByPlaceholder('Diagnóstico sospechado...');
+      await diagnosisInput.fill('Apendicitis aguda probable');
+      await completeVisibleSection(page, 'Tratamiento');
 
-    const drawer = await openDrawerTab(page, 'Cierre');
-    await drawer.locator('#drawer-closure-note').fill(
-      'Paciente estable al cierre. Se indican analgésicos, control y reevaluación precoz ante signos de alarma.',
-    );
-    await drawer.getByRole('button', { name: 'Cerrar panel' }).click();
+      await page.getByRole('button', { name: /agregar medicamento/i }).click();
+      await page.getByPlaceholder('Medicamento').fill('Paracetamol');
+      await completeVisibleSection(page, 'Respuesta al tratamiento');
 
-    await page.getByRole('button', { name: 'Finalizar Atención' }).click();
-    const completionDialog = page.getByRole('alertdialog', { name: 'Finalizar atención' });
-    await expect(completionDialog).toBeVisible({ timeout: 5000 });
-    await completionDialog.getByRole('button', { name: 'Finalizar atención' }).click();
+      const drawer = await openDrawerTab(page, 'Cierre');
+      await drawer.locator('#drawer-closure-note').fill(
+        'Paciente estable al cierre. Se indican analgésicos, control y reevaluación precoz ante signos de alarma.',
+      );
+      await drawer.getByRole('button', { name: 'Cerrar panel' }).click();
 
-    await expect(page).toHaveURL(/\/atenciones\/[a-zA-Z0-9-]+\/ficha$/, { timeout: 15000 });
-    await expect(page.getByRole('button', { name: 'Firmar' })).toBeVisible({ timeout: 10000 });
+      await page.getByRole('button', { name: 'Finalizar Atención' }).click();
+      const completionDialog = page.getByRole('alertdialog', { name: 'Finalizar atención' });
+      await expect(completionDialog).toBeVisible({ timeout: 5000 });
+      await completionDialog.getByRole('button', { name: 'Finalizar atención' }).click();
 
-    await page.getByRole('button', { name: 'Firmar' }).click();
-    const signDialog = page.getByRole('heading', { name: 'Firma Electrónica Simple' });
-    await expect(signDialog).toBeVisible({ timeout: 5000 });
-    await page.getByLabel('Contraseña de su cuenta').fill(MEDICO_PASSWORD);
-    await page.getByRole('button', { name: 'Firmar Atención' }).click();
+      await expect(page).toHaveURL(/\/atenciones\/[a-zA-Z0-9-]+\/ficha$/, { timeout: 15000 });
+      await expect(page.getByRole('heading', { name: 'Página no encontrada' })).toHaveCount(0);
+      await expect(page.getByRole('link', { name: 'Volver al inicio' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Firmar' })).toBeVisible({ timeout: 10000 });
 
-    await expect(page.getByText('Firmada', { exact: true })).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Atención firmada electrónicamente')).toBeVisible({ timeout: 10000 });
+      await page.getByRole('button', { name: 'Firmar' }).click();
+      const signDialog = page.getByRole('heading', { name: 'Firma Electrónica Simple' });
+      await expect(signDialog).toBeVisible({ timeout: 5000 });
+      await page.getByLabel('Contraseña de su cuenta').fill(MEDICO_PASSWORD);
+      await page.getByRole('button', { name: 'Firmar Atención' }).click();
+
+      await expect(page.getByText('Firmada', { exact: true })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText('Atención firmada electrónicamente')).toBeVisible({ timeout: 10000 });
+    } finally {
+      warningMonitor.detach();
+      const warningBody = warningMonitor.warnings.length
+        ? warningMonitor.warnings.join('\n')
+        : 'No router initialization warnings observed in this run.';
+      testInfo.annotations.push({
+        type: 'router-init-warning-count',
+        description: String(warningMonitor.warnings.length),
+      });
+      await testInfo.attach('router-init-warning-monitor.txt', {
+        body: warningBody,
+        contentType: 'text/plain',
+      });
+    }
   });
 });

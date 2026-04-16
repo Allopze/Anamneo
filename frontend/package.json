@@ -11,7 +11,10 @@
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:workflow-clinical": "playwright test --workers=1 tests/e2e/workflow-clinical.spec.ts",
+    "test:e2e:workflow-clinical:repeat": "sh -c 'for run in 1 2 3; do echo \"[workflow-clinical repeat $run/3]\"; playwright test --workers=1 tests/e2e/workflow-clinical.spec.ts || exit $?; done'",
+    "test:e2e:smoke": "playwright test --workers=1 tests/e2e/smoke.spec.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",

@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { authenticator } from '@otplib/v12-adapter';
 import { mockUser, mockSession, createMockServices } from './auth.service.spec.fixtures';
 
 jest.mock('bcrypt');
@@ -306,6 +307,48 @@ describe('AuthService', () => {
       await expect(service.refreshTokens('invalid-token')).rejects.toThrow(
         UnauthorizedException,
       );
+    });
+  });
+
+  describe('verify2FALogin', () => {
+    it('should reject reusing the same temp token jti (single-use)', async () => {
+      (jwtService.verify as jest.Mock).mockReturnValue({
+        sub: 'user-1',
+        purpose: '2fa',
+        jti: 'temp-jti-1',
+      });
+      (prismaService.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'user-1',
+        email: 'test@example.com',
+        role: 'MEDICO',
+        active: true,
+        totpEnabled: true,
+        totpSecret: 'SECRET',
+      });
+
+      const verifySpy = jest.spyOn(authenticator, 'verify').mockReturnValue(true);
+
+      const first = await service.verify2FALogin('temp-token', '123456');
+      expect(first.tokens).toHaveProperty('accessToken');
+      expect(first.userId).toBe('user-1');
+
+      await expect(service.verify2FALogin('temp-token', '123456')).rejects.toThrow(
+        'Token temporal ya utilizado',
+      );
+
+      verifySpy.mockRestore();
+    });
+
+    it('should reject temp token when purpose is not 2fa', async () => {
+      (jwtService.verify as jest.Mock).mockReturnValue({
+        sub: 'user-1',
+        purpose: 'refresh',
+      });
+
+      await expect(service.verify2FALogin('temp-token', '123456')).rejects.toThrow(
+        'Token temporal inválido',
+      );
+      expect(prismaService.user.findUnique).not.toHaveBeenCalled();
     });
   });
 
