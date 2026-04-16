@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { PatientsPdfService } from './patients-pdf.service';
+import { formatHistoryFieldText } from './patients-pdf-helpers';
 
 describe('PatientsPdfService', () => {
   const auditService = {
@@ -58,11 +59,9 @@ describe('PatientsPdfService', () => {
   });
 
   it('formats stored JSON history values into readable clinical text', () => {
-    const service = new PatientsPdfService({} as any, auditService as any);
-
-    expect((service as any).formatHistoryFieldText('{"items":["HTA"],"texto":"En control"}')).toBe('HTA. En control');
-    expect((service as any).formatHistoryFieldText('Texto libre')).toBe('Texto libre');
-    expect((service as any).formatHistoryFieldText(null)).toBe('');
+    expect(formatHistoryFieldText('{"items":["HTA"],"texto":"En control"}')).toBe('HTA. En control');
+    expect(formatHistoryFieldText('Texto libre')).toBe('Texto libre');
+    expect(formatHistoryFieldText(null)).toBe('');
   });
 
   it('blocks longitudinal export when the patient record is not enabled for official clinical output', async () => {

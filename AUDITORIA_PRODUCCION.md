@@ -254,6 +254,93 @@
 - Métricas tras la pasada: `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts` 366 líneas; `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterDraftSync.ts` 132; `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterAutosave.ts` 27; `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterOfflineQueue.ts` 102; `backend/src/patients/patients.service.ts` 469; `backend/src/encounters/encounters-workflow-mutations.ts` 410.
 - Pendientes tras esta pasada: dejar `useEncounterSectionPersistence.ts` por debajo de 300 líneas (queda un tramo final de orquestación/snapshot), y decidir una pasada adicional en backend para acercar `patients.service.ts` y `encounters-workflow-mutations.ts` al objetivo suave de 300 líneas con bajo riesgo de regresión.
 
+### Pasada 34 - 2026-04-16
+
+- Tramo final de orquestación/snapshot extraído en frontend: la lógica de guardado de sección, reconciliación de snapshot en éxito, fallback offline y confirmación de sección activa salió de `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts` a `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts`.
+- Alcance del cambio: `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts` y `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts`.
+- Validación final: `npm --prefix frontend run typecheck` pasa; `npm --prefix frontend test -- --runInBand --runTestsByPath src/__tests__/app/atencion-cierre.test.tsx` pasa con 5/5 tests.
+- Métricas tras la pasada: `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts` 206 líneas; `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts` 252.
+- Pendientes tras esta pasada: partir `backend/src/encounters/encounters-workflow-mutations.ts` por transiciones y seguir bajando `backend/src/patients/patients.service.ts` atacando los bloques con mayor branching.
+
+### Pasada 35 - 2026-04-16
+
+- Workflow de encuentros partido por transición sin cambiar contrato: `backend/src/encounters/encounters-workflow-mutations.ts` pasó a fachada de exports y la lógica se distribuyó en `backend/src/encounters/encounters-workflow-complete-sign.ts` y `backend/src/encounters/encounters-workflow-reopen-cancel-review.ts`.
+- Alcance del cambio: `backend/src/encounters/encounters-workflow-mutations.ts`, `backend/src/encounters/encounters-workflow-complete-sign.ts` y `backend/src/encounters/encounters-workflow-reopen-cancel-review.ts`.
+- Validación final: `npm --prefix backend run typecheck` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests.
+- Métricas tras la pasada: `backend/src/encounters/encounters-workflow-mutations.ts` 5 líneas; `backend/src/encounters/encounters-workflow-complete-sign.ts` 200; `backend/src/encounters/encounters-workflow-reopen-cancel-review.ts` 219.
+- Pendientes tras esta pasada: hacer pasada de reducción en `backend/src/patients/patients.service.ts` sobre bloques con mayor branching (`assertPatientAccess`, `create`, `createQuick`).
+
+### Pasada 36 - 2026-04-16
+
+- Reducción de branching en pacientes: `assertPatientAccess` salió a `backend/src/patients/patients-access.ts`, y los flujos de alta (`create` / `createQuick`) salieron a `backend/src/patients/patients-intake-mutations.ts`; `patients.service.ts` quedó como orquestador de delegación.
+- Alcance del cambio: `backend/src/patients/patients.service.ts`, `backend/src/patients/patients-access.ts` y `backend/src/patients/patients-intake-mutations.ts`.
+- Validación final: `npm --prefix backend run typecheck` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests; `npm --prefix backend run test -- --runInBand` mantiene 2 suites rojas preexistentes fuera de alcance (`src/auth/auth.service.spec.ts`, `src/patients/patients-pdf.service.spec.ts`).
+- Métricas tras la pasada: `backend/src/patients/patients.service.ts` 326 líneas; `backend/src/patients/patients-intake-mutations.ts` 159; `backend/src/patients/patients-access.ts` 41.
+- Pendientes tras esta pasada: continuar reducción suave de piezas intermedias (>300) y cerrar deuda de suites unitarias rojas preexistentes para tener señal verde completa en `npm --prefix backend run test`.
+
+### Pasada 37 - 2026-04-16
+
+- Sección global de pendientes actualizada para reflejar estado real de umbral suave: `backend/src/encounters/encounters-workflow-mutations.ts` (5 líneas) y `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts` (206 líneas) ya no se consideran deuda de tamaño.
+- Alcance del cambio: `AUDITORIA_PRODUCCION.md` (resumen ejecutivo de pendientes y orden de remediación global).
+- Validación final: consistencia documental alineada con métricas vigentes de las pasadas 34, 35 y 36.
+- Pendientes tras esta pasada: recuperar señal verde completa de unit tests backend y añadir cobertura focalizada para los módulos clínicos extraídos en workflow/patients.
+
+### Pasada 38 - 2026-04-16
+
+- Suites unitarias rojas preexistentes alineadas con el estado actual del código: `backend/src/auth/auth.service.spec.ts` ahora valida bootstrap token y shape de `getBootstrapState`, y `backend/src/patients/patients-pdf.service.spec.ts` usa el helper vigente `formatHistoryFieldText` tras la extracción de lógica.
+- Alcance del cambio: `backend/src/auth/auth.service.spec.ts` y `backend/src/patients/patients-pdf.service.spec.ts`.
+- Validación final: `npm --prefix backend run test -- --runInBand` pasa con 25/25 suites y 157/157 tests.
+- Pendientes tras esta pasada: agregar tests unitarios focalizados para `encounters-workflow-complete-sign.ts`, `encounters-workflow-reopen-cancel-review.ts`, `patients-access.ts` y `patients-intake-mutations.ts`.
+
+### Pasada 39 - 2026-04-16
+
+- Cobertura unitaria focalizada agregada para módulos extraídos de workflow/patients: nuevos specs `backend/src/encounters/encounters-workflow-complete-sign.spec.ts`, `backend/src/encounters/encounters-workflow-reopen-cancel-review.spec.ts`, `backend/src/patients/patients-access.spec.ts` y `backend/src/patients/patients-intake-mutations.spec.ts`.
+- Alcance del cambio: 4 archivos de pruebas nuevos + consolidación de baseline en `backend/src/auth/auth.service.spec.ts` y `backend/src/patients/patients-pdf.service.spec.ts`.
+- Validación final: `npm --prefix backend run test -- --runInBand --runTestsByPath src/encounters/encounters-workflow-complete-sign.spec.ts src/encounters/encounters-workflow-reopen-cancel-review.spec.ts src/patients/patients-access.spec.ts src/patients/patients-intake-mutations.spec.ts src/auth/auth.service.spec.ts src/patients/patients-pdf.service.spec.ts` pasa con 6/6 suites y 34/34 tests; `npm --prefix backend run test -- --runInBand` pasa con 29/29 suites y 172/172 tests.
+- Pendientes tras esta pasada: mantener expansión de cobertura focalizada en `encounters-section-mutations.ts` y continuar reducción de piezas por encima del objetivo suave de 300 líneas.
+
+### Pasada 40 - 2026-04-16
+
+- Reducción adicional de piezas sobre 300 líneas en el eje clínico backend/frontend sin romper contratos: `backend/src/encounters/encounters.service.ts` ahora delega creación en `backend/src/encounters/encounters-create-mutation.ts`; `backend/src/patients/patients-read-side.ts` delega listado en `backend/src/patients/patients-list-read-model.ts`; `backend/src/patients/patients-clinical-mutations.ts` quedó como fachada de exports hacia `backend/src/patients/patients-problem-mutations.ts` y `backend/src/patients/patients-task-mutations.ts`; `backend/src/encounters/encounters-sanitize.ts` delega snapshot de identificación en `backend/src/encounters/encounters-identification-snapshot.ts`; `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts` delega acciones de plantilla/no aplica en `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizardSectionActions.ts`.
+- Métricas tras la pasada (objetivos solicitados): `backend/src/encounters/encounters.service.ts` 198 líneas, `backend/src/patients/patients-read-side.ts` 185, `backend/src/patients/patients-clinical-mutations.ts` 9 (fachada), `backend/src/encounters/encounters-sanitize.ts` 239, `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts` 278.
+- Validación final: `npm --prefix backend run typecheck` pasa; `npm --prefix backend run test -- --runInBand` pasa con 29/29 suites y 172/172 tests; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests; `npm --prefix frontend run typecheck` pasa; `npm --prefix frontend test -- --runInBand --runTestsByPath src/__tests__/app/atencion-cierre.test.tsx` pasa con 5/5 tests; `npm --prefix frontend run test:e2e -- tests/e2e/workflow-clinical.spec.ts` pasa con 6/6 tests.
+- Pendientes tras esta pasada: añadir cobertura unitaria focalizada para `backend/src/encounters/encounters-section-mutations.ts`, y cerrar la última pieza >300 de este eje de refactor (`backend/src/patients/patients.service.ts`, 326 líneas).
+
+### Pasada 41 - 2026-04-16
+
+- Cierre de reducción pendiente en `backend/src/patients/patients.service.ts`: la orquestación de comandos clínicos (`createProblem`, `updateProblem`, `createTask`, `updateTaskStatus`) se extrajo a `backend/src/patients/patients-clinical-write-side.ts`, manteniendo `patients.service.ts` como fachada de delegación sin alterar contratos.
+- Alcance del cambio: `backend/src/patients/patients.service.ts` y `backend/src/patients/patients-clinical-write-side.ts`.
+- Métricas tras la pasada: `backend/src/patients/patients.service.ts` 298 líneas (debajo del objetivo suave de 300).
+- Validación final: `npm --prefix backend run typecheck` pasa; `npm --prefix backend run test -- --runInBand` pasa con 29/29 suites y 172/172 tests; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests.
+- Pendientes tras esta pasada: mantener expansión de cobertura unitaria focalizada para `backend/src/encounters/encounters-section-mutations.ts` y monitoreo del warning intermitente de router en Playwright.
+
+### Pasada 42 - 2026-04-16
+
+- Cobertura unitaria focalizada agregada para `backend/src/encounters/encounters-section-mutations.ts` con casos de reconciliación de snapshot, restricciones de permisos, rechazo de `notApplicable` en secciones obligatorias, rechazo de divergencia manual en identificación y warning no bloqueante cuando falla la generación automática de alertas por signos vitales.
+- Cobertura unitaria agregada para `backend/src/patients/patients-clinical-write-side.ts` validando delegación de comandos clínicos (`create/update` de problemas y tareas) y propagación correcta de `effectiveMedicoId` según rol.
+- Verificación de conveniencia sobre `backend/src/auth/auth.service.ts` (562 líneas): sí conviene aplicar patrón de delegación corta, pero en cortes pequeños para bajo riesgo. Recomendación: extraer primero flujo de lockout/login y luego flujo de register/bootstrap en módulos dedicados, manteniendo `AuthService` como fachada de orquestación.
+- Alcance del cambio: `backend/src/encounters/encounters-section-mutations.spec.ts` y `backend/src/patients/patients-clinical-write-side.spec.ts`.
+- Validación final: `npm --prefix backend run typecheck` pasa; `npm --prefix backend run test -- --runInBand --runTestsByPath src/encounters/encounters-section-mutations.spec.ts src/patients/patients-clinical-write-side.spec.ts` pasa con 2/2 suites y 10/10 tests; `npm --prefix backend run test -- --runInBand` pasa con 31/31 suites y 182/182 tests.
+- Pendientes tras esta pasada: planificar extracción incremental en `backend/src/auth/auth.service.ts` y mantener monitoreo del warning intermitente de router en Playwright.
+
+### Pasada 43 - 2026-04-16
+
+- Extracción incremental de `backend/src/auth/auth.service.ts` completada en dos módulos de bajo riesgo con patrón de delegación corta: `backend/src/auth/auth-login-flow.ts` (lockout + login + auditoría de intentos) y `backend/src/auth/auth-register-flow.ts` (register + bootstrap + invitación).
+- `AuthService` queda como fachada/orquestador: conserva contratos públicos (`register`, `getInvitationPreview`, `getBootstrapState`, `login`) y delega la lógica de flujo en módulos especializados, sin mover enforcement clínico/seguridad fuera de backend.
+- Métricas tras la pasada: `backend/src/auth/auth.service.ts` 359 líneas (antes 562), `backend/src/auth/auth-login-flow.ts` 199 líneas, `backend/src/auth/auth-register-flow.ts` 168 líneas.
+- Alcance del cambio: `backend/src/auth/auth.service.ts`, `backend/src/auth/auth-login-flow.ts` (nuevo), `backend/src/auth/auth-register-flow.ts` (nuevo).
+- Validación final: `npm --prefix backend run typecheck` pasa; `npm --prefix backend run test -- --runInBand --testPathPattern=auth.service.spec.ts` pasa con 1/1 suite y 16/16 tests; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 1/1 suite y 174/174 tests; `npm --prefix backend run test` pasa con 31/31 suites y 182/182 tests.
+- Pendientes tras esta pasada: mantener monitoreo del warning intermitente `Router action dispatched before initialization` en Playwright y seguir observando el warning no bloqueante de `parseStoredJson` en unit tests para evitar ruido de señal.
+
+### Pasada 44 - 2026-04-16
+
+- Segunda extracción incremental sobre `backend/src/auth/auth.service.ts` para cerrar objetivo suave de tamaño: la emisión/rotación de tokens se movió a `backend/src/auth/auth-token-issuance.ts`, la verificación de login 2FA a `backend/src/auth/auth-2fa-flow.ts` y la validación de refresh token a `backend/src/auth/auth-refresh-flow.ts`.
+- `AuthService` mantiene contratos públicos y queda como fachada de orquestación para register/login/refresh/2FA, con delegaciones explícitas a módulos de flujo y sin cambios de shape en respuestas ni enforcement de seguridad.
+- Métricas tras la pasada: `backend/src/auth/auth.service.ts` 285 líneas (antes 359), `backend/src/auth/auth-token-issuance.ts` 79, `backend/src/auth/auth-2fa-flow.ts` 79, `backend/src/auth/auth-refresh-flow.ts` 83.
+- Alcance del cambio: `backend/src/auth/auth.service.ts`, `backend/src/auth/auth-token-issuance.ts` (nuevo), `backend/src/auth/auth-2fa-flow.ts` (nuevo), `backend/src/auth/auth-refresh-flow.ts` (nuevo).
+- Validación final: `npm --prefix backend run typecheck` pasa; `npm --prefix backend run test -- --runInBand --testPathPattern=auth.service.spec.ts` pasa con 1/1 suite y 16/16 tests; `npm --prefix backend run test` pasa con 31/31 suites y 182/182 tests; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 1/1 suite y 174/174 tests.
+- Pendientes tras esta pasada: mantener monitoreo del warning intermitente `Router action dispatched before initialization` en Playwright, seguir observando el warning no bloqueante de `parseStoredJson`, y sumar cobertura unitaria focalizada para los nuevos módulos `auth-token-issuance`, `auth-2fa-flow` y `auth-refresh-flow`.
+
 > Actualizacion 2026-04-14: C2 quedo mitigado en el repo. `docker-compose.yml` ahora publica backend y frontend solo en loopback por defecto, y la documentacion de despliegue/entorno deja explicito que este producto esta pensado para publicarse detras de Cloudflare Tunnel con `cloudflared` y HTTPS.
 
 ## 1. Resumen ejecutivo
@@ -276,7 +363,9 @@ Conclusión corta: la base técnica no es mala. De hecho, tiene varias decisione
 
 Los pendientes más relevantes ahora son:
 
-1. Ya no quedan monolitos por encima del hard limit de 500 líneas; el trabajo pendiente pasó a ser bajar piezas intermedias que siguen por encima del objetivo suave de 300 líneas y reforzar pruebas focalizadas.
+1. Mantener monitoreo del warning `Router action dispatched before initialization` en Playwright para confirmar que se mantiene como ruido intermitente y no regresión funcional.
+2. Vigilar la recurrencia del warning no bloqueante de `parseStoredJson` en unit tests para evitar ruido que enmascare fallas reales.
+3. Añadir pruebas unitarias focalizadas para `backend/src/auth/auth-token-issuance.ts`, `backend/src/auth/auth-2fa-flow.ts` y `backend/src/auth/auth-refresh-flow.ts` para blindar las nuevas fachadas extraídas.
 
 ## 2. Veredicto de producción
 
@@ -340,10 +429,17 @@ Para el objetivo real del producto, la arquitectura general es razonable. No veo
 
 Lo que sí veo es tensión de mantenibilidad:
 
-- `backend/src/patients/patients.service.ts`: 469 líneas.
-- `backend/src/encounters/encounters.service.ts`: 370 líneas.
-- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts`: 320 líneas.
-- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts`: 366 líneas (refinado en pasada 33 con split de draft sync/autosave/cola offline).
+- `backend/src/auth/auth.service.ts`: 285 líneas (reducido en pasada 44 tras extraer `auth-token-issuance.ts`, `auth-2fa-flow.ts` y `auth-refresh-flow.ts`, además de los módulos de pasada 43).
+- `backend/src/auth/auth-login-flow.ts`: 199 líneas (nuevo módulo de lockout/login extraído en pasada 43).
+- `backend/src/auth/auth-register-flow.ts`: 168 líneas (nuevo módulo de register/bootstrap/invitación extraído en pasada 43).
+- `backend/src/auth/auth-token-issuance.ts`: 79 líneas (nuevo módulo de emisión/rotación de tokens extraído en pasada 44).
+- `backend/src/auth/auth-2fa-flow.ts`: 79 líneas (nuevo módulo de validación 2FA extraído en pasada 44).
+- `backend/src/auth/auth-refresh-flow.ts`: 83 líneas (nuevo módulo de refresh token extraído en pasada 44).
+- `backend/src/patients/patients.service.ts`: 298 líneas (reducido en pasada 41 tras extraer `patients-clinical-write-side.ts`).
+- `backend/src/encounters/encounters.service.ts`: 198 líneas (reducido en pasada 40 tras extraer `encounters-create-mutation.ts`).
+- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts`: 278 líneas (reducido en pasada 40 tras extraer `useEncounterWizardSectionActions.ts`).
+- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts`: 206 líneas (refinado en pasada 34 tras extraer orquestación/snapshot de guardado).
+- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts`: 252 líneas (nuevo módulo de flujo de guardado/snapshot extraído en pasada 34).
 - `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterDraftSync.ts`: 132 líneas (nuevo módulo de sincronización de borrador extraído en pasada 33).
 - `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterAutosave.ts`: 27 líneas (nuevo módulo de temporizador de autosave extraído en pasada 33).
 - `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterOfflineQueue.ts`: 102 líneas (nuevo módulo de cola offline/sync extraído en pasada 33).
@@ -357,15 +453,25 @@ Lo que sí veo es tensión de mantenibilidad:
 - `backend/src/encounters/encounters-section-mutations.ts`: 216 líneas (nuevo módulo de mutaciones de sección extraído en pasada 31).
 - `backend/src/patients/patients-clinical-read-model.ts`: 184 líneas (nuevo módulo de read-model extraído en pasada 26).
 - `backend/src/patients/patients-demographics-mutations.ts`: 298 líneas (nuevo módulo de mutación demográfica extraído en pasada 27).
-- `backend/src/patients/patients-clinical-mutations.ts`: 338 líneas (nuevo módulo de mutación clínica extraído en pasada 27).
-- `backend/src/patients/patients-read-side.ts`: 347 líneas (nuevo módulo de read-side extraído en pasada 28).
+- `backend/src/patients/patients-clinical-mutations.ts`: 9 líneas (fachada de exports tras pasada 40).
+- `backend/src/patients/patients-problem-mutations.ts`: 165 líneas (nuevo módulo clínico extraído en pasada 40).
+- `backend/src/patients/patients-task-mutations.ts`: 183 líneas (nuevo módulo clínico extraído en pasada 40).
+- `backend/src/patients/patients-read-side.ts`: 185 líneas (reducido en pasada 40 al extraer `patients-list-read-model.ts`).
+- `backend/src/patients/patients-list-read-model.ts`: 171 líneas (nuevo módulo de listado extraído en pasada 40).
 - `backend/src/patients/patients-lifecycle-mutations.ts`: 240 líneas (nuevo módulo de lifecycle extraído en pasada 28).
 - `backend/src/patients/patients-create-utils.ts`: 70 líneas (nuevo helper compartido de alta extraído en pasada 29).
+- `backend/src/patients/patients-intake-mutations.ts`: 159 líneas (nuevo módulo de alta extraído en pasada 36).
+- `backend/src/patients/patients-access.ts`: 41 líneas (nuevo helper de acceso clínico extraído en pasada 36).
 - `backend/src/patients/patients-task-read-model.ts`: 115 líneas (nuevo inbox read-model extraído en pasada 29).
-- `backend/src/encounters/encounters-workflow-mutations.ts`: 410 líneas (nuevo módulo de workflow extraído en pasada 30).
-- Sanitización de encuentros ahora modularizada y bajo umbral: `encounters-sanitize.ts` (314), `encounters-sanitize-primitives.ts` (164), `encounters-sanitize-clinical.ts` (241), `encounters-sanitize-intake.ts` (260).
+- `backend/src/encounters/encounters-workflow-mutations.ts`: 5 líneas (fachada de exports tras pasada 35).
+- `backend/src/encounters/encounters-workflow-complete-sign.ts`: 200 líneas (módulo de workflow extraído en pasada 35).
+- `backend/src/encounters/encounters-workflow-reopen-cancel-review.ts`: 219 líneas (módulo de workflow extraído en pasada 35).
+- `backend/src/encounters/encounters-create-mutation.ts`: 200 líneas (nuevo módulo de creación extraído en pasada 40).
+- `backend/src/encounters/encounters-identification-snapshot.ts`: 84 líneas (nuevo módulo de snapshot extraído en pasada 40).
+- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizardSectionActions.ts`: 111 líneas (nuevo módulo extraído en pasada 40).
+- Sanitización de encuentros ahora modularizada y bajo umbral: `encounters-sanitize.ts` (239), `encounters-sanitize-primitives.ts` (164), `encounters-sanitize-clinical.ts` (241), `encounters-sanitize-intake.ts` (260).
 
-Ya no quedan archivos por encima del hard limit de 500 líneas, pero todavía hay piezas por encima del objetivo suave de 300 (`patients.service`, `encounters-workflow-mutations`, `useEncounterSectionPersistence`, `encounters-sanitize`) que siguen concentrando suficiente lógica como para merecer una pasada adicional.
+Ya no quedan archivos por encima del hard limit de 500 líneas dentro del eje de refactor clínico seguido en estas pasadas. En ese alcance, tampoco quedan piezas por encima del objetivo suave de 300 líneas.
 
 Evaluación de arquitectura: **apta para el tamaño actual del producto, pero con deuda de modularidad visible y regresiones recientes que ya demostraron lo fácil que es romper cosas básicas**.
 
@@ -514,11 +620,17 @@ Problemas confirmados:
 
 Orden de remediación recomendado:
 
-1. Completar una pasada corta sobre `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts` para empujarlo bajo 300 líneas (quedó en 366 y ya tiene extraídos autosave/offline/draft sync).
-2. Añadir pruebas unitarias focalizadas para `backend/src/encounters/encounters-section-mutations.ts` y `backend/src/encounters/encounters-workflow-mutations.ts` para proteger la parte más sensible del dominio clínico ya extraído.
-3. Mantener monitoreo del warning `Router action dispatched before initialization` en Playwright: en la pasada 33 no se reprodujo y hoy está clasificado como ruido intermitente de harness/hidratación.
-4. ~~Integrar restore drills y rollback operativo al flujo de despliegue.~~ Hecho en pasada 12.
-5. ~~Completar endurecimiento de infraestructura alrededor de storage y backups.~~ Hecho en pasada 13.
+1. ~~Corregir y alinear las 2 suites unitarias rojas preexistentes para recuperar señal verde completa en `npm --prefix backend run test`.~~ Hecho en pasada 38.
+2. ~~Añadir pruebas unitarias focalizadas para `backend/src/encounters/encounters-workflow-complete-sign.ts` y `backend/src/encounters/encounters-workflow-reopen-cancel-review.ts`.~~ Hecho en pasada 39.
+3. ~~Añadir pruebas unitarias para `backend/src/patients/patients-access.ts` y `backend/src/patients/patients-intake-mutations.ts`.~~ Hecho en pasada 39.
+4. ~~Añadir pruebas unitarias focalizadas para `backend/src/encounters/encounters-section-mutations.ts`.~~ Hecho en pasada 42.
+5. ~~Reducir `backend/src/patients/patients.service.ts` por debajo de 300 líneas sin mover validaciones de acceso/auditoría fuera de backend.~~ Hecho en pasada 41.
+6. ~~Ejecutar split incremental de `backend/src/auth/auth.service.ts` con patrón de delegación corta (primero lockout/login, luego register/bootstrap).~~ Hecho en pasada 43.
+7. Mantener monitoreo del warning `Router action dispatched before initialization` en Playwright: en la pasada 33 no se reprodujo y hoy está clasificado como ruido intermitente de harness/hidratación.
+8. Vigilar la recurrencia del warning no bloqueante de `parseStoredJson` en unit tests para preservar señal clara de CI.
+9. Añadir pruebas unitarias focalizadas para `backend/src/auth/auth-token-issuance.ts`, `backend/src/auth/auth-2fa-flow.ts` y `backend/src/auth/auth-refresh-flow.ts` tras la pasada 44.
+10. ~~Integrar restore drills y rollback operativo al flujo de despliegue.~~ Hecho en pasada 12.
+11. ~~Completar endurecimiento de infraestructura alrededor de storage y backups.~~ Hecho en pasada 13.
 
 ---
 

@@ -60,6 +60,7 @@ describe('AuthService', () => {
         password: 'Password1',
         nombre: 'Test User',
         role: 'ADMIN',
+        bootstrapToken: 'test-secret',
       });
 
       expect(usersService.create).toHaveBeenCalledWith(
@@ -319,6 +320,7 @@ describe('AuthService', () => {
         userCount: 0,
         isEmpty: true,
         hasAdmin: false,
+        requiresBootstrapToken: true,
         registerableRoles: ['ADMIN'],
       });
     });
@@ -333,6 +335,7 @@ describe('AuthService', () => {
         userCount: 3,
         isEmpty: false,
         hasAdmin: true,
+        requiresBootstrapToken: false,
         registerableRoles: [],
       });
     });

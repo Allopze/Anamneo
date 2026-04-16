@@ -2,26 +2,23 @@ import { useState, useEffect, useCallback, useMemo, useTransition } from 'react'
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { Encounter, SectionKey } from '@/types';
+import type { Encounter } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
-import { getEncounterClinicalOutputBlockReason } from '@/lib/clinical-output';
 import {
   canEditEncounter,
   canUploadAttachments as canUploadAttachmentsPermission,
   canViewMedicoOnlySections,
 } from '@/lib/permissions';
 import { useOnlineStatus } from '@/lib/useOnlineStatus';
-import toast from 'react-hot-toast';
-import type { SidebarTabKey } from '@/components/EncounterDrawer';
 import {
   MEDICO_ONLY_SECTIONS,
-  TEMPLATE_FIELD_BY_SECTION,
 } from './encounter-wizard.constants';
 import { useEncounterWizardDerived } from './useEncounterWizardDerived';
 import { useEncounterAttachments } from './useEncounterAttachments';
 import { useEncounterSectionPersistence } from './useEncounterSectionPersistence';
 import { useEncounterWizardNavigation } from './useEncounterWizardNavigation';
 import { useEncounterWorkflowActions } from './useEncounterWorkflowActions';
+import { useEncounterWizardSectionActions } from './useEncounterWizardSectionActions';
 
 export function useEncounterWizard() {
   const { id } = useParams<{ id: string }>();
@@ -33,8 +30,6 @@ export function useEncounterWizard() {
 
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [elapsedMinutes, setElapsedMinutes] = useState(0);
-  const [showNotApplicableModal, setShowNotApplicableModal] = useState(false);
-  const [notApplicableReason, setNotApplicableReason] = useState('');
   const isOnline = useOnlineStatus();
 
   const {
@@ -160,50 +155,13 @@ export function useEncounterWizard() {
     userId: user?.id,
   });
 
-  const insertTemplateIntoCurrentSection = (content: string) => {
-    if (!currentSection || !canEdit) return;
-    const targetField = TEMPLATE_FIELD_BY_SECTION[currentSection.sectionKey];
-    if (!targetField) return;
-    const currentData = persistence.formData[currentSection.sectionKey] || {};
-    const existingValue = typeof currentData[targetField] === 'string' ? currentData[targetField].trim() : '';
-    const nextValue = existingValue ? `${existingValue}\n\n${content}`.trim() : content;
-    persistence.handleSectionDataChange(currentSection.sectionKey, { ...currentData, [targetField]: nextValue });
-    toast.success('Plantilla insertada en la sección actual');
-  };
-
-  const handleMarkNotApplicable = () => {
-    if (!canEdit || !currentSection) return;
-    const REQUIRED: SectionKey[] = ['MOTIVO_CONSULTA', 'EXAMEN_FISICO', 'SOSPECHA_DIAGNOSTICA', 'TRATAMIENTO'];
-    if (REQUIRED.includes(currentSection.sectionKey)) {
-      toast.error('Esta sección es obligatoria y no se puede marcar como "No aplica"');
-      return;
-    }
-    setNotApplicableReason('');
-    setShowNotApplicableModal(true);
-  };
-
-  const handleConfirmNotApplicable = async () => {
-    if (!currentSection) return;
-    if (notApplicableReason.trim().length < 10) {
-      toast.error('El motivo debe tener al menos 10 caracteres');
-      return;
-    }
-    const sectionKey = currentSection.sectionKey;
-    const currentData = persistence.formData[sectionKey] ?? {};
-    try {
-      await persistence.saveSectionMutation.mutateAsync({
-        sectionKey,
-        data: currentData,
-        completed: true,
-        notApplicable: true,
-        notApplicableReason: notApplicableReason.trim(),
-      });
-      setShowNotApplicableModal(false);
-      toast.success('Sección marcada como no aplica');
-    } catch {
-      // onError handler already surfaces UI feedback
-    }
-  };
+  const sectionActions = useEncounterWizardSectionActions({
+    canEdit,
+    currentSection,
+    formData: persistence.formData,
+    handleSectionDataChange: persistence.handleSectionDataChange,
+    saveSectionMutation: persistence.saveSectionMutation,
+  });
 
   const handleSaveGeneratedSummary = useCallback(() => {
     persistence.handleSaveGeneratedSummary(generatedSummary);
@@ -251,12 +209,12 @@ export function useEncounterWizard() {
     setShowSignModal: workflow.setShowSignModal,
     showDeleteAttachment: attachmentsState.showDeleteAttachment,
     setShowDeleteAttachment: attachmentsState.setShowDeleteAttachment,
-    showNotApplicableModal,
-    setShowNotApplicableModal,
+    showNotApplicableModal: sectionActions.showNotApplicableModal,
+    setShowNotApplicableModal: sectionActions.setShowNotApplicableModal,
     previewAttachment: attachmentsState.previewAttachment,
     setPreviewAttachment: attachmentsState.setPreviewAttachment,
-    notApplicableReason,
-    setNotApplicableReason,
+    notApplicableReason: sectionActions.notApplicableReason,
+    setNotApplicableReason: sectionActions.setNotApplicableReason,
     railCompletedCollapsed: navigation.railCompletedCollapsed,
     setRailCompletedCollapsed: navigation.setRailCompletedCollapsed,
     railCollapsed: navigation.railCollapsed,
@@ -302,13 +260,13 @@ export function useEncounterWizard() {
     handleNavigate: navigation.handleNavigate,
     handleComplete: workflow.handleComplete,
     confirmComplete: workflow.confirmComplete,
-    handleMarkNotApplicable,
-    handleConfirmNotApplicable,
+    handleMarkNotApplicable: sectionActions.handleMarkNotApplicable,
+    handleConfirmNotApplicable: sectionActions.handleConfirmNotApplicable,
     handleReviewStatusChange: workflow.handleReviewStatusChange,
     handleDownload: attachmentsState.handleDownload,
     handleRestoreIdentificationFromPatient: persistence.handleRestoreIdentificationFromPatient,
     handleStartLinkedAttachment: attachmentsState.handleStartLinkedAttachment,
-    insertTemplateIntoCurrentSection,
+    insertTemplateIntoCurrentSection: sectionActions.insertTemplateIntoCurrentSection,
     moveToSection: navigation.moveToSection,
     openDrawerTab: navigation.openDrawerTab,
     handleSaveGeneratedSummary,

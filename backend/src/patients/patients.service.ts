@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
@@ -14,25 +9,20 @@ import { UpdatePatientHistoryDto } from './dto/update-patient-history.dto';
 import { UpsertPatientProblemDto } from './dto/upsert-patient-problem.dto';
 import { UpdatePatientProblemDto } from './dto/update-patient-problem.dto';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
-import {
-  isPatientOwnedByMedico,
-} from '../common/utils/patient-access';
-import { isDateOnlyAfterToday, calculateAgeFromBirthDate } from '../common/utils/local-date';
-import {
-  decoratePatient,
-  resolvePatientVerificationState,
-} from './patients-format';
+import { decoratePatient } from './patients-format';
 import { getClinicalSummaryReadModel, getEncounterTimelineReadModel } from './patients-clinical-read-model';
 import {
   updatePatientAdminDemographicsMutation,
   updatePatientDemographicsMutation,
 } from './patients-demographics-mutations';
 import {
-  createPatientProblemMutation,
-  createPatientTaskMutation,
-  updatePatientProblemMutation,
-  updatePatientTaskMutation,
-} from './patients-clinical-mutations';
+  createPatientProblemCommand,
+  createPatientTaskCommand,
+  CreatePatientTaskInput,
+  updatePatientProblemCommand,
+  updatePatientTaskCommand,
+  UpdatePatientTaskInput,
+} from './patients-clinical-write-side';
 import {
   exportPatientsCsvReadModel,
   findPatientByIdReadModel,
@@ -47,7 +37,11 @@ import {
   updatePatientHistoryMutation,
   verifyPatientDemographicsMutation,
 } from './patients-lifecycle-mutations';
-import { resolveCreatePatientRutInput, resolvePatientRutState } from './patients-create-utils';
+import {
+  createPatientMutation,
+  createQuickPatientMutation,
+} from './patients-intake-mutations';
+import { assertPatientAccessScope } from './patients-access';
 
 @Injectable()
 export class PatientsService {
@@ -56,167 +50,28 @@ export class PatientsService {
     private auditService: AuditService,
   ) {}
 
-  private async assertPatientAccess(user: RequestUser, patientId: string) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-
-    const patient = await this.prisma.patient.findUnique({
-      where: { id: patientId },
-      include: {
-        history: true,
-        createdBy: {
-          select: { medicoId: true },
-        },
-      },
-    });
-
-    if (!patient || patient.archivedAt) {
-      throw new NotFoundException('Paciente no encontrado');
-    }
-
-    // Allow access if user created the patient or has encounters with them
-    if (!user.isAdmin && !isPatientOwnedByMedico(patient, effectiveMedicoId)) {
-      const hasEncounter = await this.prisma.encounter.findFirst({
-        where: { patientId, medicoId: effectiveMedicoId },
-        select: { id: true },
-      });
-      if (!hasEncounter) {
-        throw new NotFoundException('Paciente no encontrado');
-      }
-    }
-
-    return patient;
-  }
+  private readonly assertPatientAccess = (user: RequestUser, patientId: string) => assertPatientAccessScope({
+    prisma: this.prisma,
+    user,
+    patientId,
+  });
 
   async create(createPatientDto: CreatePatientDto, userId: string) {
-    const { formattedRut, trimmedRutExemptReason } = await resolveCreatePatientRutInput({
+    return createPatientMutation({
       prisma: this.prisma,
-      rut: createPatientDto.rut,
-      rutExempt: createPatientDto.rutExempt,
-      rutExemptReason: createPatientDto.rutExemptReason,
-      invalidRutMessage: 'El RUT ingresado no es válido',
-      missingExemptReasonMessage: 'Debe indicar el motivo de exención de RUT',
-    });
-    const resolvedRut = resolvePatientRutState({
-      rut: createPatientDto.rut,
-      rutExempt: createPatientDto.rutExempt,
-      formattedRut,
-      trimmedRutExemptReason,
-    });
-
-    const verificationState = resolvePatientVerificationState({
-      actorId: userId,
-      actorRole: 'MEDICO',
-      mode: 'CREATE_FULL',
-      nextPatient: {
-        rut: resolvedRut.rut,
-        rutExempt: resolvedRut.rutExempt,
-        rutExemptReason: resolvedRut.rutExemptReason,
-        edad: createPatientDto.edad,
-        sexo: createPatientDto.sexo,
-        prevision: createPatientDto.prevision,
-      },
-    });
-
-    if (createPatientDto.fechaNacimiento && isDateOnlyAfterToday(createPatientDto.fechaNacimiento)) {
-      throw new BadRequestException('La fecha de nacimiento no puede ser futura');
-    }
-
-    const resolvedAge = createPatientDto.fechaNacimiento
-      ? calculateAgeFromBirthDate(createPatientDto.fechaNacimiento)
-      : { edad: createPatientDto.edad, edadMeses: createPatientDto.edadMeses ?? null };
-
-    const patient = await this.prisma.patient.create({
-      data: {
-        createdById: userId,
-        rut: resolvedRut.rut,
-        rutExempt: resolvedRut.rutExempt,
-        rutExemptReason: resolvedRut.rutExemptReason,
-        nombre: createPatientDto.nombre,
-        fechaNacimiento: createPatientDto.fechaNacimiento ? new Date(createPatientDto.fechaNacimiento) : null,
-        edad: resolvedAge.edad,
-        edadMeses: resolvedAge.edadMeses ?? null,
-        sexo: createPatientDto.sexo,
-        trabajo: createPatientDto.trabajo,
-        prevision: createPatientDto.prevision,
-        domicilio: createPatientDto.domicilio,
-        centroMedico: createPatientDto.centroMedico,
-        registrationMode: 'COMPLETO',
-        ...verificationState,
-        history: {
-          create: {},
-        },
-      },
-      include: {
-        history: true,
-      },
-    });
-
-    await this.auditService.log({
-      entityType: 'Patient',
-      entityId: patient.id,
+      auditService: this.auditService,
+      createPatientDto,
       userId,
-      action: 'CREATE',
-      diff: { created: patient },
     });
-
-    return decoratePatient(patient);
   }
 
   async createQuick(createPatientDto: CreatePatientQuickDto, user: RequestUser) {
-    const { formattedRut, trimmedRutExemptReason } = await resolveCreatePatientRutInput({
+    return createQuickPatientMutation({
       prisma: this.prisma,
-      rut: createPatientDto.rut,
-      rutExempt: createPatientDto.rutExempt,
-      rutExemptReason: createPatientDto.rutExemptReason,
-      invalidRutMessage: 'El RUT ingresado no es valido',
-      missingExemptReasonMessage: 'Debe indicar el motivo de exencion de RUT',
+      auditService: this.auditService,
+      createPatientDto,
+      user,
     });
-    const resolvedRut = resolvePatientRutState({
-      rut: createPatientDto.rut,
-      rutExempt: createPatientDto.rutExempt,
-      formattedRut,
-      trimmedRutExemptReason,
-    });
-
-    const patient = await this.prisma.patient.create({
-      data: {
-        createdById: user.id,
-        rut: resolvedRut.rut,
-        rutExempt: resolvedRut.rutExempt,
-        rutExemptReason: resolvedRut.rutExemptReason,
-        nombre: createPatientDto.nombre,
-        edad: null,
-        sexo: null,
-        prevision: null,
-        trabajo: null,
-        domicilio: null,
-        registrationMode: 'RAPIDO',
-        ...resolvePatientVerificationState({
-          actorId: user.id,
-          actorRole: user.role,
-          mode: 'CREATE_QUICK',
-          nextPatient: {
-            rut: resolvedRut.rut,
-            rutExempt: resolvedRut.rutExempt,
-            rutExemptReason: resolvedRut.rutExemptReason,
-          },
-        }),
-        history: {
-          create: {},
-        },
-      },
-      include: { history: true },
-    });
-
-    await this.auditService.log({
-      entityType: 'Patient',
-      entityId: patient.id,
-      userId: user.id,
-      action: 'CREATE',
-      diff: { created: patient, quick: true },
-    });
-
-    return decoratePatient(patient);
   }
 
   async findAll(
@@ -338,7 +193,7 @@ export class PatientsService {
       patientId,
       dto,
       user,
-      assertPatientAccess: this.assertPatientAccess.bind(this),
+      assertPatientAccess: this.assertPatientAccess,
     });
 
     return decoratePatient(patient);
@@ -350,7 +205,7 @@ export class PatientsService {
       auditService: this.auditService,
       user,
       patientId,
-      assertPatientAccess: this.assertPatientAccess.bind(this),
+      assertPatientAccess: this.assertPatientAccess,
     });
 
     return decoratePatient(updatedPatient);
@@ -363,7 +218,7 @@ export class PatientsService {
       user,
       patientId,
       dto,
-      assertPatientAccess: this.assertPatientAccess.bind(this),
+      assertPatientAccess: this.assertPatientAccess,
     });
   }
 
@@ -390,80 +245,54 @@ export class PatientsService {
   }
 
   async createProblem(user: RequestUser, patientId: string, dto: UpsertPatientProblemDto) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-    return createPatientProblemMutation({
+    return createPatientProblemCommand({
       prisma: this.prisma,
       auditService: this.auditService,
+      assertPatientAccess: this.assertPatientAccess,
       user,
       patientId,
       dto,
-      effectiveMedicoId,
-      assertPatientAccess: this.assertPatientAccess.bind(this),
     });
   }
 
   async updateProblem(user: RequestUser, problemId: string, dto: UpdatePatientProblemDto) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-
-    return updatePatientProblemMutation({
+    return updatePatientProblemCommand({
       prisma: this.prisma,
       auditService: this.auditService,
+      assertPatientAccess: this.assertPatientAccess,
       user,
       problemId,
       dto,
-      effectiveMedicoId,
-      assertPatientAccess: this.assertPatientAccess.bind(this),
     });
   }
 
   async createTask(
     user: RequestUser,
     patientId: string,
-    dto: {
-      title: string;
-      details?: string;
-      type?: string;
-      priority?: string;
-      status?: string;
-      dueDate?: string;
-      encounterId?: string;
-    },
+    dto: CreatePatientTaskInput,
   ) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-
-    return createPatientTaskMutation({
+    return createPatientTaskCommand({
       prisma: this.prisma,
       auditService: this.auditService,
+      assertPatientAccess: this.assertPatientAccess,
       user,
       patientId,
       dto,
-      effectiveMedicoId,
-      assertPatientAccess: this.assertPatientAccess.bind(this),
     });
   }
 
   async updateTaskStatus(
     user: RequestUser,
     taskId: string,
-    dto: {
-      title?: string;
-      status?: string;
-      details?: string;
-      type?: string;
-      priority?: string;
-      dueDate?: string;
-    },
+    dto: UpdatePatientTaskInput,
   ) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-
-    return updatePatientTaskMutation({
+    return updatePatientTaskCommand({
       prisma: this.prisma,
       auditService: this.auditService,
+      assertPatientAccess: this.assertPatientAccess,
       user,
       taskId,
       dto,
-      effectiveMedicoId,
-      assertPatientAccess: this.assertPatientAccess.bind(this),
     });
   }
 }
