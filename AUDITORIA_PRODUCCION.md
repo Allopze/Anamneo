@@ -141,6 +141,21 @@
 - Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` vuelve a pasar con 174/174 tests en ~27 s, incluyendo los casos de `GET /api/encounters/:id/export/document/receta`, `ordenes` y `derivacion`.
 - Pendientes tras esta pasada: retomar la reducción de los monolitos todavía fuera de objetivo (`useEncounterWizard`, `encounters.service`, `patients.service`, `encounters-sanitize`).
 
+### Pasada 20 - 2026-04-15
+
+- Sanitización de encuentros desarmada por dominios sin cambiar comportamiento: `backend/src/encounters/encounters-sanitize.ts` pasó a ser una fachada de 314 líneas y el sanitizado se repartió en tres módulos internos por responsabilidad: primitivos (`encounters-sanitize-primitives.ts`, 164 líneas), clínico (`encounters-sanitize-clinical.ts`, 241 líneas) e ingreso/historia (`encounters-sanitize-intake.ts`, 260 líneas). Todos quedaron por debajo del umbral de 500 líneas.
+- Alcance del cambio: `backend/src/encounters/encounters-sanitize.ts`, `backend/src/encounters/encounters-sanitize-primitives.ts`, `backend/src/encounters/encounters-sanitize-clinical.ts` y `backend/src/encounters/encounters-sanitize-intake.ts`.
+- Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` vuelve a pasar con 174/174 tests en 27.629 s.
+- Pendientes tras esta pasada: retomar la reducción de los monolitos todavía fuera de objetivo (`useEncounterWizard`, `encounters.service`, `patients.service`).
+
+### Pasada 21 - 2026-04-16
+
+- Capa de presentación de encuentros extraída sin alterar contratos: el formateo de read models (listado, timeline por paciente, dashboard y detalle completo) salió de `backend/src/encounters/encounters.service.ts` a `backend/src/encounters/encounters-presenters.ts` (195 líneas). Con esto, `encounters.service.ts` bajó de 1226 a 1068 líneas y quedó más concentrado en orquestación de casos de uso.
+- Endurecimiento del harness E2E para tareas vencidas: el caso `GET /api/patients/tasks?overdueOnly=true` ahora fija una fecha de vencimiento claramente anterior (48 h) para evitar flakiness en bordes UTC/local alrededor de medianoche.
+- Alcance del cambio: `backend/src/encounters/encounters.service.ts`, `backend/src/encounters/encounters-presenters.ts` y `backend/test/suites/encounters/encounters-followup.e2e-group.ts`.
+- Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests en 26.457 s.
+- Pendientes tras esta pasada: retomar la reducción de los monolitos todavía fuera de objetivo (`useEncounterWizard`, `encounters.service`, `patients.service`).
+
 > Actualizacion 2026-04-14: C2 quedo mitigado en el repo. `docker-compose.yml` ahora publica backend y frontend solo en loopback por defecto, y la documentacion de despliegue/entorno deja explicito que este producto esta pensado para publicarse detras de Cloudflare Tunnel con `cloudflared` y HTTPS.
 
 ## 1. Resumen ejecutivo
@@ -163,7 +178,7 @@ Conclusión corta: la base técnica no es mala. De hecho, tiene varias decisione
 
 Los pendientes más relevantes ahora son:
 
-1. Retomar la reducción de los monolitos todavía fuera de objetivo (`useEncounterWizard`, `encounters.service`, `patients.service`, `encounters-sanitize`).
+1. Retomar la reducción de los monolitos todavía fuera de objetivo (`useEncounterWizard`, `encounters.service`, `patients.service`).
 
 ## 2. Veredicto de producción
 
@@ -228,11 +243,12 @@ Para el objetivo real del producto, la arquitectura general es razonable. No veo
 Lo que sí veo es tensión de mantenibilidad:
 
 - `backend/src/patients/patients.service.ts`: 1480 líneas.
-- `backend/src/encounters/encounters.service.ts`: 1226 líneas.
+- `backend/src/encounters/encounters.service.ts`: 1068 líneas.
 - `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts`: 1112 líneas.
-- `backend/src/encounters/encounters-sanitize.ts`: 928 líneas.
+- `backend/src/encounters/encounters-presenters.ts`: 195 líneas (nuevo módulo de proyección extraído en pasada 21).
+- Sanitización de encuentros ahora modularizada y bajo umbral: `encounters-sanitize.ts` (314), `encounters-sanitize-primitives.ts` (164), `encounters-sanitize-clinical.ts` (241), `encounters-sanitize-intake.ts` (260).
 
-Eso ya contradice la regla del proyecto de no superar 500 líneas por archivo y dificulta detectar regresiones. No es un bloqueador inmediato de producción por sí solo, pero sí explica por qué aparecen errores evitables en refactors recientes.
+Los tres primeros todavía contradicen la regla del proyecto de no superar 500 líneas por archivo y dificultan detectar regresiones. No es un bloqueador inmediato de producción por sí solo, pero sí explica por qué aparecen errores evitables en refactors recientes.
 
 Evaluación de arquitectura: **apta para el tamaño actual del producto, pero con deuda de modularidad visible y regresiones recientes que ya demostraron lo fácil que es romper cosas básicas**.
 

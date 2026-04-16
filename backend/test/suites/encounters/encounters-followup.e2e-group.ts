@@ -91,20 +91,21 @@ export function registerEncounterFollowupTests() {
   });
 
   it('PUT /api/patients/tasks/:taskId → update patient task', async () => {
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    // Use a date safely in the past to avoid UTC/local boundary flakes around midnight.
+    const overdueDate = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const res = await req()
       .put(`/api/patients/tasks/${state.patientTaskId}`)
       .set('Cookie', cookieHeader(state.medicoCookies))
       .send({
         title: 'Revisar examen de control actualizado',
         status: 'EN_PROCESO',
-        dueDate: yesterday,
+        dueDate: overdueDate,
       })
       .expect(200);
 
     expect(res.body.title).toBe('Revisar examen de control actualizado');
     expect(res.body.status).toBe('EN_PROCESO');
-    expect(res.body.dueDate.slice(0, 10)).toBe(yesterday);
+    expect(res.body.dueDate.slice(0, 10)).toBe(overdueDate);
   });
 
   it('GET /api/patients/tasks?overdueOnly=true → includes tasks whose due date already passed', async () => {
