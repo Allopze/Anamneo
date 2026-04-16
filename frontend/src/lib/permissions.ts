@@ -51,6 +51,25 @@ export function canViewMedicoOnlySections(user: PermissionUser | null | undefine
   return Boolean(isMedicoUser(user));
 }
 
+export function canUpdateEncounterReviewStatus(
+  user: PermissionUser | null | undefined,
+  reviewStatus: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO',
+) {
+  if (!user) {
+    return false;
+  }
+
+  if (reviewStatus === 'LISTA_PARA_REVISION') {
+    return user.role === 'ASISTENTE';
+  }
+
+  if (reviewStatus === 'REVISADA_POR_MEDICO' || reviewStatus === 'NO_REQUIERE_REVISION') {
+    return isMedicoUser(user);
+  }
+
+  return false;
+}
+
 export function canEditEncounter(
   user: PermissionUser | null | undefined,
   encounter: Encounter | undefined,
@@ -69,7 +88,6 @@ export function canCompleteEncounter(
   return Boolean(
     user &&
     encounter?.status === 'EN_PROGRESO' &&
-    isMedicoUser(user) &&
-    encounter?.createdBy?.id === user.id,
+    isMedicoUser(user),
   );
 }

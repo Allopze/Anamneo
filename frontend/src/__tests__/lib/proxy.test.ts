@@ -1,12 +1,12 @@
 import { resolveProxyDecision, shouldValidateSessionRemotely } from '@/lib/proxy-session';
 
 describe('shouldValidateSessionRemotely', () => {
-  it('validates public auth routes remotely', () => {
-    expect(shouldValidateSessionRemotely('/login')).toBe(true);
-    expect(shouldValidateSessionRemotely('/register')).toBe(true);
+  it('does not perform remote validation for auth routes', () => {
+    expect(shouldValidateSessionRemotely('/login')).toBe(false);
+    expect(shouldValidateSessionRemotely('/register')).toBe(false);
   });
 
-  it('skips remote validation for protected routes', () => {
+  it('also skips remote validation for protected routes', () => {
     expect(shouldValidateSessionRemotely('/')).toBe(false);
     expect(shouldValidateSessionRemotely('/pacientes')).toBe(false);
   });
@@ -25,14 +25,14 @@ describe('resolveProxyDecision', () => {
     ).toEqual({ action: 'redirect', target: '/login?from=%2Fpacientes' });
   });
 
-  it('redirects public routes only when the session is validated', () => {
+  it('redirects public routes when any session cookie is present', () => {
     expect(
       resolveProxyDecision({
         pathname: '/login',
         search: '',
         hasSessionCookie: true,
         hasRefreshToken: false,
-        hasValidatedSession: true,
+        hasValidatedSession: false,
       }),
     ).toEqual({ action: 'redirect', target: '/' });
   });

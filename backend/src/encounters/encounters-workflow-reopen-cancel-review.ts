@@ -5,7 +5,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
+import { RequestUser } from '../common/utils/medico-id';
+import { assertTreatingMedico, canApplyReviewStatus, assertEncounterAccess } from './encounter-policy';
 import { formatEncounterResponse } from './encounters-presenters';
 import {
   REVIEW_NOTE_MIN_LENGTH,
@@ -53,9 +54,7 @@ export async function reopenEncounterWorkflowMutation(params: ReopenEncounterPar
     throw new BadRequestException('Solo se pueden reabrir atenciones completadas (las firmadas son inmutables)');
   }
 
-  if (encounter.medicoId !== userId) {
-    throw new ForbiddenException('No tiene permisos para reabrir esta atención');
-  }
+  assertTreatingMedico(userId, encounter.medicoId, 'No tiene permisos para reabrir esta atención');
 
   const sanitizedNote = sanitizeRequiredWorkflowNote(
     note,
@@ -100,7 +99,7 @@ export async function reopenEncounterWorkflowMutation(params: ReopenEncounterPar
     },
   });
 
-  return formatEncounterResponse(updated);
+  return formatEncounterResponse(updated, { viewerRole: 'MEDICO' });
 }
 
 
@@ -116,9 +115,7 @@ export async function cancelEncounterWorkflowMutation(params: CancelEncounterPar
     throw new NotFoundException('Atención no encontrada');
   }
 
-  if (encounter.medicoId !== userId) {
-    throw new ForbiddenException('No tiene permisos para cancelar esta atención');
-  }
+  assertTreatingMedico(userId, encounter.medicoId, 'No tiene permisos para cancelar esta atención');
 
   if (encounter.status !== 'EN_PROGRESO') {
     throw new BadRequestException('Solo se pueden cancelar atenciones en progreso');
@@ -154,9 +151,7 @@ export async function updateEncounterReviewStatusMutation(params: UpdateEncounte
     throw new NotFoundException('Atención no encontrada');
   }
 
-  if (encounter.medicoId !== getEffectiveMedicoId(user)) {
-    throw new ForbiddenException('No tiene permisos para actualizar la revisión de esta atención');
-  }
+  assertEncounterAccess(user, encounter.medicoId, 'No tiene permisos para actualizar la revisión de esta atención');
 
   if (encounter.status === 'CANCELADO') {
     throw new BadRequestException('No se puede revisar una atención cancelada');
@@ -166,16 +161,16 @@ export async function updateEncounterReviewStatusMutation(params: UpdateEncounte
     throw new BadRequestException('No se puede revisar una atención firmada. Los registros firmados son inmutables');
   }
 
-  if (reviewStatus === 'REVISADA_POR_MEDICO' && user.role !== 'MEDICO') {
+  if (!canApplyReviewStatus(user, reviewStatus)) {
+    if (reviewStatus === 'LISTA_PARA_REVISION') {
+      throw new BadRequestException('Solo un asistente puede enviar una atención a revisión médica');
+    }
+
+    if (reviewStatus === 'NO_REQUIERE_REVISION') {
+      throw new ForbiddenException('Solo un médico puede despejar una revisión pendiente');
+    }
+
     throw new ForbiddenException('Solo un médico puede marcar la atención como revisada');
-  }
-
-  if (reviewStatus === 'LISTA_PARA_REVISION' && user.role !== 'ASISTENTE') {
-    throw new BadRequestException('Solo un asistente puede enviar una atención a revisión médica');
-  }
-
-  if (reviewStatus === 'NO_REQUIERE_REVISION' && user.role !== 'MEDICO') {
-    throw new ForbiddenException('Solo un médico puede despejar una revisión pendiente');
   }
 
   const sanitizedNote = reviewStatus === 'REVISADA_POR_MEDICO'
@@ -217,5 +212,5 @@ export async function updateEncounterReviewStatusMutation(params: UpdateEncounte
     },
   });
 
-  return formatEncounterResponse(updated);
+  return formatEncounterResponse(updated, { viewerRole: user.role });
 }

@@ -1,6 +1,7 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import {
   decryptSettingValueWithSecrets,
   encryptSettingValue,
@@ -195,6 +196,36 @@ export class SettingsService {
       },
     );
     return this.prisma.$transaction(operations);
+  }
+
+  async updateWithAudit(data: Record<string, string>, userId: string, auditService: AuditService) {
+    const updatedKeys = Object.keys(data);
+
+    return this.prisma.$transaction(async (tx) => {
+      const operations = Object.entries(data).map(([key, value]) => {
+        const storedValue = this.encodeSettingValue(key, value);
+        return tx.setting.upsert({
+          where: { key },
+          update: { value: storedValue },
+          create: { key, value: storedValue },
+        });
+      });
+
+      const result = await Promise.all(operations);
+
+      await auditService.log(
+        {
+          entityType: 'Setting',
+          entityId: 'global',
+          userId,
+          action: 'UPDATE',
+          diff: { updatedKeys },
+        },
+        tx,
+      );
+
+      return result;
+    });
   }
 
   async delete(key: string) {

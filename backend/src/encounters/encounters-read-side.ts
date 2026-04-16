@@ -1,6 +1,8 @@
 import { NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildEncounterTaskScopeWhere, buildPatientProblemScopeWhere } from '../common/utils/patient-access';
+import { RequestUser } from '../common/utils/medico-id';
+import { canAccessEncounter } from './encounter-policy';
 import { formatEncounterForList, formatEncounterForPatientList, formatEncounterResponse } from './encounters-presenters';
 
 interface FindEncountersReadModelParams {
@@ -83,10 +85,11 @@ interface FindEncounterByIdReadModelParams {
   prisma: PrismaService;
   id: string;
   effectiveMedicoId: string;
+  user: RequestUser;
 }
 
 export async function findEncounterByIdReadModel(params: FindEncounterByIdReadModelParams) {
-  const { prisma, id, effectiveMedicoId } = params;
+  const { prisma, id, effectiveMedicoId, user } = params;
 
   const encounter = await prisma.encounter.findFirst({
     where: {
@@ -143,7 +146,11 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
     throw new NotFoundException('Atención no encontrada');
   }
 
-  return formatEncounterResponse(encounter);
+  if (!canAccessEncounter(user, encounter.medicoId)) {
+    throw new NotFoundException('Atención no encontrada');
+  }
+
+  return formatEncounterResponse(encounter, { viewerRole: user.role });
 }
 
 interface FindEncountersByPatientReadModelParams {

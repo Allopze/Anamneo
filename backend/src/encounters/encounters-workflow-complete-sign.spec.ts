@@ -34,6 +34,7 @@ describe('encounters-workflow-complete-sign', () => {
     sections[0].completed = false;
 
     const prisma = {
+      $transaction: jest.fn().mockImplementation(async (callback: (client: any) => Promise<unknown>) => callback(prisma)),
       encounter: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'enc-1',
@@ -76,6 +77,7 @@ describe('encounters-workflow-complete-sign', () => {
     };
 
     const prisma = {
+      $transaction: jest.fn().mockImplementation(async (callback: (client: any) => Promise<unknown>) => callback(prisma)),
       encounter: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'enc-1',
@@ -99,6 +101,7 @@ describe('encounters-workflow-complete-sign', () => {
     });
 
     expect(assertEncounterClinicalOutputAllowed).toHaveBeenCalled();
+    expect(prisma.$transaction).toHaveBeenCalled();
     expect(prisma.encounter.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'enc-1' },
@@ -115,6 +118,7 @@ describe('encounters-workflow-complete-sign', () => {
         entityId: 'enc-1',
         action: 'UPDATE',
       }),
+      prisma,
     );
     expect(formatEncounterResponse).toHaveBeenCalledWith(updatedEncounter);
     expect(result).toBe(updatedEncounter);
@@ -184,7 +188,7 @@ describe('encounters-workflow-complete-sign', () => {
       encounterSignature: {
         create: jest.fn().mockResolvedValue(signature),
       },
-      $transaction: jest.fn().mockImplementation(async (operations: Promise<unknown>[]) => Promise.all(operations)),
+      $transaction: jest.fn().mockImplementation(async (callback: (client: any) => Promise<unknown>) => callback(prisma)),
     };
 
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
@@ -215,6 +219,7 @@ describe('encounters-workflow-complete-sign', () => {
         data: { status: 'FIRMADO' },
       }),
     );
+    expect(prisma.$transaction).toHaveBeenCalled();
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         diff: expect.objectContaining({
@@ -223,6 +228,7 @@ describe('encounters-workflow-complete-sign', () => {
           contentHash: expect.stringMatching(/^[a-f0-9]{64}$/),
         }),
       }),
+      prisma,
     );
     expect(result).toEqual(
       expect.objectContaining({

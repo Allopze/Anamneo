@@ -11,7 +11,7 @@ import { LogInput, sanitizeDiff, parseDateFilter } from './audit-helpers';
 export class AuditService {
   constructor(private prisma: PrismaService) {}
 
-  async log(input: LogInput) {
+  async log(input: LogInput, client: Prisma.TransactionClient | PrismaService = this.prisma) {
     const sanitizedDiff = sanitizeDiff(input.entityType, input.diff);
     const reason = input.reason ?? inferAuditReason(input.entityType, input.action, input.diff);
 
@@ -22,7 +22,7 @@ export class AuditService {
     }
 
     // Get hash of last audit entry for chain
-    const lastEntry = await this.prisma.auditLog.findFirst({
+    const lastEntry = await client.auditLog.findFirst({
       orderBy: { timestamp: 'desc' },
       select: { integrityHash: true },
     });
@@ -44,7 +44,7 @@ export class AuditService {
       .update(previousHash + JSON.stringify(data))
       .digest('hex');
 
-    return this.prisma.auditLog.create({
+    return client.auditLog.create({
       data: {
         ...data,
         integrityHash,

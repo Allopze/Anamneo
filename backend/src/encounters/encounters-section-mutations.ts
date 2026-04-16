@@ -11,9 +11,10 @@ import {
   getEncounterSectionSchemaVersion,
 } from '../common/utils/encounter-section-meta';
 import { SectionKey } from '../common/types';
-import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
+import { RequestUser } from '../common/utils/medico-id';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateSectionDto } from './dto/update-section.dto';
+import { assertEncounterAccess, canEditEncounterCreatedBy } from './encounter-policy';
 import {
   IDENTIFICATION_SNAPSHOT_FIELD_META,
   REQUIRED_SEMANTIC_SECTIONS,
@@ -25,6 +26,7 @@ import {
   serializeSectionData,
   summarizeSectionAuditData,
 } from './encounters-sanitize';
+import { isMedicoOnlySection } from './encounter-access-policy';
 
 interface LoggerLike {
   error(message: string, trace?: string): void;
@@ -60,9 +62,7 @@ export async function reconcileEncounterIdentificationSection(params: ReconcileE
     throw new NotFoundException('Atención no encontrada');
   }
 
-  if (encounter.medicoId !== getEffectiveMedicoId(user)) {
-    throw new ForbiddenException('No tiene permisos para editar esta atención');
-  }
+  assertEncounterAccess(user, encounter.medicoId, 'No tiene permisos para editar esta atención');
 
   if (encounter.status !== 'EN_PROGRESO') {
     throw new BadRequestException('Solo se puede reconciliar la identificación de atenciones en progreso');
@@ -118,11 +118,7 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
     throw new NotFoundException('Atención no encontrada');
   }
 
-  const effectiveMedicoId = getEffectiveMedicoId(user);
-
-  if (encounter.medicoId !== effectiveMedicoId) {
-    throw new ForbiddenException('No tiene permisos para editar esta atención');
-  }
+  assertEncounterAccess(user, encounter.medicoId, 'No tiene permisos para editar esta atención');
 
   if (encounter.status === 'FIRMADO') {
     throw new BadRequestException('No se puede editar una atención firmada. Los registros firmados son inmutables');
@@ -136,13 +132,17 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
     throw new BadRequestException('No se puede editar una atención cancelada');
   }
 
-  if (encounter.createdById !== user.id && user.role !== 'MEDICO') {
+  if (!canEditEncounterCreatedBy(user, encounter.createdById)) {
     throw new ForbiddenException('No tiene permisos para editar esta atención');
   }
 
   const section = encounter.sections.find((currentSection) => currentSection.sectionKey === sectionKey);
   if (!section) {
     throw new NotFoundException('Sección no encontrada');
+  }
+
+  if (user.role !== 'MEDICO' && isMedicoOnlySection(sectionKey)) {
+    throw new ForbiddenException('Solo un médico puede editar esta sección clínica');
   }
 
   const sanitizedData = sanitizeSectionPayload(sectionKey, dto.data);

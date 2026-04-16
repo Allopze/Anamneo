@@ -8,7 +8,9 @@
     "expectations": {
       "canEditAntecedentes": true,
       "canEditPatientAdmin": true,
-      "canCreateEncounter": true
+      "canCreateEncounter": true,
+      "canViewMedicoOnlySections": true,
+      "canUpdateReviewStatus": true
     }
   },
   {
@@ -21,7 +23,9 @@
     "expectations": {
       "canEditAntecedentes": false,
       "canEditPatientAdmin": false,
-      "canCreateEncounter": false
+      "canCreateEncounter": false,
+      "canViewMedicoOnlySections": false,
+      "canUpdateReviewStatus": false
     }
   },
   {
@@ -34,7 +38,9 @@
     "expectations": {
       "canEditAntecedentes": true,
       "canEditPatientAdmin": true,
-      "canCreateEncounter": true
+      "canCreateEncounter": true,
+      "canViewMedicoOnlySections": false,
+      "canUpdateReviewStatus": false
     }
   },
   {
@@ -47,7 +53,9 @@
     "expectations": {
       "canEditAntecedentes": false,
       "canEditPatientAdmin": false,
-      "canCreateEncounter": false
+      "canCreateEncounter": false,
+      "canViewMedicoOnlySections": false,
+      "canUpdateReviewStatus": false
     }
   }
 ]

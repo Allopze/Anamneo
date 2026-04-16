@@ -162,41 +162,48 @@ export class AttachmentsService {
       await fs.access(resolvedStoragePath);
       const normalizedMime = await this.validateFileContent(resolvedStoragePath, file.mimetype);
 
-      const attachment = await this.prisma.attachment.create({
-        data: {
-          encounterId,
-          filename: file.filename,
-          originalName: sanitizeFilename(file.originalname),
-          mime: normalizedMime,
-          size: file.size,
-          storagePath: this.toStoredStoragePath(resolvedStoragePath),
-          uploadedById: user.id,
-          category: metadata?.category?.trim() || null,
-          description: metadata?.description?.trim() || null,
-          linkedOrderType: linkedOrder?.linkedOrderType || null,
-          linkedOrderId: linkedOrder?.linkedOrderId || null,
-          linkedOrderLabel: linkedOrder?.linkedOrderLabel || null,
-        },
-      });
-
-      await this.auditService.log({
-        entityType: 'Attachment',
-        entityId: attachment.id,
-        userId: user.id,
-        action: 'CREATE',
-        diff: {
-          created: {
-            id: attachment.id,
-            encounterId: attachment.encounterId,
-            uploadedById: attachment.uploadedById,
-            originalName: attachment.originalName,
-            mime: attachment.mime,
-            size: attachment.size,
-            category: attachment.category,
-            linkedOrderType: attachment.linkedOrderType,
-            linkedOrderId: attachment.linkedOrderId,
+      const attachment = await this.prisma.$transaction(async (tx) => {
+        const createdAttachment = await tx.attachment.create({
+          data: {
+            encounterId,
+            filename: file.filename,
+            originalName: sanitizeFilename(file.originalname),
+            mime: normalizedMime,
+            size: file.size,
+            storagePath: this.toStoredStoragePath(resolvedStoragePath),
+            uploadedById: user.id,
+            category: metadata?.category?.trim() || null,
+            description: metadata?.description?.trim() || null,
+            linkedOrderType: linkedOrder?.linkedOrderType || null,
+            linkedOrderId: linkedOrder?.linkedOrderId || null,
+            linkedOrderLabel: linkedOrder?.linkedOrderLabel || null,
           },
-        },
+        });
+
+        await this.auditService.log(
+          {
+            entityType: 'Attachment',
+            entityId: createdAttachment.id,
+            userId: user.id,
+            action: 'CREATE',
+            diff: {
+              created: {
+                id: createdAttachment.id,
+                encounterId: createdAttachment.encounterId,
+                uploadedById: createdAttachment.uploadedById,
+                originalName: createdAttachment.originalName,
+                mime: createdAttachment.mime,
+                size: createdAttachment.size,
+                category: createdAttachment.category,
+                linkedOrderType: createdAttachment.linkedOrderType,
+                linkedOrderId: createdAttachment.linkedOrderId,
+              },
+            },
+          },
+          tx,
+        );
+
+        return createdAttachment;
       });
 
       return {
@@ -301,30 +308,32 @@ export class AttachmentsService {
     }
 
     // Soft-delete: mark as deleted, keep the physical file for retention period
-    await this.prisma.attachment.update({
-      where: { id },
-      data: { deletedAt: new Date(), deletedById: user.id },
-    });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.attachment.update({
+        where: { id },
+        data: { deletedAt: new Date(), deletedById: user.id },
+      });
 
-    await this.auditService.log({
-      entityType: 'Attachment',
-      entityId: attachment.id,
-      userId: user.id,
-      action: 'SOFT_DELETE',
-      diff: {
-        deleted: {
-          id: attachment.id,
-          encounterId: attachment.encounterId,
-          uploadedById: attachment.uploadedById,
-          originalName: attachment.originalName,
-          mime: attachment.mime,
-          size: attachment.size,
-          storagePath: attachment.storagePath,
-          category: attachment.category,
-          linkedOrderType: attachment.linkedOrderType,
-          linkedOrderId: attachment.linkedOrderId,
+      await this.auditService.log({
+        entityType: 'Attachment',
+        entityId: attachment.id,
+        userId: user.id,
+        action: 'SOFT_DELETE',
+        diff: {
+          deleted: {
+            id: attachment.id,
+            encounterId: attachment.encounterId,
+            uploadedById: attachment.uploadedById,
+            originalName: attachment.originalName,
+            mime: attachment.mime,
+            size: attachment.size,
+            storagePath: attachment.storagePath,
+            category: attachment.category,
+            linkedOrderType: attachment.linkedOrderType,
+            linkedOrderId: attachment.linkedOrderId,
+          },
         },
-      },
+      }, tx);
     });
 
     return { message: 'Archivo movido a papelera' };

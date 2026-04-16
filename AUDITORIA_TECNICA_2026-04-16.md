@@ -263,7 +263,35 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 | Diff visible de cambios antes de firmar | Ayuda a revisar que se modifico realmente antes de firma | Ya hay auditoria y timeline; falta explotarlo mejor | Medio/Alto | Media | Despues |
 | Estado clinico resumido en la ficha del paciente | Mejora continuidad entre encuentros | La app ya calcula resumen clinico y tendencias vitales | Medio | Media | Despues |
 
-## 7. Plan de accion priorizado
+## 7. Estado tras primera pasada de fixes
+
+- Resuelto en codigo: enforcement backend de secciones solo-medico en lectura detallada y en escritura de secciones por asistentes.
+- Resuelto en codigo: alineacion del permiso de cierre en frontend para que el medico tratante pueda completar atenciones aunque no sea `createdBy`.
+- Resuelto en codigo: trazabilidad de alertas clinicas al crear y reconocer alertas, incluyendo las auto-generadas por signos vitales.
+- Resuelto en codigo: el login ahora puede mostrar el mensaje real de bloqueo temporal devuelto por backend en vez de aplanarlo siempre como credenciales invalidas.
+- Agregado en tests: cobertura para ocultar secciones solo-medico a asistentes, negar su edicion, reflejar la regla actual de cierre del medico tratante y mostrar el mensaje de lockout en login.
+- Pendiente de decidir: si la deduplicacion de alertas criticas reconocidas debe mantenerse o permitir reaparicion cuando el valor peligroso persiste dentro del mismo encounter.
+- Validado en esta pasada:
+  - `npm --prefix frontend run typecheck` OK
+  - `npm --prefix frontend run test -- --runInBand src/__tests__/lib/permissions.test.ts src/__tests__/app/login.test.tsx` OK
+  - `npm --prefix backend run typecheck` OK
+  - `npm --prefix backend run test -- --runInBand src/alerts/alerts.service.spec.ts src/encounters/encounters-workflow-complete-sign.spec.ts` OK
+  - `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` OK
+
+## 8. Estado tras segunda pasada de fixes
+
+- Resuelto en codigo: `Encounter.complete`, `Encounter.sign`, `Consent.create` y `Consent.revoke` ahora agrupan mutacion de negocio y auditoria dentro de la misma transaccion, reduciendo el riesgo de cambios aplicados con respuesta de error si falla el audit log.
+- Resuelto en codigo: `frontend/src/proxy.ts` deja de hacer `fetch` remoto a `/api/auth/me` y pasa a un chequeo optimista por cookie, consistente con el uso recomendado para esta capa y menos fragil para rutas publicas.
+- Agregado en tests: cobertura unitaria para consentimientos transaccionales y ajuste de tests de workflow/proxy a la nueva semantica.
+- Pendiente principal de producto: decidir el comportamiento clinico deseado para alertas criticas reconocidas que vuelven a aparecer o persisten.
+- Pendiente tecnico importante: consolidar politicas de permisos de encounters en una sola fuente de verdad compartida para evitar drift entre backend y frontend.
+- Validado en esta pasada:
+  - `npm --prefix frontend run test -- --runInBand src/__tests__/lib/proxy.test.ts` OK
+  - `npm --prefix frontend run typecheck` OK
+  - `npm --prefix backend run test -- --runInBand src/encounters/encounters-workflow-complete-sign.spec.ts src/consents/consents.service.spec.ts src/alerts/alerts.service.spec.ts` OK
+  - `npm --prefix backend run typecheck` OK
+
+## 8. Plan de accion priorizado
 
 ### Arreglar primero
 

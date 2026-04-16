@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { AuditService } from '../audit/audit.service';
 import { SettingsService } from './settings.service';
 import { decryptSettingValue, encryptSettingValue } from './settings-encryption';
 
@@ -103,5 +104,39 @@ describe('SettingsService', () => {
     expect(smtpPasswordCall?.[0].create.value.startsWith('enc:v1:')).toBe(true);
     expect(decryptSettingValue(smtpPasswordCall?.[0].create.value, activeKey)).toBe('SMTP.NewSecret123');
     expect(smtpHostCall?.[0].create.value).toBe('smtp.demo.cl');
+  });
+
+  it('updates settings and audit log in one transaction', async () => {
+    const tx = {
+      setting: {
+        upsert: jest.fn().mockImplementation(({ create }: any) => Promise.resolve(create)),
+      },
+    };
+    prisma.$transaction.mockImplementation(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx));
+
+    const auditService = {
+      log: jest.fn().mockResolvedValue(undefined),
+    } as unknown as AuditService;
+
+    const result = await service.updateWithAudit(
+      {
+        'smtp.host': 'smtp.demo.cl',
+        'email.invitationSubject': 'Invitación clínica',
+      },
+      'admin-1',
+      auditService,
+    );
+
+    expect(prisma.$transaction).toHaveBeenCalled();
+    expect(tx.setting.upsert).toHaveBeenCalledTimes(2);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: 'Setting',
+        entityId: 'global',
+        action: 'UPDATE',
+      }),
+      tx,
+    );
+    expect(result).toHaveLength(2);
   });
 });

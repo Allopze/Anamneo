@@ -93,7 +93,7 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
 
           if (inProgress.length === 1) {
             return {
-              ...formatEncounterResponse(inProgress[0]),
+              ...formatEncounterResponse(inProgress[0], { viewerRole: user.role }),
               reused: true,
             };
           }
@@ -160,7 +160,7 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
           });
 
           return {
-            ...formatEncounterResponse(encounter),
+            ...formatEncounterResponse(encounter, { viewerRole: user.role }),
             reused: false,
           };
         },

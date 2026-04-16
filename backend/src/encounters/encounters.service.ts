@@ -80,6 +80,7 @@ export class EncountersService {
       prisma: this.prisma,
       id,
       effectiveMedicoId,
+      user,
     });
   }
 

@@ -64,20 +64,10 @@ export class SettingsController {
     if (dto.smtpFromName !== undefined) data['smtp.fromName'] = dto.smtpFromName;
     if (dto.invitationSubject !== undefined) data['email.invitationSubject'] = dto.invitationSubject;
     if (dto.invitationTemplateHtml !== undefined) data['email.invitationTemplateHtml'] = dto.invitationTemplateHtml;
-    const result = await this.settingsService.setMany(data);
-
-    if (Object.keys(data).length > 0) {
-      await this.auditService.log({
-        entityType: 'Setting',
-        entityId: 'global',
-        userId: user.id,
-        action: 'UPDATE',
-        diff: {
-          updatedKeys: Object.keys(data),
-        },
-      });
+    if (Object.keys(data).length === 0) {
+      return this.settingsService.getAllAdminView();
     }
 
-    return result;
+    return this.settingsService.updateWithAudit(data, user.id, this.auditService);
   }
 }

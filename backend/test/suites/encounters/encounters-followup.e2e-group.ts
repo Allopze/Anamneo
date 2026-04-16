@@ -321,6 +321,51 @@ export function registerEncounterFollowupTests() {
     expect(state.blockedEncounterId).toBeDefined();
   });
 
+  it('POST /api/encounters/patient/:patientId → assistant can create an encounter but does not receive medico-only sections', async () => {
+    const res = await req()
+      .post(`/api/encounters/patient/${state.quickPatientId}`)
+      .set('Cookie', cookieHeader(state.assistantCookies))
+      .send({})
+      .expect(201);
+
+    state.assistantEncounterId = res.body.id;
+    expect(res.body.id).toBeDefined();
+    expect(res.body.sections.map((section: any) => section.sectionKey)).not.toEqual(
+      expect.arrayContaining(['SOSPECHA_DIAGNOSTICA', 'TRATAMIENTO', 'RESPUESTA_TRATAMIENTO']),
+    );
+  });
+
+  it('GET /api/encounters/:id → assistant does not receive medico-only sections', async () => {
+    const res = await req()
+      .get(`/api/encounters/${state.assistantEncounterId}`)
+      .set('Cookie', cookieHeader(state.assistantCookies))
+      .expect(200);
+
+    expect(res.body.sections.map((section: any) => section.sectionKey)).not.toEqual(
+      expect.arrayContaining(['SOSPECHA_DIAGNOSTICA', 'TRATAMIENTO', 'RESPUESTA_TRATAMIENTO']),
+    );
+  });
+
+  it('PUT /api/encounters/:id/sections/SOSPECHA_DIAGNOSTICA → assistant gets 403 on medico-only section', async () => {
+    await req()
+      .put(`/api/encounters/${state.assistantEncounterId}/sections/SOSPECHA_DIAGNOSTICA`)
+      .set('Cookie', cookieHeader(state.assistantCookies))
+      .send({
+        data: {
+          sospechas: [
+            {
+              id: 'dx-hta',
+              diagnostico: 'Hipertensión arterial',
+              prioridad: 1,
+              notas: 'No debería permitir edición por asistente.',
+            },
+          ],
+        },
+        completed: true,
+      })
+      .expect(403);
+  });
+
   it('POST /api/consents → 400 when encounterId does not belong to patientId', async () => {
     const res = await req()
       .post('/api/consents')

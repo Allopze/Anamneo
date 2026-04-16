@@ -1,33 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveProxyDecision, shouldValidateSessionRemotely } from './lib/proxy-session';
-
-const AUTH_ME_PATH = '/api/auth/me';
-
-async function hasValidatedAccessSession(request: NextRequest): Promise<boolean> {
-  if (!request.cookies.has('access_token')) {
-    return false;
-  }
-
-  const cookieHeader = request.headers.get('cookie');
-  if (!cookieHeader) {
-    return false;
-  }
-
-  try {
-    const response = await fetch(new URL(AUTH_ME_PATH, request.url), {
-      method: 'GET',
-      headers: {
-        cookie: cookieHeader,
-        accept: 'application/json',
-      },
-      cache: 'no-store',
-    });
-
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
+import { resolveProxyDecision } from './lib/proxy-session';
 
 export async function proxy(request: NextRequest) {
   if (process.env.NODE_ENV !== 'production' && process.env.E2E_DISABLE_PROXY_AUTH === 'true') {
@@ -38,16 +10,13 @@ export async function proxy(request: NextRequest) {
   const hasAccessToken = request.cookies.has('access_token');
   const hasRefreshToken = request.cookies.has('refresh_token');
   const hasSessionCookie = hasAccessToken || hasRefreshToken;
-  const hasValidatedSession = shouldValidateSessionRemotely(pathname)
-    ? await hasValidatedAccessSession(request)
-    : hasAccessToken;
 
   const decision = resolveProxyDecision({
     pathname,
     search: request.nextUrl.search,
     hasSessionCookie,
     hasRefreshToken,
-    hasValidatedSession,
+    hasValidatedSession: hasAccessToken,
   });
 
   if (decision.action === 'next') {

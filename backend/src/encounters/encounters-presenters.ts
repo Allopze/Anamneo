@@ -14,6 +14,11 @@ import {
   formatTask,
   parseSectionData,
 } from './encounters-sanitize';
+import { shouldHideEncounterSectionForRole } from './encounter-access-policy';
+
+interface FormatEncounterResponseOptions {
+  viewerRole?: string;
+}
 
 function formatProgress(sections: Array<{ completed: boolean }>) {
   return {
@@ -108,10 +113,14 @@ export function formatDashboardUpcomingTask(task: any) {
   };
 }
 
-export function formatEncounterResponse(encounter: any) {
+export function formatEncounterResponse(encounter: any, options: FormatEncounterResponseOptions = {}) {
+  const { viewerRole } = options;
   const sortedSections = [...(encounter.sections || [])].sort((a: any, b: any) => {
     return SECTION_ORDER.indexOf(a.sectionKey) - SECTION_ORDER.indexOf(b.sectionKey);
   });
+  const visibleSections = sortedSections.filter(
+    (section: any) => !shouldHideEncounterSectionForRole(viewerRole, section.sectionKey as SectionKey),
+  );
 
   const clinicalOutputBlock = getEncounterClinicalOutputBlock(encounter.patient);
 
@@ -183,7 +192,7 @@ export function formatEncounterResponse(encounter: any) {
         }
       : encounter.patient,
     tasks: (encounter.tasks || []).map((task: any) => formatTask(task)),
-    sections: sortedSections.map((section: any) => ({
+    sections: visibleSections.map((section: any) => ({
       ...formatEncounterSectionForRead({
         ...section,
         data: parseSectionData(section.data) ?? {},

@@ -63,6 +63,7 @@ export const state = {
   blockedPatientId: '',
   encounterId: '',
   blockedEncounterId: '',
+  assistantEncounterId: '',
   workflowEncounterId: '',
   patientProblemId: '',
   patientTaskId: '',

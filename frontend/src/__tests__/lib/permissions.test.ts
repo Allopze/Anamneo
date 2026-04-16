@@ -140,7 +140,6 @@ describe('encounter-level permissions', () => {
     expect(canCompleteEncounter(admin, activeEncounter)).toBe(false);
     expect(canCompleteEncounter(asistente, activeEncounter)).toBe(false);
     expect(canCompleteEncounter(medico, completedEncounter)).toBe(false);
-    // Medico cannot complete encounter created by someone else
-    expect(canCompleteEncounter(medico, activeEncounter)).toBe(false);
+    expect(canCompleteEncounter(medico, activeEncounter)).toBe(true);
   });
 });

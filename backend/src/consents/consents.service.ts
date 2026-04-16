@@ -85,23 +85,30 @@ export class ConsentsService {
       await this.assertEncounterMatchesPatient(dto.encounterId, dto.patientId, user);
     }
 
-    const consent = await this.prisma.informedConsent.create({
-      data: {
-        patientId: dto.patientId,
-        encounterId: dto.encounterId ?? null,
-        type: dto.type,
-        description: dto.description,
-        grantedById: user.id,
-      },
-    });
+    const consent = await this.prisma.$transaction(async (tx) => {
+      const createdConsent = await tx.informedConsent.create({
+        data: {
+          patientId: dto.patientId,
+          encounterId: dto.encounterId ?? null,
+          type: dto.type,
+          description: dto.description,
+          grantedById: user.id,
+        },
+      });
 
-    await this.audit.log({
-      entityType: 'InformedConsent',
-      entityId: consent.id,
-      userId: user.id,
-      action: 'CREATE',
-      reason: 'CONSENT_GRANTED',
-      diff: { type: dto.type, patientId: dto.patientId, encounterId: dto.encounterId ?? null },
+      await this.audit.log(
+        {
+          entityType: 'InformedConsent',
+          entityId: createdConsent.id,
+          userId: user.id,
+          action: 'CREATE',
+          reason: 'CONSENT_GRANTED',
+          diff: { type: dto.type, patientId: dto.patientId, encounterId: dto.encounterId ?? null },
+        },
+        tx,
+      );
+
+      return createdConsent;
     });
 
     return this.formatConsent(consent);
@@ -149,25 +156,32 @@ export class ConsentsService {
       throw new NotFoundException('Consentimiento no encontrado');
     }
 
-    const updated = await this.prisma.informedConsent.update({
-      where: { id },
-      data: {
-        revokedAt: new Date(),
-        revokedById: user.id,
-        revokedReason: dto.reason,
-      },
-    });
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const revokedConsent = await tx.informedConsent.update({
+        where: { id },
+        data: {
+          revokedAt: new Date(),
+          revokedById: user.id,
+          revokedReason: dto.reason,
+        },
+      });
 
-    await this.audit.log({
-      entityType: 'InformedConsent',
-      entityId: id,
-      userId: user.id,
-      action: 'UPDATE',
-      reason: 'CONSENT_REVOKED',
-      diff: {
-        revokedAt: updated.revokedAt,
-        revokedReason: dto.reason,
-      },
+      await this.audit.log(
+        {
+          entityType: 'InformedConsent',
+          entityId: id,
+          userId: user.id,
+          action: 'UPDATE',
+          reason: 'CONSENT_REVOKED',
+          diff: {
+            revokedAt: revokedConsent.revokedAt,
+            revokedReason: dto.reason,
+          },
+        },
+        tx,
+      );
+
+      return revokedConsent;
     });
 
     return this.formatConsent(updated);

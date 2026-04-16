@@ -18,7 +18,16 @@ jest.mock('@/lib/api', () => ({
     post: (...args: any[]) => apiPostMock(...args),
     get: (...args: any[]) => apiGetMock(...args),
   },
-  getErrorMessage: (err: any) => err?.message || 'Error desconocido',
+  getErrorMessage: (err: any) => {
+    const data = err?.response?.data;
+    if (Array.isArray(data?.message)) {
+      return data.message.filter(Boolean).join('\n');
+    }
+    if (typeof data?.message === 'string' && data.message.trim().length > 0) {
+      return data.message;
+    }
+    return err?.message || 'Error desconocido';
+  },
 }));
 
 // Mock toast
@@ -153,6 +162,33 @@ describe('LoginPage', () => {
     await waitFor(() => {
       expect(
         screen.getByText('Credenciales incorrectas. Verifica tu correo y contraseña.')
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('shows lockout detail when backend returns a specific 401 message', async () => {
+    const axiosError = new Error('Unauthorized');
+    Object.assign(axiosError, {
+      response: {
+        status: 401,
+        data: { message: 'Cuenta bloqueada temporalmente. Intente en 15 minuto(s).' },
+      },
+      isAxiosError: true,
+    });
+    apiPostMock.mockRejectedValueOnce(axiosError);
+
+    jest.spyOn(require('axios'), 'isAxiosError').mockReturnValue(true);
+
+    const user = userEvent.setup();
+    render(<LoginPage />);
+
+    await user.type(screen.getByLabelText('Correo electrónico'), 'doc@test.cl');
+    await user.type(screen.getByLabelText('Contraseña'), 'wrong');
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Cuenta bloqueada temporalmente. Intente en 15 minuto(s).')
       ).toBeInTheDocument();
     });
   });

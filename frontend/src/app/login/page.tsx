@@ -82,10 +82,15 @@ export default function LoginPage() {
       toast.success('¡Bienvenido!');
       router.push(sanitizeRedirectPath(searchParams.get('from'), '/'));
     } catch (err) {
+      const apiMessage = getErrorMessage(err);
       if (axios.isAxiosError(err) && err.response?.status === 401) {
-        setError('Credenciales incorrectas. Verifica tu correo y contraseña.');
+        setError(
+          apiMessage && apiMessage !== 'Unauthorized'
+            ? apiMessage
+            : 'Credenciales incorrectas. Verifica tu correo y contraseña.',
+        );
       } else {
-        setError(getErrorMessage(err));
+        setError(apiMessage);
       }
     } finally {
       setIsLoading(false);

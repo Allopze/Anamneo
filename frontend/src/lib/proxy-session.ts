@@ -1,7 +1,7 @@
 import { buildLoginRedirectPath } from './login-redirect';
 
 export function shouldValidateSessionRemotely(pathname: string): boolean {
-  return pathname === '/login' || pathname === '/register';
+  return false;
 }
 
 export type ProxyDecision =
@@ -16,10 +16,10 @@ export function resolveProxyDecision(input: {
   hasValidatedSession: boolean;
 }): ProxyDecision {
   const { pathname, search, hasSessionCookie, hasRefreshToken, hasValidatedSession } = input;
-  const isPublicRoute = shouldValidateSessionRemotely(pathname);
+  const isPublicRoute = pathname === '/login' || pathname === '/register';
 
   if (isPublicRoute) {
-    if (hasValidatedSession) {
+    if (hasSessionCookie) {
       return { action: 'redirect', target: '/' };
     }
 
