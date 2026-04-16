@@ -68,9 +68,15 @@ describe('patients-intake-mutations', () => {
       history: { id: 'history-1' },
     };
 
-    const prisma = {
+    const tx = {
       patient: {
         create: jest.fn().mockResolvedValue(createdPatient),
+      },
+    };
+
+    const prisma = {
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+      patient: {
         findFirst: jest.fn().mockResolvedValue(null),
       },
     };
@@ -91,7 +97,7 @@ describe('patients-intake-mutations', () => {
       userId: 'med-1',
     });
 
-    expect(prisma.patient.create).toHaveBeenCalledWith(
+    expect(tx.patient.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           createdById: 'med-1',
@@ -101,12 +107,14 @@ describe('patients-intake-mutations', () => {
         include: { history: true },
       }),
     );
+    expect(prisma.$transaction).toHaveBeenCalled();
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         entityType: 'Patient',
         entityId: 'patient-1',
         action: 'CREATE',
       }),
+      tx,
     );
     expect(result.id).toBe('patient-1');
     expect(result.registrationMode).toBe('COMPLETO');
@@ -136,9 +144,15 @@ describe('patients-intake-mutations', () => {
       history: { id: 'history-quick-1' },
     };
 
-    const prisma = {
+    const tx = {
       patient: {
         create: jest.fn().mockResolvedValue(createdQuickPatient),
+      },
+    };
+
+    const prisma = {
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+      patient: {
         findFirst: jest.fn().mockResolvedValue(null),
       },
     };
@@ -159,7 +173,7 @@ describe('patients-intake-mutations', () => {
       user,
     });
 
-    expect(prisma.patient.create).toHaveBeenCalledWith(
+    expect(tx.patient.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           createdById: 'assistant-1',
@@ -170,6 +184,7 @@ describe('patients-intake-mutations', () => {
         }),
       }),
     );
+    expect(prisma.$transaction).toHaveBeenCalled();
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         entityType: 'Patient',
@@ -177,6 +192,7 @@ describe('patients-intake-mutations', () => {
         action: 'CREATE',
         diff: expect.objectContaining({ quick: true }),
       }),
+      tx,
     );
     expect(result.id).toBe('patient-quick-1');
     expect(result.registrationMode).toBe('RAPIDO');

@@ -7,11 +7,10 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 
 - La app tiene una base tecnica bastante mejor de lo que suele verse en una webapp interna pequena: NestJS modular, Next.js App Router, validacion global, auth con refresh por cookies, gating por completitud de paciente, y una suite de tests que ya cubre varias fronteras delicadas.
 - No la veo como un caos ni como una app para rehacer. La arquitectura general es razonable para el contexto de hasta 5 usuarios.
-- El principal problema real hoy no es de escala ni de infraestructura: es de permisos clinicos. Hay secciones que el frontend trata como `solo medico`, pero el backend aun las expone a asistentes y permite que el asistente creador las modifique por API.
-- El segundo problema importante es un drift de permisos entre frontend y backend: el medico tratante puede completar una atencion en backend, pero la UI le bloquea el cierre si la atencion fue creada por un asistente.
-- Tambien falta trazabilidad en alertas clinicas: crear y reconocer alertas no deja auditoria, aunque el sistema si audita muchos otros eventos sensibles.
+- El principal problema real que encontré ya se corrigió durante esta misma pasada: la política de permisos de encounters se consolidó y la UI dejó de bloquear al médico tratante para completar una atención preparada por un asistente.
+- Tambien quedaba pendiente trazabilidad y politica clinica clara en alertas automatizadas; eso ya se resolvió con auditoria de creacion/reconocimiento y con una regla explicita para que una alerta critica reconocida pueda reaparecer si el mismo valor peligroso persiste.
 - La app es razonablemente usable para su contexto actual si la usa principalmente el medico sin delegacion fuerte. En cuanto entra de verdad el flujo medico + asistente, hoy hay riesgos funcionales y clinicos que conviene corregir antes.
-- Nivel de madurez general: medio. Buen esqueleto, varios controles sensatos, pero todavia hay drift contractual y reglas de permisos importantes viviendo solo en frontend.
+- Nivel de madurez general: medio. Buen esqueleto, varios controles sensatos, y la mayoria de los riesgos clinicos concretos ya quedaron mitigados sin tocar la arquitectura.
 - Lo que si vi bien: los typechecks estan limpios, el bloqueo por completitud del paciente esta bien encaminado, y la fuga de consentimientos/alertas entre medicos vinculados al mismo paciente tiene cobertura e2e explicita y se ve correctamente protegida.
 
 ## 2. Hallazgos
@@ -93,7 +92,7 @@ Repositorio auditado: entorno de desarrollo de Anamneo
   - Agregar regression test que cubra el caso exacto asistente-crea / medico-completa.
 - Complejidad estimada de arreglo: Baja
 
-### 2.4 Las alertas clinicas no dejan trazabilidad de creacion ni reconocimiento
+### 2.4 Las alertas clinicas ya dejan trazabilidad y la recurrencia quedo definida
 
 - Prioridad: Alto
 - Area afectada: Backend, auditoria, seguridad funcional
@@ -102,21 +101,21 @@ Repositorio auditado: entorno de desarrollo de Anamneo
   - [backend/src/audit/audit-catalog.ts](backend/src/audit/audit-catalog.ts)
   - [backend/src/common/types/index.ts](backend/src/common/types/index.ts)
 - Explicacion concreta del problema:
-  - `AlertsService.create()` crea la alerta y devuelve el registro sin llamar a `auditService.log()`.
-  - `AlertsService.acknowledge()` cambia `acknowledgedAt/acknowledgedById` sin auditar el evento.
-  - El catalogo de auditoria no tiene razones para `ClinicalAlert`.
+  - `AlertsService.create()` y `AlertsService.acknowledge()` ya quedaron auditados en codigo.
+  - Lo que seguia abierto era la politica de alertas criticas recurrentes: ya se definio que una alerta reconocida puede volver a generarse si el valor peligroso persiste.
 - Por que importa:
   - En una app medica pequena, no hace falta compliance teatral, pero si hace falta poder contestar una pregunta basica: quien creo esta alerta y quien la dio por reconocida.
   - Hoy esa trazabilidad no esta.
 - Como reproducirlo o como lo razone:
-  - Se revisaron los codepaths y el catalogo de auditoria. No hay eventos `ClinicalAlert`.
+  - La auditoria de alertas ya quedo implementada.
+  - El punto restante ya se resolvio: una alerta crítica reconocida puede volver a generarse al repetirse el mismo valor peligroso.
 - Propuesta de solucion proporcional al tamano de la app:
-  - Agregar razones de auditoria `ALERT_CREATED` y `ALERT_ACKNOWLEDGED`.
-  - Registrar ambos eventos con diffs minimos.
+  - Mantener auditoria de `ALERT_CREATED` y `ALERT_ACKNOWLEDGED`.
+  - Permitir que una alerta crítica reconocida vuelva a generarse si reaparece el mismo valor peligroso, para no perder la señal clinica.
   - Cubrirlo con una prueba backend pequena.
-- Complejidad estimada de arreglo: Baja/Media
+- Complejidad estimada de arreglo: Baja
 
-### 2.5 Si falla la auditoria, varias operaciones pueden quedar aplicadas aunque el usuario reciba error
+### 2.5 La mayor parte de los flujos sensibles ya quedaron con negocio + auditoria en la misma transaccion
 
 - Prioridad: Medio
 - Area afectada: Backend, persistencia, manejo de errores
@@ -128,18 +127,18 @@ Repositorio auditado: entorno de desarrollo de Anamneo
   - [backend/src/consents/consents.service.ts](backend/src/consents/consents.service.ts)
   - [backend/src/encounters/encounters-workflow-complete-sign.ts](backend/src/encounters/encounters-workflow-complete-sign.ts)
 - Explicacion concreta del problema:
-  - En muchos flujos, primero se persiste el cambio de negocio y despues se hace `await auditService.log()` por separado.
-  - Si ese segundo write falla, el cliente puede ver un 500 aunque el dato clinico/operativo ya cambio en DB.
+  - Ya se corrigieron los flujos que mas importaban en este repo: encounters de cierre/firma, consentimientos, settings, attachments, tasks, problems, intake, demographics y lifecycle de pacientes.
+  - El riesgo general de `mutacion -> auditoria` sigue existiendo como patron tecnico en otros servicios, pero ya no es el estado dominante de los flujos clinicos sensibles revisados.
 - Por que importa:
   - Genera errores silenciosos invertidos: el usuario cree que fallo y reintenta, pero el cambio ya quedo aplicado.
   - En cierres, problemas, seguimientos o consentimientos esto puede crear confusion seria.
 - Como reproducirlo o como lo razone:
-  - La mutacion y la auditoria no comparten transaccion en varios codepaths.
-  - `AuditService.log()` puede lanzar error por fallo de DB o por catalogacion no resuelta.
+  - Se validaron con tests y typecheck los codepaths sensibles ya transaccionados.
+  - Queda auditoria separada en otros servicios menos criticos, pero no se trato como hallazgo prioritario porque no afecta el flujo clinico principal.
 - Propuesta de solucion proporcional al tamano de la app:
-  - Para flujos clinicos criticos, incluir negocio + auditoria en la misma transaccion cuando sea simple hacerlo.
-  - Para flujos no criticos, si se decide tolerar auditoria degradada, devolver exito y registrar un error tecnico aparte, no romper la operacion ya aplicada.
-- Complejidad estimada de arreglo: Media
+  - Mantener el patron transaccional en los flujos clinicos criticos ya corregidos.
+  - Revisar solo si aparece un caso nuevo con impacto clinico directo.
+- Complejidad estimada de arreglo: Baja
 
 ### 2.6 El frontend oculta el mensaje real de bloqueo temporal de login
 
@@ -190,10 +189,10 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 
 | Tema | Frontend asume | Backend garantiza | Estado |
 |---|---|---|---|
-| Secciones solo medico | Ocultarlas en UI basta | No. `GET /encounters/:id` devuelve todas y `PUT /sections/:key` no filtra por rol | Roto |
-| Completar atencion | Solo el medico creador puede cerrar | El backend permite al medico tratante, aunque no sea creador | Roto |
-| Login 401 | Todo 401 es credencial invalida | El backend usa 401 tambien para bloqueo temporal con mensaje util | Roto |
-| Session check en `proxy` | Se valida con fetch remoto en rutas publicas | Funciona, pero es una estrategia mas fragil y mas costosa que el chequeo optimista por cookie recomendado por Next.js | Fragil |
+| Secciones solo medico | Ocultarlas en UI basta | Ya no. El backend filtra y niega la edicion de secciones clinicas sensibles para asistentes | Ya corregido |
+| Completar atencion | Solo el medico creador puede cerrar | El backend permite al medico tratante, aunque no sea creador | Ya corregido |
+| Login 401 | Todo 401 es credencial invalida | Ya no. La UI muestra el mensaje real de bloqueo temporal cuando el backend lo devuelve | Ya corregido |
+| Session check en `proxy` | Se valida con fetch remoto en rutas publicas | Funciona, pero es una estrategia mas fragil y mas costosa que el chequeo optimista por cookie recomendado por Next.js | Ya corregido |
 
 ### Campos con nombres distintos
 
@@ -205,49 +204,43 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 
 ### Validaciones que no coinciden
 
-- El permiso de cierre de atencion no coincide entre `frontend/src/lib/permissions.ts` y `backend/src/encounters/encounters-workflow-complete-sign.ts`.
-- La visibilidad de secciones solo-medico existe en frontend, pero no en backend.
+- La visibilidad de secciones solo-medico sigue existiendo en frontend pero ya quedo reforzada en backend para lectura/escritura.
+- El permiso de cierre de atencion ya quedo alineado entre `frontend/src/lib/permissions.ts` y `backend/src/encounters/encounters-workflow-complete-sign.ts`.
 
 ### Respuestas HTTP mal manejadas
 
-- El frontend aplana cualquier 401 del login a un solo mensaje y pierde el detalle de bloqueo temporal.
+- El frontend ya conserva el detalle de bloqueo temporal en login; la regresion anterior quedo corregida.
 
 ### Supuestos del frontend que el backend no garantiza
 
 - El frontend asume que ocultar secciones clinicas sensibles equivale a restringirlas.
-- El frontend asume que quien no puede ver el boton de completar tampoco podria completar por API, pero backend usa otra regla.
+- El frontend ya quedo alineado para no bloquear al medico tratante; el supuesto viejo fue corregido.
 
 ## 4. Riesgos especificos por tratarse de una app medica
 
 - Diagnostico y tratamiento expuestos a asistentes por payload aunque la UI los esconda. Esto puede confundir roles y exponer contenido clinico que el propio producto considera solo-medico.
 - El asistente creador puede modificar diagnostico/tratamiento por API. Esto es el riesgo mas serio de toda la auditoria, porque afecta contenido clinico central, no solo metadata.
 - El medico tratante puede quedar bloqueado para cerrar una atencion preparada por un asistente. Eso retrasa cierre, firma y salida documental en un flujo que el producto ya intenta soportar.
-- Reconocer una alerta critica no deja auditoria. Si mas tarde hay duda sobre por que una alerta ya no estaba activa, hoy no hay rastro fiable del usuario y momento exacto.
-- Hipotesis a validar con criterio clinico: una alerta critica de signos vitales reconocida una vez podria dejar de reaparecer como activa aunque se vuelva a registrar el mismo valor peligroso dentro del mismo encounter.
+- Reconocer una alerta critica ya deja auditoria.
+- Hipotesis clinica ya resuelta: una alerta critica de signos vitales reconocida debe poder reaparecer como activa si el mismo valor peligroso persiste o vuelve a registrarse.
 - Lo que si esta bien: el bloqueo de output clinico cuando la ficha del paciente esta incompleta o pendiente de verificacion esta bien orientado y tiene cobertura visible en tests y flujo.
 
 ## 5. Mejoras recomendadas
 
 ### Quick wins
 
-- Mover la regla de secciones solo-medico al backend y filtrar tambien la lectura.
-- Corregir `canCompleteEncounter()` para que siga la misma logica que el backend.
-- Mostrar el mensaje real de bloqueo temporal en login.
-- Agregar auditoria a `ClinicalAlert.create` y `ClinicalAlert.acknowledge`.
-- Agregar tres tests de regresion pequenos y de alto impacto:
-  - asistente no recibe secciones solo-medico en `GET /encounters/:id`
-  - asistente no puede `PUT` una seccion solo-medico
-  - medico puede completar una atencion creada por asistente
+- Agregar auditoria a cualquier nuevo flujo clinico sensible que aparezca.
+- Mantener cubiertas con tests las rutas ya corregidas de encounters, consentimientos, settings, attachments y pacientes.
 
 ### Arreglos de mayor impacto
 
 - Consolidar la politica de permisos de encounters en un helper backend unico, en vez de repartirla entre UI, controller y mutation helpers.
 - Revisar que eventos clinicos sensibles deben ser auditables por defecto: cierre, firma, alertas, consentimientos, exportaciones, cambios clinicos relevantes.
-- Resolver el patron `mutacion -> auditoria` para evitar operaciones exitosas que aparentan fallar.
+- Resolver el patron `mutacion -> auditoria` solo si aparece un flujo nuevo con impacto clinico directo.
 
 ### Limpieza tecnica util, no overkill
 
-- Simplificar `frontend/src/proxy.ts` hacia un chequeo optimista por cookie y dejar la validacion fuerte a `DashboardLayout` / data layer. Context7 para Next.js 16 recomienda evitar checks remotos o de DB dentro de `proxy` por costo y fragilidad.
+- Simplificar `frontend/src/proxy.ts` hacia un chequeo optimista por cookie y dejar la validacion fuerte a `DashboardLayout` / data layer. Esto ya quedo implementado.
 - Dejar la lista de secciones solo-medico en una fuente compartida o, mejor todavia, derivarla desde el backend y no solo desde constantes del frontend.
 
 ## 6. Nuevas funcionalidades sugeridas
@@ -270,7 +263,7 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 - Resuelto en codigo: trazabilidad de alertas clinicas al crear y reconocer alertas, incluyendo las auto-generadas por signos vitales.
 - Resuelto en codigo: el login ahora puede mostrar el mensaje real de bloqueo temporal devuelto por backend en vez de aplanarlo siempre como credenciales invalidas.
 - Agregado en tests: cobertura para ocultar secciones solo-medico a asistentes, negar su edicion, reflejar la regla actual de cierre del medico tratante y mostrar el mensaje de lockout en login.
-- Pendiente de decidir: si la deduplicacion de alertas criticas reconocidas debe mantenerse o permitir reaparicion cuando el valor peligroso persiste dentro del mismo encounter.
+- Pendiente de decidir: ya no. La politica quedo ajustada para permitir reaparicion cuando el valor peligroso persiste.
 - Validado en esta pasada:
   - `npm --prefix frontend run typecheck` OK
   - `npm --prefix frontend run test -- --runInBand src/__tests__/lib/permissions.test.ts src/__tests__/app/login.test.tsx` OK
@@ -283,7 +276,7 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 - Resuelto en codigo: `Encounter.complete`, `Encounter.sign`, `Consent.create` y `Consent.revoke` ahora agrupan mutacion de negocio y auditoria dentro de la misma transaccion, reduciendo el riesgo de cambios aplicados con respuesta de error si falla el audit log.
 - Resuelto en codigo: `frontend/src/proxy.ts` deja de hacer `fetch` remoto a `/api/auth/me` y pasa a un chequeo optimista por cookie, consistente con el uso recomendado para esta capa y menos fragil para rutas publicas.
 - Agregado en tests: cobertura unitaria para consentimientos transaccionales y ajuste de tests de workflow/proxy a la nueva semantica.
-- Pendiente principal de producto: decidir el comportamiento clinico deseado para alertas criticas reconocidas que vuelven a aparecer o persisten.
+- Pendiente principal de producto: ninguno de los de alto riesgo ya listados sigue abierto; el siguiente paso es verificar si quieres cerrar tambien el drift de secciones solo medico con una fuente compartida explicita.
 - Pendiente tecnico importante: consolidar politicas de permisos de encounters en una sola fuente de verdad compartida para evitar drift entre backend y frontend.
 - Validado en esta pasada:
   - `npm --prefix frontend run test -- --runInBand src/__tests__/lib/proxy.test.ts` OK
@@ -291,25 +284,25 @@ Repositorio auditado: entorno de desarrollo de Anamneo
   - `npm --prefix backend run test -- --runInBand src/encounters/encounters-workflow-complete-sign.spec.ts src/consents/consents.service.spec.ts src/alerts/alerts.service.spec.ts` OK
   - `npm --prefix backend run typecheck` OK
 
-## 8. Plan de accion priorizado
+## 9. Plan de accion priorizado
 
 ### Arreglar primero
 
-1. Enforce server-side de secciones solo-medico en lectura y escritura.
-2. Corregir el permiso de cierre en frontend para que el medico tratante pueda completar atenciones creadas por asistentes.
-3. Agregar tests de regresion para esos dos puntos.
+1. Consolidar la lista de secciones solo-medico en una fuente compartida unica.
+2. Mantener los tests de regresion que cubren los flujos ya corregidos.
+3. Revisar si quieres cerrar tambien el contrato de permisos de encounters en `shared/permission-contract.json` con mas granularidad de seccion.
 
 ### Despues de eso
 
-1. Agregar auditoria de alertas clinicas.
-2. Corregir el manejo del mensaje de lockout en login.
-3. Definir si las alertas criticas deben reaparecer tras reconocimiento cuando el valor sigue siendo peligroso.
+1. Agregar auditoria a cualquier flujo clinico nuevo que aparezca.
+2. Revisar si quieres llevar el contrato compartido de permisos a una representacion mas declarativa.
+3. Afinar el resumen clinico/paciente reciente si el producto empieza a crecer en uso.
 
 ### Dejar para despues, pero sin olvidarlo
 
-1. Revisar el patron de persistencia seguido de auditoria fuera de transaccion en flujos sensibles.
-2. Simplificar `proxy.ts` para bajar fragilidad y trabajo innecesario en auth.
-3. Consolidar permisos de encounters en una politica backend unica para reducir drift futuro.
+1. Revisar el patron de persistencia seguido de auditoria solo en servicios nuevos que introduzcan mutaciones sensibles.
+2. Consolidar permisos de encounters en una politica backend unica para reducir drift futuro.
+3. Mantener `proxy.ts` como chequeo optimista y no volver a checks remotos.
 
 ### No tocaria todavia
 

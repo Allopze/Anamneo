@@ -61,37 +61,42 @@ export async function createPatientProblemMutation(params: CreatePatientProblemM
     resolvedMedicoId = encounter.medicoId;
   }
 
-  const created = await prisma.patientProblem.create({
-    data: {
-      patientId,
-      encounterId: dto.encounterId || null,
-      createdById: user.id,
-      medicoId: resolvedMedicoId,
-      label: dto.label.trim(),
-      status: dto.status || 'ACTIVO',
-      notes: dto.notes?.trim() || null,
-      severity: dto.severity?.trim() || null,
-      onsetDate: dto.onsetDate ? parseDateOnlyToStoredUtcDate(dto.onsetDate, 'La fecha de inicio') : null,
-    },
-    include: {
-      encounter: {
-        select: { id: true, createdAt: true, status: true },
+  return prisma.$transaction(async (tx) => {
+    const created = await tx.patientProblem.create({
+      data: {
+        patientId,
+        encounterId: dto.encounterId || null,
+        createdById: user.id,
+        medicoId: resolvedMedicoId,
+        label: dto.label.trim(),
+        status: dto.status || 'ACTIVO',
+        notes: dto.notes?.trim() || null,
+        severity: dto.severity?.trim() || null,
+        onsetDate: dto.onsetDate ? parseDateOnlyToStoredUtcDate(dto.onsetDate, 'La fecha de inicio') : null,
       },
-      createdBy: {
-        select: { id: true, nombre: true },
+      include: {
+        encounter: {
+          select: { id: true, createdAt: true, status: true },
+        },
+        createdBy: {
+          select: { id: true, nombre: true },
+        },
       },
-    },
-  });
+    });
 
-  await auditService.log({
-    entityType: 'PatientProblem',
-    entityId: created.id,
-    userId: user.id,
-    action: 'CREATE',
-    diff: { created },
-  });
+    await auditService.log(
+      {
+        entityType: 'PatientProblem',
+        entityId: created.id,
+        userId: user.id,
+        action: 'CREATE',
+        diff: { created },
+      },
+      tx,
+    );
 
-  return formatProblem(created);
+    return formatProblem(created);
+  });
 }
 
 export async function updatePatientProblemMutation(params: UpdatePatientProblemMutationParams) {
@@ -128,38 +133,43 @@ export async function updatePatientProblemMutation(params: UpdatePatientProblemM
     throw new NotFoundException('Problema clínico no encontrado');
   }
 
-  const updated = await prisma.patientProblem.update({
-    where: { id: problemId },
-    data: {
-      label: dto.label?.trim() || problem.label,
-      status: dto.status || problem.status,
-      notes: dto.notes !== undefined ? dto.notes.trim() || null : problem.notes,
-      severity: dto.severity !== undefined ? dto.severity.trim() || null : problem.severity,
-      onsetDate:
-        dto.onsetDate !== undefined
-          ? dto.onsetDate
-            ? parseDateOnlyToStoredUtcDate(dto.onsetDate, 'La fecha de inicio')
-            : null
-          : problem.onsetDate,
-      resolvedAt: dto.status === 'RESUELTO' ? new Date() : dto.status ? null : problem.resolvedAt,
-    },
-    include: {
-      encounter: {
-        select: { id: true, createdAt: true, status: true },
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.patientProblem.update({
+      where: { id: problemId },
+      data: {
+        label: dto.label?.trim() || problem.label,
+        status: dto.status || problem.status,
+        notes: dto.notes !== undefined ? dto.notes.trim() || null : problem.notes,
+        severity: dto.severity !== undefined ? dto.severity.trim() || null : problem.severity,
+        onsetDate:
+          dto.onsetDate !== undefined
+            ? dto.onsetDate
+              ? parseDateOnlyToStoredUtcDate(dto.onsetDate, 'La fecha de inicio')
+              : null
+            : problem.onsetDate,
+        resolvedAt: dto.status === 'RESUELTO' ? new Date() : dto.status ? null : problem.resolvedAt,
       },
-      createdBy: {
-        select: { id: true, nombre: true },
+      include: {
+        encounter: {
+          select: { id: true, createdAt: true, status: true },
+        },
+        createdBy: {
+          select: { id: true, nombre: true },
+        },
       },
-    },
-  });
+    });
 
-  await auditService.log({
-    entityType: 'PatientProblem',
-    entityId: updated.id,
-    userId: user.id,
-    action: 'UPDATE',
-    diff: { before: problem, after: updated },
-  });
+    await auditService.log(
+      {
+        entityType: 'PatientProblem',
+        entityId: updated.id,
+        userId: user.id,
+        action: 'UPDATE',
+        diff: { before: problem, after: updated },
+      },
+      tx,
+    );
 
-  return formatProblem(updated);
+    return formatProblem(updated);
+  });
 }

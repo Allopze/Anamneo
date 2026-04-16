@@ -169,10 +169,8 @@ export async function updatePatientDemographicsMutation(params: UpdatePatientDem
     updateData.rut = null;
     updateData.rutExempt = true;
     updateData.rutExemptReason = reason;
-  } else {
-    if (dtoRutExempt === false) {
-      updateData.rutExemptReason = null;
-    }
+  } else if (dtoRutExempt === false) {
+    updateData.rutExemptReason = null;
   }
 
   const dtoRut = updatePatientDto.rut;
@@ -218,24 +216,29 @@ export async function updatePatientDemographicsMutation(params: UpdatePatientDem
     }),
   );
 
-  const patient = await prisma.patient.update({
-    where: { id },
-    data: updateData,
-    include: { history: true },
-  });
+  return prisma.$transaction(async (tx) => {
+    const patient = await tx.patient.update({
+      where: { id },
+      data: updateData,
+      include: { history: true },
+    });
 
-  await auditService.log({
-    entityType: 'Patient',
-    entityId: patient.id,
-    userId: user.id,
-    action: 'UPDATE',
-    diff: {
-      before: existingPatient,
-      after: patient,
-    },
-  });
+    await auditService.log(
+      {
+        entityType: 'Patient',
+        entityId: patient.id,
+        userId: user.id,
+        action: 'UPDATE',
+        diff: {
+          before: existingPatient,
+          after: patient,
+        },
+      },
+      tx,
+    );
 
-  return patient;
+    return patient;
+  });
 }
 
 export async function updatePatientAdminDemographicsMutation(params: UpdatePatientAdminDemographicsMutationParams) {
@@ -277,23 +280,28 @@ export async function updatePatientAdminDemographicsMutation(params: UpdatePatie
     }),
   );
 
-  const patient = await prisma.patient.update({
-    where: { id: patientId },
-    data: updateData,
-    include: { history: true },
-  });
+  return prisma.$transaction(async (tx) => {
+    const patient = await tx.patient.update({
+      where: { id: patientId },
+      data: updateData,
+      include: { history: true },
+    });
 
-  await auditService.log({
-    entityType: 'Patient',
-    entityId: patient.id,
-    userId: user.id,
-    action: 'UPDATE',
-    diff: {
-      before: existingPatient,
-      after: patient,
-      scope: 'ADMIN_FIELDS',
-    },
-  });
+    await auditService.log(
+      {
+        entityType: 'Patient',
+        entityId: patient.id,
+        userId: user.id,
+        action: 'UPDATE',
+        diff: {
+          before: existingPatient,
+          after: patient,
+          scope: 'ADMIN_FIELDS',
+        },
+      },
+      tx,
+    );
 
-  return patient;
+    return patient;
+  });
 }

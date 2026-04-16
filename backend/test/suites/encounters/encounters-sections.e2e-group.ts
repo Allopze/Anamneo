@@ -233,7 +233,7 @@ export function registerEncounterSectionTests() {
     spy.mockRestore();
   });
 
-  it('PUT /api/encounters/:id/sections/EXAMEN_FISICO → does not recreate acknowledged auto-alerts for the same critical value', async () => {
+  it('PUT /api/encounters/:id/sections/EXAMEN_FISICO → recreates acknowledged auto-alerts for the same critical value', async () => {
     await req()
       .put(`/api/encounters/${state.encounterId}/sections/EXAMEN_FISICO`)
       .set('Cookie', cookieHeader(state.medicoCookies))
@@ -280,9 +280,9 @@ export function registerEncounterSectionTests() {
       .set('Cookie', cookieHeader(state.medicoCookies))
       .expect(200);
 
-    expect(
-      afterRepeatRes.body.filter((alert: any) => alert.message === 'Temperatura crítica: 39.6°C'),
-    ).toHaveLength(1);
+    const repeatedAlerts = afterRepeatRes.body.filter((alert: any) => alert.message === 'Temperatura crítica: 39.6°C');
+    expect(repeatedAlerts).toHaveLength(2);
+    expect(repeatedAlerts.some((alert: any) => alert.acknowledgedAt === null)).toBe(true);
   });
 
   it('PUT /api/encounters/:id/sections/SOSPECHA_DIAGNOSTICA → rejects malformed ranked diagnoses', async () => {

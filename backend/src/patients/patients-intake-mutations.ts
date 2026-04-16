@@ -62,41 +62,46 @@ export async function createPatientMutation(params: CreatePatientMutationParams)
     ? calculateAgeFromBirthDate(createPatientDto.fechaNacimiento)
     : { edad: createPatientDto.edad, edadMeses: createPatientDto.edadMeses ?? null };
 
-  const patient = await prisma.patient.create({
-    data: {
-      createdById: userId,
-      rut: resolvedRut.rut,
-      rutExempt: resolvedRut.rutExempt,
-      rutExemptReason: resolvedRut.rutExemptReason,
-      nombre: createPatientDto.nombre,
-      fechaNacimiento: createPatientDto.fechaNacimiento ? new Date(createPatientDto.fechaNacimiento) : null,
-      edad: resolvedAge.edad,
-      edadMeses: resolvedAge.edadMeses ?? null,
-      sexo: createPatientDto.sexo,
-      trabajo: createPatientDto.trabajo,
-      prevision: createPatientDto.prevision,
-      domicilio: createPatientDto.domicilio,
-      centroMedico: createPatientDto.centroMedico,
-      registrationMode: 'COMPLETO',
-      ...verificationState,
-      history: {
-        create: {},
+  return prisma.$transaction(async (tx) => {
+    const patient = await tx.patient.create({
+      data: {
+        createdById: userId,
+        rut: resolvedRut.rut,
+        rutExempt: resolvedRut.rutExempt,
+        rutExemptReason: resolvedRut.rutExemptReason,
+        nombre: createPatientDto.nombre,
+        fechaNacimiento: createPatientDto.fechaNacimiento ? new Date(createPatientDto.fechaNacimiento) : null,
+        edad: resolvedAge.edad,
+        edadMeses: resolvedAge.edadMeses ?? null,
+        sexo: createPatientDto.sexo,
+        trabajo: createPatientDto.trabajo,
+        prevision: createPatientDto.prevision,
+        domicilio: createPatientDto.domicilio,
+        centroMedico: createPatientDto.centroMedico,
+        registrationMode: 'COMPLETO',
+        ...verificationState,
+        history: {
+          create: {},
+        },
       },
-    },
-    include: {
-      history: true,
-    },
-  });
+      include: {
+        history: true,
+      },
+    });
 
-  await auditService.log({
-    entityType: 'Patient',
-    entityId: patient.id,
-    userId,
-    action: 'CREATE',
-    diff: { created: patient },
-  });
+    await auditService.log(
+      {
+        entityType: 'Patient',
+        entityId: patient.id,
+        userId,
+        action: 'CREATE',
+        diff: { created: patient },
+      },
+      tx,
+    );
 
-  return decoratePatient(patient);
+    return decoratePatient(patient);
+  });
 }
 
 export async function createQuickPatientMutation(params: CreatePatientQuickMutationParams) {
@@ -117,43 +122,48 @@ export async function createQuickPatientMutation(params: CreatePatientQuickMutat
     trimmedRutExemptReason,
   });
 
-  const patient = await prisma.patient.create({
-    data: {
-      createdById: user.id,
-      rut: resolvedRut.rut,
-      rutExempt: resolvedRut.rutExempt,
-      rutExemptReason: resolvedRut.rutExemptReason,
-      nombre: createPatientDto.nombre,
-      edad: null,
-      sexo: null,
-      prevision: null,
-      trabajo: null,
-      domicilio: null,
-      registrationMode: 'RAPIDO',
-      ...resolvePatientVerificationState({
-        actorId: user.id,
-        actorRole: user.role,
-        mode: 'CREATE_QUICK',
-        nextPatient: {
-          rut: resolvedRut.rut,
-          rutExempt: resolvedRut.rutExempt,
-          rutExemptReason: resolvedRut.rutExemptReason,
+  return prisma.$transaction(async (tx) => {
+    const patient = await tx.patient.create({
+      data: {
+        createdById: user.id,
+        rut: resolvedRut.rut,
+        rutExempt: resolvedRut.rutExempt,
+        rutExemptReason: resolvedRut.rutExemptReason,
+        nombre: createPatientDto.nombre,
+        edad: null,
+        sexo: null,
+        prevision: null,
+        trabajo: null,
+        domicilio: null,
+        registrationMode: 'RAPIDO',
+        ...resolvePatientVerificationState({
+          actorId: user.id,
+          actorRole: user.role,
+          mode: 'CREATE_QUICK',
+          nextPatient: {
+            rut: resolvedRut.rut,
+            rutExempt: resolvedRut.rutExempt,
+            rutExemptReason: resolvedRut.rutExemptReason,
+          },
+        }),
+        history: {
+          create: {},
         },
-      }),
-      history: {
-        create: {},
       },
-    },
-    include: { history: true },
-  });
+      include: { history: true },
+    });
 
-  await auditService.log({
-    entityType: 'Patient',
-    entityId: patient.id,
-    userId: user.id,
-    action: 'CREATE',
-    diff: { created: patient, quick: true },
-  });
+    await auditService.log(
+      {
+        entityType: 'Patient',
+        entityId: patient.id,
+        userId: user.id,
+        action: 'CREATE',
+        diff: { created: patient, quick: true },
+      },
+      tx,
+    );
 
-  return decoratePatient(patient);
+    return decoratePatient(patient);
+  });
 }

@@ -101,12 +101,18 @@ describe('patients-demographics-mutations', () => {
       rut: '12.345.678-5',
     };
 
+    const tx = {
+      patient: {
+        update: jest.fn().mockResolvedValue(updatedPatient),
+      },
+    };
+
     const prisma = {
       patient: {
         findUnique: jest.fn().mockResolvedValue(existingPatient),
         findFirst: jest.fn().mockResolvedValue(null),
-        update: jest.fn().mockResolvedValue(updatedPatient),
       },
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
     };
     const auditService = { log: jest.fn().mockResolvedValue(undefined) };
 
@@ -123,7 +129,7 @@ describe('patients-demographics-mutations', () => {
     });
 
     expect(result).toBe(updatedPatient);
-    expect(prisma.patient.update).toHaveBeenCalledWith(
+    expect(tx.patient.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'patient-1' },
         include: { history: true },
@@ -139,6 +145,7 @@ describe('patients-demographics-mutations', () => {
         entityId: 'patient-1',
         action: 'UPDATE',
       }),
+      tx,
     );
   });
 
@@ -150,10 +157,17 @@ describe('patients-demographics-mutations', () => {
       domicilio: 'Calle Nueva 123',
     };
 
-    const prisma = {
+    const tx = {
       patient: {
         update: jest.fn().mockResolvedValue(updatedPatient),
       },
+    };
+
+    const prisma = {
+      patient: {
+        findUnique: jest.fn().mockResolvedValue(existingPatient),
+      },
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
     };
     const auditService = { log: jest.fn().mockResolvedValue(undefined) };
     const assertPatientAccess = jest.fn().mockResolvedValue(existingPatient);
@@ -172,7 +186,7 @@ describe('patients-demographics-mutations', () => {
 
     expect(result).toBe(updatedPatient);
     expect(assertPatientAccess).toHaveBeenCalledWith(adminUser, 'patient-1');
-    expect(prisma.patient.update).toHaveBeenCalledWith(
+    expect(tx.patient.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'patient-1' },
         include: { history: true },
@@ -188,6 +202,7 @@ describe('patients-demographics-mutations', () => {
           scope: 'ADMIN_FIELDS',
         }),
       }),
+      tx,
     );
   });
 });

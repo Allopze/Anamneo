@@ -52,31 +52,36 @@ export async function verifyPatientDemographicsMutation(params: VerifyPatientDem
     throw new BadRequestException('No se puede verificar una ficha con datos demográficos incompletos');
   }
 
-  const updatedPatient = await prisma.patient.update({
-    where: { id: patientId },
-    data: resolvePatientVerificationState({
-      currentPatient: patient,
-      nextPatient: patient,
-      actorId: user.id,
-      actorRole: user.role,
-      mode: 'VERIFY',
-    }),
-    include: { history: true },
-  });
+  return prisma.$transaction(async (tx) => {
+    const updatedPatient = await tx.patient.update({
+      where: { id: patientId },
+      data: resolvePatientVerificationState({
+        currentPatient: patient,
+        nextPatient: patient,
+        actorId: user.id,
+        actorRole: user.role,
+        mode: 'VERIFY',
+      }),
+      include: { history: true },
+    });
 
-  await auditService.log({
-    entityType: 'Patient',
-    entityId: updatedPatient.id,
-    userId: user.id,
-    action: 'UPDATE',
-    diff: {
-      before: patient,
-      after: updatedPatient,
-      scope: 'VERIFY_DEMOGRAPHICS',
-    },
-  });
+    await auditService.log(
+      {
+        entityType: 'Patient',
+        entityId: updatedPatient.id,
+        userId: user.id,
+        action: 'UPDATE',
+        diff: {
+          before: patient,
+          after: updatedPatient,
+          scope: 'VERIFY_DEMOGRAPHICS',
+        },
+      },
+      tx,
+    );
 
-  return updatedPatient;
+    return updatedPatient;
+  });
 }
 
 export async function updatePatientHistoryMutation(params: UpdatePatientHistoryParams) {
@@ -99,27 +104,32 @@ export async function updatePatientHistoryMutation(params: UpdatePatientHistoryP
     historyData[key] = sanitized ? JSON.stringify(sanitized) : null;
   }
 
-  const history = await prisma.patientHistory.upsert({
-    where: { patientId },
-    update: historyData,
-    create: {
-      patientId,
-      ...historyData,
-    },
-  });
+  return prisma.$transaction(async (tx) => {
+    const history = await tx.patientHistory.upsert({
+      where: { patientId },
+      update: historyData,
+      create: {
+        patientId,
+        ...historyData,
+      },
+    });
 
-  await auditService.log({
-    entityType: 'PatientHistory',
-    entityId: history.id,
-    userId: user.id,
-    action: previousHistory ? 'UPDATE' : 'CREATE',
-    diff: {
-      before: previousHistory,
-      after: history,
-    },
-  });
+    await auditService.log(
+      {
+        entityType: 'PatientHistory',
+        entityId: history.id,
+        userId: user.id,
+        action: previousHistory ? 'UPDATE' : 'CREATE',
+        diff: {
+          before: previousHistory,
+          after: history,
+        },
+      },
+      tx,
+    );
 
-  return history;
+    return history;
+  });
 }
 
 export async function archivePatientMutation(params: ArchivePatientParams) {
@@ -153,8 +163,8 @@ export async function archivePatientMutation(params: ArchivePatientParams) {
   }
 
   const archivedAt = new Date();
-  await prisma.$transaction([
-    prisma.encounter.updateMany({
+  await prisma.$transaction(async (tx) => {
+    await tx.encounter.updateMany({
       where: {
         patientId: id,
         status: 'EN_PROGRESO',
@@ -162,26 +172,30 @@ export async function archivePatientMutation(params: ArchivePatientParams) {
       data: {
         status: 'CANCELADO',
       },
-    }),
-    prisma.patient.update({
+    });
+
+    await tx.patient.update({
       where: { id },
       data: {
         archivedAt,
         archivedById: user.id,
       },
-    }),
-  ]);
+    });
 
-  await auditService.log({
-    entityType: 'Patient',
-    entityId: id,
-    userId: user.id,
-    action: 'UPDATE',
-    diff: {
-      archivedAt: archivedAt.toISOString(),
-      archivedById: user.id,
-      previousStatus: patient,
-    },
+    await auditService.log(
+      {
+        entityType: 'Patient',
+        entityId: id,
+        userId: user.id,
+        action: 'UPDATE',
+        diff: {
+          archivedAt: archivedAt.toISOString(),
+          archivedById: user.id,
+          previousStatus: patient,
+        },
+      },
+      tx,
+    );
   });
 
   return { message: 'Paciente archivado correctamente' };
@@ -217,24 +231,31 @@ export async function restorePatientMutation(params: RestorePatientParams) {
     return { message: 'El paciente ya se encuentra activo' };
   }
 
-  await prisma.patient.update({
-    where: { id },
-    data: {
-      archivedAt: null,
-      archivedById: null,
-    },
-  });
+  const previousArchivedAt = patient.archivedAt;
 
-  await auditService.log({
-    entityType: 'Patient',
-    entityId: id,
-    userId: user.id,
-    action: 'UPDATE',
-    diff: {
-      restoredAt: new Date().toISOString(),
-      previousArchivedAt: patient.archivedAt.toISOString(),
-      previousArchivedById: patient.archivedById,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.patient.update({
+      where: { id },
+      data: {
+        archivedAt: null,
+        archivedById: null,
+      },
+    });
+
+    await auditService.log(
+      {
+        entityType: 'Patient',
+        entityId: id,
+        userId: user.id,
+        action: 'UPDATE',
+        diff: {
+          restoredAt: new Date().toISOString(),
+          previousArchivedAt: previousArchivedAt.toISOString(),
+          previousArchivedById: patient.archivedById,
+        },
+      },
+      tx,
+    );
   });
 
   return { message: 'Paciente restaurado correctamente' };
