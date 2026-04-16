@@ -182,8 +182,77 @@
 
 - Segunda pasada en `patients.service` para bajar riesgo de regresión: se extrajo la lógica repetida de validación de RUT y estado de exención en helpers internos (`resolveCreateRutInput` y `resolveRutState`), y `create`/`createQuick` quedaron como orquestadores del flujo.
 - Alcance del cambio: `backend/src/patients/patients.service.ts`.
-- Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests.
+- Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests; `npm --prefix backend run test -- --runInBand` mantiene 2 suites rojas preexistentes fuera de este alcance (`src/auth/auth.service.spec.ts` y `src/patients/patients-pdf.service.spec.ts`).
 - Pendientes tras esta pasada: continuar la extracción por bloques en `patients.service` (timeline/resumen/actualización administrativa) hasta dejarlo bajo el umbral de mantenibilidad del proyecto.
+
+### Pasada 26 - 2026-04-16
+
+- Read models clínicos de paciente extraídos sin alterar contratos: la construcción del timeline de atenciones y del resumen clínico derivado salió de `backend/src/patients/patients.service.ts` hacia `backend/src/patients/patients-clinical-read-model.ts` (184 líneas), manteniendo validación de acceso previa en `assertPatientAccess`.
+- Alcance del cambio: `backend/src/patients/patients.service.ts` y `backend/src/patients/patients-clinical-read-model.ts`.
+- Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests.
+- Pendientes tras esta pasada: continuar la reducción de `patients.service` en bloques de mutación (`update`, `updateAdminFields`, `problems/tasks`) y luego retomar `encounters.service`.
+
+### Pasada 27 - 2026-04-16
+
+- Mutaciones demográficas y clínicas de paciente extraídas sin alterar comportamiento: `update` y `updateAdminFields` migraron a `backend/src/patients/patients-demographics-mutations.ts`, y las mutaciones de problemas/tareas (`create/update problem`, `create/update task`) migraron a `backend/src/patients/patients-clinical-mutations.ts`.
+- Alcance del cambio: `backend/src/patients/patients.service.ts`, `backend/src/patients/patients-demographics-mutations.ts` y `backend/src/patients/patients-clinical-mutations.ts`.
+- Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests.
+- Pendientes tras esta pasada: seguir bajando `patients.service` (read/updateHistory/archive/restore) por debajo de 500 líneas y luego continuar con `encounters.service` y `useEncounterWizard`.
+
+### Pasada 28 - 2026-04-16
+
+- `patients.service` quedó reducido a capa de orquestación para el lado de lectura y ciclo de vida: `findAll`, `findById`, `getAdminSummary` y `exportCsv` migraron a `backend/src/patients/patients-read-side.ts`, mientras `verifyDemographics`, `updateHistory`, `remove` y `restore` migraron a `backend/src/patients/patients-lifecycle-mutations.ts`.
+- Se añadieron pruebas unitarias focalizadas para los módulos extraídos de mutaciones, cubriendo reglas de RUT/fecha futura, auditoría, scoping clínico y actualización de tareas/problemas.
+- Alcance del cambio: `backend/src/patients/patients.service.ts`, `backend/src/patients/patients-read-side.ts`, `backend/src/patients/patients-lifecycle-mutations.ts`, `backend/src/patients/patients-demographics-mutations.spec.ts` y `backend/src/patients/patients-clinical-mutations.spec.ts`.
+- Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test -- --runInBand --runTestsByPath src/patients/patients-demographics-mutations.spec.ts src/patients/patients-clinical-mutations.spec.ts` pasa con 8/8 tests; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests.
+- Métricas tras la pasada: `backend/src/patients/patients.service.ts` 623 líneas; `backend/src/patients/patients-read-side.ts` 347; `backend/src/patients/patients-lifecycle-mutations.ts` 240; `backend/src/patients/patients-demographics-mutations.ts` 298; `backend/src/patients/patients-clinical-mutations.ts` 338.
+- Pendientes tras esta pasada: bajar `patients.service` por debajo de 500 líneas extrayendo `findTasks` y los helpers internos de creación; luego retomar `encounters.service` y finalmente `useEncounterWizard`.
+
+### Pasada 29 - 2026-04-16
+
+- `patients.service` ya quedó bajo el umbral de mantenibilidad del repo: `findTasks` migró a `backend/src/patients/patients-task-read-model.ts`, y los helpers privados de alta (`resolveCreateRutInput` y `resolveRutState`) salieron a `backend/src/patients/patients-create-utils.ts` para evitar duplicación futura de reglas de RUT.
+- Criterio aplicado: sí convino mover los helpers de RUT a un módulo compartido porque ya dejaron de ser detalle interno del service y representan una regla reusable de creación/normalización de paciente.
+- Alcance del cambio: `backend/src/patients/patients.service.ts`, `backend/src/patients/patients-task-read-model.ts` y `backend/src/patients/patients-create-utils.ts`.
+- Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests.
+- Métricas tras la pasada: `backend/src/patients/patients.service.ts` 469 líneas; `backend/src/patients/patients-create-utils.ts` 70; `backend/src/patients/patients-task-read-model.ts` 115.
+- Pendientes tras esta pasada: retomar `encounters.service` y luego cerrar el monolito de `useEncounterWizard`.
+
+### Pasada 30 - 2026-04-16
+
+- Retomado el split de `encounters.service`: las transiciones clínicas de workflow (`complete`, `sign`, `reopen`, `cancel`, `updateReviewStatus`) migraron a `backend/src/encounters/encounters-workflow-mutations.ts`, dejando el service más concentrado en create/read/update-section/dashboard/audit.
+- Alcance del cambio: `backend/src/encounters/encounters.service.ts` y `backend/src/encounters/encounters-workflow-mutations.ts`.
+- Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests.
+- Métricas tras la pasada: `backend/src/encounters/encounters.service.ts` 793 líneas; `backend/src/encounters/encounters-workflow-mutations.ts` 410.
+- Pendientes tras esta pasada: seguir partiendo `encounters.service` por read-side o dashboard/auditoría y luego atacar `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts`.
+
+### Pasada 31 - 2026-04-16
+
+- `encounters.service` quedó finalmente por debajo del hard limit del repo: el read-side principal (`findAll`, `findById`, `findByPatient`) migró a `backend/src/encounters/encounters-read-side.ts`, el dashboard pasó a `backend/src/encounters/encounters-dashboard-read-model.ts` y el historial de auditoría a `backend/src/encounters/encounters-audit-history.ts`.
+- Revisión aplicada sobre `updateSection`: sí merecía su propio módulo en esta pasada porque, aun después de extraer workflow y read-side, `encounters.service` seguía en 523 líneas. Se movieron `reconcileIdentificationSnapshot` y `updateSection` a `backend/src/encounters/encounters-section-mutations.ts`, dejando el service en 370 líneas y aislando la mutación clínica más sensible para futuras pruebas focalizadas.
+- Alcance del cambio: `backend/src/encounters/encounters.service.ts`, `backend/src/encounters/encounters-read-side.ts`, `backend/src/encounters/encounters-dashboard-read-model.ts`, `backend/src/encounters/encounters-audit-history.ts` y `backend/src/encounters/encounters-section-mutations.ts`.
+- Validación final: `npm --prefix backend run typecheck` pasa; `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests.
+- Métricas tras la pasada: `backend/src/encounters/encounters.service.ts` 370 líneas; `backend/src/encounters/encounters-read-side.ts` 186; `backend/src/encounters/encounters-dashboard-read-model.ts` 99; `backend/src/encounters/encounters-audit-history.ts` 68; `backend/src/encounters/encounters-section-mutations.ts` 216.
+- Pendientes tras esta pasada: continuar con el split de `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts` y, si se quiere seguir endureciendo backend, añadir tests unitarios focalizados para `encounters-section-mutations.ts` y `encounters-workflow-mutations.ts`.
+
+### Pasada 32 - 2026-04-16
+
+- El wizard de atenciones dejó de concentrar persistencia, navegación, adjuntos y firma en un único hook: `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts` bajó a una fachada de 320 líneas y la lógica se repartió en `useEncounterSectionPersistence.ts`, `useEncounterWizardNavigation.ts`, `useEncounterAttachments.ts` y `useEncounterWorkflowActions.ts`.
+- Criterio aplicado: se priorizó extraer primero los handlers de persistencia y navegación, luego el manejo de adjuntos y finalmente firma/revisión/cierre, manteniendo estable el contrato público que consume `page.tsx` para evitar una pasada de UI más riesgosa de lo necesario.
+- Alcance del cambio: `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts`, `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts`, `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizardNavigation.ts`, `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterAttachments.ts` y `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWorkflowActions.ts`.
+- Validación final: `npm --prefix frontend run typecheck` pasa; `npm --prefix frontend run build` pasa; `npm --prefix frontend run test:e2e -- tests/e2e/workflow-clinical.spec.ts` pasa con 6/6 tests; `npm --prefix frontend run test:e2e -- tests/e2e/encounter-draft-recovery.spec.ts` pasa con 1/1 test.
+- Nota residual observada en Playwright: el browser logueó `Internal Next.js error: Router action dispatched before initialization.` una vez durante `workflow-clinical.spec.ts`, sin romper el flujo ni las assertions. Queda como ruido a revisar aparte, no como regresión funcional confirmada de esta pasada.
+- Métricas tras la pasada: `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts` 320 líneas; `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts` 494; `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterAttachments.ts` 139; `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizardNavigation.ts` 128; `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWorkflowActions.ts` 157.
+- Pendientes tras esta pasada: bajar `useEncounterSectionPersistence.ts` hacia el objetivo suave de 300 líneas, revisar el warning de router visto en Playwright y sumar pruebas unitarias focalizadas para las mutaciones clínicas ya extraídas en frontend/backend.
+
+### Pasada 33 - 2026-04-16
+
+- Split adicional de persistencia en el wizard: `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts` dejó de concentrar draft sync/autosave/cola offline en un único módulo. Esa lógica quedó encapsulada en `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterDraftSync.ts`, `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterAutosave.ts` y `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterOfflineQueue.ts`.
+- Revisión del warning de router en Playwright: tras volver a correr la suite clínica y la de recuperación de borrador, no se reprodujo `Internal Next.js error: Router action dispatched before initialization.`. Con evidencia actual se clasifica como ruido intermitente de harness/hidratación y no como regresión funcional confirmada.
+- Endurecimiento de pruebas unitarias del cierre clínico: `frontend/src/__tests__/app/atencion-cierre.test.tsx` se adaptó al flujo real del drawer (helper para abrir tabs dentro del panel y cambio determinista en la nota de cierre), eliminando flakiness por selectores y por tipeo caracter a caracter.
+- Descubrimiento de Jest corregido: `frontend/jest.config.js` ahora ignora `*.fixtures.ts` para evitar suites vacías en el run completo.
+- Validación final: `npm --prefix frontend run typecheck` pasa; `npm --prefix frontend run build` pasa; `npm --prefix frontend test -- --runInBand` pasa con 35/35 suites y 190/190 tests; `npm --prefix frontend run test:e2e -- tests/e2e/workflow-clinical.spec.ts` pasa con 6/6; `npm --prefix frontend run test:e2e -- tests/e2e/encounter-draft-recovery.spec.ts` pasa con 1/1 (queda un log 401 esperado durante el escenario de recuperación).
+- Métricas tras la pasada: `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts` 366 líneas; `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterDraftSync.ts` 132; `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterAutosave.ts` 27; `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterOfflineQueue.ts` 102; `backend/src/patients/patients.service.ts` 469; `backend/src/encounters/encounters-workflow-mutations.ts` 410.
+- Pendientes tras esta pasada: dejar `useEncounterSectionPersistence.ts` por debajo de 300 líneas (queda un tramo final de orquestación/snapshot), y decidir una pasada adicional en backend para acercar `patients.service.ts` y `encounters-workflow-mutations.ts` al objetivo suave de 300 líneas con bajo riesgo de regresión.
 
 > Actualizacion 2026-04-14: C2 quedo mitigado en el repo. `docker-compose.yml` ahora publica backend y frontend solo en loopback por defecto, y la documentacion de despliegue/entorno deja explicito que este producto esta pensado para publicarse detras de Cloudflare Tunnel con `cloudflared` y HTTPS.
 
@@ -207,7 +276,7 @@ Conclusión corta: la base técnica no es mala. De hecho, tiene varias decisione
 
 Los pendientes más relevantes ahora son:
 
-1. Retomar la reducción de los monolitos todavía fuera de objetivo (`useEncounterWizard`, `encounters.service`, `patients.service`).
+1. Ya no quedan monolitos por encima del hard limit de 500 líneas; el trabajo pendiente pasó a ser bajar piezas intermedias que siguen por encima del objetivo suave de 300 líneas y reforzar pruebas focalizadas.
 
 ## 2. Veredicto de producción
 
@@ -271,13 +340,32 @@ Para el objetivo real del producto, la arquitectura general es razonable. No veo
 
 Lo que sí veo es tensión de mantenibilidad:
 
-- `backend/src/patients/patients.service.ts`: 1480 líneas.
-- `backend/src/encounters/encounters.service.ts`: 1068 líneas.
-- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts`: 1112 líneas.
+- `backend/src/patients/patients.service.ts`: 469 líneas.
+- `backend/src/encounters/encounters.service.ts`: 370 líneas.
+- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts`: 320 líneas.
+- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts`: 366 líneas (refinado en pasada 33 con split de draft sync/autosave/cola offline).
+- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterDraftSync.ts`: 132 líneas (nuevo módulo de sincronización de borrador extraído en pasada 33).
+- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterAutosave.ts`: 27 líneas (nuevo módulo de temporizador de autosave extraído en pasada 33).
+- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterOfflineQueue.ts`: 102 líneas (nuevo módulo de cola offline/sync extraído en pasada 33).
+- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWorkflowActions.ts`: 157 líneas (nuevo módulo de firma/revisión/cierre extraído en pasada 32).
+- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterAttachments.ts`: 139 líneas (nuevo módulo de adjuntos extraído en pasada 32).
+- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizardNavigation.ts`: 128 líneas (nuevo módulo de navegación extraído en pasada 32).
 - `backend/src/encounters/encounters-presenters.ts`: 195 líneas (nuevo módulo de proyección extraído en pasada 21).
+- `backend/src/encounters/encounters-read-side.ts`: 186 líneas (nuevo módulo de read-side extraído en pasada 31).
+- `backend/src/encounters/encounters-dashboard-read-model.ts`: 99 líneas (nuevo módulo de dashboard extraído en pasada 31).
+- `backend/src/encounters/encounters-audit-history.ts`: 68 líneas (nuevo módulo de auditoría extraído en pasada 31).
+- `backend/src/encounters/encounters-section-mutations.ts`: 216 líneas (nuevo módulo de mutaciones de sección extraído en pasada 31).
+- `backend/src/patients/patients-clinical-read-model.ts`: 184 líneas (nuevo módulo de read-model extraído en pasada 26).
+- `backend/src/patients/patients-demographics-mutations.ts`: 298 líneas (nuevo módulo de mutación demográfica extraído en pasada 27).
+- `backend/src/patients/patients-clinical-mutations.ts`: 338 líneas (nuevo módulo de mutación clínica extraído en pasada 27).
+- `backend/src/patients/patients-read-side.ts`: 347 líneas (nuevo módulo de read-side extraído en pasada 28).
+- `backend/src/patients/patients-lifecycle-mutations.ts`: 240 líneas (nuevo módulo de lifecycle extraído en pasada 28).
+- `backend/src/patients/patients-create-utils.ts`: 70 líneas (nuevo helper compartido de alta extraído en pasada 29).
+- `backend/src/patients/patients-task-read-model.ts`: 115 líneas (nuevo inbox read-model extraído en pasada 29).
+- `backend/src/encounters/encounters-workflow-mutations.ts`: 410 líneas (nuevo módulo de workflow extraído en pasada 30).
 - Sanitización de encuentros ahora modularizada y bajo umbral: `encounters-sanitize.ts` (314), `encounters-sanitize-primitives.ts` (164), `encounters-sanitize-clinical.ts` (241), `encounters-sanitize-intake.ts` (260).
 
-Los tres primeros todavía contradicen la regla del proyecto de no superar 500 líneas por archivo y dificultan detectar regresiones. No es un bloqueador inmediato de producción por sí solo, pero sí explica por qué aparecen errores evitables en refactors recientes.
+Ya no quedan archivos por encima del hard limit de 500 líneas, pero todavía hay piezas por encima del objetivo suave de 300 (`patients.service`, `encounters-workflow-mutations`, `useEncounterSectionPersistence`, `encounters-sanitize`) que siguen concentrando suficiente lógica como para merecer una pasada adicional.
 
 Evaluación de arquitectura: **apta para el tamaño actual del producto, pero con deuda de modularidad visible y regresiones recientes que ya demostraron lo fácil que es romper cosas básicas**.
 
@@ -426,9 +514,11 @@ Problemas confirmados:
 
 Orden de remediación recomendado:
 
-1. Reducir el tamaño de `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts`, que sigue concentrando demasiada lógica clínica y de UI.
-2. ~~Integrar restore drills y rollback operativo al flujo de despliegue.~~ Hecho en pasada 12.
-3. ~~Completar endurecimiento de infraestructura alrededor de storage y backups.~~ Hecho en pasada 13.
+1. Completar una pasada corta sobre `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts` para empujarlo bajo 300 líneas (quedó en 366 y ya tiene extraídos autosave/offline/draft sync).
+2. Añadir pruebas unitarias focalizadas para `backend/src/encounters/encounters-section-mutations.ts` y `backend/src/encounters/encounters-workflow-mutations.ts` para proteger la parte más sensible del dominio clínico ya extraído.
+3. Mantener monitoreo del warning `Router action dispatched before initialization` en Playwright: en la pasada 33 no se reprodujo y hoy está clasificado como ruido intermitente de harness/hidratación.
+4. ~~Integrar restore drills y rollback operativo al flujo de despliegue.~~ Hecho en pasada 12.
+5. ~~Completar endurecimiento de infraestructura alrededor de storage y backups.~~ Hecho en pasada 13.
 
 ---
 

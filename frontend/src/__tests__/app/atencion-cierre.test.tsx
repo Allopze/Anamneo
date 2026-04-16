@@ -1,7 +1,7 @@
 import { within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import EncounterWizardPage from '@/app/(dashboard)/atenciones/[id]/page';
 import toast from 'react-hot-toast';
@@ -105,6 +105,12 @@ function createWrapper() {
   };
 }
 
+async function openDrawerTab(user: ReturnType<typeof userEvent.setup>, tabName: 'Cierre' | 'Apoyo') {
+  await user.click(screen.getByRole('button', { name: /Abrir panel lateral con revisión, apoyo, cierre e historial/i }));
+  const drawer = await screen.findByRole('dialog', { name: 'Panel lateral de la atención' });
+  await user.click(within(drawer).getByRole('button', { name: new RegExp(tabName, 'i') }));
+}
+
 describe('EncounterWizardPage closing workflow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -146,7 +152,7 @@ describe('EncounterWizardPage closing workflow', () => {
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
 
-    await user.click(screen.getAllByRole('button', { name: 'Cierre' })[0]);
+    await openDrawerTab(user, 'Cierre');
     await user.click(screen.getByRole('button', { name: 'Finalizar Atención' }));
 
     expect(toast.error).not.toHaveBeenCalled();
@@ -197,11 +203,11 @@ describe('EncounterWizardPage closing workflow', () => {
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
 
-    await user.click(screen.getAllByRole('button', { name: 'Cierre' })[0]);
-    await user.type(
-      screen.getByLabelText('Nota de cierre'),
-      '  Paciente estable al cierre, con control y signos de alarma informados.  ',
-    );
+    await openDrawerTab(user, 'Cierre');
+    const closureNoteField = screen.getByLabelText('Nota de cierre');
+    fireEvent.change(closureNoteField, {
+      target: { value: '  Paciente estable al cierre, con control y signos de alarma informados.  ' },
+    });
     await user.click(screen.getByRole('button', { name: 'Finalizar Atención' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Finalizar atención' });
@@ -237,8 +243,8 @@ describe('EncounterWizardPage closing workflow', () => {
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
 
-    await user.click(screen.getAllByRole('button', { name: 'Apoyo' })[0]);
-    await user.click(screen.getAllByRole('button', { name: 'Notas rápidas internas' })[0]);
+    await openDrawerTab(user, 'Apoyo');
+    await user.click(screen.getByRole('button', { name: 'Notas rápidas internas' }));
     await user.type(screen.getByPlaceholderText('Notas internas rápidas...'), 'Observación interna');
     await user.click(screen.getByTitle('Guardar y cerrar'));
 

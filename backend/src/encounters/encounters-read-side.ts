@@ -1,0 +1,187 @@
+import { NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { buildEncounterTaskScopeWhere, buildPatientProblemScopeWhere } from '../common/utils/patient-access';
+import { formatEncounterForList, formatEncounterForPatientList, formatEncounterResponse } from './encounters-presenters';
+
+interface FindEncountersReadModelParams {
+  prisma: PrismaService;
+  effectiveMedicoId: string;
+  status?: string;
+  search?: string;
+  reviewStatus?: string;
+  page: number;
+  limit: number;
+}
+
+export async function findEncountersReadModel(params: FindEncountersReadModelParams) {
+  const { prisma, effectiveMedicoId, status, search, reviewStatus, page, limit } = params;
+  const skip = (page - 1) * limit;
+
+  const where: Record<string, unknown> = {
+    medicoId: effectiveMedicoId,
+    patient: {
+      archivedAt: null,
+    },
+  };
+
+  if (status && ['EN_PROGRESO', 'COMPLETADO', 'FIRMADO', 'CANCELADO'].includes(status)) {
+    where.status = status;
+  }
+
+  if (reviewStatus && ['NO_REQUIERE_REVISION', 'LISTA_PARA_REVISION', 'REVISADA_POR_MEDICO'].includes(reviewStatus)) {
+    where.reviewStatus = reviewStatus;
+  }
+
+  const trimmedSearch = search?.trim();
+  if (trimmedSearch) {
+    where.OR = [
+      { patient: { nombre: { contains: trimmedSearch } } },
+      { patient: { rut: { contains: trimmedSearch } } },
+    ];
+  }
+
+  const [encounters, total] = await Promise.all([
+    prisma.encounter.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        patient: true,
+        createdBy: {
+          select: { id: true, nombre: true },
+        },
+        reviewRequestedBy: {
+          select: { id: true, nombre: true },
+        },
+        reviewedBy: {
+          select: { id: true, nombre: true },
+        },
+        completedBy: {
+          select: { id: true, nombre: true },
+        },
+        sections: {
+          select: { completed: true },
+        },
+      },
+    }),
+    prisma.encounter.count({ where }),
+  ]);
+
+  return {
+    data: encounters.map((encounter) => formatEncounterForList(encounter)),
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+interface FindEncounterByIdReadModelParams {
+  prisma: PrismaService;
+  id: string;
+  effectiveMedicoId: string;
+}
+
+export async function findEncounterByIdReadModel(params: FindEncounterByIdReadModelParams) {
+  const { prisma, id, effectiveMedicoId } = params;
+
+  const encounter = await prisma.encounter.findFirst({
+    where: {
+      id,
+      medicoId: effectiveMedicoId,
+    },
+    include: {
+      sections: {
+        orderBy: { sectionKey: 'asc' },
+      },
+      patient: {
+        include: {
+          history: true,
+          problems: {
+            where: buildPatientProblemScopeWhere(effectiveMedicoId),
+            orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
+          },
+          tasks: {
+            where: buildEncounterTaskScopeWhere(effectiveMedicoId),
+            orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
+            include: {
+              createdBy: { select: { id: true, nombre: true } },
+            },
+          },
+        },
+      },
+      createdBy: {
+        select: { id: true, nombre: true, email: true },
+      },
+      reviewRequestedBy: {
+        select: { id: true, nombre: true },
+      },
+      reviewedBy: {
+        select: { id: true, nombre: true },
+      },
+      completedBy: {
+        select: { id: true, nombre: true },
+      },
+      suggestions: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
+      attachments: true,
+      tasks: {
+        orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
+        include: {
+          createdBy: { select: { id: true, nombre: true } },
+        },
+      },
+    },
+  });
+
+  if (!encounter) {
+    throw new NotFoundException('Atención no encontrada');
+  }
+
+  return formatEncounterResponse(encounter);
+}
+
+interface FindEncountersByPatientReadModelParams {
+  prisma: PrismaService;
+  patientId: string;
+  effectiveMedicoId: string;
+}
+
+export async function findEncountersByPatientReadModel(params: FindEncountersByPatientReadModelParams) {
+  const { prisma, patientId, effectiveMedicoId } = params;
+
+  const encounters = await prisma.encounter.findMany({
+    where: {
+      patientId,
+      medicoId: effectiveMedicoId,
+      patient: {
+        archivedAt: null,
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      createdBy: {
+        select: { id: true, nombre: true },
+      },
+      reviewRequestedBy: {
+        select: { id: true, nombre: true },
+      },
+      reviewedBy: {
+        select: { id: true, nombre: true },
+      },
+      completedBy: {
+        select: { id: true, nombre: true },
+      },
+      sections: {
+        select: { sectionKey: true, completed: true },
+      },
+    },
+  });
+
+  return encounters.map((encounter) => formatEncounterForPatientList(encounter));
+}
