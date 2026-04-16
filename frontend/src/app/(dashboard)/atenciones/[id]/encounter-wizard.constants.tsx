@@ -1,5 +1,6 @@
 import dynamic from 'next/dynamic';
 import type { ComponentType } from 'react';
+import { MEDICO_ONLY_SECTION_KEYS } from '../../../../../../shared/encounter-section-policy';
 import type { SectionKey } from '@/types';
 
 // ─── Dynamic section component map ──────────────────────────────
@@ -71,11 +72,7 @@ export const LINKABLE_ATTACHMENT_LABELS = {
   DERIVACION: 'Derivación',
 } as const;
 
-export const MEDICO_ONLY_SECTIONS: SectionKey[] = [
-  'SOSPECHA_DIAGNOSTICA',
-  'TRATAMIENTO',
-  'RESPUESTA_TRATAMIENTO',
-];
+export const MEDICO_ONLY_SECTIONS: SectionKey[] = [...MEDICO_ONLY_SECTION_KEYS];
 
 export const TEMPLATE_FIELD_BY_SECTION: Partial<Record<SectionKey, string>> = {
   MOTIVO_CONSULTA: 'texto',

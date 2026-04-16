@@ -241,7 +241,7 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 ### Limpieza tecnica util, no overkill
 
 - Simplificar `frontend/src/proxy.ts` hacia un chequeo optimista por cookie y dejar la validacion fuerte a `DashboardLayout` / data layer. Esto ya quedo implementado.
-- Dejar la lista de secciones solo-medico en una fuente compartida o, mejor todavia, derivarla desde el backend y no solo desde constantes del frontend.
+- La lista de secciones solo-medico ya vive en una fuente compartida explicita (`shared/encounter-section-policy.ts`) y backend/frontend la consumen desde alli.
 
 ## 6. Nuevas funcionalidades sugeridas
 
@@ -259,6 +259,7 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 ## 7. Estado tras primera pasada de fixes
 
 - Resuelto en codigo: enforcement backend de secciones solo-medico en lectura detallada y en escritura de secciones por asistentes.
+- Resuelto en codigo: la lista de secciones solo-medico quedo consolidada en `shared/encounter-section-policy.ts` y ya no se duplica entre backend y frontend.
 - Resuelto en codigo: alineacion del permiso de cierre en frontend para que el medico tratante pueda completar atenciones aunque no sea `createdBy`.
 - Resuelto en codigo: trazabilidad de alertas clinicas al crear y reconocer alertas, incluyendo las auto-generadas por signos vitales.
 - Resuelto en codigo: el login ahora puede mostrar el mensaje real de bloqueo temporal devuelto por backend en vez de aplanarlo siempre como credenciales invalidas.
@@ -276,8 +277,8 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 - Resuelto en codigo: `Encounter.complete`, `Encounter.sign`, `Consent.create` y `Consent.revoke` ahora agrupan mutacion de negocio y auditoria dentro de la misma transaccion, reduciendo el riesgo de cambios aplicados con respuesta de error si falla el audit log.
 - Resuelto en codigo: `frontend/src/proxy.ts` deja de hacer `fetch` remoto a `/api/auth/me` y pasa a un chequeo optimista por cookie, consistente con el uso recomendado para esta capa y menos fragil para rutas publicas.
 - Agregado en tests: cobertura unitaria para consentimientos transaccionales y ajuste de tests de workflow/proxy a la nueva semantica.
-- Pendiente principal de producto: ninguno de los de alto riesgo ya listados sigue abierto; el siguiente paso es verificar si quieres cerrar tambien el drift de secciones solo medico con una fuente compartida explicita.
-- Pendiente tecnico importante: consolidar politicas de permisos de encounters en una sola fuente de verdad compartida para evitar drift entre backend y frontend.
+- Pendiente principal de producto: ninguno de los de alto riesgo ya listados sigue abierto; la lista de secciones solo-medico ya quedo consolidada en una fuente compartida explicita.
+- Pendiente tecnico importante: si quieres seguir endureciendo el contrato, el siguiente paso util es volver mas declarativo `shared/permission-contract.json` para permisos de encounters y secciones.
 - Validado en esta pasada:
   - `npm --prefix frontend run test -- --runInBand src/__tests__/lib/proxy.test.ts` OK
   - `npm --prefix frontend run typecheck` OK
@@ -288,7 +289,7 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 
 ### Arreglar primero
 
-1. Consolidar la lista de secciones solo-medico en una fuente compartida unica.
+1. Mantener la lista de secciones solo-medico en `shared/encounter-section-policy.ts` y no volver a duplicarla.
 2. Mantener los tests de regresion que cubren los flujos ya corregidos.
 3. Revisar si quieres cerrar tambien el contrato de permisos de encounters en `shared/permission-contract.json` con mas granularidad de seccion.
 
@@ -301,7 +302,7 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 ### Dejar para despues, pero sin olvidarlo
 
 1. Revisar el patron de persistencia seguido de auditoria solo en servicios nuevos que introduzcan mutaciones sensibles.
-2. Consolidar permisos de encounters en una politica backend unica para reducir drift futuro.
+2. Consolidar mas del contrato de permisos de encounters si aparece nueva superficie clinica sensible.
 3. Mantener `proxy.ts` como chequeo optimista y no volver a checks remotos.
 
 ### No tocaria todavia

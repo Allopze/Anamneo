@@ -28,9 +28,13 @@ const allowedDevOrigins = Array.from(new Set([
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
-  turbopack: {
-    root: __dirname,
+  experimental: {
+    externalDir: true,
   },
+  turbopack: {
+    root: path.join(__dirname, '..'),
+  },
+  outputFileTracingRoot: path.join(__dirname, '..'),
   allowedDevOrigins,
   env: {
     // Frontend always talks to same-origin /api to keep auth cookies on the app host.
