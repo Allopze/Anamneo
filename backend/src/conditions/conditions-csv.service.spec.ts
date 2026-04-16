@@ -17,9 +17,13 @@ describe('ConditionsCsvService', () => {
     buildIndex: jest.fn(),
   };
 
+  const mockAuditService = {
+    log: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new ConditionsCsvService(mockPrisma as never, mockSimilarityService as never);
+    service = new ConditionsCsvService(mockPrisma as never, mockSimilarityService as never, mockAuditService as never);
   });
 
   it('builds a preview from header-based CSV and merges normalized duplicates', async () => {
@@ -109,6 +113,7 @@ describe('ConditionsCsvService', () => {
           'Migraña,,neurologia',
         ].join('\n'),
       ),
+      'admin-user-id',
     );
 
     expect(result).toEqual({
@@ -123,6 +128,7 @@ describe('ConditionsCsvService', () => {
       expect.objectContaining({
         where: { id: 'condition-active' },
         data: expect.objectContaining({
+          normalizedName: 'hipertension',
           synonyms: JSON.stringify(['hta', 'presión alta']),
           tags: JSON.stringify(['cardio', 'seguimiento']),
           active: true,
@@ -134,6 +140,7 @@ describe('ConditionsCsvService', () => {
       expect.objectContaining({
         where: { id: 'condition-inactive' },
         data: expect.objectContaining({
+          normalizedName: 'migrana',
           tags: JSON.stringify(['neurologia']),
           active: true,
         }),
@@ -141,6 +148,15 @@ describe('ConditionsCsvService', () => {
     );
     expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     expect(mockSimilarityService.buildIndex).toHaveBeenCalledTimes(1);
+    expect(mockAuditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: 'ConditionCatalog',
+        entityId: 'global-csv',
+        userId: 'admin-user-id',
+        action: 'UPDATE',
+        reason: 'CONDITION_CSV_IMPORTED',
+      }),
+    );
   });
 
   it('rejects invalid rows before touching persistence', async () => {
@@ -150,5 +166,6 @@ describe('ConditionsCsvService', () => {
 
     expect(mockPrisma.conditionCatalog.findMany).not.toHaveBeenCalled();
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    expect(mockAuditService.log).not.toHaveBeenCalled();
   });
 });

@@ -56,7 +56,7 @@ export class ConditionsController {
     @CurrentUser() user: CurrentUserData,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.conditionsCsvService.importGlobalCsv(this.getCsvImportBuffer(user, file));
+    return this.conditionsCsvService.importGlobalCsv(this.getCsvImportBuffer(user, file), user.id);
   }
 
   @Post('import/csv/preview')

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConditionsSimilarityService, SuggestionResult } from './conditions-similarity.service';
 import { CreateConditionDto } from './dto/create-condition.dto';
@@ -46,9 +46,19 @@ export class ConditionsService {
   }
 
   async create(createDto: CreateConditionDto) {
+    const normalizedName = normalizeConditionName(createDto.name);
+    const existing = await this.prisma.conditionCatalog.findFirst({
+      where: { normalizedName },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new ConflictException('Ya existe una afección global con ese nombre');
+    }
+
     const condition = await this.prisma.conditionCatalog.create({
       data: {
         name: createDto.name,
+        normalizedName,
         synonyms: JSON.stringify(createDto.synonyms || []),
         tags: JSON.stringify(createDto.tags || []),
       },
@@ -153,7 +163,21 @@ export class ConditionsService {
     }
 
     const updateData: Record<string, unknown> = {};
-    if (updateDto.name) updateData.name = updateDto.name;
+    if (updateDto.name) {
+      const normalizedName = normalizeConditionName(updateDto.name);
+      const existing = await this.prisma.conditionCatalog.findFirst({
+        where: {
+          normalizedName,
+          id: { not: id },
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ConflictException('Ya existe una afección global con ese nombre');
+      }
+      updateData.name = updateDto.name;
+      updateData.normalizedName = normalizedName;
+    }
     if (updateDto.synonyms) updateData.synonyms = JSON.stringify(updateDto.synonyms);
     if (updateDto.tags) updateData.tags = JSON.stringify(updateDto.tags);
     if (updateDto.active !== undefined) updateData.active = updateDto.active;

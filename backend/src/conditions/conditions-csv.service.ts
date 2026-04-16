@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConditionsSimilarityService } from './conditions-similarity.service';
+import { AuditService } from '../audit/audit.service';
 import { mergeUniqueStrings, normalizeConditionName, parseStringArray } from './conditions-helpers';
 import { parseConditionCsvBuffer } from './conditions-csv-parser';
 import type {
@@ -18,6 +19,7 @@ export class ConditionsCsvService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly similarityService: ConditionsSimilarityService,
+    private readonly auditService: AuditService,
   ) {}
 
   async previewGlobalCsv(buffer: Buffer): Promise<ConditionCsvPreviewResult> {
@@ -40,17 +42,16 @@ export class ConditionsCsvService {
     };
   }
 
-  async importGlobalCsv(buffer: Buffer): Promise<ConditionCsvImportResult> {
+  async importGlobalCsv(buffer: Buffer, userId?: string): Promise<ConditionCsvImportResult> {
     const parsed = parseConditionCsvBuffer(buffer);
     if (parsed.invalidRows.length > 0) {
       throw new BadRequestException(this.buildInvalidRowsMessage(parsed.invalidRows));
     }
 
     const existing = await this.prisma.conditionCatalog.findMany();
-    const existingByName = new Map(existing.map((condition) => [
-      normalizeConditionName(condition.name),
-      condition,
-    ]));
+    const existingByName = new Map(
+      existing.map((condition) => [condition.normalizedName || normalizeConditionName(condition.name), condition]),
+    );
 
     let created = 0;
     let updated = 0;
@@ -75,6 +76,7 @@ export class ConditionsCsvService {
           where: { id: existingCondition.id },
           data: {
             name: row.name,
+            normalizedName: row.normalizedName,
             synonyms: JSON.stringify(nextSynonyms),
             tags: JSON.stringify(nextTags),
             active: true,
@@ -86,6 +88,7 @@ export class ConditionsCsvService {
       return this.prisma.conditionCatalog.create({
         data: {
           name: row.name,
+          normalizedName: row.normalizedName,
           synonyms: JSON.stringify(row.synonyms),
           tags: JSON.stringify(row.tags),
         },
@@ -94,6 +97,27 @@ export class ConditionsCsvService {
 
     await this.prisma.$transaction(operations);
     await this.similarityService.buildIndex();
+
+    if (userId) {
+      await this.auditService.log({
+        entityType: 'ConditionCatalog',
+        entityId: 'global-csv',
+        userId,
+        action: 'UPDATE',
+        reason: 'CONDITION_CSV_IMPORTED',
+        diff: {
+          scope: 'CSV_IMPORT',
+          format: parsed.detectedFormat,
+          totalRows: parsed.totalRows,
+          validRows: parsed.validRows,
+          importableRows: parsed.rows.length,
+          duplicateRows: parsed.duplicateRows,
+          created,
+          updated,
+          reactivated,
+        },
+      });
+    }
 
     return {
       created,
@@ -106,7 +130,7 @@ export class ConditionsCsvService {
 
   private async getExistingByNormalizedName() {
     const existing = await this.prisma.conditionCatalog.findMany();
-    return new Map(existing.map((condition) => [normalizeConditionName(condition.name), condition]));
+    return new Map(existing.map((condition) => [condition.normalizedName || normalizeConditionName(condition.name), condition]));
   }
 
   private buildPreview(

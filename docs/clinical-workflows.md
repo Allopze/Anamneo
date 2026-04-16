@@ -61,8 +61,8 @@ Esto permite soporte diagnostico sin obligar a que todo conocimiento clinico viv
 ### Mejora CSV en curso
 
 - Ya implementado: parser CSV formal, preview server-side y consolidacion de duplicados dentro del archivo.
-- Pendiente: persistir `normalizedName` e imponer unicidad a nivel de base de datos.
-- Pendiente: auditoria explicita de importaciones bulk del catalogo global.
+- Ya implementado: `ConditionCatalog` persiste `normalizedName` y la base de datos impone unicidad por ese valor normalizado.
+- Ya implementado: la importacion bulk del catalogo global registra auditoria explicita (`CONDITION_CSV_IMPORTED`) con trazabilidad de cambios.
 - Pendiente: definir si el CSV soportara control explicito de `active` en una fase posterior.
 
 ### Mejora de sugerencias en curso

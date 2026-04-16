@@ -164,6 +164,27 @@
 - Nota operativa del harness: `smoke.spec.ts` y `workflow-clinical.spec.ts` comparten la misma base de datos de E2E, así que deben validarse en invocaciones separadas o con un solo worker; juntos compiten por el bootstrap inicial.
 - Pendientes tras esta pasada: retomar la reducción de los monolitos todavía fuera de objetivo (`useEncounterWizard`, `encounters.service`, `patients.service`).
 
+### Pasada 23 - 2026-04-16
+
+- El wizard de atenciones volvió a dividirse por responsabilidades: `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts` dejó de concentrar el cálculo derivado y la persistencia del drawer, que ahora viven en `useEncounterWizardDerived.ts`, `encounter-drawer-state.ts` y `encounter-drawer-shortcut.ts`. El hook principal quedó con orquestación, handlers y estado de edición, mientras que la página y el header consumen los helpers compartidos para abrir/cerrar el panel lateral sin duplicar `localStorage`.
+- Alcance del cambio: `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizard.ts`, `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizardDerived.ts`, `frontend/src/app/(dashboard)/atenciones/[id]/encounter-drawer-state.ts`, `frontend/src/lib/encounter-drawer-shortcut.ts`, `frontend/src/app/(dashboard)/atenciones/[id]/page.tsx`, `frontend/src/app/(dashboard)/atenciones/[id]/EncounterHeader.tsx` y `frontend/tests/e2e/encounter-draft-recovery.spec.ts`.
+- Validación final: `npm --prefix frontend run typecheck` pasa; `npm --prefix frontend run build` pasa; `npm --prefix frontend run test:e2e -- tests/e2e/workflow-clinical.spec.ts` pasa con 6/6 tests; `npm --prefix frontend run test:e2e -- tests/e2e/encounter-draft-recovery.spec.ts` pasa con 1/1 test.
+- Pendientes tras esta pasada: seguir con la reducción de los monolitos que todavía quedan fuera de objetivo, empezando por `backend/src/patients/patients.service.ts`.
+
+### Pasada 24 - 2026-04-16
+
+- Catálogo global de afecciones endurecido: `ConditionCatalog` ahora persiste `normalizedName` y la base impone unicidad por nombre normalizado; además, la importación CSV masiva del catálogo global registra auditoría explícita con reason `CONDITION_CSV_IMPORTED`.
+- Alcance del cambio: `backend/prisma/schema.prisma`, `backend/prisma/migrations/20260416170000_add_condition_normalized_name_unique/migration.sql`, `backend/src/conditions/conditions.service.ts`, `backend/src/conditions/conditions-csv.service.ts`, `backend/src/conditions/conditions.controller.ts`, `backend/src/conditions/conditions-csv.service.spec.ts`, `backend/src/common/types/index.ts`, `backend/src/audit/audit-catalog.ts`, `backend/prisma/seed.ts`, `frontend/src/app/(dashboard)/admin/auditoria/auditoria.constants.ts` y `docs/clinical-workflows.md`.
+- Validación final: `npm --prefix backend run prisma:generate` pasa; `npm --prefix backend run test -- --runInBand --runTestsByPath src/conditions/conditions-csv.service.spec.ts` pasa (3/3); `npm --prefix backend run build` pasa; `npm --prefix frontend run typecheck` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests.
+- Pendientes tras esta pasada: seguir con la reducción de monolitos, empezando por `backend/src/patients/patients.service.ts`.
+
+### Pasada 25 - 2026-04-16
+
+- Segunda pasada en `patients.service` para bajar riesgo de regresión: se extrajo la lógica repetida de validación de RUT y estado de exención en helpers internos (`resolveCreateRutInput` y `resolveRutState`), y `create`/`createQuick` quedaron como orquestadores del flujo.
+- Alcance del cambio: `backend/src/patients/patients.service.ts`.
+- Validación final: `npm --prefix backend run build` pasa; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` pasa con 174/174 tests.
+- Pendientes tras esta pasada: continuar la extracción por bloques en `patients.service` (timeline/resumen/actualización administrativa) hasta dejarlo bajo el umbral de mantenibilidad del proyecto.
+
 > Actualizacion 2026-04-14: C2 quedo mitigado en el repo. `docker-compose.yml` ahora publica backend y frontend solo en loopback por defecto, y la documentacion de despliegue/entorno deja explicito que este producto esta pensado para publicarse detras de Cloudflare Tunnel con `cloudflared` y HTTPS.
 
 ## 1. Resumen ejecutivo

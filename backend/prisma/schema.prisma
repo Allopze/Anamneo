@@ -179,6 +179,7 @@ model EncounterSection {
 model ConditionCatalog {
   id        String   @id @default(uuid())
   name      String
+  normalizedName String @default("") @map("normalized_name")
   synonyms  String   @default("[]")
   tags      String   @default("[]")
   active    Boolean  @default(true)
@@ -187,6 +188,7 @@ model ConditionCatalog {
 
   localOverrides ConditionCatalogLocal[]
 
+  @@unique([normalizedName])
   @@map("condition_catalog")
 }
 

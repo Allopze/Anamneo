@@ -16,19 +16,10 @@ import type {
   IdentificacionData,
   SectionKey,
   SignEncounterResponse,
-  StructuredOrder,
-  TratamientoData,
 } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
-import { buildGeneratedClinicalSummary } from '@/lib/clinical';
-import {
-  formatPatientMissingFields,
-  getIdentificationMissingFields,
-  getPatientCompletenessMeta,
-} from '@/lib/patient';
 import { getEncounterClinicalOutputBlockReason } from '@/lib/clinical-output';
 import {
-  canCompleteEncounter as canCompleteEncounterPermission,
   canEditEncounter,
   canUploadAttachments as canUploadAttachmentsPermission,
   canViewMedicoOnlySections,
@@ -49,15 +40,19 @@ import {
 import toast from 'react-hot-toast';
 import type { SidebarTabKey } from '@/components/EncounterDrawer';
 import {
+  getInitialEncounterDrawerOpen,
+  getInitialEncounterDrawerTab,
+  setEncounterDrawerOpen,
+  setEncounterDrawerTab,
+} from './encounter-drawer-state';
+import {
   AUTOSAVE_DELAY,
-  MEDICO_ONLY_SECTIONS,
-  SECTION_COMPONENTS,
-  SECTION_STATUS_META,
-  TEMPLATE_FIELD_BY_SECTION,
   type CompleteEncounterPayload,
   type SaveSectionResponse,
-  type SectionUiState,
+  MEDICO_ONLY_SECTIONS,
+  TEMPLATE_FIELD_BY_SECTION,
 } from './encounter-wizard.constants';
+import { useEncounterWizardDerived } from './useEncounterWizardDerived';
 
 export function useEncounterWizard() {
   const { id } = useParams<{ id: string }>();
@@ -66,11 +61,6 @@ export function useEncounterWizard() {
   const { user, isMedico, canEditAntecedentes } = useAuthStore();
   const isOperationalAdmin = !!user?.isAdmin;
   const [isSectionSwitchPending, startSectionTransition] = useTransition();
-
-  const drawerShortcutHint = useMemo(() => {
-    if (typeof navigator === 'undefined') return 'Ctrl+.';
-    return /mac/i.test(navigator.platform) ? '⌘.' : 'Ctrl+.';
-  }, []);
 
   // ─── State ──────────────────────────────────────────────────────
 
@@ -83,16 +73,8 @@ export function useEncounterWizard() {
   const [savedSectionKey, setSavedSectionKey] = useState<SectionKey | null>(null);
   const [errorSectionKey, setErrorSectionKey] = useState<SectionKey | null>(null);
   const [savedSnapshotJson, setSavedSnapshotJson] = useState('');
-  const [sidebarTab, setSidebarTab] = useState<SidebarTabKey>(() => {
-    if (typeof window === 'undefined') return 'revision';
-    const stored = localStorage.getItem('anamneo:encounter-drawer-tab');
-    if (stored === 'revision' || stored === 'apoyo' || stored === 'cierre' || stored === 'historial') return stored;
-    return 'revision';
-  });
-  const [isDrawerOpen, setIsDrawerOpen] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('anamneo:encounter-drawer-open') === '1';
-  });
+  const [sidebarTab, setSidebarTab] = useState<SidebarTabKey>(getInitialEncounterDrawerTab);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(getInitialEncounterDrawerOpen);
   const [elapsedMinutes, setElapsedMinutes] = useState(0);
   const lastSavedRef = useRef<string>('');
   const formDataRef = useRef<Record<string, any>>({});
@@ -171,10 +153,6 @@ export function useEncounterWizard() {
     setReviewActionNote(encounter?.reviewNote || '');
     setClosureNote(encounter?.closureNote || '');
   }, [encounter?.id, encounter?.reviewNote, encounter?.closureNote]);
-
-  useEffect(() => {
-    activeSectionKeyRef.current = currentSection?.sectionKey ?? null;
-  }, [currentSection]);
 
   // ─── Mutations ───────────────────────────────────────────────
 
@@ -334,6 +312,56 @@ export function useEncounterWizard() {
     enabled: isAttachmentsOpen || currentSection?.sectionKey === 'TRATAMIENTO',
     staleTime: 30_000,
   });
+
+  const derived = useEncounterWizardDerived({
+    user,
+    encounter,
+    currentSectionIndex,
+    sections,
+    currentSection,
+    formData,
+    savedSnapshotJson,
+    lastSavedAt,
+    saveStatus,
+    hasUnsavedChanges,
+    savingSectionKey,
+    errorSectionKey,
+    savedSectionKey,
+    attachments: attachmentsQuery.data ?? [],
+    uploadMeta,
+  });
+
+  const {
+    canComplete,
+    SectionComponent,
+    completedCount,
+    progressPercentage,
+    currentLinkedOrderType,
+    currentLinkableOrders,
+    linkedAttachmentsByOrderId,
+    generatedSummary,
+    savedSnapshot,
+    getSectionUiState,
+    currentSectionState,
+    currentSectionStatusMeta,
+    identificationSnapshotStatus,
+    identificationData,
+    patientCompletenessMeta,
+    identificationMissingFields,
+    clinicalOutputBlockReason,
+    completionBlockedReason,
+    supportsTemplates,
+    drawerShortcutHint,
+    lastSavedTimeStr,
+    saveStateLabel,
+    saveStateToneClass,
+  } = derived;
+
+  const attachments = attachmentsQuery.data ?? [];
+
+  useEffect(() => {
+    activeSectionKeyRef.current = currentSection?.sectionKey ?? null;
+  }, [currentSection]);
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -641,7 +669,7 @@ export function useEncounterWizard() {
         e.preventDefault();
         setIsDrawerOpen((prev) => {
           const next = !prev;
-          localStorage.setItem('anamneo:encounter-drawer-open', next ? '1' : '0');
+          setEncounterDrawerOpen(next);
           return next;
         });
       } else if (e.key === 'ArrowLeft' && currentSectionIndex > 0) {
@@ -831,21 +859,10 @@ export function useEncounterWizard() {
 
   const openDrawerTab = useCallback((tab: SidebarTabKey) => {
     setSidebarTab(tab);
-    localStorage.setItem('anamneo:encounter-drawer-tab', tab);
+    setEncounterDrawerTab(tab);
     setIsDrawerOpen(true);
-    localStorage.setItem('anamneo:encounter-drawer-open', '1');
+    setEncounterDrawerOpen(true);
   }, []);
-
-  const generatedSummary = useMemo(() => {
-    if (!encounter) return '';
-    return buildGeneratedClinicalSummary({
-      ...encounter,
-      sections: sections.map((section) => ({
-        ...section,
-        data: formData[section.sectionKey] ?? section.data,
-      })),
-    } as Encounter);
-  }, [encounter, formData, sections]);
 
   const handleSaveGeneratedSummary = useCallback(() => {
     const existing = formData.OBSERVACIONES || {};
@@ -879,111 +896,6 @@ export function useEncounterWizard() {
     }
     router.push(`/atenciones/${id}/ficha`);
   };
-
-  // ─── Computed values ────────────────────────────────────────
-
-  const SectionComponent = currentSection ? SECTION_COMPONENTS[currentSection.sectionKey] : null;
-  const completedCount = useMemo(() => sections.filter((s) => s.completed).length, [sections]);
-  const progressPercentage = sections.length > 0 ? (completedCount / sections.length) * 100 : 0;
-  const canComplete = canCompleteEncounterPermission(user ?? null, encounter);
-  const attachments = useMemo(() => attachmentsQuery.data ?? [], [attachmentsQuery.data]);
-
-  const tratamientoData = (formData.TRATAMIENTO ??
-    encounter?.sections?.find((s) => s.sectionKey === 'TRATAMIENTO')?.data ??
-    {}) as TratamientoData;
-  const examenesEstructurados = useMemo(
-    () => (Array.isArray(tratamientoData.examenesEstructurados) ? tratamientoData.examenesEstructurados : []),
-    [tratamientoData.examenesEstructurados],
-  );
-  const derivacionesEstructuradas = useMemo(
-    () => (Array.isArray(tratamientoData.derivacionesEstructuradas) ? tratamientoData.derivacionesEstructuradas : []),
-    [tratamientoData.derivacionesEstructuradas],
-  );
-  const currentLinkedOrderType =
-    uploadMeta.category === 'EXAMEN' ? 'EXAMEN' : uploadMeta.category === 'DERIVACION' ? 'DERIVACION' : '';
-  const currentLinkableOrders: StructuredOrder[] = useMemo(
-    () =>
-      currentLinkedOrderType === 'EXAMEN'
-        ? examenesEstructurados
-        : currentLinkedOrderType === 'DERIVACION'
-          ? derivacionesEstructuradas
-          : [],
-    [currentLinkedOrderType, derivacionesEstructuradas, examenesEstructurados],
-  );
-  const linkedAttachmentsByOrderId = useMemo(
-    () =>
-      attachments.reduce<Record<string, Attachment[]>>((acc, a) => {
-        if (!a.linkedOrderId) return acc;
-        if (!acc[a.linkedOrderId]) acc[a.linkedOrderId] = [];
-        acc[a.linkedOrderId].push(a);
-        return acc;
-      }, {}),
-    [attachments],
-  );
-  const supportsTemplates = Boolean(currentSection && TEMPLATE_FIELD_BY_SECTION[currentSection.sectionKey]);
-
-  const savedSnapshot = useMemo(() => {
-    try {
-      return JSON.parse(savedSnapshotJson || '{}') as Record<string, any>;
-    } catch {
-      return {};
-    }
-  }, [savedSnapshotJson]);
-
-  const getSectionUiState = (section: NonNullable<Encounter['sections']>[number]): SectionUiState => {
-    if (section.sectionKey === savingSectionKey) return 'saving';
-    if (section.sectionKey === errorSectionKey) return 'error';
-    const currentData = JSON.stringify(formData[section.sectionKey] ?? {});
-    const savedData = JSON.stringify(savedSnapshot[section.sectionKey] ?? {});
-    if (currentData !== savedData) return 'dirty';
-    if (section.notApplicable) return 'notApplicable';
-    if (section.completed) return 'completed';
-    if (section.sectionKey === savedSectionKey) return 'saved';
-    return 'idle';
-  };
-
-  const currentSectionState = currentSection ? getSectionUiState(currentSection) : 'idle';
-  const currentSectionStatusMeta = SECTION_STATUS_META[currentSectionState];
-  const identificationSnapshotStatus = encounter?.identificationSnapshotStatus;
-  const identificationData = (formData.IDENTIFICACION ??
-    encounter?.sections?.find((s) => s.sectionKey === 'IDENTIFICACION')?.data ??
-    {}) as IdentificacionData;
-  const patientCompletenessMeta = encounter?.patient ? getPatientCompletenessMeta(encounter.patient) : null;
-  const identificationMissingFields = formatPatientMissingFields(getIdentificationMissingFields(identificationData));
-  const clinicalOutputBlockReason = encounter?.clinicalOutputBlock?.reason ?? null;
-  const completionBlockedReason = getEncounterClinicalOutputBlockReason(
-    encounter?.clinicalOutputBlock,
-    'COMPLETE_ENCOUNTER',
-  );
-
-  const lastSavedTimeStr = lastSavedAt
-    ? lastSavedAt.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
-    : null;
-
-  const saveStateLabel = canEdit
-    ? saveStatus === 'saving'
-      ? 'Guardando…'
-      : saveStatus === 'saved'
-        ? 'Cambios guardados'
-        : saveStatus === 'error'
-          ? 'Error al guardar'
-          : hasUnsavedChanges
-            ? 'Cambios sin guardar'
-            : lastSavedTimeStr
-              ? `Guardado a las ${lastSavedTimeStr}`
-              : 'Sin cambios'
-    : null;
-
-  const saveStateToneClass =
-    saveStatus === 'error'
-      ? 'text-status-red-text'
-      : saveStatus === 'saved'
-        ? 'text-status-green-text'
-        : saveStatus === 'saving'
-          ? 'text-ink'
-          : hasUnsavedChanges
-            ? 'text-accent-text'
-            : 'text-ink-secondary';
 
   return {
     // IDs

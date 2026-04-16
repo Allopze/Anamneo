@@ -20,6 +20,7 @@ import type { SectionKey } from '@/types';
 import { getErrorMessage } from '@/lib/api';
 
 import { useEncounterWizard } from './useEncounterWizard';
+import { setEncounterDrawerOpen, setEncounterDrawerTab } from './encounter-drawer-state';
 import {
   SURFACE_PANEL_CLASS,
   TOOLBAR_BUTTON_CLASS,
@@ -414,12 +415,12 @@ export default function EncounterWizardPage() {
         open={wiz.isDrawerOpen}
         onClose={() => {
           wiz.setIsDrawerOpen(false);
-          localStorage.setItem('anamneo:encounter-drawer-open', '0');
+          setEncounterDrawerOpen(false);
         }}
         tab={wiz.sidebarTab}
         onTabChange={(t) => {
           wiz.setSidebarTab(t);
-          localStorage.setItem('anamneo:encounter-drawer-tab', t);
+          setEncounterDrawerTab(t);
         }}
         encounter={encounter}
         isDoctor={wiz.isDoctor}

@@ -59,6 +59,60 @@ export class PatientsService {
     });
   }
 
+  private resolveRutState(params: {
+    rut?: string;
+    rutExempt?: boolean;
+    formattedRut?: string;
+    trimmedRutExemptReason?: string;
+  }) {
+    const { rut, rutExempt, formattedRut, trimmedRutExemptReason } = params;
+    return {
+      rut: rutExempt ? null : formattedRut || rut || null,
+      rutExempt: rutExempt || false,
+      rutExemptReason: trimmedRutExemptReason || null,
+    };
+  }
+
+  private async resolveCreateRutInput(params: {
+    rut?: string;
+    rutExempt?: boolean;
+    rutExemptReason?: string;
+    invalidRutMessage: string;
+    missingExemptReasonMessage: string;
+  }) {
+    const { rut, rutExempt, rutExemptReason, invalidRutMessage, missingExemptReasonMessage } = params;
+
+    let formattedRut: string | undefined;
+    const trimmedRutExemptReason = rutExemptReason?.trim();
+
+    if (rut && !rutExempt) {
+      const rutValidation = validateRut(rut);
+      if (!rutValidation.valid) {
+        throw new BadRequestException(invalidRutMessage);
+      }
+
+      const validatedRut = rutValidation.formatted as string;
+
+      const existingPatient = await this.findDuplicateRut({
+        rut: validatedRut,
+      });
+      if (existingPatient) {
+        throw new ConflictException('Ya existe un paciente con este RUT');
+      }
+
+      formattedRut = validatedRut;
+    }
+
+    if (rutExempt && !trimmedRutExemptReason) {
+      throw new BadRequestException(missingExemptReasonMessage);
+    }
+
+    return {
+      formattedRut,
+      trimmedRutExemptReason,
+    };
+  }
+
   private async assertPatientAccess(user: RequestUser, patientId: string) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
 
@@ -91,41 +145,28 @@ export class PatientsService {
   }
 
   async create(createPatientDto: CreatePatientDto, userId: string) {
-    // Validate RUT if provided
-    let formattedRut: string | undefined = undefined;
-    const trimmedRutExemptReason = createPatientDto.rutExemptReason?.trim();
-
-    if (createPatientDto.rut && !createPatientDto.rutExempt) {
-      const rutValidation = validateRut(createPatientDto.rut);
-      if (!rutValidation.valid) {
-        throw new BadRequestException('El RUT ingresado no es válido');
-      }
-
-      const validatedRut = rutValidation.formatted as string;
-
-      const existingPatient = await this.findDuplicateRut({
-        rut: validatedRut,
-      });
-      if (existingPatient) {
-        throw new ConflictException('Ya existe un paciente con este RUT');
-      }
-
-      formattedRut = validatedRut;
-    }
-
-    // If exempt, require reason
-    if (createPatientDto.rutExempt && !trimmedRutExemptReason) {
-      throw new BadRequestException('Debe indicar el motivo de exención de RUT');
-    }
+    const { formattedRut, trimmedRutExemptReason } = await this.resolveCreateRutInput({
+      rut: createPatientDto.rut,
+      rutExempt: createPatientDto.rutExempt,
+      rutExemptReason: createPatientDto.rutExemptReason,
+      invalidRutMessage: 'El RUT ingresado no es válido',
+      missingExemptReasonMessage: 'Debe indicar el motivo de exención de RUT',
+    });
+    const resolvedRut = this.resolveRutState({
+      rut: createPatientDto.rut,
+      rutExempt: createPatientDto.rutExempt,
+      formattedRut,
+      trimmedRutExemptReason,
+    });
 
     const verificationState = resolvePatientVerificationState({
       actorId: userId,
       actorRole: 'MEDICO',
       mode: 'CREATE_FULL',
       nextPatient: {
-        rut: createPatientDto.rutExempt ? null : formattedRut || createPatientDto.rut || null,
-        rutExempt: createPatientDto.rutExempt || false,
-        rutExemptReason: trimmedRutExemptReason || null,
+        rut: resolvedRut.rut,
+        rutExempt: resolvedRut.rutExempt,
+        rutExemptReason: resolvedRut.rutExemptReason,
         edad: createPatientDto.edad,
         sexo: createPatientDto.sexo,
         prevision: createPatientDto.prevision,
@@ -143,9 +184,9 @@ export class PatientsService {
     const patient = await this.prisma.patient.create({
       data: {
         createdById: userId,
-        rut: createPatientDto.rutExempt ? null : formattedRut || createPatientDto.rut || null,
-        rutExempt: createPatientDto.rutExempt || false,
-        rutExemptReason: trimmedRutExemptReason || null,
+        rut: resolvedRut.rut,
+        rutExempt: resolvedRut.rutExempt,
+        rutExemptReason: resolvedRut.rutExemptReason,
         nombre: createPatientDto.nombre,
         fechaNacimiento: createPatientDto.fechaNacimiento ? new Date(createPatientDto.fechaNacimiento) : null,
         edad: resolvedAge.edad,
@@ -178,38 +219,26 @@ export class PatientsService {
   }
 
   async createQuick(createPatientDto: CreatePatientQuickDto, user: RequestUser) {
-    // Validate RUT if provided
-    let formattedRut: string | undefined = undefined;
-    const trimmedRutExemptReason = createPatientDto.rutExemptReason?.trim();
-
-    if (createPatientDto.rut && !createPatientDto.rutExempt) {
-      const rutValidation = validateRut(createPatientDto.rut);
-      if (!rutValidation.valid) {
-        throw new BadRequestException('El RUT ingresado no es valido');
-      }
-
-      const validatedRut = rutValidation.formatted as string;
-
-      const existingPatient = await this.findDuplicateRut({
-        rut: validatedRut,
-      });
-      if (existingPatient) {
-        throw new ConflictException('Ya existe un paciente con este RUT');
-      }
-
-      formattedRut = validatedRut;
-    }
-
-    if (createPatientDto.rutExempt && !trimmedRutExemptReason) {
-      throw new BadRequestException('Debe indicar el motivo de exencion de RUT');
-    }
+    const { formattedRut, trimmedRutExemptReason } = await this.resolveCreateRutInput({
+      rut: createPatientDto.rut,
+      rutExempt: createPatientDto.rutExempt,
+      rutExemptReason: createPatientDto.rutExemptReason,
+      invalidRutMessage: 'El RUT ingresado no es valido',
+      missingExemptReasonMessage: 'Debe indicar el motivo de exencion de RUT',
+    });
+    const resolvedRut = this.resolveRutState({
+      rut: createPatientDto.rut,
+      rutExempt: createPatientDto.rutExempt,
+      formattedRut,
+      trimmedRutExemptReason,
+    });
 
     const patient = await this.prisma.patient.create({
       data: {
         createdById: user.id,
-        rut: createPatientDto.rutExempt ? null : formattedRut || createPatientDto.rut || null,
-        rutExempt: createPatientDto.rutExempt || false,
-        rutExemptReason: trimmedRutExemptReason || null,
+        rut: resolvedRut.rut,
+        rutExempt: resolvedRut.rutExempt,
+        rutExemptReason: resolvedRut.rutExemptReason,
         nombre: createPatientDto.nombre,
         edad: null,
         sexo: null,
@@ -222,9 +251,9 @@ export class PatientsService {
           actorRole: user.role,
           mode: 'CREATE_QUICK',
           nextPatient: {
-            rut: createPatientDto.rutExempt ? null : formattedRut || createPatientDto.rut || null,
-            rutExempt: createPatientDto.rutExempt || false,
-            rutExemptReason: trimmedRutExemptReason || null,
+            rut: resolvedRut.rut,
+            rutExempt: resolvedRut.rutExempt,
+            rutExemptReason: resolvedRut.rutExemptReason,
           },
         }),
         history: {

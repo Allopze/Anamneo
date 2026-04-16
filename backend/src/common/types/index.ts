@@ -80,6 +80,7 @@ export type AuditReason =
   | 'USER_PROFILE_UPDATED'
   | 'USER_PASSWORD_CHANGED'
   | 'USER_PASSWORD_RESET'
+  | 'CONDITION_CSV_IMPORTED'
   | 'SETTINGS_UPDATED'
   | 'AUDIT_UNSPECIFIED';
 export type PatientProblemStatus = 'ACTIVO' | 'CRONICO' | 'EN_ESTUDIO' | 'RESUELTO';

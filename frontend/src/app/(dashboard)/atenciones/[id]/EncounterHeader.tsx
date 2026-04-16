@@ -15,6 +15,7 @@ import {
 } from 'react-icons/fi';
 import { REVIEW_STATUS_LABELS } from '@/types';
 import type { EncounterWizardHook } from './useEncounterWizard';
+import { setEncounterDrawerOpen } from './encounter-drawer-state';
 import {
   TOOLBAR_BUTTON_CLASS,
   TOOLBAR_PRIMARY_BUTTON_CLASS,
@@ -251,7 +252,7 @@ export default function EncounterHeader({
               onClick={() =>
                 setIsDrawerOpen((prev: boolean) => {
                   const next = !prev;
-                  localStorage.setItem('anamneo:encounter-drawer-open', next ? '1' : '0');
+                  setEncounterDrawerOpen(next);
                   return next;
                 })
               }

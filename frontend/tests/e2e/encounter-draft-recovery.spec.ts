@@ -89,7 +89,7 @@ test('recovers the local draft after 401, login and return to the encounter', as
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true }),
+      body: JSON.stringify({ ok: true, user: medicoUser }),
     });
   });
 
@@ -226,7 +226,7 @@ test('recovers the local draft after 401, login and return to the encounter', as
   const draftNote = 'Paciente relata cefalea pulsátil con fotofobia desde hace 3 días.';
 
   await page.goto('/atenciones/enc-1');
-  await expect(page.getByText('Paciente Demo')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Identificación' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Siguiente' }).click();
   await expect(page.getByRole('heading', { name: 'Motivo de Consulta' })).toBeVisible();
@@ -241,7 +241,7 @@ test('recovers the local draft after 401, login and return to the encounter', as
   await page.getByLabel('Contraseña').fill('Admin123');
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
 
-  await page.waitForURL('**/atenciones/enc-1');
+  await page.waitForURL('**/atenciones/enc-1', { waitUntil: 'commit' });
   await expect(page.getByRole('heading', { name: 'Motivo de Consulta' })).toBeVisible();
   await expect(motivoTextarea).toHaveValue(draftNote);
 });

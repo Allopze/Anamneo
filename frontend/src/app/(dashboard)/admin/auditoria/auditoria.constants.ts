@@ -86,6 +86,7 @@ export const REASON_LABELS: Record<string, string> = {
   USER_PROFILE_UPDATED: 'Actualización de perfil',
   USER_PASSWORD_CHANGED: 'Cambio de contraseña',
   USER_PASSWORD_RESET: 'Reset de contraseña',
+  CONDITION_CSV_IMPORTED: 'Importación CSV de catálogo global',
   SETTINGS_UPDATED: 'Actualización de ajustes',
   AUDIT_UNSPECIFIED: 'Sin clasificar',
 };

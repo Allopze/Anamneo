@@ -7,6 +7,15 @@ const prisma = new PrismaClient({
     : {}),
 });
 
+function normalizeConditionName(name: string) {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 // 30+ medical conditions in Spanish with synonyms
 const conditions = [
   { name: 'Dolor de cabeza', synonyms: ['cefalea', 'jaqueca', 'dolor cabeza', 'migraña'], tags: ['neurológico', 'dolor'] },
@@ -56,8 +65,9 @@ async function main() {
   // Create conditions catalog only (no demo users)
   console.log('Creating condition catalog...');
   for (const condition of conditions) {
+    const normalizedName = normalizeConditionName(condition.name);
     const existing = await prisma.conditionCatalog.findFirst({
-      where: { name: condition.name },
+      where: { normalizedName },
       select: { id: true },
     });
 
@@ -65,6 +75,8 @@ async function main() {
       await prisma.conditionCatalog.update({
         where: { id: existing.id },
         data: {
+          name: condition.name,
+          normalizedName,
           synonyms: JSON.stringify(condition.synonyms),
           tags: JSON.stringify(condition.tags),
           active: true,
@@ -76,6 +88,7 @@ async function main() {
     await prisma.conditionCatalog.create({
       data: {
         name: condition.name,
+        normalizedName,
         synonyms: JSON.stringify(condition.synonyms),
         tags: JSON.stringify(condition.tags),
       },
