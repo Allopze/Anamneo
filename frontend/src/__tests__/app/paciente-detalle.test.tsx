@@ -14,19 +14,21 @@ import {
 } from './paciente-detalle.fixtures';
 
 const pushMock = jest.fn();
+const replaceMock = jest.fn();
 const apiGetMock = jest.fn();
 const apiPostMock = jest.fn();
 let currentUser = PERMISSION_CONTRACT_SCENARIOS[0].user as any;
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({ id: 'patient-1' }),
-  useRouter: () => ({ push: pushMock }),
+  useRouter: () => ({ push: pushMock, replace: replaceMock }),
 }));
 
 jest.mock('@/stores/auth-store', () => ({
   useAuthStore: () => {
     const permissions = jest.requireActual('@/lib/permissions');
     return {
+      user: currentUser,
       isMedico: () => permissions.isMedicoUser(currentUser),
       canEditAntecedentes: () => permissions.canEditAntecedentes(currentUser),
       canEditPatientAdmin: () => permissions.canEditPatientAdmin(currentUser),
@@ -90,6 +92,21 @@ beforeEach(() => {
 });
 
 describe('PatientDetailPage', () => {
+  it('shows a redirect state instead of a blank screen for admin users', async () => {
+    currentUser = PERMISSION_CONTRACT_SCENARIOS.find((scenario) => scenario.id === 'admin')?.user as any;
+
+    render(<PatientDetailPage />, { wrapper: createWrapper() });
+
+    expect(screen.getByText('Redirigiendo…')).toBeInTheDocument();
+    expect(screen.getByText(/Esta vista clínica no está disponible para tu perfil/i)).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith('/pacientes');
+    });
+
+    expect(apiGetMock).not.toHaveBeenCalled();
+  });
+
   it('paginates the encounter timeline through the paginated read model', async () => {
     render(<PatientDetailPage />, { wrapper: createWrapper() });
 
@@ -108,13 +125,13 @@ describe('PatientDetailPage', () => {
     expect(await screen.findByText('Página 2 de 2')).toBeInTheDocument();
   });
 
-  it('duplicates a previous encounter as a reusable draft', async () => {
+  it('starts a clean follow-up from a previous encounter', async () => {
     apiPostMock.mockResolvedValue({ data: { id: 'enc-duplicated' } });
 
     render(<PatientDetailPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByText('Página 1 de 2')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Duplicar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Nuevo seguimiento' }));
 
     await waitFor(() => {
       expect(apiPostMock).toHaveBeenCalledWith('/encounters/patient/patient-1', {
@@ -165,7 +182,7 @@ describe('PatientDetailPage', () => {
     expect(screen.getByText('Ver resumen')).toBeInTheDocument();
   });
 
-  it.each(PERMISSION_CONTRACT_SCENARIOS)(
+  it.each(PERMISSION_CONTRACT_SCENARIOS.filter((scenario) => !scenario.user.isAdmin))(
     'shows antecedentes edit action according to permission contract for $id',
     async ({ user, expectations }) => {
       currentUser = user as any;

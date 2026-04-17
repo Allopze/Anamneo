@@ -2,6 +2,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
+import {
+  canUseEncounterAsDuplicateSource,
+  DUPLICATE_ENCOUNTER_CREATED_MESSAGE,
+} from '@/lib/encounter-duplicate';
 import { invalidateDashboardOverviewQueries } from '@/lib/query-invalidation';
 import { useAuthStore } from '@/stores/auth-store';
 import type { Encounter } from '@/types';
@@ -12,13 +16,13 @@ export function useDuplicateEncounterAction(encounter: Pick<Encounter, 'id' | 'p
   const { canCreateEncounter } = useAuthStore();
   const patientId = encounter?.patientId;
   const canDuplicateEncounter = Boolean(
-    encounter?.id && patientId && encounter.status !== 'EN_PROGRESO' && canCreateEncounter(),
+    encounter?.id && patientId && canUseEncounterAsDuplicateSource(encounter.status) && canCreateEncounter(),
   );
 
   const duplicateEncounterMutation = useMutation({
     mutationFn: async () => {
       if (!encounter?.id) {
-        throw new Error('Atención no disponible para duplicar');
+        throw new Error('Atención no disponible para iniciar un seguimiento');
       }
 
       const response = await api.post(`/encounters/${encounter.id}/duplicate`);
@@ -31,7 +35,7 @@ export function useDuplicateEncounterAction(encounter: Pick<Encounter, 'id' | 'p
         patientId ? queryClient.invalidateQueries({ queryKey: ['patient-clinical-summary', patientId] }) : Promise.resolve(),
       ]);
 
-      toast.success(response.reused ? 'Ya había una atención en curso. Abriendo…' : 'Borrador duplicado');
+      toast.success(response.reused ? 'Ya había una atención en curso. Abriendo…' : DUPLICATE_ENCOUNTER_CREATED_MESSAGE);
       router.push(`/atenciones/${response.id}`);
     },
     onError: (error) => {

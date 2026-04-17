@@ -33,7 +33,21 @@ import PatientLongitudinalSummaryCard from './PatientLongitudinalSummaryCard';
 export default function PatientDetailPage() {
   const pd = usePatientDetail();
 
-  if (pd.isAdmin) return null;
+  if (pd.isRedirectingAdmin) {
+    return (
+      <div className="animate-fade-in py-10">
+        <div className="card max-w-xl">
+          <h1 className="text-lg font-semibold text-ink">Redirigiendo…</h1>
+          <p className="mt-2 text-sm text-ink-secondary">
+            Esta vista clínica no está disponible para tu perfil. Te llevamos a la lista de pacientes.
+          </p>
+          <Link href={pd.adminRedirectPath} className="btn btn-secondary mt-4 inline-flex items-center gap-2">
+            Ir a pacientes
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (pd.isLoading) {
     return (

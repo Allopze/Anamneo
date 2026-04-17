@@ -6,6 +6,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
+import { SectionKey } from '../common/types';
 import { isPatientOwnedByMedico } from '../common/utils/patient-access';
 import {
   ENCOUNTER_SECTION_ORDER as SECTION_ORDER,
@@ -28,6 +29,46 @@ interface CreateEncounterMutationParams {
 }
 
 type FormattedEncounter = ReturnType<typeof formatEncounterResponse>;
+
+const DUPLICATE_SOURCE_ALLOWED_STATUSES = new Set(['COMPLETADO', 'FIRMADO']);
+
+function buildInitialEncounterSectionData(
+  key: SectionKey,
+  patient: {
+    nombre: string;
+    edad: number | null;
+    edadMeses: number | null;
+    sexo: string | null;
+    trabajo: string | null;
+    prevision: string | null;
+    domicilio: string | null;
+    rut: string | null;
+    rutExempt: boolean;
+    rutExemptReason: string | null;
+    history?: Record<string, unknown> | null;
+  },
+) {
+  if (key === 'IDENTIFICACION') {
+    return {
+      nombre: patient.nombre,
+      edad: patient.edad,
+      edadMeses: patient.edadMeses ?? undefined,
+      sexo: patient.sexo,
+      trabajo: patient.trabajo || '',
+      prevision: patient.prevision,
+      domicilio: patient.domicilio || '',
+      rut: patient.rut || '',
+      rutExempt: patient.rutExempt,
+      rutExemptReason: patient.rutExemptReason || '',
+    };
+  }
+
+  if (key === 'ANAMNESIS_REMOTA' && patient.history) {
+    return buildAnamnesisRemotaSnapshotFromHistory(patient.history);
+  }
+
+  return {};
+}
 
 export async function createEncounterMutation(params: CreateEncounterMutationParams) {
   const {
@@ -123,8 +164,9 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
                   patientId,
                   medicoId: effectiveMedicoId,
                 },
-                include: {
-                  sections: true,
+                select: {
+                  id: true,
+                  status: true,
                 },
               })
             : null;
@@ -133,11 +175,9 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
             throw new NotFoundException('La atención base para duplicar no existe o no corresponde al paciente');
           }
 
-          if (duplicateSource?.status === 'EN_PROGRESO') {
-            throw new BadRequestException('Solo se pueden duplicar atenciones cerradas o canceladas');
+          if (duplicateSource && !DUPLICATE_SOURCE_ALLOWED_STATUSES.has(duplicateSource.status)) {
+            throw new BadRequestException('Solo se pueden usar como base atenciones completadas o firmadas');
           }
-
-          const sourceSectionByKey = new Map((duplicateSource?.sections || []).map((section) => [section.sectionKey, section]));
 
           const encounter = await tx.encounter.create({
             data: {
@@ -147,33 +187,15 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               status: 'EN_PROGRESO',
               sections: {
                 create: SECTION_ORDER.map((key) => {
-                  const sectionData =
-                    key === 'IDENTIFICACION'
-                      ? {
-                          nombre: patient.nombre,
-                          edad: patient.edad,
-                          edadMeses: patient.edadMeses ?? undefined,
-                          sexo: patient.sexo,
-                          trabajo: patient.trabajo || '',
-                          prevision: patient.prevision,
-                          domicilio: patient.domicilio || '',
-                          rut: patient.rut || '',
-                          rutExempt: patient.rutExempt,
-                          rutExemptReason: patient.rutExemptReason || '',
-                        }
-                      : key === 'ANAMNESIS_REMOTA' && patient.history
-                        ? buildAnamnesisRemotaSnapshotFromHistory(patient.history)
-                        : sourceSectionByKey.get(key)?.data ?? {};
-
-                  const sourceSection = sourceSectionByKey.get(key);
+                  const sectionData = buildInitialEncounterSectionData(key, patient);
 
                   return {
                     sectionKey: key,
                     data: typeof sectionData === 'string' ? sectionData : serializeSectionData(sectionData),
                     schemaVersion: getEncounterSectionSchemaVersion(key),
-                    completed: sourceSection?.completed ?? key === 'IDENTIFICACION',
-                    notApplicable: sourceSection?.notApplicable ?? false,
-                    notApplicableReason: sourceSection?.notApplicableReason ?? null,
+                    completed: key === 'IDENTIFICACION',
+                    notApplicable: false,
+                    notApplicableReason: null,
                   };
                 }),
               },
@@ -186,6 +208,21 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               },
             },
           });
+
+          await auditService.log(
+            {
+              entityType: 'Encounter',
+              entityId: encounter.id,
+              userId: user.id,
+              action: 'CREATE',
+              diff: {
+                patientId,
+                status: 'EN_PROGRESO',
+                duplicatedFromEncounterId: duplicateFromEncounterId ?? null,
+              },
+            },
+            tx,
+          );
 
           return {
             ...formatEncounterResponse(encounter, { viewerRole: user.role }),
@@ -212,20 +249,6 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
 
   if (!result) {
     throw new ConflictException('No se pudo crear la atención. Intente nuevamente.');
-  }
-
-  if (!result.reused) {
-    await auditService.log({
-      entityType: 'Encounter',
-      entityId: result.id,
-      userId: user.id,
-      action: 'CREATE',
-      diff: {
-        patientId,
-        status: 'EN_PROGRESO',
-        duplicatedFromEncounterId: duplicateFromEncounterId ?? null,
-      },
-    });
   }
 
   return result;

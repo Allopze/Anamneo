@@ -3,7 +3,7 @@
 import { FiAlertTriangle } from 'react-icons/fi';
 import clsx from 'clsx';
 import { ExamenFisicoData, Patient } from '@/types';
-import { SectionBlock } from '@/components/sections/SectionPrimitives';
+import { SectionBlock, SectionCallout } from '@/components/sections/SectionPrimitives';
 import { getBmiInterpretation } from '@/lib/bmi';
 import {
   BODY_PARTS,
@@ -68,7 +68,9 @@ export default function ExamenFisicoSection({
     sex: patientSexo,
   });
   const vitalAlerts = getVitalAlerts(signosVitales as Record<string, string | undefined>);
-  const hasAnyAlert = Object.keys(vitalAlerts).length > 0;
+  const allVitalAlerts = Object.values(vitalAlerts);
+  const clinicalAlertCandidates = allVitalAlerts.filter((alert) => alert.createsClinicalAlert);
+  const localWarnings = allVitalAlerts.filter((alert) => !alert.createsClinicalAlert);
 
   return (
     <div className="space-y-5">
@@ -102,15 +104,28 @@ export default function ExamenFisicoSection({
       </SectionBlock>
 
       <SectionBlock title="Signos vitales">
-        {hasAnyAlert && (
+        {clinicalAlertCandidates.length > 0 && (
           <div className="mb-4 flex items-start gap-2 rounded-card border border-status-red/30 bg-status-red/8 px-4 py-3">
             <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-red-text" />
             <div className="text-sm text-status-red-text">
-              <p className="font-medium">Signos vitales fuera de rango</p>
+              <p className="font-medium">Valores críticos con posible alerta clínica automática</p>
               <p className="mt-1 text-xs">
-                {Object.values(vitalAlerts).map((a) => a.message).join(' · ')}
+                Si guardas esta sección, Anamneo intentará crear una alerta clínica automática para estos valores.
+              </p>
+              <p className="mt-1 text-xs">
+                {clinicalAlertCandidates.flatMap((alert) => alert.detailMessages).join(' · ')}
               </p>
             </div>
+          </div>
+        )}
+        {localWarnings.length > 0 && (
+          <div className="mb-4">
+            <SectionCallout tone="warning" title="Advertencias locales">
+              Estos valores quedan visibles como contexto clínico en la sección, pero no generan una alerta clínica automática por sí solos.
+              <span className="mt-1 block text-xs">
+                {localWarnings.flatMap((alert) => alert.detailMessages).join(' · ')}
+              </span>
+            </SectionCallout>
           </div>
         )}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

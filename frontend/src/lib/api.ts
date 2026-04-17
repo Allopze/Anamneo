@@ -6,16 +6,18 @@ import { clearAuthSessionPrefill } from './auth-session';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 const REFRESH_ENDPOINT = '/auth/refresh';
 const LOGOUT_ENDPOINT = '/auth/logout';
+const TOTP_VERIFY_ENDPOINT = '/auth/2fa/verify';
 
 let refreshPromise: Promise<void> | null = null;
 let loginRedirectInProgress = false;
 
-function shouldSkipRefresh(url?: string): boolean {
+export function shouldSkipRefresh(url?: string): boolean {
   if (!url) return false;
 
   return (
     url.includes('/auth/login')
     || url.includes('/auth/register')
+    || url.includes(TOTP_VERIFY_ENDPOINT)
     || url.includes(REFRESH_ENDPOINT)
     || url.includes(LOGOUT_ENDPOINT)
   );

@@ -69,6 +69,29 @@ const encounterPayload = {
   tasks: [],
 };
 
+const savedIdentificationPayload = {
+  id: 'sec-identificacion',
+  encounterId: 'enc-1',
+  sectionKey: 'IDENTIFICACION',
+  schemaVersion: 1,
+  completed: true,
+  notApplicable: false,
+  notApplicableReason: null,
+  updatedAt: '2026-04-04T12:05:00.000Z',
+  data: {
+    nombre: 'Paciente Demo',
+    rut: '11.111.111-1',
+    rutExempt: false,
+    rutExemptReason: '',
+    edad: 44,
+    edadMeses: null,
+    sexo: 'FEMENINO',
+    prevision: 'FONASA',
+    trabajo: '',
+    domicilio: '',
+  },
+};
+
 test('recovers the local draft after 401, login and return to the encounter', async ({ context, page }) => {
   let shouldExpireOnSuggest = true;
 
@@ -86,6 +109,10 @@ test('recovers the local draft after 401, login and return to the encounter', as
   });
 
   await page.route('**/api/auth/login', async (route) => {
+    await context.addCookies([
+      { name: 'access_token', value: 'relogin-access', url: baseURL },
+      { name: 'refresh_token', value: 'relogin-refresh', url: baseURL },
+    ]);
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -102,6 +129,7 @@ test('recovers the local draft after 401, login and return to the encounter', as
   });
 
   await page.route('**/api/auth/logout', async (route) => {
+    await context.clearCookies();
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -124,6 +152,22 @@ test('recovers the local draft after 401, login and return to the encounter', as
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify([]),
+    });
+  });
+
+  await page.route('**/api/encounters/enc-1/sections/IDENTIFICACION', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(savedIdentificationPayload),
+    });
+  });
+
+  await page.route('**/api/conditions/encounters/enc-1/suggestion', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true }),
     });
   });
 

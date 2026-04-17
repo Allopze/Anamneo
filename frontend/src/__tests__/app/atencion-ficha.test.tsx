@@ -268,7 +268,7 @@ describe('FichaClinicaPage clinical-output block', () => {
     expect(screen.getByRole('button', { name: 'Reabrir' })).toBeInTheDocument();
   });
 
-  it('duplicates the current encounter from the ficha toolbar', async () => {
+  it('starts a follow-up from the ficha toolbar', async () => {
     const user = userEvent.setup();
 
     apiPostMock.mockResolvedValue({ data: { id: 'enc-duplicated', reused: false } });
@@ -294,7 +294,7 @@ describe('FichaClinicaPage clinical-output block', () => {
     render(<FichaClinicaPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Duplicar' }));
+    await user.click(screen.getByRole('button', { name: 'Nuevo seguimiento' }));
 
     await waitFor(() => {
       expect(apiPostMock).toHaveBeenCalledWith('/encounters/enc-1/duplicate');

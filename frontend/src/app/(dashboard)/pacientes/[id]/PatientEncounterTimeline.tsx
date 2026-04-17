@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Encounter } from '@/types';
 import type { PaginatedResponse } from '@/lib/api';
+import { canUseEncounterAsDuplicateSource, getDuplicateEncounterActionLabel } from '@/lib/encounter-duplicate';
 import { REVIEW_STATUS_LABELS, STATUS_LABELS } from '@/types';
 import { buildEncounterSummary } from '@/lib/clinical';
 import type { PatientDetailHook } from './usePatientDetail';
@@ -57,7 +58,7 @@ export default function PatientEncounterTimeline({
               {timelineEncounters.map((encounter: Encounter) => {
                 const isCompleted = encounter.status === 'COMPLETADO';
                 const isInProgress = encounter.status === 'EN_PROGRESO';
-                const canDuplicate = !isInProgress;
+                const canDuplicate = canUseEncounterAsDuplicateSource(encounter.status);
                 const actionLabel = isInProgress ? 'Continuar' : 'Ver atención';
 
                 return (
@@ -130,7 +131,7 @@ export default function PatientEncounterTimeline({
                               onClick={() => createEncounterMutation.mutate({ duplicateFromEncounterId: encounter.id })}
                               disabled={createEncounterMutation.isPending}
                             >
-                              Duplicar
+                              {getDuplicateEncounterActionLabel(createEncounterMutation.isPending)}
                             </button>
                           ) : null}
                           <Link href={`/atenciones/${encounter.id}`} className="btn btn-secondary">

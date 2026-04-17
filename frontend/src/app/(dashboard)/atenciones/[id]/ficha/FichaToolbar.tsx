@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { FiArrowLeft, FiCopy, FiDownload, FiEdit3, FiPrinter, FiShield } from 'react-icons/fi';
 import clsx from 'clsx';
 import type { Encounter } from '@/types';
+import { DUPLICATE_ENCOUNTER_ACTION_TITLE, getDuplicateEncounterActionLabel } from '@/lib/encounter-duplicate';
 import { useHeaderBarSlot } from '@/components/layout/HeaderBarSlotContext';
 
 interface FichaToolbarProps {
@@ -67,10 +68,10 @@ export function FichaToolbar({
               onClick={onDuplicate}
               disabled={duplicateIsPending}
               className="btn btn-secondary flex shrink-0 items-center gap-2"
-              title="Crear un nuevo borrador a partir de esta atención"
+              title={DUPLICATE_ENCOUNTER_ACTION_TITLE}
             >
               <FiCopy className="h-4 w-4" />
-              {duplicateIsPending ? 'Duplicando…' : 'Duplicar'}
+              {getDuplicateEncounterActionLabel(duplicateIsPending)}
             </button>
           ) : null}
           <button

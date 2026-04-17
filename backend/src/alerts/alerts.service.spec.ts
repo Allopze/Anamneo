@@ -161,4 +161,94 @@ describe('AlertsService', () => {
       }),
     );
   });
+
+  it('does not create clinical alerts for local warning thresholds alone', async () => {
+    const prisma = {
+      patient: { findUnique: jest.fn().mockResolvedValue({ id: 'pat-1', createdById: 'med-1', archivedAt: null, createdBy: null }) },
+      clinicalAlert: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+      },
+      encounter: { findUnique: jest.fn() },
+      user: { findMany: jest.fn() },
+    };
+    const audit = { log: jest.fn().mockResolvedValue(undefined) };
+    const service = new AlertsService(prisma as never, audit as never);
+
+    const created = await service.checkVitalSigns(
+      'pat-1',
+      'enc-1',
+      {
+        presionArterial: '150/95',
+        frecuenciaCardiaca: '110',
+        temperatura: '38.4',
+        saturacionOxigeno: '91',
+      },
+      'med-1',
+    );
+
+    expect(created).toBe(0);
+    expect(prisma.clinicalAlert.findFirst).not.toHaveBeenCalled();
+    expect(prisma.clinicalAlert.create).not.toHaveBeenCalled();
+    expect(audit.log).not.toHaveBeenCalled();
+  });
+
+  it('creates alerts only for critical thresholds when warnings and critical values coexist', async () => {
+    const prisma = {
+      patient: { findUnique: jest.fn().mockResolvedValue({ id: 'pat-1', createdById: 'med-1', archivedAt: null, createdBy: null }) },
+      clinicalAlert: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockImplementation(async ({ data }) => ({
+          id: `alert-${data.message}`,
+          ...data,
+        })),
+      },
+      encounter: { findUnique: jest.fn() },
+      user: { findMany: jest.fn() },
+    };
+    const audit = { log: jest.fn().mockResolvedValue(undefined) };
+    const service = new AlertsService(prisma as never, audit as never);
+
+    const created = await service.checkVitalSigns(
+      'pat-1',
+      'enc-1',
+      {
+        presionArterial: '182/122',
+        frecuenciaCardiaca: '110',
+        saturacionOxigeno: '91',
+        temperatura: '39.6',
+      },
+      'med-1',
+    );
+
+    expect(created).toBe(3);
+    expect(prisma.clinicalAlert.create).toHaveBeenCalledTimes(3);
+    expect(prisma.clinicalAlert.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          message: 'Presión arterial sistólica crítica: 182/122',
+          severity: 'CRITICA',
+        }),
+      }),
+    );
+    expect(prisma.clinicalAlert.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          message: 'Presión arterial diastólica crítica: 182/122',
+          severity: 'CRITICA',
+        }),
+      }),
+    );
+    expect(prisma.clinicalAlert.create).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          message: 'Temperatura crítica: 39.6°C',
+          severity: 'CRITICA',
+        }),
+      }),
+    );
+  });
 });

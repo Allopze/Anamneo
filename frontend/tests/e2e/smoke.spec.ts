@@ -1,15 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { ADMIN_EMAIL, ADMIN_NOMBRE, ADMIN_PASSWORD, BOOTSTRAP_TOKEN } from './e2e-identities';
 
 /**
  * Smoke E2E tests that exercise the full stack: Playwright → Next.js → NestJS → SQLite.
  *
  * The backend is started via Playwright webServer config with a dedicated test DB.
  */
-
-const ADMIN_EMAIL = 'admin@e2e-test.local';
-const ADMIN_PASSWORD = 'TestPass123!';
-const ADMIN_NOMBRE = 'Admin E2E';
-const BOOTSTRAP_TOKEN = 'e2e-bootstrap-token';
 
 test('full smoke: register, verify dashboard', async ({ page }) => {
   test.setTimeout(60_000);

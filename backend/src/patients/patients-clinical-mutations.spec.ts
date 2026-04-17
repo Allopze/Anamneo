@@ -361,6 +361,105 @@ describe('patients-clinical-mutations', () => {
     );
   });
 
+  it('uses the last available day of the next month for monthly recurring tasks anchored on the 31st', async () => {
+    const existingTask = {
+      ...buildTaskInScope('med-1'),
+      dueDate: new Date('2026-01-31T12:00:00.000Z'),
+      recurrenceRule: 'MONTHLY',
+    };
+    const updatedTask = {
+      ...existingTask,
+      status: 'COMPLETADA',
+      completedAt: new Date('2026-01-31T15:00:00.000Z'),
+      updatedAt: new Date('2026-01-31T15:00:00.000Z'),
+      createdBy: { id: 'med-1', nombre: 'Dra. Demo' },
+    };
+
+    const tx = {
+      encounterTask: {
+        update: jest.fn().mockResolvedValue(updatedTask),
+        create: jest.fn().mockResolvedValue({ id: 'task-2' }),
+      },
+    };
+
+    const prisma = {
+      encounterTask: {
+        findUnique: jest.fn().mockResolvedValue(existingTask),
+      },
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const auditService = { log: jest.fn().mockResolvedValue(undefined) };
+    const assertPatientAccess = jest.fn().mockResolvedValue({ id: 'patient-1' });
+
+    await updatePatientTaskMutation({
+      prisma: prisma as never,
+      auditService: auditService as never,
+      user: medicoUser,
+      taskId: 'task-1',
+      dto: { status: 'COMPLETADA' },
+      effectiveMedicoId: 'med-1',
+      assertPatientAccess,
+    });
+
+    const createdPayload = tx.encounterTask.create.mock.calls[0][0].data;
+    expect(createdPayload.recurrenceRule).toBe('MONTHLY');
+    expect(createdPayload.recurrenceSourceTaskId).toBe('task-1');
+    expect(createdPayload.dueDate.toISOString().slice(0, 10)).toBe('2026-02-28');
+  });
+
+  it('preserves the original monthly anchor day after a short month', async () => {
+    const existingTask = {
+      ...buildTaskInScope('med-1'),
+      dueDate: new Date('2026-02-28T12:00:00.000Z'),
+      recurrenceRule: 'MONTHLY',
+      recurrenceSourceTaskId: 'task-root',
+    };
+    const updatedTask = {
+      ...existingTask,
+      status: 'COMPLETADA',
+      completedAt: new Date('2026-02-28T15:00:00.000Z'),
+      updatedAt: new Date('2026-02-28T15:00:00.000Z'),
+      createdBy: { id: 'med-1', nombre: 'Dra. Demo' },
+    };
+
+    const tx = {
+      encounterTask: {
+        findUnique: jest.fn().mockResolvedValue({ dueDate: new Date('2026-01-31T12:00:00.000Z') }),
+        update: jest.fn().mockResolvedValue(updatedTask),
+        create: jest.fn().mockResolvedValue({ id: 'task-3' }),
+      },
+    };
+
+    const prisma = {
+      encounterTask: {
+        findUnique: jest.fn().mockResolvedValue(existingTask),
+      },
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const auditService = { log: jest.fn().mockResolvedValue(undefined) };
+    const assertPatientAccess = jest.fn().mockResolvedValue({ id: 'patient-1' });
+
+    await updatePatientTaskMutation({
+      prisma: prisma as never,
+      auditService: auditService as never,
+      user: medicoUser,
+      taskId: 'task-1',
+      dto: { status: 'COMPLETADA' },
+      effectiveMedicoId: 'med-1',
+      assertPatientAccess,
+    });
+
+    expect(tx.encounterTask.findUnique).toHaveBeenCalledWith({
+      where: { id: 'task-root' },
+      select: { dueDate: true },
+    });
+
+    const createdPayload = tx.encounterTask.create.mock.calls[0][0].data;
+    expect(createdPayload.recurrenceRule).toBe('MONTHLY');
+    expect(createdPayload.recurrenceSourceTaskId).toBe('task-root');
+    expect(createdPayload.dueDate.toISOString().slice(0, 10)).toBe('2026-03-31');
+  });
+
   it('updates a problem and logs audit metadata within the same transaction', async () => {
     const existingProblem = {
       id: 'problem-1',

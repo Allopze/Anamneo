@@ -1,424 +1,207 @@
-# Auditoria Tecnica Integral - 2026-04-17
-
-## 1. Resumen ejecutivo
-
-- Estado tras la pasada de fixes de esta misma fecha:
-  - Corregido el control de concurrencia basico para updates de secciones mediante `baseUpdatedAt`.
-  - Corregida la deduplicacion de guardados offline por `userId + encounterId + sectionKey`.
-  - Corregida la navegacion del wizard para no avanzar cuando el guardado falla.
-  - Aclarada la semantica del bloque del workspace: ya no se presenta como alerta persistida, sino como contexto derivado.
-  - Corregido el webserver backend de Playwright para reconstruir la build actual y no correr contra `dist` stale.
-  - Corregido el bootstrap de sesion para preservar la sesion local ante fallos transitorios de red o backend 5xx.
-  - Consolidada la logica de alcance de pacientes en un helper comun reutilizable.
-  - Corregida la documentacion de proxy/auth para reflejar el chequeo optimista real y la validacion efectiva en dashboard.
-
-- La base tecnica general es mejor de lo que suele verse en una app interna pequena: arquitectura modular clara, permisos clinicos razonablemente modelados, bloqueo de output clinico por completitud del paciente, trazabilidad en auditoria y una bateria de tests que cubre bastantes flujos sensibles.
-- El estado actual no es caotico ni improvisado. Backend, frontend y E2E pasan validaciones relevantes, y la aislacion de datos entre medicos esta bien cubierta por pruebas.
-- El principal problema real no esta en auth ni en aislamiento de datos, sino en el flujo de trabajo clinico del encounter: hoy existen caminos para sobrescribir contenido de secciones con datos viejos o para avanzar de seccion sin que el guardado haya terminado realmente.
-- En una app medica, eso pesa mas que varios detalles de UX o deuda tecnica, porque puede dejar texto clinico inconsistente sin una senal suficientemente fuerte para quien atiende.
-- Tambien hay una inconsistencia semantica en la UI de alertas: en el workspace se muestra un bloque llamado “Alertas clinicas” que no consume las alertas persistidas del backend, sino heuristicas derivadas de historia y ultimo encounter.
-- La madurez general es media: el producto ya tiene forma operable para un equipo pequeno, pero todavia conserva un par de defectos de flujo que no deberian salir a produccion tal como estan.
-- Veredicto inicial: **no esta lista para produccion** en su estado actual, no por falta de features ni por deuda “enterprise”, sino por dos riesgos funcionales concretos en el core clinico.
-
-### Validaciones ejecutadas para esta auditoria
-
-- `npm --prefix backend run typecheck` -> OK
-- `npm --prefix frontend run typecheck` -> OK
-- Backend unitario focalizado en workflow/sections -> 16 tests OK
-- Frontend unitario focalizado en proxy/offline/permissions/workflow -> 18 tests OK
-- Backend E2E principal `app.e2e-spec.ts` -> 187 tests OK
-- Frontend smoke E2E -> 2 tests OK
-- Frontend unitario focalizado en bootstrap de sesion -> 4 tests OK
-- Backend unitario focalizado en acceso a pacientes -> 6 tests OK
-- Frontend smoke E2E post-fixes Medio/Bajo -> 2 tests OK
-
-## 2. Veredicto de preparacion para produccion
-
-### Conclusion
-
-**Lista para un despliegue controlado**, con los hallazgos Critico, Alto, Medio y Bajo de esta auditoria ya mitigados en codigo y con regresion focalizada verde.
-
-### Justificacion concreta
-
-Lo que originalmente bloqueaba salida no era la infraestructura ni la escalabilidad. Eran defectos del flujo principal de atencion:
-
-1. La cola offline puede reinyectar payloads viejos de una seccion sin control de version y el backend los acepta ciegamente.
-2. El wizard de atencion permite cambiar de seccion antes de confirmar si el guardado actual fue exitoso o no.
-
-Ambos problemas afectan la integridad de la informacion clinica, justo en la superficie mas sensible de la app.
-
-### Blockers de produccion
-
-Los blockers identificados en esta auditoria fueron corregidos en las pasadas de fixes del 2026-04-17.
-
-### Riesgos aceptables para este contexto
-
-- Uso con SQLite para hasta 5 personas, siempre que se mantenga la rutina operativa documentada de backups/monitor/restore drill.
-- Proxy de auth con chequeo optimista por cookies y validacion real posterior, porque el backend sigue siendo la capa de enforcement.
-- Dependencia en tests E2E secuenciales mientras el equipo siga tratandolos como suite completa y no como tests aislados filtrables.
-
-### Condiciones minimas para desplegar con confianza
-
-1. Mantener el pase corto de regresion manual del flujo: crear paciente rapido -> completar admin -> crear encounter -> editar secciones -> revision -> cierre -> firma -> ficha.
-2. Repetir el workflow clinico cuando se toquen auth, secciones o sync offline.
-3. Mantener la documentacion de proxy/session alineada con `src/proxy.ts` y `DashboardLayout`.
-
-## 3. Hallazgos
-
-### Hallazgo 1: La cola offline puede sobrescribir contenido clinico mas nuevo con un payload viejo
-
-- Prioridad: **Critico**
-- Estado actual: **Corregido en esta pasada**
-- Area afectada: **full stack / datos / encounter workflow**
-- Archivos o modulos:
-  - [frontend/src/app/(dashboard)/atenciones/[id]/useEncounterOfflineQueue.ts](frontend/src/app/(dashboard)/atenciones/%5Bid%5D/useEncounterOfflineQueue.ts)
-  - [frontend/src/lib/offline-queue.ts](frontend/src/lib/offline-queue.ts)
-  - [backend/src/encounters/encounters-section-mutations.ts](backend/src/encounters/encounters-section-mutations.ts)
-- Problema concreto:
-  - La cola offline almacena el payload completo de la seccion y luego lo reenvia tal cual cuando vuelve la conectividad.
-  - Ese replay no incluye version, `updatedAt`, hash ni ningun indicador de frescura.
-  - El backend actualiza la seccion con un `update` directo y no valida si el contenido en servidor ya cambio desde que se encolo el save.
-- Por que importa:
-  - Puede revertir motivo de consulta, examen, sospecha o tratamiento a una version vieja sin conflicto visible.
-  - En una app medica eso es riesgo directo de inconsistencia clinica y de trazabilidad enganosa.
-- Como reproducirlo o razonamiento:
-  - Edita una seccion sin red para que se encole.
-  - Antes de que esa cola sincronice, modifica la misma seccion desde otra pestana, otra sesion o mas tarde ya online.
-  - Al abrir cualquier workspace de encounter online, `syncQueue()` reenvia el save viejo y el backend lo acepta.
-  - Ademas, el sync invalida solo `['encounter', id]` del encounter actualmente abierto, aunque haya sincronizado saves de otros encounters del mismo usuario.
-- Propuesta de solucion proporcional:
-  - En frontend, deduplicar por `encounterId + sectionKey` y conservar solo el ultimo save pendiente por seccion.
-  - Guardar `sectionUpdatedAt` o un `sectionVersion` al encolar.
-  - En backend, rechazar updates si la version base no coincide, devolviendo un conflicto manejable.
-  - Si hay conflicto, mostrar banner simple de “esta seccion cambio en otra sesion, revisa antes de sobrescribir”.
-- Complejidad estimada: **media**
-
-### Hallazgo 2: El wizard avanza de seccion antes de saber si el guardado fue exitoso
-
-- Prioridad: **Alto**
-- Estado actual: **Corregido en esta pasada**
-- Area afectada: **frontend / formularios / UX critica**
-- Archivos o modulos:
-  - [frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizardNavigation.ts](frontend/src/app/(dashboard)/atenciones/%5Bid%5D/useEncounterWizardNavigation.ts)
-  - [frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts](frontend/src/app/(dashboard)/atenciones/%5Bid%5D/useEncounterSectionSaveFlow.ts)
-- Problema concreto:
-  - `moveToSection()` llama `saveCurrentSection()` y cambia de seccion sin esperar resultado.
-  - `handleNavigate('next')` dispara `persistSection(...)` con `void` y avanza igual.
-  - Si el backend responde con error de validacion, el usuario ya abandono la seccion y el feedback llega tarde y descontextualizado.
-- Por que importa:
-  - Puede hacer creer que una seccion quedo guardada o completada cuando no fue asi.
-  - Ese patron es especialmente malo en fichas clinicas porque fomenta avanzar con falsa sensacion de cierre.
-- Como reproducirlo o razonamiento:
-  - Provoca un save rechazado por validacion en una seccion.
-  - Presiona siguiente o cambia de seccion.
-  - La navegacion ocurre antes de conocer el resultado del guardado.
-- Propuesta de solucion proporcional:
-  - Hacer `await` del save antes de cambiar de seccion.
-  - Si falla, no navegar y dejar la seccion activa con foco en el error.
-  - Mientras guarda, deshabilitar navegacion lateral y teclado de avance.
-- Complejidad estimada: **baja**
-
-### Hallazgo 3: El bloque “Alertas clinicas” del workspace no usa las alertas reales del backend
-
-- Prioridad: **Alto**
-- Estado actual: **Mitigado en esta pasada**
-- Area afectada: **frontend / UX / full stack semantico**
-- Archivos o modulos:
-  - [frontend/src/components/ClinicalAlerts.tsx](frontend/src/components/ClinicalAlerts.tsx)
-  - [frontend/src/components/PatientAlerts.tsx](frontend/src/components/PatientAlerts.tsx)
-  - [backend/src/alerts/alerts.service.ts](backend/src/alerts/alerts.service.ts)
-- Problema concreto:
-  - En el workspace de atencion, el componente llamado `ClinicalAlerts` no consulta `/alerts`.
-  - Construye un listado derivado desde historia del paciente, problemas, tareas y ultimo examen fisico.
-  - En otra parte del producto, `PatientAlerts` si muestra las alertas persistidas y reconocibles del backend.
-- Por que importa:
-  - Dos superficies distintas usan el mismo concepto visual de “alerta clinica” para fuentes distintas.
-  - Una alerta reconocida o resuelta puede seguir apareciendo en el workspace porque ahi no se refleja el estado real de acknowledgement.
-  - Esto puede inducir a interpretar heuristicas como alertas operativas reales.
-- Como reproducirlo o razonamiento:
-  - Compara el workspace de encounter con la vista de alertas del paciente.
-  - Veras que una usa datos derivados y la otra usa `ClinicalAlert` persistida.
-  - El nombre y el tratamiento visual no hacen esa diferencia suficientemente explicita.
-- Propuesta de solucion proporcional:
-  - O bien renombrar `ClinicalAlerts` a algo como “Contexto clinico relevante”.
-  - O bien alimentar el bloque desde alertas reales y dejar los derivados como “recordatorios de contexto”.
-  - No mezclar ambos conceptos bajo el mismo rotulo.
-- Complejidad estimada: **baja**
-
-### Hallazgo 4: Un fallo de red al bootstrap de sesion derriba la sesion local y redirige a login
-
-- Prioridad: **Medio**
-- Estado actual: **Corregido en esta pasada**
-- Area afectada: **frontend / auth / resiliencia UX**
-- Archivos o modulos:
-  - [frontend/src/components/layout/DashboardLayout.tsx](frontend/src/components/layout/DashboardLayout.tsx)
-  - [frontend/src/lib/api.ts](frontend/src/lib/api.ts)
-- Problema concreto:
-  - El bootstrap del dashboard intenta `GET /auth/me`.
-  - Si falla por red o backend temporalmente caido, el `catch` ejecuta `logout()`.
-  - El interceptor de axios solo intenta refresh cuando hay 401; un error de transporte cae directo al logout local.
-- Por que importa:
-  - Un reload durante una caida breve del backend saca al profesional del flujo aunque su sesion siga siendo valida.
-  - En una consulta en curso es una interrupcion evitable.
-- Como reproducirlo o razonamiento:
-  - Inicia sesion.
-  - Corta backend o desconecta red.
-  - Recarga una ruta privada.
-  - El bootstrap falla y termina en login por el camino de logout local.
-- Propuesta de solucion proporcional:
-  - Distinguir entre error de autenticacion y error de conectividad.
-  - Si es red, mantener estado local, mostrar banner offline y ofrecer reintento.
-  - Reservar `logout()` para 401/refresh fallido, no para cualquier excepcion.
-- Complejidad estimada: **baja**
-
-Implementacion aplicada:
-
-- `DashboardLayout` ahora preserva la sesion local ante errores de red o 5xx durante `GET /auth/me`.
-- Se mantiene `logout()` para 401 reales y errores no recuperables.
-- Se agrego un helper dedicado y testeado para clasificar el fallo de bootstrap.
-
-### Hallazgo 5: Hay duplicacion real en helpers de acceso a pacientes
-
-- Prioridad: **Bajo**
-- Estado actual: **Corregido en esta pasada**
-- Area afectada: **backend / permisos / mantenibilidad**
-- Archivos o modulos:
-  - [backend/src/patients/patients-access.ts](backend/src/patients/patients-access.ts)
-  - [backend/src/common/utils/patient-access.ts](backend/src/common/utils/patient-access.ts)
-- Problema concreto:
-  - Existen dos implementaciones muy parecidas de chequeo de alcance sobre pacientes.
-  - Ambas resuelven ownership + fallback por encounters del medico.
-- Por que importa:
-  - Hoy no parece romper comportamiento, pero aumenta el riesgo de drift silencioso al tocar permisos.
-  - En este repo ya hay suficiente sensibilidad de alcance clinico como para no tener dos fuentes semanticas casi iguales.
-- Como reproducirlo o razonamiento:
-  - Al leer ambos helpers se ve que resuelven la misma logica con diferencias menores de seleccion de campos.
-- Propuesta de solucion proporcional:
-  - Consolidar la politica de acceso en un helper unico y derivar wrappers finos si hace falta.
-- Complejidad estimada: **baja**
-
-Implementacion aplicada:
-
-- La validacion comun de alcance se centralizo en `assertLoadedPatientAccess(...)` dentro de `backend/src/common/utils/patient-access.ts`.
-- `backend/src/patients/patients-access.ts` quedo como wrapper fino que resuelve el `include` especifico y delega la politica comun.
-- Se agregaron tests unitarios tanto al helper comun como al wrapper de pacientes.
-
-### Hallazgo 6: La documentacion interna del proxy de auth no coincide con la implementacion real
-
-- Prioridad: **Bajo**
-- Estado actual: **Corregido en esta pasada**
-- Area afectada: **documentacion / auth**
-- Archivos o modulos:
-  - [docs/frontend-architecture.md](docs/frontend-architecture.md)
-  - [frontend/src/proxy.ts](frontend/src/proxy.ts)
-  - [frontend/src/lib/proxy-session.ts](frontend/src/lib/proxy-session.ts)
-- Problema concreto:
-  - La documentacion arquitectonica dice que el proxy valida sesion real consultando `/api/auth/me`.
-  - El codigo real hace chequeo optimista por cookies y refresh token, y deja la validacion real para el bootstrap del dashboard.
-- Por que importa:
-  - No rompe produccion hoy, pero induce a diagnosticos incorrectos y decisiones futuras equivocadas en auth.
-  - La documentacion de Next.js 16 recomienda precisamente usar proxy para chequeos optimistas basados en cookies y evitar checks pesados por request.
-- Como reproducirlo o razonamiento:
-  - Contraste directo entre documento y codigo.
-  - Verificado ademas contra la doc actual de Next.js 16.
-- Propuesta de solucion proporcional:
-  - Corregir el doc para reflejar que el proxy hace prefiltrado optimista y el dashboard hace validacion efectiva.
-- Complejidad estimada: **baja**
-
-Implementacion aplicada:
-
-- `docs/frontend-architecture.md` ya describe correctamente el reparto de responsabilidades entre `src/proxy.ts` y `DashboardLayout`.
-- Tambien se corrigio la nota sobre Playwright para dejar claro que en este repo levanta frontend y backend E2E.
-
-## 4. Inconsistencias frontend-backend
-
-### Contratos rotos o fragiles
-
-1. **Alertas del workspace vs alertas persistidas**
-   - Frontend workspace: [frontend/src/components/ClinicalAlerts.tsx](frontend/src/components/ClinicalAlerts.tsx)
-   - Frontend alertas reales: [frontend/src/components/PatientAlerts.tsx](frontend/src/components/PatientAlerts.tsx)
-   - Backend real: [backend/src/alerts/alerts.service.ts](backend/src/alerts/alerts.service.ts)
-   - El frontend usa dos conceptos distintos bajo una semantica casi identica.
-
-2. **Saves de seccion sin version de concurrencia**
-   - Frontend envia payload completo de seccion sin base version.
-   - Backend persiste sin comparar contra `updatedAt` o version conocida.
-   - El contrato de update es funcional, pero fragil para offline y multi-sesion.
-
-3. **Proxy documentado como validacion real, implementado como chequeo optimista**
-   - El comportamiento real esta bien para Next.js 16.
-   - Lo inconsistente es la documentacion interna, no el runtime.
-
-### Campos con nombres distintos
-
-- No encontre un drift fuerte de nombres en auth, encounters, consents o alerts durante esta revision.
-- El contrato general de review status, medico-only sections y completitud del paciente se ve alineado entre backend, shared contract y frontend.
-
-### Formatos incompatibles
-
-- No encontre un desalineamiento grave de fechas o formatos entre frontend y backend en los flujos probados.
-- Si hay una fragilidad de formato, esta mas en el terreno de replays ciegos de secciones completas que en un campo puntual mal nombrado.
-
-### Validaciones que no coinciden
-
-- La validacion de secciones obligatorias, review note y closure note se ve consistente entre frontend y backend.
-- El problema es que la UI no espera el resultado del guardado antes de permitir avanzar, no que valide menos de lo que valida el backend.
-
-### Respuestas HTTP mal manejadas
-
-- `GET /auth/me` en el bootstrap de dashboard trata tanto 401 como error de red por el mismo camino visible de “pierde sesion”, lo que mezcla auth y disponibilidad.
-
-### Supuestos del frontend que el backend no garantiza
-
-1. El frontend asume implicitamente que un save queued sigue siendo valido cuando vuelva la conectividad.
-2. El wizard asume que puede avanzar mientras el save aun esta en vuelo.
-3. El workspace asume que un resumen derivado puede presentarse como “alerta clinica” sin explicitar que no es una alerta persistida.
-
-## 5. Riesgos especificos por tratarse de una app medica
-
-1. **Sobrescritura silenciosa de una seccion clinica**
-   - Riesgo directo sobre motivo de consulta, examen, sospecha o plan terapeutico.
-   - Es el punto mas delicado de toda la auditoria.
-
-2. **Avance de seccion con falsa sensacion de guardado**
-   - Puede dejar secciones obligatorias incompletas o con contenido rechazado por backend mientras el profesional ya siguio el flujo.
-
-3. **Confusion entre alerta real y resumen contextual**
-   - Puede afectar la interpretacion de estados como “alerta activa”, “alerta reconocida” o “sin alertas”.
-
-4. **Logout por error de red durante una atencion**
-   - No corrompe datos por si solo, pero si interrumpe operacion en un momento sensible y puede generar desconfianza en el sistema.
-
-## 6. Mejoras recomendadas
-
-### Quick wins
-
-1. Esperar el resultado del save antes de cambiar de seccion.
-2. Renombrar el bloque `ClinicalAlerts` o separarlo visualmente de alertas persistidas.
-3. Corregir la documentacion de auth/proxy.
-4. Diferenciar en bootstrap entre 401 y error de conectividad.
-
-### Arreglos de mayor impacto
-
-1. Agregar control de concurrencia en updates de secciones.
-2. Deduplicar cola offline por seccion y reenviar solo la ultima version pendiente.
-3. Mostrar conflicto simple cuando una seccion fue modificada en otra sesion.
-
-### Limpieza tecnica util sin overkill
-
-1. Consolidar helpers duplicados de acceso a pacientes.
-2. Invalidad caches de encounters afectados realmente cuando se sincronizan saves offline de varios encounters.
-3. Agregar una prueba puntual para “no navegar si guardar falla”.
-
-## 7. Nuevas funcionalidades sugeridas
-
-### 1. Resolucion simple de conflictos de seccion
-
-- Problema que resuelve: sobrescritura entre offline, otra pestana o otra sesion.
-- Por que tiene sentido: ataca el mayor riesgo real detectado sin rehacer la app.
-- Impacto esperado: alto.
-- Dificultad estimada: media.
-- Prioridad: **ahora**.
-
-### 2. Banner de “ultima actualizacion por otro usuario/dispositivo”
-
-- Problema que resuelve: falta de contexto cuando cambian datos entre sesiones.
-- Por que tiene sentido: mejora la seguridad funcional sin complejidad enterprise.
-- Impacto esperado: medio-alto.
-- Dificultad estimada: baja-media.
-- Prioridad: **ahora**.
-
-### 3. Historial corto por seccion dentro del encounter
-
-- Problema que resuelve: dificultad para entender que cambio entre borrador, reapertura y firma.
-- Por que tiene sentido: ya existe auditoria; falta una lectura mas util para operacion diaria.
-- Impacto esperado: medio.
-- Dificultad estimada: media.
-- Prioridad: **despues**.
-
-### 4. Alertas persistidas visibles dentro del workspace de atencion
-
-- Problema que resuelve: hoy el workspace mezcla contexto derivado y alertas reales.
-- Por que tiene sentido: unifica criterio operativo en el lugar donde se atiende.
-- Impacto esperado: alto.
-- Dificultad estimada: baja-media.
-- Prioridad: **ahora**.
-
-### 5. Reglas de “pendientes al cierre” para tareas o examenes vinculados
-
-- Problema que resuelve: cerrar una atencion sin ver que quedan examenes/seguimientos pendientes.
-- Por que tiene sentido: encaja con el producto actual y con el modelo de tareas/adjuntos ya existente.
-- Impacto esperado: medio.
-- Dificultad estimada: media.
-- Prioridad: **despues**.
-
-### 6. Plantillas de cierre por motivo frecuente
-
-- Problema que resuelve: notas de cierre repetitivas o pobres.
-- Por que tiene sentido: ya existe infraestructura de templates.
-- Impacto esperado: medio.
-- Dificultad estimada: baja.
-- Prioridad: **despues**.
-
-### 7. Confirmacion guiada de resultados criticos en adjuntos
-
-- Problema que resuelve: subir examen/imagen sin dejar trazado de si fue revisado.
-- Por que tiene sentido: aprovecha adjuntos y alertas actuales sin meter workflow enorme.
-- Impacto esperado: medio-alto.
-- Dificultad estimada: media.
-- Prioridad: **despues**.
-
-### 8. Vista “pendientes del dia” por paciente
-
-- Problema que resuelve: seguimiento operativo disperso entre tasks, review y alertas.
-- Por que tiene sentido: app pequena, equipo pequeno, valor alto con muy poca complejidad extra.
-- Impacto esperado: medio.
-- Dificultad estimada: baja-media.
-- Prioridad: **despues**.
-
-## 8. Plan de accion priorizado
-
-### Que arreglar primero
-
-1. Blindar updates de secciones contra replays viejos y conflictos multi-sesion.
-2. Hacer que el wizard no avance hasta confirmar guardado exitoso.
-3. Alinear la semantica de alertas en el workspace.
-
-### Que dejar para despues
-
-1. Mejora de resiliencia del bootstrap de sesion frente a caidas temporales.
-2. Consolidacion de helpers duplicados de acceso.
-3. UX adicional de conflictos, cambios recientes y paneles de pendientes.
-
-### Que no tocaria todavia
-
-1. No migraria arquitectura ni base de datos solo por escala; para 5 usuarios SQLite sigue siendo razonable con la operacion documentada.
-2. No meteria observabilidad compleja, colas ni infraestructura adicional salvo que aparezca una necesidad operativa concreta.
-3. No reharia auth ni permisos: hoy son de las zonas mas fuertes del sistema.
-
-### Roadmap corto y pragmatico
-
-1. **Semana 1**
-   - Bloquear navegacion hasta save confirmado.
-   - Renombrar o separar visualmente alertas derivadas.
-   - Corregir doc de proxy/auth.
-2. **Semana 2**
-   - Deduplicacion de cola offline por seccion.
-   - Versionado simple de save de seccion con rechazo por conflicto.
-   - Test unitario y E2E focalizado del conflicto.
-3. **Semana 3**
-   - Mejorar bootstrap offline/no-red.
-   - Consolidar helpers de acceso.
-   - Pase final de regresion manual y smoke clinico.
-
-## Cierre
-
-Si se arreglan los dos blockers del workflow clinico y se aclara la semantica de alertas, la app queda cerca de “lista con reservas” para su contexto real de uso. Hoy no la frenan problemas de escala; la frenan un par de riesgos concretos de integridad y UX en el flujo principal de atencion.
-
-## Nota de seguimiento posterior a los fixes
-
-- Los hallazgos de prioridad **Critico** y **Alto** auditados originalmente quedaron corregidos o mitigados en esta pasada.
-- Durante la regresion E2E aparecio un punto adicional fuera de ese alcance original: en la vista de ficha pre-firma, el CTA final de firma no estaba quedando observable de forma confiable. Se reforzo esa superficie dejando un CTA explicito en ficha y semantica accesible real de dialogo en el modal de firma.
-- Validacion final posterior a los fixes:
-  - `npm --prefix frontend run test:e2e:workflow-clinical` -> **6/6 tests OK**.
-  - El residual de firma en ficha quedo cerrado como problema de accesibilidad/observabilidad de UI, no como fallo del flujo clinico principal.
+# Auditoría técnica de Anamneo
+
+Fecha: 2026-04-17
+
+## Alcance y método
+
+Revisé arquitectura, documentación, contratos compartidos, backend NestJS, frontend Next.js, esquema Prisma, flujos clínicos, permisos, autenticación, persistencia, alertas, consentimientos, tareas, adjuntos y pruebas disponibles.
+
+Además de la auditoría original, en esta misma rama ejecuté dos pasadas de remediación enfocadas solo en hallazgos de prioridad Alta.
+
+No usé Context7 porque no hizo falta para verificar ni corregir los puntos tratados.
+
+## Estado de remediación
+
+- Pasada 1, backend:
+  - La creación desde una atención previa ya no hereda contenido clínico, marcas de completitud ni banderas `notApplicable`.
+  - Crear, reabrir, cancelar y actualizar revisión de atención ahora auditan dentro de transacción.
+- Pasada 2, frontend:
+  - `/auth/2fa/verify` quedó excluido del refresh automático de sesión.
+  - La UI de seguimiento quedó alineada con el backend endurecido: solo se ofrece desde atenciones `COMPLETADO` o `FIRMADO` y el texto visible ya no promete una duplicación clínica completa.
+- Estado actual:
+  - No quedan hallazgos `Alta` abiertos de esta auditoría en la rama de trabajo actual.
+
+## Validación ejecutada
+
+- Backend:
+  - `npm --prefix backend run typecheck` -> OK
+  - `npm --prefix backend run test -- --runInBand backend/src/encounters/encounters-create-mutation.spec.ts backend/src/encounters/encounters-workflow-reopen-cancel-review.spec.ts` -> OK
+  - `npm --prefix backend run test -- --runInBand consents.service.spec.ts alerts.service.spec.ts patients-access.spec.ts auth-totp.service.spec.ts auth-2fa-flow.spec.ts` -> OK
+  - `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` -> OK
+- Frontend:
+  - `npm --prefix frontend install` para restaurar las dependencias locales faltantes del workspace
+  - `npm --prefix frontend run typecheck` -> OK
+  - `npm --prefix frontend run test -- --runInBand src/__tests__/app/encounter-header.test.tsx src/__tests__/app/paciente-detalle.test.tsx src/__tests__/app/atencion-ficha.test.tsx src/__tests__/lib/api.test.ts src/__tests__/lib/encounter-duplicate.test.ts` -> OK
+  - `npm --prefix frontend run test -- --runInBand src/__tests__/app/paciente-detalle.test.tsx src/__tests__/app/ajustes.test.tsx src/__tests__/app/seguimientos.test.tsx` -> OK
+  - `npm --prefix frontend run test -- --runInBand src/__tests__/components/examen-fisico-section.test.tsx src/__tests__/components/examen-fisico.constants.test.ts` -> OK
+  - `npm --prefix frontend run test:e2e` -> OK, 9/9 verdes
+  - Spot-check manual en UI real sobre stack E2E: alta inicial, activación 2FA en ajustes, logout, prompt de verificación TOTP y reingreso exitoso -> OK
+
+## Resumen ejecutivo
+
+La base del proyecto sigue siendo buena para el contexto real del producto: consultorio pequeño, máximo 5 usuarios, prioridades de simplicidad y bajo mantenimiento. El problema principal que impedía recomendar producción no era la arquitectura ni la escala, sino un conjunto acotado de riesgos clínicos y de trazabilidad en flujos sensibles.
+
+Esos bloqueantes altos ya quedaron corregidos en esta rama. En particular, ya no existe el riesgo de arrancar una atención nueva con contenido clínico heredado de otra, ni el riesgo de devolver error al usuario después de persistir una mutación crítica sin haber cerrado la auditoría de forma atómica, ni el tratamiento incorrecto de `/auth/2fa/verify` como si fuera una sesión vencida.
+
+Lo que queda abierto ahora es más acotado y ya no está en el núcleo clínico ni en la señal integrada principal: la regresión E2E quedó estabilizada y verde en esta rama.
+
+## Veredicto actual de preparación para producción
+
+Veredicto actualizado: lista para un despliegue controlado.
+
+Para este producto y este tamaño de operación, ya no veo bloqueantes Altos abiertos ni una brecha relevante de regresión integrada en esta rama. La recomendación sigue siendo mantener la validación pragmática antes de cada release, pero ya no queda un pendiente específico de estabilización E2E de esta pasada.
+
+## Hallazgos altos remediados
+
+### 1. Alta original: duplicar una atención copiaba contenido clínico previo y conservaba secciones ya completas
+
+Estado: corregido en esta rama.
+
+Qué cambió:
+
+- Backend: [backend/src/encounters/encounters-create-mutation.ts](backend/src/encounters/encounters-create-mutation.ts) ahora crea un borrador limpio. Solo siembra datos seguros desde la ficha del paciente y, si existe, anamnesis remota desde la historia maestra del paciente.
+- Backend: la atención base solo puede estar en `COMPLETADO` o `FIRMADO`; ya no se aceptan fuentes canceladas.
+- Backend: las nuevas secciones nacen con `completed: false` y `notApplicable: false`, salvo identificación.
+- Frontend: [frontend/src/lib/encounter-duplicate.ts](frontend/src/lib/encounter-duplicate.ts) unifica la regla de origen válido y el nuevo copy de UI.
+- Frontend: las acciones visibles en [frontend/src/app/(dashboard)/pacientes/[id]/PatientEncounterTimeline.tsx](frontend/src/app/(dashboard)/pacientes/[id]/PatientEncounterTimeline.tsx), [frontend/src/app/(dashboard)/atenciones/[id]/EncounterHeader.tsx](frontend/src/app/(dashboard)/atenciones/[id]/EncounterHeader.tsx) y [frontend/src/app/(dashboard)/atenciones/[id]/ficha/FichaToolbar.tsx](frontend/src/app/(dashboard)/atenciones/[id]/ficha/FichaToolbar.tsx) ahora se presentan como `Nuevo seguimiento`.
+- Cobertura: [backend/src/encounters/encounters-create-mutation.spec.ts](backend/src/encounters/encounters-create-mutation.spec.ts) y tests de UI/frontend actualizados.
+
+Resultado práctico:
+
+- Se eliminó el arrastre automático de diagnóstico, tratamiento, observaciones y estados de completitud desde otra atención.
+- Se redujo el riesgo clínico más delicado detectado en la auditoría original.
+
+### 2. Alta original: algunas mutaciones críticas auditaban fuera de transacción
+
+Estado: corregido en esta rama.
+
+Qué cambió:
+
+- [backend/src/encounters/encounters-create-mutation.ts](backend/src/encounters/encounters-create-mutation.ts) registra auditoría de creación dentro del `tx`.
+- [backend/src/encounters/encounters-workflow-reopen-cancel-review.ts](backend/src/encounters/encounters-workflow-reopen-cancel-review.ts) mueve `reopen`, `cancel` y `review-status` a transacciones que incluyen la escritura de auditoría.
+- Cobertura: [backend/src/encounters/encounters-workflow-reopen-cancel-review.spec.ts](backend/src/encounters/encounters-workflow-reopen-cancel-review.spec.ts) ahora valida explícitamente que `auditService.log` reciba el `tx`.
+
+Resultado práctico:
+
+- Ya no queda el caso en que el cambio clínico persista pero el usuario reciba error por una falla de auditoría post-commit en esos caminos.
+
+### 3. Alta original: el login con 2FA pasaba por refresh de sesión aunque todavía no existía sesión autenticada
+
+Estado: corregido en esta rama.
+
+Qué cambió:
+
+- [frontend/src/lib/api.ts](frontend/src/lib/api.ts) ahora excluye explícitamente `/auth/2fa/verify` en `shouldSkipRefresh`.
+- Cobertura: [frontend/src/__tests__/lib/api.test.ts](frontend/src/__tests__/lib/api.test.ts).
+
+Resultado práctico:
+
+- El paso TOTP del login ya no dispara el mismo comportamiento pensado para sesión vencida en endpoints protegidos.
+
+## Remediaciones medias posteriores a los hallazgos altos
+
+### 1. Media remediada: la recurrencia mensual de tareas ya no degrada al día 28
+
+Estado: corregido en esta rama.
+
+Qué cambió:
+
+- [backend/src/patients/patients-task-mutations.ts](backend/src/patients/patients-task-mutations.ts) ahora calcula la próxima ocurrencia mensual desde el mes inmediato siguiente y conserva el día ancla original cuando el mes corto obliga a caer temporalmente en 28, 29 o 30.
+- [backend/src/patients/patients-clinical-mutations.spec.ts](backend/src/patients/patients-clinical-mutations.spec.ts) agrega cobertura para una tarea mensual anclada en día 31 y para la continuidad correcta después de febrero.
+
+Resultado práctico:
+
+- Un seguimiento mensual del 29, 30 o 31 ahora se mueve al último día disponible del mes siguiente sin perder su ancla original para meses posteriores.
+
+### 2. Media remediada: la UX de 2FA en ajustes ya no culpa siempre al usuario por cualquier error
+
+Estado: corregido en esta rama.
+
+Qué cambió:
+
+- [frontend/src/app/(dashboard)/ajustes/ProfileSecurityTab.tsx](frontend/src/app/(dashboard)/ajustes/ProfileSecurityTab.tsx) ahora usa `getErrorMessage(err)` con fallback neutro para activar o desactivar 2FA, en vez de reemplazar cualquier fallo por `Código incorrecto` o `Contraseña incorrecta`.
+- [frontend/src/__tests__/app/ajustes.test.tsx](frontend/src/__tests__/app/ajustes.test.tsx) cubre fallos de activación y desactivación que devuelven mensajes operativos reales.
+
+Resultado práctico:
+
+- Timeouts, errores de red, `429` o fallos transitorios del backend ya no se presentan como error del usuario cuando no corresponde.
+
+### 3. Baja remediada: las redirecciones de detalle de paciente y seguimientos ya no dejan pantalla en blanco
+
+Estado: corregido en esta rama.
+
+Qué cambió:
+
+- [frontend/src/app/(dashboard)/pacientes/[id]/usePatientDetail.tsx](frontend/src/app/(dashboard)/pacientes/[id]/usePatientDetail.tsx) expone estado explícito de redirección para perfiles administrativos.
+- [frontend/src/app/(dashboard)/pacientes/[id]/page.tsx](frontend/src/app/(dashboard)/pacientes/[id]/page.tsx) muestra un estado visible de `Redirigiendo…` en vez de devolver `null`.
+- [frontend/src/app/(dashboard)/seguimientos/page.tsx](frontend/src/app/(dashboard)/seguimientos/page.tsx) hace lo mismo para perfiles administrativos.
+- [frontend/src/__tests__/app/paciente-detalle.test.tsx](frontend/src/__tests__/app/paciente-detalle.test.tsx) y [frontend/src/__tests__/app/seguimientos.test.tsx](frontend/src/__tests__/app/seguimientos.test.tsx) cubren ese comportamiento.
+
+Resultado práctico:
+
+- Entrar por URL directa en esas rutas ya no produce una pantalla vacía transitoria mientras ocurre la redirección.
+
+### 4. Media remediada: los signos vitales ahora distinguen advertencia local de alerta clínica automática
+
+Estado: corregido en esta rama.
+
+Qué cambió:
+
+- [shared/vital-sign-alerts.ts](shared/vital-sign-alerts.ts) centraliza la evaluación de signos vitales y define qué valores son solo advertencia local y cuáles califican como alerta clínica automática.
+- [backend/src/alerts/alerts.service.ts](backend/src/alerts/alerts.service.ts) ahora genera alertas automáticas solo desde esa evaluación compartida, en vez de mantener umbrales duplicados por separado.
+- [frontend/src/components/sections/examen-fisico.constants.ts](frontend/src/components/sections/examen-fisico.constants.ts) reutiliza la misma lógica compartida para badges y resaltado.
+- [frontend/src/components/sections/ExamenFisicoSection.tsx](frontend/src/components/sections/ExamenFisicoSection.tsx) separa visualmente `Advertencias locales` de `Valores críticos con posible alerta clínica automática`.
+- Cobertura: [backend/src/alerts/alerts.service.spec.ts](backend/src/alerts/alerts.service.spec.ts), [frontend/src/__tests__/components/examen-fisico-section.test.tsx](frontend/src/__tests__/components/examen-fisico-section.test.tsx) y [frontend/src/__tests__/components/examen-fisico.constants.test.ts](frontend/src/__tests__/components/examen-fisico.constants.test.ts).
+
+Resultado práctico:
+
+- La UI ya no sugiere que toda advertencia visual equivale a una alerta persistida.
+- Backend y frontend evalúan los mismos umbrales críticos para los signos vitales que sí deben disparar alerta automática.
+
+## Hallazgos abiertos
+
+No quedaron hallazgos abiertos relevantes dentro del alcance tratado en esta rama.
+
+## Inconsistencias frontend-backend abiertas
+
+Sin inconsistencias abiertas relevantes en los frentes ya remediados de esta auditoría.
+
+## Riesgos clínicos restantes
+
+No quedó un riesgo clínico abierto de la tanda tratada en esta pasada.
+
+## Mejoras recomendadas, proporcionales
+
+1. Mantener emails únicos por corrida y `workers: 1` en Playwright mientras la suite siga compartiendo bootstrap y estado entre specs.
+2. Repetir la pasada corta de auth/2FA, `Nuevo seguimiento`, signos vitales y cierre/firma antes de cada release relevante.
+
+Lo que no recomiendo para este producto hoy:
+
+- No veo necesidad de microservicios, colas complejas, Kubernetes ni una refactorización arquitectónica grande.
+- Tampoco veo necesidad de reemplazar SQLite solo por tamaño del equipo o por el número esperado de usuarios.
+
+## Funcionalidades útiles y realistas
+
+1. Banner persistente de procedencia para `Nuevo seguimiento`, con acceso rápido a la atención fuente.
+2. Comparación contra la última atención para diagnóstico, tratamiento y signos vitales.
+3. Reglas de alertas clínicas configurables por la profesional sin complejidad extra.
+4. Checklist previo a finalizar que resuma alertas activas, tareas pendientes y campos faltantes del paciente.
+5. Vista longitudinal simple de signos vitales y evolución por paciente.
+6. Renovación o vencimiento de consentimientos con aviso anticipado.
+
+## Hoja de ruta pragmática
+
+### Próxima semana
+
+1. Mantener la suite E2E verde dentro del flujo normal de cambios, sin reabrir dependencias de estado compartido entre specs.
+
+### Antes de declarar el sistema como estable
+
+1. Repetir una pasada E2E corta centrada en login 2FA, `Nuevo seguimiento`, alertas por signos vitales y cierre/firma cuando se introduzcan cambios en auth o en el workflow clínico.
+2. Hacer una regresión manual corta del flujo paciente -> atención -> secciones -> revisión -> cierre -> firma -> ficha cuando cambie la UX clínica, no como pendiente de esta auditoría.
+
+## Conclusión
+
+Los tres hallazgos Altos de la auditoría original quedaron remediados y validados. También quedaron cerradas las remediaciones medias de recurrencia mensual, UX de redirección, mensajes de 2FA en ajustes y semántica compartida de signos vitales. El proyecto queda en una posición bastante más sólida para el contexto real del producto.
+
+Lo que resta ahora ya no es un bloqueo severo del core clínico, sino una tanda razonable de mejoras medias y de pulido evolutivo. Eso cambia el estado general de `no lista` a `lista para despliegue controlado`.

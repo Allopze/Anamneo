@@ -42,6 +42,11 @@ describe('encounters-workflow-reopen-cancel-review', () => {
   });
 
   it('cancels in-progress encounter and writes audit log', async () => {
+    const tx = {
+      encounter: {
+        update: jest.fn().mockResolvedValue({ id: 'enc-1', status: 'CANCELADO' }),
+      },
+    };
     const prisma = {
       encounter: {
         findUnique: jest.fn().mockResolvedValue({
@@ -50,8 +55,8 @@ describe('encounters-workflow-reopen-cancel-review', () => {
           medicoId: 'med-1',
           patient: { id: 'pat-1' },
         }),
-        update: jest.fn().mockResolvedValue({ id: 'enc-1', status: 'CANCELADO' }),
       },
+      $transaction: jest.fn().mockImplementation(async (callback) => callback(tx)),
     };
     const auditService = { log: jest.fn().mockResolvedValue(undefined) };
 
@@ -62,7 +67,7 @@ describe('encounters-workflow-reopen-cancel-review', () => {
       userId: 'med-1',
     });
 
-    expect(prisma.encounter.update).toHaveBeenCalledWith({
+    expect(tx.encounter.update).toHaveBeenCalledWith({
       where: { id: 'enc-1' },
       data: { status: 'CANCELADO' },
     });
@@ -72,6 +77,7 @@ describe('encounters-workflow-reopen-cancel-review', () => {
         entityId: 'enc-1',
         action: 'UPDATE',
       }),
+      tx,
     );
     expect(result).toEqual({ id: 'enc-1', status: 'CANCELADO' });
   });
@@ -89,6 +95,11 @@ describe('encounters-workflow-reopen-cancel-review', () => {
       completedBy: null,
     };
 
+    const tx = {
+      encounter: {
+        update: jest.fn().mockResolvedValue(updatedEncounter),
+      },
+    };
     const prisma = {
       encounter: {
         findUnique: jest.fn().mockResolvedValue({
@@ -96,8 +107,8 @@ describe('encounters-workflow-reopen-cancel-review', () => {
           status: 'COMPLETADO',
           medicoId: 'med-1',
         }),
-        update: jest.fn().mockResolvedValue(updatedEncounter),
       },
+      $transaction: jest.fn().mockImplementation(async (callback) => callback(tx)),
     };
     const auditService = { log: jest.fn().mockResolvedValue(undefined) };
 
@@ -110,7 +121,7 @@ describe('encounters-workflow-reopen-cancel-review', () => {
       note: 'Se agregan resultados de examen que cambian la conducta clínica.',
     });
 
-    expect(prisma.encounter.update).toHaveBeenCalledWith(
+    expect(tx.encounter.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'enc-1' },
         data: expect.objectContaining({
@@ -128,6 +139,7 @@ describe('encounters-workflow-reopen-cancel-review', () => {
           reasonCode: 'RESULTADOS_POSTERIORES',
         }),
       }),
+      tx,
     );
     expect(formatEncounterResponse).toHaveBeenCalledWith(updatedEncounter, { viewerRole: 'MEDICO' });
     expect(result).toBe(updatedEncounter);
@@ -178,6 +190,11 @@ describe('encounters-workflow-reopen-cancel-review', () => {
       tasks: [],
     };
 
+    const tx = {
+      encounter: {
+        update: jest.fn().mockResolvedValue(updatedEncounter),
+      },
+    };
     const prisma = {
       encounter: {
         findUnique: jest.fn().mockResolvedValue({
@@ -186,8 +203,8 @@ describe('encounters-workflow-reopen-cancel-review', () => {
           medicoId: 'med-1',
           patient: { id: 'pat-1' },
         }),
-        update: jest.fn().mockResolvedValue(updatedEncounter),
       },
+      $transaction: jest.fn().mockImplementation(async (callback) => callback(tx)),
     };
     const auditService = { log: jest.fn().mockResolvedValue(undefined) };
 
@@ -205,7 +222,7 @@ describe('encounters-workflow-reopen-cancel-review', () => {
       note: '  Revisar por médico tratante  ',
     });
 
-    expect(prisma.encounter.update).toHaveBeenCalledWith(
+    expect(tx.encounter.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'enc-1' },
         data: expect.objectContaining({
@@ -221,6 +238,7 @@ describe('encounters-workflow-reopen-cancel-review', () => {
         action: 'UPDATE',
         diff: expect.objectContaining({ reviewStatus: 'LISTA_PARA_REVISION' }),
       }),
+      tx,
     );
     expect(formatEncounterResponse).toHaveBeenCalledWith(updatedEncounter, { viewerRole: 'ASISTENTE' });
     expect(result).toBe(updatedEncounter);

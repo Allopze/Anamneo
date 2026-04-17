@@ -65,41 +65,48 @@ export async function reopenEncounterWorkflowMutation(params: ReopenEncounterPar
     1000,
   );
 
-  const updated = await prisma.encounter.update({
-    where: { id },
-    data: {
-      status: 'EN_PROGRESO',
-      reviewStatus: 'NO_REQUIERE_REVISION',
-      reviewRequestedAt: null,
-      reviewRequestedById: null,
-      reviewedAt: null,
-      reviewedById: null,
-      reviewNote: null,
-      completedAt: null,
-      completedById: null,
-      closureNote: null,
-    },
-    include: {
-      sections: true,
-      patient: true,
-      createdBy: { select: { id: true, nombre: true } },
-      reviewRequestedBy: { select: { id: true, nombre: true } },
-      reviewedBy: { select: { id: true, nombre: true } },
-      completedBy: { select: { id: true, nombre: true } },
-    },
-  });
+  const updated = await prisma.$transaction(async (tx) => {
+    const reopenedEncounter = await tx.encounter.update({
+      where: { id },
+      data: {
+        status: 'EN_PROGRESO',
+        reviewStatus: 'NO_REQUIERE_REVISION',
+        reviewRequestedAt: null,
+        reviewRequestedById: null,
+        reviewedAt: null,
+        reviewedById: null,
+        reviewNote: null,
+        completedAt: null,
+        completedById: null,
+        closureNote: null,
+      },
+      include: {
+        sections: true,
+        patient: true,
+        createdBy: { select: { id: true, nombre: true } },
+        reviewRequestedBy: { select: { id: true, nombre: true } },
+        reviewedBy: { select: { id: true, nombre: true } },
+        completedBy: { select: { id: true, nombre: true } },
+      },
+    });
 
-  await auditService.log({
-    entityType: 'Encounter',
-    entityId: id,
-    userId,
-    action: 'UPDATE',
-    diff: {
-      status: 'EN_PROGRESO',
-      reopenedBy: userId,
-      reasonCode,
-      note: summarizeWorkflowNoteAudit(sanitizedNote),
-    },
+    await auditService.log(
+      {
+        entityType: 'Encounter',
+        entityId: id,
+        userId,
+        action: 'UPDATE',
+        diff: {
+          status: 'EN_PROGRESO',
+          reopenedBy: userId,
+          reasonCode,
+          note: summarizeWorkflowNoteAudit(sanitizedNote),
+        },
+      },
+      tx,
+    );
+
+    return reopenedEncounter;
   });
 
   return formatEncounterResponse(updated, { viewerRole: 'MEDICO' });
@@ -124,17 +131,24 @@ export async function cancelEncounterWorkflowMutation(params: CancelEncounterPar
     throw new BadRequestException('Solo se pueden cancelar atenciones en progreso');
   }
 
-  const updated = await prisma.encounter.update({
-    where: { id },
-    data: { status: 'CANCELADO' },
-  });
+  const updated = await prisma.$transaction(async (tx) => {
+    const cancelledEncounter = await tx.encounter.update({
+      where: { id },
+      data: { status: 'CANCELADO' },
+    });
 
-  await auditService.log({
-    entityType: 'Encounter',
-    entityId: id,
-    userId,
-    action: 'UPDATE',
-    diff: { status: 'CANCELADO' },
+    await auditService.log(
+      {
+        entityType: 'Encounter',
+        entityId: id,
+        userId,
+        action: 'UPDATE',
+        diff: { status: 'CANCELADO' },
+      },
+      tx,
+    );
+
+    return cancelledEncounter;
   });
 
   return updated;
@@ -180,39 +194,46 @@ export async function updateEncounterReviewStatusMutation(params: UpdateEncounte
     ? sanitizeRequiredWorkflowNote(note, 'La nota de revisión', REVIEW_NOTE_MIN_LENGTH, 500)
     : sanitizeText(note, 500) ?? null;
 
-  const updated = await prisma.encounter.update({
-    where: { id },
-    data: {
-      reviewStatus,
-      reviewRequestedAt: reviewStatus === 'LISTA_PARA_REVISION' ? new Date() : null,
-      reviewRequestedById: reviewStatus === 'LISTA_PARA_REVISION' ? user.id : null,
-      reviewedAt: reviewStatus === 'REVISADA_POR_MEDICO' ? new Date() : null,
-      reviewedById: reviewStatus === 'REVISADA_POR_MEDICO' ? user.id : null,
-      reviewNote: sanitizedNote,
-    },
-    include: {
-      sections: true,
-      patient: true,
-      createdBy: { select: { id: true, nombre: true } },
-      reviewRequestedBy: { select: { id: true, nombre: true } },
-      reviewedBy: { select: { id: true, nombre: true } },
-      completedBy: { select: { id: true, nombre: true } },
-      tasks: {
-        orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
-        include: { createdBy: { select: { id: true, nombre: true } } },
+  const updated = await prisma.$transaction(async (tx) => {
+    const reviewUpdatedEncounter = await tx.encounter.update({
+      where: { id },
+      data: {
+        reviewStatus,
+        reviewRequestedAt: reviewStatus === 'LISTA_PARA_REVISION' ? new Date() : null,
+        reviewRequestedById: reviewStatus === 'LISTA_PARA_REVISION' ? user.id : null,
+        reviewedAt: reviewStatus === 'REVISADA_POR_MEDICO' ? new Date() : null,
+        reviewedById: reviewStatus === 'REVISADA_POR_MEDICO' ? user.id : null,
+        reviewNote: sanitizedNote,
       },
-    },
-  });
+      include: {
+        sections: true,
+        patient: true,
+        createdBy: { select: { id: true, nombre: true } },
+        reviewRequestedBy: { select: { id: true, nombre: true } },
+        reviewedBy: { select: { id: true, nombre: true } },
+        completedBy: { select: { id: true, nombre: true } },
+        tasks: {
+          orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
+          include: { createdBy: { select: { id: true, nombre: true } } },
+        },
+      },
+    });
 
-  await auditService.log({
-    entityType: 'Encounter',
-    entityId: id,
-    userId: user.id,
-    action: 'UPDATE',
-    diff: {
-      reviewStatus,
-      note: summarizeWorkflowNoteAudit(sanitizedNote),
-    },
+    await auditService.log(
+      {
+        entityType: 'Encounter',
+        entityId: id,
+        userId: user.id,
+        action: 'UPDATE',
+        diff: {
+          reviewStatus,
+          note: summarizeWorkflowNoteAudit(sanitizedNote),
+        },
+      },
+      tx,
+    );
+
+    return reviewUpdatedEncounter;
   });
 
   return formatEncounterResponse(updated, { viewerRole: user.role });

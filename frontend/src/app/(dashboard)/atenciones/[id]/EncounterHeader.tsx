@@ -23,6 +23,7 @@ import {
   TOOLBAR_SUCCESS_BUTTON_CLASS,
   formatDateTime,
 } from './encounter-wizard.constants';
+import { DUPLICATE_ENCOUNTER_ACTION_TITLE, getDuplicateEncounterActionLabel } from '@/lib/encounter-duplicate';
 
 type Props = Pick<
   EncounterWizardHook,
@@ -218,10 +219,10 @@ export default function EncounterHeader({
                 onClick={handleDuplicateEncounter}
                 disabled={duplicateEncounterMutation.isPending}
                 className={TOOLBAR_BUTTON_CLASS}
-                title="Crear un nuevo borrador a partir de esta atención"
+                title={DUPLICATE_ENCOUNTER_ACTION_TITLE}
               >
                 <FiCopy className="h-4 w-4" />
-                {duplicateEncounterMutation.isPending ? 'Duplicando…' : 'Duplicar'}
+                {getDuplicateEncounterActionLabel(duplicateEncounterMutation.isPending)}
               </button>
             ) : null}
 

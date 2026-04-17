@@ -1,5 +1,6 @@
 import path from 'path';
 import { test, expect, type BrowserContext, type ConsoleMessage, type Page } from '@playwright/test';
+import { ADMIN_EMAIL, ADMIN_NOMBRE, ADMIN_PASSWORD, BOOTSTRAP_TOKEN, MEDICO_EMAIL, MEDICO_PASSWORD } from './e2e-identities';
 
 /**
  * Clinical workflow E2E: patient → encounter → section editing.
@@ -8,11 +9,6 @@ import { test, expect, type BrowserContext, type ConsoleMessage, type Page } fro
  * registers the medico via UI, then uses the medico for all clinical operations.
  */
 
-const ADMIN_EMAIL = 'admin@e2e-test.local';
-const ADMIN_PASSWORD = 'TestPass123!';
-const MEDICO_EMAIL = 'medico@e2e-test.local';
-const MEDICO_PASSWORD = 'MedicoPass123!';
-const BOOTSTRAP_TOKEN = 'e2e-bootstrap-token';
 const ATTACHMENT_FIXTURE_PATH = path.resolve(__dirname, 'fixtures', 'resultado-laboratorio-e2e.pdf');
 const ROUTER_INIT_WARNING = 'Router action dispatched before initialization';
 
@@ -42,31 +38,41 @@ function createRouterWarningMonitor(page: Page) {
 
 test.describe('Clinical flow: patient → encounter → sections', () => {
   test.describe.configure({ mode: 'serial' });
+  test.setTimeout(60_000);
   let encounterPath = '';
   let medicoAuthCookies: Awaited<ReturnType<BrowserContext['cookies']>> = [];
 
   // Setup: register admin (UI) → create invitation (API) → register medico (UI)
   test.beforeAll(async ({ browser }) => {
-    // 1. Register admin via UI (same approach as smoke test)
+    // 1. Bootstrap or reuse admin session
     const adminCtx = await browser.newContext();
     const adminPage = await adminCtx.newPage();
 
     await adminPage.goto('/register');
-    await adminPage.getByLabel('Nombre completo').fill('Admin E2E');
-    await adminPage.getByLabel('Correo electrónico').fill(ADMIN_EMAIL);
-    await adminPage.getByLabel('Contraseña', { exact: true }).fill(ADMIN_PASSWORD);
-    await adminPage.getByLabel('Confirmar contraseña').fill(ADMIN_PASSWORD);
-    await adminPage.getByLabel('Token de instalación').fill(BOOTSTRAP_TOKEN);
+    const bootstrapTokenInput = adminPage.getByLabel('Token de instalación');
+    const needsBootstrapRegistration = await bootstrapTokenInput.isVisible().catch(() => false);
 
-    const registerPromise = adminPage.waitForResponse(
-      (r) => r.url().includes('/auth/register') && r.request().method() === 'POST',
-    );
-    await adminPage.getByRole('button', { name: /Crear cuenta/i }).click();
-    const registerResp = await registerPromise;
-    expect(registerResp.status(), 'Admin registration should return 201').toBe(201);
+    if (needsBootstrapRegistration) {
+      await adminPage.getByLabel('Nombre completo').fill(ADMIN_NOMBRE);
+      await adminPage.getByLabel('Correo electrónico').fill(ADMIN_EMAIL);
+      await adminPage.getByLabel('Contraseña', { exact: true }).fill(ADMIN_PASSWORD);
+      await adminPage.getByLabel('Confirmar contraseña').fill(ADMIN_PASSWORD);
+      await bootstrapTokenInput.fill(BOOTSTRAP_TOKEN);
 
-    // Wait for registration to complete and navigate away from register page
-    await adminPage.waitForURL((url) => !url.toString().includes('/register'), { timeout: 20000 });
+      const registerPromise = adminPage.waitForResponse(
+        (r) => r.url().includes('/auth/register') && r.request().method() === 'POST',
+      );
+      await adminPage.getByRole('button', { name: /Crear cuenta/i }).click();
+      const registerResp = await registerPromise;
+      expect(registerResp.status(), 'Admin registration should return 201').toBe(201);
+      await adminPage.waitForURL((url) => !url.toString().includes('/register'), { timeout: 20000 });
+    } else {
+      await adminPage.goto('/login');
+      await adminPage.getByLabel('Correo electrónico').fill(ADMIN_EMAIL);
+      await adminPage.getByLabel('Contraseña').fill(ADMIN_PASSWORD);
+      await adminPage.getByRole('button', { name: 'Iniciar sesión' }).click();
+      await expect(sidebar(adminPage)).toBeVisible({ timeout: 20000 });
+    }
 
     // 2. Create medico invitation using admin session cookies
     const inviteResp = await adminPage.request.post('/api/users/invitations', {

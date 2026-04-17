@@ -48,6 +48,7 @@ jest.mock('@/lib/api', () => ({
     post: (...args: any[]) => apiPostMock(...args),
     patch: (...args: any[]) => apiPatchMock(...args),
   },
+  getErrorMessage: (err: any) => err?.message || 'Error desconocido',
 }));
 
 jest.mock('react-hot-toast', () => ({
@@ -178,6 +179,75 @@ describe('AjustesPage', () => {
 
     const qrImage = await screen.findByAltText('Código QR para 2FA');
     expect(qrImage).toHaveAttribute('src', 'data:image/png;base64,qr-demo');
+  });
+
+  it('shows the real activation error instead of blaming the code for every failure', async () => {
+    authStoreState.user = {
+      id: 'med-1',
+      email: 'medico@anamneo.cl',
+      nombre: 'Medico Demo',
+      role: 'MEDICO',
+      isAdmin: false,
+      medicoId: null,
+      totpEnabled: false,
+    };
+
+    apiPostMock.mockImplementation((url: string) => {
+      if (url === '/auth/2fa/setup') {
+        return Promise.resolve({
+          data: {
+            secret: 'SECRET',
+            qrCodeDataUrl: 'data:image/png;base64,qr-demo',
+          },
+        });
+      }
+
+      if (url === '/auth/2fa/enable') {
+        return Promise.reject(new Error('Demasiados intentos. Por favor espere un momento antes de reintentar.'));
+      }
+
+      return Promise.resolve({ data: {} });
+    });
+
+    render(<AjustesPage />, { wrapper: createWrapper() });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Configurar 2FA' }));
+    await screen.findByAltText('Código QR para 2FA');
+    await userEvent.type(screen.getByLabelText('Código de verificación'), '123456');
+    await userEvent.click(screen.getByRole('button', { name: 'Activar 2FA' }));
+
+    expect(
+      await screen.findByText('Demasiados intentos. Por favor espere un momento antes de reintentar.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Código incorrecto/i)).not.toBeInTheDocument();
+  });
+
+  it('shows the real disable error instead of blaming the password for every failure', async () => {
+    authStoreState.user = {
+      id: 'med-1',
+      email: 'medico@anamneo.cl',
+      nombre: 'Medico Demo',
+      role: 'MEDICO',
+      isAdmin: false,
+      medicoId: null,
+      totpEnabled: true,
+    };
+
+    apiPostMock.mockImplementation((url: string) => {
+      if (url === '/auth/2fa/disable') {
+        return Promise.reject(new Error('No se pudo verificar la contraseña en este momento.'));
+      }
+
+      return Promise.resolve({ data: {} });
+    });
+
+    render(<AjustesPage />, { wrapper: createWrapper() });
+
+    await userEvent.type(screen.getByLabelText(/^Contraseña$/), 'Password1');
+    await userEvent.click(screen.getByRole('button', { name: 'Desactivar 2FA' }));
+
+    expect(await screen.findByText('No se pudo verificar la contraseña en este momento.')).toBeInTheDocument();
+    expect(screen.queryByText(/^Contraseña incorrecta\.$/)).not.toBeInTheDocument();
   });
 
   it('logs out and redirects to login after changing password', async () => {

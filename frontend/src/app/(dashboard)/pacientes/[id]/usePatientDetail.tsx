@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
 import { api, getErrorMessage, PaginatedResponse } from '@/lib/api';
+import { DUPLICATE_ENCOUNTER_CREATED_MESSAGE } from '@/lib/encounter-duplicate';
 import type { Patient, Encounter, PatientClinicalSummary } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { useHeaderBarSlot } from '@/components/layout/HeaderBarSlotContext';
@@ -47,6 +48,8 @@ export function usePatientDetail() {
   const canEditAdminFields = canEditPatientAdmin();
   const canCreateEncounterAllowed = canCreateEncounter();
   const isDoctor = isMedico();
+  const isRedirectingAdmin = Boolean(user?.isAdmin);
+  const adminRedirectPath = '/pacientes';
 
   const { data: patient, isLoading, error } = useQuery({
     queryKey: ['patient', id],
@@ -113,9 +116,9 @@ export function usePatientDetail() {
   }, [headerBarSlot, patient]);
 
   useEffect(() => {
-    if (!user?.isAdmin) return;
-    router.replace('/pacientes');
-  }, [router, user?.isAdmin]);
+    if (!isRedirectingAdmin) return;
+    router.replace(adminRedirectPath);
+  }, [adminRedirectPath, isRedirectingAdmin, router]);
 
   useEffect(() => {
     setShowFullVitals(false);
@@ -137,10 +140,17 @@ export function usePatientDetail() {
 
   const createEncounterMutation = useMutation({
     mutationFn: (payload?: { duplicateFromEncounterId?: string }) => api.post(`/encounters/patient/${id}`, payload || {}),
-    onSuccess: async (response) => {
+    onSuccess: async (response, payload) => {
       const reused = Boolean((response.data as any)?.reused);
+      const createdFromPreviousEncounter = Boolean(payload?.duplicateFromEncounterId);
       await invalidateDashboardOverviewQueries(queryClient);
-      toast.success(reused ? 'Ya había una atención en curso. Abriendo…' : 'Atención creada');
+      toast.success(
+        reused
+          ? 'Ya había una atención en curso. Abriendo…'
+          : createdFromPreviousEncounter
+            ? DUPLICATE_ENCOUNTER_CREATED_MESSAGE
+            : 'Atención creada',
+      );
       router.push(`/atenciones/${response.data.id}`);
     },
     onError: (err) => {
@@ -248,6 +258,8 @@ export function usePatientDetail() {
     isLoading,
     error,
     isAdmin: user?.isAdmin,
+    isRedirectingAdmin,
+    adminRedirectPath,
     isDoctor,
     canEditAdminFields,
     canCreateEncounterAllowed,

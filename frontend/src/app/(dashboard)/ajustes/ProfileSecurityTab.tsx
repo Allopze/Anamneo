@@ -167,6 +167,11 @@ export default function ProfileSecurityTab({
   );
 }
 
+function getTwoFactorErrorMessage(error: unknown, fallback: string) {
+  const message = getErrorMessage(error).trim();
+  return message.length > 0 ? message : fallback;
+}
+
 function TwoFactorSection() {
   const { user, setUser } = useAuthStore();
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
@@ -197,7 +202,7 @@ function TwoFactorSection() {
       setTotpCode('');
       setError('');
     },
-    onError: () => setError('Código incorrecto. Verifica e intenta de nuevo.'),
+    onError: (err) => setError(getTwoFactorErrorMessage(err, 'No se pudo activar 2FA. Intenta nuevamente.')),
   });
 
   const disableMutation = useMutation({
@@ -210,7 +215,7 @@ function TwoFactorSection() {
       setDisablePassword('');
       setError('');
     },
-    onError: () => setError('Contraseña incorrecta.'),
+    onError: (err) => setError(getTwoFactorErrorMessage(err, 'No se pudo desactivar 2FA. Intenta nuevamente.')),
   });
 
   const isEnabled = !!user?.totpEnabled;

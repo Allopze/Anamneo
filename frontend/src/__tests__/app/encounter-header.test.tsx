@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import EncounterHeader from '@/app/(dashboard)/atenciones/[id]/EncounterHeader';
 
 describe('EncounterHeader', () => {
-  it('shows duplicate action for a closed encounter and triggers it from the toolbar', async () => {
+  it('shows the follow-up action for a closed encounter and triggers it from the toolbar', async () => {
     const user = userEvent.setup();
     const handleDuplicate = jest.fn();
 
@@ -54,7 +54,7 @@ describe('EncounterHeader', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Duplicar' }));
+    await user.click(screen.getByRole('button', { name: 'Nuevo seguimiento' }));
 
     expect(handleDuplicate).toHaveBeenCalledTimes(1);
   });

@@ -39,7 +39,7 @@ interface UpdatePatientTaskInput {
   dueDate?: string;
 }
 
-function resolveNextRecurringDueDate(currentDueDate: Date, recurrenceRule: string) {
+function resolveNextRecurringDueDate(currentDueDate: Date, recurrenceRule: string, monthlyAnchorDay?: number) {
   const dateOnly = extractDateOnlyIso(currentDueDate);
   const [year, month, day] = dateOnly.split('-').map(Number);
 
@@ -51,9 +51,20 @@ function resolveNextRecurringDueDate(currentDueDate: Date, recurrenceRule: strin
   }
 
   if (recurrenceRule === 'MONTHLY') {
-    const candidate = new Date(Date.UTC(year, month, day));
-    const normalized = new Date(Date.UTC(candidate.getUTCFullYear(), candidate.getUTCMonth(), Math.min(day, 28)));
-    return parseDateOnlyToStoredUtcDate(normalized.toISOString().slice(0, 10), 'La próxima fecha de recurrencia');
+    const nextMonthAnchor = new Date(Date.UTC(year, month, 1));
+    const lastDayOfNextMonth = new Date(
+      Date.UTC(nextMonthAnchor.getUTCFullYear(), nextMonthAnchor.getUTCMonth() + 1, 0),
+    ).getUTCDate();
+    const normalizedDay = Math.min(monthlyAnchorDay ?? day, lastDayOfNextMonth);
+
+    return parseDateOnlyToStoredUtcDate(
+      new Date(
+        Date.UTC(nextMonthAnchor.getUTCFullYear(), nextMonthAnchor.getUTCMonth(), normalizedDay),
+      )
+        .toISOString()
+        .slice(0, 10),
+      'La próxima fecha de recurrencia',
+    );
   }
 
   return null;
@@ -217,7 +228,20 @@ export async function updatePatientTaskMutation(params: UpdatePatientTaskMutatio
       && updated.recurrenceRule !== 'NONE'
       && updated.dueDate
     ) {
-      const nextDueDate = resolveNextRecurringDueDate(updated.dueDate, updated.recurrenceRule);
+      let monthlyAnchorDay: number | undefined;
+
+      if (updated.recurrenceRule === 'MONTHLY' && task.recurrenceSourceTaskId) {
+        const recurrenceSourceTask = await tx.encounterTask.findUnique({
+          where: { id: task.recurrenceSourceTaskId },
+          select: { dueDate: true },
+        });
+
+        if (recurrenceSourceTask?.dueDate) {
+          monthlyAnchorDay = Number(extractDateOnlyIso(recurrenceSourceTask.dueDate).slice(-2));
+        }
+      }
+
+      const nextDueDate = resolveNextRecurringDueDate(updated.dueDate, updated.recurrenceRule, monthlyAnchorDay);
       if (nextDueDate) {
         await tx.encounterTask.create({
           data: {

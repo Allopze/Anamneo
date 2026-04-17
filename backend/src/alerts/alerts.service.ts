@@ -4,6 +4,7 @@ import { AuditService } from '../audit/audit.service';
 import { CreateAlertDto } from './dto/alert.dto';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { assertPatientAccess, buildAccessiblePatientsWhere } from '../common/utils/patient-access';
+import { getClinicalAlertMessages } from '../../../shared/vital-sign-alerts';
 
 const ALERT_SEVERITY_WEIGHT: Record<string, number> = {
   CRITICA: 4,
@@ -191,19 +192,7 @@ export class AlertsService {
 
   /** Auto-generate alerts from vital signs in encounter sections */
   async checkVitalSigns(patientId: string, encounterId: string, vitals: Record<string, string>, userId: string) {
-    const alerts: string[] = [];
-
-    const systolic = vitals.presionArterial ? parseInt(vitals.presionArterial.split('/')[0]) : null;
-    const diastolic = vitals.presionArterial ? parseInt(vitals.presionArterial.split('/')[1]) : null;
-    const temp = vitals.temperatura ? parseFloat(vitals.temperatura) : null;
-    const satO2 = vitals.saturacionOxigeno ? parseFloat(vitals.saturacionOxigeno) : null;
-    const fc = vitals.frecuenciaCardiaca ? parseInt(vitals.frecuenciaCardiaca) : null;
-
-    if (systolic && systolic >= 180) alerts.push('Presión arterial sistólica crítica: ' + vitals.presionArterial);
-    if (diastolic && diastolic >= 120) alerts.push('Presión arterial diastólica crítica: ' + vitals.presionArterial);
-    if (temp && temp >= 39.5) alerts.push('Temperatura crítica: ' + temp + '°C');
-    if (satO2 && satO2 < 90) alerts.push('Saturación de oxígeno crítica: ' + satO2 + '%');
-    if (fc && (fc < 40 || fc > 150)) alerts.push('Frecuencia cardíaca fuera de rango: ' + fc + ' lpm');
+    const alerts = getClinicalAlertMessages(vitals);
 
     let createdAlerts = 0;
 
