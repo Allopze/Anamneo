@@ -65,15 +65,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private auditService: AuditService,
-  ) {
-    // Purge expired JTIs every 5 minutes
-    setInterval(() => {
-      const now = Date.now();
-      for (const [jti, expiresAt] of this.usedTempTokenJtis) {
-        if (expiresAt <= now) this.usedTempTokenJtis.delete(jti);
-      }
-    }, TEMP_TOKEN_TTL_MS).unref();
-  }
+  ) {}
 
   private toSessionUser(user: {
     id: string;

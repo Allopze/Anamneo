@@ -73,7 +73,7 @@ export default function EncounterWizardPage() {
         pendingSaveCount={wiz.pendingSaveCount}
         canEdit={wiz.canEdit}
         canComplete={wiz.canComplete}
-        isDoctor={wiz.isDoctor}
+        canSign={wiz.canSign}
         hasUnsavedChanges={wiz.hasUnsavedChanges}
         saveStatus={wiz.saveStatus}
         saveStateLabel={wiz.saveStateLabel}
@@ -318,7 +318,7 @@ export default function EncounterWizardPage() {
       {wiz.isAttachmentsOpen && (
         <EncounterAttachmentsModal
           canUpload={wiz.canUpload}
-          isDoctor={wiz.isDoctor}
+          canDeleteAttachments={wiz.canDeleteAttachments}
           selectedFile={wiz.selectedFile}
           setSelectedFile={wiz.setSelectedFile}
           uploadError={wiz.uploadError}
@@ -423,9 +423,13 @@ export default function EncounterWizardPage() {
           setEncounterDrawerTab(t);
         }}
         encounter={encounter}
-        isDoctor={wiz.isDoctor}
         canEdit={wiz.canEdit}
         canComplete={wiz.canComplete}
+        canRequestMedicalReview={wiz.canRequestMedicalReview}
+        canMarkReviewedByDoctor={wiz.canMarkReviewedByDoctor}
+        canWriteReviewNote={wiz.canWriteReviewNote}
+        canViewAudit={wiz.canViewAudit}
+        canCreateFollowupTask={wiz.canCreateFollowupTask}
         reviewActionNote={wiz.reviewActionNote}
         onReviewActionNoteChange={wiz.setReviewActionNote}
         onReviewStatusChange={wiz.handleReviewStatusChange}
@@ -440,7 +444,7 @@ export default function EncounterWizardPage() {
         canEditAntecedentes={wiz.canEditAntecedentes()}
         quickTask={wiz.quickTask}
         onQuickTaskChange={(t) => wiz.setQuickTask(t)}
-        onCreateTask={() => wiz.createTaskMutation.mutate()}
+        onCreateTask={wiz.handleCreateTask}
         createTaskPending={wiz.createTaskMutation.isPending}
         closureNote={wiz.closureNote}
         onClosureNoteChange={wiz.setClosureNote}

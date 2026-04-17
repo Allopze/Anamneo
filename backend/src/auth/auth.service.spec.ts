@@ -276,6 +276,57 @@ describe('AuthService', () => {
 
       expect(usersService.findByEmail).not.toHaveBeenCalled();
     });
+
+    it('should accumulate failed attempts and block the next login after five consecutive failures', async () => {
+      type LoginAttemptState = {
+        email: string;
+        failedAttempts: number;
+        lockedUntil: Date | null;
+        lastAttemptAt?: Date;
+      };
+
+      let loginAttemptState: LoginAttemptState | null = null;
+
+      prismaService.loginAttempt.findUnique.mockImplementation(async () => loginAttemptState);
+      prismaService.loginAttempt.upsert.mockImplementation(async ({ create, update }: any) => {
+        const nextState = loginAttemptState ? { ...loginAttemptState, ...update } : create;
+        loginAttemptState = nextState;
+        return nextState;
+      });
+      prismaService.loginAttempt.update.mockImplementation(async ({ data }: any) => {
+        if (!loginAttemptState) {
+          throw new Error('Missing login attempt state');
+        }
+        loginAttemptState = { ...loginAttemptState, ...data };
+        return loginAttemptState;
+      });
+      prismaService.loginAttempt.deleteMany.mockImplementation(async () => {
+        loginAttemptState = null;
+        return { count: 1 };
+      });
+
+      (usersService.findByEmail as jest.Mock).mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      for (let attempt = 1; attempt <= 5; attempt += 1) {
+        await expect(
+          service.login({
+            email: 'test@example.com',
+            password: 'WrongPassword1',
+          }),
+        ).rejects.toThrow('Credenciales inválidas');
+      }
+
+      expect((loginAttemptState as LoginAttemptState | null)?.failedAttempts).toBe(5);
+      expect((loginAttemptState as LoginAttemptState | null)?.lockedUntil).toBeInstanceOf(Date);
+
+      await expect(
+        service.login({
+          email: 'test@example.com',
+          password: 'WrongPassword1',
+        }),
+      ).rejects.toThrow('Cuenta bloqueada temporalmente');
+    });
   });
 
   describe('refreshTokens', () => {

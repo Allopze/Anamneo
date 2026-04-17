@@ -25,7 +25,7 @@ La seguridad de Anamneo mezcla controles de arranque, autenticacion por cookies,
 | Revocacion | `refreshTokenVersion` + revocacion de sesion |
 | Bloqueo de intentos | `LoginAttempt` registra fallos y ventana de bloqueo |
 
-El frontend no se guia solo por la presencia de cookies: `src/proxy.ts` valida sesion real consultando `/api/auth/me` antes de decidir redirecciones sensibles.
+`frontend/src/proxy.ts` usa un chequeo optimista por cookie para redirigir rutas publicas o protegidas sin hacer `fetch` remoto en esa capa. La validacion real de sesion sigue ocurriendo en el bootstrap normal del dashboard y en el data layer cuando corresponde.
 
 En el camino caliente de autenticacion, `login`, `register` y `2fa/verify` devuelven tambien el usuario de sesion sanitizado. El frontend usa ese payload para hidratar el store y evitar un segundo roundtrip inmediato a `/auth/me`, pero sigue reservando `GET /auth/me` para el bootstrap real cuando se entra al dashboard sin ese contexto reciente.
 
@@ -33,7 +33,16 @@ Cuando el sistema aun no tiene un admin activo, el primer registro requiere `BOO
 
 ## Roles y Contrato Base
 
-La referencia compartida actual esta en `shared/permission-contract.json`.
+La referencia compartida base para permisos generales esta en `shared/permission-contract.ts`.
+
+Para permisos clinicos de `encounters` que necesitan mas granularidad, la fuente compartida actual vive en `shared/encounter-permission-contract.ts`. Ahi se define:
+
+- visibilidad de secciones solo-medico,
+- edicion de atenciones segun rol y creador,
+- cierre de encounters en progreso,
+- firma, reapertura y cancelacion segun estado,
+- exportacion, impresion e historial de auditoria,
+- transiciones permitidas de `reviewStatus`.
 
 Escenarios documentados ahi:
 
@@ -44,7 +53,7 @@ Escenarios documentados ahi:
 | Asistente asignado | Si | Si | Si |
 | Asistente no asignado | No | No | No |
 
-Esto no reemplaza el enforcement backend, pero sirve como contrato de intencion compartida entre capas.
+Esto no reemplaza el enforcement backend, pero si reduce drift entre frontend y backend al reutilizar la misma regla en ambos lados para la superficie mas sensible del flujo clinico y de sus salidas oficiales.
 
 ## Cifrado de Settings
 
@@ -71,14 +80,14 @@ La operacion detallada de rotacion vive en `settings-key-rotation-runbook.md`.
 
 Esto da trazabilidad tecnica y operativa. Tambien implica que los cambios sensibles deben pasar por servicios y no por atajos laterales que despues nadie puede explicar.
 
-## Riesgos Conocidos a Corregir
+## Riesgos Conocidos a Vigilar
 
-Estos items no son teoria; ya fueron observados y deberian tratarse como deuda activa:
+No veo hoy un drift activo fuerte en auth, 2FA, consentimientos o payloads de sections como el que existia en pasadas anteriores. Lo que si conviene vigilar:
 
-- drift de contrato en 2FA: el frontend espera `qrCode` y el backend devuelve `qrCodeDataUrl`,
-- `consents` y `alerts` necesitan validacion consistente de patient access para evitar exposicion indebida,
-- el frontend de consentimientos espera un shape mas rico que el que algunas respuestas backend entregan hoy,
-- la actualizacion de secciones de encounter puede devolver `data` serializada y contaminar cache cliente si se consume sin normalizar.
+- si aparece una nueva seccion clinica sensible o una nueva transicion de workflow, actualizar `shared/encounter-permission-contract.ts` y sus tests antes de tocar solo una capa,
+- si aparece una accion nueva sobre `encounters` que dependa de rol o estado, declararla primero en el contrato compartido antes de repartir condicionales nuevos por la UI,
+- mantener `patient access` y `encounter access` uniformes en consentimientos, alertas, adjuntos y exports,
+- seguir agrupando mutacion de negocio y auditoria en la misma transaccion cuando el flujo sea clinicamente sensible.
 
 ## Cifrado en Reposo
 
@@ -135,8 +144,9 @@ Ese warning no bloquea el arranque, pero si aparece en produccion, alguien deber
 
 1. Los permisos visibles en UI son ayuda de UX, no seguridad real.
 2. Cada endpoint clinico debe validar acceso efectivo al paciente o encounter correspondiente.
-3. Cualquier cambio en auth o permisos deberia venir con tests backend y, si afecta experiencia visible, tests frontend.
-4. No uses placeholders en entornos compartidos aunque sea "solo por un rato". Ese rato siempre termina siendo mas largo de lo que alguien admite.
+3. Si un cambio toca permisos de encounters o sus acciones de workflow, el lugar para declararlo primero es `shared/encounter-permission-contract.ts`.
+4. Cualquier cambio en auth o permisos deberia venir con tests backend y, si afecta experiencia visible, tests frontend.
+5. No uses placeholders en entornos compartidos aunque sea "solo por un rato". Ese rato siempre termina siendo mas largo de lo que alguien admite.
 
 ## Donde Seguir
 

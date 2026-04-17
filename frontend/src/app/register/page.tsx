@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -22,6 +22,23 @@ import {
 } from './register.constants';
 
 export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="loading-shell">
+          <div className="status-card max-w-sm">
+            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-accent border-t-transparent" />
+            <p className="mt-4 text-sm text-ink-muted">Cargando registro...</p>
+          </div>
+        </div>
+      }
+    >
+      <RegisterContent />
+    </Suspense>
+  );
+}
+
+function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuthStore();

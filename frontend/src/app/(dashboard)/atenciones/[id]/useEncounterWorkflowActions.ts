@@ -2,7 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AxiosResponse } from 'axios';
 import { useMutation, type QueryClient, type UseMutationResult } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
-import { normalizeClosureNoteForCompletion } from '@/lib/encounter-completion';
+import {
+  buildRequiredWorkflowNoteError,
+  hasRequiredWorkflowNote,
+  normalizeClosureNoteForCompletion,
+  normalizeReviewNoteForWorkflow,
+} from '@/lib/encounter-completion';
 import { clearEncounterDraft } from '@/lib/encounter-draft';
 import { getEncounterClinicalOutputBlockReason } from '@/lib/clinical-output';
 import { invalidateDashboardOverviewQueries, invalidateTaskOverviewQueries } from '@/lib/query-invalidation';
@@ -12,6 +17,9 @@ import type { CompleteEncounterPayload } from './encounter-wizard.constants';
 
 interface UseEncounterWorkflowActionsParams {
   canEdit: boolean;
+  canCreateFollowupTask: boolean;
+  canRequestMedicalReview: boolean;
+  canMarkReviewedByDoctor: boolean;
   encounter?: Encounter;
   ensureActiveSectionSaved: () => Promise<boolean>;
   id: string;
@@ -21,7 +29,18 @@ interface UseEncounterWorkflowActionsParams {
 }
 
 export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsParams) {
-  const { canEdit, encounter, ensureActiveSectionSaved, id, navigate, queryClient, userId } = params;
+  const {
+    canEdit,
+    canCreateFollowupTask,
+    canRequestMedicalReview,
+    canMarkReviewedByDoctor,
+    encounter,
+    ensureActiveSectionSaved,
+    id,
+    navigate,
+    queryClient,
+    userId,
+  } = params;
   const [quickTask, setQuickTask] = useState({ title: '', type: 'SEGUIMIENTO', dueDate: '' });
   const [reviewActionNote, setReviewActionNote] = useState('');
   const [closureNote, setClosureNote] = useState('');
@@ -105,6 +124,11 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
   const handleComplete = useCallback(async () => {
     if (!canEdit) return;
 
+    if (!hasRequiredWorkflowNote(closureNote)) {
+      toast.error(buildRequiredWorkflowNoteError('La nota de cierre'));
+      return;
+    }
+
     const blockReason = getEncounterClinicalOutputBlockReason(encounter?.clinicalOutputBlock, 'COMPLETE_ENCOUNTER');
     if (blockReason) {
       toast.error(blockReason);
@@ -115,19 +139,56 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
     if (!saved) return;
 
     setShowCompleteConfirm(true);
-  }, [canEdit, encounter?.clinicalOutputBlock, ensureActiveSectionSaved]);
+  }, [canEdit, closureNote, encounter?.clinicalOutputBlock, ensureActiveSectionSaved]);
 
   const confirmComplete = useCallback(() => {
+    if (!hasRequiredWorkflowNote(closureNote)) {
+      toast.error(buildRequiredWorkflowNoteError('La nota de cierre'));
+      return;
+    }
+
     setShowCompleteConfirm(false);
     completeMutation.mutate({ closureNote: normalizeClosureNoteForCompletion(closureNote) });
   }, [closureNote, completeMutation]);
 
   const handleReviewStatusChange = useCallback(
-    (reviewStatus: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO') => {
-      reviewStatusMutation.mutate({ reviewStatus, note: reviewActionNote });
+    async (reviewStatus: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO') => {
+      if (reviewStatus === 'LISTA_PARA_REVISION' && !canRequestMedicalReview) {
+        return;
+      }
+      if (reviewStatus === 'REVISADA_POR_MEDICO' && !canMarkReviewedByDoctor) {
+        return;
+      }
+
+      if (reviewStatus === 'REVISADA_POR_MEDICO' && !hasRequiredWorkflowNote(reviewActionNote)) {
+        toast.error(buildRequiredWorkflowNoteError('La nota de revisión'));
+        return;
+      }
+
+      const saved = await ensureActiveSectionSaved();
+      if (!saved) return;
+
+      reviewStatusMutation.mutate({
+        reviewStatus,
+        note: normalizeReviewNoteForWorkflow(reviewActionNote) || undefined,
+      });
     },
-    [reviewActionNote, reviewStatusMutation],
+    [
+      canMarkReviewedByDoctor,
+      canRequestMedicalReview,
+      ensureActiveSectionSaved,
+      reviewActionNote,
+      reviewStatusMutation,
+    ],
   );
+
+  const handleCreateTask = useCallback(() => {
+    if (!canCreateFollowupTask) {
+      return;
+    }
+
+    createTaskMutation.mutate();
+  }, [canCreateFollowupTask, createTaskMutation]);
 
   const handleViewFicha = useCallback(async () => {
     const saved = await ensureActiveSectionSaved();
@@ -153,6 +214,7 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
     handleComplete,
     confirmComplete,
     handleReviewStatusChange,
+    handleCreateTask,
     handleViewFicha,
   };
 }

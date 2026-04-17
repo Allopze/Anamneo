@@ -128,6 +128,88 @@ export function registerEncounterWorkflowTests() {
     expect(res.body.completedBy?.id).toBe(state.medicoUserId);
   });
 
+  it('POST /api/encounters/:id/complete → treating doctor can complete an encounter created by an assistant', async () => {
+    const assistantEncounterRes = await req()
+      .get(`/api/encounters/${state.assistantEncounterId}`)
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .expect(200);
+
+    const identification = assistantEncounterRes.body.sections.find((section: any) => section.sectionKey === 'IDENTIFICACION');
+
+    await req()
+      .put(`/api/encounters/${state.assistantEncounterId}/sections/IDENTIFICACION`)
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .send({
+        data: identification.data,
+        completed: true,
+      })
+      .expect(200);
+
+    await req()
+      .put(`/api/encounters/${state.assistantEncounterId}/sections/MOTIVO_CONSULTA`)
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .send({
+        data: { texto: 'Control evolutivo posterior a evaluación inicial realizada por recepción.' },
+        completed: true,
+      })
+      .expect(200);
+
+    await req()
+      .put(`/api/encounters/${state.assistantEncounterId}/sections/EXAMEN_FISICO`)
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .send({
+        data: {
+          signosVitales: {
+            presionArterial: '120/80',
+            temperatura: '36.6',
+          },
+          estadoGeneral: 'Paciente en buenas condiciones generales.',
+        },
+        completed: true,
+      })
+      .expect(200);
+
+    await req()
+      .put(`/api/encounters/${state.assistantEncounterId}/sections/SOSPECHA_DIAGNOSTICA`)
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .send({
+        data: {
+          sospechas: [
+            {
+              id: 'dx-control',
+              diagnostico: 'Control clínico sin hallazgos de alarma',
+              notas: 'Evolución favorable al momento del cierre.',
+            },
+          ],
+        },
+        completed: true,
+      })
+      .expect(200);
+
+    await req()
+      .put(`/api/encounters/${state.assistantEncounterId}/sections/TRATAMIENTO`)
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .send({
+        data: {
+          plan: 'Mantener indicaciones previas y control ambulatorio según evolución.',
+        },
+        completed: true,
+      })
+      .expect(200);
+
+    const completeRes = await req()
+      .post(`/api/encounters/${state.assistantEncounterId}/complete`)
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .send({
+        closureNote: 'Médico tratante revisa la atención preparada por asistente y la completa sin rehacer el encuentro.',
+      })
+      .expect(201);
+
+    expect(completeRes.body.status).toBe('COMPLETADO');
+    expect(completeRes.body.createdBy?.id).toBe(state.assistantUserId);
+    expect(completeRes.body.completedBy?.id).toBe(state.medicoUserId);
+  });
+
   it('POST /api/encounters/:id/complete → rejects double-complete on already completed encounter', async () => {
     await req()
       .post(`/api/encounters/${state.workflowEncounterId}/complete`)

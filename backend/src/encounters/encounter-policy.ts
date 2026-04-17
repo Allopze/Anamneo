@@ -1,5 +1,9 @@
 import { ForbiddenException } from '@nestjs/common';
 import { RequestUser } from '../common/utils/medico-id';
+import {
+  canRoleEditEncounterRecord,
+  canRoleUpdateEncounterReviewStatus,
+} from '../../../shared/encounter-permission-contract';
 
 export type EncounterReviewStatus = 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO';
 
@@ -26,19 +30,11 @@ export function assertEncounterAccess(user: RequestUser, medicoId: string, messa
 }
 
 export function canEditEncounterCreatedBy(user: RequestUser, createdById: string) {
-  return user.role === 'MEDICO' || user.id === createdById;
+  return canRoleEditEncounterRecord(user.role, user.id, createdById);
 }
 
 export function canApplyReviewStatus(user: RequestUser, reviewStatus: EncounterReviewStatus) {
-  if (reviewStatus === 'LISTA_PARA_REVISION') {
-    return user.role === 'ASISTENTE';
-  }
-
-  if (reviewStatus === 'REVISADA_POR_MEDICO' || reviewStatus === 'NO_REQUIERE_REVISION') {
-    return user.role === 'MEDICO';
-  }
-
-  return false;
+  return canRoleUpdateEncounterReviewStatus(user.role, reviewStatus);
 }
 
 export function assertTreatingMedico(userId: string, medicoId: string, message: string) {

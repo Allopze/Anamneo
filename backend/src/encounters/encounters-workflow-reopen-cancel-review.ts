@@ -14,6 +14,7 @@ import {
   sanitizeText,
   summarizeWorkflowNoteAudit,
 } from './encounters-sanitize';
+import { type EncounterReopenReasonCode } from '../../../shared/encounter-reopen-reasons';
 
 interface ReopenEncounterParams {
   prisma: PrismaService;
@@ -21,6 +22,7 @@ interface ReopenEncounterParams {
   id: string;
   userId: string;
   note: string;
+  reasonCode: EncounterReopenReasonCode;
 }
 
 interface CancelEncounterParams {
@@ -40,7 +42,7 @@ interface UpdateEncounterReviewStatusParams {
 }
 
 export async function reopenEncounterWorkflowMutation(params: ReopenEncounterParams) {
-  const { prisma, auditService, id, userId, note } = params;
+  const { prisma, auditService, id, userId, note, reasonCode } = params;
 
   const encounter = await prisma.encounter.findUnique({
     where: { id },
@@ -95,6 +97,7 @@ export async function reopenEncounterWorkflowMutation(params: ReopenEncounterPar
     diff: {
       status: 'EN_PROGRESO',
       reopenedBy: userId,
+      reasonCode,
       note: summarizeWorkflowNoteAudit(sanitizedNote),
     },
   });

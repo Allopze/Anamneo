@@ -47,7 +47,7 @@ export default defineConfig({
       },
     },
     {
-      command: 'npm run dev',
+      command: 'node scripts/e2e-webserver.js',
       cwd: __dirname,
       port: 5555,
       reuseExistingServer: false,
@@ -56,6 +56,8 @@ export default defineConfig({
         ...process.env,
         API_PROXY_TARGET: 'http://127.0.0.1:5678/api',
         E2E_DISABLE_PROXY_AUTH: 'true',
+        HOSTNAME: '127.0.0.1',
+        PORT: '5555',
       },
     },
   ],

@@ -28,7 +28,7 @@ export default function FichaClinicaPage() {
     encounter,
     isLoading,
     isOperationalAdmin,
-    isDoctor,
+    canSign,
     clinicalOutputBlock,
     exportBlockedReason,
     printBlockedReason,
@@ -87,7 +87,7 @@ export default function FichaClinicaPage() {
       <FichaToolbar
         id={id}
         encounter={encounter}
-        isDoctor={isDoctor}
+        canSign={canSign}
         exportBlockedReason={exportBlockedReason}
         printBlockedReason={printBlockedReason}
         signIsPending={signMutation.isPending}

@@ -160,4 +160,31 @@ describe('verify2FALoginFlow', () => {
     );
     expect(usedTempTokenJtis.has('temp-jti-1')).toBe(true);
   });
+
+  it('purges expired consumed jtis before validating a new temp token', async () => {
+    usedTempTokenJtis.set('expired-jti', Date.now() - 1);
+    jwtService.verify.mockReturnValue({ sub: 'user-1', purpose: '2fa', jti: 'temp-jti-2' });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-1',
+      email: 'medico@test.com',
+      role: 'MEDICO',
+      active: true,
+      totpEnabled: true,
+      totpSecret: 'SECRET',
+    });
+    jest.spyOn(authenticator, 'verify').mockReturnValue(true);
+
+    await verify2FALoginFlow({
+      jwtService,
+      prisma,
+      usedTempTokenJtis,
+      tempTokenTtlMs: 300_000,
+      tempToken: 'temp-token',
+      code: '123456',
+      issueTokens,
+    });
+
+    expect(usedTempTokenJtis.has('expired-jti')).toBe(false);
+    expect(usedTempTokenJtis.has('temp-jti-2')).toBe(true);
+  });
 });

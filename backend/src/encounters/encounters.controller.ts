@@ -180,7 +180,7 @@ export class EncountersController {
     @Body() dto: ReopenEncounterDto,
     @CurrentUser('id') userId: string,
   ) {
-    return this.encountersService.reopen(id, userId, dto.note);
+    return this.encountersService.reopen(id, userId, dto.note, dto.reasonCode);
   }
 
   @Post(':id/cancel')

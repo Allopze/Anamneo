@@ -12,7 +12,7 @@ import {
 type Props = Pick<
   EncounterWizardHook,
   | 'canUpload'
-  | 'isDoctor'
+  | 'canDeleteAttachments'
   | 'selectedFile'
   | 'setSelectedFile'
   | 'uploadError'
@@ -34,7 +34,7 @@ type Props = Pick<
 
 export default function EncounterAttachmentsModal({
   canUpload,
-  isDoctor,
+  canDeleteAttachments,
   selectedFile,
   setSelectedFile,
   uploadError,
@@ -261,7 +261,7 @@ export default function EncounterAttachmentsModal({
             ) : (
               <AttachmentList
                 attachments={attachments}
-                isDoctor={isDoctor}
+                canDelete={canDeleteAttachments}
                 onDeleteClick={(attachmentId) => setShowDeleteAttachment(attachmentId)}
                 onDownload={handleDownload}
               />
@@ -275,12 +275,12 @@ export default function EncounterAttachmentsModal({
 
 function AttachmentList({
   attachments,
-  isDoctor,
+  canDelete,
   onDeleteClick,
   onDownload,
 }: {
   attachments: Attachment[];
-  isDoctor: boolean;
+  canDelete: boolean;
   onDeleteClick: (attachmentId: string) => void;
   onDownload: (a: Attachment) => void;
 }) {
@@ -312,7 +312,7 @@ function AttachmentList({
               <FiDownload className="h-4 w-4" />
               Descargar
             </button>
-            {isDoctor && (
+            {canDelete && (
               <button
                 type="button"
                 onClick={() => onDeleteClick(attachment.id)}

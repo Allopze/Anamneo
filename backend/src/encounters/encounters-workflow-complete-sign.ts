@@ -40,6 +40,61 @@ interface SignEncounterParams {
   context: { ipAddress?: string; userAgent?: string };
 }
 
+type SignatureSectionRecord = {
+  sectionKey: string;
+  data: string;
+};
+
+type SignatureAttachmentRecord = {
+  id: string;
+  originalName: string;
+  mime: string;
+  size: number;
+  uploadedAt: Date;
+  uploadedById: string;
+  category: string | null;
+  description: string | null;
+  linkedOrderType: string | null;
+  linkedOrderId: string | null;
+  linkedOrderLabel: string | null;
+};
+
+function buildEncounterSignatureContentPayload(encounter: {
+  sections?: SignatureSectionRecord[];
+  attachments?: SignatureAttachmentRecord[];
+}) {
+  const sections = [...(encounter.sections ?? [])]
+    .sort((left, right) => left.sectionKey.localeCompare(right.sectionKey))
+    .map((section) => {
+      const plain = typeof section.data === 'string' && section.data.startsWith('enc:') ? decryptField(section.data) : section.data;
+      return { key: section.sectionKey, data: plain };
+    });
+
+  const attachments = [...(encounter.attachments ?? [])]
+    .sort((left, right) => {
+      const uploadedDelta = left.uploadedAt.getTime() - right.uploadedAt.getTime();
+      return uploadedDelta !== 0 ? uploadedDelta : left.id.localeCompare(right.id);
+    })
+    .map((attachment) => ({
+      id: attachment.id,
+      originalName: attachment.originalName,
+      mime: attachment.mime,
+      size: attachment.size,
+      uploadedAt: attachment.uploadedAt,
+      uploadedById: attachment.uploadedById,
+      category: attachment.category,
+      description: attachment.description,
+      linkedOrderType: attachment.linkedOrderType,
+      linkedOrderId: attachment.linkedOrderId,
+      linkedOrderLabel: attachment.linkedOrderLabel,
+    }));
+
+  return {
+    sections,
+    attachments,
+  };
+}
+
 export async function completeEncounterWorkflowMutation(params: CompleteEncounterParams) {
   const { prisma, auditService, id, userId, closureNote } = params;
 
@@ -151,7 +206,25 @@ export async function signEncounterWorkflowMutation(params: SignEncounterParams)
 
   const encounter = await prisma.encounter.findUnique({
     where: { id },
-    include: { sections: true },
+    include: {
+      sections: true,
+      attachments: {
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          originalName: true,
+          mime: true,
+          size: true,
+          uploadedAt: true,
+          uploadedById: true,
+          category: true,
+          description: true,
+          linkedOrderType: true,
+          linkedOrderId: true,
+          linkedOrderLabel: true,
+        },
+      },
+    },
   });
 
   if (!encounter) {
@@ -164,12 +237,7 @@ export async function signEncounterWorkflowMutation(params: SignEncounterParams)
     throw new BadRequestException('Solo se pueden firmar atenciones completadas');
   }
 
-  const contentPayload = encounter.sections
-    .sort((a, b) => a.sectionKey.localeCompare(b.sectionKey))
-    .map((section) => {
-      const plain = typeof section.data === 'string' && section.data.startsWith('enc:') ? decryptField(section.data) : section.data;
-      return { key: section.sectionKey, data: plain };
-    });
+  const contentPayload = buildEncounterSignatureContentPayload(encounter);
   const contentHash = crypto.createHash('sha256').update(JSON.stringify(contentPayload)).digest('hex');
 
   const signature = await prisma.$transaction(async (tx) => {

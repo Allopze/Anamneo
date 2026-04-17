@@ -19,6 +19,7 @@ import {
   signEncounterWorkflowMutation,
   updateEncounterReviewStatusMutation,
 } from './encounters-workflow-mutations';
+import { type EncounterReopenReasonCode } from '../../../shared/encounter-reopen-reasons';
 import {
   createEncounterMutation,
 } from './encounters-create-mutation';
@@ -140,13 +141,14 @@ export class EncountersService {
     });
   }
 
-  async reopen(id: string, userId: string, note: string) {
+  async reopen(id: string, userId: string, note: string, reasonCode: EncounterReopenReasonCode) {
     return reopenEncounterWorkflowMutation({
       prisma: this.prisma,
       auditService: this.auditService,
       id,
       userId,
       note,
+      reasonCode,
     });
   }
 

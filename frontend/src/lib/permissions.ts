@@ -1,4 +1,17 @@
 import { Encounter } from '@/types';
+import {
+  ENCOUNTER_PERMISSION_CONTRACT,
+  canRoleCancelEncounter,
+  canRoleCompleteEncounter,
+  canRoleEditEncounterRecord,
+  canRoleExportEncounterDocuments,
+  canRolePrintEncounterRecord,
+  canRoleReopenEncounter,
+  canRoleSignEncounter,
+  canRoleUpdateEncounterReviewStatus,
+  canRoleViewEncounterAudit,
+  canRoleViewEncounterSection,
+} from '../../../shared/encounter-permission-contract';
 
 export interface PermissionUser {
   id: string;
@@ -35,7 +48,14 @@ export function canEditPatientAdmin(user: PermissionUser | null | undefined) {
   return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
 }
 
-export function canUploadAttachments(user: PermissionUser | null | undefined) {
+export function canUploadAttachments(
+  user: PermissionUser | null | undefined,
+  encounter?: Pick<Encounter, 'status'> | null,
+) {
+  if (encounter && encounter.status !== 'EN_PROGRESO') {
+    return false;
+  }
+
   return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
 }
 
@@ -47,27 +67,26 @@ export function canEditAntecedentes(user: PermissionUser | null | undefined) {
   return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
 }
 
+export function canCreatePatientTask(user: PermissionUser | null | undefined) {
+  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
+}
+
 export function canViewMedicoOnlySections(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user));
+  return Boolean(user && ENCOUNTER_PERMISSION_CONTRACT[user.role]?.canViewMedicoOnlySections);
+}
+
+export function canViewEncounterSection(
+  user: PermissionUser | null | undefined,
+  sectionKey: string | null | undefined,
+) {
+  return canRoleViewEncounterSection(user?.role, sectionKey);
 }
 
 export function canUpdateEncounterReviewStatus(
   user: PermissionUser | null | undefined,
   reviewStatus: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO',
 ) {
-  if (!user) {
-    return false;
-  }
-
-  if (reviewStatus === 'LISTA_PARA_REVISION') {
-    return user.role === 'ASISTENTE';
-  }
-
-  if (reviewStatus === 'REVISADA_POR_MEDICO' || reviewStatus === 'NO_REQUIERE_REVISION') {
-    return isMedicoUser(user);
-  }
-
-  return false;
+  return canRoleUpdateEncounterReviewStatus(user?.role, reviewStatus);
 }
 
 export function canEditEncounter(
@@ -78,16 +97,45 @@ export function canEditEncounter(
     return false;
   }
 
-  return isMedicoUser(user) || encounter.createdBy?.id === user.id;
+  return canRoleEditEncounterRecord(user.role, user.id, encounter.createdBy?.id ?? encounter.createdById);
 }
 
 export function canCompleteEncounter(
   user: PermissionUser | null | undefined,
   encounter: Encounter | undefined,
 ) {
-  return Boolean(
-    user &&
-    encounter?.status === 'EN_PROGRESO' &&
-    isMedicoUser(user),
-  );
+  return canRoleCompleteEncounter(user?.role, encounter?.status);
+}
+
+export function canSignEncounter(
+  user: PermissionUser | null | undefined,
+  encounter: Encounter | undefined,
+) {
+  return canRoleSignEncounter(user?.role, encounter?.status);
+}
+
+export function canReopenEncounter(
+  user: PermissionUser | null | undefined,
+  encounter: Encounter | undefined,
+) {
+  return canRoleReopenEncounter(user?.role, encounter?.status);
+}
+
+export function canCancelEncounter(
+  user: PermissionUser | null | undefined,
+  encounter: Encounter | undefined,
+) {
+  return canRoleCancelEncounter(user?.role, encounter?.status);
+}
+
+export function canExportEncounterDocuments(user: PermissionUser | null | undefined) {
+  return canRoleExportEncounterDocuments(user?.role);
+}
+
+export function canPrintEncounterRecord(user: PermissionUser | null | undefined) {
+  return canRolePrintEncounterRecord(user?.role);
+}
+
+export function canViewEncounterAudit(user: PermissionUser | null | undefined) {
+  return canRoleViewEncounterAudit(user?.role);
 }

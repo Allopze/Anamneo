@@ -1,4 +1,4 @@
-import permissionContract from '../../../../shared/permission-contract.json';
+import { PERMISSION_CONTRACT_SCENARIOS } from '../../../../shared/permission-contract';
 import {
   canCreateEncounter,
   canEditAntecedentes,
@@ -9,7 +9,7 @@ import {
 } from '@/lib/permissions';
 
 describe('permission contract', () => {
-  it.each(permissionContract)('matches frontend permission helpers for $id', ({ user, expectations }) => {
+  it.each(PERMISSION_CONTRACT_SCENARIOS)('matches frontend permission helpers for $id', ({ user, expectations }) => {
     const permissionUser = user as PermissionUser;
 
     expect(canEditAntecedentes(permissionUser)).toBe(expectations.canEditAntecedentes);

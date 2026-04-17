@@ -77,6 +77,12 @@ export class AttachmentsService {
     return detectedMime;
   }
 
+  private assertEncounterAllowsAttachmentMutation(status: string) {
+    if (status !== 'EN_PROGRESO') {
+      throw new BadRequestException('Solo se pueden modificar adjuntos de atenciones en progreso');
+    }
+  }
+
   private async safeUnlink(filePath: string): Promise<void> {
     try {
       await fs.unlink(filePath);
@@ -154,6 +160,8 @@ export class AttachmentsService {
     if (encounter.medicoId !== effectiveMedicoId) {
       throw new ForbiddenException('No tiene permisos para adjuntar archivos a esta atención');
     }
+
+    this.assertEncounterAllowsAttachmentMutation(encounter.status);
 
     const resolvedStoragePath = this.resolveStoragePath(file.path);
     const linkedOrder = await this.resolveLinkedOrder(encounterId, metadata);
@@ -306,6 +314,8 @@ export class AttachmentsService {
     if (attachment.deletedAt) {
       throw new NotFoundException('Archivo no encontrado');
     }
+
+    this.assertEncounterAllowsAttachmentMutation(attachment.encounter.status);
 
     // Soft-delete: mark as deleted, keep the physical file for retention period
     await this.prisma.$transaction(async (tx) => {

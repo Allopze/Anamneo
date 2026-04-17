@@ -15,7 +15,7 @@ Keep this file short and actionable; use linked docs for details.
 - Environment and deployment constraints: [docs/environment.md](docs/environment.md), [docs/deployment-and-release.md](docs/deployment-and-release.md)
 - Testing strategy: [docs/testing.md](docs/testing.md)
 - Architecture references: [docs/backend-architecture.md](docs/backend-architecture.md), [docs/frontend-architecture.md](docs/frontend-architecture.md), [docs/data-model.md](docs/data-model.md)
-- Security and permissions: [docs/security-and-permissions.md](docs/security-and-permissions.md), [shared/permission-contract.json](shared/permission-contract.json)
+- Security and permissions: [docs/security-and-permissions.md](docs/security-and-permissions.md), [shared/permission-contract.ts](shared/permission-contract.ts)
 
 ## Canonical Commands
 
@@ -35,7 +35,7 @@ Run from repo root unless stated otherwise.
 - Keep controllers thin; business rules belong in services.
 - Shared cross-cutting backend logic belongs in `backend/src/common/*` (guards, decorators, filters, helpers).
 - Frontend routes use Next.js App Router under `frontend/src/app/*`; private app shell lives in `frontend/src/app/(dashboard)/layout.tsx`.
-- Shared FE/BE permission intent lives in `shared/permission-contract.json` (backend remains source of truth for enforcement).
+- Shared FE/BE permission intent lives in `shared/permission-contract.ts` (backend remains source of truth for enforcement).
 
 ## Non-Obvious Gotchas
 

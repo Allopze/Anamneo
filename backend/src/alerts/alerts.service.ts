@@ -162,6 +162,10 @@ export class AlertsService {
       throw new NotFoundException('Alerta no encontrada');
     }
 
+    if (alert.acknowledgedAt) {
+      return alert;
+    }
+
     const updated = await this.prisma.clinicalAlert.update({
       where: { id },
       data: {

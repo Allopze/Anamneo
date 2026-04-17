@@ -49,7 +49,7 @@ Repositorio auditado: entorno de desarrollo de Anamneo
   - [backend/src/encounters/encounters.controller.ts](backend/src/encounters/encounters.controller.ts)
   - [backend/src/encounters/encounters-section-mutations.ts](backend/src/encounters/encounters-section-mutations.ts)
   - [frontend/src/app/(dashboard)/atenciones/[id]/encounter-wizard.constants.tsx](frontend/src/app/(dashboard)/atenciones/[id]/encounter-wizard.constants.tsx)
-  - [shared/permission-contract.json](shared/permission-contract.json)
+  - [shared/permission-contract.ts](shared/permission-contract.ts)
 - Explicacion concreta del problema:
   - `PUT /api/encounters/:id/sections/:sectionKey` admite `MEDICO` y `ASISTENTE`.
   - `updateEncounterSectionMutation` valida scope del medico y, para asistentes, que el encounter haya sido creado por ese asistente.
@@ -278,7 +278,7 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 - Resuelto en codigo: `frontend/src/proxy.ts` deja de hacer `fetch` remoto a `/api/auth/me` y pasa a un chequeo optimista por cookie, consistente con el uso recomendado para esta capa y menos fragil para rutas publicas.
 - Agregado en tests: cobertura unitaria para consentimientos transaccionales y ajuste de tests de workflow/proxy a la nueva semantica.
 - Pendiente principal de producto: ninguno de los de alto riesgo ya listados sigue abierto; la lista de secciones solo-medico ya quedo consolidada en una fuente compartida explicita.
-- Pendiente tecnico importante: si quieres seguir endureciendo el contrato, el siguiente paso util es volver mas declarativo `shared/permission-contract.json` para permisos de encounters y secciones.
+- Pendiente tecnico importante: ya no. La referencia base de permisos generales vive en `shared/permission-contract.ts` y dejo de duplicarse como fixture JSON separado.
 - Validado en esta pasada:
   - `npm --prefix frontend run test -- --runInBand src/__tests__/lib/proxy.test.ts` OK
   - `npm --prefix frontend run typecheck` OK
@@ -291,18 +291,18 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 
 1. Mantener la lista de secciones solo-medico en `shared/encounter-section-policy.ts` y no volver a duplicarla.
 2. Mantener los tests de regresion que cubren los flujos ya corregidos.
-3. Revisar si quieres cerrar tambien el contrato de permisos de encounters en `shared/permission-contract.json` con mas granularidad de seccion.
+3. Mantener el contrato compartido de encounters en `shared/encounter-permission-contract.ts` y extenderlo antes de agregar nuevas secciones sensibles o nuevas transiciones de workflow.
 
 ### Despues de eso
 
 1. Agregar auditoria a cualquier flujo clinico nuevo que aparezca.
-2. Revisar si quieres llevar el contrato compartido de permisos a una representacion mas declarativa.
+2. Si hiciera falta una vista mas humana del contrato, proyectarlo desde el helper compartido a docs o fixtures, no volver a duplicar logica a mano.
 3. Afinar el resumen clinico/paciente reciente si el producto empieza a crecer en uso.
 
 ### Dejar para despues, pero sin olvidarlo
 
 1. Revisar el patron de persistencia seguido de auditoria solo en servicios nuevos que introduzcan mutaciones sensibles.
-2. Consolidar mas del contrato de permisos de encounters si aparece nueva superficie clinica sensible.
+2. Consolidar mas del contrato de permisos de encounters solo si aparece nueva superficie clinica sensible.
 3. Mantener `proxy.ts` como chequeo optimista y no volver a checks remotos.
 
 ### No tocaria todavia
@@ -311,12 +311,58 @@ Repositorio auditado: entorno de desarrollo de Anamneo
 2. Separar servicios o meter colas.
 3. Observabilidad pesada, hardening enterprise o cambios pensados para miles de usuarios.
 
+## 10. Estado tras tercera pasada de fixes
+
+- Resuelto en codigo: `encounters` ya no dependen solo de reglas paralelas entre frontend y backend; la politica compartida ahora vive en `shared/encounter-permission-contract.ts`.
+- Resuelto en codigo: frontend y backend consumen el mismo contrato para visibilidad de secciones solo-medico, edicion por creador vs medico tratante, cierre en progreso y transiciones de `reviewStatus`.
+- Agregado en tests: cobertura unitaria para el contrato compartido en helpers de permisos frontend y wrappers backend.
+- Agregado en e2e: regresion explicita para el flujo `asistente crea -> medico tratante completa` sin rehacer la atencion.
+- Actualizado en docs: `docs/security-and-permissions.md` y `docs/clinical-workflows.md` ya no describen como deuda activa varios drifts que en el estado actual del repo estan corregidos.
+- Validado en esta pasada:
+  - `npm --prefix backend run typecheck` OK
+  - `npm --prefix frontend run typecheck` OK
+  - `npm --prefix backend run test -- --runInBand src/encounters/encounter-access-policy.spec.ts src/encounters/encounter-policy.spec.ts src/alerts/alerts.service.spec.ts src/encounters/encounters-workflow-complete-sign.spec.ts src/encounters/encounters-pdf.service.spec.ts` OK
+  - `npm --prefix frontend run test -- --runInBand src/__tests__/lib/permissions.test.ts src/__tests__/lib/permissions-contract.test.ts src/__tests__/app/login.test.tsx src/__tests__/lib/proxy.test.ts` OK
+  - `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` OK
+
+## 11. Estado tras cuarta pasada de fixes
+
+- Resuelto en codigo: el contrato compartido de `encounters` ahora tambien cubre `sign`, `reopen`, `cancel`, `export`, `print` y `audit`, no solo view/edit/complete/review.
+- Resuelto en frontend: el wizard y la ficha clinica dejaron de depender de checks sueltos como `isDoctor` para review/sign; ahora consumen permisos derivados del contrato compartido.
+- Agregado en tests: hay cobertura explicita para `canSign/canReopen/canCancel/canExport/canPrint/canViewAudit` y una regresion de UI para el caso `medico tratante puede finalizar una atencion creada por asistente`.
+- Agregado en e2e: la proteccion de secciones solo-medico ya no se valida con un solo ejemplo; ahora cubre `SOSPECHA_DIAGNOSTICA`, `TRATAMIENTO` y `RESPUESTA_TRATAMIENTO`.
+- Actualizado en docs: `docs/security-and-permissions.md` y `docs/clinical-workflows.md` ya reflejan que el contrato compartido cubre tambien acciones de workflow y salidas clinicas.
+- Validado en esta pasada:
+  - `npm --prefix frontend run typecheck` OK
+  - `npm --prefix backend run typecheck` OK
+  - `npm --prefix frontend run test -- --runInBand src/__tests__/lib/permissions.test.ts src/__tests__/lib/permissions-contract.test.ts src/__tests__/app/atencion-cierre.test.tsx` OK
+  - `npm --prefix backend run test -- --runInBand src/encounters/encounters-workflow-reopen-cancel-review.spec.ts src/encounters/encounter-policy.spec.ts src/encounters/encounter-access-policy.spec.ts` OK
+  - `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` OK
+
+## 12. Estado tras quinta pasada de fixes
+
+- Resuelto en codigo: la referencia base de permisos generales ya no vive en `shared/permission-contract.json`; ahora la unica fuente compartida es `shared/permission-contract.ts`.
+- Resuelto en tests: `permissions-contract`, `paciente-detalle` e `historial-paciente` consumen directamente el contrato TS compartido y dejan de depender de un JSON duplicado.
+- Resuelto en frontend: `EncounterDrawer` ya no ata la `Nota de revisión` a `canEdit`; ahora usa un permiso fino derivado de las acciones reales de revisión disponibles.
+- Resuelto en frontend: `Seguimiento Rápido` dentro del drawer ahora exige permiso explícito de creación de tareas del paciente y ya no queda visible por arrastre de otros permisos.
+- Agregado en tests: cobertura visible para nota de revisión editable en atención completada y ocultamiento de seguimiento rápido cuando el usuario no tiene permiso.
+- Actualizado en docs: referencias operativas y de seguridad ahora apuntan a `shared/permission-contract.ts`.
+- Validado en esta pasada:
+  - `npm --prefix frontend run typecheck` OK
+  - `npm --prefix backend run typecheck` OK
+  - `npm --prefix frontend run test -- --runInBand src/__tests__/lib/permissions.test.ts src/__tests__/lib/permissions-contract.test.ts src/__tests__/app/atencion-cierre.test.tsx src/__tests__/app/paciente-detalle.test.tsx src/__tests__/app/historial-paciente.test.tsx` OK
+
 ## Base de evidencia usada
 
 - Lectura de backend, frontend, schema Prisma, tests y docs internas.
-- Context7/Context7-compatible docs para Next.js 16 sobre `proxy`: recomendacion de chequeo optimista por cookie y evitar validaciones remotas pesadas en esa capa.
 - Validaciones ejecutadas:
   - `npm --prefix backend run typecheck` OK
   - `npm --prefix frontend run typecheck` OK
   - `npm --prefix frontend run test -- --runInBand src/__tests__/lib/permissions.test.ts src/__tests__/app/login.test.tsx` OK
   - `npm --prefix backend run test -- --runInBand src/encounters/encounters-workflow-complete-sign.spec.ts` OK
+  - `npm --prefix backend run test -- --runInBand src/encounters/encounter-access-policy.spec.ts src/encounters/encounter-policy.spec.ts src/alerts/alerts.service.spec.ts src/encounters/encounters-workflow-complete-sign.spec.ts src/encounters/encounters-pdf.service.spec.ts` OK
+  - `npm --prefix frontend run test -- --runInBand src/__tests__/lib/permissions.test.ts src/__tests__/lib/permissions-contract.test.ts src/__tests__/app/atencion-cierre.test.tsx` OK
+  - `npm --prefix backend run test -- --runInBand src/encounters/encounters-workflow-reopen-cancel-review.spec.ts src/encounters/encounter-policy.spec.ts src/encounters/encounter-access-policy.spec.ts` OK
+  - `npm --prefix frontend run test -- --runInBand src/__tests__/lib/permissions.test.ts src/__tests__/lib/permissions-contract.test.ts src/__tests__/app/atencion-cierre.test.tsx src/__tests__/app/paciente-detalle.test.tsx src/__tests__/app/historial-paciente.test.tsx` OK
+  - `npm --prefix frontend run test -- --runInBand src/__tests__/lib/permissions.test.ts src/__tests__/lib/permissions-contract.test.ts src/__tests__/app/login.test.tsx src/__tests__/lib/proxy.test.ts` OK
+  - `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` OK

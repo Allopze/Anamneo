@@ -34,7 +34,7 @@ type Props = Pick<
   | 'pendingSaveCount'
   | 'canEdit'
   | 'canComplete'
-  | 'isDoctor'
+  | 'canSign'
   | 'hasUnsavedChanges'
   | 'saveStatus'
   | 'saveStateLabel'
@@ -64,7 +64,7 @@ export default function EncounterHeader({
   pendingSaveCount,
   canEdit,
   canComplete,
-  isDoctor,
+  canSign,
   hasUnsavedChanges,
   saveStatus,
   saveStateLabel,
@@ -217,7 +217,7 @@ export default function EncounterHeader({
               </button>
             ) : null}
 
-            {encounter.status === 'COMPLETADO' && isDoctor ? (
+            {canSign ? (
               <button
                 onClick={() => setShowSignModal(true)}
                 disabled={signMutation.isPending}

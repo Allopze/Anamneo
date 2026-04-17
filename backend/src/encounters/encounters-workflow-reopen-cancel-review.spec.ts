@@ -33,6 +33,7 @@ describe('encounters-workflow-reopen-cancel-review', () => {
         auditService: { log: jest.fn() } as never,
         id: 'enc-1',
         userId: 'med-1',
+        reasonCode: 'CORRECCION_CLINICA',
         note: 'Motivo de reapertura suficiente para auditoría.',
       }),
     ).rejects.toThrow(BadRequestException);
@@ -73,6 +74,63 @@ describe('encounters-workflow-reopen-cancel-review', () => {
       }),
     );
     expect(result).toEqual({ id: 'enc-1', status: 'CANCELADO' });
+  });
+
+  it('reopens a completed encounter and records the structured reason in audit', async () => {
+    const updatedEncounter = {
+      id: 'enc-1',
+      status: 'EN_PROGRESO',
+      reviewStatus: 'NO_REQUIERE_REVISION',
+      sections: [],
+      patient: { id: 'pat-1' },
+      createdBy: { id: 'med-1', nombre: 'Médico' },
+      reviewRequestedBy: null,
+      reviewedBy: null,
+      completedBy: null,
+    };
+
+    const prisma = {
+      encounter: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'enc-1',
+          status: 'COMPLETADO',
+          medicoId: 'med-1',
+        }),
+        update: jest.fn().mockResolvedValue(updatedEncounter),
+      },
+    };
+    const auditService = { log: jest.fn().mockResolvedValue(undefined) };
+
+    const result = await reopenEncounterWorkflowMutation({
+      prisma: prisma as never,
+      auditService: auditService as never,
+      id: 'enc-1',
+      userId: 'med-1',
+      reasonCode: 'RESULTADOS_POSTERIORES',
+      note: 'Se agregan resultados de examen que cambian la conducta clínica.',
+    });
+
+    expect(prisma.encounter.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'enc-1' },
+        data: expect.objectContaining({
+          status: 'EN_PROGRESO',
+          closureNote: null,
+        }),
+      }),
+    );
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: 'Encounter',
+        action: 'UPDATE',
+        diff: expect.objectContaining({
+          status: 'EN_PROGRESO',
+          reasonCode: 'RESULTADOS_POSTERIORES',
+        }),
+      }),
+    );
+    expect(formatEncounterResponse).toHaveBeenCalledWith(updatedEncounter, { viewerRole: 'MEDICO' });
+    expect(result).toBe(updatedEncounter);
   });
 
   it('rejects assistant trying to mark review as reviewed by medico', async () => {
@@ -164,7 +222,7 @@ describe('encounters-workflow-reopen-cancel-review', () => {
         diff: expect.objectContaining({ reviewStatus: 'LISTA_PARA_REVISION' }),
       }),
     );
-    expect(formatEncounterResponse).toHaveBeenCalledWith(updatedEncounter);
+    expect(formatEncounterResponse).toHaveBeenCalledWith(updatedEncounter, { viewerRole: 'ASISTENTE' });
     expect(result).toBe(updatedEncounter);
   });
 });

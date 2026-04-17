@@ -30,6 +30,14 @@ interface Verify2FALoginFlowParams {
   issueTokens: IssueTokensFn;
 }
 
+function purgeExpiredTempTokenJtis(usedTempTokenJtis: Map<string, number>, now: number) {
+  for (const [jti, expiresAt] of usedTempTokenJtis) {
+    if (expiresAt <= now) {
+      usedTempTokenJtis.delete(jti);
+    }
+  }
+}
+
 export async function verify2FALoginFlow(
   params: Verify2FALoginFlowParams,
 ): Promise<{ tokens: AuthTokens; userId: string }> {
@@ -43,6 +51,9 @@ export async function verify2FALoginFlow(
     sessionContext,
     issueTokens,
   } = params;
+  const now = Date.now();
+
+  purgeExpiredTempTokenJtis(usedTempTokenJtis, now);
 
   let payload: { sub: string; purpose: string; jti?: string };
   try {
@@ -59,7 +70,7 @@ export async function verify2FALoginFlow(
     if (usedTempTokenJtis.has(payload.jti)) {
       throw new UnauthorizedException('Token temporal ya utilizado');
     }
-    usedTempTokenJtis.set(payload.jti, Date.now() + tempTokenTtlMs);
+    usedTempTokenJtis.set(payload.jti, now + tempTokenTtlMs);
   }
 
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });

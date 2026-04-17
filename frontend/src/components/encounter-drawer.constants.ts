@@ -44,14 +44,18 @@ export interface EncounterDrawerProps {
   onTabChange: (tab: SidebarTabKey) => void;
 
   encounter: Encounter;
-  isDoctor: boolean;
   canEdit: boolean;
   canComplete: boolean;
+  canRequestMedicalReview: boolean;
+  canMarkReviewedByDoctor: boolean;
+  canWriteReviewNote: boolean;
+  canViewAudit: boolean;
+  canCreateFollowupTask: boolean;
 
   /* revision tab */
   reviewActionNote: string;
   onReviewActionNoteChange: (value: string) => void;
-  onReviewStatusChange: (status: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO') => void;
+  onReviewStatusChange: (status: 'NO_REQUIERE_REVISION' | 'LISTA_PARA_REVISION' | 'REVISADA_POR_MEDICO') => void | Promise<void>;
   reviewStatusPending: boolean;
   generatedSummary: string;
   onSaveGeneratedSummary: () => void;

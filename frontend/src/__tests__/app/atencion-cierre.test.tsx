@@ -105,7 +105,7 @@ function createWrapper() {
   };
 }
 
-async function openDrawerTab(user: ReturnType<typeof userEvent.setup>, tabName: 'Cierre' | 'Apoyo') {
+async function openDrawerTab(user: ReturnType<typeof userEvent.setup>, tabName: 'Cierre' | 'Apoyo' | 'Revisión') {
   await user.click(screen.getByRole('button', { name: /Abrir panel lateral con revisión, apoyo, cierre e historial/i }));
   const drawer = await screen.findByRole('dialog', { name: 'Panel lateral de la atención' });
   await user.click(within(drawer).getByRole('button', { name: new RegExp(tabName, 'i') }));
@@ -114,6 +114,16 @@ async function openDrawerTab(user: ReturnType<typeof userEvent.setup>, tabName: 
 describe('EncounterWizardPage closing workflow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    authStoreState.user = {
+      id: 'med-1',
+      email: 'medico@anamneo.cl',
+      nombre: 'Dra. Rivera',
+      role: 'MEDICO',
+      isAdmin: false,
+      medicoId: null,
+    };
+    authStoreState.isMedico = () => true;
+    authStoreState.canEditAntecedentes = () => true;
     enqueueSaveMock.mockResolvedValue(undefined);
     getPendingSavesForUserMock.mockResolvedValue([]);
     removePendingSaveMock.mockResolvedValue(undefined);
@@ -145,7 +155,7 @@ describe('EncounterWizardPage closing workflow', () => {
     apiDeleteMock.mockResolvedValue({ data: {} });
   });
 
-  it('allows completion even without a closure note', async () => {
+  it('blocks completion until a closure note is provided', async () => {
     const user = userEvent.setup();
 
     render(<EncounterWizardPage />, { wrapper: createWrapper() });
@@ -155,7 +165,8 @@ describe('EncounterWizardPage closing workflow', () => {
     await openDrawerTab(user, 'Cierre');
     await user.click(screen.getByRole('button', { name: 'Finalizar Atención' }));
 
-    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith('La nota de cierre debe tener al menos 10 caracteres');
+    expect(apiPostMock).not.toHaveBeenCalled();
   });
 
   it('disables encounter completion when the patient record is pending medical verification', async () => {
@@ -224,6 +235,78 @@ describe('EncounterWizardPage closing workflow', () => {
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith('/atenciones/enc-1/ficha');
     });
+  });
+
+  it('keeps the completion action available for the treating doctor even when the encounter was created by an assistant', async () => {
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/encounters/enc-1') {
+        return Promise.resolve({
+          data: {
+            ...encounterResponse,
+            createdById: 'assistant-1',
+            createdBy: {
+              id: 'assistant-1',
+              nombre: 'Asistente Clínica',
+            },
+          },
+        });
+      }
+
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    render(<EncounterWizardPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Finalizar Atención' })).toBeEnabled();
+  });
+
+  it('keeps the review note editable for a doctor who can still mark a completed encounter as reviewed', async () => {
+    const user = userEvent.setup();
+
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/encounters/enc-1') {
+        return Promise.resolve({
+          data: {
+            ...encounterResponse,
+            status: 'COMPLETADO',
+            reviewStatus: 'NO_REQUIERE_REVISION',
+            completedAt: '2026-04-08T12:30:00.000Z',
+          },
+        });
+      }
+
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    render(<EncounterWizardPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
+
+    await openDrawerTab(user, 'Revisión');
+    expect(screen.getByLabelText('Nota de revisión')).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Marcar Revisada' })).toBeInTheDocument();
+  });
+
+  it('hides follow-up creation for users without explicit task permission', async () => {
+    const user = userEvent.setup();
+    authStoreState.user = {
+      id: 'assistant-2',
+      email: 'asistente@anamneo.cl',
+      nombre: 'Asistente sin médico',
+      role: 'ASISTENTE',
+      isAdmin: false,
+      medicoId: null,
+    };
+    authStoreState.isMedico = () => false;
+    authStoreState.canEditAntecedentes = () => false;
+
+    render(<EncounterWizardPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
+
+    await openDrawerTab(user, 'Apoyo');
+    expect(screen.queryByText('Seguimiento Rápido')).not.toBeInTheDocument();
   });
 
   it('shows a non-blocking warning toast when automatic vital-sign alerts could not be generated', async () => {

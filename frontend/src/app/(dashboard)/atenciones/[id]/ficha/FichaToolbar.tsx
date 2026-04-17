@@ -8,7 +8,7 @@ import { useHeaderBarSlot } from '@/components/layout/HeaderBarSlotContext';
 interface FichaToolbarProps {
   id: string;
   encounter: Encounter | undefined;
-  isDoctor: boolean;
+  canSign: boolean;
   exportBlockedReason: string | null;
   printBlockedReason: string | null;
   signIsPending: boolean;
@@ -21,7 +21,7 @@ interface FichaToolbarProps {
 export function FichaToolbar({
   id,
   encounter,
-  isDoctor,
+  canSign,
   exportBlockedReason,
   printBlockedReason,
   signIsPending,
@@ -96,7 +96,7 @@ export function FichaToolbar({
             <FiPrinter className="h-4 w-4" />
             <span className="hidden sm:inline">Imprimir</span>
           </button>
-          {encounter.status === 'COMPLETADO' && isDoctor ? (
+          {canSign ? (
             <button
               onClick={onSign}
               disabled={signIsPending}
@@ -123,7 +123,7 @@ export function FichaToolbar({
     onPrint,
     onSign,
     id,
-    isDoctor,
+    canSign,
     printBlockedReason,
     signIsPending,
   ]);

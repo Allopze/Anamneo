@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PatientDetailPage from '@/app/(dashboard)/pacientes/[id]/page';
-import permissionContract from '../../../../shared/permission-contract.json';
+import { PERMISSION_CONTRACT_SCENARIOS } from '../../../../shared/permission-contract';
 import {
   basePatientResponse,
   baseEncounterListPage1,
@@ -16,7 +16,7 @@ import {
 const pushMock = jest.fn();
 const apiGetMock = jest.fn();
 const apiPostMock = jest.fn();
-let currentUser = permissionContract[0].user as any;
+let currentUser = PERMISSION_CONTRACT_SCENARIOS[0].user as any;
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({ id: 'patient-1' }),
@@ -66,7 +66,7 @@ function createWrapper() {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  currentUser = permissionContract.find((scenario) => scenario.id === 'medico')?.user as any;
+  currentUser = PERMISSION_CONTRACT_SCENARIOS.find((scenario) => scenario.id === 'medico')?.user as any;
 
   apiGetMock.mockImplementation((url: string) => {
     if (url === '/patients/patient-1') {
@@ -148,7 +148,7 @@ describe('PatientDetailPage', () => {
     expect(screen.getByText('Ver resumen')).toBeInTheDocument();
   });
 
-  it.each(permissionContract)(
+  it.each(PERMISSION_CONTRACT_SCENARIOS)(
     'shows antecedentes edit action according to permission contract for $id',
     async ({ user, expectations }) => {
       currentUser = user as any;

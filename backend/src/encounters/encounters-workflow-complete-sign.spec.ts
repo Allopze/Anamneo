@@ -182,6 +182,21 @@ describe('encounters-workflow-complete-sign', () => {
             { sectionKey: 'TRATAMIENTO', data: { plan: 'Plan A' } },
             { sectionKey: 'MOTIVO_CONSULTA', data: { texto: 'Control' } },
           ],
+          attachments: [
+            {
+              id: 'att-1',
+              originalName: 'hemograma.pdf',
+              mime: 'application/pdf',
+              size: 2048,
+              uploadedAt: new Date('2026-04-16T05:55:00.000Z'),
+              uploadedById: 'med-1',
+              category: 'EXAMEN',
+              description: 'Resultado basal',
+              linkedOrderType: 'EXAMEN',
+              linkedOrderId: 'exam-1',
+              linkedOrderLabel: 'Hemograma completo',
+            },
+          ],
         }),
         update: jest.fn().mockResolvedValue({ id: 'enc-1', status: 'FIRMADO' }),
       },
@@ -237,5 +252,74 @@ describe('encounters-workflow-complete-sign', () => {
         contentHash: expect.stringMatching(/^[a-f0-9]{64}$/),
       }),
     );
+  });
+
+  it('changes the signature hash when attachment metadata changes', async () => {
+    const buildPrisma = (attachmentDescription: string) => ({
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'med-1',
+          active: true,
+          passwordHash: 'hash',
+        }),
+      },
+      encounter: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'enc-1',
+          status: 'COMPLETADO',
+          medicoId: 'med-1',
+          sections: [
+            { sectionKey: 'TRATAMIENTO', data: { plan: 'Plan A' } },
+            { sectionKey: 'MOTIVO_CONSULTA', data: { texto: 'Control' } },
+          ],
+          attachments: [
+            {
+              id: 'att-1',
+              originalName: 'hemograma.pdf',
+              mime: 'application/pdf',
+              size: 2048,
+              uploadedAt: new Date('2026-04-16T05:55:00.000Z'),
+              uploadedById: 'med-1',
+              category: 'EXAMEN',
+              description: attachmentDescription,
+              linkedOrderType: 'EXAMEN',
+              linkedOrderId: 'exam-1',
+              linkedOrderLabel: 'Hemograma completo',
+            },
+          ],
+        }),
+        update: jest.fn().mockResolvedValue({ id: 'enc-1', status: 'FIRMADO' }),
+      },
+      encounterSignature: {
+        create: jest.fn().mockResolvedValue({ id: 'sig-1', signedAt: new Date('2026-04-16T06:00:00.000Z') }),
+      },
+      $transaction: jest.fn(),
+    });
+
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+    const prismaA: any = buildPrisma('Resultado basal');
+    prismaA.$transaction = jest.fn().mockImplementation(async (callback: (client: any) => Promise<unknown>) => callback(prismaA));
+    const resultA = await signEncounterWorkflowMutation({
+      prisma: prismaA,
+      auditService: { log: jest.fn().mockResolvedValue(undefined) } as never,
+      id: 'enc-1',
+      userId: 'med-1',
+      password: 'Password1',
+      context: {},
+    });
+
+    const prismaB: any = buildPrisma('Resultado corregido');
+    prismaB.$transaction = jest.fn().mockImplementation(async (callback: (client: any) => Promise<unknown>) => callback(prismaB));
+    const resultB = await signEncounterWorkflowMutation({
+      prisma: prismaB,
+      auditService: { log: jest.fn().mockResolvedValue(undefined) } as never,
+      id: 'enc-1',
+      userId: 'med-1',
+      password: 'Password1',
+      context: {},
+    });
+
+    expect(resultA.contentHash).not.toBe(resultB.contentHash);
   });
 });

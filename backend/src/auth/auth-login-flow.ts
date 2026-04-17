@@ -61,7 +61,7 @@ export async function clearExpiredLockout(prisma: PrismaService, email: string, 
     return loginAttempt;
   }
 
-  if (loginAttempt.failedAttempts > 0 || loginAttempt.lockedUntil) {
+  if (loginAttempt.lockedUntil && loginAttempt.lockedUntil <= now) {
     await prisma.loginAttempt.update({
       where: { email },
       data: {

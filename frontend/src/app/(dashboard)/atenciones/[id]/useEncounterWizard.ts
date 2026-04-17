@@ -6,13 +6,10 @@ import type { Encounter } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   canEditEncounter,
+  canViewEncounterSection,
   canUploadAttachments as canUploadAttachmentsPermission,
-  canViewMedicoOnlySections,
 } from '@/lib/permissions';
 import { useOnlineStatus } from '@/lib/useOnlineStatus';
-import {
-  MEDICO_ONLY_SECTIONS,
-} from './encounter-wizard.constants';
 import { useEncounterWizardDerived } from './useEncounterWizardDerived';
 import { useEncounterAttachments } from './useEncounterAttachments';
 import { useEncounterSectionPersistence } from './useEncounterSectionPersistence';
@@ -60,13 +57,11 @@ export function useEncounterWizard() {
 
   const isDoctor = isMedico();
   const canEdit = canEditEncounter(user ?? null, encounter);
-  const canUpload = canUploadAttachmentsPermission(user ?? null);
+  const canUpload = canUploadAttachmentsPermission(user ?? null, encounter);
   const allSections = encounter?.sections;
   const sections = useMemo(() => {
     const source = allSections ?? [];
-    return canViewMedicoOnlySections(user ?? null)
-      ? source
-      : source.filter((section) => !MEDICO_ONLY_SECTIONS.includes(section.sectionKey));
+    return source.filter((section) => canViewEncounterSection(user ?? null, section.sectionKey));
   }, [allSections, user]);
   const currentSection = sections[currentSectionIndex];
 
@@ -108,7 +103,14 @@ export function useEncounterWizard() {
   });
 
   const {
+    canDeleteAttachments,
     canComplete,
+    canSign,
+    canRequestMedicalReview,
+    canMarkReviewedByDoctor,
+    canWriteReviewNote,
+    canViewAudit,
+    canCreateFollowupTask,
     SectionComponent,
     completedCount,
     progressPercentage,
@@ -147,6 +149,9 @@ export function useEncounterWizard() {
 
   const workflow = useEncounterWorkflowActions({
     canEdit,
+    canCreateFollowupTask,
+    canRequestMedicalReview,
+    canMarkReviewedByDoctor,
     encounter,
     ensureActiveSectionSaved: persistence.ensureActiveSectionSaved,
     id,
@@ -176,7 +181,14 @@ export function useEncounterWizard() {
     isDoctor,
     canEdit,
     canUpload,
+    canDeleteAttachments,
     canComplete,
+    canSign,
+    canRequestMedicalReview,
+    canMarkReviewedByDoctor,
+    canWriteReviewNote,
+    canViewAudit,
+    canCreateFollowupTask,
     canEditAntecedentes,
     sections,
     currentSectionIndex,
@@ -263,6 +275,7 @@ export function useEncounterWizard() {
     handleMarkNotApplicable: sectionActions.handleMarkNotApplicable,
     handleConfirmNotApplicable: sectionActions.handleConfirmNotApplicable,
     handleReviewStatusChange: workflow.handleReviewStatusChange,
+    handleCreateTask: workflow.handleCreateTask,
     handleDownload: attachmentsState.handleDownload,
     handleRestoreIdentificationFromPatient: persistence.handleRestoreIdentificationFromPatient,
     handleStartLinkedAttachment: attachmentsState.handleStartLinkedAttachment,

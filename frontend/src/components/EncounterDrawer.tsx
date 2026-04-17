@@ -22,6 +22,7 @@ import {
   formatCompactDate,
   type EncounterDrawerProps,
 } from './encounter-drawer.constants';
+import { WORKFLOW_NOTE_MIN_LENGTH } from '@/lib/encounter-completion';
 
 export type { SidebarTabKey } from './encounter-drawer.constants';
 
@@ -32,9 +33,13 @@ export default function EncounterDrawer(props: EncounterDrawerProps) {
     tab,
     onTabChange,
     encounter,
-    isDoctor,
     canEdit,
     canComplete,
+    canRequestMedicalReview,
+    canMarkReviewedByDoctor,
+    canWriteReviewNote,
+    canViewAudit,
+    canCreateFollowupTask,
     reviewActionNote,
     onReviewActionNoteChange,
     onReviewStatusChange,
@@ -58,6 +63,7 @@ export default function EncounterDrawer(props: EncounterDrawerProps) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const visibleTabs = canViewAudit ? SIDEBAR_TABS : SIDEBAR_TABS.filter((tabItem) => tabItem.key !== 'historial');
 
   /* mount → animate in */
   useEffect(() => {
@@ -133,7 +139,7 @@ export default function EncounterDrawer(props: EncounterDrawerProps) {
         {/* Header with close + tabs */}
         <div className="flex items-center justify-between border-b border-surface-muted/40 px-4 py-2">
           <div className="flex flex-1 gap-0">
-            {SIDEBAR_TABS.map((t) => (
+            {visibleTabs.map((t) => (
               <button
                 key={t.key}
                 type="button"
@@ -191,14 +197,16 @@ export default function EncounterDrawer(props: EncounterDrawerProps) {
                 value={reviewActionNote}
                 onChange={(e) => onReviewActionNoteChange(e.target.value)}
                 placeholder="Contexto clínico para la revisión médica…"
-                readOnly={!canEdit}
+                readOnly={!canWriteReviewNote}
               />
               <p className="mt-2 text-xs text-ink-muted">
-                Opcional. Añade contexto clínico para la revisión médica.
+                {canMarkReviewedByDoctor
+                  ? `Obligatoria para marcar como revisada. Mínimo ${WORKFLOW_NOTE_MIN_LENGTH} caracteres.`
+                  : 'Opcional al enviar la atención a revisión médica.'}
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                {!isDoctor && encounter.reviewStatus !== 'LISTA_PARA_REVISION' ? (
+                {canRequestMedicalReview && encounter.reviewStatus !== 'LISTA_PARA_REVISION' ? (
                   <button
                     className={TOOLBAR_BUTTON_CLASS}
                     onClick={() => onReviewStatusChange('LISTA_PARA_REVISION')}
@@ -207,7 +215,7 @@ export default function EncounterDrawer(props: EncounterDrawerProps) {
                     Enviar a Revisión Médica
                   </button>
                 ) : null}
-                {isDoctor && encounter.reviewStatus !== 'REVISADA_POR_MEDICO' ? (
+                {canMarkReviewedByDoctor && encounter.reviewStatus !== 'REVISADA_POR_MEDICO' ? (
                   <button
                     className={TOOLBAR_BUTTON_CLASS}
                     onClick={() => onReviewStatusChange('REVISADA_POR_MEDICO')}
@@ -257,53 +265,55 @@ export default function EncounterDrawer(props: EncounterDrawerProps) {
                 ) : null}
               </div>
 
-              <form
-                className="mt-5 flex flex-col gap-3 border-t border-surface-muted/35 pt-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  onCreateTask();
-                }}
-              >
-                <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-                  <FiClipboard className="h-4 w-4 text-ink-secondary" />
-                  Seguimiento Rápido
-                </div>
-                <input
-                  name="quick_task_title"
-                  className="form-input"
-                  value={quickTask.title}
-                  onChange={(e) => onQuickTaskChange({ ...quickTask, title: e.target.value })}
-                  placeholder="Ej.: revisar examen en 48 h…"
-                />
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <select
-                    name="quick_task_type"
-                    className="form-input"
-                    value={quickTask.type}
-                    onChange={(e) => onQuickTaskChange({ ...quickTask, type: e.target.value })}
-                  >
-                    {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="date"
-                    name="quick_task_due_date"
-                    className="form-input"
-                    value={quickTask.dueDate}
-                    onChange={(e) => onQuickTaskChange({ ...quickTask, dueDate: e.target.value })}
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className={TOOLBAR_PRIMARY_BUTTON_CLASS}
-                  disabled={!quickTask.title.trim() || createTaskPending}
+              {canCreateFollowupTask ? (
+                <form
+                  className="mt-5 flex flex-col gap-3 border-t border-surface-muted/35 pt-4"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    onCreateTask();
+                  }}
                 >
-                  {createTaskPending ? 'Creando…' : 'Crear Seguimiento'}
-                </button>
-              </form>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+                    <FiClipboard className="h-4 w-4 text-ink-secondary" />
+                    Seguimiento Rápido
+                  </div>
+                  <input
+                    name="quick_task_title"
+                    className="form-input"
+                    value={quickTask.title}
+                    onChange={(e) => onQuickTaskChange({ ...quickTask, title: e.target.value })}
+                    placeholder="Ej.: revisar examen en 48 h…"
+                  />
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <select
+                      name="quick_task_type"
+                      className="form-input"
+                      value={quickTask.type}
+                      onChange={(e) => onQuickTaskChange({ ...quickTask, type: e.target.value })}
+                    >
+                      {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="date"
+                      name="quick_task_due_date"
+                      className="form-input"
+                      value={quickTask.dueDate}
+                      onChange={(e) => onQuickTaskChange({ ...quickTask, dueDate: e.target.value })}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className={TOOLBAR_PRIMARY_BUTTON_CLASS}
+                    disabled={!quickTask.title.trim() || createTaskPending}
+                  >
+                    {createTaskPending ? 'Creando…' : 'Crear Seguimiento'}
+                  </button>
+                </form>
+              ) : null}
             </div>
           )}
 
@@ -358,7 +368,9 @@ export default function EncounterDrawer(props: EncounterDrawerProps) {
                 readOnly={!canComplete}
               />
               <p className="mt-2 text-xs text-ink-muted">
-                Opcional. Resumen clínico y próximos pasos.
+                {canComplete
+                  ? `Obligatoria para finalizar la atención. Mínimo ${WORKFLOW_NOTE_MIN_LENGTH} caracteres.`
+                  : 'Resumen clínico y próximos pasos.'}
               </p>
 
               {encounter.tasks && encounter.tasks.length > 0 ? (
@@ -387,7 +399,7 @@ export default function EncounterDrawer(props: EncounterDrawerProps) {
             </div>
           )}
 
-          {tab === 'historial' && <EncounterAuditTimeline encounterId={encounter.id} />}
+          {tab === 'historial' && canViewAudit ? <EncounterAuditTimeline encounterId={encounter.id} /> : null}
         </div>
       </div>
     </div>

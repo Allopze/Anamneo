@@ -4,6 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import type { AxiosResponse } from 'axios';
 import { api, getErrorMessage } from '@/lib/api';
+import {
+  canExportEncounterDocuments,
+  canPrintEncounterRecord,
+  canSignEncounter,
+} from '@/lib/permissions';
 import { Attachment, Encounter, SignEncounterResponse } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { getEncounterActionBlockReason } from '@/lib/clinical-output';
@@ -24,7 +29,6 @@ export function useFichaClinica() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const isOperationalAdmin = !!user?.isAdmin;
-  const isDoctor = user?.role === 'MEDICO';
   const [showSignModal, setShowSignModal] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
 
@@ -38,16 +42,21 @@ export function useFichaClinica() {
   });
 
   const clinicalOutputBlock = encounter?.clinicalOutputBlock ?? null;
-  const exportBlockedReason = getEncounterActionBlockReason(
-    encounter?.status,
-    clinicalOutputBlock,
-    'EXPORT_OFFICIAL_DOCUMENTS',
-  );
-  const printBlockedReason = getEncounterActionBlockReason(
-    encounter?.status,
-    clinicalOutputBlock,
-    'PRINT_CLINICAL_RECORD',
-  );
+  const canSign = canSignEncounter(user ?? null, encounter);
+  const exportBlockedReason = canExportEncounterDocuments(user ?? null)
+    ? getEncounterActionBlockReason(
+      encounter?.status,
+      clinicalOutputBlock,
+      'EXPORT_OFFICIAL_DOCUMENTS',
+    )
+    : 'No tiene permisos para exportar documentos oficiales de esta atención.';
+  const printBlockedReason = canPrintEncounterRecord(user ?? null)
+    ? getEncounterActionBlockReason(
+      encounter?.status,
+      clinicalOutputBlock,
+      'PRINT_CLINICAL_RECORD',
+    )
+    : 'No tiene permisos para imprimir esta ficha clínica.';
   const outputBlockReason = exportBlockedReason ?? printBlockedReason;
 
   useEffect(() => {
@@ -172,7 +181,7 @@ export function useFichaClinica() {
     encounter,
     isLoading,
     isOperationalAdmin,
-    isDoctor,
+    canSign,
     clinicalOutputBlock,
     exportBlockedReason,
     printBlockedReason,

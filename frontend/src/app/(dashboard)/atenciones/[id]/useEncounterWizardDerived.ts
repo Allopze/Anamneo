@@ -10,15 +10,18 @@ import {
 } from '@/lib/patient';
 import { getEncounterClinicalOutputBlockReason } from '@/lib/clinical-output';
 import {
+  canSignEncounter,
   canCompleteEncounter as canCompleteEncounterPermission,
+  canCreatePatientTask,
   canEditEncounter,
+  canUpdateEncounterReviewStatus,
+  canViewEncounterAudit,
+  canViewEncounterSection,
   canUploadAttachments as canUploadAttachmentsPermission,
-  canViewMedicoOnlySections,
 } from '@/lib/permissions';
 import { buildEncounterDrawerShortcutHint } from '@/lib/encounter-drawer-shortcut';
 import type { SectionUiState } from './encounter-wizard.constants';
 import {
-  MEDICO_ONLY_SECTIONS,
   SECTION_COMPONENTS,
   SECTION_STATUS_META,
   TEMPLATE_FIELD_BY_SECTION,
@@ -55,7 +58,14 @@ export interface UseEncounterWizardDerivedState {
   isDoctor: boolean;
   canEdit: boolean;
   canUpload: boolean;
+  canDeleteAttachments: boolean;
   canComplete: boolean;
+  canSign: boolean;
+  canRequestMedicalReview: boolean;
+  canMarkReviewedByDoctor: boolean;
+  canWriteReviewNote: boolean;
+  canViewAudit: boolean;
+  canCreateFollowupTask: boolean;
   sections: SectionType[];
   currentSection: SectionType | undefined;
   SectionComponent: ComponentType<any> | null;
@@ -105,8 +115,27 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
 
   const isDoctor = user?.role === 'MEDICO';
   const canEdit = canEditEncounter(user ?? null, encounter);
-  const canUpload = canUploadAttachmentsPermission(user ?? null);
+  const canUpload = canUploadAttachmentsPermission(user ?? null, encounter);
+  const canDeleteAttachments = Boolean(isDoctor && canEdit);
   const canComplete = canCompleteEncounterPermission(user ?? null, encounter);
+  const canSign = canSignEncounter(user ?? null, encounter);
+  const canRequestMedicalReview = Boolean(
+    encounter
+    && encounter.status !== 'CANCELADO'
+    && encounter.status !== 'FIRMADO'
+    && encounter.reviewStatus !== 'LISTA_PARA_REVISION'
+    && canUpdateEncounterReviewStatus(user ?? null, 'LISTA_PARA_REVISION'),
+  );
+  const canMarkReviewedByDoctor = Boolean(
+    encounter
+    && encounter.status !== 'CANCELADO'
+    && encounter.status !== 'FIRMADO'
+    && encounter.reviewStatus !== 'REVISADA_POR_MEDICO'
+    && canUpdateEncounterReviewStatus(user ?? null, 'REVISADA_POR_MEDICO'),
+  );
+  const canWriteReviewNote = canRequestMedicalReview || canMarkReviewedByDoctor;
+  const canViewAudit = canViewEncounterAudit(user ?? null);
+  const canCreateFollowupTask = Boolean(encounter?.patientId && canCreatePatientTask(user ?? null));
 
   const sections = useMemo(() => {
     if (providedSections) {
@@ -114,9 +143,7 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
     }
 
     const source = encounter?.sections ?? [];
-    return canViewMedicoOnlySections(user ?? null)
-      ? source
-      : source.filter((section) => !MEDICO_ONLY_SECTIONS.includes(section.sectionKey));
+    return source.filter((section) => canViewEncounterSection(user ?? null, section.sectionKey));
   }, [encounter?.sections, providedSections, user]);
 
   const currentSection = providedCurrentSection ?? sections[currentSectionIndex];
@@ -241,7 +268,14 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
     isDoctor,
     canEdit,
     canUpload,
+    canDeleteAttachments,
     canComplete,
+    canSign,
+    canRequestMedicalReview,
+    canMarkReviewedByDoctor,
+    canWriteReviewNote,
+    canViewAudit,
+    canCreateFollowupTask,
     sections,
     currentSection,
     SectionComponent: currentSection ? SECTION_COMPONENTS[currentSection.sectionKey] : null,

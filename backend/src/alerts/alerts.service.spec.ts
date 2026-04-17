@@ -87,6 +87,35 @@ describe('AlertsService', () => {
     expect(result.acknowledgedById).toBe('med-1');
   });
 
+  it('does not overwrite an already acknowledged alert', async () => {
+    const acknowledgedAt = new Date('2026-04-16T09:30:00.000Z');
+    const prisma = {
+      patient: { findUnique: jest.fn().mockResolvedValue({ id: 'pat-1', createdById: 'med-1', archivedAt: null, createdBy: null }) },
+      clinicalAlert: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'alert-1',
+          patientId: 'pat-1',
+          encounterId: 'enc-1',
+          acknowledgedAt,
+          acknowledgedById: 'med-1',
+          encounter: { medicoId: 'med-1' },
+        }),
+        update: jest.fn(),
+      },
+      encounter: { findFirst: jest.fn().mockResolvedValue({ id: 'enc-1' }) },
+      user: { findMany: jest.fn() },
+    };
+    const audit = { log: jest.fn().mockResolvedValue(undefined) };
+    const service = new AlertsService(prisma as never, audit as never);
+
+    const result = await service.acknowledge('alert-1', { id: 'med-1', role: 'MEDICO' });
+
+    expect(prisma.clinicalAlert.update).not.toHaveBeenCalled();
+    expect(audit.log).not.toHaveBeenCalled();
+    expect(result.acknowledgedAt).toBe(acknowledgedAt);
+    expect(result.acknowledgedById).toBe('med-1');
+  });
+
   it('recreates an acknowledged auto-alert when the same critical value recurs', async () => {
     const prisma = {
       patient: { findUnique: jest.fn().mockResolvedValue({ id: 'pat-1', createdById: 'med-1', archivedAt: null, createdBy: null }) },

@@ -29,6 +29,8 @@ Implicacion funcional:
 
 - las secciones se actualizan por separado,
 - existe flujo de revision y cierre,
+- la visibilidad y edicion de secciones solo-medico se resuelve con contrato compartido entre frontend y backend,
+- las acciones de firmar, reabrir, cancelar, exportar, imprimir y ver historial tambien tienen una referencia compartida de permisos,
 - y varias acciones sensibles dependen del estado del paciente y del encounter.
 
 ## Diagnostico Asistido y Catalogos
@@ -111,6 +113,8 @@ Riesgo conocido:
 
 El detalle de permisos compartidos esta en `security-and-permissions.md` y la proyeccion de backlog en `../FEATURES.md`.
 
+En la superficie de `encounters`, la regla compartida actual vive en `shared/encounter-permission-contract.ts` e incluye visibilidad de secciones, cierre, review status, firma, reapertura, cancelacion, exportacion, impresion e historial.
+
 ## Diferencia Entre Comportamiento y Backlog
 
 Usa este criterio:
@@ -121,10 +125,10 @@ Usa este criterio:
 
 ## Riesgos Vigentes Que Merecen Atencion
 
-- drift de contrato en 2FA,
-- drift en shape de consentimientos,
-- serializacion de `EncounterSection.data` en respuestas de update,
-- reglas de acceso clinico que deben ser uniformes entre modulos.
+- si aparece una nueva seccion clinica sensible o una nueva accion/transition de workflow, hay que extender el contrato compartido de encounters antes de tocar solo frontend o solo backend,
+- las reglas de acceso clinico deben seguir uniformes entre pacientes, encounters, consentimientos, alertas, adjuntos y exportaciones,
+- cuando aparezcan nuevas mutaciones clinicas sensibles, conviene mantener el patron de negocio + auditoria en una misma transaccion,
+- en sugerencias diagnosticas todavia quedan decisiones de producto abiertas sobre explicabilidad visible y cuanta metadata de matching vale la pena persistir.
 
 ## Donde Seguir
 

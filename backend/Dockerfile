@@ -43,4 +43,4 @@ USER node
 
 EXPOSE 5678
 
-CMD ["node", "dist/src/main"]
+CMD ["node", "dist/backend/src/main.js"]

@@ -24,7 +24,7 @@ export default function OfflineBanner() {
 
   return (
     <div className="fixed top-0 inset-x-0 z-[100] bg-status-yellow text-accent-text text-center text-sm py-2 font-medium shadow-md">
-      Sin conexión a Internet — Los cambios no se guardarán hasta que vuelvas a conectarte.
+      Sin conexión a Internet. Los cambios de secciones se encolan localmente y se sincronizarán al reconectar; otras acciones pueden no completarse.
     </div>
   );
 }
