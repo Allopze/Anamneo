@@ -10,12 +10,14 @@ import {
   canUploadAttachments as canUploadAttachmentsPermission,
 } from '@/lib/permissions';
 import { useOnlineStatus } from '@/lib/useOnlineStatus';
+import { buildEncounterCompletionChecklist } from '@/lib/encounter-completion';
 import { useEncounterWizardDerived } from './useEncounterWizardDerived';
 import { useEncounterAttachments } from './useEncounterAttachments';
 import { useEncounterSectionPersistence } from './useEncounterSectionPersistence';
 import { useEncounterWizardNavigation } from './useEncounterWizardNavigation';
 import { useEncounterWorkflowActions } from './useEncounterWorkflowActions';
 import { useEncounterWizardSectionActions } from './useEncounterWizardSectionActions';
+import { useDuplicateEncounterAction } from './useDuplicateEncounterAction';
 
 export function useEncounterWizard() {
   const { id } = useParams<{ id: string }>();
@@ -58,6 +60,7 @@ export function useEncounterWizard() {
   const isDoctor = isMedico();
   const canEdit = canEditEncounter(user ?? null, encounter);
   const canUpload = canUploadAttachmentsPermission(user ?? null, encounter);
+  const duplicateAction = useDuplicateEncounterAction(encounter);
   const allSections = encounter?.sections;
   const sections = useMemo(() => {
     const source = allSections ?? [];
@@ -159,6 +162,10 @@ export function useEncounterWizard() {
     queryClient,
     userId: user?.id,
   });
+  const completionChecklist = useMemo(
+    () => buildEncounterCompletionChecklist(encounter, workflow.closureNote),
+    [encounter, workflow.closureNote],
+  );
 
   const sectionActions = useEncounterWizardSectionActions({
     canEdit,
@@ -181,6 +188,7 @@ export function useEncounterWizard() {
     isDoctor,
     canEdit,
     canUpload,
+    canDuplicateEncounter: duplicateAction.canDuplicateEncounter,
     canDeleteAttachments,
     canComplete,
     canSign,
@@ -253,6 +261,7 @@ export function useEncounterWizard() {
     identificationMissingFields,
     clinicalOutputBlockReason,
     completionBlockedReason,
+    completionChecklist,
     quickTask: workflow.quickTask,
     setQuickTask: workflow.setQuickTask,
     reviewActionNote: workflow.reviewActionNote,
@@ -266,6 +275,7 @@ export function useEncounterWizard() {
     deleteMutation: attachmentsState.deleteMutation,
     reviewStatusMutation: workflow.reviewStatusMutation,
     createTaskMutation: workflow.createTaskMutation,
+    duplicateEncounterMutation: duplicateAction.duplicateEncounterMutation,
     saveCurrentSection: persistence.saveCurrentSection,
     persistSection: persistence.persistSection,
     handleSectionDataChange: persistence.handleSectionDataChange,
@@ -276,6 +286,7 @@ export function useEncounterWizard() {
     handleConfirmNotApplicable: sectionActions.handleConfirmNotApplicable,
     handleReviewStatusChange: workflow.handleReviewStatusChange,
     handleCreateTask: workflow.handleCreateTask,
+    handleDuplicateEncounter: duplicateAction.handleDuplicateEncounter,
     handleDownload: attachmentsState.handleDownload,
     handleRestoreIdentificationFromPatient: persistence.handleRestoreIdentificationFromPatient,
     handleStartLinkedAttachment: attachmentsState.handleStartLinkedAttachment,

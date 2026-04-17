@@ -1,5 +1,6 @@
 import { FiActivity, FiClipboard, FiClock, FiFileText } from 'react-icons/fi';
 import type { Encounter, SectionKey } from '@/types';
+import type { EncounterWorkflowChecklistItem } from '@/lib/encounter-completion';
 
 /* ─── styling constants ─── */
 export const SURFACE_PANEL_CLASS = 'overflow-hidden rounded-card border border-frame/10 bg-surface-elevated shadow-soft';
@@ -76,6 +77,7 @@ export interface EncounterDrawerProps {
   /* cierre tab */
   closureNote: string;
   onClosureNoteChange: (value: string) => void;
+  completionChecklist: EncounterWorkflowChecklistItem[];
 
   /* section data change for saving summaries */
   formData: Record<string, any>;

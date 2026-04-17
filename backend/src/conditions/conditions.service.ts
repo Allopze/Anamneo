@@ -440,6 +440,7 @@ export class ConditionsService {
   async logSuggestion(
     encounterId: string,
     inputText: string,
+    persistedTextSnapshot: string | undefined,
     suggestions: SuggestionResult[],
     chosenConditionId: string | null,
     chosenMode: 'AUTO' | 'MANUAL',
@@ -448,6 +449,7 @@ export class ConditionsService {
       data: {
         encounterId,
         inputText,
+        persistedTextSnapshot: persistedTextSnapshot?.trim() || null,
         topSuggestions: JSON.stringify(suggestions),
         rankingVersion: CONDITION_SUGGESTION_RANKING_VERSION,
         rankingMetadata: buildSuggestionLogMetadata(suggestions, chosenConditionId),
@@ -461,6 +463,7 @@ export class ConditionsService {
     encounterId: string,
     dto: {
       inputText: string;
+      persistedTextSnapshot?: string;
       suggestions: SuggestionResult[];
       chosenConditionId: string | null;
       chosenMode: 'AUTO' | 'MANUAL';
@@ -485,6 +488,7 @@ export class ConditionsService {
     return this.logSuggestion(
       encounterId,
       dto.inputText,
+      dto.persistedTextSnapshot,
       dto.suggestions,
       dto.chosenConditionId,
       dto.chosenMode,

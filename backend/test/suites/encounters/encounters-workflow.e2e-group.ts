@@ -235,6 +235,7 @@ export function registerEncounterWorkflowTests() {
       .post(`/api/encounters/${state.workflowEncounterId}/reopen`)
       .set('Cookie', cookieHeader(state.medicoCookies))
       .send({
+        reasonCode: 'CORRECCION_CLINICA',
         note: 'corta',
       })
       .expect(400);
@@ -247,6 +248,7 @@ export function registerEncounterWorkflowTests() {
       .post(`/api/encounters/${state.workflowEncounterId}/reopen`)
       .set('Cookie', cookieHeader(state.medicoCookies))
       .send({
+        reasonCode: 'CORRECCION_CLINICA',
         note: 'Se reabre por auditoría clínica para complementar evolución.',
       })
       .expect(201);

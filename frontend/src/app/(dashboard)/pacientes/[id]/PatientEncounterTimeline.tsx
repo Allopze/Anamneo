@@ -57,6 +57,7 @@ export default function PatientEncounterTimeline({
               {timelineEncounters.map((encounter: Encounter) => {
                 const isCompleted = encounter.status === 'COMPLETADO';
                 const isInProgress = encounter.status === 'EN_PROGRESO';
+                const canDuplicate = !isInProgress;
                 const actionLabel = isInProgress ? 'Continuar' : 'Ver atención';
 
                 return (
@@ -122,6 +123,16 @@ export default function PatientEncounterTimeline({
                         </div>
 
                         <div className="flex items-center gap-2 flex-shrink-0">
+                          {canDuplicate && canCreateEncounterAllowed ? (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => createEncounterMutation.mutate({ duplicateFromEncounterId: encounter.id })}
+                              disabled={createEncounterMutation.isPending}
+                            >
+                              Duplicar
+                            </button>
+                          ) : null}
                           <Link href={`/atenciones/${encounter.id}`} className="btn btn-secondary">
                             {actionLabel}
                             <FiChevronRight className="w-4 h-4 ml-1" />
@@ -198,7 +209,7 @@ export default function PatientEncounterTimeline({
             <h3 className="font-medium text-ink-primary mb-1">Sin atenciones</h3>
             <p className="text-ink-muted mb-4">No hay atenciones registradas para este paciente</p>
             {canCreateEncounterAllowed && (
-              <button onClick={() => createEncounterMutation.mutate()} className="btn btn-primary">
+              <button onClick={() => createEncounterMutation.mutate({})} className="btn btn-primary">
                 <FiPlus className="w-4 h-4 mr-2" />
                 Crear primera atención
               </button>

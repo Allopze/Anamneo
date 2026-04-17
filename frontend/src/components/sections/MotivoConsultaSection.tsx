@@ -30,6 +30,7 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
       api
         .post(`/conditions/encounters/${encounter.id}/suggestion`, {
           inputText: dataRef.current.texto || '',
+          persistedTextSnapshot: dataRef.current.texto || '',
           suggestions,
           chosenConditionId: payload.chosenConditionId,
           chosenMode: payload.chosenMode,
@@ -189,6 +190,26 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
         ) : (
           <p className="text-sm text-ink-muted">Escribe al menos 3 caracteres para ver sugerencias.</p>
         )}
+
+        {suggestions.length > 0 ? (
+          <div className="mt-3 flex flex-col gap-2">
+            {suggestions.map((suggestion) => (
+              suggestion.reasons && suggestion.reasons.length > 0 ? (
+                <div key={`${suggestion.id}-reasons`} className="rounded-input border border-surface-muted/30 bg-surface-base/45 px-3 py-2 text-xs text-ink-secondary">
+                  <p className="font-medium text-ink">Por qué aparece {suggestion.name}</p>
+                  <div className="mt-1 flex flex-col gap-1">
+                    {suggestion.reasons.map((reason) => (
+                      <p key={`${suggestion.id}-${reason.kind}-${reason.matchedValue}`}>
+                        <span className="font-medium text-ink">{reason.label}:</span> {reason.matchedValue}
+                        {reason.matches.length > 0 ? ` · coincide con ${reason.matches.join(', ')}` : ''}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              ) : null
+            ))}
+          </div>
+        ) : null}
 
         {/* Manual selection option */}
         {suggestions.length > 0 && !readOnly && (

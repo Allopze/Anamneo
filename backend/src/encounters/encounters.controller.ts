@@ -115,6 +115,15 @@ export class EncountersController {
     return this.encountersService.findById(id, user);
   }
 
+  @Post(':id/duplicate')
+  @Roles('MEDICO', 'ASISTENTE')
+  duplicate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.encountersService.duplicate(id, user);
+  }
+
   @Get('patient/:patientId')
   @Roles('MEDICO', 'ASISTENTE')
   findByPatient(

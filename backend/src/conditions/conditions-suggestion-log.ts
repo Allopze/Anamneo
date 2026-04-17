@@ -7,9 +7,11 @@ interface SuggestionLogMetadata {
   topSuggestionId: string | null;
   topSuggestionScore: number | null;
   topSuggestionConfidence: number | null;
+  topSuggestionReasons: SuggestionResult['reasons'];
   chosenSuggestionRank: number | null;
   chosenSuggestionScore: number | null;
   chosenSuggestionConfidence: number | null;
+  chosenSuggestionReasons: SuggestionResult['reasons'];
 }
 
 export function buildSuggestionLogMetadata(
@@ -27,9 +29,11 @@ export function buildSuggestionLogMetadata(
     topSuggestionId: topSuggestion?.id ?? null,
     topSuggestionScore: topSuggestion?.score ?? null,
     topSuggestionConfidence: topSuggestion?.confidence ?? null,
+    topSuggestionReasons: topSuggestion?.reasons ?? [],
     chosenSuggestionRank: chosenSuggestionIndex >= 0 ? chosenSuggestionIndex + 1 : null,
     chosenSuggestionScore: chosenSuggestion?.score ?? null,
     chosenSuggestionConfidence: chosenSuggestion?.confidence ?? null,
+    chosenSuggestionReasons: chosenSuggestion?.reasons ?? [],
   };
 
   return JSON.stringify(metadata);

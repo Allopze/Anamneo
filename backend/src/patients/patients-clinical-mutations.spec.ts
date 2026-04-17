@@ -26,6 +26,8 @@ describe('patients-clinical-mutations', () => {
       type: 'SEGUIMIENTO',
       priority: 'MEDIA',
       status: 'PENDIENTE',
+      recurrenceRule: 'NONE',
+      recurrenceSourceTaskId: null,
       dueDate: null,
       completedAt: null,
       createdAt: new Date('2026-01-10T12:00:00.000Z'),
@@ -305,6 +307,58 @@ describe('patients-clinical-mutations', () => {
     );
     expect(result.status).toBe('COMPLETADA');
     expect(result.title).toBe('Nuevo seguimiento');
+  });
+
+  it('creates the next recurring task when a recurring follow-up is completed', async () => {
+    const existingTask = {
+      ...buildTaskInScope('med-1'),
+      dueDate: new Date('2026-02-01T12:00:00.000Z'),
+      recurrenceRule: 'WEEKLY',
+    };
+    const updatedTask = {
+      ...existingTask,
+      status: 'COMPLETADA',
+      completedAt: new Date('2026-02-01T15:00:00.000Z'),
+      updatedAt: new Date('2026-02-01T15:00:00.000Z'),
+      createdBy: { id: 'med-1', nombre: 'Dra. Demo' },
+    };
+
+    const tx = {
+      encounterTask: {
+        update: jest.fn().mockResolvedValue(updatedTask),
+        create: jest.fn().mockResolvedValue({ id: 'task-2' }),
+      },
+    };
+
+    const prisma = {
+      encounterTask: {
+        findUnique: jest.fn().mockResolvedValue(existingTask),
+      },
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const auditService = { log: jest.fn().mockResolvedValue(undefined) };
+    const assertPatientAccess = jest.fn().mockResolvedValue({ id: 'patient-1' });
+
+    await updatePatientTaskMutation({
+      prisma: prisma as never,
+      auditService: auditService as never,
+      user: medicoUser,
+      taskId: 'task-1',
+      dto: { status: 'COMPLETADA' },
+      effectiveMedicoId: 'med-1',
+      assertPatientAccess,
+    });
+
+    expect(tx.encounterTask.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          recurrenceSourceTaskId: 'task-1',
+          recurrenceRule: 'WEEKLY',
+          status: 'PENDIENTE',
+          dueDate: expect.any(Date),
+        }),
+      }),
+    );
   });
 
   it('updates a problem and logs audit metadata within the same transaction', async () => {

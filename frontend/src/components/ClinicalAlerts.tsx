@@ -7,9 +7,10 @@ import { FiAlertTriangle, FiInfo } from 'react-icons/fi';
 
 interface ClinicalAlertsProps {
   patientId: string;
+  variant?: 'panel' | 'workspace-sticky';
 }
 
-export default function ClinicalAlerts({ patientId }: ClinicalAlertsProps) {
+export default function ClinicalAlerts({ patientId, variant = 'panel' }: ClinicalAlertsProps) {
   const { data: patient } = useQuery({
     queryKey: ['patient', patientId],
     queryFn: async () => {
@@ -86,6 +87,36 @@ export default function ClinicalAlerts({ patientId }: ClinicalAlertsProps) {
   }
 
   if (alerts.length === 0) return null;
+
+  if (variant === 'workspace-sticky') {
+    return (
+      <div className="sticky top-3 z-20">
+        <div className="rounded-card border border-frame/10 bg-surface-elevated/95 backdrop-blur">
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+            <span className="text-sm font-medium text-ink">Alertas clínicas</span>
+            {alerts.slice(0, 5).map((alert, index) => (
+              <div
+                key={`${alert.label}-${index}`}
+                className={`inline-flex max-w-full items-center gap-2 rounded-input border px-3 py-1.5 text-sm ${
+                  alert.type === 'warning'
+                    ? 'border-status-yellow/60 bg-status-yellow/20 text-accent-text'
+                    : 'border-surface-muted/40 bg-surface-base/60 text-ink-secondary'
+                }`}
+              >
+                {alert.type === 'warning' ? (
+                  <FiAlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                ) : (
+                  <FiInfo className="h-3.5 w-3.5 shrink-0" />
+                )}
+                <span className="font-medium text-ink">{alert.label}:</span>
+                <span className="truncate">{alert.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in">

@@ -1,8 +1,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { RequestUser } from '../common/utils/medico-id';
+import { extractDateOnlyIso, parseDateOnlyToStoredUtcDate } from '../common/utils/local-date';
 import { isClinicalRecordInMedicoScope } from '../common/utils/patient-access';
-import { parseDateOnlyToStoredUtcDate } from '../common/utils/local-date';
 import { PrismaService } from '../prisma/prisma.service';
 import { formatTask } from './patients-format';
 
@@ -14,6 +14,7 @@ interface CreatePatientTaskInput {
   type?: string;
   priority?: string;
   status?: string;
+  recurrenceRule?: string;
   dueDate?: string;
   encounterId?: string;
 }
@@ -34,7 +35,28 @@ interface UpdatePatientTaskInput {
   details?: string;
   type?: string;
   priority?: string;
+  recurrenceRule?: string;
   dueDate?: string;
+}
+
+function resolveNextRecurringDueDate(currentDueDate: Date, recurrenceRule: string) {
+  const dateOnly = extractDateOnlyIso(currentDueDate);
+  const [year, month, day] = dateOnly.split('-').map(Number);
+
+  if (recurrenceRule === 'WEEKLY') {
+    return parseDateOnlyToStoredUtcDate(
+      new Date(Date.UTC(year, month - 1, day + 7)).toISOString().slice(0, 10),
+      'La próxima fecha de recurrencia',
+    );
+  }
+
+  if (recurrenceRule === 'MONTHLY') {
+    const candidate = new Date(Date.UTC(year, month, day));
+    const normalized = new Date(Date.UTC(candidate.getUTCFullYear(), candidate.getUTCMonth(), Math.min(day, 28)));
+    return parseDateOnlyToStoredUtcDate(normalized.toISOString().slice(0, 10), 'La próxima fecha de recurrencia');
+  }
+
+  return null;
 }
 
 interface UpdatePatientTaskMutationParams {
@@ -78,6 +100,10 @@ export async function createPatientTaskMutation(params: CreatePatientTaskMutatio
     resolvedMedicoId = encounter.medicoId;
   }
 
+  if ((dto.recurrenceRule || 'NONE') !== 'NONE' && !dto.dueDate) {
+    throw new BadRequestException('La recurrencia simple requiere fecha de vencimiento');
+  }
+
   return prisma.$transaction(async (tx) => {
     const created = await tx.encounterTask.create({
       data: {
@@ -90,6 +116,7 @@ export async function createPatientTaskMutation(params: CreatePatientTaskMutatio
         type: dto.type || 'SEGUIMIENTO',
         priority: dto.priority || 'MEDIA',
         status: dto.status || 'PENDIENTE',
+        recurrenceRule: dto.recurrenceRule || 'NONE',
         dueDate: dto.dueDate ? parseDateOnlyToStoredUtcDate(dto.dueDate, 'La fecha de vencimiento') : null,
       },
       include: {
@@ -148,6 +175,12 @@ export async function updatePatientTaskMutation(params: UpdatePatientTaskMutatio
     throw new NotFoundException('Seguimiento no encontrado');
   }
 
+  const nextRecurrenceRule = dto.recurrenceRule || task.recurrenceRule;
+  const nextDueDate = dto.dueDate !== undefined ? dto.dueDate : task.dueDate ? extractDateOnlyIso(task.dueDate) : undefined;
+  if (nextRecurrenceRule !== 'NONE' && !nextDueDate) {
+    throw new BadRequestException('La recurrencia simple requiere fecha de vencimiento');
+  }
+
   return prisma.$transaction(async (tx) => {
     const updated = await tx.encounterTask.update({
       where: { id: taskId },
@@ -157,6 +190,7 @@ export async function updatePatientTaskMutation(params: UpdatePatientTaskMutatio
         details: dto.details !== undefined ? dto.details.trim() || null : task.details,
         type: dto.type || task.type,
         priority: dto.priority || task.priority,
+        recurrenceRule: dto.recurrenceRule || task.recurrenceRule,
         dueDate:
           dto.dueDate !== undefined
             ? dto.dueDate
@@ -176,6 +210,33 @@ export async function updatePatientTaskMutation(params: UpdatePatientTaskMutatio
         },
       },
     });
+
+    if (
+      updated.status === 'COMPLETADA'
+      && task.status !== 'COMPLETADA'
+      && updated.recurrenceRule !== 'NONE'
+      && updated.dueDate
+    ) {
+      const nextDueDate = resolveNextRecurringDueDate(updated.dueDate, updated.recurrenceRule);
+      if (nextDueDate) {
+        await tx.encounterTask.create({
+          data: {
+            patientId: updated.patientId,
+            encounterId: updated.encounterId,
+            createdById: user.id,
+            medicoId: updated.medicoId,
+            recurrenceSourceTaskId: task.recurrenceSourceTaskId || updated.id,
+            title: updated.title,
+            details: updated.details,
+            type: updated.type,
+            priority: updated.priority,
+            status: 'PENDIENTE',
+            recurrenceRule: updated.recurrenceRule,
+            dueDate: nextDueDate,
+          },
+        });
+      }
+    }
 
     await auditService.log(
       {

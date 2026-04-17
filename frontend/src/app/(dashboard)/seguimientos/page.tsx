@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { PatientTask, TASK_STATUS_LABELS, TASK_TYPE_LABELS } from '@/types';
+import { PatientTask, TASK_RECURRENCE_LABELS, TASK_STATUS_LABELS, TASK_TYPE_LABELS } from '@/types';
 import { FiAlertTriangle, FiCalendar, FiChevronRight, FiClipboard, FiSearch } from 'react-icons/fi';
 import clsx from 'clsx';
 import { formatDateOnly } from '@/lib/date';
@@ -164,6 +164,11 @@ export default function SeguimientosPage() {
                     <span className="list-chip bg-surface-muted text-ink-secondary">
                       {TASK_STATUS_LABELS[task.status]}
                     </span>
+                    {task.recurrenceRule && task.recurrenceRule !== 'NONE' && (
+                      <span className="list-chip bg-surface-muted text-ink-secondary">
+                        {TASK_RECURRENCE_LABELS[task.recurrenceRule]}
+                      </span>
+                    )}
                     {task.isOverdue && (
                       <span className="list-chip bg-status-red/15 text-status-red">
                         Atrasado

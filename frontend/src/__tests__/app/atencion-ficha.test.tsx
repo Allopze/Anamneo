@@ -1,11 +1,14 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import FichaClinicaPage from '@/app/(dashboard)/atenciones/[id]/ficha/page';
 import type { User } from '@/stores/auth-store';
 
 const replaceMock = jest.fn();
+const pushMock = jest.fn();
 const apiGetMock = jest.fn();
+const apiPostMock = jest.fn();
 
 const authStoreState: {
   user: User | null;
@@ -55,6 +58,28 @@ const encounterResponse = {
     nombre: 'Dra. Rivera',
   },
   attachments: [],
+  signatureBaseline: {
+    id: 'enc-prev',
+    status: 'FIRMADO',
+    createdAt: '2026-03-30T12:00:00.000Z',
+    closureNote: 'Paciente estable en control previo.',
+    attachments: [],
+    sections: [
+      {
+        id: 'sec-prev-motivo',
+        encounterId: 'enc-prev',
+        sectionKey: 'MOTIVO_CONSULTA',
+        schemaVersion: 1,
+        label: 'Motivo de Consulta',
+        order: 1,
+        data: {
+          texto: 'Consulta por cefalea.',
+        },
+        completed: true,
+        updatedAt: '2026-03-30T12:00:00.000Z',
+      },
+    ],
+  },
   clinicalOutputBlock: {
     completenessStatus: 'PENDIENTE_VERIFICACION',
     missingFields: [],
@@ -111,16 +136,20 @@ const encounterResponse = {
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({ id: 'enc-1' }),
-  useRouter: () => ({ replace: replaceMock }),
+  useRouter: () => ({ push: pushMock, replace: replaceMock }),
 }));
 
 jest.mock('@/stores/auth-store', () => ({
-  useAuthStore: () => authStoreState,
+  useAuthStore: () => ({
+    ...authStoreState,
+    canCreateEncounter: () => true,
+  }),
 }));
 
 jest.mock('@/lib/api', () => ({
   api: {
     get: (...args: any[]) => apiGetMock(...args),
+    post: (...args: any[]) => apiPostMock(...args),
   },
   getErrorMessage: (error: any) => error?.message || 'Error desconocido',
 }));
@@ -149,6 +178,7 @@ function createWrapper() {
 describe('FichaClinicaPage clinical-output block', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    apiPostMock.mockResolvedValue({ data: {} });
 
     apiGetMock.mockImplementation((url: string) => {
       if (url === '/encounters/enc-1') {
@@ -204,5 +234,71 @@ describe('FichaClinicaPage clinical-output block', () => {
     expect(screen.getByRole('button', { name: 'Descargar PDF' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Imprimir' })).toBeDisabled();
     expect(screen.getAllByText(/completada o firmada/i)).toHaveLength(2);
+  });
+
+  it('shows the pre-sign summary and guided reopen action for completed encounters', async () => {
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/encounters/enc-1') {
+        return Promise.resolve({
+          data: {
+            ...encounterResponse,
+            clinicalOutputBlock: null,
+            patient: {
+              ...encounterResponse.patient,
+              registrationMode: 'COMPLETO',
+              completenessStatus: 'VERIFICADA',
+              demographicsMissingFields: [],
+            },
+          },
+        });
+      }
+
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    render(<FichaClinicaPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
+    expect(screen.getByText('Resumen previo a firma')).toBeInTheDocument();
+    expect(screen.getByText('Revisa qué quedará respaldado por la firma antes de confirmar.')).toBeInTheDocument();
+    expect(screen.getByText('Diff visible por campo')).toBeInTheDocument();
+    expect(screen.getByText(/Comparado contra la atención del/i)).toBeInTheDocument();
+    expect(screen.getByText('Nota de cierre registrada')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Firmar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reabrir' })).toBeInTheDocument();
+  });
+
+  it('duplicates the current encounter from the ficha toolbar', async () => {
+    const user = userEvent.setup();
+
+    apiPostMock.mockResolvedValue({ data: { id: 'enc-duplicated', reused: false } });
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/encounters/enc-1') {
+        return Promise.resolve({
+          data: {
+            ...encounterResponse,
+            clinicalOutputBlock: null,
+            patient: {
+              ...encounterResponse.patient,
+              registrationMode: 'COMPLETO',
+              completenessStatus: 'VERIFICADA',
+              demographicsMissingFields: [],
+            },
+          },
+        });
+      }
+
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    render(<FichaClinicaPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Duplicar' }));
+
+    await waitFor(() => {
+      expect(apiPostMock).toHaveBeenCalledWith('/encounters/enc-1/duplicate');
+    });
+    expect(pushMock).toHaveBeenCalledWith('/atenciones/enc-duplicated');
   });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -18,7 +18,7 @@ import { api } from '@/lib/api';
 import { formatDateOnly } from '@/lib/date';
 import { getFirstName } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
-import { TASK_TYPE_LABELS } from '@/types';
+import { STATUS_LABELS, TASK_TYPE_LABELS } from '@/types';
 import {
   ADMIN_CARDS,
   type DashboardData,
@@ -27,6 +27,7 @@ import {
 } from './dashboard.constants';
 import OverdueAlertSection from './OverdueAlertSection';
 import RecentActivitySection from './RecentActivitySection';
+import RecentPatientsSection from './RecentPatientsSection';
 
 export default function DashboardPage() {
   const { user, canCreateEncounter, canCreatePatient } = useAuthStore();
@@ -104,6 +105,37 @@ export default function DashboardPage() {
 
   const pendingEncounters = data?.recent.filter((e) => e.status === 'EN_PROGRESO') ?? [];
   const recentEncounters = data?.recent ?? [];
+  const recentPatients = useMemo(() => {
+    const patientMap = new Map<string, {
+      patientId: string;
+      patientName: string;
+      patientRut: string | null;
+      updatedAt: string;
+      latestEncounterId: string;
+      latestEncounterStatus: string;
+      encounterCount: number;
+    }>();
+
+    for (const encounter of recentEncounters) {
+      const existing = patientMap.get(encounter.patientId);
+      if (existing) {
+        existing.encounterCount += 1;
+        continue;
+      }
+
+      patientMap.set(encounter.patientId, {
+        patientId: encounter.patientId,
+        patientName: encounter.patientName,
+        patientRut: encounter.patientRut,
+        updatedAt: encounter.updatedAt,
+        latestEncounterId: encounter.id,
+        latestEncounterStatus: STATUS_LABELS[encounter.status as keyof typeof STATUS_LABELS] ?? encounter.status,
+        encounterCount: 1,
+      });
+    }
+
+    return Array.from(patientMap.values()).slice(0, 5);
+  }, [recentEncounters]);
   const upcomingTasks = data?.upcomingTasks ?? [];
   const totalForBreakdown = Math.max(data?.counts.total ?? 0, 1);
 
@@ -368,6 +400,8 @@ export default function DashboardPage() {
             </div>
           )}
         </section>
+
+        <RecentPatientsSection patients={recentPatients} isLoading={isLoading} />
 
         {/* Actividad reciente — full width */}
         <RecentActivitySection encounters={recentEncounters} isLoading={isLoading} />

@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const PROBLEM_STATUSES = ['ACTIVO', 'CRONICO', 'EN_ESTUDIO', 'RESUELTO'] as const;
 export const TASK_TYPES = ['SEGUIMIENTO', 'EXAMEN', 'DERIVACION', 'TRAMITE'] as const;
+export const TASK_RECURRENCE_RULES = ['NONE', 'WEEKLY', 'MONTHLY'] as const;
 
 export const problemSchema = z.object({
   label: z.string().min(2, 'Mínimo 2 caracteres').max(160, 'Máximo 160 caracteres'),
@@ -14,7 +15,11 @@ export const taskSchema = z.object({
   title: z.string().min(2, 'Mínimo 2 caracteres').max(160, 'Máximo 160 caracteres'),
   details: z.string().max(1200, 'Máximo 1200 caracteres').optional().or(z.literal('')),
   type: z.enum(TASK_TYPES),
+  recurrenceRule: z.enum(TASK_RECURRENCE_RULES),
   dueDate: z.string().optional().or(z.literal('')),
+}).refine((value) => value.recurrenceRule === 'NONE' || Boolean(value.dueDate), {
+  message: 'La recurrencia simple requiere fecha de vencimiento',
+  path: ['dueDate'],
 });
 export type TaskForm = z.infer<typeof taskSchema>;
 

@@ -216,6 +216,7 @@ model ConditionSuggestionLog {
   id                String   @id @default(uuid())
   encounterId       String   @map("encounter_id")
   inputText         String   @map("input_text")
+  persistedTextSnapshot String? @map("persisted_text_snapshot")
   topSuggestions    String   @map("top_suggestions")
   rankingVersion    String   @default("2026-04-name-synonyms-tags-v1") @map("ranking_version")
   rankingMetadata   String   @default("{}") @map("ranking_metadata")
@@ -310,11 +311,13 @@ model EncounterTask {
   encounterId String?   @map("encounter_id")
   createdById String    @map("created_by_id")
   medicoId    String?   @map("medico_id")
+  recurrenceSourceTaskId String? @map("recurrence_source_task_id")
   title       String
   details     String?
   type        String    @default("SEGUIMIENTO")
   priority    String    @default("MEDIA")
   status      String    @default("PENDIENTE")
+  recurrenceRule String @default("NONE") @map("recurrence_rule")
   dueDate     DateTime? @map("due_date")
   completedAt DateTime? @map("completed_at")
   createdAt   DateTime  @default(now()) @map("created_at")
@@ -328,6 +331,7 @@ model EncounterTask {
   @@index([patientId, status, dueDate])
   @@index([encounterId])
   @@index([medicoId])
+  @@index([recurrenceSourceTaskId])
   @@map("encounter_tasks")
 }
 

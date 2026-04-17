@@ -89,6 +89,7 @@ export type PatientProblemStatus = 'ACTIVO' | 'CRONICO' | 'EN_ESTUDIO' | 'RESUEL
 export type EncounterTaskStatus = 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADA' | 'CANCELADA';
 export type EncounterTaskType = 'SEGUIMIENTO' | 'EXAMEN' | 'DERIVACION' | 'TRAMITE';
 export type EncounterTaskPriority = 'ALTA' | 'MEDIA' | 'BAJA';
+export type EncounterTaskRecurrenceRule = 'NONE' | 'WEEKLY' | 'MONTHLY';
 
 // Enum values arrays for validation
 export const ROLES = ['MEDICO', 'ASISTENTE', 'ADMIN'] as const;
@@ -135,3 +136,4 @@ export const PATIENT_PROBLEM_STATUSES = ['ACTIVO', 'CRONICO', 'EN_ESTUDIO', 'RES
 export const ENCOUNTER_TASK_STATUSES = ['PENDIENTE', 'EN_PROCESO', 'COMPLETADA', 'CANCELADA'] as const;
 export const ENCOUNTER_TASK_TYPES = ['SEGUIMIENTO', 'EXAMEN', 'DERIVACION', 'TRAMITE'] as const;
 export const ENCOUNTER_TASK_PRIORITIES = ['ALTA', 'MEDIA', 'BAJA'] as const;
+export const ENCOUNTER_TASK_RECURRENCE_RULES = ['NONE', 'WEEKLY', 'MONTHLY'] as const;

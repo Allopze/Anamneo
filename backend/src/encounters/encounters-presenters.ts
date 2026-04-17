@@ -153,6 +153,34 @@ export function formatEncounterResponse(encounter: any, options: FormatEncounter
     signatures: encounter.signatures,
     attachments: encounter.attachments,
     consents: encounter.consents,
+    signatureBaseline: encounter.signatureBaseline
+      ? {
+          id: encounter.signatureBaseline.id,
+          status: encounter.signatureBaseline.status,
+          createdAt: encounter.signatureBaseline.createdAt,
+          closureNote: encounter.signatureBaseline.closureNote ?? null,
+          attachments: (encounter.signatureBaseline.attachments || []).map((attachment: any) => ({
+            id: attachment.id,
+            originalName: attachment.originalName,
+            mime: attachment.mime,
+            size: attachment.size,
+            category: attachment.category ?? null,
+            description: attachment.description ?? null,
+            linkedOrderType: attachment.linkedOrderType ?? null,
+            linkedOrderId: attachment.linkedOrderId ?? null,
+            linkedOrderLabel: attachment.linkedOrderLabel ?? null,
+            uploadedAt: attachment.uploadedAt,
+          })),
+          sections: (encounter.signatureBaseline.sections || []).map((section: any) => ({
+            ...formatEncounterSectionForRead({
+              ...section,
+              data: parseSectionData(section.data) ?? {},
+            }),
+            label: SECTION_LABELS[section.sectionKey as SectionKey],
+            order: SECTION_ORDER.indexOf(section.sectionKey as SectionKey),
+          })),
+        }
+      : null,
     patient: encounter.patient
       ? {
           id: encounter.patient.id,

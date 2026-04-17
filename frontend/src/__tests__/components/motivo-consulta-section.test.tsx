@@ -31,7 +31,13 @@ describe('MotivoConsultaSection', () => {
     const onChange = jest.fn();
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     const suggestions = [
-      { id: '11111111-1111-4111-8111-111111111111', name: 'Migraña', score: 12, confidence: 95 },
+      {
+        id: '11111111-1111-4111-8111-111111111111',
+        name: 'Migraña',
+        score: 12,
+        confidence: 95,
+        reasons: [{ kind: 'NAME', label: 'Nombre', matchedValue: 'Migraña', matches: ['migraña'] }],
+      },
     ];
     apiPostMock
       .mockResolvedValueOnce({ data: suggestions })
@@ -70,17 +76,25 @@ describe('MotivoConsultaSection', () => {
     );
     expect(apiPostMock).toHaveBeenLastCalledWith('/conditions/encounters/enc-1/suggestion', {
       inputText: 'dolor de cabeza intenso',
+      persistedTextSnapshot: 'dolor de cabeza intenso',
       suggestions,
       chosenConditionId: null,
       chosenMode: 'MANUAL',
     });
+    expect(screen.getByText(/Por qué aparece Migraña/i)).toBeInTheDocument();
   });
 
   it('does not auto-select again when manual mode is already active', async () => {
     const onChange = jest.fn();
     apiPostMock.mockResolvedValueOnce({
       data: [
-        { id: '11111111-1111-4111-8111-111111111111', name: 'Migraña', score: 12, confidence: 95 },
+        {
+          id: '11111111-1111-4111-8111-111111111111',
+          name: 'Migraña',
+          score: 12,
+          confidence: 95,
+          reasons: [{ kind: 'NAME', label: 'Nombre', matchedValue: 'Migraña', matches: ['migraña'] }],
+        },
       ],
     });
 

@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import {
   FiArrowLeft,
   FiCheck,
+  FiCopy,
   FiSave,
   FiAlertCircle,
   FiLoader,
@@ -33,6 +34,7 @@ type Props = Pick<
   | 'isOnline'
   | 'pendingSaveCount'
   | 'canEdit'
+  | 'canDuplicateEncounter'
   | 'canComplete'
   | 'canSign'
   | 'hasUnsavedChanges'
@@ -44,10 +46,12 @@ type Props = Pick<
   | 'setIsDrawerOpen'
   | 'completionBlockedReason'
   | 'saveCurrentSection'
+  | 'handleDuplicateEncounter'
   | 'handleComplete'
   | 'handleViewFicha'
   | 'openDrawerTab'
   | 'saveSectionMutation'
+  | 'duplicateEncounterMutation'
   | 'completeMutation'
   | 'signMutation'
 > & {
@@ -63,6 +67,7 @@ export default function EncounterHeader({
   isOnline,
   pendingSaveCount,
   canEdit,
+  canDuplicateEncounter,
   canComplete,
   canSign,
   hasUnsavedChanges,
@@ -74,10 +79,12 @@ export default function EncounterHeader({
   setIsDrawerOpen,
   completionBlockedReason,
   saveCurrentSection,
+  handleDuplicateEncounter,
   handleComplete,
   handleViewFicha,
   openDrawerTab,
   saveSectionMutation,
+  duplicateEncounterMutation,
   completeMutation,
   signMutation,
   setShowSignModal,
@@ -204,6 +211,19 @@ export default function EncounterHeader({
               <FiEye className="h-4 w-4" />
               Ficha Clínica
             </button>
+
+            {canDuplicateEncounter ? (
+              <button
+                type="button"
+                onClick={handleDuplicateEncounter}
+                disabled={duplicateEncounterMutation.isPending}
+                className={TOOLBAR_BUTTON_CLASS}
+                title="Crear un nuevo borrador a partir de esta atención"
+              >
+                <FiCopy className="h-4 w-4" />
+                {duplicateEncounterMutation.isPending ? 'Duplicando…' : 'Duplicar'}
+              </button>
+            ) : null}
 
             {canComplete ? (
               <button

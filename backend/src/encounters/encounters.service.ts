@@ -1,6 +1,7 @@
 import {
   Injectable,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -92,6 +93,23 @@ export class EncountersService {
       patientId,
       effectiveMedicoId,
     });
+  }
+
+  async duplicate(sourceEncounterId: string, user: RequestUser) {
+    const effectiveMedicoId = getEffectiveMedicoId(user);
+    const sourceEncounter = await this.prisma.encounter.findFirst({
+      where: {
+        id: sourceEncounterId,
+        medicoId: effectiveMedicoId,
+      },
+      select: { patientId: true },
+    });
+
+    if (!sourceEncounter) {
+      throw new NotFoundException('Atención base no encontrada');
+    }
+
+    return this.create(sourceEncounter.patientId, { duplicateFromEncounterId: sourceEncounterId }, user);
   }
 
   // ─── Section update ──────────────────────────────────────────────────────

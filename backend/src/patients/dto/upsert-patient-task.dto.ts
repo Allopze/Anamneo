@@ -1,6 +1,7 @@
 import { IsDateString, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import {
   ENCOUNTER_TASK_PRIORITIES,
+  ENCOUNTER_TASK_RECURRENCE_RULES,
   ENCOUNTER_TASK_STATUSES,
   ENCOUNTER_TASK_TYPES,
 } from '../../common/types';
@@ -30,6 +31,11 @@ export class UpsertPatientTaskDto {
   @IsString()
   @IsIn(ENCOUNTER_TASK_STATUSES)
   status?: (typeof ENCOUNTER_TASK_STATUSES)[number];
+
+  @IsOptional()
+  @IsString()
+  @IsIn(ENCOUNTER_TASK_RECURRENCE_RULES)
+  recurrenceRule?: (typeof ENCOUNTER_TASK_RECURRENCE_RULES)[number];
 
   @IsOptional()
   @IsDateString()

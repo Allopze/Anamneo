@@ -5,6 +5,7 @@ import { STATUS_LABELS, REVIEW_STATUS_LABELS } from '@/types';
 import { FiAlertTriangle, FiShield } from 'react-icons/fi';
 import SignEncounterModal from '@/components/common/SignEncounterModal';
 import AttachmentPreviewModal from '@/components/common/AttachmentPreviewModal';
+import ReopenEncounterModal from '@/components/common/ReopenEncounterModal';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import clsx from 'clsx';
@@ -29,15 +30,21 @@ export default function FichaClinicaPage() {
     isLoading,
     isOperationalAdmin,
     canSign,
+    canReopen,
+    canDuplicateEncounter,
     clinicalOutputBlock,
     exportBlockedReason,
     printBlockedReason,
     outputBlockReason,
     showSignModal,
     setShowSignModal,
+    showReopenModal,
+    setShowReopenModal,
     previewAttachment,
     setPreviewAttachment,
     signMutation,
+    reopenMutation,
+    duplicateEncounterMutation,
     handlePrint,
     handleDownloadAttachment,
     handleDownloadDocument,
@@ -45,6 +52,9 @@ export default function FichaClinicaPage() {
     sectionData,
     patientCompletenessMeta,
     linkedAttachmentsByOrderId,
+    signatureSummary,
+    signatureDiff,
+    handleDuplicateEncounter,
   } = useFichaClinica();
 
   if (isOperationalAdmin) {
@@ -88,13 +98,19 @@ export default function FichaClinicaPage() {
         id={id}
         encounter={encounter}
         canSign={canSign}
+        canReopen={canReopen}
+        canDuplicate={canDuplicateEncounter}
         exportBlockedReason={exportBlockedReason}
         printBlockedReason={printBlockedReason}
         signIsPending={signMutation.isPending}
+        reopenIsPending={reopenMutation.isPending}
+        duplicateIsPending={duplicateEncounterMutation.isPending}
         onDownloadDocument={handleDownloadDocument}
         onDownloadPdf={handleDownloadPdf}
         onPrint={handlePrint}
         onSign={() => setShowSignModal(true)}
+        onReopen={() => setShowReopenModal(true)}
+        onDuplicate={handleDuplicateEncounter}
       />
 
       {outputBlockReason ? (
@@ -124,6 +140,100 @@ export default function FichaClinicaPage() {
           </p>
         </section>
       ) : null}
+
+      {(canSign || canReopen) && (
+        <section className="no-print mx-auto mt-4 max-w-4xl px-4">
+          <div className="rounded-card border border-surface-muted/40 bg-surface-elevated">
+            <div className="border-b border-surface-muted/35 px-5 py-4">
+              <h2 className="text-base font-semibold text-ink">
+                {canSign ? 'Resumen previo a firma' : 'Reapertura guiada'}
+              </h2>
+              <p className="mt-1 text-sm text-ink-secondary">
+                {canSign
+                  ? 'Revisa qué quedará respaldado por la firma antes de confirmar.'
+                  : 'Si necesitas corregir la atención, deja trazado el motivo antes de volver a edición.'}
+              </p>
+            </div>
+
+            <div className="grid gap-3 px-5 py-4 sm:grid-cols-2">
+              {signatureSummary.map((item) => (
+                <div key={item.id} className="rounded-input border border-surface-muted/35 bg-surface-base/55 px-4 py-3">
+                  <p className="text-xs font-medium text-ink-muted">{item.label}</p>
+                  <p className="mt-1 text-sm font-medium text-ink">{item.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {encounter.closureNote ? (
+              <div className="border-t border-surface-muted/35 px-5 py-4">
+                <p className="text-xs font-medium text-ink-muted">Nota de cierre registrada</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink-secondary">{encounter.closureNote}</p>
+              </div>
+            ) : null}
+
+            <div className="border-t border-surface-muted/35 px-5 py-4">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-medium text-ink-muted">Diff visible por campo</p>
+                  <p className="mt-1 text-sm text-ink-secondary">
+                    {signatureDiff.baselineCreatedAt
+                      ? `Comparado contra la atención del ${format(new Date(signatureDiff.baselineCreatedAt), "d 'de' MMMM 'de' yyyy", { locale: es })}.`
+                      : 'No existe una atención cerrada previa comparable; se mostrará como contenido nuevo.'}
+                  </p>
+                </div>
+                <p className="text-sm font-medium text-ink">
+                  {signatureDiff.totalChanges} cambio{signatureDiff.totalChanges === 1 ? '' : 's'} detectado{signatureDiff.totalChanges === 1 ? '' : 's'}
+                </p>
+              </div>
+
+              {signatureDiff.hasChanges ? (
+                <div className="mt-4 flex flex-col gap-4">
+                  {signatureDiff.sections.map((section) => (
+                    <div key={section.sectionKey} className="rounded-input border border-surface-muted/35 bg-surface-base/55 px-4 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-medium text-ink">{section.label}</p>
+                        <span className="text-xs text-ink-muted">
+                          {section.status === 'new' ? 'Nueva sección' : `${section.fieldChanges.length} cambios`}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex flex-col gap-3">
+                        {section.fieldChanges.map((change) => (
+                          <div key={`${section.sectionKey}-${change.path}`} className="border-l border-surface-muted/40 pl-3">
+                            <p className="text-xs font-medium text-ink-muted">{change.label}</p>
+                            <p className="mt-1 text-sm text-ink-secondary">
+                              <span className="font-medium text-ink">Antes:</span> {change.before}
+                            </p>
+                            <p className="mt-1 text-sm text-ink-secondary">
+                              <span className="font-medium text-ink">Ahora:</span> {change.after}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  {signatureDiff.attachmentChanges.length > 0 ? (
+                    <div className="rounded-input border border-surface-muted/35 bg-surface-base/55 px-4 py-3">
+                      <p className="text-sm font-medium text-ink">Adjuntos</p>
+                      <div className="mt-3 flex flex-col gap-2">
+                        {signatureDiff.attachmentChanges.map((change, index) => (
+                          <p key={`${change.kind}-${change.label}-${index}`} className="text-sm text-ink-secondary">
+                            <span className="font-medium text-ink">{change.kind === 'added' ? 'Agregado' : 'Quitado'}:</span> {change.label}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-ink-secondary">
+                  No se detectaron diferencias de contenido frente a la última atención cerrada comparable.
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Clinical record content */}
       <div className={clsx('max-w-4xl mx-auto p-8 bg-surface-elevated print:p-0', clinicalOutputBlock && 'print:hidden')}>
@@ -466,6 +576,13 @@ export default function FichaClinicaPage() {
         loading={signMutation.isPending}
         onConfirm={(password) => signMutation.mutate(password)}
         onClose={() => setShowSignModal(false)}
+      />
+
+      <ReopenEncounterModal
+        open={showReopenModal}
+        loading={reopenMutation.isPending}
+        onConfirm={(payload) => reopenMutation.mutate(payload)}
+        onClose={() => setShowReopenModal(false)}
       />
 
       <AttachmentPreviewModal

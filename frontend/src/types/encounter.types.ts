@@ -91,6 +91,14 @@ export interface Encounter {
   sections?: EncounterSection[];
   attachments?: Attachment[];
   tasks?: PatientTask[];
+  signatureBaseline?: {
+    id: string;
+    status: 'COMPLETADO' | 'FIRMADO';
+    createdAt: string;
+    closureNote?: string | null;
+    sections: EncounterSection[];
+    attachments: Attachment[];
+  } | null;
   identificationSnapshotStatus?: EncounterIdentificationSnapshotStatus;
   clinicalOutputBlock?: EncounterClinicalOutputBlock | null;
   progress?: {
@@ -138,6 +146,12 @@ export interface ConditionSuggestion {
   name: string;
   score: number;
   confidence: number;
+  reasons?: Array<{
+    kind: 'NAME' | 'SYNONYM' | 'TAG';
+    label: string;
+    matchedValue: string;
+    matches: string[];
+  }>;
 }
 
 // ── Section data types ──────────────────────────────────────────

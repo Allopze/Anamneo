@@ -41,7 +41,7 @@ export function usePatientDetail() {
 
   const taskForm = useForm<TaskForm>({
     resolver: zodResolver(taskSchema),
-    defaultValues: { title: '', details: '', type: 'SEGUIMIENTO', dueDate: '' },
+    defaultValues: { title: '', details: '', type: 'SEGUIMIENTO', recurrenceRule: 'NONE', dueDate: '' },
   });
 
   const canEditAdminFields = canEditPatientAdmin();
@@ -136,7 +136,7 @@ export function usePatientDetail() {
   });
 
   const createEncounterMutation = useMutation({
-    mutationFn: () => api.post(`/encounters/patient/${id}`, {}),
+    mutationFn: (payload?: { duplicateFromEncounterId?: string }) => api.post(`/encounters/patient/${id}`, payload || {}),
     onSuccess: async (response) => {
       const reused = Boolean((response.data as any)?.reused);
       await invalidateDashboardOverviewQueries(queryClient);

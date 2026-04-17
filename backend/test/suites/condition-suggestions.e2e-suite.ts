@@ -49,6 +49,7 @@ export function conditionSuggestionsSuite() {
         .set('Cookie', cookieHeader(state.medicoCookies))
         .send({
           inputText: 'presión alta persistente',
+          persistedTextSnapshot: 'presión alta persistente',
           suggestions: suggestionsRes.body,
           chosenConditionId: null,
           chosenMode: 'MANUAL',
@@ -63,10 +64,12 @@ export function conditionSuggestionsSuite() {
       expect(log).not.toBeNull();
       expect(log?.chosenMode).toBe('MANUAL');
       expect(log?.chosenConditionId).toBeNull();
+      expect(log?.persistedTextSnapshot).toBe('presión alta persistente');
       expect(log?.rankingVersion).toBe(CONDITION_SUGGESTION_RANKING_VERSION);
       expect(JSON.parse(log?.rankingMetadata ?? '{}')).toMatchObject({
         suggestionCount: suggestionsRes.body.length,
         topSuggestionId: suggestionsRes.body[0]?.id ?? null,
+        topSuggestionReasons: expect.any(Array),
         chosenSuggestionRank: null,
       });
     });
@@ -85,6 +88,7 @@ export function conditionSuggestionsSuite() {
         .set('Cookie', cookieHeader(state.medicoCookies))
         .send({
           inputText: 'presión alta persistente',
+          persistedTextSnapshot: 'presión alta persistente',
           suggestions: suggestionsRes.body,
           chosenConditionId: chosenSuggestion.id,
           chosenMode: 'AUTO',
@@ -99,6 +103,7 @@ export function conditionSuggestionsSuite() {
       expect(log).not.toBeNull();
       expect(log?.chosenMode).toBe('AUTO');
       expect(log?.chosenConditionId).toBe(chosenSuggestion.id);
+      expect(log?.persistedTextSnapshot).toBe('presión alta persistente');
       expect(log?.rankingVersion).toBe(CONDITION_SUGGESTION_RANKING_VERSION);
       expect(JSON.parse(log?.rankingMetadata ?? '{}')).toMatchObject({
         suggestionCount: suggestionsRes.body.length,
@@ -106,6 +111,7 @@ export function conditionSuggestionsSuite() {
         chosenSuggestionRank: suggestionsRes.body.findIndex((item: { id: string }) => item.id === chosenSuggestion.id) + 1,
         chosenSuggestionScore: chosenSuggestion.score,
         chosenSuggestionConfidence: chosenSuggestion.confidence,
+        chosenSuggestionReasons: expect.any(Array),
       });
     });
   });

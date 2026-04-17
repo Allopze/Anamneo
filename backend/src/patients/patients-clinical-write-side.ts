@@ -24,6 +24,7 @@ export interface CreatePatientTaskInput {
   type?: string;
   priority?: string;
   status?: string;
+  recurrenceRule?: string;
   dueDate?: string;
   encounterId?: string;
 }
@@ -34,6 +35,7 @@ export interface UpdatePatientTaskInput {
   details?: string;
   type?: string;
   priority?: string;
+  recurrenceRule?: string;
   dueDate?: string;
 }
 

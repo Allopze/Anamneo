@@ -76,11 +76,13 @@ export interface PatientTask {
   patientId: string;
   encounterId?: string | null;
   medicoId?: string | null;
+  recurrenceSourceTaskId?: string | null;
   title: string;
   details?: string | null;
   type: 'SEGUIMIENTO' | 'EXAMEN' | 'DERIVACION' | 'TRAMITE';
   priority: 'ALTA' | 'MEDIA' | 'BAJA';
   status: 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADA' | 'CANCELADA';
+  recurrenceRule?: 'NONE' | 'WEEKLY' | 'MONTHLY';
   dueDate?: string | null;
   completedAt?: string | null;
   createdAt: string;
@@ -214,6 +216,12 @@ export const TASK_TYPE_LABELS: Record<string, string> = {
   EXAMEN: 'Examen',
   DERIVACION: 'Derivación',
   TRAMITE: 'Trámite',
+};
+
+export const TASK_RECURRENCE_LABELS: Record<'NONE' | 'WEEKLY' | 'MONTHLY', string> = {
+  NONE: 'Sin recurrencia',
+  WEEKLY: 'Semanal',
+  MONTHLY: 'Mensual',
 };
 
 export const PROBLEM_STATUS_LABELS: Record<string, string> = {

@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
   FiActivity,
+  FiAlertCircle,
+  FiCheck,
   FiClipboard,
   FiX,
 } from 'react-icons/fi';
@@ -58,12 +60,14 @@ export default function EncounterDrawer(props: EncounterDrawerProps) {
     createTaskPending,
     closureNote,
     onClosureNoteChange,
+    completionChecklist,
   } = props;
 
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const visibleTabs = canViewAudit ? SIDEBAR_TABS : SIDEBAR_TABS.filter((tabItem) => tabItem.key !== 'historial');
+  const completionReadyCount = completionChecklist.filter((item) => item.status === 'ready').length;
 
   /* mount → animate in */
   useEffect(() => {
@@ -319,7 +323,55 @@ export default function EncounterDrawer(props: EncounterDrawerProps) {
 
           {tab === 'cierre' && (
             <div className="px-5 py-5">
-              <dl className="grid gap-3 text-sm">
+              <div className={INNER_PANEL_CLASS}>
+                <div className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-ink">Checklist de pre-cierre</h3>
+                      <p className="mt-1 text-sm text-ink-secondary">
+                        {completionReadyCount}/{completionChecklist.length} puntos listos antes de finalizar.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-col gap-3">
+                    {completionChecklist.map((item) => (
+                      <div
+                        key={item.id}
+                        className={clsx(
+                          'rounded-input border px-3 py-3',
+                          item.status === 'ready'
+                            ? 'border-status-green/35 bg-status-green/10'
+                            : 'border-status-yellow/45 bg-status-yellow/18',
+                        )}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={clsx(
+                              'mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full',
+                              item.status === 'ready'
+                                ? 'bg-status-green/20 text-status-green-text'
+                                : 'bg-status-yellow/35 text-accent-text',
+                            )}
+                          >
+                            {item.status === 'ready' ? (
+                              <FiCheck className="h-3.5 w-3.5" />
+                            ) : (
+                              <FiAlertCircle className="h-3.5 w-3.5" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-ink">{item.label}</p>
+                            <p className="mt-1 text-sm text-ink-secondary">{item.detail}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <dl className="mt-4 grid gap-3 text-sm">
                 <div className={INNER_PANEL_CLASS}>
                   <div className="px-4 py-3">
                     <dt className="text-xs font-medium text-ink-muted">Revisión</dt>

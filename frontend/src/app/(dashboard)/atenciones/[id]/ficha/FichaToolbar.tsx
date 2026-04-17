@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { FiArrowLeft, FiDownload, FiPrinter, FiShield } from 'react-icons/fi';
+import { FiArrowLeft, FiCopy, FiDownload, FiEdit3, FiPrinter, FiShield } from 'react-icons/fi';
 import clsx from 'clsx';
 import type { Encounter } from '@/types';
 import { useHeaderBarSlot } from '@/components/layout/HeaderBarSlotContext';
@@ -9,26 +9,38 @@ interface FichaToolbarProps {
   id: string;
   encounter: Encounter | undefined;
   canSign: boolean;
+  canReopen: boolean;
+  canDuplicate: boolean;
   exportBlockedReason: string | null;
   printBlockedReason: string | null;
   signIsPending: boolean;
+  reopenIsPending: boolean;
+  duplicateIsPending: boolean;
   onDownloadDocument: (kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') => void;
   onDownloadPdf: () => void;
   onPrint: () => void;
   onSign: () => void;
+  onReopen: () => void;
+  onDuplicate: () => void;
 }
 
 export function FichaToolbar({
   id,
   encounter,
   canSign,
+  canReopen,
+  canDuplicate,
   exportBlockedReason,
   printBlockedReason,
   signIsPending,
+  reopenIsPending,
+  duplicateIsPending,
   onDownloadDocument,
   onDownloadPdf,
   onPrint,
   onSign,
+  onReopen,
+  onDuplicate,
 }: FichaToolbarProps) {
   const headerBarSlot = useHeaderBarSlot();
 
@@ -50,6 +62,17 @@ export function FichaToolbar({
         <div className="hidden h-6 w-px shrink-0 bg-surface-muted/50 lg:block" aria-hidden="true" />
 
         <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
+          {canDuplicate ? (
+            <button
+              onClick={onDuplicate}
+              disabled={duplicateIsPending}
+              className="btn btn-secondary flex shrink-0 items-center gap-2"
+              title="Crear un nuevo borrador a partir de esta atención"
+            >
+              <FiCopy className="h-4 w-4" />
+              {duplicateIsPending ? 'Duplicando…' : 'Duplicar'}
+            </button>
+          ) : null}
           <button
             onClick={() => onDownloadDocument('receta')}
             className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
@@ -106,6 +129,16 @@ export function FichaToolbar({
               Firmar
             </button>
           ) : null}
+          {canReopen ? (
+            <button
+              onClick={onReopen}
+              disabled={reopenIsPending}
+              className="btn btn-secondary flex shrink-0 items-center gap-2"
+            >
+              <FiEdit3 className="h-4 w-4" />
+              {reopenIsPending ? 'Reabriendo…' : 'Reabrir'}
+            </button>
+          ) : null}
           {encounter.status === 'FIRMADO' ? (
             <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-status-green/50 bg-status-green/20 px-3 py-1.5 text-xs font-semibold text-status-green-text">
               <FiShield className="h-3.5 w-3.5" />
@@ -119,13 +152,19 @@ export function FichaToolbar({
     encounter,
     exportBlockedReason,
     onDownloadDocument,
+    onDuplicate,
     onDownloadPdf,
     onPrint,
     onSign,
     id,
+    canDuplicate,
     canSign,
+    canReopen,
+    duplicateIsPending,
     printBlockedReason,
+    reopenIsPending,
     signIsPending,
+    onReopen,
   ]);
 
   useEffect(() => {

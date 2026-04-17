@@ -28,6 +28,7 @@ import PatientProblemsCard from './PatientProblemsCard';
 import PatientTasksCard from './PatientTasksCard';
 import PatientVitalsCard from './PatientVitalsCard';
 import PatientEncounterTimeline from './PatientEncounterTimeline';
+import PatientLongitudinalSummaryCard from './PatientLongitudinalSummaryCard';
 
 export default function PatientDetailPage() {
   const pd = usePatientDetail();
@@ -122,7 +123,7 @@ export default function PatientDetailPage() {
           <div className="flex items-center gap-3">
             {pd.canCreateEncounterAllowed && (
               <button
-                onClick={() => pd.createEncounterMutation.mutate()}
+                onClick={() => pd.createEncounterMutation.mutate({})}
                 disabled={pd.createEncounterMutation.isPending}
                 className="btn btn-primary flex items-center gap-2"
               >
@@ -187,6 +188,8 @@ export default function PatientDetailPage() {
           </div>
         </div>
       )}
+
+      <PatientLongitudinalSummaryCard patient={patient} clinicalSummary={pd.clinicalSummary} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column */}

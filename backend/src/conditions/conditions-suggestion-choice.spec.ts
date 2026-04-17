@@ -9,6 +9,7 @@ const baseSuggestion = {
   name: 'Migraña',
   score: 12,
   confidence: 95,
+  reasons: [],
 };
 
 function buildPayload(

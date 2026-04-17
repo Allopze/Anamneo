@@ -150,7 +150,33 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
     throw new NotFoundException('Atención no encontrada');
   }
 
-  return formatEncounterResponse(encounter, { viewerRole: user.role });
+  const signatureBaseline = await prisma.encounter.findFirst({
+    where: {
+      patientId: encounter.patientId,
+      medicoId: effectiveMedicoId,
+      id: { not: encounter.id },
+      status: { in: ['COMPLETADO', 'FIRMADO'] },
+      createdAt: { lt: encounter.createdAt },
+    },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      sections: {
+        orderBy: { sectionKey: 'asc' },
+      },
+      attachments: {
+        where: { deletedAt: null },
+        orderBy: [{ uploadedAt: 'asc' }, { id: 'asc' }],
+      },
+    },
+  });
+
+  return formatEncounterResponse(
+    {
+      ...encounter,
+      signatureBaseline,
+    },
+    { viewerRole: user.role },
+  );
 }
 
 interface FindEncountersByPatientReadModelParams {

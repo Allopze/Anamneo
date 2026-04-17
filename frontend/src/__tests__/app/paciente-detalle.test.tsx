@@ -94,9 +94,10 @@ describe('PatientDetailPage', () => {
     render(<PatientDetailPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByText('Página 1 de 2')).toBeInTheDocument();
+    expect(screen.getByText('Resumen longitudinal')).toBeInTheDocument();
     expect(screen.getByText(/Atención del/i)).toBeInTheDocument();
     expect(await screen.findByText('Migraña · 2')).toBeInTheDocument();
-    expect(screen.getByText('Resumen: Paciente en mejoría.')).toBeInTheDocument();
+    expect(screen.getAllByText('Resumen: Paciente en mejoría.').length).toBeGreaterThanOrEqual(1);
 
     await userEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
 
@@ -105,6 +106,22 @@ describe('PatientDetailPage', () => {
     });
 
     expect(await screen.findByText('Página 2 de 2')).toBeInTheDocument();
+  });
+
+  it('duplicates a previous encounter as a reusable draft', async () => {
+    apiPostMock.mockResolvedValue({ data: { id: 'enc-duplicated' } });
+
+    render(<PatientDetailPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Página 1 de 2')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Duplicar' }));
+
+    await waitFor(() => {
+      expect(apiPostMock).toHaveBeenCalledWith('/encounters/patient/patient-1', {
+        duplicateFromEncounterId: 'enc-1',
+      });
+    });
+    expect(pushMock).toHaveBeenCalledWith('/atenciones/enc-duplicated');
   });
 
   it('shows vital selector pills and expanded chart when full vitals are toggled', async () => {
@@ -234,7 +251,7 @@ describe('PatientDetailPage', () => {
 
     render(<PatientDetailPage />, { wrapper: createWrapper() });
 
-    expect(await screen.findByText('Penicilina')).toBeInTheDocument();
+    expect((await screen.findAllByText('Penicilina')).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('No hay antecedentes registrados')).not.toBeInTheDocument();
   });
 });

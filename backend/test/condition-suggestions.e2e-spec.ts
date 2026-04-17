@@ -141,6 +141,7 @@ describe('Condition Suggestions Isolated E2E', () => {
       .set('Cookie', cookieHeader(medicoCookies))
       .send({
         inputText: 'presión alta persistente',
+        persistedTextSnapshot: 'presión alta persistente',
         suggestions: suggestionsRes.body,
         chosenConditionId: null,
         chosenMode: 'MANUAL',
@@ -154,10 +155,12 @@ describe('Condition Suggestions Isolated E2E', () => {
 
     expect(manualLog?.chosenMode).toBe('MANUAL');
     expect(manualLog?.chosenConditionId).toBeNull();
+    expect(manualLog?.persistedTextSnapshot).toBe('presión alta persistente');
     expect(manualLog?.rankingVersion).toBe(CONDITION_SUGGESTION_RANKING_VERSION);
     expect(JSON.parse(manualLog?.rankingMetadata ?? '{}')).toMatchObject({
       suggestionCount: suggestionsRes.body.length,
       topSuggestionId: suggestionsRes.body[0]?.id ?? null,
+      topSuggestionReasons: expect.any(Array),
       chosenSuggestionRank: null,
     });
 
@@ -168,6 +171,7 @@ describe('Condition Suggestions Isolated E2E', () => {
       .set('Cookie', cookieHeader(medicoCookies))
       .send({
         inputText: 'presión alta persistente',
+        persistedTextSnapshot: 'presión alta persistente',
         suggestions: suggestionsRes.body,
         chosenConditionId: chosenSuggestion.id,
         chosenMode: 'AUTO',
@@ -181,6 +185,7 @@ describe('Condition Suggestions Isolated E2E', () => {
 
     expect(autoLog?.chosenMode).toBe('AUTO');
     expect(autoLog?.chosenConditionId).toBe(chosenSuggestion.id);
+    expect(autoLog?.persistedTextSnapshot).toBe('presión alta persistente');
     expect(autoLog?.rankingVersion).toBe(CONDITION_SUGGESTION_RANKING_VERSION);
     expect(JSON.parse(autoLog?.rankingMetadata ?? '{}')).toMatchObject({
       suggestionCount: suggestionsRes.body.length,
@@ -188,6 +193,7 @@ describe('Condition Suggestions Isolated E2E', () => {
       chosenSuggestionRank: 1,
       chosenSuggestionScore: chosenSuggestion.score,
       chosenSuggestionConfidence: chosenSuggestion.confidence,
+      chosenSuggestionReasons: expect.any(Array),
     });
   });
 });

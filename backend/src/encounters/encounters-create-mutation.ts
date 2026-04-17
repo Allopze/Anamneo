@@ -34,9 +34,10 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
     prisma,
     auditService,
     patientId,
-    createDto: _createDto,
+    createDto,
     user,
   } = params;
+  const duplicateFromEncounterId = createDto.duplicateFromEncounterId?.trim();
 
   let result: (FormattedEncounter & { reused: boolean }) | undefined;
 
@@ -115,6 +116,29 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
             });
           }
 
+          const duplicateSource = duplicateFromEncounterId
+            ? await tx.encounter.findFirst({
+                where: {
+                  id: duplicateFromEncounterId,
+                  patientId,
+                  medicoId: effectiveMedicoId,
+                },
+                include: {
+                  sections: true,
+                },
+              })
+            : null;
+
+          if (duplicateFromEncounterId && !duplicateSource) {
+            throw new NotFoundException('La atención base para duplicar no existe o no corresponde al paciente');
+          }
+
+          if (duplicateSource?.status === 'EN_PROGRESO') {
+            throw new BadRequestException('Solo se pueden duplicar atenciones cerradas o canceladas');
+          }
+
+          const sourceSectionByKey = new Map((duplicateSource?.sections || []).map((section) => [section.sectionKey, section]));
+
           const encounter = await tx.encounter.create({
             data: {
               patientId,
@@ -139,13 +163,17 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
                         }
                       : key === 'ANAMNESIS_REMOTA' && patient.history
                         ? buildAnamnesisRemotaSnapshotFromHistory(patient.history)
-                        : {};
+                        : sourceSectionByKey.get(key)?.data ?? {};
+
+                  const sourceSection = sourceSectionByKey.get(key);
 
                   return {
                     sectionKey: key,
-                    data: serializeSectionData(sectionData),
+                    data: typeof sectionData === 'string' ? sectionData : serializeSectionData(sectionData),
                     schemaVersion: getEncounterSectionSchemaVersion(key),
-                    completed: false,
+                    completed: sourceSection?.completed ?? key === 'IDENTIFICACION',
+                    notApplicable: sourceSection?.notApplicable ?? false,
+                    notApplicableReason: sourceSection?.notApplicableReason ?? null,
                   };
                 }),
               },
@@ -192,7 +220,11 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
       entityId: result.id,
       userId: user.id,
       action: 'CREATE',
-      diff: { patientId, status: 'EN_PROGRESO' },
+      diff: {
+        patientId,
+        status: 'EN_PROGRESO',
+        duplicatedFromEncounterId: duplicateFromEncounterId ?? null,
+      },
     });
   }
 

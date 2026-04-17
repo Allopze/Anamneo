@@ -72,6 +72,7 @@ export default function EncounterWizardPage() {
         isOnline={wiz.isOnline}
         pendingSaveCount={wiz.pendingSaveCount}
         canEdit={wiz.canEdit}
+        canDuplicateEncounter={wiz.canDuplicateEncounter}
         canComplete={wiz.canComplete}
         canSign={wiz.canSign}
         hasUnsavedChanges={wiz.hasUnsavedChanges}
@@ -83,10 +84,12 @@ export default function EncounterWizardPage() {
         setIsDrawerOpen={wiz.setIsDrawerOpen}
         completionBlockedReason={wiz.completionBlockedReason}
         saveCurrentSection={wiz.saveCurrentSection}
+        handleDuplicateEncounter={wiz.handleDuplicateEncounter}
         handleComplete={wiz.handleComplete}
         handleViewFicha={wiz.handleViewFicha}
         openDrawerTab={wiz.openDrawerTab}
         saveSectionMutation={wiz.saveSectionMutation}
+        duplicateEncounterMutation={wiz.duplicateEncounterMutation}
         completeMutation={wiz.completeMutation}
         signMutation={wiz.signMutation}
         setShowSignModal={wiz.setShowSignModal}
@@ -180,7 +183,7 @@ export default function EncounterWizardPage() {
               </nav>
             </div>
 
-            {encounter.patientId ? <ClinicalAlerts patientId={encounter.patientId} /> : null}
+            {encounter.patientId ? <ClinicalAlerts patientId={encounter.patientId} variant="workspace-sticky" /> : null}
 
             {/* Active section panel */}
             <section className={SURFACE_PANEL_CLASS}>
@@ -448,6 +451,7 @@ export default function EncounterWizardPage() {
         createTaskPending={wiz.createTaskMutation.isPending}
         closureNote={wiz.closureNote}
         onClosureNoteChange={wiz.setClosureNote}
+        completionChecklist={wiz.completionChecklist}
         formData={wiz.formData}
         onSectionDataChange={wiz.handleSectionDataChange}
         onSaveSectionMutate={(args) => wiz.saveSectionMutation.mutate(args as any)}

@@ -123,6 +123,7 @@ describe('EncounterWizardPage closing workflow', () => {
       medicoId: null,
     };
     authStoreState.isMedico = () => true;
+    authStoreState.canCreateEncounter = () => true;
     authStoreState.canEditAntecedentes = () => true;
     enqueueSaveMock.mockResolvedValue(undefined);
     getPendingSavesForUserMock.mockResolvedValue([]);
@@ -199,7 +200,7 @@ describe('EncounterWizardPage closing workflow', () => {
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Finalizar Atención' })).toBeDisabled();
-    expect(screen.getAllByText(/pendiente de verificación médica/i)).toHaveLength(2);
+    expect(screen.getAllByText(/pendiente de verificación médica/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole('link', { name: 'Revisar ficha administrativa' })).toHaveAttribute(
       'href',
       '/pacientes/patient-1',
@@ -235,6 +236,22 @@ describe('EncounterWizardPage closing workflow', () => {
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith('/atenciones/enc-1/ficha');
     });
+  });
+
+  it('shows an explicit pre-close checklist inside the cierre drawer tab', async () => {
+    const user = userEvent.setup();
+
+    render(<EncounterWizardPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
+
+    await openDrawerTab(user, 'Cierre');
+
+    expect(screen.getByText('Checklist de pre-cierre')).toBeInTheDocument();
+    expect(screen.getByText('Secciones obligatorias completas')).toBeInTheDocument();
+    expect(screen.getByText('Contenido clínico esencial')).toBeInTheDocument();
+    expect(screen.getAllByText('Nota de cierre').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Ficha maestra habilitada para cierre')).toBeInTheDocument();
   });
 
   it('keeps the completion action available for the treating doctor even when the encounter was created by an assistant', async () => {

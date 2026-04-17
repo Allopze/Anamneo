@@ -7,6 +7,7 @@ import { api, getErrorMessage } from '@/lib/api';
 import {
   canExportEncounterDocuments,
   canPrintEncounterRecord,
+  canReopenEncounter,
   canSignEncounter,
 } from '@/lib/permissions';
 import { Attachment, Encounter, SignEncounterResponse } from '@/types';
@@ -21,7 +22,11 @@ import {
   getRevisionSystemEntries,
   getTreatmentPlanText,
 } from '@/lib/clinical';
+import { buildEncounterSignatureDiff, buildEncounterSignatureSummary } from '@/lib/encounter-completion';
+import { invalidateDashboardOverviewQueries } from '@/lib/query-invalidation';
 import { fallbackPdfFilename, getFilenameFromDisposition } from './ficha.constants';
+import { type EncounterReopenReasonCode } from '../../../../../../../shared/encounter-reopen-reasons';
+import { useDuplicateEncounterAction } from '../useDuplicateEncounterAction';
 
 export function useFichaClinica() {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +35,7 @@ export function useFichaClinica() {
   const { user } = useAuthStore();
   const isOperationalAdmin = !!user?.isAdmin;
   const [showSignModal, setShowSignModal] = useState(false);
+  const [showReopenModal, setShowReopenModal] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
 
   const { data: encounter, isLoading } = useQuery({
@@ -43,6 +49,8 @@ export function useFichaClinica() {
 
   const clinicalOutputBlock = encounter?.clinicalOutputBlock ?? null;
   const canSign = canSignEncounter(user ?? null, encounter);
+  const canReopen = canReopenEncounter(user ?? null, encounter);
+  const duplicateAction = useDuplicateEncounterAction(encounter);
   const exportBlockedReason = canExportEncounterDocuments(user ?? null)
     ? getEncounterActionBlockReason(
       encounter?.status,
@@ -73,6 +81,25 @@ export function useFichaClinica() {
       setShowSignModal(false);
       toast.success('Atención firmada electrónicamente');
       queryClient.invalidateQueries({ queryKey: ['encounter', id] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  const reopenMutation = useMutation<Encounter, unknown, { reasonCode: EncounterReopenReasonCode; note: string }>({
+    mutationFn: async (payload) => {
+      const response = await api.post(`/encounters/${id}/reopen`, payload);
+      return response.data as Encounter;
+    },
+    onSuccess: async () => {
+      setShowReopenModal(false);
+      toast.success('Atención reabierta');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['encounter', id] }),
+        invalidateDashboardOverviewQueries(queryClient),
+      ]);
+      router.push(`/atenciones/${id}`);
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));
@@ -176,21 +203,30 @@ export function useFichaClinica() {
     }, {});
   }, [encounter?.attachments]);
 
+  const signatureSummary = useMemo(() => buildEncounterSignatureSummary(encounter), [encounter]);
+  const signatureDiff = useMemo(() => buildEncounterSignatureDiff(encounter), [encounter]);
+
   return {
     id,
     encounter,
     isLoading,
     isOperationalAdmin,
     canSign,
+    canReopen,
+    canDuplicateEncounter: duplicateAction.canDuplicateEncounter,
     clinicalOutputBlock,
     exportBlockedReason,
     printBlockedReason,
     outputBlockReason,
     showSignModal,
     setShowSignModal,
+    showReopenModal,
+    setShowReopenModal,
     previewAttachment,
     setPreviewAttachment,
     signMutation,
+    reopenMutation,
+    duplicateEncounterMutation: duplicateAction.duplicateEncounterMutation,
     handlePrint,
     handleDownloadAttachment,
     handleDownloadDocument,
@@ -198,5 +234,8 @@ export function useFichaClinica() {
     sectionData,
     patientCompletenessMeta,
     linkedAttachmentsByOrderId,
+    signatureSummary,
+    signatureDiff,
+    handleDuplicateEncounter: duplicateAction.handleDuplicateEncounter,
   };
 }

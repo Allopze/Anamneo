@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { TASK_TYPE_LABELS, TASK_STATUS_LABELS, type PatientTask } from '@/types';
+import { TASK_RECURRENCE_LABELS, TASK_TYPE_LABELS, TASK_STATUS_LABELS, type PatientTask } from '@/types';
 import { extractDateOnly, formatDateOnly } from '@/lib/date';
 import type { PatientDetailHook } from './usePatientDetail';
 
@@ -40,6 +40,9 @@ export default function PatientTasksCard({
                   <p className="font-medium text-ink-primary">{task.title}</p>
                   <p className="text-xs text-ink-muted">
                     {TASK_TYPE_LABELS[task.type]} · {TASK_STATUS_LABELS[task.status]}
+                    {task.recurrenceRule && task.recurrenceRule !== 'NONE'
+                      ? ` · ${TASK_RECURRENCE_LABELS[task.recurrenceRule]}`
+                      : ''}
                     {task.dueDate ? ` · ${formatDateOnly(task.dueDate)}` : ''}
                   </p>
                   {task.details && <p className="mt-1 text-sm text-ink-secondary">{task.details}</p>}
@@ -54,6 +57,7 @@ export default function PatientTasksCard({
                           title: task.title,
                           details: task.details || '',
                           type: task.type,
+                          recurrenceRule: task.recurrenceRule || 'NONE',
                           dueDate: extractDateOnly(task.dueDate) || '',
                         });
                       }}
@@ -117,7 +121,19 @@ export default function PatientTasksCard({
               </option>
             ))}
           </select>
+          <select className="form-input" {...taskForm.register('recurrenceRule')}>
+            {Object.entries(TASK_RECURRENCE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
           <input type="date" className="form-input" {...taskForm.register('dueDate')} />
+          {taskForm.formState.errors.dueDate && (
+            <p className="mt-1 text-xs text-status-red">{taskForm.formState.errors.dueDate.message}</p>
+          )}
         </div>
         <button
           type="submit"

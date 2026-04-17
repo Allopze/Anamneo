@@ -500,13 +500,13 @@ export function registerEncounterFollowupTests() {
     expect(res.body.message).toContain('papelera');
   });
 
-  it('POST /api/encounters/:id/complete → 400 when required sections are missing', async () => {
+  it('POST /api/encounters/:id/complete → 400 when the closure note is still missing', async () => {
     const res = await req()
       .post(`/api/encounters/${state.encounterId}/complete`)
       .set('Cookie', cookieHeader(state.medicoCookies))
       .expect(400);
 
-    expect(String(res.body.message)).toContain('secciones obligatorias');
+    expect(String(res.body.message)).toContain('nota de cierre');
   });
 
   it('PUT /api/encounters/:id/sections/INVALID → 400', async () => {

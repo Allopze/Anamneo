@@ -3,6 +3,7 @@ import type { User } from '@/stores/auth-store';
 export const authStoreState: {
   user: User | null;
   isMedico: () => boolean;
+  canCreateEncounter: () => boolean;
   canEditAntecedentes: () => boolean;
 } = {
   user: {
@@ -14,6 +15,7 @@ export const authStoreState: {
     medicoId: null,
   },
   isMedico: () => true,
+  canCreateEncounter: () => true,
   canEditAntecedentes: () => true,
 };
 

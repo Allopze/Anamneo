@@ -2,6 +2,15 @@ import { IsString, IsArray, IsIn, IsOptional, IsNumber, IsUUID, ValidateNested, 
 import { Type } from 'class-transformer';
 
 class SuggestionItem {
+  @IsOptional()
+  @IsArray()
+  reasons?: Array<{
+    kind: 'NAME' | 'SYNONYM' | 'TAG';
+    label: string;
+    matchedValue: string;
+    matches: string[];
+  }>;
+
   @IsUUID(undefined, { message: 'Cada sugerencia debe incluir un id UUID válido' })
   id: string;
 
@@ -23,6 +32,11 @@ export class SaveSuggestionDto {
   @IsString()
   @MaxLength(2000)
   inputText: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  persistedTextSnapshot?: string;
 
   @IsArray()
   @ArrayMaxSize(10)
