@@ -39,12 +39,14 @@ La app usa same-origin `/api` en el navegador. `frontend/next.config.js` reescri
 `src/proxy.ts` agrega una capa de control de navegacion:
 
 - detecta cookies de sesion,
-- valida sesion real consultando `GET /api/auth/me`,
-- y decide si una ruta publica o privada debe continuar o redirigir.
+- hace un chequeo optimista basado en cookies y refresh token,
+- y decide si una ruta publica o privada debe continuar o redirigir antes del render.
 
 Cuando el usuario inicia sesion, el frontend reutiliza el usuario devuelto por `POST /auth/login`, `POST /auth/register` o `POST /auth/2fa/verify` y guarda un prefill de una sola vez para que `DashboardLayout` no tenga que volver a pedir `/auth/me` en la navegacion inmediata despues del login.
 
-Esto evita confiar ciegamente en la existencia de cookies. Tener una cookie no implica tener una sesion valida; solo implica que alguien dejo una cookie.
+La validacion efectiva de sesion ocurre en `DashboardLayout` con `GET /api/auth/me` una vez que la ruta privada ya cargo. El proxy no reemplaza el enforcement del backend ni deberia hacer llamadas pesadas por request.
+
+Esto evita confiar ciegamente en la existencia de cookies. Tener una cookie no implica tener una sesion valida; solo implica que podria existir una sesion recuperable.
 
 ## Estado y Librerias Cliente
 
@@ -70,7 +72,7 @@ Esto evita confiar ciegamente en la existencia de cookies. Tener una cookie no i
 
 - Jest cubre componentes y utilidades.
 - Playwright cubre flujos E2E desde `frontend/tests/e2e`.
-- Playwright levanta el frontend, no el backend, asi que las pruebas con API real dependen de que el backend exista.
+- En este repo, Playwright levanta tanto el frontend como un backend E2E propio mediante `webServer`.
 
 ## Layout de la Pagina de Atencion (`atenciones/[id]`)
 

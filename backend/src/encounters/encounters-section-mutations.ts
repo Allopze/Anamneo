@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -159,6 +160,19 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
 
   if (dto.notApplicable && !dto.notApplicableReason) {
     throw new BadRequestException('Debe indicar un motivo al marcar la sección como "No aplica"');
+  }
+
+  if (dto.baseUpdatedAt) {
+    const baseUpdatedAt = new Date(dto.baseUpdatedAt);
+    if (Number.isNaN(baseUpdatedAt.getTime())) {
+      throw new BadRequestException('La versión base de la sección no es válida');
+    }
+
+    if (section.updatedAt.getTime() !== baseUpdatedAt.getTime()) {
+      throw new ConflictException(
+        'Esta sección cambió en otra sesión. Recargue la atención y revise antes de sobrescribir.',
+      );
+    }
   }
 
   const updatedSection = await prisma.encounterSection.update({

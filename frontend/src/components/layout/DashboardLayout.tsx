@@ -1,11 +1,13 @@
 'use client';
 
+import axios from 'axios';
 import { useEffect, useState, useRef, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
+import { shouldPreserveLocalSessionOnBootstrapError } from '@/lib/session-bootstrap';
 import { useSessionTimeout } from '@/lib/useSessionTimeout';
 import toast from 'react-hot-toast';
 import {
@@ -88,6 +90,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const headerBarSlotCtx = useMemo(() => ({ setHeaderBarSlot }), []);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
+  const hasShownBootstrapWarningRef = useRef(false);
   const [mounted, setMounted] = useState(false);
   const [authCheckComplete, setAuthCheckComplete] = useState(false);
   const isEncounterWorkspace = /^\/atenciones\/[^/]+$/.test(pathname);
@@ -103,10 +106,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Close menus on route change
   useEffect(() => {
     setMobileMenuOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    setHeaderBarSlot(null);
   }, [pathname]);
 
   useEffect(() => {
@@ -135,9 +134,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         if (cancelled) return;
 
         login(toAuthUser(response.data));
-      } catch {
+      } catch (error) {
         if (cancelled) return;
-        logout();
+
+        if (shouldPreserveLocalSessionOnBootstrapError(error) && isAuthenticated) {
+          if (!hasShownBootstrapWarningRef.current) {
+            hasShownBootstrapWarningRef.current = true;
+            toast.error('No se pudo validar la sesión por un problema temporal de conexión. Se conserva la sesión local.');
+          }
+        } else if (axios.isAxiosError(error) && error.response?.status === 401) {
+          logout();
+        } else {
+          logout();
+        }
       } finally {
         if (!cancelled) {
           setAuthCheckComplete(true);
@@ -150,7 +159,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => {
       cancelled = true;
     };
-  }, [authCheckComplete, hasHydrated, login, logout, mounted]);
+  }, [authCheckComplete, hasHydrated, isAuthenticated, login, logout, mounted]);
 
   useEffect(() => {
     if (!mounted || !hasHydrated || !authCheckComplete || isAuthenticated) {

@@ -1,8 +1,12 @@
-import { IsObject, IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsObject, IsBoolean, IsDateString, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class UpdateSectionDto {
   @IsObject()
   data: Record<string, any>;
+
+  @IsDateString()
+  @IsOptional()
+  baseUpdatedAt?: string;
 
   @IsBoolean()
   @IsOptional()

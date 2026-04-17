@@ -143,6 +143,7 @@ export function useEncounterWizard() {
     currentSectionIndex,
     currentSection,
     hasUnsavedChanges: persistence.hasUnsavedChanges,
+    isSaving: persistence.saveSectionMutation.isPending,
     saveCurrentSection: persistence.saveCurrentSection,
     persistSection: persistence.persistSection,
     sections,

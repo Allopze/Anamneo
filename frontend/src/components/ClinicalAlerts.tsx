@@ -94,6 +94,7 @@ export default function ClinicalAlerts({ patientId, variant = 'panel' }: Clinica
         <div className="rounded-card border border-frame/10 bg-surface-elevated/95 backdrop-blur">
           <div className="flex flex-wrap items-center gap-2 px-4 py-3">
             <span className="text-sm font-medium text-ink">Alertas clínicas</span>
+            <span className="text-xs text-ink-secondary">Contexto derivado, no alertas persistidas</span>
             {alerts.slice(0, 5).map((alert, index) => (
               <div
                 key={`${alert.label}-${index}`}
@@ -122,9 +123,9 @@ export default function ClinicalAlerts({ patientId, variant = 'panel' }: Clinica
     <div className="animate-fade-in">
       <div className="overflow-hidden rounded-card border border-frame/10 bg-surface-elevated shadow-soft">
         <div className="border-b border-surface-muted/35 px-5 py-4 sm:px-6">
-          <h2 className="text-sm font-semibold text-ink">Alertas Clínicas</h2>
+          <h2 className="text-sm font-semibold text-ink">Contexto clínico relevante</h2>
           <p className="mt-1 text-sm text-ink-secondary">
-            Datos de la ficha longitudinal que conviene tener visibles mientras editas.
+            Resumen derivado de ficha, problemas, tareas y último registro. No reemplaza las alertas clínicas persistidas.
           </p>
         </div>
 

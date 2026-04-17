@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import {
   reconcileEncounterIdentificationSection,
   updateEncounterSectionMutation,
@@ -305,6 +305,53 @@ describe('encounters-section-mutations', () => {
         },
       }),
     ).rejects.toThrow(BadRequestException);
+
+    expect(prisma.encounterSection.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects stale section saves when baseUpdatedAt no longer matches', async () => {
+    const prisma = {
+      encounter: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'enc-1',
+          medicoId: 'med-1',
+          status: 'EN_PROGRESO',
+          createdById: 'med-1',
+          patientId: 'pat-1',
+          patient: { id: 'pat-1' },
+          sections: [
+            {
+              id: 'sec-1',
+              sectionKey: 'TRATAMIENTO',
+              updatedAt: new Date('2026-04-17T10:00:00.000Z'),
+            },
+          ],
+        }),
+      },
+      encounterSection: {
+        update: jest.fn(),
+      },
+    };
+
+    await expect(
+      updateEncounterSectionMutation({
+        prisma: prisma as never,
+        auditService: auditService as never,
+        alertsService: { checkVitalSigns: jest.fn() } as never,
+        logger: { error: jest.fn() },
+        encounterId: 'enc-1',
+        sectionKey: 'TRATAMIENTO',
+        dto: {
+          data: { plan: 'Nuevo plan' },
+          baseUpdatedAt: '2026-04-17T09:59:00.000Z',
+        },
+        user: {
+          id: 'med-1',
+          role: 'MEDICO',
+          isAdmin: false,
+        },
+      }),
+    ).rejects.toThrow(ConflictException);
 
     expect(prisma.encounterSection.update).not.toHaveBeenCalled();
   });

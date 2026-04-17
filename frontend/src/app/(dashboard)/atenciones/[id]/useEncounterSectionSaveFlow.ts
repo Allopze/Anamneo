@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useMutation, type QueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import { api, getErrorMessage } from '@/lib/api';
 import { isNetworkError, type PendingSave } from '@/lib/offline-queue';
 import { invalidateAlertOverviewQueries } from '@/lib/query-invalidation';
@@ -10,10 +11,13 @@ import type { SaveSectionResponse } from './encounter-wizard.constants';
 interface SaveSectionMutationVars {
   sectionKey: SectionKey;
   data: any;
+  baseUpdatedAt?: string;
   completed?: boolean;
   notApplicable?: boolean;
   notApplicableReason?: string;
 }
+
+type PersistSectionResult = 'noop' | 'saved' | 'queued';
 
 interface UseEncounterSectionSaveFlowParams {
   canEdit: boolean;
@@ -44,6 +48,44 @@ function readSavedSnapshot(lastSavedRef: React.MutableRefObject<string>) {
   }
 }
 
+function getPersistedSectionUpdatedAt(
+  sections: NonNullable<Encounter['sections']>,
+  sectionKey: SectionKey,
+): string | undefined {
+  return sections.find((section) => section.sectionKey === sectionKey)?.updatedAt;
+}
+
+function buildIdentificationSnapshot(encounter?: Encounter): Record<string, unknown> {
+  return {
+    nombre: encounter?.patient?.nombre ?? '',
+    rut: encounter?.patient?.rut ?? '',
+    rutExempt: Boolean(encounter?.patient?.rutExempt),
+    rutExemptReason: encounter?.patient?.rutExemptReason ?? '',
+    edad: encounter?.patient?.edad ?? '',
+    edadMeses: encounter?.patient?.edadMeses ?? null,
+    sexo: encounter?.patient?.sexo ?? '',
+    prevision: encounter?.patient?.prevision ?? '',
+    trabajo: encounter?.patient?.trabajo ?? '',
+    domicilio: encounter?.patient?.domicilio ?? '',
+  };
+}
+
+function getSectionPayloadData(params: {
+  encounter?: Encounter;
+  sections: NonNullable<Encounter['sections']>;
+  formDataRef: React.MutableRefObject<Record<string, any>>;
+  sectionKey: SectionKey;
+}) {
+  const { encounter, sections, formDataRef, sectionKey } = params;
+
+  if (sectionKey === 'IDENTIFICACION') {
+    return buildIdentificationSnapshot(encounter);
+  }
+
+  const persistedSection = sections.find((section) => section.sectionKey === sectionKey);
+  return formDataRef.current[sectionKey] ?? persistedSection?.data ?? {};
+}
+
 export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowParams) {
   const {
     canEdit,
@@ -72,12 +114,14 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
     mutationFn: async ({
       sectionKey,
       data,
+      baseUpdatedAt,
       completed,
       notApplicable,
       notApplicableReason,
     }: SaveSectionMutationVars) => {
       return api.put<SaveSectionResponse>(`/encounters/${id}/sections/${sectionKey}`, {
         data,
+        baseUpdatedAt,
         completed,
         notApplicable,
         ...(notApplicableReason ? { notApplicableReason } : {}),
@@ -113,6 +157,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
                   completed: response.data.completed,
                   notApplicable: response.data.notApplicable,
                   notApplicableReason: response.data.notApplicableReason,
+                  updatedAt: response.data.updatedAt,
                 }
               : section,
           ),
@@ -168,6 +213,9 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
 
       setErrorSectionKey(variables.sectionKey);
       setSaveStatus('error');
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        void queryClient.invalidateQueries({ queryKey: ['encounter', id] });
+      }
       toast.error('Error al guardar: ' + getErrorMessage(error));
     },
   });
@@ -179,28 +227,42 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
     }: {
       sectionKey?: SectionKey;
       completed?: boolean;
-    } = {}) => {
-      if (!canEdit || !encounter?.sections) return;
+    } = {}): Promise<PersistSectionResult> => {
+      if (!canEdit || !encounter?.sections) return 'noop';
 
       const targetSectionKey = sectionKey ?? activeSectionKeyRef.current;
-      if (!targetSectionKey) return;
+      if (!targetSectionKey) return 'noop';
 
-      const currentData = formDataRef.current[targetSectionKey];
+      const persistedSection = sections.find((section) => section.sectionKey === targetSectionKey);
+      const currentData = getSectionPayloadData({
+        encounter,
+        sections,
+        formDataRef,
+        sectionKey: targetSectionKey,
+      });
       const savedSnapshot = readSavedSnapshot(lastSavedRef);
       const savedSectionData = JSON.stringify(savedSnapshot[targetSectionKey]);
       const currentSectionData = JSON.stringify(currentData);
-      const persistedSection = sections.find((section) => section.sectionKey === targetSectionKey);
       const shouldSaveData = currentSectionData !== savedSectionData;
       const shouldSaveCompletion = completed !== undefined && persistedSection?.completed !== completed;
 
-      if (!shouldSaveData && !shouldSaveCompletion) return;
+      if (!shouldSaveData && !shouldSaveCompletion) return 'noop';
 
       setSaveStatus('saving');
-      await saveSectionMutation.mutateAsync({
-        sectionKey: targetSectionKey,
-        data: currentData,
-        ...(completed !== undefined ? { completed } : {}),
-      });
+      try {
+        await saveSectionMutation.mutateAsync({
+          sectionKey: targetSectionKey,
+          data: currentData,
+          baseUpdatedAt: getPersistedSectionUpdatedAt(sections, targetSectionKey),
+          ...(completed !== undefined ? { completed } : {}),
+        });
+        return 'saved';
+      } catch (error) {
+        if (isNetworkError(error) && id && userId) {
+          return 'queued';
+        }
+        throw error;
+      }
     },
     [
       activeSectionKeyRef,
@@ -214,8 +276,8 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
     ],
   );
 
-  const saveCurrentSection = useCallback(() => {
-    void persistSection();
+  const saveCurrentSection = useCallback(async () => {
+    await persistSection();
   }, [persistSection]);
 
   const ensureActiveSectionSaved = useCallback(async () => {

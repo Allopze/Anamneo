@@ -1,4 +1,4 @@
-import { filterPendingSavesByUser, isNetworkError } from '@/lib/offline-queue';
+import { collapsePendingSaves, filterPendingSavesByUser, isNetworkError } from '@/lib/offline-queue';
 
 describe('isNetworkError', () => {
   it('returns true for ERR_NETWORK code', () => {
@@ -77,6 +77,49 @@ describe('filterPendingSavesByUser', () => {
       expect.objectContaining({
         notApplicable: true,
         notApplicableReason: 'No corresponde en este control',
+      }),
+    ]);
+  });
+});
+
+describe('collapsePendingSaves', () => {
+  it('keeps only the latest pending save per user, encounter and section', () => {
+    expect(
+      collapsePendingSaves([
+        {
+          id: 1,
+          encounterId: 'enc-1',
+          sectionKey: 'MOTIVO_CONSULTA',
+          data: { texto: 'Versión vieja' },
+          queuedAt: '2026-04-17T10:00:00.000Z',
+          userId: 'user-1',
+        },
+        {
+          id: 2,
+          encounterId: 'enc-1',
+          sectionKey: 'MOTIVO_CONSULTA',
+          data: { texto: 'Versión nueva' },
+          queuedAt: '2026-04-17T10:05:00.000Z',
+          userId: 'user-1',
+        },
+        {
+          id: 3,
+          encounterId: 'enc-1',
+          sectionKey: 'TRATAMIENTO',
+          data: { plan: 'Mantener' },
+          queuedAt: '2026-04-17T10:02:00.000Z',
+          userId: 'user-1',
+        },
+      ]),
+    ).toEqual([
+      expect.objectContaining({
+        id: 3,
+        sectionKey: 'TRATAMIENTO',
+      }),
+      expect.objectContaining({
+        id: 2,
+        sectionKey: 'MOTIVO_CONSULTA',
+        data: { texto: 'Versión nueva' },
       }),
     ]);
   });

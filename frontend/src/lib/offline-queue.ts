@@ -15,11 +15,28 @@ export interface PendingSave {
   encounterId: string;
   sectionKey: string;
   data: unknown;
+  baseUpdatedAt?: string;
   completed?: boolean;
   notApplicable?: boolean;
   notApplicableReason?: string;
   queuedAt: string;
   userId: string;
+}
+
+function getPendingSaveIdentity(save: Pick<PendingSave, 'userId' | 'encounterId' | 'sectionKey'>): string {
+  return `${save.userId}::${save.encounterId}::${save.sectionKey}`;
+}
+
+export function collapsePendingSaves(saves: PendingSave[]): PendingSave[] {
+  const latestByIdentity = new Map<string, PendingSave>();
+
+  [...saves]
+    .sort((a, b) => a.queuedAt.localeCompare(b.queuedAt))
+    .forEach((save) => {
+      latestByIdentity.set(getPendingSaveIdentity(save), save);
+    });
+
+  return [...latestByIdentity.values()].sort((a, b) => a.queuedAt.localeCompare(b.queuedAt));
 }
 
 /* ---------- helpers ---------- */
@@ -59,7 +76,27 @@ export async function enqueueSave(save: Omit<PendingSave, 'id'>): Promise<void> 
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).add(save);
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.openCursor();
+
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) {
+        store.add(save);
+        return;
+      }
+
+      const currentSave = cursor.value as PendingSave;
+      if (getPendingSaveIdentity(currentSave) === getPendingSaveIdentity(save)) {
+        cursor.delete();
+      }
+      cursor.continue();
+    };
+
+    request.onerror = () => {
+      db.close();
+      reject(request.error);
+    };
 
     tx.oncomplete = () => {
       db.close();
@@ -82,7 +119,7 @@ export async function getPendingSaves(): Promise<PendingSave[]> {
 
     request.onsuccess = () => {
       db.close();
-      const saves = (request.result as PendingSave[]).sort((a, b) => a.queuedAt.localeCompare(b.queuedAt));
+      const saves = collapsePendingSaves(request.result as PendingSave[]);
       resolve(saves);
     };
     request.onerror = () => {

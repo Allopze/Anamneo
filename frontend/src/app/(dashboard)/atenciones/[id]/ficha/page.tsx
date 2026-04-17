@@ -186,6 +186,20 @@ export default function FichaClinicaPage() {
                 </p>
               </div>
 
+              {canSign ? (
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowSignModal(true)}
+                    disabled={signMutation.isPending}
+                    className="btn inline-flex items-center gap-2 border-status-red/40 bg-status-red/15 font-semibold text-status-red-text hover:bg-status-red/25 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <FiShield className="h-4 w-4" />
+                    {signMutation.isPending ? 'Firmando…' : 'Firmar Atención'}
+                  </button>
+                </div>
+              ) : null}
+
               {signatureDiff.hasChanges ? (
                 <div className="mt-4 flex flex-col gap-4">
                   {signatureDiff.sections.map((section) => (

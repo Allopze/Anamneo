@@ -12,6 +12,8 @@ type AccessiblePatient = {
   } | null;
 };
 
+type PatientScopeCandidate = Pick<AccessiblePatient, 'id' | 'createdById' | 'archivedAt' | 'createdBy'>;
+
 type ScopedClinicalRecord = {
   encounterId?: string | null;
   createdById?: string | null;
@@ -95,8 +97,6 @@ export async function assertPatientAccess(
   user: RequestUser,
   patientId: string,
 ): Promise<AccessiblePatient> {
-  const effectiveMedicoId = getEffectiveMedicoId(user);
-
   const patient = await prisma.patient.findUnique({
     where: { id: patientId },
     select: {
@@ -108,6 +108,17 @@ export async function assertPatientAccess(
       },
     },
   });
+
+  return assertLoadedPatientAccess(prisma, user, patientId, patient);
+}
+
+export async function assertLoadedPatientAccess<T extends PatientScopeCandidate | null>(
+  prisma: PrismaService,
+  user: RequestUser,
+  patientId: string,
+  patient: T,
+): Promise<Exclude<T, null>> {
+  const effectiveMedicoId = getEffectiveMedicoId(user);
 
   if (!patient || patient.archivedAt) {
     throw new NotFoundException('Paciente no encontrado');
@@ -124,5 +135,5 @@ export async function assertPatientAccess(
     }
   }
 
-  return patient;
+  return patient as Exclude<T, null>;
 }

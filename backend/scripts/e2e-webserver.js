@@ -87,11 +87,12 @@ function prepareTestDatabase() {
 }
 
 function ensureBackendBuild() {
-  if (existsSync(backendEntryPoint)) {
-    return;
+  if (!existsSync(backendEntryPoint)) {
+    console.log('[e2e-webserver] Backend build not found. Building Nest app first...');
+  } else {
+    console.log('[e2e-webserver] Rebuilding backend to keep Playwright E2E aligned with current source...');
   }
 
-  console.log('[e2e-webserver] Backend build not found. Building Nest app first...');
   runOrThrow('npm', ['run', 'build']);
 }
 

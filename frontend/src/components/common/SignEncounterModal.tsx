@@ -13,6 +13,8 @@ interface SignEncounterModalProps {
 export default function SignEncounterModal({ open, loading, onConfirm, onClose }: SignEncounterModalProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const titleId = 'sign-encounter-modal-title';
+  const descriptionId = 'sign-encounter-modal-description';
 
   if (!open) return null;
 
@@ -37,6 +39,10 @@ export default function SignEncounterModal({ open, loading, onConfirm, onClose }
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={handleClose}>
       <div
         className="relative mx-4 w-full max-w-md rounded-card border border-frame/10 bg-surface-elevated p-6 shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -53,8 +59,8 @@ export default function SignEncounterModal({ open, loading, onConfirm, onClose }
             <FiShield className="h-5 w-5 text-accent" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-ink">Firma Electrónica Simple</h2>
-            <p className="text-sm text-ink-secondary">Confirme su identidad para firmar</p>
+            <h2 id={titleId} className="text-lg font-semibold text-ink">Firma Electrónica Simple</h2>
+            <p id={descriptionId} className="text-sm text-ink-secondary">Confirme su identidad para firmar</p>
           </div>
         </div>
 

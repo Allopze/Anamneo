@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 interface UseEncounterAutosaveParams {
   canEdit: boolean;
   hasUnsavedChanges: boolean;
-  saveCurrentSection: () => void;
+  saveCurrentSection: () => Promise<void>;
 }
 
 export function useEncounterAutosave(params: UseEncounterAutosaveParams) {

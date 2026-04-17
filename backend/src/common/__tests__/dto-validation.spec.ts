@@ -182,6 +182,7 @@ describe('DTO Validation', () => {
     it('should pass with valid data object', async () => {
       const dto = plainToInstance(UpdateSectionDto, {
         data: { motivo: 'dolor de cabeza' },
+        baseUpdatedAt: '2026-04-17T10:00:00.000Z',
         completed: false,
       });
       const errors = await validate(dto);
@@ -202,6 +203,15 @@ describe('DTO Validation', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
+    });
+
+    it('should fail when baseUpdatedAt is not an ISO date', async () => {
+      const dto = plainToInstance(UpdateSectionDto, {
+        data: { motivo: 'dolor' },
+        baseUpdatedAt: 'ayer',
+      });
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'baseUpdatedAt')).toBe(true);
     });
   });
 

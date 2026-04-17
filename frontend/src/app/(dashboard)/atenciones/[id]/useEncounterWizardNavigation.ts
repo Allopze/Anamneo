@@ -3,13 +3,16 @@ import { setEncounterDrawerOpen, setEncounterDrawerTab, getInitialEncounterDrawe
 import type { SidebarTabKey } from '@/components/EncounterDrawer';
 import type { Encounter, SectionKey } from '@/types';
 
+type PersistSectionResult = 'noop' | 'saved' | 'queued';
+
 interface UseEncounterWizardNavigationParams {
   canEdit: boolean;
   currentSectionIndex: number;
   currentSection?: NonNullable<Encounter['sections']>[number];
   hasUnsavedChanges: boolean;
-  saveCurrentSection: () => void;
-  persistSection: (params?: { sectionKey?: SectionKey; completed?: boolean }) => Promise<void>;
+  isSaving: boolean;
+  saveCurrentSection: () => Promise<void>;
+  persistSection: (params?: { sectionKey?: SectionKey; completed?: boolean }) => Promise<PersistSectionResult>;
   sections: NonNullable<Encounter['sections']>;
   setCurrentSectionIndex: React.Dispatch<React.SetStateAction<number>>;
   startSectionTransition: React.TransitionStartFunction;
@@ -21,6 +24,7 @@ export function useEncounterWizardNavigation(params: UseEncounterWizardNavigatio
     currentSectionIndex,
     currentSection,
     hasUnsavedChanges,
+    isSaving,
     saveCurrentSection,
     persistSection,
     sections,
@@ -37,31 +41,44 @@ export function useEncounterWizardNavigation(params: UseEncounterWizardNavigatio
   });
 
   const moveToSection = useCallback(
-    (nextIndex: number) => {
-      saveCurrentSection();
+    async (nextIndex: number) => {
+      if (isSaving || nextIndex === currentSectionIndex) return;
+
+      try {
+        await saveCurrentSection();
+      } catch {
+        return;
+      }
+
       startSectionTransition(() => setCurrentSectionIndex(nextIndex));
     },
-    [saveCurrentSection, setCurrentSectionIndex, startSectionTransition],
+    [currentSectionIndex, isSaving, saveCurrentSection, setCurrentSectionIndex, startSectionTransition],
   );
 
   const handleNavigate = useCallback(
     async (direction: 'prev' | 'next') => {
+      if (isSaving) return;
+
       if (direction === 'prev' && currentSectionIndex > 0) {
-        moveToSection(currentSectionIndex - 1);
+        await moveToSection(currentSectionIndex - 1);
         return;
       }
 
       if (direction === 'next' && currentSectionIndex < sections.length - 1) {
-        if (canEdit && currentSection && !currentSection.completed && !currentSection.notApplicable) {
-          void persistSection({ sectionKey: currentSection.sectionKey, completed: true });
-        } else {
-          saveCurrentSection();
+        try {
+          if (canEdit && currentSection && !currentSection.completed && !currentSection.notApplicable) {
+            await persistSection({ sectionKey: currentSection.sectionKey, completed: true });
+          } else {
+            await saveCurrentSection();
+          }
+        } catch {
+          return;
         }
 
         startSectionTransition(() => setCurrentSectionIndex(currentSectionIndex + 1));
       }
     },
-    [canEdit, currentSection, currentSectionIndex, moveToSection, persistSection, saveCurrentSection, sections.length, setCurrentSectionIndex, startSectionTransition],
+    [canEdit, currentSection, currentSectionIndex, isSaving, moveToSection, persistSection, saveCurrentSection, sections.length, setCurrentSectionIndex, startSectionTransition],
   );
 
   const openDrawerTab = useCallback((tab: SidebarTabKey) => {
@@ -90,7 +107,7 @@ export function useEncounterWizardNavigation(params: UseEncounterWizardNavigatio
 
       if (event.key === 's') {
         event.preventDefault();
-        saveCurrentSection();
+        void saveCurrentSection();
       } else if (event.key === '.') {
         event.preventDefault();
         setIsDrawerOpen((previous) => {
@@ -100,18 +117,16 @@ export function useEncounterWizardNavigation(params: UseEncounterWizardNavigatio
         });
       } else if (event.key === 'ArrowLeft' && currentSectionIndex > 0) {
         event.preventDefault();
-        saveCurrentSection();
-        startSectionTransition(() => setCurrentSectionIndex((index) => index - 1));
+        void moveToSection(currentSectionIndex - 1);
       } else if (event.key === 'ArrowRight' && currentSectionIndex < sections.length - 1) {
         event.preventDefault();
-        saveCurrentSection();
-        startSectionTransition(() => setCurrentSectionIndex((index) => index + 1));
+        void handleNavigate('next');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSectionIndex, saveCurrentSection, sections.length, setCurrentSectionIndex, startSectionTransition]);
+  }, [currentSectionIndex, handleNavigate, moveToSection, saveCurrentSection, sections.length]);
 
   return {
     sidebarTab,

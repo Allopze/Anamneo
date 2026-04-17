@@ -322,13 +322,13 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
       await expect(page).toHaveURL(/\/atenciones\/[a-zA-Z0-9-]+\/ficha$/, { timeout: 15000 });
       await expect(page.getByRole('heading', { name: 'Página no encontrada' })).toHaveCount(0);
       await expect(page.getByRole('link', { name: 'Volver al inicio' })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Firmar' })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('button', { name: 'Firmar Atención' })).toBeVisible({ timeout: 10000 });
 
-      await page.getByRole('button', { name: 'Firmar' }).click();
-      const signDialog = page.getByRole('heading', { name: 'Firma Electrónica Simple' });
-      await expect(signDialog).toBeVisible({ timeout: 5000 });
-      await page.getByLabel('Contraseña de su cuenta').fill(MEDICO_PASSWORD);
       await page.getByRole('button', { name: 'Firmar Atención' }).click();
+      const signDialog = page.getByRole('dialog');
+      await expect(page.getByRole('heading', { name: 'Firma Electrónica Simple' })).toBeVisible({ timeout: 5000 });
+      await page.getByLabel('Contraseña de su cuenta').fill(MEDICO_PASSWORD);
+      await signDialog.getByRole('button', { name: 'Firmar Atención' }).click();
 
       await expect(page.getByText('Firmada', { exact: true })).toBeVisible({ timeout: 10000 });
       await expect(page.getByText('Atención firmada electrónicamente')).toBeVisible({ timeout: 10000 });
