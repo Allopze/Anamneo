@@ -17,7 +17,7 @@ import {
   FiFileText,
 } from 'react-icons/fi';
 import { formatPatientAge, formatPatientPrevision, formatPatientSex, getPatientCompletenessMeta } from '@/lib/patient';
-import { COMPLETENESS_OPTIONS, type PatientFilters } from './pacientes.constants';
+import { COMPLETENESS_OPTIONS, TASK_WINDOW_OPTIONS, type PatientFilters } from './pacientes.constants';
 import PatientsFilterPanel from './PatientsFilterPanel';
 
 interface PatientsResponse {
@@ -74,6 +74,7 @@ function PacientesContent() {
     sexo: searchParams.get('sexo') || '',
     prevision: searchParams.get('prevision') || '',
     completenessStatus: searchParams.get('completenessStatus') || '',
+    taskWindow: searchParams.get('taskWindow') || '',
     edadMin: searchParams.get('edadMin') || '',
     edadMax: searchParams.get('edadMax') || '',
     clinicalSearch: searchParams.get('clinicalSearch') || '',
@@ -113,6 +114,7 @@ function PacientesContent() {
         sexo: '',
         prevision: '',
         completenessStatus: '',
+        taskWindow: '',
         edadMin: '',
         edadMax: '',
         clinicalSearch: '',
@@ -133,6 +135,7 @@ function PacientesContent() {
       if (filters.sexo) params.set('sexo', filters.sexo);
       if (filters.prevision) params.set('prevision', filters.prevision);
       if (filters.completenessStatus) params.set('completenessStatus', filters.completenessStatus);
+      if (filters.taskWindow) params.set('taskWindow', filters.taskWindow);
       if (filters.edadMin) params.set('edadMin', filters.edadMin);
       if (filters.edadMax) params.set('edadMax', filters.edadMax);
       if (filters.clinicalSearch) params.set('clinicalSearch', filters.clinicalSearch);
@@ -152,6 +155,7 @@ function PacientesContent() {
   const activeCompletenessStatus = COMPLETENESS_OPTIONS.some((option) => option.value === filters.completenessStatus)
     ? (filters.completenessStatus as PatientCompletenessStatus)
     : undefined;
+  const activeTaskWindowLabel = TASK_WINDOW_OPTIONS.find((option) => option.value === filters.taskWindow)?.label;
   const completenessSummaryCards = data
     ? [
         {
@@ -240,6 +244,9 @@ function PacientesContent() {
             Universo visible: {data.summary.totalPatients} fichas. No verificadas: {data.summary.nonVerified}.
             {activeCompletenessStatus
               ? ` Mostrando ${data.pagination.total} registros dentro del filtro ${PATIENT_COMPLETENESS_STATUS_LABELS[activeCompletenessStatus].toLowerCase()}.`
+              : ''}
+            {filters.taskWindow && activeTaskWindowLabel
+              ? ` Filtro operativo activo: ${activeTaskWindowLabel.toLowerCase()}.`
               : ''}
           </p>
         </section>

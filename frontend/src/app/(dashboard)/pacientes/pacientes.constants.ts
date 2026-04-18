@@ -23,6 +23,14 @@ export const COMPLETENESS_OPTIONS: Array<{ value: '' | PatientCompletenessStatus
   { value: 'VERIFICADA', label: PATIENT_COMPLETENESS_STATUS_LABELS.VERIFICADA },
 ];
 
+export const TASK_WINDOW_OPTIONS = [
+  { value: '', label: 'Todos los seguimientos' },
+  { value: 'OVERDUE', label: 'Vencidos' },
+  { value: 'TODAY', label: 'Vencen hoy' },
+  { value: 'THIS_WEEK', label: 'Vencen esta semana' },
+  { value: 'NO_DUE_DATE', label: 'Sin fecha' },
+];
+
 export const SORT_OPTIONS = [
   { value: 'createdAt', label: 'Fecha de registro' },
   { value: 'nombre', label: 'Nombre' },
@@ -34,6 +42,7 @@ export interface PatientFilters {
   sexo: string;
   prevision: string;
   completenessStatus: string;
+  taskWindow: string;
   edadMin: string;
   edadMax: string;
   clinicalSearch: string;

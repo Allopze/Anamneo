@@ -38,6 +38,13 @@ Despues de la cuarta pasada de producto y operacion tambien quedo validado lo nu
 - Frontend Jest focalizado de flujos nuevos: 20/20 OK
 - Backend e2e canonico (`app.e2e-spec.ts`): 190/190 OK
 
+Despues de una quinta pasada operativa tambien quedo validado lo nuevo:
+
+- Backend typecheck: OK
+- Frontend typecheck: OK
+- Frontend Jest focalizado de filtros y dashboard: 4/4 OK
+- Backend e2e canonico (`app.e2e-spec.ts`): PASS
+
 Tambien confirme que varios riesgos antiguos ya no aplican en el estado actual del codigo:
 
 - Los controles de acceso de consents y alerts hoy si verifican acceso al paciente y quedaron cubiertos por e2e.
@@ -63,12 +70,18 @@ Y en una cuarta pasada quedaron resueltas cuatro decisiones de producto que habi
 3. La deteccion de duplicados ahora tambien ofrece archivado asistido desde la ficha clinica actual.
 4. La pestaña Sistema ahora incluye checklist operativa embebida y comandos reales del runbook.
 
+Y en una quinta pasada quedaron resueltas dos mejoras operativas de bajo costo que seguian pendientes:
+
+1. La lista de pacientes ahora permite filtrar por seguimientos vencidos, que vencen hoy, esta semana o sin fecha.
+2. El dashboard clinico ahora muestra recordatorios operativos directos para vencidos, hoy, esta semana y tramites proximos.
+
 ### Actualizacion de remediacion
 
 - Pasada 1 completada: backend alineado para aceptar `recurrenceRule` en update de seguimientos, normalizar `dueDate` vacio a `null` y registrar auditoria `CREATE` al autogenerar tareas recurrentes.
 - Pasada 2 completada: frontend alineado para enviar `dueDate: null` al limpiar fecha en edicion y el popover de alertas ahora muestra error explicito con reintento en vez de un falso estado vacio.
 - Pasada 3 completada: controllers con permisos explicitos en lecturas sensibles, endpoint de posibles duplicados con warning en alta/edicion de pacientes y tab admin de sistema con ultimo backup + restore drill real desde `/health/sqlite`.
 - Pasada 4 completada: prioridad visible y filtrable en seguimientos, reprogramacion rapida desde bandeja, CTA de archivado asistido para duplicados desde ficha y checklist operativa embebida en Sistema.
+- Pasada 5 completada: filtro operativo de pacientes por ventana de seguimientos y tarjetas de recordatorio en dashboard para vencidos, hoy, esta semana y tramites proximos.
 - Validacion final completada: typecheck backend/frontend, Jest completo backend/frontend, Jest focalizado frontend de los nuevos flujos y e2e backend canonico en verde.
 
 ## 2. Veredicto de produccion
@@ -233,7 +246,7 @@ No propongo nada enterprise. Solo mejoras utiles para una consulta pequena.
 1. Recordatorios de vencimiento o renovacion de consentimientos.
 2. Banner clinico breve en la ficha con alertas relevantes, alergias o banderas de riesgo importantes.
 3. Vista previa rapida de adjuntos PDF e imagenes sin descargar siempre el archivo.
-4. Filtro operativo de pacientes con seguimientos vencidos hoy, esta semana o sin fecha.
+4. Mejorar los recordatorios operativos con una vista mas rica de consentimientos o vencimientos administrativos si el uso real lo justifica.
 5. Resumen imprimible de una pagina para proximo control, con problemas activos, seguimientos pendientes y alertas.
 6. Fusion segura de fichas duplicadas solo si el archivado asistido se queda corto en uso real.
 7. Plantillas cortas de atencion para controles frecuentes, evitando reescritura manual.
@@ -258,13 +271,13 @@ No propongo nada enterprise. Solo mejoras utiles para una consulta pequena.
 ### P1 - Proxima semana
 
 1. Definir si hace falta fusion segura de duplicados mas alla del archivado asistido actual.
-2. Agregar filtro operativo de pacientes con seguimientos vencidos hoy, esta semana o sin fecha.
-3. Mantener `/health/sqlite` y la pestaña Sistema como contrato estable con pruebas cuando cambien scripts o cron operativos.
-4. Evaluar recordatorios simples de consentimientos o tareas administrativas cercanas a vencer.
+2. Mantener `/health/sqlite` y la pestaña Sistema como contrato estable con pruebas cuando cambien scripts o cron operativos.
+3. Evaluar si hace falta llevar los recordatorios tambien al ciclo de consentimientos, que hoy no tiene renovacion operacional modelada.
+4. Decidir si el siguiente paso de producto debe ser fusion segura de duplicados o resumen imprimible de proximo control.
 
 ### P2 - Corto plazo pragmatica
 
-1. Implementar 2 o 3 mejoras de producto de alto valor y bajo costo: recordatorios simples, filtro operativo de seguimientos y resumen imprimible de control.
+1. Implementar la siguiente mejora de alto valor y bajo costo entre estas dos: resumen imprimible de control o recordatorios de consentimientos cuando exista una regla operacional clara.
 2. Mantener el enfoque actual: simplicidad operativa, buenas pruebas y nada de complejidad enterprise innecesaria.
 
 ## Cierre

@@ -9,9 +9,9 @@
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:dev:migrate": "prisma migrate deploy && nest start --watch",
-    "start:debug": "nest start --debug --watch",
+    "start:dev": "node scripts/dev-watch.js",
+    "start:dev:migrate": "node scripts/dev-watch.js --migrate",
+    "start:debug": "node scripts/dev-watch.js --inspect",
     "start:prod": "node dist/backend/src/main.js",
     "start:prod:migrate": "prisma migrate deploy && node dist/backend/src/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -22,7 +22,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "pretest:e2e": "npm run prisma:generate",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e": "jest --runInBand --config ./test/jest-e2e.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:db:push": "prisma db push",
@@ -128,7 +128,9 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "maxWorkers": 4,
+    "testEnvironment": "node",
+    "workerIdleMemoryLimit": "512MB"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

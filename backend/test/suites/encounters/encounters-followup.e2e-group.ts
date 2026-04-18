@@ -81,6 +81,15 @@ export function registerEncounterFollowupTests() {
     expect(res.body.data.some((task: any) => task.id === state.patientTaskId)).toBe(true);
   });
 
+  it('GET /api/patients?taskWindow=TODAY → filters patients by tasks due today', async () => {
+    const res = await req()
+      .get('/api/patients?taskWindow=TODAY')
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .expect(200);
+
+    expect(res.body.data.some((patient: any) => patient.id === state.patientId)).toBe(true);
+  });
+
   it('GET /api/patients/tasks?priority=ALTA → filters task inbox by priority', async () => {
     const res = await req()
       .get('/api/patients/tasks?priority=ALTA')
@@ -102,6 +111,77 @@ export function registerEncounterFollowupTests() {
       .expect(200);
 
     expect(res.body.data.some((task: any) => task.id === state.patientTaskId)).toBe(false);
+  });
+
+  it('POST /api/patients/:id/tasks → create a future follow-up used by operational filters', async () => {
+    const nextWeekDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    await req()
+      .post(`/api/patients/${state.patientId}/tasks`)
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .send({
+        title: 'Control programado de la semana',
+        type: 'SEGUIMIENTO',
+        priority: 'MEDIA',
+        dueDate: nextWeekDate,
+      })
+      .expect(201);
+  });
+
+  it('POST /api/patients/:id/tasks → create an administrative task without due date', async () => {
+    await req()
+      .post(`/api/patients/${state.patientId}/tasks`)
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .send({
+        title: 'Completar autorización administrativa',
+        type: 'TRAMITE',
+        priority: 'BAJA',
+      })
+      .expect(201);
+  });
+
+  it('POST /api/patients/:id/tasks → create an administrative task due this week', async () => {
+    const dueSoonDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    await req()
+      .post(`/api/patients/${state.patientId}/tasks`)
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .send({
+        title: 'Regularizar orden administrativa',
+        type: 'TRAMITE',
+        priority: 'MEDIA',
+        dueDate: dueSoonDate,
+      })
+      .expect(201);
+  });
+
+  it('GET /api/patients?taskWindow=THIS_WEEK → filters patients by tasks due this week', async () => {
+    const res = await req()
+      .get('/api/patients?taskWindow=THIS_WEEK')
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .expect(200);
+
+    expect(res.body.data.some((patient: any) => patient.id === state.patientId)).toBe(true);
+  });
+
+  it('GET /api/patients?taskWindow=NO_DUE_DATE → filters patients by active tasks without due date', async () => {
+    const res = await req()
+      .get('/api/patients?taskWindow=NO_DUE_DATE')
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .expect(200);
+
+    expect(res.body.data.some((patient: any) => patient.id === state.patientId)).toBe(true);
+  });
+
+  it('GET /api/encounters/stats/dashboard → exposes operational reminder counts for due tasks and administrative work', async () => {
+    const res = await req()
+      .get('/api/encounters/stats/dashboard')
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .expect(200);
+
+    expect(res.body.counts.dueTodayTasks).toBeGreaterThanOrEqual(1);
+    expect(res.body.counts.dueThisWeekTasks).toBeGreaterThanOrEqual(1);
+    expect(res.body.counts.upcomingAdministrativeTasks).toBeGreaterThanOrEqual(1);
   });
 
   it('PUT /api/patients/tasks/:taskId → update patient task', async () => {
@@ -131,6 +211,15 @@ export function registerEncounterFollowupTests() {
     const task = res.body.data.find((item: any) => item.id === state.patientTaskId);
     expect(task).toBeDefined();
     expect(task.isOverdue).toBe(true);
+  });
+
+  it('GET /api/patients?taskWindow=OVERDUE → filters patients by overdue tasks', async () => {
+    const res = await req()
+      .get('/api/patients?taskWindow=OVERDUE')
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .expect(200);
+
+    expect(res.body.data.some((patient: any) => patient.id === state.patientId)).toBe(true);
   });
 
   it('GET /api/patients/tasks?status=COMPLETADA&overdueOnly=true → keeps filter semantics and returns empty', async () => {

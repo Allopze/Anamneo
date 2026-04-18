@@ -6,6 +6,7 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
+  "maxWorkers": 1,
   "transformIgnorePatterns": [],
   "moduleNameMapper": {
     "^src/(.*)$": "<rootDir>/../src/$1",

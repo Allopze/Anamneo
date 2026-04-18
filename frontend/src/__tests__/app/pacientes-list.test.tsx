@@ -127,4 +127,23 @@ describe('PacientesPage', () => {
       await screen.findByText(/Mostrando 2 registros dentro del filtro pendiente de verificación médica\./i),
     ).toBeInTheDocument();
   });
+
+  it('includes the operational task window filter from the URL and allows changing it from advanced filters', async () => {
+    currentSearchParams = new URLSearchParams('taskWindow=OVERDUE');
+
+    render(<PacientesPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(apiGetMock).toHaveBeenCalledWith(
+        '/patients?page=1&limit=10&taskWindow=OVERDUE&sortBy=createdAt&sortOrder=desc',
+      );
+    });
+
+    expect(await screen.findByText(/Filtro operativo activo: vencidos\./i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Filtros avanzados/i }));
+    await userEvent.selectOptions(screen.getByLabelText('Seguimientos'), 'THIS_WEEK');
+
+    expect(pushMock).toHaveBeenCalledWith('/pacientes?taskWindow=THIS_WEEK');
+  });
 });

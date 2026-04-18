@@ -7,10 +7,12 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import clsx from 'clsx';
 import {
+  FiCalendar,
   FiChevronRight,
   FiClipboard,
   FiClock,
   FiFileText,
+  FiFolder,
   FiPlus,
   FiUsers,
 } from 'react-icons/fi';
@@ -137,6 +139,42 @@ export default function DashboardPage() {
     return Array.from(patientMap.values()).slice(0, 5);
   }, [recentEncounters]);
   const upcomingTasks = data?.upcomingTasks ?? [];
+  const reminderCards = data
+    ? [
+        {
+          label: 'Vencidos',
+          value: data.counts.overdueTasks,
+          href: '/pacientes?taskWindow=OVERDUE',
+          tone: data.counts.overdueTasks > 0
+            ? 'border-status-red/35 bg-status-red/8 text-status-red-text'
+            : 'border-surface-muted/30 bg-surface-elevated text-ink',
+          icon: FiClock,
+        },
+        {
+          label: 'Vencen hoy',
+          value: data.counts.dueTodayTasks,
+          href: '/pacientes?taskWindow=TODAY',
+          tone: data.counts.dueTodayTasks > 0
+            ? 'border-status-yellow/45 bg-status-yellow/16 text-accent-text'
+            : 'border-surface-muted/30 bg-surface-elevated text-ink',
+          icon: FiClipboard,
+        },
+        {
+          label: 'Esta semana',
+          value: data.counts.dueThisWeekTasks,
+          href: '/pacientes?taskWindow=THIS_WEEK',
+          tone: 'border-surface-muted/30 bg-surface-elevated text-ink',
+          icon: FiCalendar,
+        },
+        {
+          label: 'Trámites próximos',
+          value: data.counts.upcomingAdministrativeTasks,
+          href: '/seguimientos?type=TRAMITE',
+          tone: 'border-surface-muted/30 bg-surface-elevated text-ink',
+          icon: FiFolder,
+        },
+      ]
+    : [];
   const totalForBreakdown = Math.max(data?.counts.total ?? 0, 1);
 
   const workflowBreakdown = data
@@ -268,6 +306,49 @@ export default function DashboardPage() {
           onDismiss={dismissOverdueAlert}
         />
       )}
+
+      <section
+        className="animate-fade-in rounded-card bg-surface-elevated px-5 py-5 shadow-soft sm:px-6"
+        style={sectionAnimation(40)}
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold tracking-tight text-ink">Recordatorios operativos</h2>
+            <p className="mt-1 text-sm text-ink-secondary">Atajos para seguimientos que requieren movimiento hoy.</p>
+          </div>
+          <Link href="/seguimientos" className="text-sm font-bold text-ink-secondary transition-colors hover:text-ink">
+            Ver bandeja
+          </Link>
+        </div>
+
+        {isLoading ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {[...Array(4)].map((_, index) => (
+              <div key={index} className="h-24 rounded-2xl skeleton" />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {reminderCards.map((card) => (
+              <Link
+                key={card.label}
+                href={card.href}
+                className={clsx('rounded-2xl border px-4 py-4 transition-colors hover:bg-surface-inset/35', card.tone)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold">{card.label}</p>
+                    <p className="mt-2 text-3xl font-extrabold tracking-tight">{card.value}</p>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-current">
+                    <card.icon className="h-[18px] w-[18px]" />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* ── Bottom grid: In-progress + Upcoming tasks ─────── */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">

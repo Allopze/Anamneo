@@ -31,12 +31,14 @@ Que hace cada paso:
 | Comando | Descripcion |
 |---|---|
 | `npm run dev` | Levanta backend y frontend al mismo tiempo |
-| `npm run dev:backend` | Arranca backend en watch y ejecuta `prisma migrate deploy` antes |
+| `npm run dev:backend` | Arranca backend en watch, ejecuta `prisma migrate deploy` antes y reinicia usando `dist/backend/src/main.js` |
 | `npm run dev:frontend` | Arranca Next.js en `0.0.0.0:5555` |
 | `npm run build` | Compila backend y frontend |
 | `npm run db:migrate` | Aplica nuevas migraciones locales |
 | `npm run db:seed` | Reinyecta datos iniciales |
 | `npm run db:reset` | Resetea la base de datos sin seed |
+
+Nota para backend: como el build emite archivos en `backend/dist/backend/src/*` por los imports compartidos con `shared/`, el watch de desarrollo usa un runner propio para reiniciar el servidor con esa ruta real en vez de depender de `dist/main.js`.
 
 ## Puertos y URLs
 

@@ -16,6 +16,9 @@ export interface DashboardData {
     pendingReview: number;
     upcomingTasks: number;
     overdueTasks: number;
+    dueTodayTasks: number;
+    dueThisWeekTasks: number;
+    upcomingAdministrativeTasks: number;
     patientIncomplete: number;
     patientPendingVerification: number;
     patientVerified: number;

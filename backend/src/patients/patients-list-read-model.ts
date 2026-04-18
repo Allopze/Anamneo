@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { RequestUser } from '../common/utils/medico-id';
 import { buildAccessiblePatientsWhere } from '../common/utils/patient-access';
+import { startOfUtcDay } from '../common/utils/local-date';
 import { PatientCompletenessStatus } from '../common/types';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -12,11 +13,59 @@ export interface FindPatientsFilters {
   sexo?: string;
   prevision?: string;
   completenessStatus?: PatientCompletenessStatus;
+  taskWindow?: 'OVERDUE' | 'TODAY' | 'THIS_WEEK' | 'NO_DUE_DATE';
   edadMin?: number;
   edadMax?: number;
   clinicalSearch?: string;
   sortBy?: 'nombre' | 'edad' | 'createdAt' | 'updatedAt';
   sortOrder?: 'asc' | 'desc';
+}
+
+const ACTIVE_TASK_STATUSES = ['PENDIENTE', 'EN_PROCESO'] as const;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+function buildTaskWindowFilter(taskWindow: FindPatientsFilters['taskWindow']): Prisma.EncounterTaskListRelationFilter | undefined {
+  if (!taskWindow) {
+    return undefined;
+  }
+
+  const todayStart = startOfUtcDay(new Date());
+  const tomorrowStart = new Date(todayStart.getTime() + DAY_IN_MS);
+  const weekWindowEnd = new Date(todayStart.getTime() + 8 * DAY_IN_MS);
+
+  if (taskWindow === 'OVERDUE') {
+    return {
+      some: {
+        status: { in: [...ACTIVE_TASK_STATUSES] },
+        dueDate: { lt: todayStart },
+      },
+    };
+  }
+
+  if (taskWindow === 'TODAY') {
+    return {
+      some: {
+        status: { in: [...ACTIVE_TASK_STATUSES] },
+        dueDate: { gte: todayStart, lt: tomorrowStart },
+      },
+    };
+  }
+
+  if (taskWindow === 'THIS_WEEK') {
+    return {
+      some: {
+        status: { in: [...ACTIVE_TASK_STATUSES] },
+        dueDate: { gte: tomorrowStart, lt: weekWindowEnd },
+      },
+    };
+  }
+
+  return {
+    some: {
+      status: { in: [...ACTIVE_TASK_STATUSES] },
+      dueDate: null,
+    },
+  };
 }
 
 interface FindPatientsReadModelParams {
@@ -58,6 +107,8 @@ export async function findPatientsReadModel(params: FindPatientsReadModelParams)
 
   if (filters?.sexo) baseWhere.sexo = filters.sexo;
   if (filters?.prevision) baseWhere.prevision = filters.prevision;
+  const taskWindowFilter = buildTaskWindowFilter(filters?.taskWindow);
+  if (taskWindowFilter) baseWhere.tasks = taskWindowFilter;
   if (filters?.edadMin !== undefined || filters?.edadMax !== undefined) {
     const ageFilter: Prisma.IntNullableFilter = {};
     if (filters.edadMin !== undefined) ageFilter.gte = filters.edadMin;

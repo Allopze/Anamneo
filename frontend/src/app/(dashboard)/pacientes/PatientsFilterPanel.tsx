@@ -10,6 +10,7 @@ import {
   PREVISION_OPTIONS,
   COMPLETENESS_OPTIONS,
   SORT_OPTIONS,
+  TASK_WINDOW_OPTIONS,
   type PatientFilters,
 } from './pacientes.constants';
 
@@ -78,6 +79,21 @@ export default function PatientsFilterPanel({
                 onChange={(e) => onFilterChange('completenessStatus', e.target.value)}
               >
                 {COMPLETENESS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="patient-task-window" className="block text-micro text-ink-muted mb-1">Seguimientos</label>
+              <select
+                id="patient-task-window"
+                className="input w-full text-sm"
+                value={filters.taskWindow}
+                onChange={(e) => onFilterChange('taskWindow', e.target.value)}
+              >
+                {TASK_WINDOW_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
