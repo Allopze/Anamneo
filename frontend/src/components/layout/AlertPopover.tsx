@@ -36,7 +36,7 @@ export default function AlertPopover({ isNonClinical }: AlertPopoverProps) {
     [],
   );
 
-  const { data: alertData, isError: isAlertError } = useQuery<{ count: number }>({
+  const { data: alertData, isError: isAlertError, refetch: refetchAlertCount } = useQuery<{ count: number }>({
     queryKey: ['alerts-unacknowledged-count'],
     queryFn: async () => {
       const res = await api.get('/alerts/unacknowledged-count');
@@ -48,7 +48,12 @@ export default function AlertPopover({ isNonClinical }: AlertPopoverProps) {
     enabled: !isNonClinical,
   });
 
-  const { data: alertListData, isLoading: isAlertListLoading } = useQuery<{ data: AlertSummary[] }>({
+  const {
+    data: alertListData,
+    isLoading: isAlertListLoading,
+    isError: isAlertListError,
+    refetch: refetchAlertList,
+  } = useQuery<{ data: AlertSummary[] }>({
     queryKey: ['alerts-unacknowledged-list'],
     queryFn: async () => {
       const res = await api.get('/alerts/unacknowledged');
@@ -62,12 +67,18 @@ export default function AlertPopover({ isNonClinical }: AlertPopoverProps) {
   // Close on outside click or Escape
   // NOTE: The parent SmartHeaderBar also handles Escape for its own dropdowns,
   // but this component manages its own alertOpen state independently.
+  const hasAlertPopoverError = isAlertError || isAlertListError;
   const alertCount = isAlertError ? null : (alertData?.count ?? 0);
   const alertLabel = alertCount === null
     ? 'Error al cargar alertas'
     : alertCount > 0
       ? `${alertCount} alertas sin reconocer`
       : 'Sin alertas pendientes';
+
+  const handleRetry = () => {
+    void refetchAlertCount();
+    void refetchAlertList();
+  };
 
   return (
     <div ref={alertRef} className="relative">
@@ -107,8 +118,17 @@ export default function AlertPopover({ isNonClinical }: AlertPopoverProps) {
                   <div key={i} className="h-12 skeleton rounded-card" />
                 ))}
               </div>
-            ) : isAlertError ? (
-              <div className="p-4 text-sm text-ink-muted text-center">Error al cargar alertas</div>
+            ) : hasAlertPopoverError ? (
+              <div className="p-4 text-sm text-ink-muted text-center space-y-3">
+                <p>Error al cargar alertas</p>
+                <button
+                  type="button"
+                  className="btn btn-secondary w-full"
+                  onClick={handleRetry}
+                >
+                  Reintentar
+                </button>
+              </div>
             ) : !alertListData?.data?.length ? (
               <div className="p-4 text-sm text-ink-muted text-center">Sin alertas pendientes</div>
             ) : (

@@ -3,6 +3,7 @@ import { plainToInstance } from 'class-transformer';
 import { RegisterDto } from '../../auth/dto/register.dto';
 import { LoginDto } from '../../auth/dto/login.dto';
 import { CreatePatientQuickDto } from '../../patients/dto/create-patient-quick.dto';
+import { UpdatePatientTaskStatusDto } from '../../patients/dto/update-patient-task-status.dto';
 import { UpdateSectionDto } from '../../encounters/dto/update-section.dto';
 import { ChangePasswordDto } from '../../auth/dto/change-password.dto';
 
@@ -250,6 +251,41 @@ describe('DTO Validation', () => {
       });
       const errors = await validate(dto);
       expect(errors.some((e) => e.property === 'newPassword')).toBe(true);
+    });
+  });
+
+  describe('UpdatePatientTaskStatusDto', () => {
+    it('should accept recurrenceRule updates with a valid dueDate', async () => {
+      const dto = plainToInstance(UpdatePatientTaskStatusDto, {
+        recurrenceRule: 'MONTHLY',
+        dueDate: '2026-04-20',
+      });
+
+      const errors = await validate(dto);
+
+      expect(errors.length).toBe(0);
+    });
+
+    it('should normalize an empty dueDate to null for clearing an existing schedule', async () => {
+      const dto = plainToInstance(UpdatePatientTaskStatusDto, {
+        recurrenceRule: 'NONE',
+        dueDate: '',
+      });
+
+      const errors = await validate(dto);
+
+      expect(errors.length).toBe(0);
+      expect(dto.dueDate).toBeNull();
+    });
+
+    it('should reject an unknown recurrenceRule', async () => {
+      const dto = plainToInstance(UpdatePatientTaskStatusDto, {
+        recurrenceRule: 'YEARLY',
+      });
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'recurrenceRule')).toBe(true);
     });
   });
 });

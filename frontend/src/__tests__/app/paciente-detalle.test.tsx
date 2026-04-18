@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PatientDetailPage from '@/app/(dashboard)/pacientes/[id]/page';
 import { PERMISSION_CONTRACT_SCENARIOS } from '../../../../shared/permission-contract';
@@ -17,6 +17,7 @@ const pushMock = jest.fn();
 const replaceMock = jest.fn();
 const apiGetMock = jest.fn();
 const apiPostMock = jest.fn();
+const apiPutMock = jest.fn();
 let currentUser = PERMISSION_CONTRACT_SCENARIOS[0].user as any;
 
 jest.mock('next/navigation', () => ({
@@ -41,7 +42,7 @@ jest.mock('@/lib/api', () => ({
   api: {
     get: (...args: any[]) => apiGetMock(...args),
     post: (...args: any[]) => apiPostMock(...args),
-    put: jest.fn(),
+    put: (...args: any[]) => apiPutMock(...args),
     delete: jest.fn(),
   },
   getErrorMessage: (err: any) => err?.message || 'Error desconocido',
@@ -270,5 +271,73 @@ describe('PatientDetailPage', () => {
 
     expect((await screen.findAllByText('Penicilina')).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('No hay antecedentes registrados')).not.toBeInTheDocument();
+  });
+
+  it('normalizes task updates before the PUT request when clearing a due date', async () => {
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/patients/patient-1') {
+        return Promise.resolve({
+          data: {
+            ...basePatientResponse,
+            tasks: [
+              {
+                id: 'task-1',
+                patientId: 'patient-1',
+                title: 'Control semanal',
+                details: 'Llamar para confirmar evolución',
+                type: 'SEGUIMIENTO',
+                priority: 'MEDIA',
+                status: 'PENDIENTE',
+                recurrenceRule: 'WEEKLY',
+                dueDate: '2026-05-10T00:00:00.000Z',
+                createdAt: '2026-05-01T00:00:00.000Z',
+                updatedAt: '2026-05-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+
+      if (url === '/patients/patient-1/encounters?page=1&limit=10') {
+        return Promise.resolve({ data: emptyEncounterList });
+      }
+
+      if (url === '/patients/patient-1/clinical-summary') {
+        return Promise.resolve({ data: emptyClinicalSummary });
+      }
+
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    apiPutMock.mockResolvedValue({ data: { id: 'task-1' } });
+
+    render(<PatientDetailPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Control semanal')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Editar' }));
+
+    const submitButton = screen.getByRole('button', { name: 'Actualizar seguimiento' });
+    const taskForm = submitButton.closest('form');
+    expect(taskForm).not.toBeNull();
+
+    const scoped = within(taskForm as HTMLFormElement);
+    const selects = scoped.getAllByRole('combobox');
+    await userEvent.selectOptions(selects[1], 'NONE');
+
+    const dueDateInput = scoped.getByDisplayValue('2026-05-10');
+    fireEvent.change(dueDateInput, { target: { value: '' } });
+
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(apiPutMock).toHaveBeenCalledWith('/patients/tasks/task-1', {
+        title: 'Control semanal',
+        details: 'Llamar para confirmar evolución',
+        type: 'SEGUIMIENTO',
+        recurrenceRule: 'NONE',
+        dueDate: null,
+      });
+    });
   });
 });

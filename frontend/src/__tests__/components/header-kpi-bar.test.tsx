@@ -122,4 +122,74 @@ describe('SmartHeaderBar', () => {
     expect(screen.getByText('Resultado pendiente')).toBeInTheDocument();
     expect(screen.getByText('María López')).toBeInTheDocument();
   });
+
+  it('shows an explicit error state and allows retry when the alert list fails', async () => {
+    let listAttempts = 0;
+
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/encounters/stats/dashboard') {
+        return Promise.resolve({
+          data: {
+            counts: {
+              enProgreso: 3,
+              completado: 8,
+              cancelado: 1,
+              total: 12,
+              pendingReview: 2,
+              upcomingTasks: 5,
+              overdueTasks: 1,
+              patientIncomplete: 2,
+              patientPendingVerification: 2,
+              patientVerified: 10,
+              patientNonVerified: 4,
+            },
+          },
+        });
+      }
+
+      if (url === '/alerts/unacknowledged-count') {
+        return Promise.resolve({ data: { count: 1 } });
+      }
+
+      if (url === '/alerts/unacknowledged') {
+        listAttempts += 1;
+
+        if (listAttempts <= 3) {
+          return Promise.reject(new Error('alert-list failed'));
+        }
+
+        return Promise.resolve({
+          data: {
+            data: [
+              {
+                id: 'alert-1',
+                type: 'SIGNOS_VITALES',
+                severity: 'CRITICA',
+                title: 'Presión arterial sistólica crítica',
+                message: '190/120',
+                createdAt: '2026-04-10T10:00:00Z',
+                patient: { id: 'p-1', nombre: 'Juan Pérez' },
+              },
+            ],
+          },
+        });
+      }
+
+      return Promise.resolve({ data: {} });
+    });
+
+    render(<SmartHeaderBar onSearchOpen={noop} />, { wrapper: createWrapper() });
+
+    const bell = await screen.findByLabelText('1 alertas sin reconocer');
+    fireEvent.click(bell);
+
+    expect(await screen.findByText('Error al cargar alertas', undefined, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+    expect(screen.queryByText('Sin alertas pendientes')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    expect(await screen.findByText('Presión arterial sistólica crítica')).toBeInTheDocument();
+    expect(screen.getByText('Juan Pérez')).toBeInTheDocument();
+  });
 });

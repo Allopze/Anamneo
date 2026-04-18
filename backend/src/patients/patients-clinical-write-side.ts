@@ -36,7 +36,7 @@ export interface UpdatePatientTaskInput {
   type?: string;
   priority?: string;
   recurrenceRule?: string;
-  dueDate?: string;
+  dueDate?: string | null;
 }
 
 interface CreatePatientProblemCommandParams extends ClinicalWriteSideDeps {

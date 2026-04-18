@@ -36,7 +36,7 @@ interface UpdatePatientTaskInput {
   type?: string;
   priority?: string;
   recurrenceRule?: string;
-  dueDate?: string;
+  dueDate?: string | null;
 }
 
 function resolveNextRecurringDueDate(currentDueDate: Date, recurrenceRule: string, monthlyAnchorDay?: number) {
@@ -243,7 +243,7 @@ export async function updatePatientTaskMutation(params: UpdatePatientTaskMutatio
 
       const nextDueDate = resolveNextRecurringDueDate(updated.dueDate, updated.recurrenceRule, monthlyAnchorDay);
       if (nextDueDate) {
-        await tx.encounterTask.create({
+        const nextRecurringTask = await tx.encounterTask.create({
           data: {
             patientId: updated.patientId,
             encounterId: updated.encounterId,
@@ -259,6 +259,21 @@ export async function updatePatientTaskMutation(params: UpdatePatientTaskMutatio
             dueDate: nextDueDate,
           },
         });
+
+        await auditService.log(
+          {
+            entityType: 'EncounterTask',
+            entityId: nextRecurringTask.id,
+            userId: user.id,
+            action: 'CREATE',
+            diff: {
+              created: nextRecurringTask,
+              generatedFromTaskId: updated.id,
+              recurrenceSourceTaskId: nextRecurringTask.recurrenceSourceTaskId,
+            },
+          },
+          tx,
+        );
       }
     }
 

@@ -20,6 +20,23 @@ import {
 import toast from 'react-hot-toast';
 import { problemSchema, taskSchema, type ProblemForm, type TaskForm, type VitalKey } from './patient-detail.constants';
 
+type TaskUpdatePayload = Omit<Partial<TaskForm>, 'dueDate'> & {
+  dueDate?: string | null;
+  priority?: string;
+  status?: string;
+};
+
+function normalizeTaskUpdatePayload(payload: TaskUpdatePayload): TaskUpdatePayload {
+  if (!Object.prototype.hasOwnProperty.call(payload, 'dueDate')) {
+    return payload;
+  }
+
+  return {
+    ...payload,
+    dueDate: payload.dueDate ? payload.dueDate : null,
+  };
+}
+
 export function usePatientDetail() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -214,8 +231,8 @@ export function usePatientDetail() {
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: async ({ taskId, payload }: { taskId: string; payload: Partial<TaskForm> & Record<string, string | undefined> }) =>
-      api.put(`/patients/tasks/${taskId}`, payload),
+    mutationFn: async ({ taskId, payload }: { taskId: string; payload: TaskUpdatePayload }) =>
+      api.put(`/patients/tasks/${taskId}`, normalizeTaskUpdatePayload(payload)),
     onSuccess: async () => {
       toast.success('Seguimiento actualizado');
       setEditingTaskId(null);

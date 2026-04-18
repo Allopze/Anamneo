@@ -309,6 +309,60 @@ describe('patients-clinical-mutations', () => {
     expect(result.title).toBe('Nuevo seguimiento');
   });
 
+  it('allows clearing dueDate while changing recurrenceRule to NONE', async () => {
+    const existingTask = {
+      ...buildTaskInScope('med-1'),
+      dueDate: new Date('2026-02-01T12:00:00.000Z'),
+      recurrenceRule: 'WEEKLY',
+    };
+    const updatedTask = {
+      ...existingTask,
+      recurrenceRule: 'NONE',
+      dueDate: null,
+      updatedAt: new Date('2026-02-01T15:00:00.000Z'),
+      createdBy: { id: 'med-1', nombre: 'Dra. Demo' },
+    };
+
+    const tx = {
+      encounterTask: {
+        update: jest.fn().mockResolvedValue(updatedTask),
+      },
+    };
+
+    const prisma = {
+      encounterTask: {
+        findUnique: jest.fn().mockResolvedValue(existingTask),
+      },
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const auditService = { log: jest.fn().mockResolvedValue(undefined) };
+    const assertPatientAccess = jest.fn().mockResolvedValue({ id: 'patient-1' });
+
+    const result = await updatePatientTaskMutation({
+      prisma: prisma as never,
+      auditService: auditService as never,
+      user: medicoUser,
+      taskId: 'task-1',
+      dto: {
+        recurrenceRule: 'NONE',
+        dueDate: null,
+      },
+      effectiveMedicoId: 'med-1',
+      assertPatientAccess,
+    });
+
+    expect(tx.encounterTask.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          recurrenceRule: 'NONE',
+          dueDate: null,
+        }),
+      }),
+    );
+    expect(result.recurrenceRule).toBe('NONE');
+    expect(result.dueDate).toBeNull();
+  });
+
   it('creates the next recurring task when a recurring follow-up is completed', async () => {
     const existingTask = {
       ...buildTaskInScope('med-1'),
@@ -358,6 +412,14 @@ describe('patients-clinical-mutations', () => {
           dueDate: expect.any(Date),
         }),
       }),
+    );
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: 'EncounterTask',
+        entityId: 'task-2',
+        action: 'CREATE',
+      }),
+      tx,
     );
   });
 

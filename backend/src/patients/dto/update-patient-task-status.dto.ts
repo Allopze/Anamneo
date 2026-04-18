@@ -1,6 +1,8 @@
+import { Transform } from 'class-transformer';
 import { IsDateString, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import {
   ENCOUNTER_TASK_PRIORITIES,
+  ENCOUNTER_TASK_RECURRENCE_RULES,
   ENCOUNTER_TASK_STATUSES,
   ENCOUNTER_TASK_TYPES,
 } from '../../common/types';
@@ -32,6 +34,12 @@ export class UpdatePatientTaskStatusDto {
   priority?: (typeof ENCOUNTER_TASK_PRIORITIES)[number];
 
   @IsOptional()
+  @IsString()
+  @IsIn(ENCOUNTER_TASK_RECURRENCE_RULES)
+  recurrenceRule?: (typeof ENCOUNTER_TASK_RECURRENCE_RULES)[number];
+
+  @Transform(({ value }) => value === '' ? null : value)
+  @IsOptional()
   @IsDateString()
-  dueDate?: string;
+  dueDate?: string | null;
 }
