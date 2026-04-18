@@ -293,6 +293,97 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     await attachmentsDialog.getByRole('button', { name: 'Cerrar adjuntos' }).click({ force: true });
   });
 
+  test('queue not-applicable saves locally when the section save falls back to offline mode', async ({ page }) => {
+    test.setTimeout(60_000);
+    await loginAsMedico(page);
+    await openEncounter(page);
+
+    await goToSection(page, 'Observaciones');
+    await page.route(/\/api\/encounters\/.+\/sections\/OBSERVACIONES$/, (route) => route.abort('internetdisconnected'));
+
+    await page.getByRole('button', { name: 'No aplica' }).click();
+    await page.getByPlaceholder(/Paciente pediátrico/i).fill('No corresponde para este seguimiento ambulatorio.');
+    await page.getByRole('button', { name: 'Confirmar' }).click();
+
+    await expect(page.getByRole('status').filter({ hasText: 'Guardado en cola local' }).first()).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.getByText('Sincronizando 1 cambio…')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('deletes an attachment and keeps it out of the ficha clinica', async ({ page }) => {
+    test.setTimeout(60_000);
+    await loginAsMedico(page);
+    await openEncounter(page);
+
+    const drawer = await openDrawerTab(page, 'Apoyo');
+    await drawer.getByRole('button', { name: 'Adjuntos de la Atención' }).click();
+    await drawer.getByRole('button', { name: 'Cerrar panel' }).click();
+
+    const attachmentsDialog = page.getByRole('dialog', { name: 'Adjuntos de la atención' });
+    await expect(attachmentsDialog).toBeVisible({ timeout: 5000 });
+    await expect(attachmentsDialog.getByText('resultado-laboratorio-e2e.pdf')).toBeVisible({ timeout: 10000 });
+
+    await attachmentsDialog
+      .locator('li')
+      .filter({ hasText: 'resultado-laboratorio-e2e.pdf' })
+      .getByRole('button', { name: 'Eliminar' })
+      .click();
+    await expect(attachmentsDialog.getByText(/Vas a eliminar resultado-laboratorio-e2e\.pdf/i)).toBeVisible({ timeout: 5000 });
+
+    const deleteResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/attachments/') && response.request().method() === 'DELETE',
+    );
+    await attachmentsDialog.getByRole('button', { name: 'Confirmar eliminación' }).click();
+    const deleteResponse = await deleteResponsePromise;
+    expect(deleteResponse.status(), await deleteResponse.text()).toBe(200);
+
+    await expect(attachmentsDialog.getByText('resultado-laboratorio-e2e.pdf')).toHaveCount(0);
+    await expect(attachmentsDialog.getByText('No hay archivos adjuntos.')).toBeVisible({ timeout: 10000 });
+    await attachmentsDialog.getByRole('button', { name: 'Cerrar adjuntos' }).click({ force: true });
+
+    await page.getByRole('button', { name: 'Ficha Clínica' }).click();
+    await expect(page).toHaveURL(/\/atenciones\/[a-zA-Z0-9-]+\/ficha$/, { timeout: 15000 });
+    await expect(page.getByText('resultado-laboratorio-e2e.pdf')).toHaveCount(0);
+  });
+
+  test('refreshes the wizard with the latest server section when another tab wins a save conflict', async ({ browser, page }) => {
+    test.setTimeout(90_000);
+    await loginAsMedico(page);
+    await openEncounter(page);
+    await goToSection(page, 'Observaciones');
+
+    const firstTabNotes = page.getByPlaceholder('Cualquier observación adicional relevante para el registro...');
+    await expect(firstTabNotes).toBeVisible({ timeout: 10000 });
+
+    const secondContext = await browser.newContext();
+    try {
+      await secondContext.addCookies(medicoAuthCookies);
+      const secondPage = await secondContext.newPage();
+
+      await secondPage.goto(encounterPath);
+      await expect(secondPage).toHaveURL(/\/atenciones\/[a-zA-Z0-9-]+/);
+      await goToSection(secondPage, 'Observaciones');
+
+      const secondTabNotes = secondPage.getByPlaceholder('Cualquier observación adicional relevante para el registro...');
+      await secondTabNotes.fill('Observación persistida desde la segunda pestaña.');
+      await secondPage.getByRole('button', { name: 'Guardar Ahora' }).click();
+      await expect(
+        secondPage.getByRole('status').filter({ hasText: /cambios guardados|guardado a las|sin cambios/i }),
+      ).toBeVisible({ timeout: 10000 });
+
+      await firstTabNotes.fill('Observación local stale desde la primera pestaña.');
+      await page.getByRole('button', { name: 'Guardar Ahora' }).click();
+
+      await expect(page.getByText('La sección cambió en otra sesión. Se recargó la versión más reciente.')).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(firstTabNotes).toHaveValue('Observación persistida desde la segunda pestaña.', { timeout: 10000 });
+    } finally {
+      await secondContext.close();
+    }
+  });
+
   test('complete and sign encounter clinically', async ({ page }, testInfo) => {
     test.setTimeout(90_000);
     const warningMonitor = createRouterWarningMonitor(page);

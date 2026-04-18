@@ -3,15 +3,16 @@ import { useEffect, useRef } from 'react';
 interface UseEncounterAutosaveParams {
   canEdit: boolean;
   hasUnsavedChanges: boolean;
-  saveCurrentSection: () => Promise<void>;
+  isDraftHydrated: boolean;
+  saveCurrentSection: () => Promise<unknown>;
 }
 
 export function useEncounterAutosave(params: UseEncounterAutosaveParams) {
-  const { canEdit, hasUnsavedChanges, saveCurrentSection } = params;
+  const { canEdit, hasUnsavedChanges, isDraftHydrated, saveCurrentSection } = params;
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!canEdit) {
+    if (!canEdit || !isDraftHydrated) {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
       return;
     }
@@ -24,5 +25,5 @@ export function useEncounterAutosave(params: UseEncounterAutosaveParams) {
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
-  }, [canEdit, hasUnsavedChanges, saveCurrentSection]);
+  }, [canEdit, hasUnsavedChanges, isDraftHydrated, saveCurrentSection]);
 }

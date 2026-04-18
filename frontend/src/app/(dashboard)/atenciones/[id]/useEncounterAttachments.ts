@@ -62,6 +62,7 @@ export function useEncounterAttachments(params: UseEncounterAttachmentsParams) {
       setSelectedFile(null);
       setUploadMeta({ category: 'GENERAL', description: '', linkedOrderType: '', linkedOrderId: '' });
       queryClient.invalidateQueries({ queryKey: ['attachments', id] });
+      queryClient.invalidateQueries({ queryKey: ['encounter', id] });
     },
     onError: (error) => {
       const message = getErrorMessage(error);
@@ -76,6 +77,7 @@ export function useEncounterAttachments(params: UseEncounterAttachmentsParams) {
       toast.success('Archivo movido a papelera');
       setShowDeleteAttachment(null);
       queryClient.invalidateQueries({ queryKey: ['attachments', id] });
+      queryClient.invalidateQueries({ queryKey: ['encounter', id] });
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });

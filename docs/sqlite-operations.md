@@ -74,6 +74,12 @@ npm run db:ops:monitor
 
 El restore drill existe para verificar que un backup sirve para algo mas que tranquilizar a la conciencia.
 
+Punto importante para esta app:
+
+- el backup incluye snapshot de `uploads`,
+- el restore drill valida tambien que los adjuntos restaurados existan en el snapshot copiado,
+- y si ejecutas validaciones manuales conviene correr `npm run db:backup` y despues `npm run db:restore:drill` en secuencia, no en paralelo.
+
 Checklist minimo:
 
 1. Confirmar backup reciente.

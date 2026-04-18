@@ -388,10 +388,27 @@ describe('EncounterWizardPage closing workflow', () => {
     await user.click(screen.getByRole('button', { name: 'Confirmar' }));
 
     await waitFor(() => {
+      expect(apiPutMock).toHaveBeenCalledWith(
+        '/encounters/enc-1/sections/OBSERVACIONES',
+        expect.objectContaining({
+          data: {
+            observaciones: '',
+            notasInternas: '',
+          },
+          baseUpdatedAt: '2026-04-08T12:00:00.000Z',
+          completed: true,
+          notApplicable: true,
+          notApplicableReason: 'No corresponde para este seguimiento.',
+        }),
+      );
+    });
+
+    await waitFor(() => {
       expect(enqueueSaveMock).toHaveBeenCalledWith(
         expect.objectContaining({
           encounterId: 'enc-1',
           sectionKey: 'OBSERVACIONES',
+          baseUpdatedAt: '2026-04-08T12:00:00.000Z',
           completed: true,
           notApplicable: true,
           notApplicableReason: 'No corresponde para este seguimiento.',

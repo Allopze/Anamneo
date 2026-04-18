@@ -96,6 +96,7 @@ export function useEncounterWizard() {
     formData: persistence.formData,
     savedSnapshotJson: persistence.savedSnapshotJson,
     lastSavedAt: persistence.lastSavedAt,
+    lastSaveOrigin: persistence.lastSaveOrigin,
     saveStatus: persistence.saveStatus,
     hasUnsavedChanges: persistence.hasUnsavedChanges,
     savingSectionKey: persistence.savingSectionKey,
@@ -103,6 +104,7 @@ export function useEncounterWizard() {
     savedSectionKey: persistence.savedSectionKey,
     attachments: attachmentsState.attachments,
     uploadMeta: attachmentsState.uploadMeta,
+    pendingSaveCount: persistence.pendingSaveCount,
   });
 
   const {
@@ -173,7 +175,7 @@ export function useEncounterWizard() {
     currentSection,
     formData: persistence.formData,
     handleSectionDataChange: persistence.handleSectionDataChange,
-    saveSectionMutation: persistence.saveSectionMutation,
+    saveSection: persistence.saveSection,
   });
 
   const handleSaveGeneratedSummary = useCallback(() => {

@@ -23,6 +23,7 @@ interface UseEncounterSectionSaveFlowParams {
   canEdit: boolean;
   encounter?: Encounter;
   id: string;
+  isDraftHydrated: boolean;
   queryClient: QueryClient;
   sections: NonNullable<Encounter['sections']>;
   userId?: string;
@@ -34,9 +35,10 @@ interface UseEncounterSectionSaveFlowParams {
   setFormData: React.Dispatch<React.SetStateAction<Record<string, any>>>;
   setHasUnsavedChanges: React.Dispatch<React.SetStateAction<boolean>>;
   setLastSavedAt: React.Dispatch<React.SetStateAction<Date | null>>;
+  setLastSaveOrigin: React.Dispatch<React.SetStateAction<'direct' | 'offline-sync' | null>>;
   setSavedSectionKey: React.Dispatch<React.SetStateAction<SectionKey | null>>;
   setSavedSnapshotJson: React.Dispatch<React.SetStateAction<string>>;
-  setSaveStatus: React.Dispatch<React.SetStateAction<'idle' | 'saving' | 'saved' | 'error'>>;
+  setSaveStatus: React.Dispatch<React.SetStateAction<'idle' | 'saving' | 'saved' | 'queued' | 'error'>>;
   setSavingSectionKey: React.Dispatch<React.SetStateAction<SectionKey | null>>;
 }
 
@@ -77,13 +79,18 @@ function getSectionPayloadData(params: {
   sectionKey: SectionKey;
 }) {
   const { encounter, sections, formDataRef, sectionKey } = params;
-
-  if (sectionKey === 'IDENTIFICACION') {
-    return buildIdentificationSnapshot(encounter);
+  const currentFormData = formDataRef.current[sectionKey];
+  if (currentFormData !== undefined) {
+    return currentFormData;
   }
 
   const persistedSection = sections.find((section) => section.sectionKey === sectionKey);
-  return formDataRef.current[sectionKey] ?? persistedSection?.data ?? {};
+
+  if (sectionKey === 'IDENTIFICACION') {
+    return persistedSection?.data ?? buildIdentificationSnapshot(encounter);
+  }
+
+  return persistedSection?.data ?? {};
 }
 
 export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowParams) {
@@ -91,6 +98,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
     canEdit,
     encounter,
     id,
+    isDraftHydrated,
     queryClient,
     sections,
     userId,
@@ -102,6 +110,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
     setFormData,
     setHasUnsavedChanges,
     setLastSavedAt,
+    setLastSaveOrigin,
     setSavedSectionKey,
     setSavedSnapshotJson,
     setSaveStatus,
@@ -109,6 +118,101 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
   } = params;
 
   const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const refreshSectionFromServer = useCallback(
+    async (sectionKey: SectionKey) => {
+      const response = await api.get<Encounter>(`/encounters/${id}`);
+      const latestEncounter = response.data;
+      const latestSection = latestEncounter.sections?.find((section) => section.sectionKey === sectionKey);
+
+      queryClient.setQueryData(['encounter', id], latestEncounter);
+
+      if (!latestSection) {
+        setSaveStatus('idle');
+        setErrorSectionKey(null);
+        return;
+      }
+
+      setFormData((previous) => ({
+        ...previous,
+        [sectionKey]: latestSection.data ?? {},
+      }));
+
+      const savedSnapshot = readSavedSnapshot(lastSavedRef);
+      savedSnapshot[sectionKey] = latestSection.data ?? {};
+      lastSavedRef.current = JSON.stringify(savedSnapshot);
+      setSavedSnapshotJson(lastSavedRef.current);
+      setHasUnsavedChanges((current) => (activeSectionKeyRef.current === sectionKey ? false : current));
+      setLastSavedAt(new Date(latestSection.updatedAt));
+      setLastSaveOrigin(null);
+      setSavingSectionKey(null);
+      setSavedSectionKey(null);
+      setErrorSectionKey(null);
+      setSaveStatus('idle');
+    },
+    [activeSectionKeyRef, id, lastSavedRef, queryClient, setErrorSectionKey, setFormData, setHasUnsavedChanges, setLastSavedAt, setLastSaveOrigin, setSavedSectionKey, setSavedSnapshotJson, setSaveStatus, setSavingSectionKey],
+  );
+
+  const saveSection = useCallback(
+    async ({
+      sectionKey,
+      data,
+      completed,
+      notApplicable,
+      notApplicableReason,
+    }: SaveSectionMutationVars): Promise<PersistSectionResult> => {
+      if (!canEdit || !encounter?.sections || !isDraftHydrated) return 'noop';
+
+      const currentData = data ?? getSectionPayloadData({
+        encounter,
+        sections,
+        formDataRef,
+        sectionKey,
+      });
+      const persistedSection = sections.find((section) => section.sectionKey === sectionKey);
+      const savedSnapshot = readSavedSnapshot(lastSavedRef);
+      const savedSectionData = JSON.stringify(savedSnapshot[sectionKey]);
+      const currentSectionData = JSON.stringify(currentData);
+      const shouldSaveData = currentSectionData !== savedSectionData;
+      const shouldSaveCompletion = completed !== undefined && persistedSection?.completed !== completed;
+      const shouldSaveNotApplicable = notApplicable !== undefined && persistedSection?.notApplicable !== notApplicable;
+      const normalizedReason = notApplicable ? (notApplicableReason ?? null) : null;
+      const shouldSaveNotApplicableReason = notApplicable && persistedSection?.notApplicableReason !== normalizedReason;
+
+      if (!shouldSaveData && !shouldSaveCompletion && !shouldSaveNotApplicable && !shouldSaveNotApplicableReason) {
+        return 'noop';
+      }
+
+      setSaveStatus('saving');
+      try {
+        await saveSectionMutation.mutateAsync({
+          sectionKey,
+          data: currentData,
+          baseUpdatedAt: getPersistedSectionUpdatedAt(sections, sectionKey),
+          ...(completed !== undefined ? { completed } : {}),
+          ...(notApplicable !== undefined ? { notApplicable } : {}),
+          ...(normalizedReason ? { notApplicableReason: normalizedReason } : {}),
+        });
+        return 'saved';
+      } catch (error) {
+        if (isNetworkError(error) && id && userId) {
+          return 'queued';
+        }
+        throw error;
+      }
+    },
+    [
+      canEdit,
+      encounter,
+      formDataRef,
+      id,
+      isDraftHydrated,
+      lastSavedRef,
+      sections,
+      setSaveStatus,
+      userId,
+    ],
+  );
 
   const saveSectionMutation = useMutation({
     mutationFn: async ({
@@ -178,6 +282,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       setErrorSectionKey(null);
       setSaveStatus('saved');
       setLastSavedAt(new Date());
+      setLastSaveOrigin('direct');
       response.data.warnings?.forEach((warning) => toast(warning, { icon: '⚠️' }));
 
       if (variables.sectionKey === 'EXAMEN_FISICO') {
@@ -198,15 +303,19 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
           encounterId: id,
           sectionKey: variables.sectionKey,
           data: variables.data,
+          baseUpdatedAt: variables.baseUpdatedAt,
           completed: variables.completed,
           notApplicable: variables.notApplicable,
           notApplicableReason: variables.notApplicableReason,
           queuedAt: new Date().toISOString(),
           userId,
         }).catch(() => {
+          setErrorSectionKey(variables.sectionKey);
+          setSaveStatus('error');
           toast.error('No se pudo encolar el guardado offline. Reintente manualmente.');
         });
-        setSaveStatus('idle');
+        setErrorSectionKey(null);
+        setSaveStatus('queued');
         toast('Sin conexión — guardado en cola local', { icon: '📡' });
         return;
       }
@@ -214,7 +323,15 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       setErrorSectionKey(variables.sectionKey);
       setSaveStatus('error');
       if (axios.isAxiosError(error) && error.response?.status === 409) {
-        void queryClient.invalidateQueries({ queryKey: ['encounter', id] });
+        void refreshSectionFromServer(variables.sectionKey)
+          .then(() => {
+            toast.error('La sección cambió en otra sesión. Se recargó la versión más reciente.');
+          })
+          .catch(() => {
+            void queryClient.invalidateQueries({ queryKey: ['encounter', id] });
+            toast.error('La sección cambió en otra sesión. Recargue la atención y revise antes de reintentar.');
+          });
+        return;
       }
       toast.error('Error al guardar: ' + getErrorMessage(error));
     },
@@ -228,51 +345,18 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       sectionKey?: SectionKey;
       completed?: boolean;
     } = {}): Promise<PersistSectionResult> => {
-      if (!canEdit || !encounter?.sections) return 'noop';
+      if (!canEdit || !encounter?.sections || !isDraftHydrated) return 'noop';
 
       const targetSectionKey = sectionKey ?? activeSectionKeyRef.current;
       if (!targetSectionKey) return 'noop';
-
-      const persistedSection = sections.find((section) => section.sectionKey === targetSectionKey);
-      const currentData = getSectionPayloadData({
-        encounter,
-        sections,
-        formDataRef,
-        sectionKey: targetSectionKey,
-      });
-      const savedSnapshot = readSavedSnapshot(lastSavedRef);
-      const savedSectionData = JSON.stringify(savedSnapshot[targetSectionKey]);
-      const currentSectionData = JSON.stringify(currentData);
-      const shouldSaveData = currentSectionData !== savedSectionData;
-      const shouldSaveCompletion = completed !== undefined && persistedSection?.completed !== completed;
-
-      if (!shouldSaveData && !shouldSaveCompletion) return 'noop';
-
-      setSaveStatus('saving');
-      try {
-        await saveSectionMutation.mutateAsync({
-          sectionKey: targetSectionKey,
-          data: currentData,
-          baseUpdatedAt: getPersistedSectionUpdatedAt(sections, targetSectionKey),
-          ...(completed !== undefined ? { completed } : {}),
-        });
-        return 'saved';
-      } catch (error) {
-        if (isNetworkError(error) && id && userId) {
-          return 'queued';
-        }
-        throw error;
-      }
+      return saveSection({ sectionKey: targetSectionKey, completed, data: undefined });
     },
     [
       activeSectionKeyRef,
       canEdit,
       encounter?.sections,
-      formDataRef,
-      lastSavedRef,
-      saveSectionMutation,
-      sections,
-      setSaveStatus,
+      isDraftHydrated,
+      saveSection,
     ],
   );
 
@@ -283,6 +367,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
   const ensureActiveSectionSaved = useCallback(async () => {
     const sectionKey = activeSectionKeyRef.current;
     if (!sectionKey) return true;
+    if (!isDraftHydrated) return true;
 
     const currentData = JSON.stringify(formDataRef.current[sectionKey] ?? {});
     const savedSnapshot = readSavedSnapshot(lastSavedRef);
@@ -290,15 +375,15 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
     if (currentData === savedData) return true;
 
     try {
-      await saveSectionMutation.mutateAsync({
+      const result = await saveSection({
         sectionKey,
         data: formDataRef.current[sectionKey],
       });
-      return true;
+      return result !== 'queued';
     } catch {
       return false;
     }
-  }, [activeSectionKeyRef, formDataRef, lastSavedRef, saveSectionMutation]);
+  }, [activeSectionKeyRef, formDataRef, isDraftHydrated, lastSavedRef, saveSection]);
 
   useEffect(() => {
     return () => {
@@ -307,6 +392,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
   }, []);
 
   return {
+    saveSection,
     saveSectionMutation,
     persistSection,
     saveCurrentSection,

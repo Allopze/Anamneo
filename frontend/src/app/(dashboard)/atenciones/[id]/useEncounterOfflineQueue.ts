@@ -16,10 +16,11 @@ interface UseEncounterOfflineQueueParams {
   isOnline: boolean;
   queryClient: QueryClient;
   userId?: string;
+  onEncounterSavesSynced?: (info: { encounterIds: string[]; syncedAt: Date }) => void;
 }
 
 export function useEncounterOfflineQueue(params: UseEncounterOfflineQueueParams) {
-  const { id, isOnline, queryClient, userId } = params;
+  const { id, isOnline, onEncounterSavesSynced, queryClient, userId } = params;
   const [pendingSaveCount, setPendingSaveCount] = useState(0);
   const syncingRef = useRef(false);
 
@@ -76,7 +77,6 @@ export function useEncounterOfflineQueue(params: UseEncounterOfflineQueueParams)
             if (axios.isAxiosError(error) && error.response?.status === 409) {
               await removePendingSave(save.id!);
               conflicts++;
-              syncedEncounterIds.add(save.encounterId);
               continue;
             }
             break;
@@ -90,7 +90,9 @@ export function useEncounterOfflineQueue(params: UseEncounterOfflineQueueParams)
       if (!cancelled) {
         setPendingSaveCount(remaining);
         if (synced > 0) {
+          const syncedAt = new Date();
           toast.success(`${synced} cambio${synced > 1 ? 's' : ''} sincronizado${synced > 1 ? 's' : ''}`);
+          onEncounterSavesSynced?.({ encounterIds: [...syncedEncounterIds], syncedAt });
         }
         if (conflicts > 0) {
           toast.error(
@@ -107,7 +109,7 @@ export function useEncounterOfflineQueue(params: UseEncounterOfflineQueueParams)
     return () => {
       cancelled = true;
     };
-  }, [id, isOnline, queryClient, userId]);
+  }, [id, isOnline, onEncounterSavesSynced, queryClient, userId]);
 
   useEffect(() => {
     void refreshPendingSaveCount();

@@ -354,22 +354,6 @@ export default function EncounterWizardPage() {
         loading={wiz.completeMutation.isPending}
       />
 
-      <ConfirmModal
-        isOpen={!!wiz.showDeleteAttachment}
-        onClose={() => wiz.setShowDeleteAttachment(null)}
-        onConfirm={() => {
-          if (wiz.showDeleteAttachment) {
-            wiz.deleteMutation.mutate(wiz.showDeleteAttachment);
-            wiz.setShowDeleteAttachment(null);
-          }
-        }}
-        title="Eliminar archivo"
-        message="¿Estás seguro de eliminar este archivo adjunto? Esta acción no se puede deshacer."
-        confirmLabel="Eliminar"
-        variant="danger"
-        loading={wiz.deleteMutation.isPending}
-      />
-
       <SignEncounterModal
         open={wiz.showSignModal}
         loading={wiz.signMutation.isPending}
@@ -452,10 +436,6 @@ export default function EncounterWizardPage() {
         closureNote={wiz.closureNote}
         onClosureNoteChange={wiz.setClosureNote}
         completionChecklist={wiz.completionChecklist}
-        formData={wiz.formData}
-        onSectionDataChange={wiz.handleSectionDataChange}
-        onSaveSectionMutate={(args) => wiz.saveSectionMutation.mutate(args as any)}
-        saveSectionPending={wiz.saveSectionMutation.isPending}
       />
     </div>
   );

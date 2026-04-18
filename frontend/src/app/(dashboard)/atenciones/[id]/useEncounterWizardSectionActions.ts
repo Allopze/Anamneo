@@ -3,6 +3,8 @@ import toast from 'react-hot-toast';
 import type { SectionKey } from '@/types';
 import { TEMPLATE_FIELD_BY_SECTION } from './encounter-wizard.constants';
 
+type SaveSectionResult = 'noop' | 'saved' | 'queued';
+
 interface SaveSectionPayload {
   sectionKey: SectionKey;
   data: Record<string, unknown>;
@@ -16,9 +18,7 @@ interface UseEncounterWizardSectionActionsParams {
   currentSection: { sectionKey: SectionKey } | undefined;
   formData: Partial<Record<SectionKey, Record<string, unknown>>>;
   handleSectionDataChange: (sectionKey: SectionKey, data: Record<string, unknown>) => void;
-  saveSectionMutation: {
-    mutateAsync: (payload: SaveSectionPayload) => Promise<unknown>;
-  };
+  saveSection: (payload: SaveSectionPayload) => Promise<SaveSectionResult>;
 }
 
 export function useEncounterWizardSectionActions(params: UseEncounterWizardSectionActionsParams) {
@@ -27,7 +27,7 @@ export function useEncounterWizardSectionActions(params: UseEncounterWizardSecti
     currentSection,
     formData,
     handleSectionDataChange,
-    saveSectionMutation,
+    saveSection,
   } = params;
 
   const [showNotApplicableModal, setShowNotApplicableModal] = useState(false);
@@ -85,19 +85,22 @@ export function useEncounterWizardSectionActions(params: UseEncounterWizardSecti
     const currentData = formData[sectionKey] ?? {};
 
     try {
-      await saveSectionMutation.mutateAsync({
+      const result = await saveSection({
         sectionKey,
         data: currentData,
         completed: true,
         notApplicable: true,
         notApplicableReason: notApplicableReason.trim(),
       });
+
       setShowNotApplicableModal(false);
-      toast.success('Sección marcada como no aplica');
+      if (result === 'saved') {
+        toast.success('Sección marcada como no aplica');
+      }
     } catch {
       // onError handler already surfaces UI feedback
     }
-  }, [currentSection, formData, notApplicableReason, saveSectionMutation]);
+  }, [currentSection, formData, notApplicableReason, saveSection]);
 
   return {
     showNotApplicableModal,

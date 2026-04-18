@@ -132,7 +132,10 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
         orderBy: { createdAt: 'desc' },
         take: 1,
       },
-      attachments: true,
+      attachments: {
+        where: { deletedAt: null },
+        orderBy: [{ uploadedAt: 'asc' }, { id: 'asc' }],
+      },
       tasks: {
         orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
         include: {

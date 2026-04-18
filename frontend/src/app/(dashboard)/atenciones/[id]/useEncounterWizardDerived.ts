@@ -45,13 +45,15 @@ export interface UseEncounterWizardDerivedInput {
   formData: Record<string, any>;
   savedSnapshotJson: string;
   lastSavedAt: Date | null;
-  saveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  lastSaveOrigin: 'direct' | 'offline-sync' | null;
+  saveStatus: 'idle' | 'saving' | 'saved' | 'queued' | 'error';
   hasUnsavedChanges: boolean;
   savingSectionKey: SectionKey | null;
   errorSectionKey: SectionKey | null;
   savedSectionKey: SectionKey | null;
   attachments: Attachment[];
   uploadMeta: UploadMeta;
+  pendingSaveCount: number;
 }
 
 export interface UseEncounterWizardDerivedState {
@@ -102,6 +104,7 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
     formData,
     savedSnapshotJson,
     lastSavedAt,
+    lastSaveOrigin,
     saveStatus,
     hasUnsavedChanges,
     savingSectionKey,
@@ -109,6 +112,7 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
     savedSectionKey,
     attachments,
     uploadMeta,
+    pendingSaveCount,
   } = input;
 
   const drawerShortcutHint = useMemo(() => buildEncounterDrawerShortcutHint(), []);
@@ -241,15 +245,24 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
     ? lastSavedAt.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
     : null;
 
+  const syncedFromOfflineLabel =
+    lastSaveOrigin === 'offline-sync' && lastSavedTimeStr && pendingSaveCount === 0 && !hasUnsavedChanges
+      ? `Sincronizado desde cola a las ${lastSavedTimeStr}`
+      : null;
+
   const saveStateLabel = canEdit
     ? saveStatus === 'saving'
       ? 'Guardando…'
-      : saveStatus === 'saved'
-        ? 'Cambios guardados'
+      : saveStatus === 'queued'
+          ? 'Guardado en cola local'
         : saveStatus === 'error'
           ? 'Error al guardar'
           : hasUnsavedChanges
             ? 'Cambios sin guardar'
+            : syncedFromOfflineLabel
+              ? syncedFromOfflineLabel
+              : saveStatus === 'saved'
+                ? 'Cambios guardados'
             : lastSavedTimeStr
               ? `Guardado a las ${lastSavedTimeStr}`
               : 'Sin cambios'
@@ -260,6 +273,8 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
       ? 'text-status-red-text'
       : saveStatus === 'saved'
         ? 'text-status-green-text'
+        : saveStatus === 'queued'
+          ? 'text-status-amber-text'
         : saveStatus === 'saving'
           ? 'text-ink'
           : 'text-ink-secondary';

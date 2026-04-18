@@ -21,6 +21,7 @@ interface UseEncounterDraftSyncParams {
   initializedEncounterIdRef: React.MutableRefObject<string | null>;
   formDataRef: React.MutableRefObject<Record<string, any>>;
   lastSavedRef: React.MutableRefObject<string>;
+  setIsDraftHydrated: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
@@ -37,6 +38,7 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
     initializedEncounterIdRef,
     formDataRef,
     lastSavedRef,
+    setIsDraftHydrated,
   } = params;
 
   useEffect(() => {
@@ -68,6 +70,7 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
     setCurrentSectionIndex(
       Math.min(Math.max(useDraft ? storedDraft.currentSectionIndex : 0, 0), Math.max(sectionsLength - 1, 0)),
     );
+    setIsDraftHydrated(true);
 
     if (draftIsStale && storedDraft && hasEncounterDraftUnsavedChanges(storedDraft)) {
       toast('Se descartó un borrador local porque la atención fue actualizada en otra sesión', { icon: '⚠️' });
@@ -83,6 +86,7 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
     sectionsLength,
     setCurrentSectionIndex,
     setFormData,
+    setIsDraftHydrated,
     setSavedSnapshotJson,
     userId,
   ]);

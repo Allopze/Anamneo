@@ -37,12 +37,14 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
 
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'queued' | 'error'>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [lastSaveOrigin, setLastSaveOrigin] = useState<'direct' | 'offline-sync' | null>(null);
   const [savingSectionKey, setSavingSectionKey] = useState<SectionKey | null>(null);
   const [savedSectionKey, setSavedSectionKey] = useState<SectionKey | null>(null);
   const [errorSectionKey, setErrorSectionKey] = useState<SectionKey | null>(null);
   const [savedSnapshotJson, setSavedSnapshotJson] = useState('');
+  const [isDraftHydrated, setIsDraftHydrated] = useState(false);
 
   const lastSavedRef = useRef<string>('');
   const formDataRef = useRef<Record<string, any>>({});
@@ -60,6 +62,12 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
   const offlineQueue = useEncounterOfflineQueue({
     id,
     isOnline,
+    onEncounterSavesSynced: ({ encounterIds, syncedAt }) => {
+      if (!encounterIds.includes(id)) return;
+      setSaveStatus('saved');
+      setLastSavedAt(syncedAt);
+      setLastSaveOrigin('offline-sync');
+    },
     queryClient,
     userId,
   });
@@ -77,9 +85,11 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     initializedEncounterIdRef,
     formDataRef,
     lastSavedRef,
+    setIsDraftHydrated,
   });
 
   const {
+    saveSection,
     saveSectionMutation,
     persistSection,
     saveCurrentSection,
@@ -88,6 +98,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     canEdit,
     encounter,
     id,
+    isDraftHydrated,
     queryClient,
     sections,
     userId,
@@ -99,6 +110,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     setFormData,
     setHasUnsavedChanges,
     setLastSavedAt,
+    setLastSaveOrigin,
     setSavedSectionKey,
     setSavedSnapshotJson,
     setSaveStatus,
@@ -108,8 +120,21 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
   useEncounterAutosave({
     canEdit,
     hasUnsavedChanges,
+    isDraftHydrated,
     saveCurrentSection,
   });
+
+  useEffect(() => {
+    if (!encounter?.id) {
+      setIsDraftHydrated(false);
+      initializedEncounterIdRef.current = null;
+      return;
+    }
+
+    if (initializedEncounterIdRef.current !== encounter.id) {
+      setIsDraftHydrated(false);
+    }
+  }, [encounter?.id]);
 
   const handleSectionDataChange = useCallback(
     (sectionKey: SectionKey, data: any) => {
@@ -147,28 +172,30 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
   }, [encounter, handleSectionDataChange, id, queryClient]);
 
   const handleSaveGeneratedSummary = useCallback(
-    (generatedSummary: string) => {
+    async (generatedSummary: string) => {
       const existing = formData.OBSERVACIONES || {};
       const updatedData = { ...existing, resumenClinico: generatedSummary };
       handleSectionDataChange('OBSERVACIONES', updatedData);
-      saveSectionMutation.mutate({ sectionKey: 'OBSERVACIONES', data: updatedData });
-      toast.success('Resumen longitudinal guardado');
+      const result = await saveSection({ sectionKey: 'OBSERVACIONES', data: updatedData });
+      if (result === 'saved') {
+        toast.success('Resumen longitudinal guardado');
+      }
     },
-    [formData.OBSERVACIONES, handleSectionDataChange, saveSectionMutation],
+    [formData.OBSERVACIONES, handleSectionDataChange, saveSection],
   );
 
   const handleQuickNotesSave = useCallback(
-    (text: string) => {
+    async (text: string) => {
       const existing = formData.OBSERVACIONES || {};
       const updatedData = { ...existing, notasInternas: text };
       handleSectionDataChange('OBSERVACIONES', updatedData);
-      saveSectionMutation.mutate({ sectionKey: 'OBSERVACIONES', data: updatedData });
+      await saveSection({ sectionKey: 'OBSERVACIONES', data: updatedData });
     },
-    [formData.OBSERVACIONES, handleSectionDataChange, saveSectionMutation],
+    [formData.OBSERVACIONES, handleSectionDataChange, saveSection],
   );
 
   useEffect(() => {
-    if (!currentSection) {
+    if (!currentSection || !isDraftHydrated) {
       setHasUnsavedChanges(false);
       return;
     }
@@ -183,18 +210,57 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     const currentData = JSON.stringify(formData[currentSection.sectionKey] ?? {});
     const savedData = JSON.stringify(savedSnapshot[currentSection.sectionKey] ?? {});
     setHasUnsavedChanges(currentData !== savedData);
-  }, [currentSection, formData]);
+  }, [currentSection, formData, isDraftHydrated]);
+
+  useEffect(() => {
+    if (!encounter?.sections || !isDraftHydrated) return;
+
+    const savedSnapshot = (() => {
+      try {
+        return JSON.parse(lastSavedRef.current || '{}') as Record<string, any>;
+      } catch {
+        return {};
+      }
+    })();
+
+    let changed = false;
+    const nextSnapshot = { ...savedSnapshot };
+
+    encounter.sections.forEach((section) => {
+      const localData = formDataRef.current[section.sectionKey];
+      const serverData = section.data ?? {};
+      const localMatchesServer =
+        localData === undefined || JSON.stringify(localData) === JSON.stringify(serverData);
+
+      if (!localMatchesServer) {
+        return;
+      }
+
+      if (JSON.stringify(nextSnapshot[section.sectionKey]) !== JSON.stringify(serverData)) {
+        nextSnapshot[section.sectionKey] = serverData;
+        changed = true;
+      }
+    });
+
+    if (!changed) return;
+
+    lastSavedRef.current = JSON.stringify(nextSnapshot);
+    setSavedSnapshotJson(lastSavedRef.current);
+  }, [encounter?.sections, isDraftHydrated, setSavedSnapshotJson]);
 
   return {
     formData,
     hasUnsavedChanges,
     saveStatus,
     lastSavedAt,
+    lastSaveOrigin,
     savingSectionKey,
     savedSectionKey,
     errorSectionKey,
     savedSnapshotJson,
     pendingSaveCount: offlineQueue.pendingSaveCount,
+    isDraftHydrated,
+    saveSection,
     saveSectionMutation,
     persistSection,
     saveCurrentSection,

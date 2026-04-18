@@ -188,6 +188,8 @@ export default function EncounterHeader({
                   <FiLoader className="h-4 w-4 animate-spin" />
                 ) : saveStatus === 'saved' ? (
                   <FiCheck className="h-4 w-4" />
+                ) : saveStatus === 'queued' ? (
+                  <FiWifiOff className="h-4 w-4" />
                 ) : saveStatus === 'error' ? (
                   <FiAlertCircle className="h-4 w-4" />
                 ) : (

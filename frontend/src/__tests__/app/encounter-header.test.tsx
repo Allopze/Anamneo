@@ -58,4 +58,56 @@ describe('EncounterHeader', () => {
 
     expect(handleDuplicate).toHaveBeenCalledTimes(1);
   });
+
+  it('surfaces queued offline saves clearly in the header state badges', () => {
+    render(
+      <EncounterHeader
+        encounter={{
+          id: 'enc-1',
+          patientId: 'patient-1',
+          createdAt: '2026-04-17T10:00:00.000Z',
+          reviewStatus: 'NO_REQUIERE_REVISION',
+          patient: {
+            nombre: 'Paciente Demo',
+            rut: '11.111.111-1',
+            edad: 44,
+            edadMeses: 0,
+            sexo: 'FEMENINO',
+            prevision: 'FONASA',
+          },
+        } as any}
+        sections={[{ id: 'sec-1', label: 'Motivo de consulta' } as any]}
+        completedCount={0}
+        progressPercentage={0}
+        elapsedMinutes={30}
+        isOnline={false}
+        pendingSaveCount={1}
+        canEdit={true}
+        canDuplicateEncounter={false}
+        canComplete={false}
+        canSign={false}
+        hasUnsavedChanges={true}
+        saveStatus="queued"
+        saveStateLabel="Guardado en cola local"
+        saveStateToneClass="text-status-amber-text"
+        drawerShortcutHint=""
+        isDrawerOpen={false}
+        setIsDrawerOpen={jest.fn()}
+        completionBlockedReason={null}
+        saveCurrentSection={jest.fn()}
+        handleDuplicateEncounter={jest.fn()}
+        handleComplete={jest.fn()}
+        handleViewFicha={jest.fn()}
+        openDrawerTab={jest.fn()}
+        saveSectionMutation={{ isPending: false } as any}
+        duplicateEncounterMutation={{ isPending: false } as any}
+        completeMutation={{ isPending: false } as any}
+        signMutation={{ isPending: false } as any}
+        setShowSignModal={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Guardado en cola local')).toBeInTheDocument();
+    expect(screen.getByText('Sin conexión · 1 pendiente')).toBeInTheDocument();
+  });
 });
