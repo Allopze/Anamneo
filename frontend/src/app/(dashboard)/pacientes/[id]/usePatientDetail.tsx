@@ -59,7 +59,14 @@ export function usePatientDetail() {
 
   const taskForm = useForm<TaskForm>({
     resolver: zodResolver(taskSchema),
-    defaultValues: { title: '', details: '', type: 'SEGUIMIENTO', recurrenceRule: 'NONE', dueDate: '' },
+    defaultValues: {
+      title: '',
+      details: '',
+      type: 'SEGUIMIENTO',
+      priority: 'MEDIA',
+      recurrenceRule: 'NONE',
+      dueDate: '',
+    },
   });
 
   const canEditAdminFields = canEditPatientAdmin();

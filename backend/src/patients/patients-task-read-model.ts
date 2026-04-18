@@ -9,6 +9,7 @@ export interface PatientTaskInboxFilters {
   search?: string;
   status?: string;
   type?: string;
+  priority?: string;
   page?: number;
   limit?: number;
   overdueOnly?: boolean;
@@ -46,6 +47,10 @@ export async function findPatientTasksReadModel(params: FindPatientTasksReadMode
 
   if (filters?.type) {
     whereClauses.push({ type: filters.type });
+  }
+
+  if (filters?.priority) {
+    whereClauses.push({ priority: filters.priority });
   }
 
   if (filters?.search?.trim()) {

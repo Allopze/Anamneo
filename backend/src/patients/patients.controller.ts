@@ -68,6 +68,7 @@ export class PatientsController {
   }
 
   @Get()
+  @Roles('ADMIN', 'MEDICO', 'ASISTENTE')
   findAll(
     @CurrentUser() user: CurrentUserData,
     @Query('search') search?: string,
@@ -94,6 +95,25 @@ export class PatientsController {
     });
   }
 
+  @Get('possible-duplicates')
+  @Roles('MEDICO', 'ASISTENTE')
+  async findPossibleDuplicates(
+    @CurrentUser() user: CurrentUserData,
+    @Query('rut') rut?: string,
+    @Query('nombre') nombre?: string,
+    @Query('fechaNacimiento') fechaNacimiento?: string,
+    @Query('excludePatientId') excludePatientId?: string,
+  ) {
+    const data = await this.patientsService.findPossibleDuplicates(user, {
+      rut,
+      nombre,
+      fechaNacimiento,
+      excludePatientId,
+    });
+
+    return { data };
+  }
+
   @Get('tasks')
   @Roles('MEDICO', 'ASISTENTE')
   findTasks(
@@ -101,6 +121,7 @@ export class PatientsController {
     @Query('search') search?: string,
     @Query('status') status?: string,
     @Query('type') type?: string,
+    @Query('priority') priority?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('overdueOnly') overdueOnly?: string,
@@ -109,6 +130,7 @@ export class PatientsController {
       search,
       status,
       type,
+      priority,
       page: page || 1,
       limit: limit || 20,
       overdueOnly: overdueOnly === 'true',

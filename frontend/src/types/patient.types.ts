@@ -95,6 +95,12 @@ export interface PatientTask {
   patient?: Pick<Patient, 'id' | 'nombre' | 'rut'>;
 }
 
+export const TASK_PRIORITY_LABELS: Record<PatientTask['priority'], string> = {
+  ALTA: 'Alta',
+  MEDIA: 'Media',
+  BAJA: 'Baja',
+};
+
 export interface PatientClinicalSummary {
   patientId: string;
   generatedAt: string;

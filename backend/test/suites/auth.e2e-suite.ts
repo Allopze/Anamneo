@@ -73,6 +73,12 @@ export function authSuite() {
       expect(res.body.database?.status).toBe('ok');
       expect(res.body.sqlite).toBeDefined();
       expect(typeof res.body.sqlite.enabled).toBe('boolean');
+      expect(res.body.sqlite.restoreDrill).toEqual(
+        expect.objectContaining({
+          frequencyDays: expect.any(Number),
+          isDue: expect.any(Boolean),
+        }),
+      );
     });
   });
 

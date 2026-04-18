@@ -9,6 +9,7 @@ export function patientsSuite() {
         .send({
           rut: '12.345.678-5',
           nombre: 'Paciente Test',
+          fechaNacimiento: '1990-05-12',
           edad: 35,
           sexo: 'MASCULINO',
           prevision: 'FONASA',
@@ -51,6 +52,27 @@ export function patientsSuite() {
       expect(res.body.data.length).toBeGreaterThanOrEqual(1);
       expect(res.body.pagination).toBeDefined();
       expect(res.body.pagination.total).toBeGreaterThanOrEqual(1);
+    });
+
+    it('GET /api/patients/possible-duplicates → assistant can detect duplicates by rut and birth date', async () => {
+      const res = await req()
+        .get('/api/patients/possible-duplicates')
+        .query({
+          rut: '12.345.678-5',
+          nombre: 'Paciente Test',
+          fechaNacimiento: '1990-05-12',
+        })
+        .set('Cookie', cookieHeader(state.assistantCookies))
+        .expect(200);
+
+      expect(res.body.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: state.patientId,
+            matchReasons: expect.arrayContaining(['same_rut', 'same_name_birth_date']),
+          }),
+        ]),
+      );
     });
 
     it('GET /api/patients/:id → get patient', async () => {
@@ -256,6 +278,14 @@ export function patientsSuite() {
       await req()
         .get(`/api/patients/${state.patientId}/admin-summary`)
         .set('Cookie', cookieHeader(state.medicoCookies))
+        .expect(403);
+    });
+
+    it('GET /api/patients/possible-duplicates → admin gets 403 because the check is clinical', async () => {
+      await req()
+        .get('/api/patients/possible-duplicates')
+        .query({ rut: '12.345.678-5' })
+        .set('Cookie', cookieHeader(state.adminCookies))
         .expect(403);
     });
 

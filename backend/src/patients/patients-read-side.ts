@@ -12,10 +12,16 @@ import {
   formatAdminSummary,
   toCsvCell,
 } from './patients-format';
+import {
+  findPossiblePatientDuplicatesReadModel,
+} from './patients-duplicate-read-model';
+import type { PossiblePatientDuplicate } from './patients-duplicate-read-model';
 import { findPatientsReadModel } from './patients-list-read-model';
 
 export { findPatientsReadModel };
 export type { FindPatientsFilters } from './patients-list-read-model';
+export { findPossiblePatientDuplicatesReadModel };
+export type { PossiblePatientDuplicate };
 
 interface ExportPatientsCsvParams {
   prisma: PrismaService;

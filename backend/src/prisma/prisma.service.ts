@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { resolveDatabaseUrl } from './resolve-database-url';
+import { readSqliteRestoreDrillStatus } from './sqlite-ops-state';
 
 type SqliteSynchronousMode = 'OFF' | 'NORMAL' | 'FULL' | 'EXTRA';
 
@@ -13,6 +14,14 @@ type SqliteBackupInfo = {
   maxAgeHours: number;
   isFresh: boolean;
   backupDirectoryConfigured: boolean;
+};
+
+type SqliteRestoreDrillInfo = {
+  lastRestoreDrillAt: string | null;
+  lastRestoreDrillAgeDays: number | null;
+  frequencyDays: number;
+  isDue: boolean;
+  stateFilePresent: boolean;
 };
 
 type SqliteOperationalStatus = {
@@ -30,6 +39,7 @@ type SqliteOperationalStatus = {
     walWarnThresholdBytes: number;
   };
   backups: SqliteBackupInfo;
+  restoreDrill: SqliteRestoreDrillInfo;
   warnings: string[];
 };
 
@@ -43,6 +53,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private readonly sqliteBackupMaxAgeHours: number;
   private readonly sqliteWalWarnSizeMb: number;
   private readonly sqliteBackupDir?: string;
+  private readonly sqliteRestoreDrillFrequencyDays: number;
 
   constructor() {
     const resolvedDatabaseUrl = process.env.DATABASE_URL
@@ -68,6 +79,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     this.sqliteSynchronousMode = PrismaService.readSynchronousMode(process.env.SQLITE_SYNCHRONOUS);
     this.sqliteBackupMaxAgeHours = PrismaService.readPositiveInteger(process.env.SQLITE_BACKUP_MAX_AGE_HOURS, 24);
     this.sqliteWalWarnSizeMb = PrismaService.readPositiveInteger(process.env.SQLITE_WAL_WARN_SIZE_MB, 128);
+    this.sqliteRestoreDrillFrequencyDays = PrismaService.readPositiveInteger(
+      process.env.SQLITE_RESTORE_DRILL_FREQUENCY_DAYS,
+      7,
+    );
     this.sqliteBackupDir = process.env.SQLITE_BACKUP_DIR?.trim() || undefined;
   }
 
@@ -266,6 +281,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           isFresh: false,
           backupDirectoryConfigured: Boolean(this.sqliteBackupDir),
         },
+        restoreDrill: {
+          lastRestoreDrillAt: null,
+          lastRestoreDrillAgeDays: null,
+          frequencyDays: this.sqliteRestoreDrillFrequencyDays,
+          isDue: false,
+          stateFilePresent: false,
+        },
         warnings: [],
       };
     }
@@ -312,10 +334,21 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     let latestBackupAt: string | null = null;
     let latestBackupAgeHours: number | null = null;
     let isBackupFresh = false;
+    let restoreDrill: SqliteRestoreDrillInfo = {
+      lastRestoreDrillAt: null,
+      lastRestoreDrillAgeDays: null,
+      frequencyDays: this.sqliteRestoreDrillFrequencyDays,
+      isDue: false,
+      stateFilePresent: false,
+    };
 
     if (dbPath) {
       const backupDir = this.resolveBackupDirectory(dbPath);
       const latestBackup = this.getLatestBackupInfo(backupDir);
+      restoreDrill = readSqliteRestoreDrillStatus(
+        backupDir,
+        this.sqliteRestoreDrillFrequencyDays,
+      );
 
       if (latestBackup) {
         latestBackupFile = latestBackup.fileName;
@@ -331,6 +364,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       warnings.push('no_backup_found');
     } else if (!isBackupFresh) {
       warnings.push('latest_backup_is_stale');
+    }
+
+    if (!restoreDrill.lastRestoreDrillAt) {
+      warnings.push('restore_drill_never_ran');
+    } else if (restoreDrill.isDue) {
+      warnings.push('restore_drill_overdue');
     }
 
     return {
@@ -355,6 +394,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         isFresh: isBackupFresh,
         backupDirectoryConfigured: Boolean(this.sqliteBackupDir),
       },
+      restoreDrill,
       warnings,
     };
   }

@@ -10,6 +10,7 @@ import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
+import PossiblePatientDuplicatesNotice from '@/components/common/PossiblePatientDuplicatesNotice';
 import { validateRut } from '@/lib/rut';
 import { calculateAgeFromBirthDate, todayLocalDateString } from '@/lib/date';
 import { basePatientSchema, fullPatientSchema, PatientForm } from './nuevo.constants';
@@ -44,6 +45,8 @@ export default function NuevoPacientePage() {
   });
 
   const rutExempt = watch('rutExempt');
+  const nombre = watch('nombre');
+  const rut = watch('rut');
   const fechaNacimiento = watch('fechaNacimiento');
   const todayDateValue = useMemo(() => todayLocalDateString(), []);
   const edadCalculada = useMemo(
@@ -191,6 +194,13 @@ export default function NuevoPacientePage() {
           </div>
           {errors.rut && <p className="form-error">{errors.rut.message}</p>}
         </div>
+
+        <PossiblePatientDuplicatesNotice
+          nombre={nombre}
+          fechaNacimiento={fechaNacimiento}
+          rut={rut}
+          rutExempt={rutExempt}
+        />
 
         {isDoctor && (
           <>

@@ -59,6 +59,7 @@ export function registerEncounterFollowupTests() {
         title: 'Revisar examen de control',
         details: 'Llamar al paciente cuando llegue resultado',
         type: 'EXAMEN',
+        priority: 'ALTA',
         dueDate: today,
         encounterId: state.encounterId,
       })
@@ -67,6 +68,7 @@ export function registerEncounterFollowupTests() {
     expect(res.body.title).toBe('Revisar examen de control');
     expect(res.body.dueDate.slice(0, 10)).toBe(today);
     expect(res.body.medicoId).toBe(state.medicoUserId);
+    expect(res.body.priority).toBe('ALTA');
     state.patientTaskId = res.body.id;
   });
 
@@ -77,6 +79,16 @@ export function registerEncounterFollowupTests() {
       .expect(200);
 
     expect(res.body.data.some((task: any) => task.id === state.patientTaskId)).toBe(true);
+  });
+
+  it('GET /api/patients/tasks?priority=ALTA → filters task inbox by priority', async () => {
+    const res = await req()
+      .get('/api/patients/tasks?priority=ALTA')
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .expect(200);
+
+    expect(res.body.data.some((task: any) => task.id === state.patientTaskId)).toBe(true);
+    expect(res.body.data.every((task: any) => task.priority === 'ALTA')).toBe(true);
   });
 
   it('GET /api/patients/tasks → admin gets 403 because the task inbox is clinical', async () => {

@@ -22,6 +22,7 @@ import ConfirmModal from '@/components/common/ConfirmModal';
 import PatientAlerts from '@/components/PatientAlerts';
 import PatientConsents from '@/components/PatientConsents';
 import { InProgressEncounterConflictModal } from '@/components/common/InProgressEncounterConflictModal';
+import PossiblePatientDuplicatesNotice from '@/components/common/PossiblePatientDuplicatesNotice';
 
 import { usePatientDetail } from './usePatientDetail';
 import PatientProblemsCard from './PatientProblemsCard';
@@ -202,6 +203,20 @@ export default function PatientDetailPage() {
           </div>
         </div>
       )}
+
+      <PossiblePatientDuplicatesNotice
+        className="mb-6"
+        nombre={patient.nombre}
+        fechaNacimiento={patient.fechaNacimiento}
+        rut={patient.rut}
+        rutExempt={patient.rutExempt}
+        excludePatientId={patient.id}
+        resolutionAction={pd.isDoctor ? {
+          label: 'Archivar esta ficha duplicada',
+          helperText: 'Úsalo solo después de revisar la otra ficha y confirmar cuál debe quedar vigente.',
+          onClick: pd.handleDelete,
+        } : undefined}
+      />
 
       <PatientLongitudinalSummaryCard patient={patient} clinicalSummary={pd.clinicalSummary} />
 

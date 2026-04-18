@@ -10,6 +10,7 @@ import { api, getErrorMessage } from '@/lib/api';
 import { Patient } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
+import PossiblePatientDuplicatesNotice from '@/components/common/PossiblePatientDuplicatesNotice';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -164,6 +165,8 @@ export default function EditarPacientePage() {
   });
 
   const rutExempt = editForm.watch('rutExempt');
+  const watchedNombre = editForm.watch('nombre');
+  const watchedRut = editForm.watch('rut');
   const watchedFechaNacimiento = editForm.watch('fechaNacimiento');
   const edadCalculada = useMemo(
     () => (watchedFechaNacimiento ? calculateAgeFromBirthDate(watchedFechaNacimiento) : null),
@@ -264,6 +267,16 @@ export default function EditarPacientePage() {
           <ErrorAlert message={errorMsg} />
         </div>
       )}
+
+      <div className="mb-6">
+        <PossiblePatientDuplicatesNotice
+          nombre={watchedNombre || patient.nombre}
+          fechaNacimiento={watchedFechaNacimiento}
+          rut={watchedRut}
+          rutExempt={Boolean(rutExempt)}
+          excludePatientId={patient.id}
+        />
+      </div>
 
       <form id="edit-paciente-form" onSubmit={onSubmit} className="card space-y-6">
         {isDoctor && (

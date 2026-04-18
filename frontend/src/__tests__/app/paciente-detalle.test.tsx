@@ -76,6 +76,10 @@ beforeEach(() => {
       return Promise.resolve({ data: basePatientResponse });
     }
 
+    if (url === '/patients/possible-duplicates') {
+      return Promise.resolve({ data: { data: [] } });
+    }
+
     if (url === '/patients/patient-1/encounters?page=1&limit=10') {
       return Promise.resolve({ data: baseEncounterListPage1 });
     }
@@ -219,6 +223,10 @@ describe('PatientDetailPage', () => {
         });
       }
 
+      if (url === '/patients/possible-duplicates') {
+        return Promise.resolve({ data: { data: [] } });
+      }
+
       if (url === '/patients/patient-1/encounters?page=1&limit=10') {
         return Promise.resolve({ data: emptyEncounterList });
       }
@@ -243,6 +251,49 @@ describe('PatientDetailPage', () => {
     });
   });
 
+  it('offers an archive shortcut when the current record looks duplicated', async () => {
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/patients/patient-1') {
+        return Promise.resolve({ data: basePatientResponse });
+      }
+
+      if (url === '/patients/possible-duplicates') {
+        return Promise.resolve({
+          data: {
+            data: [
+              {
+                id: 'patient-2',
+                nombre: 'Paciente Duplicado',
+                rut: '11.111.111-1',
+                fechaNacimiento: '1990-01-10T00:00:00.000Z',
+                registrationMode: 'COMPLETO',
+                completenessStatus: 'VERIFICADA',
+                matchReasons: ['same_rut'],
+              },
+            ],
+          },
+        });
+      }
+
+      if (url === '/patients/patient-1/encounters?page=1&limit=10') {
+        return Promise.resolve({ data: emptyEncounterList });
+      }
+
+      if (url === '/patients/patient-1/clinical-summary') {
+        return Promise.resolve({ data: emptyClinicalSummary });
+      }
+
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    render(<PatientDetailPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Posibles pacientes duplicados')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Archivar esta ficha duplicada' }));
+
+    expect(await screen.findByRole('heading', { name: 'Archivar paciente' })).toBeInTheDocument();
+  });
+
   it('does not show empty history state when stored history fields contain serialized content', async () => {
     apiGetMock.mockImplementation((url: string) => {
       if (url === '/patients/patient-1') {
@@ -254,6 +305,10 @@ describe('PatientDetailPage', () => {
             },
           },
         });
+      }
+
+      if (url === '/patients/possible-duplicates') {
+        return Promise.resolve({ data: { data: [] } });
       }
 
       if (url === '/patients/patient-1/encounters?page=1&limit=10') {
@@ -298,6 +353,10 @@ describe('PatientDetailPage', () => {
         });
       }
 
+      if (url === '/patients/possible-duplicates') {
+        return Promise.resolve({ data: { data: [] } });
+      }
+
       if (url === '/patients/patient-1/encounters?page=1&limit=10') {
         return Promise.resolve({ data: emptyEncounterList });
       }
@@ -323,10 +382,12 @@ describe('PatientDetailPage', () => {
 
     const scoped = within(taskForm as HTMLFormElement);
     const selects = scoped.getAllByRole('combobox');
-    await userEvent.selectOptions(selects[1], 'NONE');
+    await userEvent.selectOptions(selects[2], 'NONE');
 
     const dueDateInput = scoped.getByDisplayValue('2026-05-10');
     fireEvent.change(dueDateInput, { target: { value: '' } });
+
+    await userEvent.selectOptions(selects[1], 'BAJA');
 
     await userEvent.click(submitButton);
 
@@ -335,6 +396,7 @@ describe('PatientDetailPage', () => {
         title: 'Control semanal',
         details: 'Llamar para confirmar evolución',
         type: 'SEGUIMIENTO',
+        priority: 'BAJA',
         recurrenceRule: 'NONE',
         dueDate: null,
       });

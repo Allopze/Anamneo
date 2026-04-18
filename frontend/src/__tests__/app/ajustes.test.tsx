@@ -98,6 +98,43 @@ describe('AjustesPage', () => {
         });
       }
 
+      if (url === '/health/sqlite') {
+        return Promise.resolve({
+          data: {
+            status: 'degraded',
+            database: {
+              status: 'ok',
+              driver: 'sqlite',
+            },
+            sqlite: {
+              enabled: true,
+              status: 'warn',
+              files: {
+                databaseSizeBytes: 1_572_864,
+                walSizeBytes: 262_144,
+                walWarnThresholdBytes: 134_217_728,
+              },
+              backups: {
+                latestBackupFile: 'backup-2026-04-18-120000.db',
+                latestBackupAt: '2026-04-18T12:00:00.000Z',
+                latestBackupAgeHours: 4,
+                maxAgeHours: 24,
+                isFresh: true,
+                backupDirectoryConfigured: true,
+              },
+              restoreDrill: {
+                lastRestoreDrillAt: '2026-04-16T09:30:00.000Z',
+                lastRestoreDrillAgeDays: 2,
+                frequencyDays: 7,
+                isDue: false,
+                stateFilePresent: true,
+              },
+              warnings: ['restore_drill_overdue'],
+            },
+          },
+        });
+      }
+
       throw new Error(`Unexpected GET ${url}`);
     });
 
@@ -267,5 +304,21 @@ describe('AjustesPage', () => {
 
     expect(logoutMock).toHaveBeenCalled();
     expect(replaceMock).toHaveBeenCalledWith('/login');
+  });
+
+  it('shows backup and restore drill visibility in the system tab', async () => {
+    searchParamsValue = 'tab=sistema';
+
+    render(<AjustesPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Backup reciente')).toBeInTheDocument();
+    expect(screen.getByText('Última prueba de restauración')).toBeInTheDocument();
+    expect(screen.getByText('backup-2026-04-18-120000.db')).toBeInTheDocument();
+    expect(screen.getByText('Cadencia objetivo: cada 7 días')).toBeInTheDocument();
+    expect(screen.getByText('La prueba de restauración ya venció según la cadencia configurada.')).toBeInTheDocument();
+    expect(screen.getByText('Checklist operativa')).toBeInTheDocument();
+    expect(screen.getByText('Runbook embebido')).toBeInTheDocument();
+    expect(screen.getByText('1. Backup fresco')).toBeInTheDocument();
+    expect(screen.getByText('npm run db:restore:drill')).toBeInTheDocument();
   });
 });

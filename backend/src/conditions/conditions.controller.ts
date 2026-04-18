@@ -76,11 +76,13 @@ export class ConditionsController {
   }
 
   @Get()
+  @Roles('ADMIN', 'MEDICO', 'ASISTENTE')
   findAll(@Query('search') search: string | undefined, @CurrentUser() user: CurrentUserData) {
     return this.conditionsService.findAll(search, user);
   }
 
   @Get(':id')
+  @Roles('ADMIN', 'MEDICO', 'ASISTENTE')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.conditionsService.findById(id);
   }
@@ -101,6 +103,7 @@ export class ConditionsController {
   }
 
   @Post('suggest')
+  @Roles('ADMIN', 'MEDICO', 'ASISTENTE')
   suggest(@Body() suggestDto: SuggestConditionDto, @CurrentUser() user: CurrentUserData) {
     return this.conditionsService.suggest(user, suggestDto);
   }

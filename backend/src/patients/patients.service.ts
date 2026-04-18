@@ -26,10 +26,12 @@ import {
 import {
   exportPatientsCsvReadModel,
   findPatientByIdReadModel,
+  findPossiblePatientDuplicatesReadModel,
   findPatientsReadModel,
   FindPatientsFilters,
   getPatientAdminSummaryReadModel,
 } from './patients-read-side';
+import type { PossiblePatientDuplicate } from './patients-read-side';
 import { findPatientTasksReadModel, PatientTaskInboxFilters } from './patients-task-read-model';
 import {
   archivePatientMutation,
@@ -90,6 +92,22 @@ export class PatientsService {
       page,
       limit,
       filters,
+    });
+  }
+
+  async findPossibleDuplicates(
+    user: RequestUser,
+    params: {
+      rut?: string;
+      nombre?: string;
+      fechaNacimiento?: string;
+      excludePatientId?: string;
+    },
+  ): Promise<PossiblePatientDuplicate[]> {
+    return findPossiblePatientDuplicatesReadModel({
+      prisma: this.prisma,
+      user,
+      ...params,
     });
   }
 

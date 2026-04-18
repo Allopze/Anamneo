@@ -6,6 +6,7 @@ import { todayLocalDateString } from '@/lib/date';
 const pushMock = jest.fn();
 const toastSuccessMock = jest.fn();
 const toastErrorMock = jest.fn();
+const apiGetMock = jest.fn();
 const apiPostMock = jest.fn();
 
 jest.mock('next/navigation', () => ({
@@ -29,6 +30,7 @@ jest.mock('@/stores/auth-store', () => ({
 
 jest.mock('@/lib/api', () => ({
   api: {
+    get: (...args: any[]) => apiGetMock(...args),
     post: (...args: any[]) => apiPostMock(...args),
   },
   getErrorMessage: (error: any) => error?.message || 'Error desconocido',
@@ -45,6 +47,7 @@ jest.mock('react-hot-toast', () => ({
 describe('NuevoPacientePage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    apiGetMock.mockResolvedValue({ data: { data: [] } });
     apiPostMock.mockResolvedValue({ data: { id: 'patient-1' } });
   });
 
@@ -71,5 +74,45 @@ describe('NuevoPacientePage', () => {
     expect(toastSuccessMock).toHaveBeenCalledWith('Paciente creado correctamente');
     expect(pushMock).toHaveBeenCalledWith('/pacientes/patient-1');
     expect(toastErrorMock).not.toHaveBeenCalled();
+  });
+
+  it('shows a warning when a possible duplicate is detected before saving', async () => {
+    const user = userEvent.setup();
+
+    apiGetMock.mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'patient-dup',
+            nombre: 'Paciente Demo',
+            rut: '12.345.678-5',
+            fechaNacimiento: '2020-05-15',
+            registrationMode: 'COMPLETO',
+            completenessStatus: 'VERIFICADA',
+            matchReasons: ['same_name_birth_date'],
+          },
+        ],
+      },
+    });
+
+    render(<NuevoPacientePage />);
+
+    await user.type(screen.getByLabelText(/Nombre completo/i), 'Paciente Demo');
+    await user.type(screen.getByLabelText(/Fecha de nacimiento/i), '2020-05-15');
+
+    expect(await screen.findByText('Posibles pacientes duplicados')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Abrir ficha/i })).toHaveAttribute(
+      'href',
+      '/pacientes/patient-dup',
+    );
+
+    await waitFor(() => {
+      expect(apiGetMock).toHaveBeenCalledWith('/patients/possible-duplicates', {
+        params: expect.objectContaining({
+          nombre: 'Paciente Demo',
+          fechaNacimiento: '2020-05-15',
+        }),
+      });
+    });
   });
 });

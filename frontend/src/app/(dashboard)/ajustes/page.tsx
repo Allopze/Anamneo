@@ -6,6 +6,7 @@ import type { AjustesTab } from './ajustes.constants';
 import ProfileSecurityTab from './ProfileSecurityTab';
 import ClinicTab from './ClinicTab';
 import EmailTab from './EmailTab';
+import SystemTab from './SystemTab';
 
 export default function AjustesPage() {
   return (
@@ -109,19 +110,7 @@ function AjustesContent() {
       )}
 
       {aj.isAdmin && aj.activeTab === 'sistema' && (
-        <div role="tabpanel" id="tabpanel-sistema" aria-labelledby="tab-sistema" className="card">
-          <div className="panel-header">
-            <h2 className="panel-title">Información del sistema</h2>
-          </div>
-          <div className="space-y-3 text-sm">
-            <p>
-              <strong>Versión:</strong> 1.0.0
-            </p>
-            <p>
-              <strong>API:</strong> {process.env.NEXT_PUBLIC_API_URL}
-            </p>
-          </div>
-        </div>
+        <SystemTab />
       )}
     </div>
   );

@@ -1,7 +1,14 @@
 import clsx from 'clsx';
-import { TASK_RECURRENCE_LABELS, TASK_TYPE_LABELS, TASK_STATUS_LABELS, type PatientTask } from '@/types';
+import {
+  TASK_PRIORITY_LABELS,
+  TASK_RECURRENCE_LABELS,
+  TASK_STATUS_LABELS,
+  TASK_TYPE_LABELS,
+  type PatientTask,
+} from '@/types';
 import { extractDateOnly, formatDateOnly } from '@/lib/date';
 import type { PatientDetailHook } from './usePatientDetail';
+import { TASK_PRIORITIES } from './patient-detail.constants';
 
 type Props = Pick<
   PatientDetailHook,
@@ -40,6 +47,7 @@ export default function PatientTasksCard({
                   <p className="font-medium text-ink-primary">{task.title}</p>
                   <p className="text-xs text-ink-muted">
                     {TASK_TYPE_LABELS[task.type]} · {TASK_STATUS_LABELS[task.status]}
+                    {` · ${TASK_PRIORITY_LABELS[task.priority]}`}
                     {task.recurrenceRule && task.recurrenceRule !== 'NONE'
                       ? ` · ${TASK_RECURRENCE_LABELS[task.recurrenceRule]}`
                       : ''}
@@ -57,6 +65,7 @@ export default function PatientTasksCard({
                           title: task.title,
                           details: task.details || '',
                           type: task.type,
+                          priority: task.priority,
                           recurrenceRule: task.recurrenceRule || 'NONE',
                           dueDate: extractDateOnly(task.dueDate) || '',
                         });
@@ -121,6 +130,15 @@ export default function PatientTasksCard({
               </option>
             ))}
           </select>
+          <select className="form-input" {...taskForm.register('priority')}>
+            {TASK_PRIORITIES.map((value) => (
+              <option key={value} value={value}>
+                {TASK_PRIORITY_LABELS[value]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
           <select className="form-input" {...taskForm.register('recurrenceRule')}>
             {Object.entries(TASK_RECURRENCE_LABELS).map(([value, label]) => (
               <option key={value} value={value}>

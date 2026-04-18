@@ -63,6 +63,8 @@ npm run db:ops:monitor
 
 `/api/health/sqlite` requiere sesion administrativa.
 
+La pestaña `Ajustes > Sistema` resume estos checks para administracion dentro de la app. Usala como tablero rapido de backup, restore drill y checklist; este documento sigue siendo el runbook completo.
+
 ## Cron Recomendado Fuera de Docker
 
 ```cron
@@ -83,10 +85,11 @@ Punto importante para esta app:
 Checklist minimo:
 
 1. Confirmar backup reciente.
-2. Ejecutar `npm run db:restore:drill`.
-3. Revisar salida y artefactos generados.
-4. Registrar fecha del ultimo simulacro.
-5. Corregir alertas pendientes antes del siguiente ciclo.
+2. Revisar `Ajustes > Sistema` para detectar alertas operativas pendientes.
+3. Ejecutar `npm run db:restore:drill`.
+4. Revisar salida y artefactos generados.
+5. Registrar fecha del ultimo simulacro.
+6. Corregir alertas pendientes antes del siguiente ciclo.
 
 ## Problemas Frecuentes
 
