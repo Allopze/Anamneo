@@ -83,8 +83,10 @@ export class PatientsController {
     @Query('clinicalSearch') clinicalSearch?: string,
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: string,
+    @Query('archived') archived?: string,
   ) {
     return this.patientsService.findAll(user, search, page || 1, limit || 20, {
+      archived: archived as 'ACTIVE' | 'ARCHIVED' | 'ALL' | undefined,
       sexo,
       prevision,
       completenessStatus: completenessStatus as 'INCOMPLETA' | 'PENDIENTE_VERIFICACION' | 'VERIFICADA' | undefined,

@@ -17,6 +17,8 @@ const enqueueSaveMock = jest.fn();
 const getPendingSavesForUserMock = jest.fn();
 const removePendingSaveMock = jest.fn();
 const countPendingSavesForUserMock = jest.fn();
+const clearEncounterSectionConflictMock = jest.fn();
+const readEncounterSectionConflictMock = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({ id: 'enc-1' }),
@@ -55,8 +57,11 @@ jest.mock('@/lib/offline-queue', () => ({
 
 jest.mock('@/lib/encounter-draft', () => ({
   clearEncounterDraft: jest.fn(),
+  clearEncounterSectionConflict: (...args: any[]) => clearEncounterSectionConflictMock(...args),
   hasEncounterDraftUnsavedChanges: jest.fn(() => false),
   readEncounterDraft: jest.fn(() => null),
+  readEncounterSectionConflict: (...args: any[]) => readEncounterSectionConflictMock(...args),
+  writeEncounterSectionConflict: jest.fn(),
   writeEncounterDraft: jest.fn(),
 }));
 
@@ -129,6 +134,9 @@ describe('EncounterWizardPage closing workflow', () => {
     getPendingSavesForUserMock.mockResolvedValue([]);
     removePendingSaveMock.mockResolvedValue(undefined);
     countPendingSavesForUserMock.mockResolvedValue(0);
+    clearEncounterSectionConflictMock.mockReset();
+    readEncounterSectionConflictMock.mockReset();
+    readEncounterSectionConflictMock.mockReturnValue(null);
 
     apiGetMock.mockImplementation((url: string) => {
       if (url === '/encounters/enc-1') {
@@ -252,6 +260,30 @@ describe('EncounterWizardPage closing workflow', () => {
     expect(screen.getByText('Contenido clínico esencial')).toBeInTheDocument();
     expect(screen.getAllByText('Nota de cierre').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Ficha maestra habilitada para cierre')).toBeInTheDocument();
+  });
+
+  it('shows a recoverable conflict banner and lets the user dismiss the local copy', async () => {
+    const user = userEvent.setup();
+    readEncounterSectionConflictMock.mockReturnValue({
+      version: 2,
+      encounterId: 'enc-1',
+      userId: 'med-1',
+      sectionKey: 'IDENTIFICACION',
+      localData: { nombre: 'Paciente Demo' },
+      serverData: { nombre: 'Paciente Demo', rut: '11.111.111-1' },
+      serverUpdatedAt: '2026-04-19T10:00:00.000Z',
+    });
+
+    render(<EncounterWizardPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
+    expect(screen.getByText(/se detectó un conflicto de edición/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Restaurar mi copia local' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Descartar copia local' }));
+
+    expect(clearEncounterSectionConflictMock).toHaveBeenCalledWith('enc-1', 'med-1', 'IDENTIFICACION');
+    expect(toast.success).toHaveBeenCalledWith('Se descartó la copia local en conflicto.');
   });
 
   it('keeps the completion action available for the treating doctor even when the encounter was created by an assistant', async () => {

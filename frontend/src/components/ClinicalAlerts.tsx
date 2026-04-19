@@ -1,8 +1,9 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { api, PaginatedResponse } from '@/lib/api';
-import { Encounter } from '@/types';
+import { api } from '@/lib/api';
+import { PatientClinicalSummary } from '@/types';
+import { assessVitalSigns } from '../../../shared/vital-sign-alerts';
 import { FiAlertTriangle, FiInfo } from 'react-icons/fi';
 
 interface ClinicalAlertsProps {
@@ -20,11 +21,11 @@ export default function ClinicalAlerts({ patientId, variant = 'panel' }: Clinica
     staleTime: 60_000,
   });
 
-  const { data: encounterTimeline } = useQuery({
-    queryKey: ['patient-encounters-alerts', patientId],
+  const { data: clinicalSummary } = useQuery({
+    queryKey: ['patient-clinical-summary', patientId],
     queryFn: async () => {
-      const res = await api.get(`/patients/${patientId}/encounters?page=1&limit=1`);
-      return res.data as PaginatedResponse<Encounter>;
+      const res = await api.get(`/patients/${patientId}/clinical-summary`);
+      return res.data as PatientClinicalSummary;
     },
     staleTime: 60_000,
   });
@@ -74,16 +75,23 @@ export default function ClinicalAlerts({ patientId, variant = 'panel' }: Clinica
     });
   }
 
-  const recentEncounter = encounterTimeline?.data?.[0];
-  const latestExam = recentEncounter?.sections?.find((section: any) => section.sectionKey === 'EXAMEN_FISICO')?.data;
-  const systolic = Number(String(latestExam?.signosVitales?.presionArterial || '').split('/')[0]);
-  const temperature = Number(latestExam?.signosVitales?.temperatura);
-  const latestPressureLabel = latestExam?.signosVitales?.presionArterial;
-  if (Number.isFinite(systolic) && systolic >= 160) {
-    alerts.push({ type: 'warning', label: 'PA elevada', value: `Último registro ${latestPressureLabel}` });
-  }
-  if (Number.isFinite(temperature) && temperature >= 38) {
-    alerts.push({ type: 'warning', label: 'Fiebre', value: `Último registro ${temperature.toFixed(1)} °C` });
+  const latestVitals = clinicalSummary?.vitalTrend?.[0];
+  if (latestVitals) {
+    const assessments = Object.values(
+      assessVitalSigns({
+        presionArterial: latestVitals.presionArterial ?? undefined,
+        temperatura: latestVitals.temperatura !== null ? String(latestVitals.temperatura) : undefined,
+        saturacionOxigeno: latestVitals.saturacionOxigeno !== null ? String(latestVitals.saturacionOxigeno) : undefined,
+      }),
+    );
+
+    assessments.forEach((assessment) => {
+      alerts.push({
+        type: assessment.severity === 'critical' ? 'warning' : assessment.severity,
+        label: assessment.summary,
+        value: assessment.detailMessages[0] ?? 'Último control con hallazgos relevantes',
+      });
+    });
   }
 
   if (alerts.length === 0) return null;
@@ -125,7 +133,7 @@ export default function ClinicalAlerts({ patientId, variant = 'panel' }: Clinica
         <div className="border-b border-surface-muted/35 px-5 py-4 sm:px-6">
           <h2 className="text-sm font-semibold text-ink">Contexto clínico relevante</h2>
           <p className="mt-1 text-sm text-ink-secondary">
-            Resumen derivado de ficha, problemas, tareas y último registro. No reemplaza las alertas clínicas persistidas.
+            Resumen derivado de ficha, problemas, tareas y resumen clínico longitudinal. No reemplaza las alertas clínicas persistidas.
           </p>
         </div>
 

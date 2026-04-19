@@ -7,6 +7,46 @@ import { getRequestId } from '../common/utils/request-context';
 import { inferAuditReason, inferAuditResult } from './audit-catalog';
 import { LogInput, sanitizeDiff, parseDateFilter } from './audit-helpers';
 
+type IntegrityPayload = {
+  entityType: string;
+  entityId: string;
+  userId: string;
+  requestId: string | null;
+  action: AuditAction;
+  reason: string | null;
+  result: AuditResult | null;
+  diff: string | null;
+};
+
+function buildIntegrityPayload(input: {
+  entityType: string;
+  entityId: string;
+  userId: string;
+  requestId: string | null;
+  action: AuditAction;
+  reason: string | null;
+  result: AuditResult | null;
+  diff: unknown;
+}): IntegrityPayload {
+  return {
+    entityType: input.entityType,
+    entityId: input.entityId,
+    userId: input.userId,
+    requestId: input.requestId,
+    action: input.action,
+    reason: input.reason,
+    result: input.result,
+    diff: input.diff ? JSON.stringify(input.diff) : null,
+  };
+}
+
+function computeIntegrityHash(previousHash: string, payload: IntegrityPayload) {
+  return crypto
+    .createHash('sha256')
+    .update(previousHash + JSON.stringify(payload))
+    .digest('hex');
+}
+
 @Injectable()
 export class AuditService {
   constructor(private prisma: PrismaService) {}
@@ -28,7 +68,7 @@ export class AuditService {
     });
     const previousHash = lastEntry?.integrityHash ?? 'GENESIS';
 
-    const data = {
+    const data = buildIntegrityPayload({
       entityType: input.entityType,
       entityId: input.entityId,
       userId: input.userId,
@@ -36,13 +76,10 @@ export class AuditService {
       action: input.action as AuditAction,
       reason,
       result: input.result ?? inferAuditResult(input.action),
-      diff: sanitizedDiff ? JSON.stringify(sanitizedDiff) : null,
-    };
+      diff: sanitizedDiff,
+    });
 
-    const integrityHash = crypto
-      .createHash('sha256')
-      .update(previousHash + JSON.stringify(data))
-      .digest('hex');
+    const integrityHash = computeIntegrityHash(previousHash, data);
 
     return client.auditLog.create({
       data: {
@@ -142,14 +179,40 @@ export class AuditService {
     const entries = await this.prisma.auditLog.findMany({
       orderBy: { timestamp: 'asc' },
       take: limit,
-      select: { id: true, integrityHash: true, previousHash: true },
+      select: {
+        id: true,
+        entityType: true,
+        entityId: true,
+        userId: true,
+        requestId: true,
+        action: true,
+        reason: true,
+        result: true,
+        diff: true,
+        integrityHash: true,
+        previousHash: true,
+      },
     });
 
     let expectedPreviousHash = 'GENESIS';
-    for (const entry of entries) {
+    for (let index = 0; index < entries.length; index += 1) {
+      const entry = entries[index];
       if (!entry.integrityHash) continue; // skip legacy entries without hash
       if (entry.previousHash !== expectedPreviousHash) {
-        return { valid: false, checked: entries.indexOf(entry), total, brokenAt: entry.id };
+        return { valid: false, checked: index, total, brokenAt: entry.id };
+      }
+      const expectedHash = computeIntegrityHash(expectedPreviousHash, {
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        userId: entry.userId,
+        requestId: entry.requestId,
+        action: entry.action as AuditAction,
+        reason: entry.reason,
+        result: entry.result as AuditResult,
+        diff: entry.diff,
+      });
+      if (entry.integrityHash !== expectedHash) {
+        return { valid: false, checked: index, total, brokenAt: entry.id };
       }
       expectedPreviousHash = entry.integrityHash;
     }

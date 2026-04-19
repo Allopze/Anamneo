@@ -6,6 +6,7 @@ import PacientesPage from '@/app/(dashboard)/pacientes/page';
 
 const pushMock = jest.fn();
 const apiGetMock = jest.fn();
+const apiPostMock = jest.fn();
 let currentSearchParams = new URLSearchParams();
 
 jest.mock('next/navigation', () => ({
@@ -17,6 +18,7 @@ jest.mock('@/stores/auth-store', () => ({
   useAuthStore: () => ({
     canCreatePatient: () => true,
     canCreateEncounter: () => true,
+    isMedico: () => true,
     user: { isAdmin: false },
   }),
 }));
@@ -24,7 +26,9 @@ jest.mock('@/stores/auth-store', () => ({
 jest.mock('@/lib/api', () => ({
   api: {
     get: (...args: any[]) => apiGetMock(...args),
+    post: (...args: any[]) => apiPostMock(...args),
   },
+  getErrorMessage: (err: any) => err?.message || 'Error desconocido',
 }));
 
 jest.mock('react-hot-toast', () => ({
@@ -91,6 +95,7 @@ const patientsResponse = {
 beforeEach(() => {
   jest.clearAllMocks();
   currentSearchParams = new URLSearchParams();
+  apiPostMock.mockResolvedValue({ data: { message: 'Paciente restaurado correctamente', restoredEncounterCount: 1 } });
   apiGetMock.mockImplementation((url: string) => {
     if (url.startsWith('/patients?')) {
       return Promise.resolve({ data: patientsResponse });
@@ -145,5 +150,37 @@ describe('PacientesPage', () => {
     await userEvent.selectOptions(screen.getByLabelText('Seguimientos'), 'THIS_WEEK');
 
     expect(pushMock).toHaveBeenCalledWith('/pacientes?taskWindow=THIS_WEEK');
+  });
+
+  it('includes the archived filter from the URL and exposes restore in archived view', async () => {
+    currentSearchParams = new URLSearchParams('archived=ARCHIVED');
+    apiGetMock.mockResolvedValueOnce({
+      data: {
+        ...patientsResponse,
+        data: [
+          {
+            ...patientsResponse.data[0],
+            archivedAt: '2026-04-18T12:00:00.000Z',
+          },
+        ],
+      },
+    });
+
+    render(<PacientesPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(apiGetMock).toHaveBeenCalledWith(
+        '/patients?page=1&limit=10&archived=ARCHIVED&sortBy=createdAt&sortOrder=desc',
+      );
+    });
+
+    expect(await screen.findByText(/Mostrando solo fichas archivadas\./i)).toBeInTheDocument();
+    expect(screen.getByText('Archivado')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Restaurar' }));
+
+    await waitFor(() => {
+      expect(apiPostMock).toHaveBeenCalledWith('/patients/patient-1/restore', {});
+    });
   });
 });

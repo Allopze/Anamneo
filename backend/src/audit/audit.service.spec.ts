@@ -81,6 +81,103 @@ describe('AuditService', () => {
     expect(prisma.auditLog.create).toHaveBeenCalled();
   });
 
+  it('verifies the integrity hash against the stored content, not only the previousHash chain', async () => {
+    const createdEntries: any[] = [];
+    const prisma = {
+      auditLog: {
+        create: jest.fn().mockImplementation(async ({ data }) => {
+          const entry = { id: `audit-${createdEntries.length + 1}`, ...data };
+          createdEntries.push(entry);
+          return entry;
+        }),
+        findFirst: jest.fn().mockImplementation(async () => {
+          const last = createdEntries.at(-1);
+          return last ? { integrityHash: last.integrityHash } : null;
+        }),
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+
+    const service = new AuditService(prisma as any);
+
+    await service.log({
+      entityType: 'Encounter',
+      entityId: 'enc-1',
+      userId: 'user-1',
+      action: 'UPDATE',
+      diff: { status: 'EN_PROGRESO' },
+    });
+    await service.log({
+      entityType: 'Encounter',
+      entityId: 'enc-1',
+      userId: 'user-1',
+      action: 'UPDATE',
+      diff: { status: 'COMPLETADO' },
+    });
+
+    prisma.auditLog.count.mockResolvedValue(createdEntries.length);
+    prisma.auditLog.findMany.mockResolvedValue(createdEntries);
+
+    await expect(service.verifyChain()).resolves.toMatchObject({
+      valid: true,
+      checked: createdEntries.length,
+      total: createdEntries.length,
+    });
+  });
+
+  it('detects tampering when the stored diff no longer matches the integrity hash', async () => {
+    const createdEntries: any[] = [];
+    const prisma = {
+      auditLog: {
+        create: jest.fn().mockImplementation(async ({ data }) => {
+          const entry = { id: `audit-${createdEntries.length + 1}`, ...data };
+          createdEntries.push(entry);
+          return entry;
+        }),
+        findFirst: jest.fn().mockImplementation(async () => {
+          const last = createdEntries.at(-1);
+          return last ? { integrityHash: last.integrityHash } : null;
+        }),
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+
+    const service = new AuditService(prisma as any);
+
+    await service.log({
+      entityType: 'Encounter',
+      entityId: 'enc-1',
+      userId: 'user-1',
+      action: 'UPDATE',
+      diff: { status: 'EN_PROGRESO' },
+    });
+    await service.log({
+      entityType: 'Encounter',
+      entityId: 'enc-1',
+      userId: 'user-1',
+      action: 'UPDATE',
+      diff: { status: 'COMPLETADO' },
+    });
+
+    const tamperedEntries = createdEntries.map((entry) => ({ ...entry }));
+    tamperedEntries[1] = {
+      ...tamperedEntries[1],
+      diff: JSON.stringify({ status: 'FIRMADO' }),
+    };
+
+    prisma.auditLog.count.mockResolvedValue(tamperedEntries.length);
+    prisma.auditLog.findMany.mockResolvedValue(tamperedEntries);
+
+    await expect(service.verifyChain()).resolves.toMatchObject({
+      valid: false,
+      checked: 1,
+      total: tamperedEntries.length,
+      brokenAt: tamperedEntries[1].id,
+    });
+  });
+
   // ── QW-1: PHI redaction regression tests ────────────────────────────
   // These tests guarantee that identifiable patient fields (nombre, rut,
   // domicilio, trabajo) are NEVER stored in plain text inside audit logs.

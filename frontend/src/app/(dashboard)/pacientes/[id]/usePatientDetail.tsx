@@ -154,8 +154,13 @@ export function usePatientDetail() {
 
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/patients/${id}`),
-    onSuccess: () => {
-      toast.success('Paciente archivado');
+    onSuccess: (response) => {
+      const autoCancelledEncounterCount = Number((response.data as { autoCancelledEncounterCount?: number })?.autoCancelledEncounterCount ?? 0);
+      toast.success(
+        autoCancelledEncounterCount > 0
+          ? `Paciente archivado. Se cancelaron ${autoCancelledEncounterCount} atenciones en progreso.`
+          : 'Paciente archivado',
+      );
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       router.push('/pacientes');
     },

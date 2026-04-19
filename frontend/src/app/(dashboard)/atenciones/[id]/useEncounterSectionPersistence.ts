@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
+import {
+  clearEncounterSectionConflict,
+  readEncounterSectionConflict,
+  type EncounterSectionConflictBackup,
+} from '@/lib/encounter-draft';
 import type { Encounter, IdentificacionData, SectionKey } from '@/types';
 import toast from 'react-hot-toast';
 import { useEncounterDraftSync } from './useEncounterDraftSync';
@@ -45,6 +50,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
   const [errorSectionKey, setErrorSectionKey] = useState<SectionKey | null>(null);
   const [savedSnapshotJson, setSavedSnapshotJson] = useState('');
   const [isDraftHydrated, setIsDraftHydrated] = useState(false);
+  const [recoverableConflict, setRecoverableConflict] = useState<EncounterSectionConflictBackup | null>(null);
 
   const lastSavedRef = useRef<string>('');
   const formDataRef = useRef<Record<string, any>>({});
@@ -88,6 +94,27 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     setIsDraftHydrated,
   });
 
+  useEffect(() => {
+    if (!userId) {
+      setRecoverableConflict(null);
+      return;
+    }
+    const storedConflict = sections
+      .map((section) => readEncounterSectionConflict(id, userId, section.sectionKey))
+      .find((conflict): conflict is EncounterSectionConflictBackup => conflict !== null);
+
+    if (storedConflict) {
+      setRecoverableConflict(storedConflict);
+      return;
+    }
+    setRecoverableConflict((current) => {
+      if (current?.encounterId === id) {
+        return current;
+      }
+      return null;
+    });
+  }, [currentSection?.sectionKey, id, sections, userId]);
+
   const {
     saveSection,
     saveSectionMutation,
@@ -111,6 +138,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     setHasUnsavedChanges,
     setLastSavedAt,
     setLastSaveOrigin,
+    setRecoverableConflict,
     setSavedSectionKey,
     setSavedSnapshotJson,
     setSaveStatus,
@@ -145,6 +173,27 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     },
     [canEdit],
   );
+
+  const handleRestoreRecoverableConflict = useCallback(() => {
+    if (!recoverableConflict) return;
+
+    setFormData((previous) => ({
+      ...previous,
+      [recoverableConflict.sectionKey]: recoverableConflict.localData,
+    }));
+    setErrorSectionKey(recoverableConflict.sectionKey as SectionKey);
+    setHasUnsavedChanges(true);
+    setSaveStatus('idle');
+    toast.success('Se restauró tu copia local para que puedas revisarla antes de guardar.');
+  }, [recoverableConflict]);
+
+  const handleDismissRecoverableConflict = useCallback(() => {
+    if (!recoverableConflict || !userId) return;
+
+    clearEncounterSectionConflict(id, userId, recoverableConflict.sectionKey);
+    setRecoverableConflict(null);
+    toast.success('Se descartó la copia local en conflicto.');
+  }, [id, recoverableConflict, userId]);
 
   const handleRestoreIdentificationFromPatient = useCallback(async () => {
     if (!encounter) return;
@@ -257,6 +306,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     savingSectionKey,
     savedSectionKey,
     errorSectionKey,
+    recoverableConflict,
     savedSnapshotJson,
     pendingSaveCount: offlineQueue.pendingSaveCount,
     isDraftHydrated,
@@ -266,6 +316,8 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     saveCurrentSection,
     ensureActiveSectionSaved,
     handleSectionDataChange,
+    handleRestoreRecoverableConflict,
+    handleDismissRecoverableConflict,
     handleRestoreIdentificationFromPatient,
     handleSaveGeneratedSummary,
     handleQuickNotesSave,

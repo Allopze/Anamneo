@@ -1,5 +1,6 @@
 const ENCOUNTER_DRAFT_VERSION = 2;
 const ENCOUNTER_DRAFT_PREFIX = 'anamneo:encounter-draft';
+const ENCOUNTER_CONFLICT_PREFIX = 'anamneo:encounter-conflict';
 const DRAFT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface EncounterDraft {
@@ -13,8 +14,23 @@ export interface EncounterDraft {
   savedAt?: string;
 }
 
+export interface EncounterSectionConflictBackup {
+  version: number;
+  encounterId: string;
+  userId: string;
+  sectionKey: string;
+  localData: Record<string, unknown>;
+  serverData: Record<string, unknown>;
+  serverUpdatedAt?: string;
+  savedAt?: string;
+}
+
 function getEncounterDraftKey(encounterId: string, userId: string) {
   return `${ENCOUNTER_DRAFT_PREFIX}:v${ENCOUNTER_DRAFT_VERSION}:${userId}:${encounterId}`;
+}
+
+function getEncounterConflictKey(encounterId: string, userId: string, sectionKey: string) {
+  return `${ENCOUNTER_CONFLICT_PREFIX}:v${ENCOUNTER_DRAFT_VERSION}:${userId}:${encounterId}:${sectionKey}`;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -72,9 +88,66 @@ export function writeEncounterDraft(draft: EncounterDraft): void {
   );
 }
 
+export function readEncounterSectionConflict(
+  encounterId: string,
+  userId: string,
+  sectionKey: string,
+): EncounterSectionConflictBackup | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.localStorage.getItem(getEncounterConflictKey(encounterId, userId, sectionKey));
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<EncounterSectionConflictBackup>;
+    if (
+      parsed.version !== ENCOUNTER_DRAFT_VERSION
+      || parsed.encounterId !== encounterId
+      || parsed.userId !== userId
+      || parsed.sectionKey !== sectionKey
+      || !isPlainObject(parsed.localData)
+      || !isPlainObject(parsed.serverData)
+    ) {
+      return null;
+    }
+
+    if (parsed.savedAt && Date.now() - new Date(parsed.savedAt).getTime() > DRAFT_TTL_MS) {
+      window.localStorage.removeItem(getEncounterConflictKey(encounterId, userId, sectionKey));
+      return null;
+    }
+
+    return {
+      version: ENCOUNTER_DRAFT_VERSION,
+      encounterId: parsed.encounterId,
+      userId: parsed.userId,
+      sectionKey: parsed.sectionKey,
+      localData: parsed.localData,
+      serverData: parsed.serverData,
+      serverUpdatedAt: typeof parsed.serverUpdatedAt === 'string' ? parsed.serverUpdatedAt : undefined,
+      savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function writeEncounterSectionConflict(conflict: EncounterSectionConflictBackup): void {
+  if (typeof window === 'undefined') return;
+
+  window.localStorage.setItem(
+    getEncounterConflictKey(conflict.encounterId, conflict.userId, conflict.sectionKey),
+    JSON.stringify({ ...conflict, savedAt: new Date().toISOString() }),
+  );
+}
+
 export function clearEncounterDraft(encounterId: string, userId: string): void {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(getEncounterDraftKey(encounterId, userId));
+}
+
+export function clearEncounterSectionConflict(encounterId: string, userId: string, sectionKey: string): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(getEncounterConflictKey(encounterId, userId, sectionKey));
 }
 
 export function hasEncounterDraftUnsavedChanges(draft: Pick<EncounterDraft, 'formData' | 'savedSnapshot'>): boolean {

@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useMutation, type QueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { api, getErrorMessage } from '@/lib/api';
+import {
+  clearEncounterSectionConflict,
+  writeEncounterSectionConflict,
+  type EncounterSectionConflictBackup,
+} from '@/lib/encounter-draft';
 import { isNetworkError, type PendingSave } from '@/lib/offline-queue';
 import { invalidateAlertOverviewQueries } from '@/lib/query-invalidation';
 import type { Encounter, SectionKey } from '@/types';
@@ -36,6 +41,7 @@ interface UseEncounterSectionSaveFlowParams {
   setHasUnsavedChanges: React.Dispatch<React.SetStateAction<boolean>>;
   setLastSavedAt: React.Dispatch<React.SetStateAction<Date | null>>;
   setLastSaveOrigin: React.Dispatch<React.SetStateAction<'direct' | 'offline-sync' | null>>;
+  setRecoverableConflict: React.Dispatch<React.SetStateAction<EncounterSectionConflictBackup | null>>;
   setSavedSectionKey: React.Dispatch<React.SetStateAction<SectionKey | null>>;
   setSavedSnapshotJson: React.Dispatch<React.SetStateAction<string>>;
   setSaveStatus: React.Dispatch<React.SetStateAction<'idle' | 'saving' | 'saved' | 'queued' | 'error'>>;
@@ -111,6 +117,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
     setHasUnsavedChanges,
     setLastSavedAt,
     setLastSaveOrigin,
+    setRecoverableConflict,
     setSavedSectionKey,
     setSavedSnapshotJson,
     setSaveStatus,
@@ -120,7 +127,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
   const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshSectionFromServer = useCallback(
-    async (sectionKey: SectionKey) => {
+    async (sectionKey: SectionKey, localDataForConflict?: Record<string, unknown>) => {
       const response = await api.get<Encounter>(`/encounters/${id}`);
       const latestEncounter = response.data;
       const latestSection = latestEncounter.sections?.find((section) => section.sectionKey === sectionKey);
@@ -133,13 +140,28 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
         return;
       }
 
+      const normalizedServerData = (latestSection.data ?? {}) as Record<string, unknown>;
+      if (localDataForConflict && userId) {
+        const conflictBackup: EncounterSectionConflictBackup = {
+          version: 2,
+          encounterId: id,
+          userId,
+          sectionKey,
+          localData: localDataForConflict,
+          serverData: normalizedServerData,
+          serverUpdatedAt: latestSection.updatedAt,
+        };
+        writeEncounterSectionConflict(conflictBackup);
+        setRecoverableConflict(conflictBackup);
+      }
+
       setFormData((previous) => ({
         ...previous,
-        [sectionKey]: latestSection.data ?? {},
+        [sectionKey]: normalizedServerData,
       }));
 
       const savedSnapshot = readSavedSnapshot(lastSavedRef);
-      savedSnapshot[sectionKey] = latestSection.data ?? {};
+      savedSnapshot[sectionKey] = normalizedServerData;
       lastSavedRef.current = JSON.stringify(savedSnapshot);
       setSavedSnapshotJson(lastSavedRef.current);
       setHasUnsavedChanges((current) => (activeSectionKeyRef.current === sectionKey ? false : current));
@@ -147,10 +169,10 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       setLastSaveOrigin(null);
       setSavingSectionKey(null);
       setSavedSectionKey(null);
-      setErrorSectionKey(null);
-      setSaveStatus('idle');
+      setErrorSectionKey(localDataForConflict ? sectionKey : null);
+      setSaveStatus(localDataForConflict ? 'error' : 'idle');
     },
-    [activeSectionKeyRef, id, lastSavedRef, queryClient, setErrorSectionKey, setFormData, setHasUnsavedChanges, setLastSavedAt, setLastSaveOrigin, setSavedSectionKey, setSavedSnapshotJson, setSaveStatus, setSavingSectionKey],
+    [activeSectionKeyRef, id, lastSavedRef, queryClient, setErrorSectionKey, setFormData, setHasUnsavedChanges, setLastSavedAt, setLastSaveOrigin, setRecoverableConflict, setSavedSectionKey, setSavedSnapshotJson, setSaveStatus, setSavingSectionKey, userId],
   );
 
   const saveSection = useCallback(
@@ -280,6 +302,10 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       setSavingSectionKey(null);
       setSavedSectionKey(variables.sectionKey);
       setErrorSectionKey(null);
+      if (userId) {
+        clearEncounterSectionConflict(id, userId, variables.sectionKey);
+      }
+      setRecoverableConflict((current) => (current?.sectionKey === variables.sectionKey ? null : current));
       setSaveStatus('saved');
       setLastSavedAt(new Date());
       setLastSaveOrigin('direct');
@@ -323,9 +349,16 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       setErrorSectionKey(variables.sectionKey);
       setSaveStatus('error');
       if (axios.isAxiosError(error) && error.response?.status === 409) {
-        void refreshSectionFromServer(variables.sectionKey)
+        const localConflictData = (variables.data ?? getSectionPayloadData({
+          encounter,
+          sections,
+          formDataRef,
+          sectionKey: variables.sectionKey,
+        })) as Record<string, unknown>;
+
+        void refreshSectionFromServer(variables.sectionKey, localConflictData)
           .then(() => {
-            toast.error('La sección cambió en otra sesión. Se recargó la versión más reciente.');
+            toast.error('La sección cambió en otra sesión. Se guardó tu copia local para que puedas recuperarla.');
           })
           .catch(() => {
             void queryClient.invalidateQueries({ queryKey: ['encounter', id] });

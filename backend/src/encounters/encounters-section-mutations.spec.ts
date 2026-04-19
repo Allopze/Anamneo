@@ -63,6 +63,7 @@ describe('encounters-section-mutations', () => {
             { id: 'sec-ident', sectionKey: 'IDENTIFICACION' },
           ],
         }),
+        update: jest.fn().mockResolvedValue(undefined),
       },
       encounterSection: {
         update: jest.fn().mockResolvedValue({
@@ -97,6 +98,14 @@ describe('encounters-section-mutations', () => {
         }),
       }),
     );
+    expect(prisma.encounter.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'enc-1' },
+        data: expect.objectContaining({
+          updatedAt: expect.any(Date),
+        }),
+      }),
+    );
     expect(serializeSectionData).toHaveBeenCalled();
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -128,6 +137,7 @@ describe('encounters-section-mutations', () => {
           patient: { id: 'pat-1' },
           sections: [{ id: 'sec-1', sectionKey: 'MOTIVO_CONSULTA' }],
         }),
+        update: jest.fn(),
       },
       encounterSection: {
         update: jest.fn(),
@@ -166,6 +176,7 @@ describe('encounters-section-mutations', () => {
           patient: { id: 'pat-1' },
           sections: [{ id: 'sec-1', sectionKey: 'MOTIVO_CONSULTA' }],
         }),
+        update: jest.fn(),
       },
       encounterSection: {
         update: jest.fn(),
@@ -208,6 +219,7 @@ describe('encounters-section-mutations', () => {
           patient: { id: 'pat-1' },
           sections: [{ id: 'sec-1', sectionKey: 'EXAMEN_FISICO' }],
         }),
+        update: jest.fn().mockResolvedValue(undefined),
       },
       encounterSection: {
         update: jest.fn().mockResolvedValue({
@@ -264,6 +276,14 @@ describe('encounters-section-mutations', () => {
     );
     expect(logger.error).toHaveBeenCalled();
     expect(summarizeSectionAuditData).toHaveBeenCalled();
+    expect(prisma.encounter.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'enc-1' },
+        data: expect.objectContaining({
+          updatedAt: expect.any(Date),
+        }),
+      }),
+    );
     expect(result.warnings).toEqual([VITAL_SIGNS_ALERT_GENERATION_WARNING]);
   });
 
@@ -279,6 +299,7 @@ describe('encounters-section-mutations', () => {
           patient: { id: 'pat-1' },
           sections: [{ id: 'sec-ident', sectionKey: 'IDENTIFICACION' }],
         }),
+        update: jest.fn(),
       },
       encounterSection: {
         update: jest.fn(),
@@ -327,6 +348,7 @@ describe('encounters-section-mutations', () => {
             },
           ],
         }),
+        update: jest.fn(),
       },
       encounterSection: {
         update: jest.fn(),
@@ -360,6 +382,7 @@ describe('encounters-section-mutations', () => {
     const prisma = {
       encounter: {
         findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
       },
       encounterSection: {
         update: jest.fn(),

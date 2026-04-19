@@ -187,8 +187,24 @@ export function adminSuite() {
       expect(invitationActions).toContain('UPDATE');
     });
 
+    it('GET /api/audit/integrity/verify → admin can verify the audit chain', async () => {
+      const res = await req()
+        .get('/api/audit/integrity/verify')
+        .query({ limit: 5000 })
+        .set('Cookie', cookieHeader(state.adminCookies))
+        .expect(200);
+
+      expect(res.body.valid).toBe(true);
+      expect(res.body.checked).toBeGreaterThan(0);
+      expect(res.body.total).toBeGreaterThan(0);
+    });
+
     it('GET /api/audit → non-admin gets 403', async () => {
       await req().get('/api/audit').set('Cookie', cookieHeader(state.medicoCookies)).expect(403);
+    });
+
+    it('GET /api/audit/integrity/verify → non-admin gets 403', async () => {
+      await req().get('/api/audit/integrity/verify').set('Cookie', cookieHeader(state.medicoCookies)).expect(403);
     });
   });
 }

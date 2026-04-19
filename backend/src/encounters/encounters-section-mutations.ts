@@ -29,6 +29,15 @@ import {
 } from './encounters-sanitize';
 import { isMedicoOnlySection } from './encounter-access-policy';
 
+async function touchEncounterUpdatedAt(prisma: PrismaService, encounterId: string) {
+  await prisma.encounter.update({
+    where: { id: encounterId },
+    data: {
+      updatedAt: new Date(),
+    },
+  });
+}
+
 interface LoggerLike {
   error(message: string, trace?: string): void;
 }
@@ -83,6 +92,8 @@ export async function reconcileEncounterIdentificationSection(params: ReconcileE
       schemaVersion: getEncounterSectionSchemaVersion('IDENTIFICACION'),
     },
   });
+
+  await touchEncounterUpdatedAt(prisma, encounterId);
 
   await auditService.log({
     entityType: 'EncounterSection',
@@ -185,6 +196,8 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
       notApplicableReason: dto.notApplicable ? (dto.notApplicableReason ?? section.notApplicableReason) : null,
     },
   });
+
+  await touchEncounterUpdatedAt(prisma, encounterId);
 
   await auditService.log({
     entityType: 'EncounterSection',

@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { todayLocalDateString } from '@/lib/date';
 import {
+  ARCHIVED_OPTIONS,
   SEXO_OPTIONS,
   PREVISION_OPTIONS,
   COMPLETENESS_OPTIONS,
@@ -43,6 +44,20 @@ export default function PatientsFilterPanel({
       {showFilters && (
         <div className="filter-surface">
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
+            <div>
+              <label className="block text-micro text-ink-muted mb-1">Estado</label>
+              <select
+                className="input w-full text-sm"
+                value={filters.archived}
+                onChange={(e) => onFilterChange('archived', e.target.value)}
+              >
+                {ARCHIVED_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-micro text-ink-muted mb-1">Sexo</label>
               <select

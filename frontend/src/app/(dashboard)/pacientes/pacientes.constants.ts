@@ -31,6 +31,12 @@ export const TASK_WINDOW_OPTIONS = [
   { value: 'NO_DUE_DATE', label: 'Sin fecha' },
 ];
 
+export const ARCHIVED_OPTIONS = [
+  { value: '', label: 'Pacientes activos' },
+  { value: 'ARCHIVED', label: 'Archivados' },
+  { value: 'ALL', label: 'Todos' },
+];
+
 export const SORT_OPTIONS = [
   { value: 'createdAt', label: 'Fecha de registro' },
   { value: 'nombre', label: 'Nombre' },
@@ -39,6 +45,7 @@ export const SORT_OPTIONS = [
 ];
 
 export interface PatientFilters {
+  archived: string;
   sexo: string;
   prevision: string;
   completenessStatus: string;

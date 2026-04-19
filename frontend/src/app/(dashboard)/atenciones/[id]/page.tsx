@@ -60,6 +60,10 @@ export default function EncounterWizardPage() {
   }
 
   const { encounter, sections, currentSection, currentSectionIndex, SectionComponent, formData } = wiz;
+  const conflictSectionIndex = wiz.recoverableConflict
+    ? sections.findIndex((section) => section.sectionKey === wiz.recoverableConflict?.sectionKey)
+    : -1;
+  const isViewingConflictSection = currentSection?.sectionKey === wiz.recoverableConflict?.sectionKey;
 
   return (
     <div className="min-h-screen overflow-x-clip bg-surface-base">
@@ -184,6 +188,51 @@ export default function EncounterWizardPage() {
             </div>
 
             {encounter.patientId ? <ClinicalAlerts patientId={encounter.patientId} variant="workspace-sticky" /> : null}
+
+            {wiz.recoverableConflict ? (
+              <section className="rounded-card border border-amber-300/80 bg-amber-50 px-4 py-4 text-sm text-amber-950 shadow-sm">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-1">
+                    <p className="font-semibold">Se detectó un conflicto de edición en esta atención.</p>
+                    <p>
+                      La sección <strong>{sections[conflictSectionIndex]?.label ?? wiz.recoverableConflict.sectionKey}</strong>{' '}
+                      se recargó desde servidor para evitar sobrescribir cambios ajenos. Tu versión local quedó guardada
+                      temporalmente para que puedas revisarla.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {isViewingConflictSection ? (
+                      <button
+                        type="button"
+                        onClick={wiz.handleRestoreRecoverableConflict}
+                        className="rounded-full bg-amber-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-950"
+                      >
+                        Restaurar mi copia local
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (conflictSectionIndex >= 0) {
+                            wiz.moveToSection(conflictSectionIndex);
+                          }
+                        }}
+                        className="rounded-full border border-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-950 transition-colors hover:bg-amber-100"
+                      >
+                        Ir a la sección en conflicto
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={wiz.handleDismissRecoverableConflict}
+                      className="rounded-full border border-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-950 transition-colors hover:bg-amber-100"
+                    >
+                      Descartar copia local
+                    </button>
+                  </div>
+                </div>
+              </section>
+            ) : null}
 
             {/* Active section panel */}
             <section className={SURFACE_PANEL_CLASS}>

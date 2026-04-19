@@ -23,6 +23,8 @@ export interface Patient {
   demographicsVerifiedById?: string | null;
   demographicsMissingFields: PatientDemographicMissingField[];
   domicilio: string | null;
+  archivedAt?: string | null;
+  archivedById?: string | null;
   centroMedico: string | null;
   createdAt: string;
   updatedAt: string;

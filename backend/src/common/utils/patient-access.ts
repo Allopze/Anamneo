@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { getEffectiveMedicoId, RequestUser } from './medico-id';
 
+export type PatientArchiveFilter = 'ACTIVE' | 'ARCHIVED' | 'ALL';
+
 type AccessiblePatient = {
   id: string;
   createdById: string;
@@ -79,15 +81,32 @@ export function isClinicalRecordInMedicoScope(
   return record.createdById === effectiveMedicoId || record.createdBy?.medicoId === effectiveMedicoId;
 }
 
-export function buildAccessiblePatientsWhere(user: RequestUser): Prisma.PatientWhereInput {
+function buildArchiveFilterWhere(archiveFilter: PatientArchiveFilter): Prisma.PatientWhereInput {
+  if (archiveFilter === 'ALL') {
+    return {};
+  }
+
+  if (archiveFilter === 'ARCHIVED') {
+    return { archivedAt: { not: null } };
+  }
+
+  return { archivedAt: null };
+}
+
+export function buildAccessiblePatientsWhere(
+  user: RequestUser,
+  archiveFilter: PatientArchiveFilter = 'ACTIVE',
+): Prisma.PatientWhereInput {
+  const archiveWhere = buildArchiveFilterWhere(archiveFilter);
+
   if (user.isAdmin) {
-    return { archivedAt: null };
+    return archiveWhere;
   }
 
   const effectiveMedicoId = getEffectiveMedicoId(user);
 
   return {
-    archivedAt: null,
+    ...archiveWhere,
     OR: [buildOwnedPatientsWhere(effectiveMedicoId), { encounters: { some: { medicoId: effectiveMedicoId } } }],
   };
 }

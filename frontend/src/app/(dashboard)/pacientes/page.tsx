@@ -3,9 +3,10 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { api } from '@/lib/api';
+import toast from 'react-hot-toast';
+import { api, getErrorMessage } from '@/lib/api';
 import { Patient, PATIENT_COMPLETENESS_STATUS_LABELS, PatientCompletenessStatus } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
 import {
@@ -61,16 +62,19 @@ export default function PacientesPage() {
 
 function PacientesContent() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const { canCreatePatient, canCreateEncounter, user } = useAuthStore();
+  const { canCreatePatient, canCreateEncounter, isMedico, user } = useAuthStore();
   const canCreate = canCreatePatient();
   const canCreateEncounterAllowed = canCreateEncounter();
+  const canRestoreArchived = isMedico();
   const search = searchParams.get('search') || '';
   const [searchInput, setSearchInput] = useState(search);
   const page = Number(searchParams.get('page') || '1');
 
   // Read filters from URL searchParams
   const filters: PatientFilters = {
+    archived: searchParams.get('archived') || '',
     sexo: searchParams.get('sexo') || '',
     prevision: searchParams.get('prevision') || '',
     completenessStatus: searchParams.get('completenessStatus') || '',
@@ -111,6 +115,7 @@ function PacientesContent() {
   const clearFilters = () => {
     router.push(
       buildUrl({
+        archived: '',
         sexo: '',
         prevision: '',
         completenessStatus: '',
@@ -134,6 +139,7 @@ function PacientesContent() {
       params.set('limit', '10');
       if (filters.sexo) params.set('sexo', filters.sexo);
       if (filters.prevision) params.set('prevision', filters.prevision);
+      if (filters.archived) params.set('archived', filters.archived);
       if (filters.completenessStatus) params.set('completenessStatus', filters.completenessStatus);
       if (filters.taskWindow) params.set('taskWindow', filters.taskWindow);
       if (filters.edadMin) params.set('edadMin', filters.edadMin);
@@ -144,6 +150,20 @@ function PacientesContent() {
       const response = await api.get(`/patients?${params}`);
       return response.data;
     },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: async (patientId: string) => api.post(`/patients/${patientId}/restore`, {}),
+    onSuccess: async (response) => {
+      const restoredEncounterCount = Number((response.data as { restoredEncounterCount?: number })?.restoredEncounterCount ?? 0);
+      toast.success(
+        restoredEncounterCount > 0
+          ? `Paciente restaurado. Se reabrieron ${restoredEncounterCount} atenciones.`
+          : 'Paciente restaurado',
+      );
+      await queryClient.invalidateQueries({ queryKey: ['patients'] });
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
   });
 
   const patients = data?.data ?? [];
@@ -242,6 +262,8 @@ function PacientesContent() {
           </div>
           <p className="mt-3 text-sm text-ink-secondary">
             Universo visible: {data.summary.totalPatients} fichas. No verificadas: {data.summary.nonVerified}.
+            {filters.archived === 'ARCHIVED' ? ' Mostrando solo fichas archivadas.' : ''}
+            {filters.archived === 'ALL' ? ' Mostrando activas y archivadas.' : ''}
             {activeCompletenessStatus
               ? ` Mostrando ${data.pagination.total} registros dentro del filtro ${PATIENT_COMPLETENESS_STATUS_LABELS[activeCompletenessStatus].toLowerCase()}.`
               : ''}
@@ -302,12 +324,13 @@ function PacientesContent() {
           <>
             <div className="divide-y divide-surface-muted/30">
               {patients.map((patient: Patient) => {
+                const completenessMeta = getPatientCompletenessMeta(patient);
+                const isArchived = Boolean(patient.archivedAt);
                 const patientHref = user?.isAdmin
                   ? `/pacientes/${patient.id}/administrativo`
                   : `/pacientes/${patient.id}`;
-                const completenessMeta = getPatientCompletenessMeta(patient);
-                return (
-                  <Link key={patient.id} href={patientHref} className="group list-row">
+                const rowContent = (
+                  <>
                     <div className="list-row-icon h-12 w-12 bg-surface-inset text-ink-secondary">
                       <FiUser className="w-6 h-6" />
                     </div>
@@ -319,6 +342,9 @@ function PacientesContent() {
                         <span className="list-chip bg-surface-inset text-ink-secondary">
                           {formatPatientAge(patient.edad, patient.edadMeses)}
                         </span>
+                        {isArchived ? (
+                          <span className="list-chip bg-status-red/10 text-status-red-text">Archivado</span>
+                        ) : null}
                         <span className={`list-chip ${completenessMeta.badgeClassName}`}>{completenessMeta.label}</span>
                       </div>
                       <div className="flex items-center gap-4 text-body text-ink-muted">
@@ -333,6 +359,30 @@ function PacientesContent() {
                         )}
                       </div>
                     </div>
+                  </>
+                );
+
+                if (isArchived) {
+                  return (
+                    <div key={patient.id} className="list-row">
+                      {rowContent}
+                      {canRestoreArchived ? (
+                        <button
+                          type="button"
+                          className="btn btn-secondary text-sm"
+                          onClick={() => restoreMutation.mutate(patient.id)}
+                          disabled={restoreMutation.isPending}
+                        >
+                          Restaurar
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link key={patient.id} href={patientHref} className="group list-row">
+                    {rowContent}
                     <FiChevronRight className="w-5 h-5 text-ink-muted group-hover:text-ink" />
                   </Link>
                 );
@@ -374,7 +424,9 @@ function PacientesContent() {
             <p className="empty-state-description">
               {search
                 ? 'No se encontraron pacientes que coincidan con tu búsqueda.'
-                : 'Aún no has registrado ningún paciente. Comienza agregando uno para gestionar su historial médico.'}
+                : filters.archived === 'ARCHIVED'
+                  ? 'No hay pacientes archivados dentro de tu alcance visible.'
+                  : 'Aún no has registrado ningún paciente. Comienza agregando uno para gestionar su historial médico.'}
             </p>
             {showEmptyCreatePatientCta && (
               <Link href="/pacientes/nuevo" className="empty-state-cta">

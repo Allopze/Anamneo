@@ -83,6 +83,8 @@ export function decoratePatient<T extends Record<string, any>>(patient: T) {
     demographicsVerifiedById: patient.demographicsVerifiedById ?? null,
     domicilio: patient.domicilio,
     centroMedico: patient.centroMedico,
+    archivedAt: patient.archivedAt ?? null,
+    archivedById: patient.archivedById ?? null,
     createdAt: patient.createdAt,
     updatedAt: patient.updatedAt,
     demographicsMissingFields: getPatientDemographicsMissingFields(patient),

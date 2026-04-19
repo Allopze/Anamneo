@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { RequestUser } from '../common/utils/medico-id';
-import { buildAccessiblePatientsWhere } from '../common/utils/patient-access';
+import { buildAccessiblePatientsWhere, PatientArchiveFilter } from '../common/utils/patient-access';
 import { startOfUtcDay } from '../common/utils/local-date';
 import { PatientCompletenessStatus } from '../common/types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -10,6 +10,7 @@ import {
 } from './patients-format';
 
 export interface FindPatientsFilters {
+  archived?: PatientArchiveFilter;
   sexo?: string;
   prevision?: string;
   completenessStatus?: PatientCompletenessStatus;
@@ -93,7 +94,7 @@ export async function findPatientsReadModel(params: FindPatientsReadModelParams)
   const normalizedClinicalSearch = filters?.clinicalSearch?.trim().toLowerCase();
 
   const baseWhere: Prisma.PatientWhereInput = {
-    ...buildAccessiblePatientsWhere(user),
+    ...buildAccessiblePatientsWhere(user, filters?.archived ?? 'ACTIVE'),
     ...(search
       ? {
           AND: [

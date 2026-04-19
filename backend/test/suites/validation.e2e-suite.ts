@@ -144,6 +144,13 @@ export function validationSuite() {
     });
 
     it('Patient timeline and derived summary do not leak encounters from another medico scope', async () => {
+      const visibleEncounterCountBeforeLeak = await prisma.encounter.count({
+        where: {
+          patientId: state.patientId,
+          medicoId: state.medicoUserId,
+        },
+      });
+
       const leakedEncounter = await prisma.encounter.create({
         data: {
           patientId: state.patientId,
@@ -168,7 +175,7 @@ export function validationSuite() {
         .expect(200);
 
       expect(summaryRes.body.latestEncounterSummary?.encounterId).not.toBe(leakedEncounterId);
-      expect(summaryRes.body.counts.totalEncounters).toBe(2);
+      expect(summaryRes.body.counts.totalEncounters).toBe(visibleEncounterCountBeforeLeak);
     });
 
     it('First medico still gets 404 when trying to open another medico encounter directly', async () => {
