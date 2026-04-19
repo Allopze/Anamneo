@@ -13,6 +13,10 @@ export interface VitalSignAssessment {
 }
 
 export type VitalSignAssessmentMap = Partial<Record<VitalSignField, VitalSignAssessment>>;
+export interface VitalSignAssessmentEntry extends VitalSignAssessment {
+  field: VitalSignField;
+  primaryDetail: string;
+}
 
 function parseBloodPressure(value?: string) {
   if (!value) return null;
@@ -163,8 +167,18 @@ export function assessVitalSigns(signosVitales: Record<string, string | undefine
   return assessments;
 }
 
+export function listVitalSignAssessments(signosVitales: Record<string, string | undefined>): VitalSignAssessmentEntry[] {
+  return (Object.entries(assessVitalSigns(signosVitales)) as Array<[VitalSignField, VitalSignAssessment]>).map(
+    ([field, assessment]) => ({
+      field,
+      ...assessment,
+      primaryDetail: assessment.detailMessages[0] ?? 'Último control con hallazgos relevantes',
+    }),
+  );
+}
+
 export function getClinicalAlertMessages(signosVitales: Record<string, string | undefined>) {
-  return Object.values(assessVitalSigns(signosVitales))
+  return listVitalSignAssessments(signosVitales)
     .filter((assessment) => assessment.createsClinicalAlert)
     .flatMap((assessment) => assessment.detailMessages);
 }

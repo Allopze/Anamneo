@@ -2,6 +2,7 @@ import {
   clearEncounterSectionConflict,
   clearEncounterDraft,
   hasEncounterDraftUnsavedChanges,
+  listEncounterSectionConflicts,
   readEncounterSectionConflict,
   readEncounterDraft,
   writeEncounterSectionConflict,
@@ -110,5 +111,54 @@ describe('encounter draft helpers', () => {
 
     expect(readEncounterSectionConflict(encounterId, userId, 'MOTIVO_CONSULTA')).toBeNull();
     expect(readEncounterDraft(encounterId, userId)).not.toBeNull();
+  });
+
+  it('lists recoverable conflict copies sorted by most recent first', () => {
+    writeEncounterSectionConflict({
+      version: 2,
+      encounterId,
+      userId,
+      sectionKey: 'ANAMNESIS_PROXIMA',
+      localData: { relatoAmpliado: 'síntomas nuevos' },
+      serverData: { relatoAmpliado: 'sin cambios' },
+    });
+    writeEncounterSectionConflict({
+      version: 2,
+      encounterId,
+      userId,
+      sectionKey: 'MOTIVO_CONSULTA',
+      localData: { texto: 'cefalea intensa' },
+      serverData: { texto: 'cefalea leve' },
+    });
+
+    window.localStorage.setItem(
+      'anamneo:encounter-conflict:v2:user-1:enc-1:ANAMNESIS_PROXIMA',
+      JSON.stringify({
+        version: 2,
+        encounterId,
+        userId,
+        sectionKey: 'ANAMNESIS_PROXIMA',
+        localData: { relatoAmpliado: 'síntomas nuevos' },
+        serverData: { relatoAmpliado: 'sin cambios' },
+        savedAt: '2026-04-19T10:00:00.000Z',
+      }),
+    );
+    window.localStorage.setItem(
+      'anamneo:encounter-conflict:v2:user-1:enc-1:MOTIVO_CONSULTA',
+      JSON.stringify({
+        version: 2,
+        encounterId,
+        userId,
+        sectionKey: 'MOTIVO_CONSULTA',
+        localData: { texto: 'cefalea intensa' },
+        serverData: { texto: 'cefalea leve' },
+        savedAt: '2026-04-19T10:05:00.000Z',
+      }),
+    );
+
+    expect(listEncounterSectionConflicts(encounterId, userId).map((item) => item.sectionKey)).toEqual([
+      'MOTIVO_CONSULTA',
+      'ANAMNESIS_PROXIMA',
+    ]);
   });
 });

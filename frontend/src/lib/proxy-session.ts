@@ -15,7 +15,7 @@ export function resolveProxyDecision(input: {
   const isPublicRoute = pathname === '/login' || pathname === '/register';
 
   if (isPublicRoute) {
-    if (hasValidatedSession || hasRefreshToken) {
+    if (hasValidatedSession) {
       return { action: 'redirect', target: '/' };
     }
 

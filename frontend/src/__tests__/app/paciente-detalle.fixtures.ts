@@ -14,6 +14,7 @@ export const basePatientResponse = {
   demographicsVerifiedById: 'user-1',
   demographicsMissingFields: [],
   domicilio: null,
+  centroMedico: 'Centro Integral Norte',
   createdAt: '2026-03-31T08:00:00.000Z',
   updatedAt: '2026-03-31T08:00:00.000Z',
   history: {},
@@ -119,3 +120,26 @@ export const emptyEncounterList = {
   data: [],
   pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
 };
+
+export const baseOperationalHistory = [
+  {
+    id: 'op-1',
+    timestamp: '2026-03-31T09:00:00.000Z',
+    reason: 'PATIENT_RESTORED',
+    label: 'Restauración de paciente',
+    detail: 'Se reabrieron 1 atenciones que habían sido canceladas por el archivado.',
+    userName: 'Dra. Rivera',
+    encounterId: null,
+    encounterCreatedAt: null,
+  },
+  {
+    id: 'op-2',
+    timestamp: '2026-03-31T09:05:00.000Z',
+    reason: 'ENCOUNTER_REOPENED',
+    label: 'Reapertura de atención',
+    detail: 'La atención volvió a estado en progreso al restaurar la ficha del paciente.',
+    userName: 'Dra. Rivera',
+    encounterId: 'enc-1',
+    encounterCreatedAt: '2026-03-31T08:00:00.000Z',
+  },
+];

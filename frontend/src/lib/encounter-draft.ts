@@ -140,6 +140,35 @@ export function writeEncounterSectionConflict(conflict: EncounterSectionConflict
   );
 }
 
+export function listEncounterSectionConflicts(
+  encounterId: string,
+  userId: string,
+): EncounterSectionConflictBackup[] {
+  if (typeof window === 'undefined') return [];
+
+  const prefix = `${ENCOUNTER_CONFLICT_PREFIX}:v${ENCOUNTER_DRAFT_VERSION}:${userId}:${encounterId}:`;
+  const conflicts: EncounterSectionConflictBackup[] = [];
+
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (!key || !key.startsWith(prefix)) {
+      continue;
+    }
+
+    const sectionKey = key.slice(prefix.length);
+    const conflict = readEncounterSectionConflict(encounterId, userId, sectionKey);
+    if (conflict) {
+      conflicts.push(conflict);
+    }
+  }
+
+  return conflicts.sort((left, right) => {
+    const leftTs = left.savedAt ? new Date(left.savedAt).getTime() : 0;
+    const rightTs = right.savedAt ? new Date(right.savedAt).getTime() : 0;
+    return rightTs - leftTs;
+  });
+}
+
 export function clearEncounterDraft(encounterId: string, userId: string): void {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(getEncounterDraftKey(encounterId, userId));

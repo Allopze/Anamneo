@@ -6,7 +6,11 @@ import {
 } from '@nestjs/common';
 import { Patient, Prisma } from '@prisma/client';
 import { validateRut } from '../common/utils/helpers';
-import { isDateOnlyAfterToday, calculateAgeFromBirthDate } from '../common/utils/local-date';
+import {
+  isDateOnlyAfterToday,
+  calculateAgeFromBirthDate,
+  parseDateOnlyToStoredUtcDate,
+} from '../common/utils/local-date';
 import { isPatientOwnedByMedico } from '../common/utils/patient-access';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -61,16 +65,19 @@ function applySharedDemographicFields(
     prevision?: string | null;
     trabajo?: string | null;
     domicilio?: string | null;
+    centroMedico?: string | null;
   },
 ) {
-  const { fechaNacimiento, edad, edadMeses, sexo, prevision, trabajo, domicilio } = params;
+  const { fechaNacimiento, edad, edadMeses, sexo, prevision, trabajo, domicilio, centroMedico } = params;
 
   if (fechaNacimiento !== undefined) {
     if (fechaNacimiento && isDateOnlyAfterToday(fechaNacimiento)) {
       throw new BadRequestException('La fecha de nacimiento no puede ser futura');
     }
 
-    updateData.fechaNacimiento = fechaNacimiento ? new Date(fechaNacimiento) : null;
+    updateData.fechaNacimiento = fechaNacimiento
+      ? parseDateOnlyToStoredUtcDate(fechaNacimiento, 'La fecha de nacimiento')
+      : null;
 
     if (fechaNacimiento) {
       const recalc = calculateAgeFromBirthDate(fechaNacimiento);
@@ -101,6 +108,10 @@ function applySharedDemographicFields(
 
   if (domicilio !== undefined) {
     updateData.domicilio = normalizeNullableString(domicilio);
+  }
+
+  if (centroMedico !== undefined) {
+    updateData.centroMedico = normalizeNullableString(centroMedico);
   }
 }
 
@@ -149,6 +160,7 @@ export async function updatePatientDemographicsMutation(params: UpdatePatientDem
     prevision: updatePatientDto.prevision,
     trabajo: updatePatientDto.trabajo,
     domicilio: updatePatientDto.domicilio,
+    centroMedico: updatePatientDto.centroMedico,
   });
 
   const dtoRutExempt = updatePatientDto.rutExempt;
@@ -262,6 +274,7 @@ export async function updatePatientAdminDemographicsMutation(params: UpdatePatie
     prevision: dto.prevision,
     trabajo: dto.trabajo,
     domicilio: dto.domicilio,
+    centroMedico: dto.centroMedico,
   });
 
   const nextPatient = {

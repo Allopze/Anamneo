@@ -213,6 +213,8 @@ export function useEncounterWizard() {
     saveStateToneClass,
     savingSectionKey: persistence.savingSectionKey,
     savedSectionKey: persistence.savedSectionKey,
+    localDraft: persistence.localDraft,
+    recoverableConflicts: persistence.recoverableConflicts,
     recoverableConflict: persistence.recoverableConflict,
     currentSectionState,
     currentSectionStatusMeta,

@@ -3,7 +3,11 @@ import type { QueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import {
   clearEncounterSectionConflict,
+  hasEncounterDraftUnsavedChanges,
+  listEncounterSectionConflicts,
+  readEncounterDraft,
   readEncounterSectionConflict,
+  type EncounterDraft,
   type EncounterSectionConflictBackup,
 } from '@/lib/encounter-draft';
 import type { Encounter, IdentificacionData, SectionKey } from '@/types';
@@ -50,6 +54,8 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
   const [errorSectionKey, setErrorSectionKey] = useState<SectionKey | null>(null);
   const [savedSnapshotJson, setSavedSnapshotJson] = useState('');
   const [isDraftHydrated, setIsDraftHydrated] = useState(false);
+  const [localDraft, setLocalDraft] = useState<EncounterDraft | null>(null);
+  const [recoverableConflicts, setRecoverableConflicts] = useState<EncounterSectionConflictBackup[]>([]);
   const [recoverableConflict, setRecoverableConflict] = useState<EncounterSectionConflictBackup | null>(null);
 
   const lastSavedRef = useRef<string>('');
@@ -96,24 +102,24 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
 
   useEffect(() => {
     if (!userId) {
+      setLocalDraft(null);
+      setRecoverableConflicts([]);
       setRecoverableConflict(null);
       return;
     }
+    const storedDraft = readEncounterDraft(id, userId);
+    setLocalDraft(storedDraft && hasEncounterDraftUnsavedChanges(storedDraft) ? storedDraft : null);
+
+    const visibleSectionKeys = new Set(sections.map((section) => section.sectionKey));
     const storedConflict = sections
       .map((section) => readEncounterSectionConflict(id, userId, section.sectionKey))
       .find((conflict): conflict is EncounterSectionConflictBackup => conflict !== null);
+    const storedConflicts = listEncounterSectionConflicts(id, userId).filter((conflict) =>
+      visibleSectionKeys.has(conflict.sectionKey as SectionKey));
 
-    if (storedConflict) {
-      setRecoverableConflict(storedConflict);
-      return;
-    }
-    setRecoverableConflict((current) => {
-      if (current?.encounterId === id) {
-        return current;
-      }
-      return null;
-    });
-  }, [currentSection?.sectionKey, id, sections, userId]);
+    setRecoverableConflicts(storedConflicts);
+    setRecoverableConflict(storedConflict ?? storedConflicts[0] ?? null);
+  }, [currentSectionIndex, formData, id, savedSnapshotJson, sections, userId]);
 
   const {
     saveSection,
@@ -138,6 +144,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     setHasUnsavedChanges,
     setLastSavedAt,
     setLastSaveOrigin,
+    setRecoverableConflicts,
     setRecoverableConflict,
     setSavedSectionKey,
     setSavedSnapshotJson,
@@ -174,26 +181,41 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     [canEdit],
   );
 
-  const handleRestoreRecoverableConflict = useCallback(() => {
-    if (!recoverableConflict) return;
+  const handleRestoreRecoverableConflict = useCallback((sectionKey?: string) => {
+    const targetConflict = sectionKey
+      ? recoverableConflicts.find((conflict) => conflict.sectionKey === sectionKey)
+      : recoverableConflict;
+    if (!targetConflict) return;
+
+    const targetSectionIndex = sections.findIndex((section) => section.sectionKey === targetConflict.sectionKey);
+    if (targetSectionIndex >= 0 && targetSectionIndex !== currentSectionIndex) {
+      setCurrentSectionIndex(targetSectionIndex);
+    }
 
     setFormData((previous) => ({
       ...previous,
-      [recoverableConflict.sectionKey]: recoverableConflict.localData,
+      [targetConflict.sectionKey]: targetConflict.localData,
     }));
-    setErrorSectionKey(recoverableConflict.sectionKey as SectionKey);
+    setErrorSectionKey(targetConflict.sectionKey as SectionKey);
     setHasUnsavedChanges(true);
     setSaveStatus('idle');
     toast.success('Se restauró tu copia local para que puedas revisarla antes de guardar.');
-  }, [recoverableConflict]);
+  }, [currentSectionIndex, recoverableConflict, recoverableConflicts, sections, setCurrentSectionIndex]);
 
-  const handleDismissRecoverableConflict = useCallback(() => {
-    if (!recoverableConflict || !userId) return;
+  const handleDismissRecoverableConflict = useCallback((sectionKey?: string) => {
+    const targetConflict = sectionKey
+      ? recoverableConflicts.find((conflict) => conflict.sectionKey === sectionKey)
+      : recoverableConflict;
+    if (!targetConflict || !userId) return;
 
-    clearEncounterSectionConflict(id, userId, recoverableConflict.sectionKey);
-    setRecoverableConflict(null);
+    clearEncounterSectionConflict(id, userId, targetConflict.sectionKey);
+    setRecoverableConflicts((current) => current.filter((conflict) => conflict.sectionKey !== targetConflict.sectionKey));
+    setRecoverableConflict((current) =>
+      current?.sectionKey === targetConflict.sectionKey
+        ? recoverableConflicts.find((conflict) => conflict.sectionKey !== targetConflict.sectionKey) ?? null
+        : current);
     toast.success('Se descartó la copia local en conflicto.');
-  }, [id, recoverableConflict, userId]);
+  }, [id, recoverableConflict, recoverableConflicts, userId]);
 
   const handleRestoreIdentificationFromPatient = useCallback(async () => {
     if (!encounter) return;
@@ -306,6 +328,8 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     savingSectionKey,
     savedSectionKey,
     errorSectionKey,
+    localDraft,
+    recoverableConflicts,
     recoverableConflict,
     savedSnapshotJson,
     pendingSaveCount: offlineQueue.pendingSaveCount,

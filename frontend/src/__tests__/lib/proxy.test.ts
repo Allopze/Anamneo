@@ -25,7 +25,7 @@ describe('resolveProxyDecision', () => {
     ).toEqual({ action: 'next' });
   });
 
-  it('redirects public routes only when the session can really be recovered', () => {
+  it('keeps public routes accessible when only a refresh token remains', () => {
     expect(
       resolveProxyDecision({
         pathname: '/login',
@@ -33,6 +33,18 @@ describe('resolveProxyDecision', () => {
         hasSessionCookie: true,
         hasRefreshToken: true,
         hasValidatedSession: false,
+      }),
+    ).toEqual({ action: 'next' });
+  });
+
+  it('redirects public routes only when an access token is already present', () => {
+    expect(
+      resolveProxyDecision({
+        pathname: '/register',
+        search: '',
+        hasSessionCookie: true,
+        hasRefreshToken: true,
+        hasValidatedSession: true,
       }),
     ).toEqual({ action: 'redirect', target: '/' });
   });

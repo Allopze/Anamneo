@@ -47,6 +47,7 @@ export default function EditarPacientePage() {
       prevision: null,
       trabajo: '',
       domicilio: '',
+      centroMedico: '',
       nombre: '',
       rut: '',
       rutExempt: false,
@@ -75,6 +76,7 @@ export default function EditarPacientePage() {
       prevision: patient.prevision,
       trabajo: patient.trabajo ?? '',
       domicilio: patient.domicilio ?? '',
+      centroMedico: patient.centroMedico ?? '',
       nombre: patient.nombre ?? '',
       rut: patient.rut ?? '',
       rutExempt: Boolean(patient.rutExempt),
@@ -90,6 +92,7 @@ export default function EditarPacientePage() {
     prevision: PatientPrevision | null;
     trabajo?: string | null;
     domicilio?: string | null;
+    centroMedico?: string | null;
   };
 
   const updateAdminMutation = useMutation({
@@ -142,6 +145,7 @@ export default function EditarPacientePage() {
       prevision: data.prevision,
       trabajo: data.trabajo ?? '',
       domicilio: data.domicilio ?? '',
+      centroMedico: data.centroMedico ?? '',
     };
 
     if (isDoctor) {
@@ -282,8 +286,10 @@ export default function EditarPacientePage() {
         {isDoctor && (
           <>
             <div>
-              <label className="form-label">Nombre completo</label>
+              <label htmlFor="nombre" className="form-label">Nombre completo</label>
               <input
+                id="nombre"
+                autoComplete="name"
                 className={clsx('form-input', editForm.formState.errors.nombre && 'form-input-error')}
                 {...editForm.register('nombre')}
               />
@@ -293,16 +299,20 @@ export default function EditarPacientePage() {
             </div>
 
             <div>
-              <label className="form-label">RUT</label>
-              <div className="space-y-2">
+              <label htmlFor="rut" className="form-label">RUT</label>
+              <div className="flex flex-col gap-2">
                 <input
+                  id="rut"
                   className={clsx('form-input', editForm.formState.errors.rut && 'form-input-error')}
                   disabled={Boolean(rutExempt)}
                   placeholder="Ej: 12.345.678-9"
+                  autoComplete="off"
+                  spellCheck={false}
                   {...editForm.register('rut')}
                 />
-                <label className="flex items-center gap-2">
+                <label htmlFor="rutExempt" className="flex items-center gap-2">
                   <input
+                    id="rutExempt"
                     type="checkbox"
                     className="rounded border-surface-muted/30 text-accent focus:ring-accent"
                     {...editForm.register('rutExempt')}
@@ -312,11 +322,13 @@ export default function EditarPacientePage() {
                 {Boolean(rutExempt) && (
                   <>
                     <input
+                      id="rutExemptReason"
                       className={clsx(
                         'form-input',
                         editForm.formState.errors.rutExemptReason && 'form-input-error'
                       )}
                       placeholder="Motivo de exencion (ej: extranjero, recien nacido)"
+                      autoComplete="off"
                       {...editForm.register('rutExemptReason')}
                     />
                     {editForm.formState.errors.rutExemptReason && (
@@ -333,10 +345,12 @@ export default function EditarPacientePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="form-label">Fecha de nacimiento</label>
+            <label htmlFor="fechaNacimiento" className="form-label">Fecha de nacimiento</label>
             <input
+              id="fechaNacimiento"
               type="date"
               max={todayLocalDateString()}
+              autoComplete="bday"
               className={clsx('form-input', editForm.formState.errors.fechaNacimiento && 'form-input-error')}
               {...editForm.register('fechaNacimiento')}
             />
@@ -346,8 +360,9 @@ export default function EditarPacientePage() {
           </div>
 
           <div>
-            <label className="form-label">Edad calculada</label>
+            <label htmlFor="edadCalculada" className="form-label">Edad calculada</label>
             <input
+              id="edadCalculada"
               type="text"
               readOnly
               tabIndex={-1}
@@ -363,8 +378,9 @@ export default function EditarPacientePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="form-label">Sexo</label>
+            <label htmlFor="sexo" className="form-label">Sexo</label>
             <select
+              id="sexo"
               className={clsx('form-input', editForm.formState.errors.sexo && 'form-input-error')}
               {...editForm.register('sexo', {
                 setValueAs: (value) => value === '' ? null : value,
@@ -383,8 +399,9 @@ export default function EditarPacientePage() {
         </div>
 
         <div>
-          <label className="form-label">Prevision</label>
+          <label htmlFor="prevision" className="form-label">Prevision</label>
           <select
+            id="prevision"
             className={clsx('form-input', editForm.formState.errors.prevision && 'form-input-error')}
             {...editForm.register('prevision', {
               setValueAs: (value) => value === '' ? null : value,
@@ -402,13 +419,23 @@ export default function EditarPacientePage() {
         </div>
 
         <div>
-          <label className="form-label">Trabajo / Ocupacion</label>
-          <input className="form-input" {...editForm.register('trabajo')} />
+          <label htmlFor="trabajo" className="form-label">Trabajo / Ocupacion</label>
+          <input id="trabajo" autoComplete="organization-title" className="form-input" {...editForm.register('trabajo')} />
         </div>
 
         <div>
-          <label className="form-label">Domicilio</label>
-          <input className="form-input" {...editForm.register('domicilio')} />
+          <label htmlFor="domicilio" className="form-label">Domicilio</label>
+          <input id="domicilio" autoComplete="street-address" className="form-input" {...editForm.register('domicilio')} />
+        </div>
+
+        <div>
+          <label htmlFor="centroMedico" className="form-label">Centro médico</label>
+          <input
+            id="centroMedico"
+            autoComplete="organization"
+            className="form-input"
+            {...editForm.register('centroMedico')}
+          />
         </div>
 
         <div className="pt-4 border-t border-surface-muted/30 flex items-center justify-end gap-3">

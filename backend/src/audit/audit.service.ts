@@ -150,30 +150,6 @@ export class AuditService {
     });
   }
 
-  async findByUser(userId: string, page = 1, limit = 50) {
-    const skip = (page - 1) * limit;
-
-    const [logs, total] = await Promise.all([
-      this.prisma.auditLog.findMany({
-        where: { userId },
-        skip,
-        take: limit,
-        orderBy: { timestamp: 'desc' },
-      }),
-      this.prisma.auditLog.count({ where: { userId } }),
-    ]);
-
-    return {
-      data: logs,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
-  }
-
   async verifyChain(limit = 1000): Promise<{ valid: boolean; checked: number; total: number; brokenAt?: string; warning?: string }> {
     const total = await this.prisma.auditLog.count();
     const entries = await this.prisma.auditLog.findMany({

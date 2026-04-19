@@ -31,6 +31,7 @@ import {
 import EncounterHeader from './EncounterHeader';
 import EncounterSectionRail from './EncounterSectionRail';
 import EncounterAttachmentsModal from './EncounterAttachmentsModal';
+import EncounterRecoveryPanel from './EncounterRecoveryPanel';
 
 export default function EncounterWizardPage() {
   const wiz = useEncounterWizard();
@@ -60,6 +61,7 @@ export default function EncounterWizardPage() {
   }
 
   const { encounter, sections, currentSection, currentSectionIndex, SectionComponent, formData } = wiz;
+  const sectionLabelByKey = Object.fromEntries(sections.map((section) => [section.sectionKey, section.label]));
   const conflictSectionIndex = wiz.recoverableConflict
     ? sections.findIndex((section) => section.sectionKey === wiz.recoverableConflict?.sectionKey)
     : -1;
@@ -189,22 +191,36 @@ export default function EncounterWizardPage() {
 
             {encounter.patientId ? <ClinicalAlerts patientId={encounter.patientId} variant="workspace-sticky" /> : null}
 
+            {wiz.localDraft || wiz.recoverableConflicts.length > 0 ? (
+              <EncounterRecoveryPanel
+                currentSectionKey={currentSection?.sectionKey}
+                currentSectionIndex={currentSectionIndex}
+                localDraft={wiz.localDraft}
+                recoverableConflicts={wiz.recoverableConflicts}
+                sectionLabelByKey={sectionLabelByKey}
+                moveToSection={wiz.moveToSection}
+                getSectionIndex={(sectionKey) => sections.findIndex((section) => section.sectionKey === sectionKey)}
+                onRestoreConflict={wiz.handleRestoreRecoverableConflict}
+                onDismissConflict={wiz.handleDismissRecoverableConflict}
+              />
+            ) : null}
+
             {wiz.recoverableConflict ? (
               <section className="rounded-card border border-amber-300/80 bg-amber-50 px-4 py-4 text-sm text-amber-950 shadow-sm">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-1">
-                    <p className="font-semibold">Se detectó un conflicto de edición en esta atención.</p>
+                    <p className="font-semibold">La copia local quedó protegida y lista para comparar.</p>
                     <p>
                       La sección <strong>{sections[conflictSectionIndex]?.label ?? wiz.recoverableConflict.sectionKey}</strong>{' '}
-                      se recargó desde servidor para evitar sobrescribir cambios ajenos. Tu versión local quedó guardada
-                      temporalmente para que puedas revisarla.
+                      ya fue recargada con la versión del servidor. Puedes restaurar tu texto desde el panel de
+                      recuperación o seguir revisando la versión vigente.
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {isViewingConflictSection ? (
                       <button
                         type="button"
-                        onClick={wiz.handleRestoreRecoverableConflict}
+                        onClick={() => wiz.handleRestoreRecoverableConflict(wiz.recoverableConflict?.sectionKey)}
                         className="rounded-full bg-amber-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-950"
                       >
                         Restaurar mi copia local
@@ -222,13 +238,6 @@ export default function EncounterWizardPage() {
                         Ir a la sección en conflicto
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={wiz.handleDismissRecoverableConflict}
-                      className="rounded-full border border-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-950 transition-colors hover:bg-amber-100"
-                    >
-                      Descartar copia local
-                    </button>
                   </div>
                 </div>
               </section>

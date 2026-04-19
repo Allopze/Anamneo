@@ -179,6 +179,17 @@ export interface PatientAdminSummary {
   };
 }
 
+export interface PatientOperationalHistoryItem {
+  id: string;
+  timestamp: string;
+  reason: 'PATIENT_ARCHIVED' | 'PATIENT_RESTORED' | 'ENCOUNTER_CANCELLED' | 'ENCOUNTER_REOPENED';
+  label: string;
+  detail: string | null;
+  userName: string;
+  encounterId: string | null;
+  encounterCreatedAt: string | null;
+}
+
 // Patient labels
 export const SEXO_LABELS: Record<string, string> = {
   MASCULINO: 'Masculino',

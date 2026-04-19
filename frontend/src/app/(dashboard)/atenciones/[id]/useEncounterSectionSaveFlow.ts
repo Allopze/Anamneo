@@ -41,6 +41,7 @@ interface UseEncounterSectionSaveFlowParams {
   setHasUnsavedChanges: React.Dispatch<React.SetStateAction<boolean>>;
   setLastSavedAt: React.Dispatch<React.SetStateAction<Date | null>>;
   setLastSaveOrigin: React.Dispatch<React.SetStateAction<'direct' | 'offline-sync' | null>>;
+  setRecoverableConflicts: React.Dispatch<React.SetStateAction<EncounterSectionConflictBackup[]>>;
   setRecoverableConflict: React.Dispatch<React.SetStateAction<EncounterSectionConflictBackup | null>>;
   setSavedSectionKey: React.Dispatch<React.SetStateAction<SectionKey | null>>;
   setSavedSnapshotJson: React.Dispatch<React.SetStateAction<string>>;
@@ -117,6 +118,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
     setHasUnsavedChanges,
     setLastSavedAt,
     setLastSaveOrigin,
+    setRecoverableConflicts,
     setRecoverableConflict,
     setSavedSectionKey,
     setSavedSnapshotJson,
@@ -142,6 +144,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
 
       const normalizedServerData = (latestSection.data ?? {}) as Record<string, unknown>;
       if (localDataForConflict && userId) {
+        const savedAt = new Date().toISOString();
         const conflictBackup: EncounterSectionConflictBackup = {
           version: 2,
           encounterId: id,
@@ -150,8 +153,13 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
           localData: localDataForConflict,
           serverData: normalizedServerData,
           serverUpdatedAt: latestSection.updatedAt,
+          savedAt,
         };
         writeEncounterSectionConflict(conflictBackup);
+        setRecoverableConflicts((current) => [
+          conflictBackup,
+          ...current.filter((item) => item.sectionKey !== sectionKey),
+        ]);
         setRecoverableConflict(conflictBackup);
       }
 
@@ -172,7 +180,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       setErrorSectionKey(localDataForConflict ? sectionKey : null);
       setSaveStatus(localDataForConflict ? 'error' : 'idle');
     },
-    [activeSectionKeyRef, id, lastSavedRef, queryClient, setErrorSectionKey, setFormData, setHasUnsavedChanges, setLastSavedAt, setLastSaveOrigin, setRecoverableConflict, setSavedSectionKey, setSavedSnapshotJson, setSaveStatus, setSavingSectionKey, userId],
+    [activeSectionKeyRef, id, lastSavedRef, queryClient, setErrorSectionKey, setFormData, setHasUnsavedChanges, setLastSavedAt, setLastSaveOrigin, setRecoverableConflicts, setRecoverableConflict, setSavedSectionKey, setSavedSnapshotJson, setSaveStatus, setSavingSectionKey, userId],
   );
 
   const saveSection = useCallback(
@@ -305,6 +313,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       if (userId) {
         clearEncounterSectionConflict(id, userId, variables.sectionKey);
       }
+      setRecoverableConflicts((current) => current.filter((item) => item.sectionKey !== variables.sectionKey));
       setRecoverableConflict((current) => (current?.sectionKey === variables.sectionKey ? null : current));
       setSaveStatus('saved');
       setLastSavedAt(new Date());

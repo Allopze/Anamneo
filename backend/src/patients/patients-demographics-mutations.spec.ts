@@ -35,6 +35,7 @@ describe('patients-demographics-mutations', () => {
       prevision: 'FONASA',
       trabajo: 'Trabajo anterior',
       domicilio: 'Domicilio anterior',
+      centroMedico: 'Centro Base',
       completenessStatus: 'VERIFICADA',
       demographicsVerifiedAt: new Date('2026-01-01T00:00:00.000Z'),
       demographicsVerifiedById: 'med-1',
@@ -149,12 +150,57 @@ describe('patients-demographics-mutations', () => {
     );
   });
 
+  it('stores updated birth dates using the shared date-only convention', async () => {
+    const existingPatient = buildExistingPatient();
+    const updatedPatient = {
+      ...existingPatient,
+      fechaNacimiento: new Date('1991-06-15T12:00:00.000Z'),
+      edad: 33,
+      edadMeses: 10,
+    };
+
+    const tx = {
+      patient: {
+        update: jest.fn().mockResolvedValue(updatedPatient),
+      },
+    };
+
+    const prisma = {
+      patient: {
+        findUnique: jest.fn().mockResolvedValue(existingPatient),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const auditService = { log: jest.fn().mockResolvedValue(undefined) };
+
+    await updatePatientDemographicsMutation({
+      prisma: prisma as never,
+      auditService: auditService as never,
+      id: 'patient-1',
+      updatePatientDto: {
+        fechaNacimiento: '1991-06-15',
+      },
+      user: medicoUser,
+      effectiveMedicoId: 'med-1',
+    });
+
+    expect(tx.patient.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          fechaNacimiento: new Date('1991-06-15T12:00:00.000Z'),
+        }),
+      }),
+    );
+  });
+
   it('updates admin demographic fields and logs ADMIN_FIELDS scope', async () => {
     const existingPatient = buildExistingPatient();
     const updatedPatient = {
       ...existingPatient,
       trabajo: null,
       domicilio: 'Calle Nueva 123',
+      centroMedico: 'Centro Norte',
     };
 
     const tx = {
@@ -179,6 +225,7 @@ describe('patients-demographics-mutations', () => {
       dto: {
         trabajo: '   ',
         domicilio: '  Calle Nueva 123  ',
+        centroMedico: '  Centro Norte  ',
       },
       user: adminUser,
       assertPatientAccess,
@@ -193,6 +240,7 @@ describe('patients-demographics-mutations', () => {
         data: expect.objectContaining({
           trabajo: null,
           domicilio: 'Calle Nueva 123',
+          centroMedico: 'Centro Norte',
         }),
       }),
     );

@@ -31,6 +31,7 @@ import {
   FindPatientsFilters,
   getPatientAdminSummaryReadModel,
 } from './patients-read-side';
+import { getPatientOperationalHistoryReadModel } from './patients-operational-history-read-model';
 import type { PossiblePatientDuplicate } from './patients-read-side';
 import { findPatientTasksReadModel, PatientTaskInboxFilters } from './patients-task-read-model';
 import {
@@ -155,6 +156,18 @@ export class PatientsService {
       patientId,
       effectiveMedicoId,
       page,
+      limit,
+    });
+  }
+
+  async findOperationalHistory(user: RequestUser, patientId: string, limit = 20) {
+    await this.assertPatientAccess(user, patientId);
+    const effectiveMedicoId = getEffectiveMedicoId(user);
+
+    return getPatientOperationalHistoryReadModel({
+      prisma: this.prisma,
+      patientId,
+      effectiveMedicoId,
       limit,
     });
   }

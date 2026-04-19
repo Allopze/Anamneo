@@ -161,6 +161,16 @@ export class PatientsController {
     return this.patientsService.findEncounterTimeline(user, id, page || 1, limit || 10);
   }
 
+  @Get(':id/operational-history')
+  @Roles('MEDICO', 'ASISTENTE')
+  findOperationalHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserData,
+    @Query('limit') limit?: number,
+  ) {
+    return this.patientsService.findOperationalHistory(user, id, limit || 20);
+  }
+
   @Get(':id/clinical-summary')
   @Roles('MEDICO', 'ASISTENTE')
   getClinicalSummary(

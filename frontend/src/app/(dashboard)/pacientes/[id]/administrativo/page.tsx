@@ -143,6 +143,7 @@ export default function PatientAdministrativeDetailPage() {
             <DetailField label="Estado" value={completenessMeta.label} />
             <DetailField label="Trabajo" value={data.trabajo || 'No informado'} />
             <DetailField label="Domicilio" value={data.domicilio || 'No informado'} />
+            <DetailField label="Centro médico" value={data.centroMedico || 'No informado'} />
           </dl>
         </section>
 

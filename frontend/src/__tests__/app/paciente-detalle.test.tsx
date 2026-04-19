@@ -9,6 +9,7 @@ import {
   baseEncounterListPage1,
   baseEncounterListPage2,
   baseClinicalSummary,
+  baseOperationalHistory,
   emptyClinicalSummary,
   emptyEncounterList,
 } from './paciente-detalle.fixtures';
@@ -88,6 +89,10 @@ beforeEach(() => {
       return Promise.resolve({ data: baseClinicalSummary });
     }
 
+    if (url === '/patients/patient-1/operational-history?limit=12') {
+      return Promise.resolve({ data: baseOperationalHistory });
+    }
+
     if (url === '/patients/patient-1/encounters?page=2&limit=10') {
       return Promise.resolve({ data: baseEncounterListPage2 });
     }
@@ -116,7 +121,9 @@ describe('PatientDetailPage', () => {
     render(<PatientDetailPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByText('Página 1 de 2')).toBeInTheDocument();
+    expect(screen.getByText('Centro Integral Norte')).toBeInTheDocument();
     expect(screen.getByText('Resumen longitudinal')).toBeInTheDocument();
+    expect(screen.getByText('Historial operativo')).toBeInTheDocument();
     expect(screen.getByText(/Atención del/i)).toBeInTheDocument();
     expect(await screen.findByText('Migraña · 2')).toBeInTheDocument();
     expect(screen.getAllByText('Resumen: Paciente en mejoría.').length).toBeGreaterThanOrEqual(1);
@@ -235,6 +242,10 @@ describe('PatientDetailPage', () => {
         return Promise.resolve({ data: emptyClinicalSummary });
       }
 
+      if (url === '/patients/patient-1/operational-history?limit=12') {
+        return Promise.resolve({ data: baseOperationalHistory });
+      }
+
       throw new Error(`Unexpected GET ${url}`);
     });
 
@@ -283,6 +294,10 @@ describe('PatientDetailPage', () => {
         return Promise.resolve({ data: emptyClinicalSummary });
       }
 
+      if (url === '/patients/patient-1/operational-history?limit=12') {
+        return Promise.resolve({ data: [] });
+      }
+
       throw new Error(`Unexpected GET ${url}`);
     });
 
@@ -319,6 +334,10 @@ describe('PatientDetailPage', () => {
         return Promise.resolve({ data: emptyClinicalSummary });
       }
 
+      if (url === '/patients/patient-1/operational-history?limit=12') {
+        return Promise.resolve({ data: baseOperationalHistory });
+      }
+
       throw new Error(`Unexpected GET ${url}`);
     });
 
@@ -326,6 +345,17 @@ describe('PatientDetailPage', () => {
 
     expect((await screen.findAllByText('Penicilina')).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('No hay antecedentes registrados')).not.toBeInTheDocument();
+  });
+
+  it('renders operational traceability for archive/restore and reopen events', async () => {
+    render(<PatientDetailPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Historial operativo')).toBeInTheDocument();
+    expect(screen.getByText('Restauración de paciente')).toBeInTheDocument();
+    expect(screen.getByText('Reapertura de atención')).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('link', { name: 'Ver atención' }).some((link) => link.getAttribute('href') === '/atenciones/enc-1'),
+    ).toBe(true);
   });
 
   it('normalizes task updates before the PUT request when clearing a due date', async () => {
@@ -363,6 +393,10 @@ describe('PatientDetailPage', () => {
 
       if (url === '/patients/patient-1/clinical-summary') {
         return Promise.resolve({ data: emptyClinicalSummary });
+      }
+
+      if (url === '/patients/patient-1/operational-history?limit=12') {
+        return Promise.resolve({ data: baseOperationalHistory });
       }
 
       throw new Error(`Unexpected GET ${url}`);

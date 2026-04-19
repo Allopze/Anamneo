@@ -8,6 +8,7 @@ export type EditForm = {
   prevision: PatientPrevision | null;
   trabajo?: string | null;
   domicilio?: string | null;
+  centroMedico?: string | null;
   nombre?: string;
   rut?: string | null;
   rutExempt?: boolean;
@@ -21,6 +22,7 @@ export function buildEditSchema(isDoctor: boolean) {
     prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA']).nullable(),
     trabajo: z.string().nullable().optional(),
     domicilio: z.string().nullable().optional(),
+    centroMedico: z.string().nullable().optional(),
   });
 
   if (!isDoctor) return base;

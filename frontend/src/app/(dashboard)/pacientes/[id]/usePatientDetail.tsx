@@ -6,7 +6,12 @@ import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tansta
 import type { AxiosError } from 'axios';
 import { api, getErrorMessage, PaginatedResponse } from '@/lib/api';
 import { DUPLICATE_ENCOUNTER_CREATED_MESSAGE } from '@/lib/encounter-duplicate';
-import type { Patient, Encounter, PatientClinicalSummary } from '@/types';
+import type {
+  Patient,
+  Encounter,
+  PatientClinicalSummary,
+  PatientOperationalHistoryItem,
+} from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { useHeaderBarSlot } from '@/components/layout/HeaderBarSlotContext';
 import PatientContextBar from '@/components/PatientContextBar';
@@ -95,6 +100,15 @@ export function usePatientDetail() {
       return response.data as PaginatedResponse<Encounter>;
     },
     placeholderData: keepPreviousData,
+    enabled: !user?.isAdmin,
+  });
+
+  const { data: patientOperationalHistory, isLoading: isOperationalHistoryLoading } = useQuery({
+    queryKey: ['patient-operational-history', id],
+    queryFn: async () => {
+      const response = await api.get(`/patients/${id}/operational-history?limit=12`);
+      return response.data as PatientOperationalHistoryItem[];
+    },
     enabled: !user?.isAdmin,
   });
 
@@ -300,6 +314,8 @@ export function usePatientDetail() {
     encounterTimeline,
     isTimelineLoading,
     isTimelinePlaceholderData,
+    patientOperationalHistory,
+    isOperationalHistoryLoading,
     encounterPage,
     setEncounterPage,
 

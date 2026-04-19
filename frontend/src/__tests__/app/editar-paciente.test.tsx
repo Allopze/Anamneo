@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import EditarPacientePage from '@/app/(dashboard)/pacientes/[id]/editar/page';
 
 const pushMock = jest.fn();
@@ -78,6 +79,7 @@ describe('EditarPacientePage', () => {
             prevision: 'FONASA',
             trabajo: 'Docente',
             domicilio: 'Santiago',
+            centroMedico: 'Centro Base',
             completenessStatus: 'VERIFICADA',
           },
         });
@@ -119,6 +121,26 @@ describe('EditarPacientePage', () => {
           excludePatientId: 'patient-1',
         }),
       });
+    });
+  });
+
+  it('submits centroMedico together with the editable demographic payload', async () => {
+    const user = userEvent.setup();
+    render(<EditarPacientePage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByDisplayValue('Centro Base')).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText('Centro médico'));
+    await user.type(screen.getByLabelText('Centro médico'), 'Centro Norte');
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    await waitFor(() => {
+      expect(apiPutMock).toHaveBeenCalledWith(
+        '/patients/patient-1',
+        expect.objectContaining({
+          centroMedico: 'Centro Norte',
+        }),
+      );
     });
   });
 });

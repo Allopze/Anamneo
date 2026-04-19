@@ -6,12 +6,20 @@ Fecha: 2026-04-18
 
 - Se aplicó una pasada correctiva sobre los hallazgos altos H1, H2 y H4.
 - Se aplicó una segunda pasada correctiva sobre los hallazgos medios H3 y H5.
+- Se aplicó una tercera pasada correctiva sobre los hallazgos bajos H6 y H7.
+- Se aplicó una cuarta pasada correctiva sobre consistencia de fechas "solo día", UX de conflicto `409`, visibilidad de borradores locales y trazabilidad operativa de archivo/restauración/reapertura.
 - Quedó implementada una bandeja mínima de pacientes archivados con restauración desde frontend, filtro `archived` en backend y reapertura automática de las atenciones que el archivado había cancelado.
 - `Encounter.updatedAt` ahora se toca cuando se guarda o reconcilia una sección, por lo que dashboard, actividad reciente y detección de borradores obsoletos vuelven a apoyarse en una fecha clínicamente útil.
 - `ClinicalAlerts` dejó de depender del timeline resumido roto y pasó a leer `clinical-summary`, reutilizando `shared/vital-sign-alerts.ts`.
 - Ante un `409`, el frontend ahora conserva la copia local conflictiva en `localStorage`, recarga la versión servidor como base segura y expone acciones explícitas para restaurar o descartar esa copia.
+- `fechaNacimiento` dejó de almacenarse con una convención distinta a problemas y tareas; ahora pacientes también usa la misma normalización date-only hacia UTC mediodía.
+- La workspace de atención ahora expone un panel explícito de recuperación local con borrador activo, copias en conflicto y comparativa corta entre servidor y copia local.
+- La ficha del paciente ahora muestra un historial operativo compacto con archivo, restauración y reaperturas relevantes apoyado en auditoría real.
 - `verifyChain()` ahora recalcula el hash esperado con el contenido real de cada evento, y la ruta `GET /api/audit/integrity/verify` quedó declarada en un orden no ambiguo.
-- Validación posterior a los fixes: `npm --prefix backend run typecheck`, `npm --prefix frontend run typecheck`, `npm --prefix backend run test -- --runInBand src/audit/audit.service.spec.ts`, `npm --prefix frontend run test -- --runInBand src/__tests__/lib/encounter-draft.test.ts src/__tests__/app/atencion-cierre.test.tsx` y `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts`, todo en verde.
+- `centroMedico` dejó de ser un dato fantasma: ahora también viaja por actualización administrativa y se muestra en edición/detalle clínico y administrativo.
+- Se tomó la decisión de producto de mantener `centroMedico` como dato administrativo simple por ahora, sin meterlo todavía en filtros, permisos ni lógica clínica.
+- El proxy dejó de redirigir automáticamente `/login` y `/register` cuando solo queda `refresh_token`; ahora solo rebota si hay `access_token` ya validado.
+- Validación posterior a los fixes: `npm --prefix backend run typecheck`, `npm --prefix frontend run typecheck`, `npm --prefix backend run test -- --runInBand src/patients/patients-intake-mutations.spec.ts src/patients/patients-demographics-mutations.spec.ts src/patients/patients-operational-history-read-model.spec.ts`, `npm --prefix frontend run test -- --runInBand src/__tests__/lib/encounter-draft.test.ts src/__tests__/app/atencion-cierre.test.tsx src/__tests__/app/paciente-detalle.test.tsx`, `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` y `npm --prefix frontend run test:e2e:smoke`, todo en verde.
 
 ## 1. Resumen ejecutivo
 
@@ -19,7 +27,7 @@ Fecha: 2026-04-18
 - Durante esta auditoría quedaron en verde `backend/frontend typecheck`, suites unitarias dirigidas, E2E backend completo y previamente también Playwright frontend completo.
 - No encontré corrupción directa de datos en los flujos principales, ni bypasses obvios de permisos en pacientes, atenciones, tareas, consentimientos o alertas.
 - Tras las dos pasadas correctivas del 2026-04-19, ya no quedan abiertos los hallazgos altos ni los medios más delicados detectados en la auditoría original.
-- El impacto residual es funcional y operativo, no "enterprise": hoy lo pendiente es más de cierre de producto y consistencia que de estabilidad base.
+- El impacto residual es funcional y operativo, no "enterprise": hoy lo pendiente se concentra sobre todo en ergonomía adicional de borradores/conflictos y limpieza técnica menor.
 - Nivel de madurez general: medio-alto para una app médica pequeña usada por hasta 5 personas.
 - Veredicto actualizado: **está razonablemente lista para producción** para su contexto real.
 
@@ -28,7 +36,7 @@ Fecha: 2026-04-18
 - Conclusión: **está razonablemente lista**
 - Justificación concreta:
 - Hay buena base técnica y buena cobertura automática.
-- Quedaron en verde `npm --prefix backend run typecheck`, `npm --prefix frontend run typecheck`, `npm --prefix backend run test -- --runInBand src/audit/audit.service.spec.ts`, `npm --prefix frontend run test -- --runInBand src/__tests__/lib/encounter-draft.test.ts src/__tests__/app/atencion-cierre.test.tsx` y `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts`.
+- Quedaron en verde `npm --prefix backend run typecheck`, `npm --prefix frontend run typecheck`, `npm --prefix backend run test -- --runInBand src/patients/patients-demographics-mutations.spec.ts`, `npm --prefix frontend run test -- --runInBand src/__tests__/app/editar-paciente.test.tsx src/__tests__/app/paciente-admin-detalle.test.tsx src/__tests__/app/paciente-detalle.test.tsx src/__tests__/lib/proxy.test.ts`, `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` y `npm --prefix frontend run test:e2e:smoke`.
 - Los contratos de permisos clínicos están bastante bien cerrados y el guardado de secciones tiene control de concurrencia con `409`.
 - El flujo de concurrencia ya no pierde silenciosamente el texto local: conserva una copia recuperable y obliga a una acción explícita del usuario para restaurarla o descartarla.
 - La verificación de auditoría ya no es superficial: recalcula el hash del contenido real de cada evento antes de declarar la cadena válida.
@@ -36,12 +44,11 @@ Fecha: 2026-04-18
   - No identifiqué blockers nuevos de severidad alta o media para el contexto real de uso.
 - Riesgos aceptables para este contexto:
   - El tope de 500 pacientes en búsqueda clínica es aceptable hoy porque la UI sí avisa cuando aplica.
-  - La UX de login con refresh revocado es molesta pero no rompe datos.
-  - `centroMedico` incompleto en UI no bloquea si ese campo aún no es operativo.
+  - La UX de login con refresh revocado ya no hace bounce preventivo en rutas públicas, aunque todavía no ofrece un mensaje más explícito sobre sesión vencida hasta que falla la recuperación real.
+  - `centroMedico` queda explícitamente como dato administrativo simple; no lo llevaría aún a filtros/listados hasta que exista uso operativo real por centro.
 - Condiciones mínimas para desplegar con confianza:
   - Mantener la pasada actual validada en staging/local con el flujo real de archivado-restauración y conflicto `409`.
-  - Cerrar la decisión de producto sobre `centroMedico`: exponerlo bien o retirarlo temporalmente.
-  - Unificar la convención de fechas "solo día" antes de seguir ampliando problemas/tareas/fechas administrativas.
+  - Mantener una revisión manual breve del nuevo historial operativo y de la recuperación local en los roles reales que la usarán.
 
 ## 3. Hallazgos
 
@@ -122,7 +129,7 @@ Fecha: 2026-04-18
   - `onError` llama `refreshSectionFromServer`, reinyecta `latestSection.data` y marca la sección como limpia.
 - Resolución aplicada:
   - Antes de sobreescribir la sección, el frontend guarda la copia local conflictiva en `localStorage`.
-  - La atención vuelve a mostrar la versión servidor como base segura, pero expone un banner con acciones explícitas para restaurar o descartar la copia local.
+  - La atención vuelve a mostrar la versión servidor como base segura, pero ahora expone además un panel explícito de recuperación local con borrador activo, listado de copias en conflicto y comparativa corta servidor vs copia local.
   - Se añadieron pruebas dirigidas para helpers de conflicto y para la UX visible de recuperación.
 - Complejidad estimada de arreglo: **media**
 
@@ -181,6 +188,8 @@ Fecha: 2026-04-18
 
 ### H6. `centroMedico` quedó a medio camino: se crea y viaja por API, pero no se puede consultar ni corregir bien desde la UI
 
+- Estado 2026-04-19: **Resuelto en esta pasada**
+
 - Prioridad: **Bajo**
 - Área afectada: **full stack / datos administrativos / UX**
 - Archivo(s) o módulo(s) involucrados:
@@ -202,12 +211,15 @@ Fecha: 2026-04-18
   - El campo existe en creación.
   - No aparece en `editar/page.tsx`.
   - No se renderiza en detalle clínico ni administrativo.
-- Propuesta de solución, proporcional al tamaño de la app:
-  - O se incorpora de punta a punta en edición y detalle.
-  - O se elimina del producto por ahora para no mantener un dato fantasma.
+- Resolución aplicada:
+  - Se integró `centroMedico` en el formulario de edición clínica/administrativa.
+  - El backend administrativo también lo acepta y normaliza en `updateAdmin`.
+  - El dato ya se muestra en la ficha clínica y en la ficha administrativa.
 - Complejidad estimada de arreglo: **baja**
 
 ### H7. El proxy de autenticación puede generar un bounce innecesario con refresh token revocado
+
+- Estado 2026-04-19: **Resuelto en esta pasada**
 
 - Prioridad: **Bajo**
 - Área afectada: **frontend / auth / UX**
@@ -223,9 +235,10 @@ Fecha: 2026-04-18
 - Cómo reproducirlo o cómo razoné que existe:
   - Basta con que la cookie siga presente pero la sesión haya sido revocada del lado servidor.
   - El proxy deja pasar o redirige solo por presencia de cookie; la validez real se resuelve más tarde.
-- Propuesta de solución, proporcional al tamaño de la app:
-  - En rutas públicas, redirigir automáticamente solo si hay `access_token` validado.
-  - O mantener la decisión actual pero con un guard más explícito y sin bounce visual.
+- Resolución aplicada:
+  - En `/login` y `/register`, el proxy ya no rebota por simple presencia de `refresh_token`.
+  - La redirección automática en rutas públicas ahora ocurre solo cuando existe sesión validada por `access_token`.
+  - Se añadieron tests unitarios del guard y smoke E2E del flujo auth.
 - Complejidad estimada de arreglo: **baja**
 
 ## 4. Inconsistencias frontend-backend
@@ -235,33 +248,33 @@ Fecha: 2026-04-18
 - Resuelta 2026-04-19: `encounter.updatedAt` vuelve a representar la última edición clínica útil porque se toca al guardar secciones.
 - Resuelta 2026-04-19: el frontend ya expone restauración de pacientes archivados.
 - Resuelta 2026-04-19: el frontend ya no pierde silenciosamente el texto local cuando el backend responde `409`; conserva una copia recuperable antes de reinyectar estado servidor.
-- El backend soporta `centroMedico` en DTOs y responses; el frontend solo lo usa al crear y luego lo deja invisible.
-- Hipótesis: la estrategia de fechas "solo día" no está unificada.
-- Pacientes usan `new Date(fechaNacimiento)` en `backend/src/patients/patients-intake-mutations.ts:73` y `backend/src/patients/patients-demographics-mutations.ts:73`.
-- Problemas y tareas usan `parseDateOnlyToStoredUtcDate(...)` en `backend/src/common/utils/local-date.ts:86-89`.
-- No vi un bug visible hoy en UI por esto, pero sí una convención inconsistente que conviene unificar antes de que aparezcan desfaces por zona horaria.
+- Resuelta 2026-04-19: `centroMedico` ya no quedó desalineado entre DTOs/responses y UI de edición/detalle.
+- Resuelta 2026-04-19: pacientes ya usa la misma convención date-only que problemas y tareas (`parseDateOnlyToStoredUtcDate(...)`).
 
 ## 5. Riesgos específicos por tratarse de una app médica
 
 - Riesgo mitigado 2026-04-19: archivar una ficha equivocada ya no deja una recuperación ciega; existe bandeja de archivados y reapertura automática de atenciones canceladas por ese archivado.
 - Riesgo mitigado 2026-04-19: el panel de contexto clínico ya no pierde warning-level del último control por leer un contrato roto.
 - Riesgo mitigado 2026-04-19: un conflicto de edición entre sesiones ya no descarta automáticamente el texto local; queda una copia recuperable explícita.
+- Riesgo mitigado 2026-04-19: la recuperación local ya no depende solo de un banner contextual; la workspace expone un panel visible con borrador activo y resumen corto del conflicto.
 - Riesgo mitigado 2026-04-19: la actividad reciente volvió a alinearse con edición clínica real al corregirse `encounter.updatedAt`.
+- Riesgo mitigado 2026-04-19: archivo, restauración y reapertura ya tienen una traza visual compacta en la ficha del paciente.
 - No vi errores directos de dosis, identificadores de paciente mezclados, ni documentos firmados editables por accidente; esa parte quedó mejor resuelta que el promedio.
 
 ## 6. Mejoras recomendadas
 
 ### Quick wins
 
-- Añadir una vista mínima de pacientes archivados con botón `Restaurar`.
-- Corregir `ClinicalAlerts` para que lea una fuente que sí incluya el último examen físico o, mejor, que ya traiga un resumen clínico derivado.
-- Guardar una copia local del payload conflictivo antes de sobrescribirlo tras un `409`.
-- O exponer `centroMedico` en edición/detalle o retirarlo temporalmente del producto.
 - Hecho 2026-04-19: copia local recuperable y banner de recuperación ante conflictos `409`.
+- Hecho 2026-04-19: panel explícito de recuperación local con diff corto y estado del borrador.
+- Hecho 2026-04-19: `centroMedico` quedó integrado en edición y detalle sin sobreingeniería adicional.
+- Hecho 2026-04-19: el proxy dejó de hacer bounce en `/login` y `/register` cuando solo queda `refresh_token`.
 - Hecho 2026-04-19: tests dirigidos para `archive -> restore -> recovery de atenciones`.
 - Hecho 2026-04-19: tests dirigidos para `section save -> parent encounter updatedAt`.
 - Hecho 2026-04-19: tests dirigidos para `ClinicalAlerts` con resumen clínico real.
 - Hecho 2026-04-19: tests dirigidos y E2E para `audit integrity verify`.
+- Hecho 2026-04-19: historial operativo visible para archivo/restauración/reapertura.
+- Hecho 2026-04-19: convención unificada de fechas "solo día" también en pacientes.
 
 ### Arreglos de mayor impacto
 
@@ -271,9 +284,8 @@ Fecha: 2026-04-18
 
 ### Limpieza técnica útil pero no overkill
 
-- Unificar la convención de fechas "solo día" en pacientes, problemas y tareas.
-- Eliminar código de auditoría no usado (`AuditService.findByUser`) o exponer el caso de uso real si sí se necesita.
-- Reducir duplicación de reglas clínicas entre `ClinicalAlerts` y `shared/vital-sign-alerts.ts`.
+- Hecho 2026-04-19: se eliminó `AuditService.findByUser` al no tener caso de uso real en el repo.
+- Hecho 2026-04-19: se redujo la duplicación entre `ClinicalAlerts` y `shared/vital-sign-alerts.ts` centralizando la salida normalizada de hallazgos vitales.
 
 ## 7. Nuevas funcionalidades sugeridas
 
@@ -281,23 +293,21 @@ Fecha: 2026-04-18
 | --- | --- | --- | --- | --- | --- |
 | Bandeja de pacientes archivados con restauración | Hoy archivar era prácticamente unidireccional desde la UI | Ya quedó implementada en esta pasada | Alto | Baja-media | Hecho |
 | Reapertura guiada de atenciones canceladas por archivado | Recuperación incompleta tras archivar/restaurar | Ya quedó resuelta automáticamente para las atenciones canceladas por el archivado | Alto | Media | Hecho |
-| Modal de conflicto con diff/copia local | Hacer más legible la recuperación tras `409` | Ya existe copia local recuperable; un diff visual sería el siguiente paso natural | Medio | Media | Después |
+| Modal de conflicto con diff/copia local | Hacer más legible la recuperación tras `409` | Ya quedó una primera versión útil con panel explícito y comparativa corta | Medio | Media | Hecho |
 | `lastClinicalUpdatedAt` real | Actividad reciente y drafts eran engañosos | El repositorio ya quedó cubierto tocando `Encounter.updatedAt` al guardar secciones | Alto | Media | Hecho |
 | Panel clínico contextual basado en `clinical-summary` | `ClinicalAlerts` mezclaba lógica y contrato roto | Ya quedó implementado reutilizando reglas compartidas | Alto | Baja-media | Hecho |
-| Timeline con eventos de archivo/cancelación/reapertura | Falta trazabilidad operativa fina | Muy útil en una app médica pequeña para entender qué pasó | Medio-alto | Media | Después |
-| Centro de borradores locales | Recuperar trabajo tras logout, caída o conflicto | Ya hay drafts locales; falta hacerlos visibles y gestionables | Medio | Media | Después |
+| Timeline con eventos de archivo/cancelación/reapertura | Falta trazabilidad operativa fina | Ya quedó una primera versión útil con historial operativo compacto | Medio-alto | Media | Hecho |
+| Centro de borradores locales | Recuperar trabajo tras logout, caída o conflicto | Ya hay drafts locales visibles y gestionables dentro de la atención | Medio | Media | Hecho |
 | Asistente de resolución de duplicados de paciente | Archivar duplicados hoy es un martillo grande | Ayuda a no cancelar trabajo por error cuando solo se quería revisar duplicidad | Medio | Media | Después |
 
 ## 8. Plan de acción priorizado
 
-1. En el siguiente ciclo corto: unificar manejo de fechas "solo día" y cerrar el ciclo de `centroMedico`.
+1. En el siguiente ciclo corto: añadir acciones secundarias al panel de recuperación local, por ejemplo "copiar mi texto local" o "ver diff completo" solo si el equipo realmente lo echa de menos.
 
-2. Después, sin urgencia: mejorar la UX de conflicto con diff visual o comparación rápida entre copia local y servidor.
+2. Después, sin urgencia: reevaluar `centroMedico` solo si el equipo empieza a operar realmente por sede/centro y aparece una necesidad concreta de filtro.
 
-3. Después, sin urgencia: mejorar trazabilidad visual de archivo/cancelación/reapertura, añadir bandeja o centro de borradores/recuperaciones y refinar la experiencia de login con refresh revocado.
-
-4. Lo que no tocaría todavía: no reharía arquitectura, no movería a microservicios ni colas, y no metería observabilidad pesada ni compliance sobredimensionado para 5 usuarios.
+3. Lo que no tocaría todavía: no reharía arquitectura, no movería a microservicios ni colas, y no metería observabilidad pesada ni compliance sobredimensionado para 5 usuarios.
 
 ## Conclusión corta
 
-La app no está "verde" en sentido ideal, pero para su tamaño real ya quedó en un punto razonable para producción pequeña. La base es buena, los fixes de estas pasadas cerraron los hallazgos altos y medios más operativos, y los tests siguen respaldando el comportamiento. Lo que hoy separa a Anamneo de una salida todavía más tranquila no es una deuda masiva, sino cerrar algunos ajustes de producto y consistencia de menor alcance ya identificados.
+La app no está "verde" en sentido ideal, pero para su tamaño real ya quedó en un punto razonable para producción pequeña. La base es buena, los fixes de estas pasadas cerraron los hallazgos altos y medios más operativos, y los tests siguen respaldando el comportamiento. Lo que hoy separa a Anamneo de una salida todavía más tranquila no es una deuda masiva, sino pulir algunos detalles de ergonomía y limpieza menor ya identificados.

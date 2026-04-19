@@ -30,6 +30,7 @@ import PatientTasksCard from './PatientTasksCard';
 import PatientVitalsCard from './PatientVitalsCard';
 import PatientEncounterTimeline from './PatientEncounterTimeline';
 import PatientLongitudinalSummaryCard from './PatientLongitudinalSummaryCard';
+import PatientOperationalHistoryCard from './PatientOperationalHistoryCard';
 
 export default function PatientDetailPage() {
   const pd = usePatientDetail();
@@ -273,6 +274,12 @@ export default function PatientDetailPage() {
                   <dd className="font-medium">{patient.domicilio}</dd>
                 </div>
               )}
+              {patient.centroMedico && (
+                <div>
+                  <dt className="text-sm text-ink-muted">Centro médico</dt>
+                  <dd className="font-medium">{patient.centroMedico}</dd>
+                </div>
+              )}
             </dl>
           </div>
 
@@ -367,6 +374,13 @@ export default function PatientDetailPage() {
           canCreateEncounterAllowed={pd.canCreateEncounterAllowed}
           createEncounterMutation={pd.createEncounterMutation}
         />
+
+        <div className="lg:col-span-2">
+          <PatientOperationalHistoryCard
+            items={pd.patientOperationalHistory}
+            isLoading={pd.isOperationalHistoryLoading}
+          />
+        </div>
       </div>
 
       <ConfirmModal

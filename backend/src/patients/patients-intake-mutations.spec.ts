@@ -103,6 +103,7 @@ describe('patients-intake-mutations', () => {
           createdById: 'med-1',
           registrationMode: 'COMPLETO',
           nombre: 'Paciente Demo',
+          fechaNacimiento: null,
         }),
         include: { history: true },
       }),
@@ -118,6 +119,67 @@ describe('patients-intake-mutations', () => {
     );
     expect(result.id).toBe('patient-1');
     expect(result.registrationMode).toBe('COMPLETO');
+  });
+
+  it('stores patient birth dates using the shared date-only convention', async () => {
+    const createdPatient = {
+      id: 'patient-2',
+      nombre: 'Paciente Demo',
+      rut: null,
+      rutExempt: false,
+      rutExemptReason: null,
+      fechaNacimiento: new Date('1990-05-10T12:00:00.000Z'),
+      edad: 35,
+      edadMeses: 0,
+      sexo: 'FEMENINO',
+      trabajo: null,
+      prevision: 'FONASA',
+      domicilio: null,
+      centroMedico: null,
+      registrationMode: 'COMPLETO',
+      completenessStatus: 'VERIFICADA',
+      demographicsVerifiedAt: new Date('2026-04-16T06:00:00.000Z'),
+      demographicsVerifiedById: 'med-1',
+      createdAt: new Date('2026-04-16T06:00:00.000Z'),
+      updatedAt: new Date('2026-04-16T06:00:00.000Z'),
+      history: { id: 'history-2' },
+    };
+
+    const tx = {
+      patient: {
+        create: jest.fn().mockResolvedValue(createdPatient),
+      },
+    };
+
+    const prisma = {
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+      patient: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+    };
+
+    await createPatientMutation({
+      prisma: prisma as never,
+      auditService: auditService as never,
+      createPatientDto: {
+        nombre: 'Paciente Demo',
+        edad: 35,
+        sexo: 'FEMENINO',
+        prevision: 'FONASA',
+        fechaNacimiento: '1990-05-10',
+      },
+      userId: 'med-1',
+    });
+
+    expect(tx.patient.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          fechaNacimiento: new Date('1990-05-10T12:00:00.000Z'),
+          edad: expect.any(Number),
+          edadMeses: expect.any(Number),
+        }),
+      }),
+    );
   });
 
   it('creates quick patient with RAPIDO mode and null demographics', async () => {

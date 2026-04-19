@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { PatientClinicalSummary } from '@/types';
-import { assessVitalSigns } from '../../../shared/vital-sign-alerts';
+import { listVitalSignAssessments } from '../../../shared/vital-sign-alerts';
 import { FiAlertTriangle, FiInfo } from 'react-icons/fi';
 
 interface ClinicalAlertsProps {
@@ -77,19 +77,15 @@ export default function ClinicalAlerts({ patientId, variant = 'panel' }: Clinica
 
   const latestVitals = clinicalSummary?.vitalTrend?.[0];
   if (latestVitals) {
-    const assessments = Object.values(
-      assessVitalSigns({
-        presionArterial: latestVitals.presionArterial ?? undefined,
-        temperatura: latestVitals.temperatura !== null ? String(latestVitals.temperatura) : undefined,
-        saturacionOxigeno: latestVitals.saturacionOxigeno !== null ? String(latestVitals.saturacionOxigeno) : undefined,
-      }),
-    );
-
-    assessments.forEach((assessment) => {
+    listVitalSignAssessments({
+      presionArterial: latestVitals.presionArterial ?? undefined,
+      temperatura: latestVitals.temperatura !== null ? String(latestVitals.temperatura) : undefined,
+      saturacionOxigeno: latestVitals.saturacionOxigeno !== null ? String(latestVitals.saturacionOxigeno) : undefined,
+    }).forEach((assessment) => {
       alerts.push({
         type: assessment.severity === 'critical' ? 'warning' : assessment.severity,
         label: assessment.summary,
-        value: assessment.detailMessages[0] ?? 'Último control con hallazgos relevantes',
+        value: assessment.primaryDetail,
       });
     });
   }

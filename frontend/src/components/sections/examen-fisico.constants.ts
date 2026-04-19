@@ -1,4 +1,4 @@
-import { assessVitalSigns } from '../../../../shared/vital-sign-alerts';
+import { listVitalSignAssessments } from '../../../../shared/vital-sign-alerts';
 
 export const BODY_PARTS = [
   { key: 'cabeza', label: 'Cabeza' },
@@ -24,8 +24,8 @@ export interface VitalAlert {
 
 export function getVitalAlerts(signosVitales: Record<string, string | undefined>): Record<string, VitalAlert> {
   return Object.fromEntries(
-    Object.entries(assessVitalSigns(signosVitales)).map(([field, assessment]) => [
-      field,
+    listVitalSignAssessments(signosVitales).map((assessment) => [
+      assessment.field,
       {
         message: assessment.summary,
         severity: assessment.severity === 'critical' ? 'danger' : 'warning',

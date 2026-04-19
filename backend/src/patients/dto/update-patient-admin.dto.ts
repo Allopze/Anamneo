@@ -1,4 +1,4 @@
-import { IsDateString, IsInt, IsIn, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsDateString, IsInt, IsIn, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Prevision, PREVISIONES, Sexo, SEXOS } from '../../common/types';
 
 export class UpdatePatientAdminDto {
@@ -33,4 +33,9 @@ export class UpdatePatientAdminDto {
   @IsString()
   @IsOptional()
   domicilio?: string | null;
+
+  @IsString()
+  @MaxLength(200, { message: 'El centro médico no puede exceder 200 caracteres' })
+  @IsOptional()
+  centroMedico?: string | null;
 }

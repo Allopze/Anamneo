@@ -18,7 +18,10 @@ const getPendingSavesForUserMock = jest.fn();
 const removePendingSaveMock = jest.fn();
 const countPendingSavesForUserMock = jest.fn();
 const clearEncounterSectionConflictMock = jest.fn();
+const listEncounterSectionConflictsMock = jest.fn();
 const readEncounterSectionConflictMock = jest.fn();
+const readEncounterDraftMock = jest.fn();
+const hasEncounterDraftUnsavedChangesMock = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({ id: 'enc-1' }),
@@ -58,8 +61,9 @@ jest.mock('@/lib/offline-queue', () => ({
 jest.mock('@/lib/encounter-draft', () => ({
   clearEncounterDraft: jest.fn(),
   clearEncounterSectionConflict: (...args: any[]) => clearEncounterSectionConflictMock(...args),
-  hasEncounterDraftUnsavedChanges: jest.fn(() => false),
-  readEncounterDraft: jest.fn(() => null),
+  hasEncounterDraftUnsavedChanges: (...args: any[]) => hasEncounterDraftUnsavedChangesMock(...args),
+  listEncounterSectionConflicts: (...args: any[]) => listEncounterSectionConflictsMock(...args),
+  readEncounterDraft: (...args: any[]) => readEncounterDraftMock(...args),
   readEncounterSectionConflict: (...args: any[]) => readEncounterSectionConflictMock(...args),
   writeEncounterSectionConflict: jest.fn(),
   writeEncounterDraft: jest.fn(),
@@ -135,8 +139,14 @@ describe('EncounterWizardPage closing workflow', () => {
     removePendingSaveMock.mockResolvedValue(undefined);
     countPendingSavesForUserMock.mockResolvedValue(0);
     clearEncounterSectionConflictMock.mockReset();
+    listEncounterSectionConflictsMock.mockReset();
     readEncounterSectionConflictMock.mockReset();
+    readEncounterDraftMock.mockReset();
+    hasEncounterDraftUnsavedChangesMock.mockReset();
+    listEncounterSectionConflictsMock.mockReturnValue([]);
     readEncounterSectionConflictMock.mockReturnValue(null);
+    readEncounterDraftMock.mockReturnValue(null);
+    hasEncounterDraftUnsavedChangesMock.mockReturnValue(false);
 
     apiGetMock.mockImplementation((url: string) => {
       if (url === '/encounters/enc-1') {
@@ -264,7 +274,7 @@ describe('EncounterWizardPage closing workflow', () => {
 
   it('shows a recoverable conflict banner and lets the user dismiss the local copy', async () => {
     const user = userEvent.setup();
-    readEncounterSectionConflictMock.mockReturnValue({
+    const conflict = {
       version: 2,
       encounterId: 'enc-1',
       userId: 'med-1',
@@ -272,15 +282,30 @@ describe('EncounterWizardPage closing workflow', () => {
       localData: { nombre: 'Paciente Demo' },
       serverData: { nombre: 'Paciente Demo', rut: '11.111.111-1' },
       serverUpdatedAt: '2026-04-19T10:00:00.000Z',
+      savedAt: '2026-04-19T10:01:00.000Z',
+    };
+    readEncounterSectionConflictMock.mockReturnValue(conflict);
+    listEncounterSectionConflictsMock.mockReturnValue([conflict]);
+    readEncounterDraftMock.mockReturnValue({
+      version: 2,
+      encounterId: 'enc-1',
+      userId: 'med-1',
+      currentSectionIndex: 2,
+      formData: { IDENTIFICACION: { nombre: 'Paciente Demo' } },
+      savedSnapshot: { IDENTIFICACION: { nombre: '' } },
+      savedAt: '2026-04-19T09:59:00.000Z',
     });
+    hasEncounterDraftUnsavedChangesMock.mockReturnValue(true);
 
     render(<EncounterWizardPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
-    expect(screen.getByText(/se detectó un conflicto de edición/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Restaurar mi copia local' })).toBeInTheDocument();
+    expect(screen.getByText(/borradores y conflictos listos para revisar/i)).toBeInTheDocument();
+    expect(screen.getByText(/borrador local activo/i)).toBeInTheDocument();
+    expect(screen.getByText('Campo')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Restaurar mi copia/i }).length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole('button', { name: 'Descartar copia local' }));
+    await user.click(screen.getByRole('button', { name: 'Descartar' }));
 
     expect(clearEncounterSectionConflictMock).toHaveBeenCalledWith('enc-1', 'med-1', 'IDENTIFICACION');
     expect(toast.success).toHaveBeenCalledWith('Se descartó la copia local en conflicto.');

@@ -4,7 +4,11 @@ import { AuditService } from '../audit/audit.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreatePatientQuickDto } from './dto/create-patient-quick.dto';
 import { RequestUser } from '../common/utils/medico-id';
-import { isDateOnlyAfterToday, calculateAgeFromBirthDate } from '../common/utils/local-date';
+import {
+  isDateOnlyAfterToday,
+  calculateAgeFromBirthDate,
+  parseDateOnlyToStoredUtcDate,
+} from '../common/utils/local-date';
 import { decoratePatient, resolvePatientVerificationState } from './patients-format';
 import { resolveCreatePatientRutInput, resolvePatientRutState } from './patients-create-utils';
 
@@ -70,7 +74,9 @@ export async function createPatientMutation(params: CreatePatientMutationParams)
         rutExempt: resolvedRut.rutExempt,
         rutExemptReason: resolvedRut.rutExemptReason,
         nombre: createPatientDto.nombre,
-        fechaNacimiento: createPatientDto.fechaNacimiento ? new Date(createPatientDto.fechaNacimiento) : null,
+        fechaNacimiento: createPatientDto.fechaNacimiento
+          ? parseDateOnlyToStoredUtcDate(createPatientDto.fechaNacimiento, 'La fecha de nacimiento')
+          : null,
         edad: resolvedAge.edad,
         edadMeses: resolvedAge.edadMeses ?? null,
         sexo: createPatientDto.sexo,
