@@ -21,6 +21,8 @@ interface Consent {
   type: string;
   description: string;
   status: string;
+  encounterId?: string | null;
+  grantedAt?: string | null;
   revokedAt?: string | null;
   revokeReason?: string | null;
   createdAt: string;
@@ -85,7 +87,12 @@ export default function PatientConsents({ patientId, encounterId }: PatientConse
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-ink">Consentimientos Informados</h2>
+        <div>
+          <h2 className="text-lg font-bold text-ink">Registro de consentimientos</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Bitácora simple de consentimientos registrados y revocados dentro de la ficha del paciente.
+          </p>
+        </div>
         <button
           onClick={() => setShowForm(!showForm)}
           className="btn btn-secondary flex items-center gap-2 text-sm"
@@ -122,7 +129,7 @@ export default function PatientConsents({ patientId, encounterId }: PatientConse
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 className="input w-full min-h-[80px]"
-                placeholder="Detalle del consentimiento otorgado por el paciente..."
+                placeholder="Describe qué se explicó, qué aceptó el paciente y cualquier contexto relevante..."
               />
             </div>
             <div className="flex items-center gap-2">
@@ -162,10 +169,13 @@ export default function PatientConsents({ patientId, encounterId }: PatientConse
                       {CONSENT_TYPES.find((ct) => ct.value === consent.type)?.label || consent.type}
                     </span>
                     <span className="text-xs text-ink-muted">
-                      {format(new Date(consent.createdAt), "d MMM yyyy", { locale: es })}
+                      Otorgado {format(new Date(consent.grantedAt || consent.createdAt), "d MMM yyyy", { locale: es })}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-ink">{consent.description}</p>
+                  {consent.encounterId && (
+                    <p className="mt-1 text-xs text-ink-muted">Asociado a la atención {consent.encounterId}</p>
+                  )}
                   {consent.grantedBy && (
                     <p className="mt-1 text-xs text-ink-muted">Registrado por {consent.grantedBy.nombre}</p>
                   )}

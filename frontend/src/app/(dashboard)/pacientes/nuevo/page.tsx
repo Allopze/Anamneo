@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,6 +14,7 @@ import PossiblePatientDuplicatesNotice from '@/components/common/PossiblePatient
 import { validateRut } from '@/lib/rut';
 import { calculateAgeFromBirthDate, todayLocalDateString } from '@/lib/date';
 import { basePatientSchema, fullPatientSchema, PatientForm } from './nuevo.constants';
+import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 
 export default function NuevoPacientePage() {
   const router = useRouter();
@@ -22,13 +23,6 @@ export default function NuevoPacientePage() {
   const [error, setError] = useState<string | null>(null);
   const isDoctor = isMedico();
   const canCreate = canCreatePatient();
-
-  useEffect(() => {
-    if (!user) return;
-    if (canCreate) return;
-    toast.error('No tiene permisos para crear pacientes');
-    router.push('/pacientes');
-  }, [user, canCreate, router]);
 
   const {
     register,
@@ -54,8 +48,16 @@ export default function NuevoPacientePage() {
     [fechaNacimiento],
   );
 
-  if (!canCreate) {
-    return null;
+  if (user && !canCreate) {
+    return (
+      <RouteAccessGate
+        when={true}
+        title="Redirigiendo…"
+        description="No tienes permisos para crear pacientes. Te llevamos a la lista."
+        href="/pacientes"
+        actionLabel="Ir a pacientes"
+      />
+    );
   }
 
   const onSubmit = async (data: PatientForm) => {

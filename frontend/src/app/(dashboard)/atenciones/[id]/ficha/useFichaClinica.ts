@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -12,7 +12,10 @@ import {
 } from '@/lib/permissions';
 import { Attachment, Encounter, SignEncounterResponse } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
-import { getEncounterActionBlockReason } from '@/lib/clinical-output';
+import {
+  getEncounterActionBlockReason,
+  getFocusedEncounterDocumentBlockReason,
+} from '@/lib/clinical-output';
 import {
   formatPatientMissingFields,
   getIdentificationMissingFields,
@@ -22,6 +25,7 @@ import {
   getRevisionSystemEntries,
   getTreatmentPlanText,
 } from '@/lib/clinical';
+import { groupAttachmentsByOrderId } from '@/lib/attachments';
 import { buildEncounterSignatureDiff, buildEncounterSignatureSummary } from '@/lib/encounter-completion';
 import { invalidateDashboardOverviewQueries } from '@/lib/query-invalidation';
 import { fallbackPdfFilename, getFilenameFromDisposition } from './ficha.constants';
@@ -51,7 +55,10 @@ export function useFichaClinica() {
   const canSign = canSignEncounter(user ?? null, encounter);
   const canReopen = canReopenEncounter(user ?? null, encounter);
   const duplicateAction = useDuplicateEncounterAction(encounter);
-  const exportBlockedReason = canExportEncounterDocuments(user ?? null)
+  const focusedDocumentBlockedReason = canExportEncounterDocuments(user ?? null)
+    ? getFocusedEncounterDocumentBlockReason(clinicalOutputBlock)
+    : 'No tiene permisos para exportar documentos oficiales de esta atención.';
+  const pdfBlockedReason = canExportEncounterDocuments(user ?? null)
     ? getEncounterActionBlockReason(
       encounter?.status,
       clinicalOutputBlock,
@@ -65,12 +72,8 @@ export function useFichaClinica() {
       'PRINT_CLINICAL_RECORD',
     )
     : 'No tiene permisos para imprimir esta ficha clínica.';
-  const outputBlockReason = exportBlockedReason ?? printBlockedReason;
-
-  useEffect(() => {
-    if (!isOperationalAdmin) return;
-    router.replace('/');
-  }, [isOperationalAdmin, router]);
+  const patientOutputBlockReason = clinicalOutputBlock?.reason ?? null;
+  const fullRecordBlockedReason = pdfBlockedReason ?? printBlockedReason;
 
   const signMutation = useMutation<SignEncounterResponse, unknown, string>({
     mutationFn: async (password) => {
@@ -135,8 +138,10 @@ export function useFichaClinica() {
   }, []);
 
   const handleDownloadDocument = useCallback(async (kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') => {
-    if (exportBlockedReason) {
-      toast.error(exportBlockedReason);
+    const blockedReason = kind === 'pdf' ? pdfBlockedReason : focusedDocumentBlockedReason;
+
+    if (blockedReason) {
+      toast.error(blockedReason);
       return;
     }
 
@@ -160,7 +165,7 @@ export function useFichaClinica() {
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
-  }, [encounter, exportBlockedReason, id]);
+  }, [encounter, focusedDocumentBlockedReason, id, pdfBlockedReason]);
 
   const handleDownloadPdf = useCallback(async () => {
     await handleDownloadDocument('pdf');
@@ -194,14 +199,10 @@ export function useFichaClinica() {
     [encounter?.patient],
   );
 
-  const linkedAttachmentsByOrderId = useMemo(() => {
-    return (encounter?.attachments || []).reduce<Record<string, Attachment[]>>((acc, attachment) => {
-      if (!attachment.linkedOrderId) return acc;
-      if (!acc[attachment.linkedOrderId]) acc[attachment.linkedOrderId] = [];
-      acc[attachment.linkedOrderId].push(attachment);
-      return acc;
-    }, {});
-  }, [encounter?.attachments]);
+  const linkedAttachmentsByOrderId = useMemo(
+    () => groupAttachmentsByOrderId(encounter?.attachments),
+    [encounter?.attachments],
+  );
 
   const signatureSummary = useMemo(() => buildEncounterSignatureSummary(encounter), [encounter]);
   const signatureDiff = useMemo(() => buildEncounterSignatureDiff(encounter), [encounter]);
@@ -215,9 +216,11 @@ export function useFichaClinica() {
     canReopen,
     canDuplicateEncounter: duplicateAction.canDuplicateEncounter,
     clinicalOutputBlock,
-    exportBlockedReason,
+    focusedDocumentBlockedReason,
+    pdfBlockedReason,
     printBlockedReason,
-    outputBlockReason,
+    patientOutputBlockReason,
+    fullRecordBlockedReason,
     showSignModal,
     setShowSignModal,
     showReopenModal,

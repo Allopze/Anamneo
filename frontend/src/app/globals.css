@@ -622,11 +622,17 @@ body {
   }
 
   /* ── Smart Header Bar ────────────── */
+  .smart-header-sticky-shell {
+    @apply sticky top-0 z-20;
+  }
+
   .smart-header-bar {
-    @apply mx-3 mt-3 mb-1 flex items-center gap-3 rounded-card px-4 py-2 lg:mx-6 lg:mt-4 lg:px-5 lg:py-2.5;
-    background: var(--surface-elevated);
-    border: 1px solid rgba(0,0,0,0.04);
-    box-shadow: 0 1px 2px rgba(43,43,43,0.03);
+    @apply mx-3 mt-4 mb-2 flex items-center gap-3 rounded-card px-4 py-2 lg:mx-6 lg:px-5 lg:py-2.5;
+    background: color-mix(in srgb, var(--surface-elevated) 90%, transparent);
+    border: 1px solid rgba(0,0,0,0.05);
+    box-shadow: 0 1px 2px rgba(43,43,43,0.03), 0 8px 24px rgba(43,43,43,0.04);
+    backdrop-filter: saturate(160%) blur(10px);
+    -webkit-backdrop-filter: saturate(160%) blur(10px);
   }
 
   .smart-header-chip {

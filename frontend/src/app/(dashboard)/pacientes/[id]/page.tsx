@@ -23,6 +23,7 @@ import PatientAlerts from '@/components/PatientAlerts';
 import PatientConsents from '@/components/PatientConsents';
 import { InProgressEncounterConflictModal } from '@/components/common/InProgressEncounterConflictModal';
 import PossiblePatientDuplicatesNotice from '@/components/common/PossiblePatientDuplicatesNotice';
+import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 
 import { usePatientDetail } from './usePatientDetail';
 import PatientProblemsCard from './PatientProblemsCard';
@@ -37,17 +38,13 @@ export default function PatientDetailPage() {
 
   if (pd.isRedirectingAdmin) {
     return (
-      <div className="animate-fade-in py-10">
-        <div className="card max-w-xl">
-          <h1 className="text-lg font-semibold text-ink">Redirigiendo…</h1>
-          <p className="mt-2 text-sm text-ink-secondary">
-            Esta vista clínica no está disponible para tu perfil. Te llevamos a la lista de pacientes.
-          </p>
-          <Link href={pd.adminRedirectPath} className="btn btn-secondary mt-4 inline-flex items-center gap-2">
-            Ir a pacientes
-          </Link>
-        </div>
-      </div>
+      <RouteAccessGate
+        when={true}
+        title="Redirigiendo…"
+        description="Esta vista clínica no está disponible para tu perfil. Te llevamos a la lista de pacientes."
+        href={pd.adminRedirectPath}
+        actionLabel="Ir a pacientes"
+      />
     );
   }
 

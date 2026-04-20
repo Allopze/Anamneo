@@ -32,11 +32,23 @@ import EncounterHeader from './EncounterHeader';
 import EncounterSectionRail from './EncounterSectionRail';
 import EncounterAttachmentsModal from './EncounterAttachmentsModal';
 import EncounterRecoveryPanel from './EncounterRecoveryPanel';
+import { RouteAccessGate } from '@/components/common/RouteAccessGate';
+import { NotApplicableModal } from './NotApplicableModal';
 
 export default function EncounterWizardPage() {
   const wiz = useEncounterWizard();
 
-  if (wiz.isOperationalAdmin) return null;
+  if (wiz.isOperationalAdmin) {
+    return (
+      <RouteAccessGate
+        when={true}
+        title="Redirigiendo…"
+        description="La edición clínica de atenciones no está disponible para tu perfil."
+        href="/"
+        actionLabel="Ir al inicio"
+      />
+    );
+  }
 
   if (wiz.isLoading) {
     return (
@@ -425,36 +437,14 @@ export default function EncounterWizardPage() {
         attachment={wiz.previewAttachment}
       />
 
-      {wiz.showNotApplicableModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-card border border-surface-muted bg-surface-base p-6 shadow-lg">
-            <h3 className="text-base font-semibold text-ink">Marcar sección como &ldquo;No aplica&rdquo;</h3>
-            <p className="mt-2 text-sm text-ink-secondary">
-              Indique el motivo por el que esta sección no aplica para este paciente (mínimo 10 caracteres).
-            </p>
-            <textarea
-              value={wiz.notApplicableReason}
-              onChange={(e) => wiz.setNotApplicableReason(e.target.value)}
-              className="form-input mt-3 min-h-[80px] w-full resize-y"
-              placeholder="Ej: Paciente pediátrico, no corresponde revisión de sistemas…"
-              autoFocus
-            />
-            <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={() => wiz.setShowNotApplicableModal(false)} className="btn btn-secondary">
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={wiz.handleConfirmNotApplicable}
-                disabled={wiz.notApplicableReason.trim().length < 10 || wiz.saveSectionMutation.isPending}
-                className="btn btn-primary"
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <NotApplicableModal
+        isOpen={wiz.showNotApplicableModal}
+        reason={wiz.notApplicableReason}
+        isSaving={wiz.saveSectionMutation.isPending}
+        onReasonChange={wiz.setNotApplicableReason}
+        onClose={() => wiz.setShowNotApplicableModal(false)}
+        onConfirm={wiz.handleConfirmNotApplicable}
+      />
 
       <EncounterDrawer
         open={wiz.isDrawerOpen}

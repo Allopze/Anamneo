@@ -18,6 +18,7 @@ import { extractDateOnly, formatDateOnly } from '@/lib/date';
 import { useAuthStore } from '@/stores/auth-store';
 import { invalidateDashboardOverviewQueries, invalidateTaskOverviewQueries } from '@/lib/query-invalidation';
 import toast from 'react-hot-toast';
+import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 
 const STATUS_OPTIONS = ['', 'PENDIENTE', 'EN_PROCESO', 'COMPLETADA', 'CANCELADA'] as const;
 const TYPE_OPTIONS = ['', 'SEGUIMIENTO', 'EXAMEN', 'DERIVACION', 'TRAMITE'] as const;
@@ -78,11 +79,6 @@ export default function SeguimientosPage() {
     [search, status, type, priority, overdueOnly],
   );
 
-  useEffect(() => {
-    if (!isOperationalAdmin) return;
-    router.replace('/');
-  }, [isOperationalAdmin, router]);
-
   const { data, isLoading, error } = useQuery({
     queryKey,
     queryFn: async () => {
@@ -118,17 +114,13 @@ export default function SeguimientosPage() {
 
   if (isOperationalAdmin) {
     return (
-      <div className="animate-fade-in py-10">
-        <div className="card max-w-xl">
-          <h1 className="text-lg font-semibold text-ink">Redirigiendo…</h1>
-          <p className="mt-2 text-sm text-ink-secondary">
-            Esta bandeja clínica no está disponible para perfiles administrativos. Te llevamos al inicio.
-          </p>
-          <Link href="/" className="btn btn-secondary mt-4 inline-flex items-center gap-2">
-            Ir al inicio
-          </Link>
-        </div>
-      </div>
+      <RouteAccessGate
+        when={true}
+        title="Redirigiendo…"
+        description="Esta bandeja clínica no está disponible para perfiles administrativos. Te llevamos al inicio."
+        href="/"
+        actionLabel="Ir al inicio"
+      />
     );
   }
 

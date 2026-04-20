@@ -12,7 +12,8 @@ interface FichaToolbarProps {
   canSign: boolean;
   canReopen: boolean;
   canDuplicate: boolean;
-  exportBlockedReason: string | null;
+  focusedDocumentBlockedReason: string | null;
+  pdfBlockedReason: string | null;
   printBlockedReason: string | null;
   signIsPending: boolean;
   reopenIsPending: boolean;
@@ -31,7 +32,8 @@ export function FichaToolbar({
   canSign,
   canReopen,
   canDuplicate,
-  exportBlockedReason,
+  focusedDocumentBlockedReason,
+  pdfBlockedReason,
   printBlockedReason,
   signIsPending,
   reopenIsPending,
@@ -76,36 +78,36 @@ export function FichaToolbar({
           ) : null}
           <button
             onClick={() => onDownloadDocument('receta')}
-            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-            disabled={Boolean(exportBlockedReason)}
-            title={exportBlockedReason ?? 'Descargar receta'}
+            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', focusedDocumentBlockedReason && 'cursor-not-allowed opacity-60')}
+            disabled={Boolean(focusedDocumentBlockedReason)}
+            title={focusedDocumentBlockedReason ?? 'Descargar receta'}
           >
             <FiDownload className="h-4 w-4" />
             <span className="hidden sm:inline">Receta</span>
           </button>
           <button
             onClick={() => onDownloadDocument('ordenes')}
-            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-            disabled={Boolean(exportBlockedReason)}
-            title={exportBlockedReason ?? 'Descargar órdenes'}
+            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', focusedDocumentBlockedReason && 'cursor-not-allowed opacity-60')}
+            disabled={Boolean(focusedDocumentBlockedReason)}
+            title={focusedDocumentBlockedReason ?? 'Descargar órdenes'}
           >
             <FiDownload className="h-4 w-4" />
             <span className="hidden sm:inline">Órdenes</span>
           </button>
           <button
             onClick={() => onDownloadDocument('derivacion')}
-            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-            disabled={Boolean(exportBlockedReason)}
-            title={exportBlockedReason ?? 'Descargar derivación'}
+            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', focusedDocumentBlockedReason && 'cursor-not-allowed opacity-60')}
+            disabled={Boolean(focusedDocumentBlockedReason)}
+            title={focusedDocumentBlockedReason ?? 'Descargar derivación'}
           >
             <FiDownload className="h-4 w-4" />
             <span className="hidden sm:inline">Derivación</span>
           </button>
           <button
             onClick={onDownloadPdf}
-            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', exportBlockedReason && 'cursor-not-allowed opacity-60')}
-            disabled={Boolean(exportBlockedReason)}
-            title={exportBlockedReason ?? 'Descargar PDF completo'}
+            className={clsx('btn btn-secondary flex shrink-0 items-center gap-2', pdfBlockedReason && 'cursor-not-allowed opacity-60')}
+            disabled={Boolean(pdfBlockedReason)}
+            title={pdfBlockedReason ?? 'Descargar PDF completo'}
             aria-label="Descargar PDF"
           >
             <FiDownload className="h-4 w-4" />
@@ -151,7 +153,8 @@ export function FichaToolbar({
     );
   }, [
     encounter,
-    exportBlockedReason,
+    focusedDocumentBlockedReason,
+    pdfBlockedReason,
     onDownloadDocument,
     onDuplicate,
     onDownloadPdf,

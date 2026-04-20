@@ -1,7 +1,7 @@
 'use client';
 
 import axios from 'axios';
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -22,10 +22,13 @@ import {
   FiX,
   FiBookmark,
   FiClipboard,
+  FiChevronsLeft,
+  FiChevronsRight,
 } from 'react-icons/fi';
 import clsx from 'clsx';
 import OfflineBanner from '@/components/common/OfflineBanner';
 import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
+import Tooltip from '@/components/common/Tooltip';
 import SmartHeaderBar from './SmartHeaderBar';
 import { HeaderBarSlotContext } from './HeaderBarSlotContext';
 import DashboardSidebar from './DashboardSidebar';
@@ -51,6 +54,8 @@ const secondaryNavigation: NavItem[] = [
   { name: 'Plantillas', href: '/plantillas', icon: FiBookmark },
   { name: 'Ajustes', href: '/ajustes', icon: FiSettings },
 ];
+
+const DASHBOARD_SIDEBAR_COLLAPSED_KEY = 'anamneo:dashboard-sidebar-collapsed';
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
@@ -93,6 +98,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const hasShownBootstrapWarningRef = useRef(false);
   const [mounted, setMounted] = useState(false);
   const [authCheckComplete, setAuthCheckComplete] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(DASHBOARD_SIDEBAR_COLLAPSED_KEY) === '1';
+  });
   const isEncounterWorkspace = /^\/atenciones\/[^/]+$/.test(pathname);
 
   const search = useDashboardSearch(isOperationalAdmin);
@@ -110,6 +119,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  const updateSidebarCollapsed = useCallback((next: boolean) => {
+    setSidebarCollapsed(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(DASHBOARD_SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
+    }
   }, []);
 
   useEffect(() => {
@@ -170,23 +186,35 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [authCheckComplete, hasHydrated, isAuthenticated, mounted, router]);
 
   // ── Cmd+K global shortcut ──────────────────────────────────────────
+  const openDashboardSearch = useCallback(() => {
+    search.setSearchOpen(true);
+
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+    const shouldExpandSidebar = isDesktop && sidebarCollapsed;
+
+    if (shouldExpandSidebar) {
+      updateSidebarCollapsed(false);
+    }
+
+    window.setTimeout(() => {
+      if (window.innerWidth >= 1024) {
+        searchInputRef.current?.focus();
+      } else {
+        mobileSearchInputRef.current?.focus();
+      }
+    }, shouldExpandSidebar ? 220 : 100);
+  }, [search, sidebarCollapsed, updateSidebarCollapsed]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        search.setSearchOpen(true);
-        setTimeout(() => {
-          if (window.innerWidth >= 1024) {
-            searchInputRef.current?.focus();
-          } else {
-            mobileSearchInputRef.current?.focus();
-          }
-        }, 100);
+        openDashboardSearch();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [search]);
+  }, [openDashboardSearch]);
 
   const handleLogout = async () => {
     try {
@@ -197,17 +225,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     clearAuthSessionPrefill();
     logout();
     router.replace('/login');
-  };
-
-  const handleSearchOpen = () => {
-    search.setSearchOpen(true);
-    setTimeout(() => {
-      if (window.innerWidth >= 1024) {
-        searchInputRef.current?.focus();
-      } else {
-        mobileSearchInputRef.current?.focus();
-      }
-    }, 100);
   };
 
   if (!mounted || !hasHydrated || !authCheckComplete || !isAuthenticated) {
@@ -236,6 +253,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           user={user}
           primaryItems={primaryItems}
           secondaryItems={secondaryItems}
+          collapsed={sidebarCollapsed}
           isOperationalAdmin={isOperationalAdmin}
           searchQuery={search.searchQuery}
           searchOpen={search.searchOpen}
@@ -243,7 +261,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           searchLoading={search.searchLoading}
           searchActiveIndex={search.searchActiveIndex}
           shortcutHint={shortcutHint}
+          showCollapseToggle={isEncounterWorkspace}
+          onCollapsedChange={updateSidebarCollapsed}
           onSearchChange={search.handleSearchChange}
+          onSearchOpen={openDashboardSearch}
           onSearchFocus={() => search.setSearchOpen(true)}
           onSearchNavigate={search.handleSearchNavigate}
           onSearchActiveIndexChange={search.setSearchActiveIndex}
@@ -311,23 +332,42 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* ── KPI + Context Bar ─────────────────────────────── */}
           <HeaderBarSlotContext.Provider value={headerBarSlotCtx}>
-            <div className={clsx('flex-shrink-0', isEncounterWorkspace && 'hidden')}>
-              <SmartHeaderBar
-                onSearchOpen={handleSearchOpen}
-                contextSlot={headerBarSlot}
-              />
-            </div>
+            <div className="flex-1 overflow-auto">
+              {!isEncounterWorkspace ? (
+                <div className="px-3 pt-4 pb-2 lg:px-6">
+                  <div className="flex items-stretch gap-3">
+                    <Tooltip label={sidebarCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'} side="bottom">
+                      <button
+                        type="button"
+                        onClick={() => updateSidebarCollapsed(!sidebarCollapsed)}
+                        className="hidden lg:flex min-h-[56px] shrink-0 aspect-square items-center justify-center self-stretch rounded-full border border-surface-muted/35 bg-surface-elevated text-ink-secondary shadow-soft transition-colors hover:border-frame/18 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20"
+                        aria-label={sidebarCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'}
+                        aria-expanded={!sidebarCollapsed}
+                      >
+                        {sidebarCollapsed ? <FiChevronsRight className="h-4.5 w-4.5" /> : <FiChevronsLeft className="h-4.5 w-4.5" />}
+                      </button>
+                    </Tooltip>
 
-            {/* ── Page Content ───────────────────────────────────── */}
-            <main
-              id="main-content"
-              className={clsx(
-                'flex-1 overflow-auto',
-                isEncounterWorkspace ? 'px-0 py-0' : 'px-3 py-6 lg:px-6 lg:py-8',
-              )}
-            >
-              {children}
-            </main>
+                    <SmartHeaderBar
+                      className="mx-0 mt-0 mb-0 min-h-[56px] min-w-0 flex-1"
+                      onSearchOpen={openDashboardSearch}
+                      contextSlot={headerBarSlot}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              {/* ── Page Content ───────────────────────────────────── */}
+              <main
+                id="main-content"
+                className={clsx(
+                  'min-h-full',
+                  isEncounterWorkspace ? 'px-0 py-0' : 'px-3 pb-6 lg:px-6 lg:pb-8',
+                )}
+              >
+                {children}
+              </main>
+            </div>
           </HeaderBarSlotContext.Provider>
         </div>
       </div>

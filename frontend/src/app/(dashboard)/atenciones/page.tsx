@@ -21,6 +21,7 @@ import {
 import { api } from '@/lib/api';
 import { Encounter, REVIEW_STATUS_LABELS, STATUS_LABELS } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
+import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 import {
   STATUS_OPTIONS,
   REVIEW_OPTIONS,
@@ -71,13 +72,6 @@ function AtencionesListContent() {
   const hasActiveCriteria = hasSearch || hasAdvancedFilters;
 
   useEffect(() => {
-    if (isOperationalAdmin) {
-      router.replace('/');
-      return;
-    }
-  }, [isOperationalAdmin, router]);
-
-  useEffect(() => {
     setSearchInput(search);
   }, [search]);
 
@@ -86,6 +80,18 @@ function AtencionesListContent() {
       setShowFilters(true);
     }
   }, [hasAdvancedFilters]);
+
+  if (isOperationalAdmin) {
+    return (
+      <RouteAccessGate
+        when={true}
+        title="Redirigiendo…"
+        description="Esta bandeja clínica no está disponible para perfiles administrativos. Te llevamos al inicio."
+        href="/"
+        actionLabel="Ir al inicio"
+      />
+    );
+  }
 
   const buildUrl = (overrides: Record<string, string>) => {
     const next = new URLSearchParams();

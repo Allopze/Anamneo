@@ -1,5 +1,10 @@
 import { IsDateString, IsInt, IsIn, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Prevision, PREVISIONES, Sexo, SEXOS } from '../../common/types';
+import {
+  PATIENT_ADDRESS_MAX_LENGTH,
+  PATIENT_JOB_MAX_LENGTH,
+  PATIENT_MEDICAL_CENTER_MAX_LENGTH,
+} from '../../../../shared/patient-field-constraints';
 
 export class UpdatePatientAdminDto {
   @IsDateString({}, { message: 'La fecha de nacimiento debe ser una fecha válida' })
@@ -27,15 +32,19 @@ export class UpdatePatientAdminDto {
   prevision?: Prevision | null;
 
   @IsString()
+  @MaxLength(PATIENT_JOB_MAX_LENGTH, { message: `El trabajo no puede exceder ${PATIENT_JOB_MAX_LENGTH} caracteres` })
   @IsOptional()
   trabajo?: string | null;
 
   @IsString()
+  @MaxLength(PATIENT_ADDRESS_MAX_LENGTH, { message: `El domicilio no puede exceder ${PATIENT_ADDRESS_MAX_LENGTH} caracteres` })
   @IsOptional()
   domicilio?: string | null;
 
   @IsString()
-  @MaxLength(200, { message: 'El centro médico no puede exceder 200 caracteres' })
+  @MaxLength(PATIENT_MEDICAL_CENTER_MAX_LENGTH, {
+    message: `El centro médico no puede exceder ${PATIENT_MEDICAL_CENTER_MAX_LENGTH} caracteres`,
+  })
   @IsOptional()
   centroMedico?: string | null;
 }

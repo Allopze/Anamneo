@@ -128,7 +128,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
 
   async function goToSection(page: Page, sectionName: string) {
     await sectionRail(page).getByRole('button', { name: new RegExp(sectionName, 'i') }).click();
-    await expect(page.getByRole('heading', { name: sectionName })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('heading', { name: sectionName, exact: true })).toBeVisible({ timeout: 5000 });
   }
 
   async function openDrawerTab(page: Page, tabName: string) {
@@ -311,6 +311,32 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     await expect(page.getByText('Sincronizando 1 cambio…')).toBeVisible({ timeout: 10000 });
   });
 
+  test('keeps focused clinical documents available before completion while full PDF stays blocked', async ({ page }) => {
+    test.setTimeout(60_000);
+    await loginAsMedico(page);
+
+    expect(encounterPath, 'Encounter path should be available before validating focused documents').toBeTruthy();
+    await page.goto(`${encounterPath}/ficha`);
+    await expect(page).toHaveURL(/\/atenciones\/[a-zA-Z0-9-]+\/ficha$/, { timeout: 15000 });
+
+    await expect(page.getByRole('button', { name: 'Receta' })).toBeEnabled({ timeout: 10000 });
+    await expect(page.getByRole('button', { name: 'Órdenes' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Derivación' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Descargar PDF' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Imprimir' })).toBeDisabled();
+    await expect(page.getByText(/PDF clínico completo e impresión aún no disponibles/i)).toBeVisible();
+
+    const recetaResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/encounters/')
+        && response.url().includes('/export/document/receta')
+        && response.request().method() === 'GET',
+    );
+    await page.getByRole('button', { name: 'Receta' }).click();
+    const recetaResponse = await recetaResponsePromise;
+    expect(recetaResponse.status(), await recetaResponse.text()).toBe(200);
+  });
+
   test('deletes an attachment and keeps it out of the ficha clinica', async ({ page }) => {
     test.setTimeout(60_000);
     await loginAsMedico(page);
@@ -375,7 +401,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
       await firstTabNotes.fill('Observación local stale desde la primera pestaña.');
       await page.getByRole('button', { name: 'Guardar Ahora' }).click();
 
-      await expect(page.getByText('La sección cambió en otra sesión. Se recargó la versión más reciente.')).toBeVisible({
+      await expect(page.getByText('La copia local quedó protegida y lista para comparar.')).toBeVisible({
         timeout: 10000,
       });
       await expect(firstTabNotes).toHaveValue('Observación persistida desde la segunda pestaña.', { timeout: 10000 });

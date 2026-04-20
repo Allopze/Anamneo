@@ -42,3 +42,9 @@ export function getEncounterActionBlockReason(
 ) {
   return getEncounterStatusOutputBlockReason(status, action) ?? getEncounterClinicalOutputBlockReason(block, action);
 }
+
+export function getFocusedEncounterDocumentBlockReason(
+  block: EncounterClinicalOutputBlock | null | undefined,
+) {
+  return getEncounterClinicalOutputBlockReason(block, 'EXPORT_OFFICIAL_DOCUMENTS');
+}

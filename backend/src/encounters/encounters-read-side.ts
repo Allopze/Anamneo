@@ -136,6 +136,12 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
         where: { deletedAt: null },
         orderBy: [{ uploadedAt: 'asc' }, { id: 'asc' }],
       },
+      signatures: {
+        orderBy: [{ signedAt: 'asc' }, { id: 'asc' }],
+      },
+      consents: {
+        orderBy: [{ grantedAt: 'asc' }, { id: 'asc' }],
+      },
       tasks: {
         orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
         include: {

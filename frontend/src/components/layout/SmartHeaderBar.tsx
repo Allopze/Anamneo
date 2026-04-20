@@ -11,12 +11,14 @@ import {
   FiPlus,
   FiFileText,
   FiUsers,
+  FiTag,
 } from 'react-icons/fi';
 import clsx from 'clsx';
 import Tooltip from '@/components/common/Tooltip';
 import AlertPopover from './AlertPopover';
 import {
   type DashboardCounts,
+  type KpiChip,
   NON_CLINICAL_PREFIXES,
   getChipsForRoute,
   isChipActive,
@@ -25,15 +27,18 @@ import {
 interface SmartHeaderBarProps {
   onSearchOpen: () => void;
   contextSlot?: React.ReactNode;
+  className?: string;
 }
 
 /* ─── Component ───────────────────────────────────────────── */
 
-export default function SmartHeaderBar({ onSearchOpen, contextSlot }: SmartHeaderBarProps) {
+export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }: SmartHeaderBarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { canCreateEncounter, canCreatePatient } = useAuthStore();
+  const isCatalogRoute = pathname.startsWith('/catalogo');
   const isNonClinical = NON_CLINICAL_PREFIXES.some((p) => pathname.startsWith(p));
+  const shouldHideHeader = isNonClinical && !isCatalogRoute;
 
   const [createOpen, setCreateOpen] = useState(false);
   const createRef = useRef<HTMLDivElement>(null);
@@ -94,25 +99,46 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot }: SmartHeade
     staleTime: 60_000,
     refetchInterval: 120_000,
     retry: 2,
-    enabled: !isNonClinical,
+    enabled: !shouldHideHeader && !isCatalogRoute,
   });
 
-  if (isNonClinical) return null;
+  const { data: catalogConditions, isLoading: isCatalogCountLoading } = useQuery<Array<{ id: string }>>({
+    queryKey: ['conditions', ''],
+    queryFn: async () => {
+      const response = await api.get('/conditions');
+      return response.data as Array<{ id: string }>;
+    },
+    staleTime: 60_000,
+    enabled: isCatalogRoute,
+  });
+
+  if (shouldHideHeader) return null;
 
   const counts = data?.counts;
-  const chips = getChipsForRoute(pathname, counts);
-  const showSkeleton = isLoading && !counts;
+  const chips: KpiChip[] = isCatalogRoute
+    ? [
+        {
+          key: 'afecciones',
+          label: 'Afecciones',
+          value: catalogConditions?.length,
+          href: '/catalogo',
+          icon: FiTag,
+          tone: 'text-accent-text',
+        },
+      ]
+    : getChipsForRoute(pathname, counts);
+  const showSkeleton = isCatalogRoute ? isCatalogCountLoading && !catalogConditions : isLoading && !counts;
   const showCreate = canCreateEncounter() || canCreatePatient();
 
   return (
-    <div className="smart-header-bar" role="region" aria-label="Indicadores y acciones rápidas">
+    <div className={clsx('smart-header-bar', className)} role="region" aria-label="Indicadores y acciones rápidas">
       {/* ── Left: contextual KPI chips ────────── */}
 
       {/* Mobile compact */}
       <div className="flex md:hidden items-center gap-2 flex-1 min-w-0 overflow-x-auto">
         {showSkeleton ? (
           <div className="h-5 w-32 skeleton rounded-lg" />
-        ) : isError ? (
+        ) : isError && !isCatalogRoute ? (
           <span className="text-xs text-ink-muted">Sin datos</span>
         ) : (
           chips.slice(0, 3).map((chip) => {
@@ -142,7 +168,7 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot }: SmartHeade
       <div className="hidden md:flex items-center gap-2 flex-1 min-w-0 flex-wrap">
         {showSkeleton ? (
           <div className="h-7 w-48 skeleton rounded-pill" />
-        ) : isError ? (
+        ) : isError && !isCatalogRoute ? (
           <span className="text-sm text-ink-muted">Sin datos</span>
         ) : (
           chips.map((chip) => {

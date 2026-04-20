@@ -2,45 +2,23 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
-import { api, getErrorMessage, PaginatedResponse } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 import { DUPLICATE_ENCOUNTER_CREATED_MESSAGE } from '@/lib/encounter-duplicate';
-import type {
-  Patient,
-  Encounter,
-  PatientClinicalSummary,
-  PatientOperationalHistoryItem,
-} from '@/types';
+import type { Patient } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { useHeaderBarSlot } from '@/components/layout/HeaderBarSlotContext';
 import PatientContextBar from '@/components/PatientContextBar';
 import type { InProgressEncounterSummary } from '@/components/common/InProgressEncounterConflictModal';
-import { getPatientCompletenessMeta } from '@/lib/patient';
-import { patientHistoryHasContent } from '@/lib/utils';
 import {
   invalidateDashboardOverviewQueries,
   invalidateTaskOverviewQueries,
 } from '@/lib/query-invalidation';
 import toast from 'react-hot-toast';
 import { problemSchema, taskSchema, type ProblemForm, type TaskForm, type VitalKey } from './patient-detail.constants';
-
-type TaskUpdatePayload = Omit<Partial<TaskForm>, 'dueDate'> & {
-  dueDate?: string | null;
-  priority?: string;
-  status?: string;
-};
-
-function normalizeTaskUpdatePayload(payload: TaskUpdatePayload): TaskUpdatePayload {
-  if (!Object.prototype.hasOwnProperty.call(payload, 'dueDate')) {
-    return payload;
-  }
-
-  return {
-    ...payload,
-    dueDate: payload.dueDate ? payload.dueDate : null,
-  };
-}
+import { usePatientDetailQueries } from './usePatientDetailQueries';
+import { downloadPatientHistoryPdf, normalizeTaskUpdatePayload, type TaskUpdatePayload } from './patient-detail.helpers';
 
 export function usePatientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -79,61 +57,27 @@ export function usePatientDetail() {
   const isDoctor = isMedico();
   const isRedirectingAdmin = Boolean(user?.isAdmin);
   const adminRedirectPath = '/pacientes';
-
-  const { data: patient, isLoading, error } = useQuery({
-    queryKey: ['patient', id],
-    queryFn: async () => {
-      const response = await api.get(`/patients/${id}`);
-      return response.data as Patient;
-    },
-    enabled: !user?.isAdmin,
-  });
-
   const {
-    data: encounterTimeline,
-    isLoading: isTimelineLoading,
-    isPlaceholderData: isTimelinePlaceholderData,
-  } = useQuery({
-    queryKey: ['patient-encounters', id, encounterPage],
-    queryFn: async () => {
-      const response = await api.get(`/patients/${id}/encounters?page=${encounterPage}&limit=10`);
-      return response.data as PaginatedResponse<Encounter>;
-    },
-    placeholderData: keepPreviousData,
-    enabled: !user?.isAdmin,
+    patient,
+    isLoading,
+    error,
+    encounterTimeline,
+    isTimelineLoading,
+    isTimelinePlaceholderData,
+    patientOperationalHistory,
+    isOperationalHistoryLoading,
+    clinicalSummary,
+    fullVitalsSummary,
+    historyHasContent,
+    completenessMeta,
+    vitalTrend,
+  } = usePatientDetailQueries({
+    encounterPage,
+    id,
+    isAdmin: Boolean(user?.isAdmin),
+    showFullVitals,
   });
-
-  const { data: patientOperationalHistory, isLoading: isOperationalHistoryLoading } = useQuery({
-    queryKey: ['patient-operational-history', id],
-    queryFn: async () => {
-      const response = await api.get(`/patients/${id}/operational-history?limit=12`);
-      return response.data as PatientOperationalHistoryItem[];
-    },
-    enabled: !user?.isAdmin,
-  });
-
-  const { data: clinicalSummary } = useQuery({
-    queryKey: ['patient-clinical-summary', id],
-    queryFn: async () => {
-      const response = await api.get(`/patients/${id}/clinical-summary`);
-      return response.data as PatientClinicalSummary;
-    },
-    enabled: !user?.isAdmin,
-  });
-
-  const { data: fullVitalsSummary } = useQuery({
-    queryKey: ['patient-clinical-summary', id, 'full-vitals'],
-    queryFn: async () => {
-      const response = await api.get(`/patients/${id}/clinical-summary?vitalHistory=full`);
-      return response.data as PatientClinicalSummary;
-    },
-    enabled: showFullVitals && !user?.isAdmin,
-  });
-
-  const historyHasContent = patientHistoryHasContent(patient?.history);
   const headerBarSlot = useHeaderBarSlot();
-  const completenessMeta = patient ? getPatientCompletenessMeta(patient) : null;
-  const vitalTrend = (showFullVitals && fullVitalsSummary ? fullVitalsSummary.vitalTrend : clinicalSummary?.vitalTrend) || [];
 
   useEffect(() => {
     if (!headerBarSlot || !patient) return;
@@ -152,11 +96,6 @@ export function usePatientDetail() {
       headerBarSlot.setHeaderBarSlot(null);
     };
   }, [headerBarSlot, patient]);
-
-  useEffect(() => {
-    if (!isRedirectingAdmin) return;
-    router.replace(adminRedirectPath);
-  }, [adminRedirectPath, isRedirectingAdmin, router]);
 
   useEffect(() => {
     setShowFullVitals(false);
@@ -276,17 +215,7 @@ export function usePatientDetail() {
     if (!patient || exportingPdf) return;
     setExportingPdf(true);
     try {
-      const response = await api.get(`/patients/${id}/export/pdf`, { responseType: 'blob' });
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      const safeName = (patient.nombre || 'Paciente').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]+/g, ' ').trim();
-      link.download = `${safeName} - Historial.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      await downloadPatientHistoryPdf(id, patient);
     } catch {
       toast.error('Error al exportar el historial clínico');
     } finally {

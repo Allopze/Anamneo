@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import type { Attachment, Encounter, IdentificacionData, SectionKey, StructuredOrder, TratamientoData } from '@/types';
 import type { User } from '@/stores/auth-store';
 import { buildGeneratedClinicalSummary } from '@/lib/clinical';
+import { groupAttachmentsByOrderId } from '@/lib/attachments';
 import {
   formatPatientMissingFields,
   getIdentificationMissingFields,
@@ -218,13 +219,7 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
   );
 
   const linkedAttachmentsByOrderId = useMemo(
-    () =>
-      attachments.reduce<Record<string, Attachment[]>>((accumulator, attachment) => {
-        if (!attachment.linkedOrderId) return accumulator;
-        if (!accumulator[attachment.linkedOrderId]) accumulator[attachment.linkedOrderId] = [];
-        accumulator[attachment.linkedOrderId].push(attachment);
-        return accumulator;
-      }, {}),
+    () => groupAttachmentsByOrderId(attachments),
     [attachments],
   );
 

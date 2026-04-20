@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
@@ -22,6 +21,7 @@ import {
   formatPatientSex,
   getPatientCompletenessMeta,
 } from '@/lib/patient';
+import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 
 const dateTimeFormatter = new Intl.DateTimeFormat('es-CL', {
   dateStyle: 'medium',
@@ -43,14 +43,7 @@ function DetailField({ label, value }: { label: string; value: string }) {
 
 export default function PatientAdministrativeDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const { user } = useAuthStore();
-
-  useEffect(() => {
-    if (user && !user.isAdmin) {
-      router.replace(`/pacientes/${id}`);
-    }
-  }, [id, router, user]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['patient-admin-summary', id],
@@ -61,8 +54,16 @@ export default function PatientAdministrativeDetailPage() {
     enabled: !!user?.isAdmin,
   });
 
-  if (!user?.isAdmin) {
-    return null;
+  if (user && !user.isAdmin) {
+    return (
+      <RouteAccessGate
+        when={true}
+        title="Redirigiendo…"
+        description="Esta ficha administrativa solo está disponible para perfiles administrativos."
+        href={`/pacientes/${id}`}
+        actionLabel="Volver al paciente"
+      />
+    );
   }
 
   if (isLoading) {

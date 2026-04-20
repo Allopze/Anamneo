@@ -10,6 +10,21 @@ const pushMock = jest.fn();
 const apiGetMock = jest.fn();
 const apiPostMock = jest.fn();
 
+Object.defineProperty(global.URL, 'createObjectURL', {
+  writable: true,
+  value: jest.fn(() => 'blob:mock'),
+});
+
+Object.defineProperty(global.URL, 'revokeObjectURL', {
+  writable: true,
+  value: jest.fn(),
+});
+
+Object.defineProperty(HTMLAnchorElement.prototype, 'click', {
+  writable: true,
+  value: jest.fn(),
+});
+
 const authStoreState: {
   user: User | null;
 } = {
@@ -228,12 +243,55 @@ describe('FichaClinicaPage clinical-output block', () => {
     render(<FichaClinicaPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Receta' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Órdenes' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Derivación' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Receta' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Órdenes' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Derivación' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Descargar PDF' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Imprimir' })).toBeDisabled();
-    expect(screen.getAllByText(/completada o firmada/i)).toHaveLength(2);
+    expect(screen.getByText('PDF clínico completo e impresión aún no disponibles')).toBeInTheDocument();
+    expect(screen.getByText(/Las recetas, órdenes y derivaciones siguen disponibles/i)).toBeInTheDocument();
+  });
+
+  it('allows focused clinical documents while the encounter is still in progress if the patient is verified', async () => {
+    const user = userEvent.setup();
+
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/encounters/enc-1') {
+        return Promise.resolve({
+          data: {
+            ...encounterResponse,
+            status: 'EN_PROGRESO',
+            clinicalOutputBlock: null,
+            patient: {
+              ...encounterResponse.patient,
+              registrationMode: 'COMPLETO',
+              completenessStatus: 'VERIFICADA',
+              demographicsMissingFields: [],
+            },
+          },
+        });
+      }
+
+      if (url === '/encounters/enc-1/export/document/receta') {
+        return Promise.resolve({
+          data: new Blob(['pdf']),
+          headers: { 'content-disposition': 'attachment; filename="receta.pdf"' },
+        });
+      }
+
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    render(<FichaClinicaPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Receta' }));
+
+    await waitFor(() => {
+      expect(apiGetMock).toHaveBeenCalledWith('/encounters/enc-1/export/document/receta', {
+        responseType: 'blob',
+      });
+    });
   });
 
   it('shows the pre-sign summary and guided reopen action for completed encounters', async () => {

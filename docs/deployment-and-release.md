@@ -80,10 +80,16 @@ El script `scripts/release.sh` genera `releases/anamneo-YYYYMMDD-HHMMSS.zip` e i
 
 - `docker-compose.yml`
 - `.env.example`
+- `README.md`
 - `package.json`
 - `backend/`
 - `frontend/`
-- `scripts/dev-supervisor.sh`
+- `shared/`
+- `scripts/deploy.sh`
+- `runtime/data/`
+- `runtime/uploads/`
+
+El contenido queda en la raiz del zip, sin una carpeta contenedora adicional, para que al extraerlo puedas entrar directo al directorio destino y correr `docker compose build` o `npm run deploy`.
 
 Excluye, entre otros:
 

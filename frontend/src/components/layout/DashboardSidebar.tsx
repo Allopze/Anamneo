@@ -13,6 +13,7 @@ import {
 import clsx from 'clsx';
 import { getNameInitial } from '@/lib/utils';
 import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
+import Tooltip from '@/components/common/Tooltip';
 import type { SearchResult } from './useDashboardSearch';
 import type { IconType } from 'react-icons';
 
@@ -27,6 +28,7 @@ interface DashboardSidebarProps {
   user: { nombre?: string; isAdmin?: boolean; role?: string } | null;
   primaryItems: NavItem[];
   secondaryItems: NavItem[];
+  collapsed: boolean;
   isOperationalAdmin: boolean;
   searchQuery: string;
   searchOpen: boolean;
@@ -34,7 +36,10 @@ interface DashboardSidebarProps {
   searchLoading: boolean;
   searchActiveIndex: number;
   shortcutHint: string;
+  showCollapseToggle: boolean;
+  onCollapsedChange: (next: boolean) => void;
   onSearchChange: (value: string) => void;
+  onSearchOpen: () => void;
   onSearchFocus: () => void;
   onSearchNavigate: (href: string) => void;
   onSearchActiveIndexChange: (index: number) => void;
@@ -47,6 +52,7 @@ export default function DashboardSidebar({
   user,
   primaryItems,
   secondaryItems,
+  collapsed,
   isOperationalAdmin,
   searchQuery,
   searchOpen,
@@ -54,7 +60,10 @@ export default function DashboardSidebar({
   searchLoading,
   searchActiveIndex,
   shortcutHint,
+  showCollapseToggle,
+  onCollapsedChange,
   onSearchChange,
+  onSearchOpen,
   onSearchFocus,
   onSearchNavigate,
   onSearchActiveIndexChange,
@@ -64,6 +73,7 @@ export default function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const userRoleLabel = user?.isAdmin ? 'Administrador' : user?.role === 'MEDICO' ? 'Médico' : 'Asistente';
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -75,6 +85,12 @@ export default function DashboardSidebar({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [searchOpen, onSearchClose]);
+
+  useEffect(() => {
+    if (collapsed && searchOpen) {
+      onSearchClose();
+    }
+  }, [collapsed, searchOpen, onSearchClose]);
 
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -92,126 +108,211 @@ export default function DashboardSidebar({
   };
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 bg-frame m-4 rounded-shell shadow-elevated z-10 flex-shrink-0" style={{ overflow: 'clip' }}>
-      {/* Logo */}
-      <div className="h-24 flex items-center px-8">
-        <Link href="/" className="flex items-center gap-2" aria-label="Inicio — Anamneo">
-          <AnamneoLogo
-            className="gap-2"
-            iconClassName="h-8 w-8 brightness-0 invert"
-            textClassName="text-2xl font-extrabold text-white tracking-tight"
-          />
-        </Link>
-      </div>
-
-      {/* User card */}
-      <div className="px-4 pb-5 mb-4 border-b border-white/20">
-        <div className="flex items-center gap-3 bg-frame-dark p-3 rounded-card">
-          <div className="h-12 w-12 rounded-full bg-surface-inset flex items-center justify-center font-bold text-frame text-lg flex-shrink-0">
-            {getNameInitial(user?.nombre)}
-          </div>
-          <div className="overflow-hidden min-w-0">
-            <p className="text-sm font-bold text-white truncate" title={user?.nombre}>{user?.nombre}</p>
-            <p className="text-xs text-white/50 font-medium capitalize truncate">
-              {user?.isAdmin ? 'Administrador' : user?.role === 'MEDICO' ? 'Médico' : 'Asistente'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Search (inside sidebar) */}
-      {!isOperationalAdmin ? (
-        <div className="px-4 mb-3" ref={searchContainerRef}>
-          <div className="relative">
-            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              onFocus={onSearchFocus}
-              onKeyDown={handleSearchKeyDown}
-              placeholder={`Buscar… ${shortcutHint}`}
-              role="combobox"
-              aria-expanded={searchOpen && !!searchQuery.trim()}
-              aria-controls="search-results-listbox"
-              aria-autocomplete="list"
-              aria-activedescendant={searchActiveIndex >= 0 && searchResults[searchActiveIndex] ? `search-result-${searchResults[searchActiveIndex].id}` : undefined}
-              aria-label="Buscar pacientes y atenciones"
-              className="w-full bg-white/[0.08] text-white placeholder:text-white/30 text-sm rounded-pill pl-10 pr-4 py-2.5 outline-none border border-white/[0.1] focus:border-accent/50 focus:bg-white/[0.12] transition-colors"
-            />
-
-            {/* Search results dropdown */}
-            {searchOpen && searchQuery.trim() && (
-              <SearchResultsDropdown
-                results={searchResults}
-                loading={searchLoading}
-                query={searchQuery}
-                activeIndex={searchActiveIndex}
-                onNavigate={onSearchNavigate}
-                onActiveIndexChange={onSearchActiveIndexChange}
-              />
-            )}
-          </div>
-        </div>
+    <div className={clsx('relative hidden lg:flex flex-shrink-0 py-4 pr-3', showCollapseToggle ? 'pl-7' : 'pl-4')}>
+      {showCollapseToggle ? (
+        <SidebarCollapseButton collapsed={collapsed} onToggle={() => onCollapsedChange(!collapsed)} />
       ) : null}
 
-      {/* Navigation */}
-      <nav className="flex-1 px-4 py-2 space-y-1.5 overflow-y-auto sidebar-scroll" aria-label="Navegación principal">
-        {primaryItems.map((item) => {
-          const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={clsx(
-                'w-full flex items-center px-4 py-3.5 text-sm font-bold rounded-pill transition-all',
-                isActive
-                  ? 'bg-accent text-accent-text'
-                  : 'text-white/50 hover:bg-frame-dark hover:text-white'
-              )}
-            >
-              <item.icon className={clsx('mr-4 h-5 w-5', isActive ? 'text-accent-text' : 'text-white/40')} />
-              {item.name}
-            </Link>
-          );
-        })}
+      <aside
+        className={clsx(
+          'z-10 flex flex-col rounded-shell bg-frame shadow-elevated transition-[width] duration-200',
+          collapsed ? 'w-[76px]' : 'w-[236px]',
+        )}
+        style={{ overflow: 'clip' }}
+      >
+        <div className={clsx('flex h-24 items-center', collapsed ? 'justify-center px-3' : 'px-7')}>
+          <Link href="/" className="flex items-center" aria-label="Inicio — Anamneo">
+            <AnamneoLogo
+              className={clsx(collapsed ? 'justify-center gap-0' : 'gap-2')}
+              iconClassName={clsx('brightness-0 invert', collapsed ? 'h-9 w-9' : 'h-8 w-8')}
+              textClassName={clsx('text-2xl font-extrabold text-white tracking-tight', collapsed && 'hidden')}
+            />
+          </Link>
+        </div>
 
-        {/* Divider */}
-        <div className="my-3 mx-2 border-t border-white/[0.12]" />
+        <div className={clsx('border-b border-white/20', collapsed ? 'mb-3 px-3 pb-4' : 'mb-4 px-4 pb-5')}>
+          {collapsed ? (
+            <Tooltip label={`${user?.nombre ?? 'Usuario'} · ${userRoleLabel}`} side="right">
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-surface-inset text-base font-bold text-frame">
+                {getNameInitial(user?.nombre)}
+              </div>
+            </Tooltip>
+          ) : (
+            <div className="flex items-center gap-3 rounded-card bg-frame-dark p-3">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-surface-inset text-lg font-bold text-frame">
+                {getNameInitial(user?.nombre)}
+              </div>
+              <div className="min-w-0 overflow-hidden">
+                <p className="truncate text-sm font-bold text-white" title={user?.nombre}>{user?.nombre}</p>
+                <p className="truncate text-xs font-medium capitalize text-white/50">
+                  {userRoleLabel}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
 
-        {secondaryItems.map((item) => {
-          const isActive = pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={clsx(
-                'w-full flex items-center px-4 py-3.5 text-sm font-bold rounded-pill transition-all',
-                isActive
-                  ? 'bg-accent text-accent-text'
-                  : 'text-white/50 hover:bg-frame-dark hover:text-white'
-              )}
-            >
-              <item.icon className={clsx('mr-4 h-5 w-5', isActive ? 'text-accent-text' : 'text-white/40')} />
-              {item.name}
-            </Link>
-          );
-        })}
-      </nav>
+        {!isOperationalAdmin ? (
+          <div className={clsx(collapsed ? 'mb-3 px-3' : 'mb-3 px-4')} ref={searchContainerRef}>
+            {collapsed ? (
+              <Tooltip label={`Buscar (${shortcutHint})`} side="right">
+                <button
+                  type="button"
+                  onClick={onSearchOpen}
+                  className="mx-auto flex h-11 w-11 items-center justify-center rounded-card border border-white/[0.12] bg-white/[0.08] text-white/70 transition-colors hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+                  aria-label={`Buscar pacientes y atenciones (${shortcutHint})`}
+                >
+                  <FiSearch className="h-4 w-4" />
+                </button>
+              </Tooltip>
+            ) : (
+              <div className="relative">
+                <FiSearch className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  onFocus={onSearchFocus}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder={`Buscar… ${shortcutHint}`}
+                  role="combobox"
+                  aria-expanded={searchOpen && !!searchQuery.trim()}
+                  aria-controls="search-results-listbox"
+                  aria-autocomplete="list"
+                  aria-activedescendant={searchActiveIndex >= 0 && searchResults[searchActiveIndex] ? `search-result-${searchResults[searchActiveIndex].id}` : undefined}
+                  aria-label="Buscar pacientes y atenciones"
+                  className="w-full rounded-pill border border-white/[0.1] bg-white/[0.08] py-2.5 pl-10 pr-4 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-accent/50 focus:bg-white/[0.12]"
+                />
 
-      {/* Logout */}
-      <div className="p-6">
-        <button
-          onClick={onLogout}
-          className="flex items-center justify-center w-full px-4 py-3 text-sm font-bold text-white/50 bg-frame-dark hover:text-white hover:bg-status-red rounded-pill transition-colors"
+                {searchOpen && searchQuery.trim() && (
+                  <SearchResultsDropdown
+                    results={searchResults}
+                    loading={searchLoading}
+                    query={searchQuery}
+                    activeIndex={searchActiveIndex}
+                    onNavigate={onSearchNavigate}
+                    onActiveIndexChange={onSearchActiveIndexChange}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        <nav
+          className={clsx(
+            'sidebar-scroll flex-1 overflow-y-auto',
+            collapsed ? 'space-y-2 px-2 py-2' : 'space-y-1.5 px-4 py-2',
+          )}
+          aria-label="Navegación principal"
         >
-          <FiLogOut className="mr-3 h-5 w-5" />
-          Salir
-        </button>
-      </div>
-    </aside>
+          {primaryItems.map((item) => {
+            const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+            return (
+              <SidebarNavItem key={item.name} item={item} isActive={isActive} collapsed={collapsed} />
+            );
+          })}
+
+          <div className={clsx('border-t border-white/[0.12]', collapsed ? 'mx-1 my-2' : 'mx-2 my-3')} />
+
+          {secondaryItems.map((item) => {
+            const isActive = pathname.startsWith(item.href);
+            return (
+              <SidebarNavItem key={item.name} item={item} isActive={isActive} collapsed={collapsed} />
+            );
+          })}
+        </nav>
+
+        <div className={clsx(collapsed ? 'p-3 pt-2' : 'p-6')}>
+          {collapsed ? (
+            <Tooltip label="Salir" side="right">
+              <button
+                onClick={onLogout}
+                className="mx-auto flex h-11 w-11 items-center justify-center rounded-card bg-frame-dark text-white/55 transition-colors hover:bg-status-red hover:text-white"
+                aria-label="Salir"
+              >
+                <FiLogOut className="h-4.5 w-4.5" />
+              </button>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={onLogout}
+              className="flex w-full items-center justify-center rounded-pill bg-frame-dark px-4 py-3 text-sm font-bold text-white/50 transition-colors hover:bg-status-red hover:text-white"
+            >
+              <FiLogOut className="mr-3 h-5 w-5" />
+              Salir
+            </button>
+          )}
+        </div>
+      </aside>
+    </div>
   );
+}
+
+function SidebarCollapseButton({
+  collapsed,
+  onToggle,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Tooltip label={collapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'} side="right">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="absolute left-0 top-10 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-surface-muted/35 bg-surface-elevated text-ink-secondary shadow-soft transition-colors hover:border-frame/18 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20"
+        aria-label={collapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'}
+        aria-expanded={!collapsed}
+      >
+        {collapsed ? <span className="text-base leading-none">»</span> : <span className="text-base leading-none">«</span>}
+      </button>
+    </Tooltip>
+  );
+}
+
+function SidebarNavItem({
+  item,
+  isActive,
+  collapsed,
+}: {
+  item: NavItem;
+  isActive: boolean;
+  collapsed: boolean;
+}) {
+  const link = (
+    <Link
+      href={item.href}
+      aria-label={item.name}
+      title={collapsed ? item.name : undefined}
+      className={clsx(
+        'transition-all',
+        collapsed
+          ? isActive
+            ? 'flex h-11 w-11 items-center justify-center rounded-card bg-accent text-accent-text shadow-soft'
+            : 'flex h-11 w-11 items-center justify-center rounded-card text-white/55 hover:bg-frame-dark hover:text-white'
+          : isActive
+            ? 'flex w-full items-center rounded-pill bg-accent px-4 py-3.5 text-sm font-bold text-accent-text'
+            : 'flex w-full items-center rounded-pill px-4 py-3.5 text-sm font-bold text-white/50 hover:bg-frame-dark hover:text-white',
+      )}
+    >
+      <span className={clsx(collapsed ? 'flex h-5 w-5 items-center justify-center' : 'mr-4 flex h-5 w-5 items-center justify-center')}>
+        <item.icon className={clsx('h-5 w-5', isActive ? 'text-accent-text' : 'text-white/40')} />
+      </span>
+      {!collapsed ? item.name : null}
+    </Link>
+  );
+
+  if (collapsed) {
+    return (
+      <Tooltip label={item.name} side="right">
+        <div className="flex w-full justify-center">{link}</div>
+      </Tooltip>
+    );
+  }
+
+  return link;
 }
 
 function SearchResultsDropdown({

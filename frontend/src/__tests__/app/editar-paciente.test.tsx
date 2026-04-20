@@ -7,6 +7,18 @@ import EditarPacientePage from '@/app/(dashboard)/pacientes/[id]/editar/page';
 const pushMock = jest.fn();
 const apiGetMock = jest.fn();
 const apiPutMock = jest.fn();
+const authStoreState: any = {
+  user: {
+    id: 'med-1',
+    email: 'medico@anamneo.cl',
+    nombre: 'Dra. Rivera',
+    role: 'MEDICO' as const,
+    isAdmin: false,
+    medicoId: null,
+  },
+  isMedico: () => true,
+  canEditPatientAdmin: () => true,
+};
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({ id: 'patient-1' }),
@@ -14,18 +26,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/stores/auth-store', () => ({
-  useAuthStore: () => ({
-    user: {
-      id: 'med-1',
-      email: 'medico@anamneo.cl',
-      nombre: 'Dra. Rivera',
-      role: 'MEDICO',
-      isAdmin: false,
-      medicoId: null,
-    },
-    isMedico: () => true,
-    canEditPatientAdmin: () => true,
-  }),
+  useAuthStore: () => authStoreState,
 }));
 
 jest.mock('@/lib/api', () => ({
@@ -64,6 +65,16 @@ function createWrapper() {
 describe('EditarPacientePage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    authStoreState.user = {
+      id: 'med-1',
+      email: 'medico@anamneo.cl',
+      nombre: 'Dra. Rivera',
+      role: 'MEDICO',
+      isAdmin: false,
+      medicoId: null,
+    };
+    authStoreState.isMedico = () => true;
+    authStoreState.canEditPatientAdmin = () => true;
     apiPutMock.mockResolvedValue({ data: {} });
     apiGetMock.mockImplementation((url: string) => {
       if (url === '/patients/patient-1') {
@@ -142,5 +153,24 @@ describe('EditarPacientePage', () => {
         }),
       );
     });
+  });
+
+  it('does not fetch the patient when the user will be redirected for lack of permissions', async () => {
+    authStoreState.user = {
+      id: 'assistant-1',
+      email: 'asistente@anamneo.cl',
+      nombre: 'Asistente Demo',
+      role: 'ASISTENTE',
+      isAdmin: false,
+      medicoId: 'med-1',
+    };
+    authStoreState.isMedico = () => false;
+    authStoreState.canEditPatientAdmin = () => false;
+
+    render(<EditarPacientePage />, { wrapper: createWrapper() });
+
+    expect(screen.getByText('Redirigiendo…')).toBeInTheDocument();
+    expect(screen.getByText(/No tienes permisos para editar esta ficha/i)).toBeInTheDocument();
+    expect(apiGetMock).not.toHaveBeenCalled();
   });
 });

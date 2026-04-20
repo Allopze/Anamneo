@@ -1,8 +1,6 @@
-import { useState, useEffect, useCallback, useMemo, useTransition } from 'react';
+import { useState, useCallback, useMemo, useTransition } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import type { Encounter } from '@/types';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   canEditEncounter,
@@ -18,6 +16,7 @@ import { useEncounterWizardNavigation } from './useEncounterWizardNavigation';
 import { useEncounterWorkflowActions } from './useEncounterWorkflowActions';
 import { useEncounterWizardSectionActions } from './useEncounterWizardSectionActions';
 import { useDuplicateEncounterAction } from './useDuplicateEncounterAction';
+import { useEncounterWizardEncounter } from './useEncounterWizardEncounter';
 
 export function useEncounterWizard() {
   const { id } = useParams<{ id: string }>();
@@ -28,34 +27,11 @@ export function useEncounterWizard() {
   const [isSectionSwitchPending, startSectionTransition] = useTransition();
 
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
-  const [elapsedMinutes, setElapsedMinutes] = useState(0);
   const isOnline = useOnlineStatus();
-
-  const {
-    data: encounter,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ['encounter', id],
-    queryFn: async () => {
-      const response = await api.get(`/encounters/${id}`);
-      return response.data as Encounter;
-    },
-    enabled: !isOperationalAdmin,
+  const { encounter, isLoading, error, elapsedMinutes } = useEncounterWizardEncounter({
+    id,
+    isOperationalAdmin,
   });
-
-  useEffect(() => {
-    if (!isOperationalAdmin) return;
-    router.replace('/');
-  }, [isOperationalAdmin, router]);
-
-  useEffect(() => {
-    if (!encounter?.createdAt) return;
-    const calc = () => Math.max(0, Math.floor((Date.now() - new Date(encounter.createdAt).getTime()) / 60000));
-    setElapsedMinutes(calc());
-    const interval = setInterval(() => setElapsedMinutes(calc()), 60000);
-    return () => clearInterval(interval);
-  }, [encounter?.createdAt]);
 
   const isDoctor = isMedico();
   const canEdit = canEditEncounter(user ?? null, encounter);

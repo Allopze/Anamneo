@@ -84,6 +84,60 @@ export class EncounterIdentificationSnapshotStatusDto {
   sourcePatientUpdatedAt?: Date | null;
 }
 
+export class EncounterSignatureResponseDto {
+  id: string;
+  encounterId: string;
+  userId: string;
+  signatureType: string;
+  contentHash: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  signedAt: Date;
+  revokedAt: Date | null;
+  revokedReason: string | null;
+}
+
+export class EncounterAttachmentResponseDto {
+  id: string;
+  originalName: string;
+  mime: string;
+  size: number;
+  category: string | null;
+  description: string | null;
+  linkedOrderType: string | null;
+  linkedOrderId: string | null;
+  linkedOrderLabel: string | null;
+  uploadedAt: Date;
+}
+
+export class EncounterConsentGrantedByDto {
+  nombre: string;
+}
+
+export class EncounterConsentResponseDto {
+  id: string;
+  patientId: string;
+  encounterId: string | null;
+  type: string;
+  description: string;
+  status: string;
+  grantedAt: Date;
+  revokedAt: Date | null;
+  revokeReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  grantedBy: EncounterConsentGrantedByDto | null;
+}
+
+export class EncounterSignatureBaselineResponseDto {
+  id: string;
+  status: string;
+  createdAt: Date;
+  closureNote: string | null;
+  attachments: EncounterAttachmentResponseDto[];
+  sections: EncounterSectionResponseDto[];
+}
+
 export class EncounterDetailPatientDto {
   id: string;
   rut: string | null;
@@ -129,9 +183,10 @@ export class EncounterDetailResponseDto {
   reviewRequestedBy?: UserRefDto;
   reviewedBy?: UserRefDto;
   completedBy?: UserRefDto;
-  signatures?: any[];
-  attachments?: any[];
-  consents?: any[];
+  signatures?: EncounterSignatureResponseDto[];
+  attachments?: EncounterAttachmentResponseDto[];
+  consents?: EncounterConsentResponseDto[];
+  signatureBaseline?: EncounterSignatureBaselineResponseDto | null;
   patient?: EncounterDetailPatientDto;
   tasks: PatientTaskResponseDto[];
   sections: EncounterSectionResponseDto[];

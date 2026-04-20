@@ -1,15 +1,25 @@
 import { IsString, IsOptional, IsBoolean, MinLength, MaxLength } from 'class-validator';
 import { Transform } from 'class-transformer';
+import {
+  PATIENT_NAME_MAX_LENGTH,
+  PATIENT_NAME_MIN_LENGTH,
+  PATIENT_RUT_EXEMPT_REASON_MAX_LENGTH,
+  PATIENT_RUT_MAX_LENGTH,
+} from '../../../../shared/patient-field-constraints';
 
 export class CreatePatientQuickDto {
   @IsString()
-  @MinLength(2, { message: 'El nombre debe tener al menos 2 caracteres' })
-  @MaxLength(200, { message: 'El nombre no puede exceder 200 caracteres' })
+  @MinLength(PATIENT_NAME_MIN_LENGTH, {
+    message: `El nombre debe tener al menos ${PATIENT_NAME_MIN_LENGTH} caracteres`,
+  })
+  @MaxLength(PATIENT_NAME_MAX_LENGTH, {
+    message: `El nombre no puede exceder ${PATIENT_NAME_MAX_LENGTH} caracteres`,
+  })
   @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
   nombre: string;
 
   @IsString()
-  @MaxLength(20, { message: 'El RUT no puede exceder 20 caracteres' })
+  @MaxLength(PATIENT_RUT_MAX_LENGTH, { message: `El RUT no puede exceder ${PATIENT_RUT_MAX_LENGTH} caracteres` })
   @IsOptional()
   rut?: string;
 
@@ -18,7 +28,9 @@ export class CreatePatientQuickDto {
   rutExempt?: boolean;
 
   @IsString()
-  @MaxLength(500, { message: 'El motivo no puede exceder 500 caracteres' })
+  @MaxLength(PATIENT_RUT_EXEMPT_REASON_MAX_LENGTH, {
+    message: `El motivo no puede exceder ${PATIENT_RUT_EXEMPT_REASON_MAX_LENGTH} caracteres`,
+  })
   @IsOptional()
   rutExemptReason?: string;
 }
