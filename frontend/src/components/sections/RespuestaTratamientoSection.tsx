@@ -4,6 +4,13 @@ import { RespuestaTratamientoData } from '@/types';
 import VoiceDictationButton from '@/components/common/VoiceDictationButton';
 import { SectionBlock, SectionFieldHeader } from '@/components/sections/SectionPrimitives';
 
+const RESPONSE_OUTCOME_OPTIONS = [
+  { value: 'FAVORABLE', label: 'Favorable' },
+  { value: 'PARCIAL', label: 'Parcial' },
+  { value: 'SIN_RESPUESTA', label: 'Sin respuesta' },
+  { value: 'EMPEORA', label: 'Empeora' },
+] as const;
+
 interface Props {
   data: RespuestaTratamientoData;
   onChange: (data: RespuestaTratamientoData) => void;
@@ -15,10 +22,64 @@ export default function RespuestaTratamientoSection({ data, onChange, readOnly }
     onChange({ ...data, [field]: value });
   };
 
+  const respuestaEstructurada = data.respuestaEstructurada || {};
+
+  const handleStructuredOutcomeChange = (field: 'estado' | 'notas', value: string) => {
+    handleChange('respuestaEstructurada', {
+      ...respuestaEstructurada,
+      [field]: value,
+    });
+  };
+
   return (
     <div className="space-y-5">
       <SectionBlock title="Respuesta clínica">
         <div className="space-y-4">
+          <div className="rounded-card border border-surface-muted/30 bg-surface-base/35 p-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="form-label">Desenlace estructurado</label>
+                <select
+                  value={respuestaEstructurada.estado || ''}
+                  onChange={(event) => handleStructuredOutcomeChange('estado', event.target.value)}
+                  disabled={readOnly}
+                  className="form-input"
+                >
+                  <option value="">Sin registrar</option>
+                  {RESPONSE_OUTCOME_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-sm text-ink-secondary">
+                  Este campo es el que la analítica usa primero para estimar si el tratamiento funcionó.
+                </p>
+              </div>
+
+              <div>
+                <SectionFieldHeader
+                  label="Notas del desenlace estructurado"
+                  action={!readOnly ? (
+                    <VoiceDictationButton
+                      onTranscript={(text) =>
+                        handleStructuredOutcomeChange('notas', `${respuestaEstructurada.notas ? `${respuestaEstructurada.notas} ` : ''}${text}`.trim())
+                      }
+                    />
+                  ) : undefined}
+                />
+                <textarea
+                  value={respuestaEstructurada.notas || ''}
+                  onChange={(event) => handleStructuredOutcomeChange('notas', event.target.value)}
+                  disabled={readOnly}
+                  rows={3}
+                  className="form-input form-textarea"
+                  placeholder="Ej: dolor resuelto, tolera alimentación, sin nuevos vómitos"
+                />
+              </div>
+            </div>
+          </div>
+
           <div>
             <SectionFieldHeader
               label="Evolución con el tratamiento"

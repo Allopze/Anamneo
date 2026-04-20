@@ -7,6 +7,7 @@ import {
 } from './encounters-sanitize-primitives';
 
 const CHOSEN_MODES = ['AUTO', 'MANUAL'] as const;
+const ASOCIACION_COMIDA = ['SI', 'NO', 'NO_CLARO'] as const;
 
 const REVISION_SISTEMAS_KEYS = [
   'psiquico',
@@ -82,6 +83,69 @@ export function sanitizeMotivoConsultaData(data: Record<string, unknown>) {
 }
 
 export function sanitizeAnamnesisProximaData(data: Record<string, unknown>) {
+  const perfilDolorAbdominal = (() => {
+    const raw = data.perfilDolorAbdominal;
+    if (raw === undefined || raw === null) {
+      return undefined;
+    }
+
+    if (typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new BadRequestException('El perfil estructurado de dolor abdominal no es válido');
+    }
+
+    const record = raw as Record<string, unknown>;
+    const parseOptionalBoolean = (value: unknown, field: string) => {
+      if (value === undefined || value === null || value === '') {
+        return undefined;
+      }
+
+      if (typeof value !== 'boolean') {
+        throw new BadRequestException(`El campo ${field} del perfil de dolor abdominal no es válido`);
+      }
+
+      return value;
+    };
+
+    const asociadoComida = (() => {
+      if (record.asociadoComida === undefined || record.asociadoComida === null || record.asociadoComida === '') {
+        return undefined;
+      }
+
+      if (
+        typeof record.asociadoComida !== 'string' ||
+        !ASOCIACION_COMIDA.includes(record.asociadoComida as (typeof ASOCIACION_COMIDA)[number])
+      ) {
+        throw new BadRequestException('La asociación con comida del perfil de dolor abdominal no es válida');
+      }
+
+      return record.asociadoComida;
+    })();
+
+    const sanitized = {
+      ...(parseOptionalBoolean(record.presente, 'presente') !== undefined
+        ? { presente: parseOptionalBoolean(record.presente, 'presente') }
+        : {}),
+      ...(parseOptionalBoolean(record.vomitos, 'vomitos') !== undefined
+        ? { vomitos: parseOptionalBoolean(record.vomitos, 'vomitos') }
+        : {}),
+      ...(parseOptionalBoolean(record.diarrea, 'diarrea') !== undefined
+        ? { diarrea: parseOptionalBoolean(record.diarrea, 'diarrea') }
+        : {}),
+      ...(parseOptionalBoolean(record.nauseas, 'nauseas') !== undefined
+        ? { nauseas: parseOptionalBoolean(record.nauseas, 'nauseas') }
+        : {}),
+      ...(parseOptionalBoolean(record.estrenimiento, 'estrenimiento') !== undefined
+        ? { estrenimiento: parseOptionalBoolean(record.estrenimiento, 'estrenimiento') }
+        : {}),
+      ...(asociadoComida !== undefined ? { asociadoComida } : {}),
+      ...(sanitizeTextListField(record.notas, 1200) !== undefined
+        ? { notas: sanitizeTextListField(record.notas, 1200) }
+        : {}),
+    };
+
+    return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+  })();
+
   return {
     ...(sanitizeTextListField(data.relatoAmpliado, 5000) !== undefined
       ? { relatoAmpliado: sanitizeTextListField(data.relatoAmpliado, 5000) }
@@ -101,6 +165,7 @@ export function sanitizeAnamnesisProximaData(data: Record<string, unknown>) {
     ...(sanitizeTextListField(data.sintomasAsociados, 3000) !== undefined
       ? { sintomasAsociados: sanitizeTextListField(data.sintomasAsociados, 3000) }
       : {}),
+    ...(perfilDolorAbdominal !== undefined ? { perfilDolorAbdominal } : {}),
   };
 }
 

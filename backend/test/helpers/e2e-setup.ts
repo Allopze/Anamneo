@@ -24,6 +24,7 @@ import { ConsentsModule } from '../../src/consents/consents.module';
 import { AlertsService } from '../../src/alerts/alerts.service';
 import { AuditModule } from '../../src/audit/audit.module';
 import { SettingsModule } from '../../src/settings/settings.module';
+import { AnalyticsModule } from '../../src/analytics/analytics.module';
 import { HealthController } from '../../src/health.controller';
 import { requestTracingMiddleware } from '../../src/common/utils/request-tracing';
 
@@ -178,6 +179,7 @@ export async function bootstrapApp() {
       ConsentsModule,
       AuditModule,
       SettingsModule,
+      AnalyticsModule,
     ],
     controllers: [HealthController],
   }).compile();

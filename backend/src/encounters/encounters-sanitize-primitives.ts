@@ -87,6 +87,7 @@ export function sanitizeStructuredMedication(item: unknown, index: number) {
   }
 
   const nombre = sanitizeTextListField(record.nombre, 200);
+  const activeIngredient = sanitizeTextListField(record.activeIngredient, 200);
   const dosis = sanitizeTextListField(record.dosis, 120);
   const via = (() => {
     if (record.via === undefined || record.via === null || record.via === '') {
@@ -106,13 +107,14 @@ export function sanitizeStructuredMedication(item: unknown, index: number) {
   const duracion = sanitizeTextListField(record.duracion, 120);
   const indicacion = sanitizeTextListField(record.indicacion, 400);
 
-  if (!nombre && !dosis && !via && !frecuencia && !duracion && !indicacion) {
+  if (!nombre && !activeIngredient && !dosis && !via && !frecuencia && !duracion && !indicacion) {
     return null;
   }
 
   return {
     id,
     ...(nombre !== undefined ? { nombre } : {}),
+    ...(activeIngredient !== undefined ? { activeIngredient } : {}),
     ...(dosis !== undefined ? { dosis } : {}),
     ...(via !== undefined ? { via } : {}),
     ...(frecuencia !== undefined ? { frecuencia } : {}),

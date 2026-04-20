@@ -132,11 +132,13 @@ export default function DashboardSidebar({
 
         <div className={clsx('border-b border-white/20', collapsed ? 'mb-3 px-3 pb-4' : 'mb-4 px-4 pb-5')}>
           {collapsed ? (
-            <Tooltip label={`${user?.nombre ?? 'Usuario'} · ${userRoleLabel}`} side="right">
-              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-surface-inset text-base font-bold text-frame">
-                {getNameInitial(user?.nombre)}
-              </div>
-            </Tooltip>
+            <div className="flex justify-center">
+              <Tooltip label={`${user?.nombre ?? 'Usuario'} · ${userRoleLabel}`} side="right">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-inset text-base font-bold text-frame">
+                  {getNameInitial(user?.nombre)}
+                </div>
+              </Tooltip>
+            </div>
           ) : (
             <div className="flex items-center gap-3 rounded-card bg-frame-dark p-3">
               <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-surface-inset text-lg font-bold text-frame">
@@ -155,16 +157,18 @@ export default function DashboardSidebar({
         {!isOperationalAdmin ? (
           <div className={clsx(collapsed ? 'mb-3 px-3' : 'mb-3 px-4')} ref={searchContainerRef}>
             {collapsed ? (
-              <Tooltip label={`Buscar (${shortcutHint})`} side="right">
-                <button
-                  type="button"
-                  onClick={onSearchOpen}
-                  className="mx-auto flex h-11 w-11 items-center justify-center rounded-card border border-white/[0.12] bg-white/[0.08] text-white/70 transition-colors hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
-                  aria-label={`Buscar pacientes y atenciones (${shortcutHint})`}
-                >
-                  <FiSearch className="h-4 w-4" />
-                </button>
-              </Tooltip>
+              <div className="flex justify-center">
+                <Tooltip label={`Buscar (${shortcutHint})`} side="right">
+                  <button
+                    type="button"
+                    onClick={onSearchOpen}
+                    className="flex h-11 w-11 items-center justify-center rounded-card border border-white/[0.12] bg-white/[0.08] text-white/70 transition-colors hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+                    aria-label={`Buscar pacientes y atenciones (${shortcutHint})`}
+                  >
+                    <FiSearch className="h-4 w-4" />
+                  </button>
+                </Tooltip>
+              </div>
             ) : (
               <div className="relative">
                 <FiSearch className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
@@ -226,15 +230,17 @@ export default function DashboardSidebar({
 
         <div className={clsx(collapsed ? 'p-3 pt-2' : 'p-6')}>
           {collapsed ? (
-            <Tooltip label="Salir" side="right">
-              <button
-                onClick={onLogout}
-                className="mx-auto flex h-11 w-11 items-center justify-center rounded-card bg-frame-dark text-white/55 transition-colors hover:bg-status-red hover:text-white"
-                aria-label="Salir"
-              >
-                <FiLogOut className="h-4.5 w-4.5" />
-              </button>
-            </Tooltip>
+            <div className="flex justify-center">
+              <Tooltip label="Salir" side="right">
+                <button
+                  onClick={onLogout}
+                  className="flex h-11 w-11 items-center justify-center rounded-card bg-frame-dark text-white/55 transition-colors hover:bg-status-red hover:text-white"
+                  aria-label="Salir"
+                >
+                  <FiLogOut className="h-4.5 w-4.5" />
+                </button>
+              </Tooltip>
+            </div>
           ) : (
             <button
               onClick={onLogout}
@@ -306,9 +312,11 @@ function SidebarNavItem({
 
   if (collapsed) {
     return (
-      <Tooltip label={item.name} side="right">
-        <div className="flex w-full justify-center">{link}</div>
-      </Tooltip>
+      <div className="flex w-full justify-center">
+        <Tooltip label={item.name} side="right">
+          {link}
+        </Tooltip>
+      </div>
     );
   }
 

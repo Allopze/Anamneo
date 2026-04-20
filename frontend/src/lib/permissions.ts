@@ -63,6 +63,10 @@ export function canImportConditionsCsv(user: PermissionUser | null | undefined) 
   return Boolean(user?.role === 'ADMIN');
 }
 
+export function canImportMedicationsCsv(user: PermissionUser | null | undefined) {
+  return Boolean(user?.role === 'ADMIN');
+}
+
 export function canEditAntecedentes(user: PermissionUser | null | undefined) {
   return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
 }

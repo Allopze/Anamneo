@@ -20,7 +20,7 @@ export default function NuevaAfeccionPage() {
 
   useEffect(() => {
     if (!isAdmin()) {
-      router.push('/catalogo');
+      router.push('/catalogo?categoria=afecciones');
     }
   }, [isAdmin, router]);
 
@@ -43,7 +43,7 @@ export default function NuevaAfeccionPage() {
     onSuccess: () => {
       toast.success('Afección creada');
       queryClient.invalidateQueries({ queryKey: ['conditions'] });
-      router.push('/catalogo');
+      router.push('/catalogo?categoria=afecciones');
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
@@ -53,7 +53,7 @@ export default function NuevaAfeccionPage() {
   return (
     <div className="animate-fade-in max-w-2xl">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/catalogo" className="p-2 hover:bg-surface-muted rounded-lg">
+        <Link href="/catalogo?categoria=afecciones" className="p-2 hover:bg-surface-muted rounded-lg">
           <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
         </Link>
         <div>
@@ -95,7 +95,7 @@ export default function NuevaAfeccionPage() {
             <FiSave className="w-4 h-4" />
             Guardar
           </button>
-          <Link href="/catalogo" className="btn btn-secondary">
+          <Link href="/catalogo?categoria=afecciones" className="btn btn-secondary">
             Cancelar
           </Link>
         </div>

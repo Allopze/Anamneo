@@ -108,6 +108,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     await this.patient.deleteMany();
     await this.auditLog.deleteMany();
     await this.conditionCatalog.deleteMany();
+    await this.medicationCatalog.deleteMany();
     await this.user.deleteMany();
   }
 

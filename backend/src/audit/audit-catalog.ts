@@ -42,6 +42,7 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   USER_PASSWORD_CHANGED: 'Cambio de contraseña',
   USER_PASSWORD_RESET: 'Reset administrativo de contraseña',
   CONDITION_CSV_IMPORTED: 'Importación CSV de catálogo global',
+  MEDICATION_CSV_IMPORTED: 'Importación CSV de catálogo de medicamentos',
   SETTINGS_UPDATED: 'Actualización de configuración',
   AUDIT_UNSPECIFIED: 'Evento no catalogado',
 };
@@ -93,6 +94,7 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'User' && action === 'PASSWORD_CHANGED' && hasDiffKey(diff, 'reset')) return 'USER_PASSWORD_RESET';
   if (entityType === 'User' && action === 'PASSWORD_CHANGED') return 'USER_PASSWORD_CHANGED';
   if (entityType === 'ConditionCatalog' && action === 'UPDATE' && hasDiffScope(diff, 'CSV_IMPORT')) return 'CONDITION_CSV_IMPORTED';
+  if (entityType === 'MedicationCatalog' && action === 'UPDATE' && hasDiffScope(diff, 'CSV_IMPORT')) return 'MEDICATION_CSV_IMPORTED';
   if (entityType === 'Setting' && action === 'UPDATE') return 'SETTINGS_UPDATED';
 
   return 'AUDIT_UNSPECIFIED';

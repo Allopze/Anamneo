@@ -36,6 +36,7 @@ export const ENTITY_LABELS: Record<string, string> = {
   User: 'Usuario',
   ConditionCatalog: 'Catálogo',
   ConditionCatalogLocal: 'Catálogo local',
+  MedicationCatalog: 'Catálogo de medicamentos',
   Attachment: 'Adjunto',
   UserInvitation: 'Invitación',
   PatientExport: 'Exportación pacientes',
@@ -87,6 +88,7 @@ export const REASON_LABELS: Record<string, string> = {
   USER_PASSWORD_CHANGED: 'Cambio de contraseña',
   USER_PASSWORD_RESET: 'Reset de contraseña',
   CONDITION_CSV_IMPORTED: 'Importación CSV de catálogo global',
+  MEDICATION_CSV_IMPORTED: 'Importación CSV de catálogo de medicamentos',
   SETTINGS_UPDATED: 'Actualización de ajustes',
   AUDIT_UNSPECIFIED: 'Sin clasificar',
 };

@@ -203,6 +203,20 @@ export function getTreatmentPlanText(trat: Record<string, any>) {
   return `${plan}\n\nIndicaciones adicionales:\n${indicaciones}`;
 }
 
+export function formatStructuredMedicationLine(item: Record<string, unknown>) {
+  const nombre = typeof item.nombre === 'string' ? item.nombre.trim() : '';
+  const activeIngredient = typeof item.activeIngredient === 'string' ? item.activeIngredient.trim() : '';
+  const activeIngredientLabel = activeIngredient && activeIngredient.toLowerCase() !== nombre.toLowerCase()
+    ? `PA: ${activeIngredient}`
+    : '';
+  const dosis = typeof item.dosis === 'string' ? item.dosis.trim() : '';
+  const via = typeof item.via === 'string' ? item.via.trim() : '';
+  const frecuencia = typeof item.frecuencia === 'string' ? item.frecuencia.trim() : '';
+  const duracion = typeof item.duracion === 'string' ? item.duracion.trim() : '';
+
+  return [nombre, activeIngredientLabel, dosis, via, frecuencia, duracion].filter(Boolean).join(' · ');
+}
+
 export function formatHistoryFieldText(value: unknown) {
   if (!value) {
     return '';

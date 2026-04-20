@@ -16,6 +16,7 @@ Este directorio concentra la documentacion viva del proyecto. Si un tema aparece
 | `sqlite-operations.md` | Operacion | Backup, restore drill, monitor y alertas SQLite |
 | `deployment-and-release.md` | Operacion | Build, empaquetado, despliegue y smoke checks |
 | `clinical-workflows.md` | Producto / Desarrollo | Flujos funcionales vigentes y riesgos conocidos |
+| `clinical-analytics.md` | Producto / Desarrollo | Vista de analitica clinica, fuentes de datos, calculos, limites y validacion |
 | `settings-key-rotation-runbook.md` | Operacion | Rotacion de claves de cifrado para settings |
 | `design-tokens-anamneo.md` | Frontend | Contrato visual activo del frontend |
 

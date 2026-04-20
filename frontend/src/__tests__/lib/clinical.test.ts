@@ -105,6 +105,23 @@ describe('extractStructuredMedicationLines', () => {
     expect(lines[0]).toContain('c/8h');
   });
 
+  it('includes the active ingredient when it differs from the visible name', () => {
+    const meds: StructuredMedication[] = [
+      {
+        id: 'med-3',
+        nombre: 'Losec',
+        activeIngredient: 'Omeprazol',
+        dosis: '20mg',
+      },
+    ];
+
+    const lines = extractStructuredMedicationLines(meds);
+
+    expect(lines[0]).toContain('Losec');
+    expect(lines[0]).toContain('PA: Omeprazol');
+    expect(lines[0]).toContain('20mg');
+  });
+
   it('handles undefined', () => {
     expect(extractStructuredMedicationLines(undefined)).toEqual([]);
   });

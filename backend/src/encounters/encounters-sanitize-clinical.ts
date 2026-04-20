@@ -8,6 +8,8 @@ import {
   sanitizeTextListField,
 } from './encounters-sanitize-primitives';
 
+const ESTADOS_RESPUESTA_TRATAMIENTO = ['FAVORABLE', 'PARCIAL', 'SIN_RESPUESTA', 'EMPEORA'] as const;
+
 export function sanitizeExamenFisicoData(data: Record<string, unknown>) {
   const signosVitalesRaw = data.signosVitales;
   let signosVitales: Record<string, string> | undefined;
@@ -177,6 +179,41 @@ export function sanitizeTratamientoData(data: Record<string, unknown>) {
 }
 
 export function sanitizeRespuestaTratamientoData(data: Record<string, unknown>) {
+  const respuestaEstructurada = (() => {
+    const raw = data.respuestaEstructurada;
+    if (raw === undefined || raw === null) {
+      return undefined;
+    }
+
+    if (typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new BadRequestException('La respuesta estructurada al tratamiento no es válida');
+    }
+
+    const record = raw as Record<string, unknown>;
+    const estado = (() => {
+      if (record.estado === undefined || record.estado === null || record.estado === '') {
+        return undefined;
+      }
+
+      if (
+        typeof record.estado !== 'string' ||
+        !ESTADOS_RESPUESTA_TRATAMIENTO.includes(record.estado as (typeof ESTADOS_RESPUESTA_TRATAMIENTO)[number])
+      ) {
+        throw new BadRequestException('El estado estructurado de respuesta al tratamiento no es válido');
+      }
+
+      return record.estado;
+    })();
+
+    const notas = sanitizeTextListField(record.notas, 1000);
+    const sanitized = {
+      ...(estado !== undefined ? { estado } : {}),
+      ...(notas !== undefined ? { notas } : {}),
+    };
+
+    return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+  })();
+
   return {
     ...(sanitizeTextListField(data.evolucion, 4000) !== undefined
       ? { evolucion: sanitizeTextListField(data.evolucion, 4000) }
@@ -190,6 +227,7 @@ export function sanitizeRespuestaTratamientoData(data: Record<string, unknown>) 
     ...(sanitizeTextListField(data.planSeguimiento, 4000) !== undefined
       ? { planSeguimiento: sanitizeTextListField(data.planSeguimiento, 4000) }
       : {}),
+    ...(respuestaEstructurada !== undefined ? { respuestaEstructurada } : {}),
   };
 }
 

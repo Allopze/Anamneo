@@ -11,6 +11,7 @@ import { shouldPreserveLocalSessionOnBootstrapError } from '@/lib/session-bootst
 import { useSessionTimeout } from '@/lib/useSessionTimeout';
 import toast from 'react-hot-toast';
 import {
+  FiActivity,
   FiHome,
   FiUsers,
   FiFileText,
@@ -49,6 +50,12 @@ const primaryNavigation: NavItem[] = [
   { name: 'Seguimientos', href: '/seguimientos', icon: FiClipboard },
 ];
 
+const clinicalAnalyticsNavigation: NavItem = {
+  name: 'Analítica clínica',
+  href: '/analitica-clinica',
+  icon: FiActivity,
+};
+
 const secondaryNavigation: NavItem[] = [
   { name: 'Catálogo', href: '/catalogo', icon: FiList },
   { name: 'Plantillas', href: '/plantillas', icon: FiBookmark },
@@ -75,9 +82,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [user?.mustChangePassword, pathname, router]);
 
   const isOperationalAdmin = !!user?.isAdmin;
+  const canAccessClinicalAnalytics = user?.role === 'MEDICO' && !user?.isAdmin;
   const primaryItems = isOperationalAdmin
     ? primaryNavigation.filter((item) => item.href === '/' || item.href === '/pacientes')
-    : primaryNavigation;
+    : canAccessClinicalAnalytics
+      ? [...primaryNavigation, clinicalAnalyticsNavigation]
+      : primaryNavigation;
   const secondaryItems: NavItem[] = [
     ...(isOperationalAdmin
       ? secondaryNavigation.filter((item) => item.href !== '/plantillas')

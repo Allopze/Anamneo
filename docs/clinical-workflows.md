@@ -67,6 +67,21 @@ Esto permite soporte diagnostico sin obligar a que todo conocimiento clinico viv
 - Ya implementado: la importacion bulk del catalogo global registra auditoria explicita (`CONDITION_CSV_IMPORTED`) con trazabilidad de cambios.
 - Pendiente: definir si el CSV soportara control explicito de `active` en una fase posterior.
 
+### Catalogo de medicamentos
+
+- Existe catalogo global `MedicationCatalog` para normalizar medicamentos visibles y su principio activo.
+- Solo un usuario `ADMIN` puede crear, editar, desactivar o cargar CSV global de medicamentos.
+- La UI expone la categoria `Medicamentos` dentro de `Catalogo` con busqueda por `name` y `activeIngredient`.
+
+### Importacion CSV del catalogo de medicamentos
+
+- El formato recomendado usa encabezados `nombre`, `principioactivo`.
+- Tambien se aceptan encabezados `name`, `activeIngredient` para cargas externas.
+- Ambas columnas son obligatorias.
+- Duplicados dentro del mismo archivo se consolidan por nombre normalizado; prevalece la ultima fila del archivo.
+- Si el medicamento ya existe, la importacion actualiza `name`, `activeIngredient` y reactiva entradas inactivas.
+- La importacion registra auditoria explicita (`MEDICATION_CSV_IMPORTED`) con resumen de filas creadas, actualizadas y reactivadas.
+
 ### Mejora de sugerencias en curso
 
 - Ya implementado: ranking con mayor peso para coincidencias directas en nombre, luego sinonimos y despues tags.

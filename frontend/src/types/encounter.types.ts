@@ -141,6 +141,13 @@ export interface Condition {
   baseConditionId?: string | null;
 }
 
+export interface MedicationCatalogItem {
+  id: string;
+  name: string;
+  activeIngredient: string;
+  active: boolean;
+}
+
 export interface ConditionSuggestion {
   id: string;
   name: string;
@@ -187,6 +194,19 @@ export interface AnamnesisProximaData {
   factoresAgravantes?: string;
   factoresAtenuantes?: string;
   sintomasAsociados?: string;
+  perfilDolorAbdominal?: PerfilDolorAbdominalData;
+}
+
+export type AsociacionComida = 'SI' | 'NO' | 'NO_CLARO';
+
+export interface PerfilDolorAbdominalData {
+  presente?: boolean;
+  vomitos?: boolean;
+  diarrea?: boolean;
+  nauseas?: boolean;
+  estrenimiento?: boolean;
+  asociadoComida?: AsociacionComida;
+  notas?: string;
 }
 
 export interface HistoryFieldValue {
@@ -281,6 +301,14 @@ export interface RespuestaTratamientoData {
   resultadosExamenes?: string;
   ajustesTratamiento?: string;
   planSeguimiento?: string;
+  respuestaEstructurada?: RespuestaEstructuradaData;
+}
+
+export type EstadoRespuestaTratamiento = 'FAVORABLE' | 'PARCIAL' | 'SIN_RESPUESTA' | 'EMPEORA';
+
+export interface RespuestaEstructuradaData {
+  estado?: EstadoRespuestaTratamiento;
+  notas?: string;
 }
 
 export interface ObservacionesData {
@@ -292,6 +320,7 @@ export interface ObservacionesData {
 export interface StructuredMedication {
   id: string;
   nombre: string;
+  activeIngredient?: string;
   dosis?: string;
   via?: string;
   frecuencia?: string;

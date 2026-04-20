@@ -12,6 +12,7 @@ import {
   formatSospechaDiagnosticaLabel,
   buildSectionsMap,
   getTreatmentPlanText,
+  formatStructuredMedicationLine,
   formatHistoryFieldText,
   formatDateTime,
 } from './patients-pdf-helpers';
@@ -219,7 +220,7 @@ export class PatientsPdfService {
               field(
                 'Medicamentos',
                 trat.medicamentosEstructurados
-                  .map((m: any) => [m.nombre, m.dosis, m.frecuencia].filter(Boolean).join(' '))
+                  .map((m: any) => formatStructuredMedicationLine(m))
                   .join('; '),
               );
             }

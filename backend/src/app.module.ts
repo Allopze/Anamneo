@@ -10,6 +10,7 @@ import { UsersModule } from './users/users.module';
 import { PatientsModule } from './patients/patients.module';
 import { EncountersModule } from './encounters/encounters.module';
 import { ConditionsModule } from './conditions/conditions.module';
+import { MedicationsModule } from './medications/medications.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { AuditModule } from './audit/audit.module';
 import { TemplatesModule } from './templates/templates.module';
@@ -17,6 +18,7 @@ import { SettingsModule } from './settings/settings.module';
 import { ConsentsModule } from './consents/consents.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { Cie10Module } from './cie10/cie10.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -65,6 +67,7 @@ import { HealthController } from './health.controller';
     PatientsModule,
     EncountersModule,
     ConditionsModule,
+    MedicationsModule,
     AttachmentsModule,
     AuditModule,
     TemplatesModule,
@@ -72,6 +75,7 @@ import { HealthController } from './health.controller';
     ConsentsModule,
     AlertsModule,
     Cie10Module,
+    AnalyticsModule,
   ],
   controllers: [HealthController],
   providers: [

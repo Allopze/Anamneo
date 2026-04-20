@@ -10,6 +10,47 @@ export type EncounterSectionSchemaDefinition = {
   normalizeReadData?: EncounterSectionUpgrader;
 };
 
+function normalizePerfilDolorAbdominal(data: EncounterSectionData) {
+  const raw = data.perfilDolorAbdominal;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return data;
+  }
+
+  const record = raw as Record<string, unknown>;
+  const normalized = {
+    ...(typeof record.presente === 'boolean' ? { presente: record.presente } : {}),
+    ...(typeof record.vomitos === 'boolean' ? { vomitos: record.vomitos } : {}),
+    ...(typeof record.diarrea === 'boolean' ? { diarrea: record.diarrea } : {}),
+    ...(typeof record.nauseas === 'boolean' ? { nauseas: record.nauseas } : {}),
+    ...(typeof record.estrenimiento === 'boolean' ? { estrenimiento: record.estrenimiento } : {}),
+    ...(typeof record.asociadoComida === 'string' ? { asociadoComida: record.asociadoComida } : {}),
+    ...(typeof record.notas === 'string' ? { notas: record.notas } : {}),
+  };
+
+  return {
+    ...data,
+    ...(Object.keys(normalized).length > 0 ? { perfilDolorAbdominal: normalized } : {}),
+  };
+}
+
+function normalizeRespuestaEstructurada(data: EncounterSectionData) {
+  const raw = data.respuestaEstructurada;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return data;
+  }
+
+  const record = raw as Record<string, unknown>;
+  const normalized = {
+    ...(typeof record.estado === 'string' ? { estado: record.estado } : {}),
+    ...(typeof record.notas === 'string' ? { notas: record.notas } : {}),
+  };
+
+  return {
+    ...data,
+    ...(Object.keys(normalized).length > 0 ? { respuestaEstructurada: normalized } : {}),
+  };
+}
+
 export const ENCOUNTER_SECTION_SCHEMA_REGISTRY: Record<SectionKey, EncounterSectionSchemaDefinition> = {
   IDENTIFICACION: {
     currentVersion: 1,
@@ -19,6 +60,7 @@ export const ENCOUNTER_SECTION_SCHEMA_REGISTRY: Record<SectionKey, EncounterSect
   },
   ANAMNESIS_PROXIMA: {
     currentVersion: 1,
+    normalizeReadData: normalizePerfilDolorAbdominal,
   },
   ANAMNESIS_REMOTA: {
     currentVersion: 1,
@@ -37,6 +79,7 @@ export const ENCOUNTER_SECTION_SCHEMA_REGISTRY: Record<SectionKey, EncounterSect
   },
   RESPUESTA_TRATAMIENTO: {
     currentVersion: 1,
+    normalizeReadData: normalizeRespuestaEstructurada,
   },
   OBSERVACIONES: {
     currentVersion: 2,

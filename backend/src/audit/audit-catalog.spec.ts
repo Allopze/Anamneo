@@ -16,6 +16,7 @@ describe('audit-catalog', () => {
     ['UserInvitation', 'UPDATE', { revoked: true }, 'USER_INVITATION_REVOKED'],
     ['UserInvitation', 'DELETE', {}, 'USER_INVITATION_REVOKED'],
     ['User', 'PASSWORD_CHANGED', { reset: true }, 'USER_PASSWORD_RESET'],
+    ['MedicationCatalog', 'UPDATE', { scope: 'CSV_IMPORT' }, 'MEDICATION_CSV_IMPORTED'],
     ['Setting', 'UPDATE', {}, 'SETTINGS_UPDATED'],
   ])('maps %s/%s to %s', (entityType, action, diff, expected) => {
     expect(inferAuditReason(entityType as any, action as any, diff)).toBe(expected);

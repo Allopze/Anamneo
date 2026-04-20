@@ -125,9 +125,21 @@ export function buildEncounterSummary(encounter: Encounter): string[] {
   return lines.slice(0, 4);
 }
 
+export function formatStructuredMedicationLine(item: StructuredMedication) {
+  const normalizedName = item.nombre?.trim().toLowerCase();
+  const activeIngredient = item.activeIngredient?.trim();
+  const activeIngredientLabel = activeIngredient && activeIngredient.toLowerCase() !== normalizedName
+    ? `PA: ${activeIngredient}`
+    : null;
+
+  return [item.nombre, activeIngredientLabel, item.dosis, item.via, item.frecuencia, item.duracion]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 export function extractStructuredMedicationLines(medications: StructuredMedication[] | undefined) {
   return (medications || [])
-    .map((item) => [item.nombre, item.dosis, item.via, item.frecuencia, item.duracion].filter(Boolean).join(' · '))
+    .map((item) => formatStructuredMedicationLine(item))
     .filter(Boolean);
 }
 

@@ -46,6 +46,7 @@ La fuente de verdad es `backend/prisma/schema.prisma`. Este documento no reempla
 
 - `ConditionCatalog` es el catalogo global.
 - `ConditionCatalogLocal` guarda overrides o entradas locales por medico.
+- `MedicationCatalog` es el catalogo global de medicamentos con `name`, `activeIngredient` y `normalizedName`.
 - `ConditionSuggestionLog` registra input, sugerencias generadas, decision final y metadata/version del ranking usado en un encounter.
 
 ## Campos y Estados Que Importan

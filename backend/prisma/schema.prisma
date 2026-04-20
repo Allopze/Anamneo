@@ -212,6 +212,19 @@ model ConditionCatalogLocal {
   @@map("condition_catalog_local")
 }
 
+model MedicationCatalog {
+  id               String   @id @default(uuid())
+  name             String
+  normalizedName   String   @default("") @map("normalized_name")
+  activeIngredient String   @map("active_ingredient")
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([normalizedName])
+  @@map("medication_catalog")
+}
+
 model ConditionSuggestionLog {
   id                String   @id @default(uuid())
   encounterId       String   @map("encounter_id")

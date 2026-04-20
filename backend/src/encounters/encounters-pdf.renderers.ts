@@ -10,6 +10,7 @@ import {
   formatSospechaDiagnosticaLabel,
   getIdentificationDifferenceLabels,
   getTreatmentPlanText,
+  formatStructuredMedicationLine,
   formatHistoryFieldText,
   formatRevisionSystemEntries,
   getRutDisplayData,
@@ -113,6 +114,29 @@ export function renderEncounterClinicalPdf(doc: any, pageWidth: number, encounte
   field('Factores agravantes', anProx.factoresAgravantes);
   field('Factores atenuantes', anProx.factoresAtenuantes);
   field('Síntomas asociados', anProx.sintomasAsociados);
+  if (anProx.perfilDolorAbdominal) {
+    field(
+      'Perfil dolor abdominal',
+      [
+        anProx.perfilDolorAbdominal.presente ? 'Dolor abdominal' : null,
+        anProx.perfilDolorAbdominal.vomitos ? 'Vómitos' : null,
+        anProx.perfilDolorAbdominal.diarrea ? 'Diarrea' : null,
+        anProx.perfilDolorAbdominal.nauseas ? 'Náuseas' : null,
+        anProx.perfilDolorAbdominal.estrenimiento ? 'Estreñimiento' : null,
+      ].filter(Boolean).join(' · '),
+    );
+    field(
+      'Asociado a comida',
+      anProx.perfilDolorAbdominal.asociadoComida === 'SI'
+        ? 'Sí'
+        : anProx.perfilDolorAbdominal.asociadoComida === 'NO'
+          ? 'No'
+          : anProx.perfilDolorAbdominal.asociadoComida === 'NO_CLARO'
+            ? 'No claro'
+            : undefined,
+    );
+    field('Notas estructuradas', anProx.perfilDolorAbdominal.notas);
+  }
   doc.moveDown(0.5);
 
   const anRem = sectionsMap['ANAMNESIS_REMOTA'] || {};
@@ -196,7 +220,7 @@ export function renderEncounterClinicalPdf(doc: any, pageWidth: number, encounte
     field(
       'Medicamentos estructurados',
       trat.medicamentosEstructurados
-        .map((item: any) => [item.nombre, item.dosis, item.via, item.frecuencia, item.duracion].filter(Boolean).join(' · '))
+        .map((item: any) => formatStructuredMedicationLine(item))
         .join(' | '),
     );
   }
@@ -225,7 +249,20 @@ export function renderEncounterClinicalPdf(doc: any, pageWidth: number, encounte
   field('Resultados de exámenes', resp.resultadosExamenes);
   field('Ajustes al tratamiento', resp.ajustesTratamiento);
   field('Plan de seguimiento', resp.planSeguimiento);
-  if (!resp.evolucion && !resp.resultadosExamenes && !resp.ajustesTratamiento && !resp.planSeguimiento) {
+  field(
+    'Desenlace estructurado',
+    resp.respuestaEstructurada?.estado === 'FAVORABLE'
+      ? 'Favorable'
+      : resp.respuestaEstructurada?.estado === 'PARCIAL'
+        ? 'Parcial'
+        : resp.respuestaEstructurada?.estado === 'SIN_RESPUESTA'
+          ? 'Sin respuesta'
+          : resp.respuestaEstructurada?.estado === 'EMPEORA'
+            ? 'Empeora'
+            : undefined,
+  );
+  field('Notas del desenlace', resp.respuestaEstructurada?.notas);
+  if (!resp.evolucion && !resp.resultadosExamenes && !resp.ajustesTratamiento && !resp.planSeguimiento && !resp.respuestaEstructurada) {
     doc.text('-');
   }
   doc.moveDown(0.5);
@@ -302,7 +339,7 @@ export function renderFocusedEncounterPdf(
     doc.font('Helvetica-Bold').text('Medicacion');
     if (Array.isArray(trat.medicamentosEstructurados) && trat.medicamentosEstructurados.length > 0) {
       trat.medicamentosEstructurados.forEach((item: any) => {
-        doc.text(`• ${[item.nombre, item.dosis, item.via, item.frecuencia, item.duracion].filter(Boolean).join(' · ')}`);
+        doc.text(`• ${formatStructuredMedicationLine(item)}`);
       });
     } else {
       doc.text(trat.receta || '-');

@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { FiAlertTriangle, FiShield } from 'react-icons/fi';
 import { REVIEW_STATUS_LABELS, STATUS_LABELS, type Attachment, type Encounter } from '@/types';
-import { formatHistoryFieldText } from '@/lib/clinical';
+import { extractStructuredMedicationLines, formatHistoryFieldText } from '@/lib/clinical';
 import {
   formatPatientAge,
   formatPatientPrevision,
@@ -363,6 +363,31 @@ export function FichaClinicalRecord({
           {anamnesisProxima.factoresAgravantes ? <p><strong>Factores agravantes:</strong> {anamnesisProxima.factoresAgravantes}</p> : null}
           {anamnesisProxima.factoresAtenuantes ? <p><strong>Factores atenuantes:</strong> {anamnesisProxima.factoresAtenuantes}</p> : null}
           {anamnesisProxima.sintomasAsociados ? <p><strong>Síntomas asociados:</strong> {anamnesisProxima.sintomasAsociados}</p> : null}
+          {anamnesisProxima.perfilDolorAbdominal ? (
+            <div className="rounded-card border border-surface-muted/30 bg-surface-base/50 px-4 py-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Perfil estructurado de dolor abdominal</p>
+              <div className="grid grid-cols-1 gap-1 md:grid-cols-2">
+                {anamnesisProxima.perfilDolorAbdominal.presente ? <p><strong>Dolor abdominal:</strong> Sí</p> : null}
+                {anamnesisProxima.perfilDolorAbdominal.vomitos ? <p><strong>Vómitos:</strong> Sí</p> : null}
+                {anamnesisProxima.perfilDolorAbdominal.diarrea ? <p><strong>Diarrea:</strong> Sí</p> : null}
+                {anamnesisProxima.perfilDolorAbdominal.nauseas ? <p><strong>Náuseas:</strong> Sí</p> : null}
+                {anamnesisProxima.perfilDolorAbdominal.estrenimiento ? <p><strong>Estreñimiento:</strong> Sí</p> : null}
+                {anamnesisProxima.perfilDolorAbdominal.asociadoComida ? (
+                  <p>
+                    <strong>Asociado a comida:</strong>{' '}
+                    {anamnesisProxima.perfilDolorAbdominal.asociadoComida === 'SI'
+                      ? 'Sí'
+                      : anamnesisProxima.perfilDolorAbdominal.asociadoComida === 'NO'
+                        ? 'No'
+                        : 'No claro'}
+                  </p>
+                ) : null}
+              </div>
+              {anamnesisProxima.perfilDolorAbdominal.notas ? (
+                <p className="mt-2"><strong>Notas:</strong> {anamnesisProxima.perfilDolorAbdominal.notas}</p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -457,8 +482,8 @@ export function FichaClinicalRecord({
             <div>
               <strong>Medicamentos estructurados:</strong>
               <ul className="list-disc list-inside mt-1">
-                {tratamiento.medicamentosEstructurados.map((item: any) => (
-                  <li key={item.id}>{[item.nombre, item.dosis, item.via, item.frecuencia, item.duracion].filter(Boolean).join(' · ')}</li>
+                {extractStructuredMedicationLines(tratamiento.medicamentosEstructurados).map((line, index) => (
+                  <li key={`${line}-${index}`}>{line}</li>
                 ))}
               </ul>
             </div>
@@ -509,6 +534,26 @@ export function FichaClinicalRecord({
           {respuestaTratamiento.resultadosExamenes ? <p><strong>Resultados de exámenes:</strong> {respuestaTratamiento.resultadosExamenes}</p> : null}
           {respuestaTratamiento.ajustesTratamiento ? <p><strong>Ajustes al tratamiento:</strong> {respuestaTratamiento.ajustesTratamiento}</p> : null}
           {respuestaTratamiento.planSeguimiento ? <p><strong>Plan de seguimiento:</strong> {respuestaTratamiento.planSeguimiento}</p> : null}
+          {respuestaTratamiento.respuestaEstructurada ? (
+            <div className="rounded-card border border-surface-muted/30 bg-surface-base/50 px-4 py-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Desenlace estructurado</p>
+              {respuestaTratamiento.respuestaEstructurada.estado ? (
+                <p>
+                  <strong>Estado:</strong>{' '}
+                  {respuestaTratamiento.respuestaEstructurada.estado === 'FAVORABLE'
+                    ? 'Favorable'
+                    : respuestaTratamiento.respuestaEstructurada.estado === 'PARCIAL'
+                      ? 'Parcial'
+                      : respuestaTratamiento.respuestaEstructurada.estado === 'SIN_RESPUESTA'
+                        ? 'Sin respuesta'
+                        : 'Empeora'}
+                </p>
+              ) : null}
+              {respuestaTratamiento.respuestaEstructurada.notas ? (
+                <p className="mt-1"><strong>Notas:</strong> {respuestaTratamiento.respuestaEstructurada.notas}</p>
+              ) : null}
+            </div>
+          ) : null}
           {!respuestaTratamiento.evolucion && !respuestaTratamiento.resultadosExamenes && !respuestaTratamiento.ajustesTratamiento && !respuestaTratamiento.planSeguimiento ? (
             <p>-</p>
           ) : null}
