@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { RequestUser } from '../common/utils/medico-id';
 import { buildEncounterTaskScopeWhere } from '../common/utils/patient-access';
-import { isDateOnlyBeforeToday, startOfUtcDay } from '../common/utils/local-date';
+import { isDateOnlyBeforeToday, startOfAppDayUtc } from '../common/utils/local-date';
 import { PrismaService } from '../prisma/prisma.service';
 import { formatTask } from './patients-format';
 
@@ -65,7 +65,7 @@ export async function findPatientTasksReadModel(params: FindPatientTasksReadMode
   }
 
   if (filters?.overdueOnly) {
-    whereClauses.push({ dueDate: { lt: startOfUtcDay(new Date()) } });
+    whereClauses.push({ dueDate: { lt: startOfAppDayUtc(new Date()) } });
 
     if (filters?.status) {
       if (!['PENDIENTE', 'EN_PROCESO'].includes(filters.status)) {

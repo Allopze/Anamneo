@@ -16,8 +16,11 @@ export type AnalyticsCaseRow = {
   medications: string[];
   symptoms: string[];
   foodRelation: string;
+  adherenceStatus?: string | null;
+  adverseEventSeverity?: string | null;
   hasTreatmentAdjustment: boolean;
   hasFavorableResponse: boolean;
+  hasAdverseEvent?: boolean;
 };
 
 interface AnalyticsCasesTableProps {
@@ -73,6 +76,12 @@ export function AnalyticsCasesTable({ rows }: AnalyticsCasesTableProps) {
                 </p>
                 <p className="mt-1 text-sm text-ink-secondary">
                   Respuesta favorable proxy: {row.hasFavorableResponse ? 'Sí' : 'No'}
+                </p>
+                <p className="mt-1 text-sm text-ink-secondary">
+                  Adherencia: {row.adherenceStatus || 'Sin registrar'}
+                </p>
+                <p className="mt-1 text-sm text-ink-secondary">
+                  Evento adverso: {row.adverseEventSeverity || (row.hasAdverseEvent ? 'Registrado' : 'Sin registrar')}
                 </p>
               </div>
             </div>

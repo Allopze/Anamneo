@@ -322,6 +322,18 @@ export default function EncounterWizardPage() {
                             encounter?.sections?.find((s) => s.sectionKey === 'ANAMNESIS_REMOTA')?.data?.alergias)
                           : undefined
                       }
+                      diagnosticData={
+                        currentSection.sectionKey === 'TRATAMIENTO'
+                          ? (formData.SOSPECHA_DIAGNOSTICA ??
+                            encounter?.sections?.find((s) => s.sectionKey === 'SOSPECHA_DIAGNOSTICA')?.data)
+                          : undefined
+                      }
+                      treatmentData={
+                        currentSection.sectionKey === 'RESPUESTA_TRATAMIENTO'
+                          ? (formData.TRATAMIENTO ??
+                            encounter?.sections?.find((s) => s.sectionKey === 'TRATAMIENTO')?.data)
+                          : undefined
+                      }
                     />
                   ) : (
                     <div className="rounded-card border border-surface-muted/40 bg-surface-base/55 px-5 py-5 text-sm text-ink-secondary">

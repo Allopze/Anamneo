@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 
 const DATE_ONLY_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DEFAULT_APP_TIME_ZONE = 'America/Santiago';
+const GMT_OFFSET_REGEX = /^GMT(?:(\+|-)(\d{1,2})(?::(\d{2}))?)?$/;
 
 function resolveAppTimeZone() {
   const configuredTimeZone = process.env.APP_TIME_ZONE?.trim() || DEFAULT_APP_TIME_ZONE;
@@ -91,6 +92,55 @@ export function parseDateOnlyToStoredUtcDate(value: string, label = 'La fecha') 
 export function startOfUtcDay(value: string | Date) {
   const dateOnly = extractDateOnlyIso(value);
   return new Date(`${dateOnly}T00:00:00.000Z`);
+}
+
+function getAppTimeZoneOffsetMinutes(reference: Date) {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: resolveAppTimeZone(),
+    timeZoneName: 'longOffset',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
+  const timeZoneName = formatter.formatToParts(reference).find((part) => part.type === 'timeZoneName')?.value;
+
+  if (!timeZoneName) {
+    throw new Error('No se pudo resolver el offset de la zona horaria configurada');
+  }
+
+  const match = GMT_OFFSET_REGEX.exec(timeZoneName);
+  if (!match) {
+    throw new Error(`Offset de zona horaria no soportado: ${timeZoneName}`);
+  }
+
+  if (!match[1]) {
+    return 0;
+  }
+
+  const sign = match[1] === '+' ? 1 : -1;
+  const hours = Number.parseInt(match[2], 10);
+  const minutes = Number.parseInt(match[3] ?? '0', 10);
+  return sign * (hours * 60 + minutes);
+}
+
+export function shiftDateOnly(value: string | Date, days: number) {
+  const dateOnly = extractDateOnlyIso(value);
+  const [year, month, day] = dateOnly.split('-').map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return extractDateOnlyIso(shifted);
+}
+
+export function startOfAppDayUtc(value: string | Date) {
+  const dateOnly = extractDateOnlyIso(value);
+  const middayUtc = parseDateOnlyToStoredUtcDate(dateOnly);
+  const offsetMinutes = getAppTimeZoneOffsetMinutes(middayUtc);
+  const [year, month, day] = dateOnly.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0) - offsetMinutes * 60 * 1000);
+}
+
+export function endOfAppDayUtcExclusive(value: string | Date) {
+  return startOfAppDayUtc(shiftDateOnly(value, 1));
 }
 
 export function isDateOnlyBeforeToday(value: string | Date, reference = new Date()) {

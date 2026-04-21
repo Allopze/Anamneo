@@ -27,6 +27,21 @@ function formatProgress(sections: Array<{ completed: boolean }>) {
   };
 }
 
+function formatEpisodeSummary(episode: any) {
+  if (!episode) {
+    return null;
+  }
+
+  return {
+    id: episode.id,
+    label: episode.label,
+    normalizedLabel: episode.normalizedLabel,
+    startDate: episode.startDate ?? null,
+    endDate: episode.endDate ?? null,
+    isActive: episode.isActive,
+  };
+}
+
 export function formatEncounterForList(encounter: any) {
   return {
     id: encounter.id,
@@ -59,6 +74,7 @@ export function formatEncounterForList(encounter: any) {
     reviewRequestedBy: encounter.reviewRequestedBy,
     reviewedBy: encounter.reviewedBy,
     completedBy: encounter.completedBy,
+    episode: formatEpisodeSummary(encounter.episode),
     progress: formatProgress(encounter.sections),
   };
 }
@@ -81,6 +97,7 @@ export function formatEncounterForPatientList(encounter: any) {
     reviewRequestedBy: encounter.reviewRequestedBy,
     reviewedBy: encounter.reviewedBy,
     completedBy: encounter.completedBy,
+    episode: formatEpisodeSummary(encounter.episode),
     progress: formatProgress(encounter.sections),
   };
 }
@@ -95,6 +112,7 @@ export function formatDashboardRecentEncounter(encounter: any) {
     status: encounter.status,
     createdAt: encounter.createdAt,
     updatedAt: encounter.updatedAt,
+    episode: formatEpisodeSummary(encounter.episode),
     progress: formatProgress(encounter.sections),
   };
 }
@@ -136,6 +154,7 @@ export function formatEncounterResponse(encounter: any, options: FormatEncounter
     closureNote: encounter.closureNote ?? null,
     createdAt: encounter.createdAt,
     updatedAt: encounter.updatedAt,
+    episode: formatEpisodeSummary(encounter.episode),
     createdById: encounter.createdById,
     clinicalOutputBlock,
     identificationSnapshotStatus: buildIdentificationSnapshotStatus(encounter),

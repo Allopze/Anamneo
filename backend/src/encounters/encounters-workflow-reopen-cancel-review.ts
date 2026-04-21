@@ -8,6 +8,7 @@ import { AuditService } from '../audit/audit.service';
 import { RequestUser } from '../common/utils/medico-id';
 import { assertTreatingMedico, canApplyReviewStatus, assertEncounterAccess } from './encounter-policy';
 import { formatEncounterResponse } from './encounters-presenters';
+import { removeEncounterFromEpisode } from './encounters-episodes';
 import {
   REVIEW_NOTE_MIN_LENGTH,
   sanitizeRequiredWorkflowNote,
@@ -87,6 +88,16 @@ export async function reopenEncounterWorkflowMutation(params: ReopenEncounterPar
         reviewRequestedBy: { select: { id: true, nombre: true } },
         reviewedBy: { select: { id: true, nombre: true } },
         completedBy: { select: { id: true, nombre: true } },
+        episode: {
+          select: {
+            id: true,
+            label: true,
+            normalizedLabel: true,
+            startDate: true,
+            endDate: true,
+            isActive: true,
+          },
+        },
       },
     });
 
@@ -136,6 +147,13 @@ export async function cancelEncounterWorkflowMutation(params: CancelEncounterPar
       where: { id },
       data: { status: 'CANCELADO' },
     });
+
+    if (encounter.episodeId) {
+      await removeEncounterFromEpisode({
+        prisma: tx,
+        encounterId: id,
+      });
+    }
 
     await auditService.log(
       {

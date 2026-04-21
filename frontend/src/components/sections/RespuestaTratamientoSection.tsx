@@ -1,6 +1,12 @@
 'use client';
 
-import { RespuestaTratamientoData } from '@/types';
+import {
+  EstadoAdherenciaTratamiento,
+  EstadoRespuestaTratamiento,
+  RespuestaTratamientoData,
+  SeveridadEventoAdversoTratamiento,
+  TratamientoData,
+} from '@/types';
 import VoiceDictationButton from '@/components/common/VoiceDictationButton';
 import { SectionBlock, SectionFieldHeader } from '@/components/sections/SectionPrimitives';
 
@@ -11,18 +17,49 @@ const RESPONSE_OUTCOME_OPTIONS = [
   { value: 'EMPEORA', label: 'Empeora' },
 ] as const;
 
+const ADHERENCE_OPTIONS = [
+  { value: 'ADHERENTE', label: 'Adherente' },
+  { value: 'PARCIAL', label: 'Parcial' },
+  { value: 'NO_ADHERENTE', label: 'No adherente' },
+] as const;
+
+const ADVERSE_EVENT_OPTIONS = [
+  { value: 'LEVE', label: 'Leve' },
+  { value: 'MODERADO', label: 'Moderado' },
+  { value: 'SEVERO', label: 'Severo' },
+] as const;
+
 interface Props {
   data: RespuestaTratamientoData;
   onChange: (data: RespuestaTratamientoData) => void;
   readOnly?: boolean;
+  treatmentData?: TratamientoData;
 }
 
-export default function RespuestaTratamientoSection({ data, onChange, readOnly }: Props) {
+export default function RespuestaTratamientoSection({ data, onChange, readOnly, treatmentData }: Props) {
   const handleChange = (field: string, value: any) => {
     onChange({ ...data, [field]: value });
   };
 
   const respuestaEstructurada = data.respuestaEstructurada || {};
+  const resultadosTratamientos = data.resultadosTratamientos || [];
+  const treatmentRows = [
+    ...(treatmentData?.medicamentosEstructurados || []).map((item) => ({
+      id: item.id,
+      label: item.nombre?.trim() || item.activeIngredient?.trim() || 'Medicamento sin nombre',
+      typeLabel: 'Medicamento',
+    })),
+    ...(treatmentData?.examenesEstructurados || []).map((item) => ({
+      id: item.id,
+      label: item.nombre?.trim() || 'Examen sin nombre',
+      typeLabel: 'Examen',
+    })),
+    ...(treatmentData?.derivacionesEstructuradas || []).map((item) => ({
+      id: item.id,
+      label: item.nombre?.trim() || 'Derivación sin nombre',
+      typeLabel: 'Derivación',
+    })),
+  ];
 
   const handleStructuredOutcomeChange = (field: 'estado' | 'notas', value: string) => {
     handleChange('respuestaEstructurada', {
@@ -31,8 +68,185 @@ export default function RespuestaTratamientoSection({ data, onChange, readOnly }
     });
   };
 
+  const updateTreatmentOutcome = (
+    treatmentItemId: string,
+    patch: {
+      estado?: EstadoRespuestaTratamiento;
+      notas?: string;
+      adherenceStatus?: EstadoAdherenciaTratamiento;
+      adverseEventSeverity?: SeveridadEventoAdversoTratamiento;
+      adverseEventNotes?: string;
+    },
+  ) => {
+    const next = [...resultadosTratamientos];
+    const index = next.findIndex((entry) => entry.treatmentItemId === treatmentItemId);
+    const current = index >= 0 ? next[index] : { treatmentItemId };
+    const merged = { ...current, ...patch };
+    const hasNotes = typeof merged.notas === 'string' && merged.notas.trim().length > 0;
+    const hasAdverseEventNotes = typeof merged.adverseEventNotes === 'string' && merged.adverseEventNotes.trim().length > 0;
+
+    if (!merged.estado && !hasNotes && !merged.adherenceStatus && !merged.adverseEventSeverity && !hasAdverseEventNotes) {
+      const filtered = next.filter((entry) => entry.treatmentItemId !== treatmentItemId);
+      handleChange('resultadosTratamientos', filtered.length > 0 ? filtered : undefined);
+      return;
+    }
+
+    const normalized = {
+      treatmentItemId,
+      ...(merged.estado ? { estado: merged.estado } : {}),
+      ...(typeof merged.notas === 'string' ? { notas: merged.notas } : {}),
+      ...(merged.adherenceStatus ? { adherenceStatus: merged.adherenceStatus } : {}),
+      ...(merged.adverseEventSeverity ? { adverseEventSeverity: merged.adverseEventSeverity } : {}),
+      ...(typeof merged.adverseEventNotes === 'string' ? { adverseEventNotes: merged.adverseEventNotes } : {}),
+    };
+
+    if (index >= 0) {
+      next[index] = normalized;
+    } else {
+      next.push(normalized);
+    }
+
+    handleChange('resultadosTratamientos', next);
+  };
+
   return (
     <div className="space-y-5">
+      <SectionBlock title="Desenlace por tratamiento u orden">
+        <div className="space-y-4">
+          {treatmentRows.length > 0 ? (
+            treatmentRows.map((item) => {
+              const current = resultadosTratamientos.find((entry) => entry.treatmentItemId === item.id);
+
+              return (
+                <div key={item.id} className="rounded-card border border-surface-muted/30 bg-surface-base/35 p-4">
+                  <p className="mb-3 text-sm font-medium text-ink-primary">{item.typeLabel}: {item.label}</p>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="form-label">Desenlace estructurado</label>
+                      <select
+                        value={current?.estado || ''}
+                        onChange={(event) =>
+                          updateTreatmentOutcome(item.id, {
+                            estado: (event.target.value || undefined) as EstadoRespuestaTratamiento | undefined,
+                          })
+                        }
+                        disabled={readOnly}
+                        className="form-input"
+                        aria-label={`Desenlace estructurado de ${item.typeLabel.toLowerCase()} ${item.label}`}
+                      >
+                        <option value="">Sin registrar</option>
+                        {RESPONSE_OUTCOME_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <SectionFieldHeader
+                        label="Notas del desenlace"
+                        action={!readOnly ? (
+                          <VoiceDictationButton
+                            onTranscript={(text) =>
+                              updateTreatmentOutcome(item.id, {
+                                notas: `${current?.notas ? `${current.notas} ` : ''}${text}`.trim(),
+                              })
+                            }
+                          />
+                        ) : undefined}
+                      />
+                      <textarea
+                        value={current?.notas || ''}
+                        onChange={(event) => updateTreatmentOutcome(item.id, { notas: event.target.value })}
+                        disabled={readOnly}
+                        rows={2}
+                        className="form-input form-textarea"
+                        placeholder="Observaciones específicas para este tratamiento u orden..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="form-label">Adherencia</label>
+                      <select
+                        value={current?.adherenceStatus || ''}
+                        onChange={(event) =>
+                          updateTreatmentOutcome(item.id, {
+                            adherenceStatus: (event.target.value || undefined) as EstadoAdherenciaTratamiento | undefined,
+                          })
+                        }
+                        disabled={readOnly}
+                        className="form-input"
+                        aria-label={`Adherencia de ${item.typeLabel.toLowerCase()} ${item.label}`}
+                      >
+                        <option value="">Sin registrar</option>
+                        {ADHERENCE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="form-label">Evento adverso</label>
+                      <select
+                        value={current?.adverseEventSeverity || ''}
+                        onChange={(event) =>
+                          updateTreatmentOutcome(item.id, {
+                            adverseEventSeverity: (event.target.value || undefined) as SeveridadEventoAdversoTratamiento | undefined,
+                          })
+                        }
+                        disabled={readOnly}
+                        className="form-input"
+                        aria-label={`Evento adverso de ${item.typeLabel.toLowerCase()} ${item.label}`}
+                      >
+                        <option value="">Sin registrar</option>
+                        {ADVERSE_EVENT_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <SectionFieldHeader
+                      label="Notas de adherencia o evento adverso"
+                      action={!readOnly ? (
+                        <VoiceDictationButton
+                          onTranscript={(text) =>
+                            updateTreatmentOutcome(item.id, {
+                              adverseEventNotes: `${current?.adverseEventNotes ? `${current.adverseEventNotes} ` : ''}${text}`.trim(),
+                            })
+                          }
+                        />
+                      ) : undefined}
+                    />
+                    <textarea
+                      value={current?.adverseEventNotes || ''}
+                      onChange={(event) => updateTreatmentOutcome(item.id, { adverseEventNotes: event.target.value })}
+                      disabled={readOnly}
+                      rows={2}
+                      className="form-input form-textarea"
+                      placeholder="Ej: olvidos frecuentes, suspendió dosis por náuseas, mareos leves..."
+                    />
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-sm text-ink-secondary">
+              Agrega medicamentos, exámenes o derivaciones estructuradas en la sección de tratamiento para registrar desenlaces por ítem.
+            </p>
+          )}
+        </div>
+      </SectionBlock>
+
       <SectionBlock title="Respuesta clínica">
         <div className="space-y-4">
           <div className="rounded-card border border-surface-muted/30 bg-surface-base/35 p-4">
@@ -53,7 +267,7 @@ export default function RespuestaTratamientoSection({ data, onChange, readOnly }
                   ))}
                 </select>
                 <p className="mt-2 text-sm text-ink-secondary">
-                  Este campo es el que la analítica usa primero para estimar si el tratamiento funcionó.
+                  Este campo queda como respaldo global cuando no se registran desenlaces por tratamiento u orden.
                 </p>
               </div>
 

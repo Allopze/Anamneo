@@ -7,6 +7,7 @@ import {
 import { REQUIRED_COMPLETION_SECTIONS } from './encounters-sanitize';
 import { assertEncounterClinicalOutputAllowed } from '../common/utils/patient-completeness';
 import { formatEncounterResponse } from './encounters-presenters';
+import { syncEncounterClinicalStructures } from './encounters-clinical-structures';
 
 jest.mock('bcrypt');
 jest.mock('../common/utils/patient-completeness', () => ({
@@ -14,6 +15,10 @@ jest.mock('../common/utils/patient-completeness', () => ({
 }));
 jest.mock('./encounters-presenters', () => ({
   formatEncounterResponse: jest.fn((encounter) => encounter),
+}));
+
+jest.mock('./encounters-clinical-structures', () => ({
+  syncEncounterClinicalStructures: jest.fn().mockResolvedValue(undefined),
 }));
 
 describe('encounters-workflow-complete-sign', () => {
@@ -120,6 +125,10 @@ describe('encounters-workflow-complete-sign', () => {
       }),
       prisma,
     );
+    expect(syncEncounterClinicalStructures).toHaveBeenCalledWith({
+      prisma,
+      encounterId: 'enc-1',
+    });
     expect(formatEncounterResponse).toHaveBeenCalledWith(updatedEncounter);
     expect(result).toBe(updatedEncounter);
   });

@@ -252,6 +252,9 @@ model EncounterTreatmentOutcome {
   encounterTreatmentId String    @map("encounter_treatment_id")
   outcomeStatus        String    @map("outcome_status")
   outcomeSource        String    @map("outcome_source")
+  adherenceStatus      String?   @map("adherence_status")
+  adverseEventSeverity String?   @map("adverse_event_severity")
+  adverseEventNotes    String?   @map("adverse_event_notes")
   notes                String?
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")

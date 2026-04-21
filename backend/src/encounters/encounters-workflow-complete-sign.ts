@@ -20,6 +20,7 @@ import {
   summarizeWorkflowNoteAudit,
 } from './encounters-sanitize';
 import { ENCOUNTER_SECTION_LABELS as SECTION_LABELS } from '../common/utils/encounter-section-meta';
+import { syncEncounterClinicalStructures } from './encounters-clinical-structures';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
@@ -150,6 +151,11 @@ export async function completeEncounterWorkflowMutation(params: CompleteEncounte
   const sanitizedClosureNote = sanitizeRequiredWorkflowNote(closureNote, 'La nota de cierre', REVIEW_NOTE_MIN_LENGTH, 1000);
 
   const updated = await prisma.$transaction(async (tx) => {
+    await syncEncounterClinicalStructures({
+      prisma: tx,
+      encounterId: id,
+    });
+
     const completedEncounter = await tx.encounter.update({
       where: { id },
       data: {
@@ -168,6 +174,16 @@ export async function completeEncounterWorkflowMutation(params: CompleteEncounte
         reviewRequestedBy: { select: { id: true, nombre: true } },
         reviewedBy: { select: { id: true, nombre: true } },
         completedBy: { select: { id: true, nombre: true } },
+        episode: {
+          select: {
+            id: true,
+            label: true,
+            normalizedLabel: true,
+            startDate: true,
+            endDate: true,
+            isActive: true,
+          },
+        },
       },
     });
 

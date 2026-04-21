@@ -1,11 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPatientProblemScopeWhere } from '../common/utils/patient-access';
-import { calculateAgeFromBirthDate, extractDateOnlyIso, startOfUtcDay, todayLocalDateOnly } from '../common/utils/local-date';
+import { calculateAgeFromBirthDate, endOfAppDayUtcExclusive, extractDateOnlyIso, startOfAppDayUtc, todayLocalDateOnly } from '../common/utils/local-date';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { normalizeConditionName } from '../conditions/conditions-helpers';
 import {
-  buildClinicalAnalyticsEncounter,
   buildClinicalAnalyticsEncounterFromPersistence,
   getEncounterConditions,
   matchesAnalyticsQuery,
@@ -48,6 +47,8 @@ type TreatmentOutcomeRow = {
   favorableRate: number;
   adjustmentCount: number;
   reconsultCount: number;
+  adherenceCount: number;
+  adverseEventCount: number;
   subtitle?: string;
 };
 
@@ -231,6 +232,8 @@ function buildTreatmentOutcomeRanking(
         current.favorableCount += evaluation.hasFavorableResponseProxy ? 1 : 0;
         current.adjustmentCount += evaluation.hasAdjustment ? 1 : 0;
         current.reconsultCount += evaluation.hasReconsult ? 1 : 0;
+        current.adherenceCount += entry.adherenceStatus ? 1 : 0;
+        current.adverseEventCount += entry.adverseEventSeverity ? 1 : 0;
         addEntryDetails(current.details, entry.details);
         continue;
       }
@@ -243,6 +246,8 @@ function buildTreatmentOutcomeRanking(
         favorableRate: 0,
         adjustmentCount: evaluation.hasAdjustment ? 1 : 0,
         reconsultCount: evaluation.hasReconsult ? 1 : 0,
+        adherenceCount: entry.adherenceStatus ? 1 : 0,
+        adverseEventCount: entry.adverseEventSeverity ? 1 : 0,
         patients: new Set([encounter.patientId]),
         details: new Set(entry.details ? [entry.details] : []),
       });
@@ -350,6 +355,7 @@ function calculateAverageAge(encounters: ParsedClinicalAnalyticsEncounter[]) {
 function evaluateEncounterOutcome(params: {
   encounter: ParsedClinicalAnalyticsEncounter;
   encountersByPatient: Map<string, ParsedClinicalAnalyticsEncounter[]>;
+  encountersByEpisode: Map<string, ParsedClinicalAnalyticsEncounter[]>;
   alertsByPatient: Map<string, Date[]>;
   problemsByPatient: Map<string, ScopedProblem[]>;
   normalizedCondition: string;
@@ -359,6 +365,7 @@ function evaluateEncounterOutcome(params: {
   const {
     encounter,
     encountersByPatient,
+    encountersByEpisode,
     alertsByPatient,
     problemsByPatient,
     normalizedCondition,
@@ -367,13 +374,15 @@ function evaluateEncounterOutcome(params: {
   } = params;
 
   const patientEncounters = encountersByPatient.get(encounter.patientId) || [];
+  const episodeEncounters = encounter.episode ? encountersByEpisode.get(encounter.episode.id) || [] : [];
+  const comparableEncounters = episodeEncounters.length > 0 ? episodeEncounters : patientEncounters;
   const alertsInPatient = alertsByPatient.get(encounter.patientId) || [];
   const windowEnd = new Date(encounter.createdAt.getTime() + followUpDays * DAY_IN_MS);
   let hasReconsult = false;
   let hasAdjustment = encounter.hasTreatmentAdjustment;
   let hasFavorableResponse = encounter.hasFavorableResponse;
 
-  for (const candidate of patientEncounters) {
+  for (const candidate of comparableEncounters) {
     if (candidate.createdAt <= encounter.createdAt) {
       continue;
     }
@@ -383,9 +392,11 @@ function evaluateEncounterOutcome(params: {
     }
 
     if (!hasReconsult) {
-      hasReconsult = normalizedCondition
-        ? matchesAnalyticsQuery(candidate, source, normalizedCondition)
-        : true;
+      hasReconsult = encounter.episode
+        ? candidate.episode?.id === encounter.episode.id
+        : normalizedCondition
+          ? matchesAnalyticsQuery(candidate, source, normalizedCondition)
+          : true;
     }
 
     if (!hasAdjustment && candidate.hasTreatmentAdjustment) {
@@ -402,7 +413,13 @@ function evaluateEncounterOutcome(params: {
       return false;
     }
 
-    return !normalizedCondition || normalizeConditionName(problem.label).includes(normalizedCondition);
+    const episodeKey = encounter.episode?.key || normalizedCondition;
+    if (!episodeKey) {
+      return true;
+    }
+
+    const normalizedProblem = normalizeConditionName(problem.label);
+    return normalizedProblem.includes(episodeKey) || episodeKey.includes(normalizedProblem);
   });
 
   const hasResolvedProblem = relevantProblems.length > 0;
@@ -429,8 +446,8 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
   const limit = query.limit ?? 10;
   const toDate = extractDateOnlyIso(query.toDate ?? todayLocalDateOnly());
   const fromDate = extractDateOnlyIso(query.fromDate ?? resolveDefaultFromDate());
-  const fromStart = startOfUtcDay(fromDate);
-  const toEndExclusive = new Date(startOfUtcDay(toDate).getTime() + DAY_IN_MS);
+  const fromStart = startOfAppDayUtc(fromDate);
+  const toEndExclusive = endOfAppDayUtcExclusive(toDate);
 
   if (fromStart >= toEndExclusive) {
     throw new BadRequestException('La fecha desde debe ser anterior o igual a la fecha hasta');
@@ -483,13 +500,16 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
           indication: true,
           status: true,
           diagnosis: {
-            select: { normalizedLabel: true },
+            select: { label: true, normalizedLabel: true },
           },
           outcomes: {
             select: {
               outcomeStatus: true,
               outcomeSource: true,
               notes: true,
+              adherenceStatus: true,
+              adverseEventSeverity: true,
+              adverseEventNotes: true,
             },
           },
         },
@@ -566,9 +586,21 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
     encountersByPatient.set(encounter.patientId, current);
   }
 
+  const encountersByEpisode = new Map<string, ParsedClinicalAnalyticsEncounter[]>();
+  for (const encounter of parsedEncounters) {
+    if (!encounter.episode) {
+      continue;
+    }
+
+    const current = encountersByEpisode.get(encounter.episode.id) || [];
+    current.push(encounter);
+    encountersByEpisode.set(encounter.episode.id, current);
+  }
+
   const evaluations = matchedEncounters.map((encounter) => evaluateEncounterOutcome({
     encounter,
     encountersByPatient,
+    encountersByEpisode,
     alertsByPatient,
     problemsByPatient,
     normalizedCondition,
@@ -580,6 +612,8 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
   const adjustmentCount = evaluations.filter((entry) => entry.hasAdjustment).length;
   const resolvedProblemCount = evaluations.filter((entry) => entry.hasResolvedProblem).length;
   const alertAfterIndexCount = evaluations.filter((entry) => entry.hasAlertAfterIndex).length;
+  const adherenceDocumentedCount = matchedEncounters.filter((entry) => entry.hasDocumentedAdherence).length;
+  const adverseEventCount = matchedEncounters.filter((entry) => entry.hasAdverseEvent).length;
 
   const uniquePatients = new Map<string, ParsedClinicalAnalyticsEncounter['patient']>();
   for (const encounter of matchedEncounters) {
@@ -620,6 +654,10 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
       resolvedProblemRate: ratio(resolvedProblemCount, matchedEncounters.length),
       alertAfterIndexCount: alertAfterIndexCount,
       alertAfterIndexRate: ratio(alertAfterIndexCount, matchedEncounters.length),
+      adherenceDocumentedCount,
+      adherenceDocumentedRate: ratio(adherenceDocumentedCount, matchedEncounters.length),
+      adverseEventCount,
+      adverseEventRate: ratio(adverseEventCount, matchedEncounters.length),
       demographics,
     },
     topConditions: buildConditionRanking(normalizedCondition ? matchedEncounters : baseEncounters, query),

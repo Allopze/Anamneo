@@ -8,6 +8,8 @@ type AnalyticsOutcomeRow = {
   favorableRate: number;
   adjustmentCount: number;
   reconsultCount: number;
+  adherenceCount: number;
+  adverseEventCount: number;
   subtitle?: string;
 };
 
@@ -73,6 +75,11 @@ export function AnalyticsOutcomeTable({
               <div className="xl:col-span-2">
                 <p className="text-sm text-ink-secondary">
                   Ajuste terapéutico dentro de ventana: <span className="font-semibold text-ink">{row.adjustmentCount}</span>
+                </p>
+                <p className="mt-1 text-sm text-ink-secondary">
+                  Adherencia documentada: <span className="font-semibold text-ink">{row.adherenceCount}</span>
+                  {' · '}
+                  Eventos adversos: <span className="font-semibold text-ink">{row.adverseEventCount}</span>
                 </p>
               </div>
             </div>

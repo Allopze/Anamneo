@@ -1,10 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
-import { extractDateOnlyIso, startOfUtcDay, todayLocalDateOnly } from '../common/utils/local-date';
+import { endOfAppDayUtcExclusive, extractDateOnlyIso, startOfAppDayUtc, todayLocalDateOnly } from '../common/utils/local-date';
 import { getEffectiveMedicoId, type RequestUser } from '../common/utils/medico-id';
 import { normalizeConditionName } from '../conditions/conditions-helpers';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  buildClinicalAnalyticsEncounter,
   buildClinicalAnalyticsEncounterFromPersistence,
   getEncounterConditions,
   matchesAnalyticsQuery,
@@ -86,8 +85,8 @@ export async function getClinicalAnalyticsCasesReadModel(params: {
   const pageSize = query.pageSize ?? 15;
   const toDate = extractDateOnlyIso(query.toDate ?? todayLocalDateOnly());
   const fromDate = extractDateOnlyIso(query.fromDate ?? resolveDefaultFromDate());
-  const fromStart = startOfUtcDay(fromDate);
-  const toEndExclusive = new Date(startOfUtcDay(toDate).getTime() + DAY_IN_MS);
+  const fromStart = startOfAppDayUtc(fromDate);
+  const toEndExclusive = endOfAppDayUtcExclusive(toDate);
 
   if (fromStart >= toEndExclusive) {
     throw new BadRequestException('La fecha desde debe ser anterior o igual a la fecha hasta');
@@ -140,13 +139,16 @@ export async function getClinicalAnalyticsCasesReadModel(params: {
           indication: true,
           status: true,
           diagnosis: {
-            select: { normalizedLabel: true },
+            select: { label: true, normalizedLabel: true },
           },
           outcomes: {
             select: {
               outcomeStatus: true,
               outcomeSource: true,
               notes: true,
+              adherenceStatus: true,
+              adverseEventSeverity: true,
+              adverseEventNotes: true,
             },
           },
         },
@@ -201,6 +203,11 @@ export async function getClinicalAnalyticsCasesReadModel(params: {
     data: matchedEncounters.slice(startIndex, startIndex + pageSize).map(({ rawEncounter, parsedEncounter }) => ({
       encounterId: rawEncounter.id,
       patientId: rawEncounter.patientId,
+      episodeId: parsedEncounter.episode?.id ?? null,
+      episodeLabel: parsedEncounter.episode?.label ?? null,
+      episodeStartDate: parsedEncounter.episode?.startDate ?? null,
+      episodeEndDate: parsedEncounter.episode?.endDate ?? null,
+      episodeIsActive: parsedEncounter.episode?.isActive ?? null,
       patientName: rawEncounter.patient.nombre,
       patientRut: rawEncounter.patient.rut,
       createdAt: rawEncounter.createdAt,
@@ -217,8 +224,11 @@ export async function getClinicalAnalyticsCasesReadModel(params: {
       foodRelation: localizeFoodRelation(parsedEncounter.foodRelation),
       outcomeStatus: parsedEncounter.outcome.status,
       outcomeSource: parsedEncounter.outcome.source,
+      adherenceStatus: parsedEncounter.outcome.adherenceStatus ?? null,
+      adverseEventSeverity: parsedEncounter.outcome.adverseEventSeverity ?? null,
       hasTreatmentAdjustment: parsedEncounter.hasTreatmentAdjustment,
       hasFavorableResponse: parsedEncounter.hasFavorableResponse,
+      hasAdverseEvent: parsedEncounter.hasAdverseEvent,
     })),
   };
 }

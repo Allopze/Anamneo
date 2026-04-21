@@ -106,6 +106,7 @@ export function sanitizeStructuredMedication(item: unknown, index: number) {
   const frecuencia = sanitizeTextListField(record.frecuencia, 120);
   const duracion = sanitizeTextListField(record.duracion, 120);
   const indicacion = sanitizeTextListField(record.indicacion, 400);
+  const sospechaId = sanitizeText(record.sospechaId, 100);
 
   if (!nombre && !activeIngredient && !dosis && !via && !frecuencia && !duracion && !indicacion) {
     return null;
@@ -120,6 +121,7 @@ export function sanitizeStructuredMedication(item: unknown, index: number) {
     ...(frecuencia !== undefined ? { frecuencia } : {}),
     ...(duracion !== undefined ? { duracion } : {}),
     ...(indicacion !== undefined ? { indicacion } : {}),
+    ...(sospechaId !== undefined ? { sospechaId } : {}),
   };
 }
 
@@ -137,6 +139,7 @@ export function sanitizeStructuredOrder(item: unknown, index: number, label: 'ex
   const nombre = sanitizeTextListField(record.nombre, 200);
   const indicacion = sanitizeTextListField(record.indicacion, 400);
   const resultado = sanitizeTextListField(record.resultado, 1000);
+  const sospechaId = sanitizeText(record.sospechaId, 100);
   const estado = (() => {
     if (record.estado === undefined || record.estado === null || record.estado === '') {
       return 'PENDIENTE';
@@ -162,5 +165,6 @@ export function sanitizeStructuredOrder(item: unknown, index: number, label: 'ex
     ...(indicacion !== undefined ? { indicacion } : {}),
     estado,
     ...(resultado !== undefined ? { resultado } : {}),
+    ...(sospechaId !== undefined ? { sospechaId } : {}),
   };
 }

@@ -1,8 +1,11 @@
 import { BadRequestException } from '@nestjs/common';
 import {
+  endOfAppDayUtcExclusive,
   extractDateOnlyIso,
   isDateOnlyBeforeToday,
   parseDateOnlyToStoredUtcDate,
+  shiftDateOnly,
+  startOfAppDayUtc,
   startOfUtcDay,
   todayLocalDateOnly,
 } from './local-date';
@@ -41,6 +44,16 @@ describe('local-date', () => {
 
   it('computes the start of the UTC day for range filters', () => {
     expect(startOfUtcDay('2026-03-31').toISOString()).toBe('2026-03-31T00:00:00.000Z');
+  });
+
+  it('computes app-local day boundaries in UTC for range filters', () => {
+    expect(startOfAppDayUtc('2026-03-31').toISOString()).toBe('2026-03-31T03:00:00.000Z');
+    expect(endOfAppDayUtcExclusive('2026-03-31').toISOString()).toBe('2026-04-01T03:00:00.000Z');
+  });
+
+  it('shifts date-only values using the configured app timezone semantics', () => {
+    expect(shiftDateOnly('2026-03-31', 1)).toBe('2026-04-01');
+    expect(shiftDateOnly('2026-03-31', -2)).toBe('2026-03-29');
   });
 
   it('maps Date references to the configured app timezone instead of raw UTC', () => {

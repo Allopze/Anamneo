@@ -1,9 +1,11 @@
 /// <reference types="jest" />
 
 import { state, req, cookieHeader } from '../../helpers/e2e-setup';
+import { extractDateOnlyIso, todayLocalDateOnly } from '../../../src/common/utils/local-date';
 import { getEncounterSectionSchemaVersion } from '../../../src/common/utils/encounter-section-meta';
 
 const MEDICO_ONLY_SECTION_KEYS = ['SOSPECHA_DIAGNOSTICA', 'TRATAMIENTO', 'RESPUESTA_TRATAMIENTO'] as const;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 export function registerEncounterFollowupTests() {
   it('POST /api/patients/:id/problems → create patient problem', async () => {
@@ -51,7 +53,7 @@ export function registerEncounterFollowupTests() {
   });
 
   it('POST /api/patients/:id/tasks → create patient task', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayLocalDateOnly();
     const res = await req()
       .post(`/api/patients/${state.patientId}/tasks`)
       .set('Cookie', cookieHeader(state.medicoCookies))
@@ -114,7 +116,7 @@ export function registerEncounterFollowupTests() {
   });
 
   it('POST /api/patients/:id/tasks → create a future follow-up used by operational filters', async () => {
-    const nextWeekDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const nextWeekDate = extractDateOnlyIso(new Date(Date.now() + 3 * DAY_IN_MS));
 
     await req()
       .post(`/api/patients/${state.patientId}/tasks`)
@@ -141,7 +143,7 @@ export function registerEncounterFollowupTests() {
   });
 
   it('POST /api/patients/:id/tasks → create an administrative task due this week', async () => {
-    const dueSoonDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const dueSoonDate = extractDateOnlyIso(new Date(Date.now() + 2 * DAY_IN_MS));
 
     await req()
       .post(`/api/patients/${state.patientId}/tasks`)
@@ -186,7 +188,7 @@ export function registerEncounterFollowupTests() {
 
   it('PUT /api/patients/tasks/:taskId → update patient task', async () => {
     // Use a date safely in the past to avoid UTC/local boundary flakes around midnight.
-    const overdueDate = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const overdueDate = extractDateOnlyIso(new Date(Date.now() - 48 * 60 * 60 * 1000));
     const res = await req()
       .put(`/api/patients/tasks/${state.patientTaskId}`)
       .set('Cookie', cookieHeader(state.medicoCookies))

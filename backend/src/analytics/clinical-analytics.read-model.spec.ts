@@ -118,4 +118,95 @@ describe('clinical-analytics.read-model', () => {
     expect(result.treatmentOutcomeProxies.exams).toEqual([]);
     expect(result.treatmentOutcomeProxies.referrals).toEqual([]);
   });
+
+  it('counts follow-up by episode when the subsequent encounter no longer matches by raw condition text', async () => {
+    const prisma = {
+      encounter: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'enc-1',
+            patientId: 'pat-1',
+            createdAt: new Date('2026-04-10T12:00:00.000Z'),
+            patient: {
+              id: 'pat-1',
+              fechaNacimiento: null,
+              edad: 34,
+              sexo: 'F',
+              prevision: 'FONASA',
+            },
+            sections: [],
+            diagnoses: [
+              {
+                source: 'AFECCION_PROBABLE',
+                label: 'Gastritis',
+                normalizedLabel: 'gastritis',
+                code: null,
+              },
+            ],
+            treatments: [],
+            episode: {
+              id: 'ep-1',
+              label: 'Gastritis',
+              normalizedLabel: 'gastritis',
+              startDate: new Date('2026-04-10T12:00:00.000Z'),
+              endDate: new Date('2026-04-15T12:00:00.000Z'),
+              isActive: true,
+            },
+          },
+          {
+            id: 'enc-2',
+            patientId: 'pat-1',
+            createdAt: new Date('2026-04-15T12:00:00.000Z'),
+            patient: {
+              id: 'pat-1',
+              fechaNacimiento: null,
+              edad: 34,
+              sexo: 'F',
+              prevision: 'FONASA',
+            },
+            sections: [],
+            diagnoses: [],
+            treatments: [],
+            episode: {
+              id: 'ep-1',
+              label: 'Gastritis',
+              normalizedLabel: 'gastritis',
+              startDate: new Date('2026-04-10T12:00:00.000Z'),
+              endDate: new Date('2026-04-15T12:00:00.000Z'),
+              isActive: true,
+            },
+          },
+        ]),
+      },
+      patientProblem: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      clinicalAlert: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+
+    const result = await getClinicalAnalyticsSummaryReadModel({
+      prisma: prisma as never,
+      user: {
+        id: 'med-1',
+        email: 'medico@test.com',
+        nombre: 'Medico Demo',
+        role: 'MEDICO',
+        isAdmin: false,
+      },
+      query: {
+        source: 'ANY',
+        condition: 'gastritis',
+        fromDate: '2026-04-01',
+        toDate: '2026-04-20',
+        followUpDays: 30,
+        limit: 10,
+      },
+    });
+
+    expect(result.summary.matchedEncounters).toBe(1);
+    expect(result.summary.reconsultWithinWindowCount).toBe(1);
+    expect(result.summary.reconsultWithinWindowRate).toBe(1);
+  });
 });

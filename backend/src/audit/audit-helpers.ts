@@ -49,6 +49,7 @@ export const SAFE_CLINICAL_STRING_KEYS = new Set([
 export const SENSITIVE_FIELDS = ['passwordHash', 'password', 'refreshToken', 'accessToken'];
 
 import { AuditAction, AuditReason, AuditResult } from '../common/types';
+import { endOfAppDayUtcExclusive, startOfAppDayUtc } from '../common/utils/local-date';
 
 export interface LogInput {
   entityType: string;
@@ -63,9 +64,13 @@ export interface LogInput {
 
 export function parseDateFilter(value: string, boundary: 'start' | 'end') {
   if (DATE_ONLY_PATTERN.test(value)) {
-    const time = boundary === 'start' ? '00:00:00.000' : '23:59:59.999';
-    return new Date(`${value}T${time}Z`);
+    if (boundary === 'start') {
+      return startOfAppDayUtc(value);
+    }
+
+    return new Date(endOfAppDayUtcExclusive(value).getTime() - 1);
   }
+
   return new Date(value);
 }
 

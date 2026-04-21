@@ -5,9 +5,14 @@ import {
   updateEncounterReviewStatusMutation,
 } from './encounters-workflow-reopen-cancel-review';
 import { formatEncounterResponse } from './encounters-presenters';
+import { removeEncounterFromEpisode } from './encounters-episodes';
 
 jest.mock('./encounters-presenters', () => ({
   formatEncounterResponse: jest.fn((encounter) => encounter),
+}));
+
+jest.mock('./encounters-episodes', () => ({
+  removeEncounterFromEpisode: jest.fn().mockResolvedValue(undefined),
 }));
 
 describe('encounters-workflow-reopen-cancel-review', () => {
@@ -53,6 +58,7 @@ describe('encounters-workflow-reopen-cancel-review', () => {
           id: 'enc-1',
           status: 'EN_PROGRESO',
           medicoId: 'med-1',
+          episodeId: 'ep-1',
           patient: { id: 'pat-1' },
         }),
       },
@@ -79,6 +85,10 @@ describe('encounters-workflow-reopen-cancel-review', () => {
       }),
       tx,
     );
+    expect(removeEncounterFromEpisode).toHaveBeenCalledWith({
+      prisma: tx,
+      encounterId: 'enc-1',
+    });
     expect(result).toEqual({ id: 'enc-1', status: 'CANCELADO' });
   });
 

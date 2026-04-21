@@ -203,6 +203,16 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
             include: {
               sections: true,
               patient: true,
+              episode: {
+                select: {
+                  id: true,
+                  label: true,
+                  normalizedLabel: true,
+                  startDate: true,
+                  endDate: true,
+                  isActive: true,
+                },
+              },
               createdBy: {
                 select: { id: true, nombre: true, email: true },
               },

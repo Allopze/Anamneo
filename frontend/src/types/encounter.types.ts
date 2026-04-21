@@ -305,13 +305,25 @@ export interface RespuestaTratamientoData {
   ajustesTratamiento?: string;
   planSeguimiento?: string;
   respuestaEstructurada?: RespuestaEstructuradaData;
+  resultadosTratamientos?: StructuredTreatmentResponse[];
 }
 
 export type EstadoRespuestaTratamiento = 'FAVORABLE' | 'PARCIAL' | 'SIN_RESPUESTA' | 'EMPEORA';
+export type EstadoAdherenciaTratamiento = 'ADHERENTE' | 'PARCIAL' | 'NO_ADHERENTE';
+export type SeveridadEventoAdversoTratamiento = 'LEVE' | 'MODERADO' | 'SEVERO';
 
 export interface RespuestaEstructuradaData {
   estado?: EstadoRespuestaTratamiento;
   notas?: string;
+}
+
+export interface StructuredTreatmentResponse {
+  treatmentItemId: string;
+  estado?: EstadoRespuestaTratamiento;
+  notas?: string;
+  adherenceStatus?: EstadoAdherenciaTratamiento;
+  adverseEventSeverity?: SeveridadEventoAdversoTratamiento;
+  adverseEventNotes?: string;
 }
 
 export interface ObservacionesData {
@@ -329,6 +341,7 @@ export interface StructuredMedication {
   frecuencia?: string;
   duracion?: string;
   indicacion?: string;
+  sospechaId?: string;
 }
 
 export interface StructuredOrder {
@@ -337,6 +350,7 @@ export interface StructuredOrder {
   indicacion?: string;
   estado?: 'PENDIENTE' | 'RECIBIDO' | 'REVISADO';
   resultado?: string;
+  sospechaId?: string;
 }
 
 /** Union of all section data shapes */

@@ -1,6 +1,6 @@
 'use client';
 
-import { Attachment, HistoryFieldValue, TratamientoData } from '@/types';
+import { Attachment, HistoryFieldValue, SospechaDiagnosticaData, TratamientoData } from '@/types';
 import VoiceDictationButton from '@/components/common/VoiceDictationButton';
 import { FiEye, FiPaperclip, FiPlus, FiTrash2 } from 'react-icons/fi';
 import {
@@ -12,6 +12,7 @@ import {
 } from '@/components/sections/SectionPrimitives';
 import LinkedAttachmentBlock from '@/components/sections/LinkedAttachmentBlock';
 import StructuredMedicationsEditor from '@/components/sections/StructuredMedicationsEditor';
+import TreatmentDiagnosisSelect, { type TreatmentDiagnosisOption } from '@/components/sections/TreatmentDiagnosisSelect';
 
 interface Props {
   data: TratamientoData;
@@ -21,6 +22,7 @@ interface Props {
   onRequestAttachToOrder?: (type: 'EXAMEN' | 'DERIVACION', orderId: string) => void;
   onPreviewAttachment?: (attachment: Attachment) => void;
   allergyData?: HistoryFieldValue | string;
+  diagnosticData?: SospechaDiagnosticaData;
 }
 
 export default function TratamientoSection({
@@ -31,6 +33,7 @@ export default function TratamientoSection({
   onRequestAttachToOrder,
   onPreviewAttachment,
   allergyData,
+  diagnosticData,
 }: Props) {
   const createId = () =>
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -44,6 +47,21 @@ export default function TratamientoSection({
   const medicamentos = data.medicamentosEstructurados || [];
   const examenes = data.examenesEstructurados || [];
   const derivaciones = data.derivacionesEstructuradas || [];
+  const diagnosticOptions: TreatmentDiagnosisOption[] = (diagnosticData?.sospechas || [])
+    .map((entry) => {
+      const sourceLabel = entry.diagnostico?.trim() || entry.descripcionCie10?.trim() || entry.codigoCie10?.trim();
+      if (!entry.id || !sourceLabel) {
+        return null;
+      }
+
+      const codeSuffix = entry.codigoCie10?.trim() ? ` (${entry.codigoCie10.trim()})` : '';
+
+      return {
+        id: entry.id,
+        label: `${entry.prioridad}. ${sourceLabel}${codeSuffix}`,
+      };
+    })
+    .filter((entry): entry is TreatmentDiagnosisOption => Boolean(entry));
   const planText = typeof data.plan === 'string'
     ? data.plan
     : typeof data.indicaciones === 'string'
@@ -98,6 +116,7 @@ export default function TratamientoSection({
           onChange={(next) => updateList('medicamentosEstructurados', next)}
           readOnly={readOnly}
           allergyData={allergyData}
+          diagnosticOptions={diagnosticOptions}
         />
         <div className="mt-4">
           <SectionFieldHeader
@@ -130,7 +149,7 @@ export default function TratamientoSection({
         />
         <div className="mt-3 space-y-2">
           {examenes.map((orden, index) => (
-            <div key={orden.id} className="section-item-card grid grid-cols-1 gap-2 md:grid-cols-4">
+            <div key={orden.id} className="section-item-card grid grid-cols-1 gap-2 md:grid-cols-5">
               <input
                 className="form-input"
                 placeholder="Examen"
@@ -167,6 +186,19 @@ export default function TratamientoSection({
                 <option value="RECIBIDO">Recibido</option>
                 <option value="REVISADO">Revisado</option>
               </select>
+              {diagnosticOptions.length > 0 ? (
+                <TreatmentDiagnosisSelect
+                  options={diagnosticOptions}
+                  value={orden.sospechaId}
+                  disabled={readOnly}
+                  ariaLabel="Diagnóstico asociado del examen"
+                  onChange={(value) => {
+                    const next = [...examenes];
+                    next[index] = { ...next[index], sospechaId: value || undefined };
+                    updateList('examenesEstructurados', next);
+                  }}
+                />
+              ) : null}
               {!readOnly && (
                 <SectionIconButton
                   onClick={() => updateList('examenesEstructurados', examenes.filter((item) => item.id !== orden.id))}
@@ -219,7 +251,7 @@ export default function TratamientoSection({
         />
         <div className="mt-3 space-y-2">
           {derivaciones.map((orden, index) => (
-            <div key={orden.id} className="section-item-card grid grid-cols-1 gap-2 md:grid-cols-4">
+            <div key={orden.id} className="section-item-card grid grid-cols-1 gap-2 md:grid-cols-5">
               <input
                 className="form-input"
                 placeholder="Destino"
@@ -256,6 +288,19 @@ export default function TratamientoSection({
                 <option value="RECIBIDO">Recibido</option>
                 <option value="REVISADO">Revisado</option>
               </select>
+              {diagnosticOptions.length > 0 ? (
+                <TreatmentDiagnosisSelect
+                  options={diagnosticOptions}
+                  value={orden.sospechaId}
+                  disabled={readOnly}
+                  ariaLabel="Diagnóstico asociado de la derivación"
+                  onChange={(value) => {
+                    const next = [...derivaciones];
+                    next[index] = { ...next[index], sospechaId: value || undefined };
+                    updateList('derivacionesEstructuradas', next);
+                  }}
+                />
+              ) : null}
               {!readOnly && (
                 <SectionIconButton
                   onClick={() => updateList('derivacionesEstructuradas', derivaciones.filter((item) => item.id !== orden.id))}

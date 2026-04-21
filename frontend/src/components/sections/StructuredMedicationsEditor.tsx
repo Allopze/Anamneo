@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { MedicationCatalogItem, StructuredMedication, type HistoryFieldValue } from '@/types';
 import { formatMedicationCatalogDefaults, MEDICATION_ROUTE_OPTIONS } from '@/lib/medication-catalog';
 import { parseHistoryField } from '@/lib/utils';
+import TreatmentDiagnosisSelect, { type TreatmentDiagnosisOption } from '@/components/sections/TreatmentDiagnosisSelect';
 import {
   SectionAddButton,
   SectionIconButton,
@@ -16,6 +17,7 @@ interface StructuredMedicationsEditorProps {
   onChange: (next: StructuredMedication[]) => void;
   readOnly?: boolean;
   allergyData?: HistoryFieldValue | string;
+  diagnosticOptions?: TreatmentDiagnosisOption[];
 }
 
 interface MedicationCatalogFieldProps {
@@ -170,6 +172,7 @@ export default function StructuredMedicationsEditor({
   onChange,
   readOnly,
   allergyData,
+  diagnosticOptions = [],
 }: StructuredMedicationsEditorProps) {
   const isBlank = (value: string | undefined) => !value || value.trim().length === 0;
 
@@ -233,7 +236,7 @@ export default function StructuredMedicationsEditor({
         const allergyMatch = getAllergyMatch(medication.nombre || '');
 
         return (
-          <div key={medication.id} className="section-item-card grid grid-cols-1 gap-2 md:grid-cols-6">
+          <div key={medication.id} className="section-item-card grid grid-cols-1 gap-2 md:grid-cols-7">
             <div className={`md:col-span-2${allergyMatch ? ' rounded-input border border-status-red/60 p-2' : ''}`}>
               <MedicationCatalogField
                 medication={medication}
@@ -305,6 +308,15 @@ export default function StructuredMedicationsEditor({
               disabled={readOnly}
               onChange={(event) => updateMedication(index, { frecuencia: event.target.value })}
             />
+            {diagnosticOptions.length > 0 ? (
+              <TreatmentDiagnosisSelect
+                options={diagnosticOptions}
+                value={medication.sospechaId}
+                disabled={readOnly}
+                ariaLabel="Diagnóstico asociado del medicamento"
+                onChange={(value) => updateMedication(index, { sospechaId: value || undefined })}
+              />
+            ) : null}
             {!readOnly ? (
               <SectionIconButton
                 onClick={() => onChange(medications.filter((item) => item.id !== medication.id))}

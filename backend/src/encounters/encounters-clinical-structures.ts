@@ -1,8 +1,9 @@
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { SectionKey } from '../common/types';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
 import { normalizeConditionName } from '../conditions/conditions-helpers';
 import { PrismaService } from '../prisma/prisma.service';
+import { reconcileEncounterEpisode } from './encounters-episodes';
 
 type EncounterClinicalPrisma = PrismaService | Prisma.TransactionClient;
 
@@ -11,10 +12,12 @@ type EncounterDiagnosisRecord = {
   label: string;
   normalizedLabel: string;
   code?: string | null;
+  sourceEntryId?: string;
 };
 
 type EncounterTreatmentRecord = {
   treatmentType: 'MEDICATION' | 'EXAM' | 'REFERRAL';
+  sourceItemId?: string;
   label: string;
   normalizedLabel: string;
   details?: string;
@@ -25,6 +28,7 @@ type EncounterTreatmentRecord = {
   indication?: string;
   status?: string;
   diagnosisKey?: string;
+  diagnosisSourceEntryId?: string;
 };
 
 type EncounterOutcomeRecord = {
@@ -32,14 +36,9 @@ type EncounterOutcomeRecord = {
   status: string;
   source: string;
   notes?: string;
-};
-
-type EncounterEpisodeSyncParams = {
-  prisma: EncounterClinicalPrisma;
-  encounterId: string;
-  patientId: string;
-  encounterCreatedAt: Date;
-  diagnoses: EncounterDiagnosisRecord[];
+  adherenceStatus?: string;
+  adverseEventSeverity?: string;
+  adverseEventNotes?: string;
 };
 
 const CLINICAL_STRUCTURE_SECTIONS: SectionKey[] = [
@@ -65,59 +64,6 @@ function uniqueBy<T>(items: T[], getKey: (item: T) => string) {
   });
 }
 
-async function syncEncounterEpisode(params: EncounterEpisodeSyncParams) {
-  const { prisma, encounterId, patientId, encounterCreatedAt, diagnoses } = params;
-  const primaryDiagnosis = diagnoses[0];
-
-  if (!primaryDiagnosis?.normalizedLabel) {
-    return;
-  }
-
-  const existingEpisode = await prisma.encounterEpisode.findFirst({
-    where: {
-      patientId,
-      normalizedLabel: primaryDiagnosis.normalizedLabel,
-      isActive: true,
-    },
-    orderBy: { updatedAt: 'desc' },
-  });
-
-  if (existingEpisode) {
-    await prisma.encounterEpisode.update({
-      where: { id: existingEpisode.id },
-      data: {
-        lastEncounterId: encounterId,
-        endDate: encounterCreatedAt,
-      },
-    });
-
-    await prisma.encounter.update({
-      where: { id: encounterId },
-      data: { episodeId: existingEpisode.id },
-    });
-
-    return;
-  }
-
-  const createdEpisode = await prisma.encounterEpisode.create({
-    data: {
-      patientId,
-      label: primaryDiagnosis.label,
-      normalizedLabel: primaryDiagnosis.normalizedLabel,
-      firstEncounterId: encounterId,
-      lastEncounterId: encounterId,
-      startDate: encounterCreatedAt,
-      endDate: encounterCreatedAt,
-      isActive: true,
-    },
-  });
-
-  await prisma.encounter.update({
-    where: { id: encounterId },
-    data: { episodeId: createdEpisode.id },
-  });
-}
-
 function getSection<T>(sections: Array<{ sectionKey: string; data: unknown }>, key: SectionKey) {
   return sections.find((section) => section.sectionKey === key) as
     | ({ sectionKey: string; data: T })
@@ -126,7 +72,7 @@ function getSection<T>(sections: Array<{ sectionKey: string; data: unknown }>, k
 
 function buildEncounterDiagnoses(sections: Array<{ sectionKey: string; data: unknown }>) {
   const probableSection = getSection<{ afeccionSeleccionada?: { name?: string } }>(sections, 'MOTIVO_CONSULTA');
-  const diagnosticSection = getSection<{ sospechas?: Array<{ diagnostico?: string; codigoCie10?: string; descripcionCie10?: string }> }>(
+  const diagnosticSection = getSection<{ sospechas?: Array<{ id?: string; diagnostico?: string; codigoCie10?: string; descripcionCie10?: string }> }>(
     sections,
     'SOSPECHA_DIAGNOSTICA',
   );
@@ -157,6 +103,7 @@ function buildEncounterDiagnoses(sections: Array<{ sectionKey: string; data: unk
       label: label || code || 'Diagnóstico sin etiqueta',
       normalizedLabel: normalizeConditionName(label || code || ''),
       code,
+      sourceEntryId: typeof sospecha.id === 'string' && sospecha.id.trim().length > 0 ? sospecha.id.trim() : undefined,
     });
   }
 
@@ -196,6 +143,7 @@ function buildEncounterTreatments(
 
       return {
         treatmentType: 'MEDICATION' as const,
+        sourceItemId: (entry.id as string | undefined)?.trim() || undefined,
         label,
         normalizedLabel: normalizeTreatmentLabel(label),
         details: details || undefined,
@@ -206,6 +154,7 @@ function buildEncounterTreatments(
         indication: (entry.indicacion as string | undefined) || undefined,
         status: undefined,
         diagnosisKey,
+        diagnosisSourceEntryId: (entry.sospechaId as string | undefined)?.trim() || undefined,
       };
     })
     .filter(Boolean) as EncounterTreatmentRecord[];
@@ -221,12 +170,14 @@ function buildEncounterTreatments(
 
       return {
         treatmentType: 'EXAM' as const,
+        sourceItemId: (entry.id as string | undefined)?.trim() || undefined,
         label,
         normalizedLabel: normalizeTreatmentLabel(label),
         details: details || undefined,
         indication: (entry.indicacion as string | undefined) || undefined,
         status: (entry.estado as string | undefined) || undefined,
         diagnosisKey,
+        diagnosisSourceEntryId: (entry.sospechaId as string | undefined)?.trim() || undefined,
       };
     })
     .filter(Boolean) as EncounterTreatmentRecord[];
@@ -242,12 +193,14 @@ function buildEncounterTreatments(
 
       return {
         treatmentType: 'REFERRAL' as const,
+        sourceItemId: (entry.id as string | undefined)?.trim() || undefined,
         label,
         normalizedLabel: normalizeTreatmentLabel(label),
         details: details || undefined,
         indication: (entry.indicacion as string | undefined) || undefined,
         status: (entry.estado as string | undefined) || undefined,
         diagnosisKey,
+        diagnosisSourceEntryId: (entry.sospechaId as string | undefined)?.trim() || undefined,
       };
     })
     .filter(Boolean) as EncounterTreatmentRecord[];
@@ -261,6 +214,14 @@ function buildEncounterOutcome(
 ) {
   const respuestaSection = getSection<{
     respuestaEstructurada?: { estado?: string; notas?: string };
+    resultadosTratamientos?: Array<{
+      treatmentItemId?: string;
+      estado?: string;
+      notas?: string;
+      adherenceStatus?: string;
+      adverseEventSeverity?: string;
+      adverseEventNotes?: string;
+    }>;
     evolucion?: string;
     resultadosExamenes?: string;
     ajustesTratamiento?: string;
@@ -279,13 +240,66 @@ function buildEncounterOutcome(
 
   const status = structuredStatus ?? (textNotes ? 'UNKNOWN' : 'UNKNOWN');
   const source = structuredStatus ? 'ESTRUCTURADO' : textNotes ? 'TEXTO' : 'UNKNOWN';
+  const explicitOutcomeEntries: Array<readonly [string, {
+    status: string;
+    source: 'ESTRUCTURADO' | 'TEXTO';
+    notes?: string;
+    adherenceStatus?: string;
+    adverseEventSeverity?: string;
+    adverseEventNotes?: string;
+  }]> = [];
 
-  return treatments.map((_, index) => ({
-    treatmentIndex: index,
-    status,
-    source,
-    notes: textNotes || undefined,
-  }));
+  for (const entry of respuestaSection?.data?.resultadosTratamientos ?? []) {
+    const treatmentItemId = entry.treatmentItemId?.trim();
+    if (!treatmentItemId) {
+      continue;
+    }
+
+    const explicitStatus = entry.estado?.trim();
+    const explicitNotes = entry.notas?.trim();
+    const explicitAdherenceStatus = entry.adherenceStatus?.trim();
+    const explicitAdverseEventSeverity = entry.adverseEventSeverity?.trim();
+    const explicitAdverseEventNotes = entry.adverseEventNotes?.trim();
+    if (!explicitStatus && !explicitNotes && !explicitAdherenceStatus && !explicitAdverseEventSeverity && !explicitAdverseEventNotes) {
+      continue;
+    }
+
+    explicitOutcomeEntries.push([
+      treatmentItemId,
+      {
+        status: explicitStatus ?? 'UNKNOWN',
+        source: explicitStatus ? 'ESTRUCTURADO' : 'TEXTO',
+        notes: explicitNotes || undefined,
+        adherenceStatus: explicitAdherenceStatus || undefined,
+        adverseEventSeverity: explicitAdverseEventSeverity || undefined,
+        adverseEventNotes: explicitAdverseEventNotes || undefined,
+      },
+    ]);
+  }
+
+  const explicitOutcomeByItemId = new Map(explicitOutcomeEntries);
+
+  return treatments.flatMap((treatment, index) => {
+    const explicitOutcome = treatment.sourceItemId ? explicitOutcomeByItemId.get(treatment.sourceItemId) : undefined;
+    const fallbackOutcome = structuredStatus || textNotes
+      ? { status, source, notes: textNotes || undefined }
+      : null;
+    const selectedOutcome = explicitOutcome ?? fallbackOutcome;
+
+    if (!selectedOutcome) {
+      return [];
+    }
+
+    return [{
+      treatmentIndex: index,
+      status: selectedOutcome.status,
+      source: selectedOutcome.source,
+      notes: selectedOutcome.notes,
+      adherenceStatus: selectedOutcome.adherenceStatus,
+      adverseEventSeverity: selectedOutcome.adverseEventSeverity,
+      adverseEventNotes: selectedOutcome.adverseEventNotes,
+    }];
+  });
 }
 
 export async function syncEncounterClinicalStructures(params: {
@@ -345,8 +359,13 @@ export async function syncEncounterClinicalStructures(params: {
   );
 
   const diagnosisIdByKey = new Map<string, string>();
-  for (const record of createdDiagnoses) {
+  const diagnosisIdBySourceEntryId = new Map<string, string>();
+  for (const [index, record] of createdDiagnoses.entries()) {
     diagnosisIdByKey.set(record.normalizedLabel, record.id);
+    const sourceEntryId = diagnoses[index]?.sourceEntryId;
+    if (sourceEntryId) {
+      diagnosisIdBySourceEntryId.set(sourceEntryId, record.id);
+    }
   }
 
   const createdTreatments = await Promise.all(
@@ -354,7 +373,12 @@ export async function syncEncounterClinicalStructures(params: {
       prisma.encounterTreatment.create({
         data: {
           encounterId,
-          diagnosisId: treatment.diagnosisKey ? diagnosisIdByKey.get(treatment.diagnosisKey) ?? undefined : undefined,
+          diagnosisId:
+            (treatment.diagnosisSourceEntryId
+              ? diagnosisIdBySourceEntryId.get(treatment.diagnosisSourceEntryId)
+              : undefined) ??
+            (treatment.diagnosisKey ? diagnosisIdByKey.get(treatment.diagnosisKey) : undefined) ??
+            undefined,
           treatmentType: treatment.treatmentType,
           label: treatment.label,
           normalizedLabel: treatment.normalizedLabel,
@@ -378,12 +402,15 @@ export async function syncEncounterClinicalStructures(params: {
           outcomeStatus: outcome.status,
           outcomeSource: outcome.source,
           notes: outcome.notes ?? null,
+          adherenceStatus: outcome.adherenceStatus ?? null,
+          adverseEventSeverity: outcome.adverseEventSeverity ?? null,
+          adverseEventNotes: outcome.adverseEventNotes ?? null,
         },
       }),
     ),
   );
 
-  await syncEncounterEpisode({
+  await reconcileEncounterEpisode({
     prisma,
     encounterId,
     patientId: encounter.patientId,

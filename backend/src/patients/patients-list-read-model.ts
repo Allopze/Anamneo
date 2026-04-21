@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { RequestUser } from '../common/utils/medico-id';
 import { buildAccessiblePatientsWhere, PatientArchiveFilter } from '../common/utils/patient-access';
-import { startOfUtcDay } from '../common/utils/local-date';
+import { startOfAppDayUtc } from '../common/utils/local-date';
 import { PatientCompletenessStatus } from '../common/types';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -30,7 +30,7 @@ function buildTaskWindowFilter(taskWindow: FindPatientsFilters['taskWindow']): P
     return undefined;
   }
 
-  const todayStart = startOfUtcDay(new Date());
+  const todayStart = startOfAppDayUtc(new Date());
   const tomorrowStart = new Date(todayStart.getTime() + DAY_IN_MS);
   const weekWindowEnd = new Date(todayStart.getTime() + 8 * DAY_IN_MS);
 

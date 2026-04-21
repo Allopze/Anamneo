@@ -34,6 +34,7 @@ type ProbableConditionData = {
 
 type DiagnosticData = {
   sospechas?: Array<{
+    id?: string;
     diagnostico?: string;
     codigoCie10?: string;
     descripcionCie10?: string;
@@ -76,16 +77,19 @@ type TreatmentData = {
     via?: string;
     frecuencia?: string;
     duracion?: string;
+    sospechaId?: string;
   }>;
   examenesEstructurados?: Array<{
     nombre?: string;
     indicacion?: string;
     estado?: string;
+    sospechaId?: string;
   }>;
   derivacionesEstructuradas?: Array<{
     nombre?: string;
     indicacion?: string;
     estado?: string;
+    sospechaId?: string;
   }>;
 };
 
@@ -98,6 +102,14 @@ type ResponseData = {
     estado?: 'FAVORABLE' | 'PARCIAL' | 'SIN_RESPUESTA' | 'EMPEORA';
     notas?: string;
   };
+  resultadosTratamientos?: Array<{
+    treatmentItemId?: string;
+    estado?: 'FAVORABLE' | 'PARCIAL' | 'SIN_RESPUESTA' | 'EMPEORA';
+    notas?: string;
+    adherenceStatus?: 'ADHERENTE' | 'PARCIAL' | 'NO_ADHERENTE';
+    adverseEventSeverity?: 'LEVE' | 'MODERADO' | 'SEVERO';
+    adverseEventNotes?: string;
+  }>;
 };
 
 const SYMPTOM_SIGNAL_DEFINITIONS = [
@@ -236,6 +248,9 @@ export type ClinicalTreatmentEntry = {
   label: string;
   details?: string;
   associatedConditionLabels?: string[];
+  adherenceStatus?: 'ADHERENTE' | 'PARCIAL' | 'NO_ADHERENTE';
+  adverseEventSeverity?: 'LEVE' | 'MODERADO' | 'SEVERO';
+  adverseEventNotes?: string;
 };
 
 export type EncounterDiagnosisEntry = {
@@ -249,6 +264,18 @@ export type EncounterOutcomeEntry = {
   status: 'FAVORABLE' | 'PARCIAL' | 'SIN_RESPUESTA' | 'EMPEORA' | 'PROXY' | 'UNKNOWN';
   source: 'ESTRUCTURADO' | 'TEXTO' | 'PROBLEM_RESOLUTION';
   notes?: string;
+  adherenceStatus?: 'ADHERENTE' | 'PARCIAL' | 'NO_ADHERENTE';
+  adverseEventSeverity?: 'LEVE' | 'MODERADO' | 'SEVERO';
+  adverseEventNotes?: string;
+};
+
+export type EncounterEpisodeEntry = {
+  id: string;
+  key: string;
+  label: string;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  isActive: boolean;
 };
 
 type RawPersistentDiagnosis = {
@@ -269,9 +296,62 @@ type RawPersistentTreatment = {
   duration?: string | null;
   indication?: string | null;
   status?: string | null;
-  diagnosis?: { normalizedLabel?: string | null } | null;
-  outcomes?: Array<{ outcomeStatus: string; outcomeSource: string; notes?: string | null }> | null;
+  diagnosis?: { label?: string | null; normalizedLabel?: string | null } | null;
+  outcomes?: Array<{
+    outcomeStatus: string;
+    outcomeSource: string;
+    notes?: string | null;
+    adherenceStatus?: string | null;
+    adverseEventSeverity?: string | null;
+    adverseEventNotes?: string | null;
+  }> | null;
 };
+
+function aggregateAdherenceStatus(values: Array<string | null | undefined>) {
+  const filtered = values.filter(Boolean) as string[];
+  if (filtered.includes('NO_ADHERENTE')) {
+    return 'NO_ADHERENTE' as const;
+  }
+  if (filtered.includes('PARCIAL')) {
+    return 'PARCIAL' as const;
+  }
+  if (filtered.includes('ADHERENTE')) {
+    return 'ADHERENTE' as const;
+  }
+  return undefined;
+}
+
+function aggregateAdverseEventSeverity(values: Array<string | null | undefined>) {
+  const filtered = values.filter(Boolean) as string[];
+  if (filtered.includes('SEVERO')) {
+    return 'SEVERO' as const;
+  }
+  if (filtered.includes('MODERADO')) {
+    return 'MODERADO' as const;
+  }
+  if (filtered.includes('LEVE')) {
+    return 'LEVE' as const;
+  }
+  return undefined;
+}
+
+function resolveAssociatedConditionLabels(
+  sospechaId: string | undefined,
+  diagnosisLabelById: Map<string, string>,
+  fallback?: string[],
+) {
+  const normalizedId = sospechaId?.trim();
+  if (!normalizedId) {
+    return fallback;
+  }
+
+  const diagnosisLabel = diagnosisLabelById.get(normalizedId);
+  if (!diagnosisLabel) {
+    return fallback;
+  }
+
+  return [diagnosisLabel];
+}
 
 type RawEncounterWithPersistence = RawEncounter & {
   diagnoses?: RawPersistentDiagnosis[];
@@ -279,7 +359,14 @@ type RawEncounterWithPersistence = RawEncounter & {
   episode?: { id: string; label: string; normalizedLabel: string; startDate?: Date | null; endDate?: Date | null; isActive: boolean } | null;
 };
 
-function aggregateTreatmentOutcome(outcomes: Array<{ outcomeStatus: string; outcomeSource: string; notes?: string | null }> | undefined): EncounterOutcomeEntry | null {
+function aggregateTreatmentOutcome(outcomes: Array<{
+  outcomeStatus: string;
+  outcomeSource: string;
+  notes?: string | null;
+  adherenceStatus?: string | null;
+  adverseEventSeverity?: string | null;
+  adverseEventNotes?: string | null;
+}> | undefined): EncounterOutcomeEntry | null {
   if (!outcomes || outcomes.length === 0) {
     return null;
   }
@@ -288,68 +375,138 @@ function aggregateTreatmentOutcome(outcomes: Array<{ outcomeStatus: string; outc
     status: outcome.outcomeStatus,
     source: outcome.outcomeSource,
     notes: outcome.notes ?? undefined,
+    adherenceStatus: outcome.adherenceStatus ?? undefined,
+    adverseEventSeverity: outcome.adverseEventSeverity ?? undefined,
+    adverseEventNotes: outcome.adverseEventNotes ?? undefined,
   }));
 
   const notes = normalized.map((item) => item.notes).filter(Boolean).join(' \n') || undefined;
+  const adverseEventNotes = normalized.map((item) => item.adverseEventNotes).filter(Boolean).join(' \n') || undefined;
   const source = normalized[0].source as EncounterOutcomeEntry['source'];
+  const adherenceStatus = aggregateAdherenceStatus(normalized.map((item) => item.adherenceStatus));
+  const adverseEventSeverity = aggregateAdverseEventSeverity(normalized.map((item) => item.adverseEventSeverity));
 
   if (normalized.some((item) => item.status === 'FAVORABLE')) {
-    return { status: 'FAVORABLE', source, notes };
+    return { status: 'FAVORABLE', source, notes, adherenceStatus, adverseEventSeverity, adverseEventNotes };
   }
 
   if (normalized.some((item) => item.status === 'SIN_RESPUESTA' || item.status === 'EMPEORA')) {
-    return { status: 'SIN_RESPUESTA', source, notes };
+    return { status: 'SIN_RESPUESTA', source, notes, adherenceStatus, adverseEventSeverity, adverseEventNotes };
   }
 
   if (normalized.some((item) => item.status === 'PARCIAL')) {
-    return { status: 'PARCIAL', source, notes };
+    return { status: 'PARCIAL', source, notes, adherenceStatus, adverseEventSeverity, adverseEventNotes };
   }
 
-  return { status: 'UNKNOWN', source, notes };
+  return { status: 'UNKNOWN', source, notes, adherenceStatus, adverseEventSeverity, adverseEventNotes };
 }
 
 export function buildClinicalAnalyticsEncounterFromPersistence(rawEncounter: RawEncounterWithPersistence) {
   const parsedBySections = buildClinicalAnalyticsEncounter(rawEncounter as RawEncounter);
 
-  if (!rawEncounter.diagnoses && !rawEncounter.treatments) {
+  if (!rawEncounter.diagnoses && !rawEncounter.treatments && !rawEncounter.episode) {
     return parsedBySections;
   }
 
-  const diagnoses = rawEncounter.diagnoses?.map((entry) => ({
+  const persistedDiagnoses = rawEncounter.diagnoses?.map((entry) => ({
     key: entry.normalizedLabel,
     label: entry.label,
     source: entry.source,
     code: entry.code ?? null,
-  })) ?? parsedBySections.diagnoses;
+  })) ?? [];
+
+  const diagnoses = uniqueBy(
+    [...parsedBySections.diagnoses, ...persistedDiagnoses],
+    (entry) => `${entry.source}:${entry.key}:${entry.code ?? ''}`,
+  );
+
+  const probableConditions = uniqueBy([
+    ...parsedBySections.probableConditions,
+    ...diagnoses.filter(
+    (entry): entry is ClinicalConditionEntry => entry.source === 'AFECCION_PROBABLE',
+    ),
+  ], (entry) => `${entry.key}:${entry.code ?? ''}`);
+  const diagnosticConditions = uniqueBy([
+    ...parsedBySections.diagnosticConditions,
+    ...diagnoses.filter(
+    (entry): entry is ClinicalConditionEntry => entry.source === 'SOSPECHA_DIAGNOSTICA',
+    ),
+  ], (entry) => `${entry.key}:${entry.code ?? ''}`);
 
   const associatedConditionLabels = diagnoses.length > 0 ? [...new Set(diagnoses.map((entry) => entry.label.trim()))] : undefined;
 
-  const medications = (rawEncounter.treatments ?? [])
+  const resolvePersistedAssociatedConditions = (entry: RawPersistentTreatment) => {
+    const diagnosisLabel = entry.diagnosis?.label?.trim();
+    if (diagnosisLabel) {
+      return [diagnosisLabel];
+    }
+
+    return associatedConditionLabels;
+  };
+
+  const persistedMedications = (rawEncounter.treatments ?? [])
     .filter((entry) => entry.treatmentType === 'MEDICATION')
-    .map((entry) => ({
-      key: entry.normalizedLabel,
-      label: entry.label,
-      details: entry.details ?? undefined,
-      ...(associatedConditionLabels ? { associatedConditionLabels } : {}),
-    }));
+    .map((entry) => {
+      const linkedConditions = resolvePersistedAssociatedConditions(entry);
+      const aggregatedOutcome = aggregateTreatmentOutcome(entry.outcomes ?? undefined);
 
-  const exams = (rawEncounter.treatments ?? [])
+      return {
+        key: entry.normalizedLabel,
+        label: entry.label,
+        details: entry.details ?? undefined,
+        ...(linkedConditions ? { associatedConditionLabels: linkedConditions } : {}),
+        ...(aggregatedOutcome?.adherenceStatus ? { adherenceStatus: aggregatedOutcome.adherenceStatus } : {}),
+        ...(aggregatedOutcome?.adverseEventSeverity ? { adverseEventSeverity: aggregatedOutcome.adverseEventSeverity } : {}),
+        ...(aggregatedOutcome?.adverseEventNotes ? { adverseEventNotes: aggregatedOutcome.adverseEventNotes } : {}),
+      };
+    });
+
+  const persistedExams = (rawEncounter.treatments ?? [])
     .filter((entry) => entry.treatmentType === 'EXAM')
-    .map((entry) => ({
-      key: entry.normalizedLabel,
-      label: entry.label,
-      details: entry.details ?? undefined,
-      ...(associatedConditionLabels ? { associatedConditionLabels } : {}),
-    }));
+    .map((entry) => {
+      const linkedConditions = resolvePersistedAssociatedConditions(entry);
+      const aggregatedOutcome = aggregateTreatmentOutcome(entry.outcomes ?? undefined);
 
-  const referrals = (rawEncounter.treatments ?? [])
+      return {
+        key: entry.normalizedLabel,
+        label: entry.label,
+        details: entry.details ?? undefined,
+        ...(linkedConditions ? { associatedConditionLabels: linkedConditions } : {}),
+        ...(aggregatedOutcome?.adherenceStatus ? { adherenceStatus: aggregatedOutcome.adherenceStatus } : {}),
+        ...(aggregatedOutcome?.adverseEventSeverity ? { adverseEventSeverity: aggregatedOutcome.adverseEventSeverity } : {}),
+        ...(aggregatedOutcome?.adverseEventNotes ? { adverseEventNotes: aggregatedOutcome.adverseEventNotes } : {}),
+      };
+    });
+
+  const persistedReferrals = (rawEncounter.treatments ?? [])
     .filter((entry) => entry.treatmentType === 'REFERRAL')
-    .map((entry) => ({
-      key: entry.normalizedLabel,
-      label: entry.label,
-      details: entry.details ?? undefined,
-      ...(associatedConditionLabels ? { associatedConditionLabels } : {}),
-    }));
+    .map((entry) => {
+      const linkedConditions = resolvePersistedAssociatedConditions(entry);
+      const aggregatedOutcome = aggregateTreatmentOutcome(entry.outcomes ?? undefined);
+
+      return {
+        key: entry.normalizedLabel,
+        label: entry.label,
+        details: entry.details ?? undefined,
+        ...(linkedConditions ? { associatedConditionLabels: linkedConditions } : {}),
+        ...(aggregatedOutcome?.adherenceStatus ? { adherenceStatus: aggregatedOutcome.adherenceStatus } : {}),
+        ...(aggregatedOutcome?.adverseEventSeverity ? { adverseEventSeverity: aggregatedOutcome.adverseEventSeverity } : {}),
+        ...(aggregatedOutcome?.adverseEventNotes ? { adverseEventNotes: aggregatedOutcome.adverseEventNotes } : {}),
+      };
+    });
+
+  const medications = uniqueBy(
+    [...parsedBySections.medications, ...persistedMedications],
+    (entry) => entry.key,
+  );
+  const exams = uniqueBy(
+    [...parsedBySections.exams, ...persistedExams],
+    (entry) => entry.key,
+  );
+  const referrals = uniqueBy(
+    [...parsedBySections.referrals, ...persistedReferrals],
+    (entry) => entry.key,
+  );
 
   const outcome = aggregateTreatmentOutcome(
     rawEncounter.treatments?.flatMap((entry) => entry.outcomes ?? []) ?? [],
@@ -357,14 +514,28 @@ export function buildClinicalAnalyticsEncounterFromPersistence(rawEncounter: Raw
 
   return {
     ...parsedBySections,
+    episode: rawEncounter.episode
+      ? {
+          id: rawEncounter.episode.id,
+          key: rawEncounter.episode.normalizedLabel,
+          label: rawEncounter.episode.label,
+          startDate: rawEncounter.episode.startDate,
+          endDate: rawEncounter.episode.endDate,
+          isActive: rawEncounter.episode.isActive,
+        }
+      : parsedBySections.episode,
+    probableConditions,
+    diagnosticConditions,
     diagnoses,
-    medications: medications.length > 0 ? medications : parsedBySections.medications,
-    exams: exams.length > 0 ? exams : parsedBySections.exams,
-    referrals: referrals.length > 0 ? referrals : parsedBySections.referrals,
+    medications,
+    exams,
+    referrals,
     outcome,
     hasStructuredTreatment: medications.length > 0 || exams.length > 0 || referrals.length > 0 || parsedBySections.hasStructuredTreatment,
     hasFavorableResponse: outcome.status === 'FAVORABLE' || parsedBySections.hasFavorableResponse,
     hasUnfavorableResponse: outcome.status === 'SIN_RESPUESTA' || outcome.status === 'EMPEORA' || parsedBySections.hasUnfavorableResponse,
+    hasDocumentedAdherence: Boolean(outcome.adherenceStatus) || parsedBySections.hasDocumentedAdherence,
+    hasAdverseEvent: Boolean(outcome.adverseEventSeverity) || parsedBySections.hasAdverseEvent,
   };
 };
 
@@ -373,6 +544,7 @@ export type ParsedClinicalAnalyticsEncounter = {
   patientId: string;
   createdAt: Date;
   patient: RawEncounter['patient'];
+  episode: EncounterEpisodeEntry | null;
   probableConditions: ClinicalConditionEntry[];
   diagnosticConditions: ClinicalConditionEntry[];
   diagnoses: EncounterDiagnosisEntry[];
@@ -388,6 +560,8 @@ export type ParsedClinicalAnalyticsEncounter = {
   hasFollowUpPlan: boolean;
   hasFavorableResponse: boolean;
   hasUnfavorableResponse: boolean;
+  hasDocumentedAdherence: boolean;
+  hasAdverseEvent: boolean;
 };
 
 function getSectionData<T extends Record<string, unknown>>(sections: RawSection[], sectionKey: SectionKey): T {
@@ -609,18 +783,30 @@ function resolveStructuredResponse(respuestaEstructurada: ResponseData['respuest
 }
 
 export function getEncounterConditions(
-  encounter: Pick<ParsedClinicalAnalyticsEncounter, 'probableConditions' | 'diagnosticConditions'>,
+  encounter: Pick<ParsedClinicalAnalyticsEncounter, 'probableConditions' | 'diagnosticConditions'> & { diagnoses?: EncounterDiagnosisEntry[] },
   source: ClinicalAnalyticsSource,
 ) {
+  const probableConditions = encounter.probableConditions.length > 0
+    ? encounter.probableConditions
+    : (encounter.diagnoses ?? []).filter(
+        (entry): entry is ClinicalConditionEntry => entry.source === 'AFECCION_PROBABLE',
+      );
+
+  const diagnosticConditions = encounter.diagnosticConditions.length > 0
+    ? encounter.diagnosticConditions
+    : (encounter.diagnoses ?? []).filter(
+        (entry): entry is ClinicalConditionEntry => entry.source === 'SOSPECHA_DIAGNOSTICA',
+      );
+
   if (source === 'AFECCION_PROBABLE') {
-    return encounter.probableConditions;
+    return probableConditions;
   }
 
   if (source === 'SOSPECHA_DIAGNOSTICA') {
-    return encounter.diagnosticConditions;
+    return diagnosticConditions;
   }
 
-  return uniqueBy([...encounter.probableConditions, ...encounter.diagnosticConditions], (entry) => `${entry.key}:${entry.code ?? ''}`);
+  return uniqueBy([...probableConditions, ...diagnosticConditions], (entry) => `${entry.key}:${entry.code ?? ''}`);
 }
 
 export function matchesAnalyticsCondition(entries: ClinicalConditionEntry[], normalizedCondition: string) {
@@ -632,7 +818,7 @@ export function matchesAnalyticsCondition(entries: ClinicalConditionEntry[], nor
 }
 
 export function matchesAnalyticsQuery(
-  encounter: Pick<ParsedClinicalAnalyticsEncounter, 'probableConditions' | 'diagnosticConditions' | 'searchableText' | 'symptomSignals'>,
+  encounter: Pick<ParsedClinicalAnalyticsEncounter, 'probableConditions' | 'diagnosticConditions' | 'searchableText' | 'symptomSignals'> & { diagnoses?: EncounterDiagnosisEntry[] },
   source: ClinicalAnalyticsSource,
   normalizedCondition: string,
 ) {
@@ -701,6 +887,16 @@ export function buildClinicalAnalyticsEncounter(rawEncounter: RawEncounter): Par
     respuesta.respuestaEstructurada?.notas,
   ].filter(Boolean).join(' '));
   const structuredResponse = resolveStructuredResponse(respuesta.respuestaEstructurada);
+  const treatmentOutcomeFromSection = aggregateTreatmentOutcome(
+    (respuesta.resultadosTratamientos || []).map((entry) => ({
+      outcomeStatus: entry.estado || 'UNKNOWN',
+      outcomeSource: entry.estado ? 'ESTRUCTURADO' : 'TEXTO',
+      notes: entry.notas,
+      adherenceStatus: entry.adherenceStatus,
+      adverseEventSeverity: entry.adverseEventSeverity,
+      adverseEventNotes: entry.adverseEventNotes,
+    })),
+  );
 
   const probableConditions = uniqueBy(
     [motivo.afeccionSeleccionada]
@@ -734,6 +930,15 @@ export function buildClinicalAnalyticsEncounter(rawEncounter: RawEncounter): Par
     (entry) => `${entry.key}:${entry.code ?? ''}`,
   );
 
+  const diagnosticConditionLabelById = new Map<string, string>();
+  for (const entry of diagnostico.sospechas || []) {
+    const sourceId = entry.id?.trim();
+    const label = (entry.diagnostico || entry.descripcionCie10 || entry.codigoCie10 || '').trim();
+    if (sourceId && label) {
+      diagnosticConditionLabelById.set(sourceId, label);
+    }
+  }
+
   const diagnoses: EncounterDiagnosisEntry[] = [...probableConditions, ...diagnosticConditions];
 
   const associatedConditionLabels = uniqueBy(
@@ -751,11 +956,21 @@ export function buildClinicalAnalyticsEncounter(rawEncounter: RawEncounter): Par
         return null;
       }
 
+      const linkedConditions = resolveAssociatedConditionLabels(
+        entry.sospechaId,
+        diagnosticConditionLabelById,
+        commonAssociatedConditions,
+      );
+      const treatmentOutcome = (respuesta.resultadosTratamientos || []).find((item) => item.treatmentItemId === entry.id);
+
       return {
         key: normalizeConditionName(label),
         label,
         details: [entry.dosis, entry.via, entry.frecuencia, entry.duracion].filter(Boolean).join(' · ') || undefined,
-        ...(commonAssociatedConditions ? { associatedConditionLabels: commonAssociatedConditions } : {}),
+        ...(linkedConditions ? { associatedConditionLabels: linkedConditions } : {}),
+        ...(treatmentOutcome?.adherenceStatus ? { adherenceStatus: treatmentOutcome.adherenceStatus } : {}),
+        ...(treatmentOutcome?.adverseEventSeverity ? { adverseEventSeverity: treatmentOutcome.adverseEventSeverity } : {}),
+        ...(treatmentOutcome?.adverseEventNotes ? { adverseEventNotes: treatmentOutcome.adverseEventNotes } : {}),
       };
     })
     .filter(isDefined);
@@ -768,11 +983,21 @@ export function buildClinicalAnalyticsEncounter(rawEncounter: RawEncounter): Par
         return null;
       }
 
+      const linkedConditions = resolveAssociatedConditionLabels(
+        entry.sospechaId,
+        diagnosticConditionLabelById,
+        commonAssociatedConditions,
+      );
+      const treatmentOutcome = (respuesta.resultadosTratamientos || []).find((item) => item.treatmentItemId === entry.id);
+
       return {
         key: normalizeConditionName(label),
         label,
         details: [entry.estado, entry.indicacion].filter(Boolean).join(' · ') || undefined,
-        ...(commonAssociatedConditions ? { associatedConditionLabels: commonAssociatedConditions } : {}),
+        ...(linkedConditions ? { associatedConditionLabels: linkedConditions } : {}),
+        ...(treatmentOutcome?.adherenceStatus ? { adherenceStatus: treatmentOutcome.adherenceStatus } : {}),
+        ...(treatmentOutcome?.adverseEventSeverity ? { adverseEventSeverity: treatmentOutcome.adverseEventSeverity } : {}),
+        ...(treatmentOutcome?.adverseEventNotes ? { adverseEventNotes: treatmentOutcome.adverseEventNotes } : {}),
       };
     })
     .filter(isDefined);
@@ -785,24 +1010,40 @@ export function buildClinicalAnalyticsEncounter(rawEncounter: RawEncounter): Par
         return null;
       }
 
+      const linkedConditions = resolveAssociatedConditionLabels(
+        entry.sospechaId,
+        diagnosticConditionLabelById,
+        commonAssociatedConditions,
+      );
+      const treatmentOutcome = (respuesta.resultadosTratamientos || []).find((item) => item.treatmentItemId === entry.id);
+
       return {
         key: normalizeConditionName(label),
         label,
         details: [entry.estado, entry.indicacion].filter(Boolean).join(' · ') || undefined,
-        ...(commonAssociatedConditions ? { associatedConditionLabels: commonAssociatedConditions } : {}),
+        ...(linkedConditions ? { associatedConditionLabels: linkedConditions } : {}),
+        ...(treatmentOutcome?.adherenceStatus ? { adherenceStatus: treatmentOutcome.adherenceStatus } : {}),
+        ...(treatmentOutcome?.adverseEventSeverity ? { adverseEventSeverity: treatmentOutcome.adverseEventSeverity } : {}),
+        ...(treatmentOutcome?.adverseEventNotes ? { adverseEventNotes: treatmentOutcome.adverseEventNotes } : {}),
       };
     })
     .filter(isDefined);
 
-  const hasFavorableResponse = structuredResponse
+  const hasFavorableResponse = treatmentOutcomeFromSection
+    ? treatmentOutcomeFromSection.status === 'FAVORABLE'
+    : structuredResponse
     ? structuredResponse.favorable
     : includesAny(responseText, FAVORABLE_RESPONSE_PATTERNS) && !includesAny(responseText, UNFAVORABLE_RESPONSE_PATTERNS);
 
-  const hasUnfavorableResponse = structuredResponse
+  const hasUnfavorableResponse = treatmentOutcomeFromSection
+    ? treatmentOutcomeFromSection.status === 'SIN_RESPUESTA' || treatmentOutcomeFromSection.status === 'EMPEORA'
+    : structuredResponse
     ? structuredResponse.unfavorable
     : includesAny(responseText, UNFAVORABLE_RESPONSE_PATTERNS);
 
-  const outcome: EncounterOutcomeEntry = structuredResponse
+  const outcome: EncounterOutcomeEntry = treatmentOutcomeFromSection
+    ? treatmentOutcomeFromSection
+    : structuredResponse
     ? {
         status: structuredResponse.favorable ? 'FAVORABLE' : structuredResponse.unfavorable ? 'SIN_RESPUESTA' : 'PARCIAL',
         source: 'ESTRUCTURADO',
@@ -824,6 +1065,7 @@ export function buildClinicalAnalyticsEncounter(rawEncounter: RawEncounter): Par
     patientId: rawEncounter.patientId,
     createdAt: rawEncounter.createdAt,
     patient: rawEncounter.patient,
+    episode: null,
     probableConditions,
     diagnosticConditions,
     diagnoses,
@@ -839,5 +1081,7 @@ export function buildClinicalAnalyticsEncounter(rawEncounter: RawEncounter): Par
     hasFollowUpPlan: Boolean(respuesta.planSeguimiento?.trim() || respuesta.evolucion?.trim()),
     hasFavorableResponse,
     hasUnfavorableResponse,
+    hasDocumentedAdherence: Boolean(treatmentOutcomeFromSection?.adherenceStatus),
+    hasAdverseEvent: Boolean(treatmentOutcomeFromSection?.adverseEventSeverity),
   };
 }

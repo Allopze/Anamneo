@@ -51,6 +51,29 @@ function normalizeRespuestaEstructurada(data: EncounterSectionData) {
   };
 }
 
+function normalizeResultadosTratamientos(data: EncounterSectionData) {
+  if (!Array.isArray(data.resultadosTratamientos)) {
+    return data;
+  }
+
+  const normalized = data.resultadosTratamientos
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
+    .map((item) => ({
+      ...(typeof item.treatmentItemId === 'string' ? { treatmentItemId: item.treatmentItemId } : {}),
+      ...(typeof item.estado === 'string' ? { estado: item.estado } : {}),
+      ...(typeof item.notas === 'string' ? { notas: item.notas } : {}),
+      ...(typeof item.adherenceStatus === 'string' ? { adherenceStatus: item.adherenceStatus } : {}),
+      ...(typeof item.adverseEventSeverity === 'string' ? { adverseEventSeverity: item.adverseEventSeverity } : {}),
+      ...(typeof item.adverseEventNotes === 'string' ? { adverseEventNotes: item.adverseEventNotes } : {}),
+    }))
+    .filter((item) => typeof item.treatmentItemId === 'string' && item.treatmentItemId.length > 0);
+
+  return {
+    ...data,
+    ...(normalized.length > 0 ? { resultadosTratamientos: normalized } : {}),
+  };
+}
+
 export const ENCOUNTER_SECTION_SCHEMA_REGISTRY: Record<SectionKey, EncounterSectionSchemaDefinition> = {
   IDENTIFICACION: {
     currentVersion: 1,
@@ -79,7 +102,7 @@ export const ENCOUNTER_SECTION_SCHEMA_REGISTRY: Record<SectionKey, EncounterSect
   },
   RESPUESTA_TRATAMIENTO: {
     currentVersion: 1,
-    normalizeReadData: normalizeRespuestaEstructurada,
+    normalizeReadData: (data) => normalizeResultadosTratamientos(normalizeRespuestaEstructurada(data)),
   },
   OBSERVACIONES: {
     currentVersion: 2,

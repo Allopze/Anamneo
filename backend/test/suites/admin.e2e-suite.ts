@@ -1,4 +1,5 @@
 import { state, prisma, req, extractCookies, cookieHeader } from '../helpers/e2e-setup';
+import { todayLocalDateOnly } from '../../src/common/utils/local-date';
 
 export function adminSuite() {
   describe('Admin - Users', () => {
@@ -109,7 +110,7 @@ export function adminSuite() {
     });
 
     it('GET /api/audit → admin can filter same-day logs with inclusive dateTo', async () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayLocalDateOnly();
 
       const res = await req()
         .get('/api/audit')

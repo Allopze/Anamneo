@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import TratamientoSection from '@/components/sections/TratamientoSection';
-import { TratamientoData } from '@/types';
+import { SospechaDiagnosticaData, TratamientoData } from '@/types';
 
 const apiGetMock = jest.fn();
 
@@ -23,9 +23,11 @@ jest.mock('@/components/sections/LinkedAttachmentBlock', () => function LinkedAt
 function StatefulTratamientoSection({
   initialData,
   onChange,
+  diagnosticData,
 }: {
   initialData: TratamientoData;
   onChange?: jest.Mock;
+  diagnosticData?: SospechaDiagnosticaData;
 }) {
   const [data, setData] = useState<TratamientoData>(initialData);
 
@@ -36,6 +38,7 @@ function StatefulTratamientoSection({
         setData(next);
         onChange?.(next);
       }}
+      diagnosticData={diagnosticData}
     />
   );
 }
@@ -215,6 +218,46 @@ describe('TratamientoSection', () => {
             dosis: '10 mg',
             via: 'IV',
             frecuencia: 'cada 12 h',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('stores the selected diagnostic suspicion on structured treatment rows', async () => {
+    const onChange = jest.fn();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    render(
+      <StatefulTratamientoSection
+        initialData={{
+          examenesEstructurados: [
+            {
+              id: 'exam-1',
+              nombre: 'Hemograma',
+              indicacion: 'Control',
+              estado: 'PENDIENTE',
+            },
+          ],
+        }}
+        diagnosticData={{
+          sospechas: [
+            { id: 'dx-1', diagnostico: 'Gastritis aguda', prioridad: 1, notas: '' },
+            { id: 'dx-2', diagnostico: 'Úlcera péptica', prioridad: 2, notas: '' },
+          ],
+        }}
+        onChange={onChange}
+      />
+    );
+
+    await user.selectOptions(screen.getByLabelText('Diagnóstico asociado del examen'), 'dx-2');
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        examenesEstructurados: [
+          expect.objectContaining({
+            id: 'exam-1',
+            sospechaId: 'dx-2',
           }),
         ],
       }),

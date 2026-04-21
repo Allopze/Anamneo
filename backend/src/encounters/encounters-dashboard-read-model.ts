@@ -1,5 +1,5 @@
 import { buildAccessiblePatientsWhere, buildEncounterTaskScopeWhere } from '../common/utils/patient-access';
-import { startOfUtcDay, todayLocalDateOnly } from '../common/utils/local-date';
+import { endOfAppDayUtcExclusive, startOfAppDayUtc } from '../common/utils/local-date';
 import { RequestUser } from '../common/utils/medico-id';
 import { PrismaService } from '../prisma/prisma.service';
 import { formatDashboardRecentEncounter, formatDashboardUpcomingTask } from './encounters-presenters';
@@ -16,8 +16,8 @@ interface EncounterDashboardReadModelParams {
 export async function getEncounterDashboardReadModel(params: EncounterDashboardReadModelParams) {
   const { prisma, user, medicoId } = params;
   const patientWhere = buildAccessiblePatientsWhere(user);
-  const todayStart = startOfUtcDay(new Date());
-  const tomorrowStart = new Date(todayStart.getTime() + DAY_IN_MS);
+  const todayStart = startOfAppDayUtc(new Date());
+  const tomorrowStart = endOfAppDayUtcExclusive(new Date());
   const weekWindowEnd = new Date(todayStart.getTime() + 8 * DAY_IN_MS);
   const where = {
     medicoId,
@@ -52,6 +52,16 @@ export async function getEncounterDashboardReadModel(params: EncounterDashboardR
       include: {
         patient: { select: { id: true, nombre: true, rut: true } },
         createdBy: { select: { id: true, nombre: true } },
+        episode: {
+          select: {
+            id: true,
+            label: true,
+            normalizedLabel: true,
+            startDate: true,
+            endDate: true,
+            isActive: true,
+          },
+        },
         sections: { select: { sectionKey: true, completed: true } },
       },
     }),
@@ -84,7 +94,7 @@ export async function getEncounterDashboardReadModel(params: EncounterDashboardR
         patient: { archivedAt: null },
         ...buildEncounterTaskScopeWhere(medicoId),
         status: { in: [...ACTIVE_TASK_STATUSES] },
-        dueDate: { lt: new Date(`${todayLocalDateOnly()}T00:00:00.000Z`) },
+        dueDate: { lt: todayStart },
       },
     }),
     prisma.encounterTask.count({

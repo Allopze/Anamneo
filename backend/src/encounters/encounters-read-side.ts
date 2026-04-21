@@ -53,6 +53,16 @@ export async function findEncountersReadModel(params: FindEncountersReadModelPar
         createdBy: {
           select: { id: true, nombre: true },
         },
+        episode: {
+          select: {
+            id: true,
+            label: true,
+            normalizedLabel: true,
+            startDate: true,
+            endDate: true,
+            isActive: true,
+          },
+        },
         reviewRequestedBy: {
           select: { id: true, nombre: true },
         },
@@ -127,6 +137,16 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
       },
       completedBy: {
         select: { id: true, nombre: true },
+      },
+      episode: {
+        select: {
+          id: true,
+          label: true,
+          normalizedLabel: true,
+          startDate: true,
+          endDate: true,
+          isActive: true,
+        },
       },
       suggestions: {
         orderBy: { createdAt: 'desc' },
@@ -209,6 +229,16 @@ export async function findEncountersByPatientReadModel(params: FindEncountersByP
     include: {
       createdBy: {
         select: { id: true, nombre: true },
+      },
+      episode: {
+        select: {
+          id: true,
+          label: true,
+          normalizedLabel: true,
+          startDate: true,
+          endDate: true,
+          isActive: true,
+        },
       },
       reviewRequestedBy: {
         select: { id: true, nombre: true },

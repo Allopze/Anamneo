@@ -49,6 +49,10 @@ type ClinicalAnalyticsResponse = {
     resolvedProblemRate: number;
     alertAfterIndexCount: number;
     alertAfterIndexRate: number;
+    adherenceDocumentedCount: number;
+    adherenceDocumentedRate: number;
+    adverseEventCount: number;
+    adverseEventRate: number;
     demographics: {
       averageAge: number | null;
       bySex: Record<string, number>;
@@ -73,6 +77,8 @@ type ClinicalAnalyticsResponse = {
       favorableRate: number;
       adjustmentCount: number;
       reconsultCount: number;
+      adherenceCount: number;
+      adverseEventCount: number;
       subtitle?: string;
     }>;
     exams: Array<{
@@ -83,6 +89,8 @@ type ClinicalAnalyticsResponse = {
       favorableRate: number;
       adjustmentCount: number;
       reconsultCount: number;
+      adherenceCount: number;
+      adverseEventCount: number;
       subtitle?: string;
     }>;
     referrals: Array<{
@@ -93,6 +101,8 @@ type ClinicalAnalyticsResponse = {
       favorableRate: number;
       adjustmentCount: number;
       reconsultCount: number;
+      adherenceCount: number;
+      adverseEventCount: number;
       subtitle?: string;
     }>;
   };
@@ -222,6 +232,8 @@ export default function AnaliticaClinicaPage() {
             <MetricCard title={`Reconsulta <= ${data.filters.followUpDays}d`} value={formatPercent(data.summary.reconsultWithinWindowRate)} icon={<FiUsers className="h-5 w-5" />} detail={`${data.summary.reconsultWithinWindowCount} de ${data.summary.matchedEncounters} atenciones reconsultaron en la ventana`} />
             <MetricCard title="Ajuste terapéutico" value={formatPercent(data.summary.treatmentAdjustmentRate)} icon={<FiRefreshCw className="h-5 w-5" />} detail={`${data.summary.treatmentAdjustmentCount} de ${data.summary.matchedEncounters} atenciones con ajuste posterior`} />
             <MetricCard title="Problema resuelto" value={formatPercent(data.summary.resolvedProblemRate)} icon={<FiAlertTriangle className="h-5 w-5" />} detail={`${data.summary.resolvedProblemCount} de ${data.summary.matchedEncounters} atenciones con problema resuelto. Alerta posterior: ${data.summary.alertAfterIndexCount} de ${data.summary.matchedEncounters}.`} />
+            <MetricCard title="Adherencia documentada" value={formatPercent(data.summary.adherenceDocumentedRate)} icon={<FiUsers className="h-5 w-5" />} detail={`${data.summary.adherenceDocumentedCount} de ${data.summary.matchedEncounters} atenciones con adherencia registrada por tratamiento`} />
+            <MetricCard title="Eventos adversos" value={formatPercent(data.summary.adverseEventRate)} icon={<FiAlertTriangle className="h-5 w-5" />} detail={`${data.summary.adverseEventCount} de ${data.summary.matchedEncounters} atenciones con evento adverso documentado`} />
           </section>
 
           <section className="card">
