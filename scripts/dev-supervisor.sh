@@ -26,6 +26,39 @@ sanitize_local_env() {
   esac
 }
 
+find_pids_on_port() {
+  local port="$1"
+  local pids=""
+
+  if command -v lsof >/dev/null 2>&1; then
+    pids="$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)"
+  elif command -v ss >/dev/null 2>&1; then
+    pids="$(ss -ltnp "( sport = :$port )" 2>/dev/null | awk -F',' '/pid=/ {for(i=1;i<=NF;i++){ if($i ~ /pid=/){gsub(/[^0-9]/,"",$i); print $i}}}' | tr '\n' ' ' || true)"
+  elif command -v netstat >/dev/null 2>&1; then
+    pids="$(netstat -ltnp 2>/dev/null | awk -v port=":$port" '$4 ~ port {match($7,/([0-9]+)/,a); if(a[1]) print a[1]}' | tr '\n' ' ' || true)"
+  fi
+
+  echo "$pids"
+}
+
+kill_existing_port() {
+  local port="$1"
+  local pids
+
+  pids="$(find_pids_on_port "$port")"
+  if [[ -n "$pids" ]]; then
+    echo "[dev] Killing processes listening on port ${port}: ${pids}" >&2
+    kill -TERM $pids 2>/dev/null || true
+    sleep 0.5
+  fi
+}
+
+cleanup_port_conflicts() {
+  for port in 5555 5678; do
+    kill_existing_port "$port"
+  done
+}
+
 start_process() {
   local pid_var_name="$1"
   local label="$2"
@@ -101,6 +134,8 @@ trap 'shutdown SIGHUP; exit 129' HUP
 trap 'shutdown EXIT' EXIT
 
 sanitize_local_env
+
+cleanup_port_conflicts
 
 start_process backend_pid backend npm run dev:backend
 start_process frontend_pid frontend npm run dev:frontend

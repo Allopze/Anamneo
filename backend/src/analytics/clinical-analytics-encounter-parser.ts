@@ -32,6 +32,20 @@ import type {
   EncounterOutcomeEntry,
 } from './clinical-analytics-encounter';
 
+type ClinicalTreatmentInputEntry = {
+  id?: string;
+  nombre?: string;
+  dosis?: string;
+  via?: string;
+  frecuencia?: string;
+  duracion?: string;
+  indicacion?: string;
+  estado?: string;
+  sospechaId?: string;
+};
+
+type TreatmentOutcomeEntry = NonNullable<ResponseData['resultadosTratamientos']>[number];
+
 const FAVORABLE_RESPONSE_PATTERNS = [
   'evolucion favorable',
   'buena respuesta',
@@ -77,8 +91,8 @@ function getSectionData<T extends Record<string, unknown>>(sections: RawSection[
 }
 
 function buildTreatmentEntries(
-  entries: Array<Record<string, any>> | undefined,
-  getDetails: (entry: Record<string, any>) => string | undefined,
+  entries: Array<ClinicalTreatmentInputEntry> | undefined,
+  getDetails: (entry: ClinicalTreatmentInputEntry) => string | undefined,
   diagnosisLabelById: Map<string, string>,
   commonAssociatedConditions: string[] | undefined,
   treatmentOutcomes: ResponseData['resultadosTratamientos'] | undefined,
@@ -96,7 +110,9 @@ function buildTreatmentEntries(
         diagnosisLabelById,
         commonAssociatedConditions,
       );
-      const treatmentOutcome = treatmentOutcomes?.find((item) => item.treatmentItemId === entry.id);
+      const treatmentOutcome = treatmentOutcomes?.find(
+        (item: TreatmentOutcomeEntry) => item.treatmentItemId === entry.id,
+      );
 
       return {
         key: normalizeConditionName(label),
@@ -150,7 +166,7 @@ export function buildClinicalAnalyticsEncounter(rawEncounter: RawEncounter): Par
   ].filter(Boolean).join(' '));
   const structuredResponse = resolveStructuredResponse(respuesta.respuestaEstructurada);
   const treatmentOutcomeFromSection = aggregateTreatmentOutcome(
-    (respuesta.resultadosTratamientos || []).map((entry) => ({
+    (respuesta.resultadosTratamientos || []).map((entry: TreatmentOutcomeEntry) => ({
       outcomeStatus: entry.estado || 'UNKNOWN',
       outcomeSource: entry.estado ? 'ESTRUCTURADO' : 'TEXTO',
       notes: entry.notas,

@@ -15,20 +15,22 @@ import {
   Matches,
   Max,
   MaxLength,
-  Min,
-} from 'class-validator';
+  Min,  ValidateIf,} from 'class-validator';
 
 class UpdateSettingsDto {
   @IsString() @MaxLength(200) @IsOptional() clinicName?: string;
   @IsString() @MaxLength(500) @IsOptional() clinicAddress?: string;
   @IsString() @MaxLength(50) @IsOptional() clinicPhone?: string;
   @IsString() @MaxLength(200) @IsOptional() clinicEmail?: string;
+  @ValidateIf((_, value) => value !== '')
   @IsUrl({ require_tld: false }, { message: 'Debe ingresar una URL pública válida' }) @MaxLength(300) @IsOptional() appPublicUrl?: string;
   @IsString() @MaxLength(200) @IsOptional() smtpHost?: string;
+  @ValidateIf((_, value) => value !== '')
   @Matches(/^\d{1,5}$/, { message: 'El puerto SMTP debe ser numérico' }) @IsOptional() smtpPort?: string;
   @IsBoolean() @IsOptional() smtpSecure?: boolean;
   @IsString() @MaxLength(200) @IsOptional() smtpUser?: string;
   @IsString() @MaxLength(500) @IsOptional() smtpPassword?: string;
+  @ValidateIf((_, value) => value !== '')
   @IsEmail({}, { message: 'El correo remitente SMTP no es válido' }) @MaxLength(200) @IsOptional() smtpFromEmail?: string;
   @IsString() @MaxLength(200) @IsOptional() smtpFromName?: string;
   @IsString() @MaxLength(300) @IsOptional() invitationSubject?: string;

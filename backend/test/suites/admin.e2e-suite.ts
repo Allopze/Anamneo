@@ -75,6 +75,27 @@ export function adminSuite() {
       expect(persistedSmtpPassword?.value.startsWith('enc:v1:')).toBe(true);
     });
 
+    it('PUT /api/settings → admin can clear optional email/URL/port settings with blank values', async () => {
+      await req()
+        .put('/api/settings')
+        .set('Cookie', cookieHeader(state.adminCookies))
+        .send({
+          smtpFromEmail: '',
+          appPublicUrl: '',
+          smtpPort: '',
+        })
+        .expect(200);
+
+      const settingsRes = await req()
+        .get('/api/settings')
+        .set('Cookie', cookieHeader(state.adminCookies))
+        .expect(200);
+
+      expect(settingsRes.body['smtp.fromEmail']).toBe('');
+      expect(settingsRes.body['app.publicUrl']).toBe('');
+      expect(settingsRes.body['smtp.port']).toBe('');
+    });
+
     it('POST /api/mail/test-invitation → admin gets diagnostic response when smtp is missing', async () => {
       const res = await req()
         .post('/api/mail/test-invitation')
