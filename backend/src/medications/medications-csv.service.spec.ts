@@ -28,12 +28,18 @@ describe('MedicationsCsvService', () => {
         id: 'med-active',
         name: 'Omeprazol',
         activeIngredient: 'Omeprazol',
+        defaultDose: '20 mg',
+        defaultRoute: 'ORAL',
+        defaultFrequency: 'cada 24 h',
         active: true,
       },
       {
         id: 'med-inactive',
         name: 'Aspirina',
         activeIngredient: 'Ácido acetilsalicílico',
+        defaultDose: null,
+        defaultRoute: null,
+        defaultFrequency: null,
         active: false,
       },
     ]);
@@ -41,10 +47,10 @@ describe('MedicationsCsvService', () => {
     const result = await service.previewGlobalCsv(
       Buffer.from(
         [
-          'nombre,principioactivo',
-          'Omeprazol,Omeprazol',
-          'ASPIRINA,Ácido acetilsalicílico',
-          'omeprazól,Omeprazol magnésico',
+          'nombre,principioactivo,dosis,via,frecuencia',
+          'Omeprazol,Omeprazol,20 mg,ORAL,cada 24 h',
+          'ASPIRINA,Ácido acetilsalicílico,,,',
+          'omeprazól,Omeprazol magnésico,40 mg,oral,cada 12 h',
         ].join('\n'),
       ),
     );
@@ -61,6 +67,9 @@ describe('MedicationsCsvService', () => {
     expect(result.preview[0]).toMatchObject({
       name: 'omeprazól',
       activeIngredient: 'Omeprazol magnésico',
+      defaultDose: '40 mg',
+      defaultRoute: 'ORAL',
+      defaultFrequency: 'cada 12 h',
       action: 'UPDATE',
     });
     expect(result.preview[1]).toMatchObject({
@@ -75,12 +84,18 @@ describe('MedicationsCsvService', () => {
         id: 'med-active',
         name: 'Omeprazol',
         activeIngredient: 'Omeprazol',
+        defaultDose: '20 mg',
+        defaultRoute: 'ORAL',
+        defaultFrequency: 'cada 24 h',
         active: true,
       },
       {
         id: 'med-inactive',
         name: 'Aspirina',
         activeIngredient: 'Ácido acetilsalicílico',
+        defaultDose: null,
+        defaultRoute: null,
+        defaultFrequency: null,
         active: false,
       },
     ]);
@@ -100,10 +115,10 @@ describe('MedicationsCsvService', () => {
     const result = await service.importGlobalCsv(
       Buffer.from(
         [
-          'name,activeIngredient',
-          'Omeprazol,Omeprazol magnésico',
-          'Aspirina,Ácido acetilsalicílico',
-          'Paracetamol,Paracetamol',
+          'name,activeIngredient,defaultDose,defaultRoute,defaultFrequency',
+          'Omeprazol,Omeprazol magnésico,40 mg,ORAL,cada 12 h',
+          'Aspirina,Ácido acetilsalicílico,,,',
+          'Paracetamol,Paracetamol,1 g,oral,cada 8 h',
         ].join('\n'),
       ),
       'admin-user-id',
@@ -123,6 +138,9 @@ describe('MedicationsCsvService', () => {
         data: expect.objectContaining({
           normalizedName: 'omeprazol',
           activeIngredient: 'Omeprazol magnésico',
+          defaultDose: '40 mg',
+          defaultRoute: 'ORAL',
+          defaultFrequency: 'cada 12 h',
           active: true,
         }),
       }),
@@ -144,6 +162,9 @@ describe('MedicationsCsvService', () => {
           name: 'Paracetamol',
           normalizedName: 'paracetamol',
           activeIngredient: 'Paracetamol',
+          defaultDose: '1 g',
+          defaultRoute: 'ORAL',
+          defaultFrequency: 'cada 8 h',
         }),
       }),
     );

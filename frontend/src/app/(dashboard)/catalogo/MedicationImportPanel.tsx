@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { FiUpload } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
+import { formatMedicationCatalogDefaults } from '@/lib/medication-catalog';
 
 interface MedicationImportInvalidRow {
   rowNumber: number;
@@ -15,6 +16,9 @@ interface MedicationImportPreviewRow {
   rowNumber: number;
   name: string;
   activeIngredient: string;
+  defaultDose?: string;
+  defaultRoute?: string;
+  defaultFrequency?: string;
   action: 'CREATE' | 'UPDATE' | 'REACTIVATE';
 }
 
@@ -131,7 +135,7 @@ export default function MedicationImportPanel() {
           <h3 className="text-lg font-semibold text-ink-primary">Importar CSV global</h3>
           <p className="text-sm text-ink-secondary">
             Formato recomendado: <strong>nombre</strong>, <strong>principioactivo</strong>.
-            También se aceptan <strong>name</strong> y <strong>activeIngredient</strong>.
+            También se aceptan <strong>name</strong> y <strong>activeIngredient</strong>. Opcionalmente: <strong>dosis</strong>, <strong>via</strong> y <strong>frecuencia</strong>.
           </p>
         </div>
         <button
@@ -222,23 +226,32 @@ export default function MedicationImportPanel() {
               </div>
               <ul className="grid gap-3 md:grid-cols-2">
                 {previewData.preview.map((row) => (
-                  <li
-                    key={`${row.rowNumber}-${row.name}`}
-                    className="rounded-lg border border-surface-muted/30 bg-surface-elevated px-3 py-3 text-sm text-ink-secondary"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-ink-primary">{row.name}</p>
-                        <p className="text-xs text-ink-muted">Fila {row.rowNumber}</p>
-                      </div>
-                      <span className="rounded-full border border-surface-muted/40 px-2 py-1 text-[11px] uppercase tracking-wide text-ink-secondary">
-                        {ACTION_LABELS[row.action]}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-xs text-ink-muted">
-                      Principio activo: {row.activeIngredient}
-                    </p>
-                  </li>
+                  (() => {
+                    const defaultSummary = formatMedicationCatalogDefaults(row);
+
+                    return (
+                      <li
+                        key={`${row.rowNumber}-${row.name}`}
+                        className="rounded-lg border border-surface-muted/30 bg-surface-elevated px-3 py-3 text-sm text-ink-secondary"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-medium text-ink-primary">{row.name}</p>
+                            <p className="text-xs text-ink-muted">Fila {row.rowNumber}</p>
+                          </div>
+                          <span className="rounded-full border border-surface-muted/40 px-2 py-1 text-[11px] uppercase tracking-wide text-ink-secondary">
+                            {ACTION_LABELS[row.action]}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-ink-muted">
+                          Principio activo: {row.activeIngredient}
+                        </p>
+                        {defaultSummary ? (
+                          <p className="mt-1 text-xs text-ink-muted">Sugerencia habitual: {defaultSummary}</p>
+                        ) : null}
+                      </li>
+                    );
+                  })()
                 ))}
               </ul>
             </div>

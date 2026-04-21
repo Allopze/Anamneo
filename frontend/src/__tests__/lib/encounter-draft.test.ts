@@ -114,6 +114,9 @@ describe('encounter draft helpers', () => {
   });
 
   it('lists recoverable conflict copies sorted by most recent first', () => {
+    const olderSavedAt = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const newerSavedAt = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
     writeEncounterSectionConflict({
       version: 2,
       encounterId,
@@ -140,7 +143,7 @@ describe('encounter draft helpers', () => {
         sectionKey: 'ANAMNESIS_PROXIMA',
         localData: { relatoAmpliado: 'síntomas nuevos' },
         serverData: { relatoAmpliado: 'sin cambios' },
-        savedAt: '2026-04-19T10:00:00.000Z',
+        savedAt: olderSavedAt,
       }),
     );
     window.localStorage.setItem(
@@ -152,7 +155,7 @@ describe('encounter draft helpers', () => {
         sectionKey: 'MOTIVO_CONSULTA',
         localData: { texto: 'cefalea intensa' },
         serverData: { texto: 'cefalea leve' },
-        savedAt: '2026-04-19T10:05:00.000Z',
+        savedAt: newerSavedAt,
       }),
     );
 

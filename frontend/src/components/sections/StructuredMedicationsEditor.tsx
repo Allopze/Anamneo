@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FiAlertTriangle, FiPackage, FiPlus, FiSearch, FiTrash2 } from 'react-icons/fi';
 import { api } from '@/lib/api';
 import { MedicationCatalogItem, StructuredMedication, type HistoryFieldValue } from '@/types';
+import { formatMedicationCatalogDefaults, MEDICATION_ROUTE_OPTIONS } from '@/lib/medication-catalog';
 import { parseHistoryField } from '@/lib/utils';
 import {
   SectionAddButton,
@@ -125,23 +126,32 @@ function MedicationCatalogField({
                 </p>
               </div>
               {suggestions.map((item) => (
-                <button
-                  type="button"
-                  key={item.id}
-                  onClick={() => {
-                    onSelectSuggestion(item);
-                    setIsOpen(false);
-                  }}
-                  className="dropdown-item justify-between py-3"
-                >
-                  <div className="min-w-0 text-left">
-                    <p className="truncate font-medium text-ink-primary">{item.name}</p>
-                    <p className="truncate text-xs text-ink-muted">
-                      Principio activo: {item.activeIngredient}
-                    </p>
-                  </div>
-                  <FiPackage className="h-4 w-4 flex-shrink-0 text-ink-muted" />
-                </button>
+                (() => {
+                  const defaultSummary = formatMedicationCatalogDefaults(item);
+
+                  return (
+                    <button
+                      type="button"
+                      key={item.id}
+                      onClick={() => {
+                        onSelectSuggestion(item);
+                        setIsOpen(false);
+                      }}
+                      className="dropdown-item justify-between py-3"
+                    >
+                      <div className="min-w-0 text-left">
+                        <p className="truncate font-medium text-ink-primary">{item.name}</p>
+                        <p className="truncate text-xs text-ink-muted">
+                          Principio activo: {item.activeIngredient}
+                        </p>
+                        {defaultSummary ? (
+                          <p className="truncate text-xs text-ink-muted">Sugerido: {defaultSummary}</p>
+                        ) : null}
+                      </div>
+                      <FiPackage className="h-4 w-4 flex-shrink-0 text-ink-muted" />
+                    </button>
+                  );
+                })()
               ))}
             </>
           ) : !isLoading ? (
@@ -161,6 +171,8 @@ export default function StructuredMedicationsEditor({
   readOnly,
   allergyData,
 }: StructuredMedicationsEditorProps) {
+  const isBlank = (value: string | undefined) => !value || value.trim().length === 0;
+
   const allergyKeywords = useMemo(() => {
     if (!allergyData) {
       return [];
@@ -230,9 +242,28 @@ export default function StructuredMedicationsEditor({
                   updateMedication(index, { nombre: value, activeIngredient: undefined });
                 }}
                 onSelectSuggestion={(item) => {
-                  updateMedication(index, {
+                  const nextMedication: Partial<StructuredMedication> = {
                     nombre: item.name,
                     activeIngredient: item.activeIngredient,
+                    ...(!medication.dosis || isBlank(medication.dosis)
+                      ? item.defaultDose
+                        ? { dosis: item.defaultDose }
+                        : {}
+                      : {}),
+                    ...(!medication.via || isBlank(medication.via)
+                      ? item.defaultRoute
+                        ? { via: item.defaultRoute }
+                        : {}
+                      : {}),
+                    ...(!medication.frecuencia || isBlank(medication.frecuencia)
+                      ? item.defaultFrequency
+                        ? { frecuencia: item.defaultFrequency }
+                        : {}
+                      : {}),
+                  };
+
+                  updateMedication(index, {
+                    ...nextMedication,
                   });
                 }}
               />
@@ -261,16 +292,11 @@ export default function StructuredMedicationsEditor({
               onChange={(event) => updateMedication(index, { via: event.target.value })}
             >
               <option value="">Vía…</option>
-              <option value="ORAL">Oral</option>
-              <option value="IV">IV</option>
-              <option value="IM">IM</option>
-              <option value="SC">SC</option>
-              <option value="TOPICA">Tópica</option>
-              <option value="INHALATORIA">Inhalatoria</option>
-              <option value="RECTAL">Rectal</option>
-              <option value="SUBLINGUAL">Sublingual</option>
-              <option value="OFTALMICA">Oftálmica</option>
-              <option value="OTRA">Otra</option>
+              {MEDICATION_ROUTE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             <input
               className="form-input"

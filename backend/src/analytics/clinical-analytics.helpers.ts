@@ -15,6 +15,7 @@ type RawEncounter = {
   createdAt: Date;
   patient: {
     id: string;
+    fechaNacimiento?: Date | null;
     edad: number | null;
     sexo: string | null;
     prevision: string | null;
@@ -136,6 +137,28 @@ const SYMPTOM_SIGNAL_DEFINITIONS = [
     patterns: ['estrenimiento', 'constipacion'],
   },
 ] as const;
+
+const SYMPTOM_NEGATION_PREFIXES = [
+  'sin',
+  'niega',
+  'niega presencia de',
+  'descarta',
+  'ausencia de',
+  'libre de',
+  'sin evidencia de',
+  'sin evidencia clinica de',
+  'sin signos de',
+  'sin datos de',
+  'sin sintomas de',
+  'sin sintomatologia de',
+  'no presenta',
+  'no refiere',
+  'no hay',
+] as const;
+
+const NEGATION_CLAUSE_BOUNDARY_REGEX = /[.;:]|,\s*(?:pero|aunque|sin embargo|excepto|salvo|refiere|presenta|describe|cursa|consulta|evoluciona|persiste|continua|sigue)\b|\b(?:pero|aunque|sin embargo|excepto|salvo)\b/g;
+const NEGATION_BLOCKING_REGEX = /(?:^|[\s,])(?:pero|aunque|sin embargo|excepto|salvo|refiere|presenta|describe|cursa|consulta|evoluciona|persiste|continua|sigue|con|acompanado|acompanada|asociado|asociada)\b/;
+const MAX_NEGATION_WORD_DISTANCE = 12;
 
 const FOOD_ASSOCIATED_PATTERNS = [
   'postprandial',
@@ -278,6 +301,10 @@ function normalizeClinicalText(value: string | null | undefined) {
     .trim();
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function includesAny(text: string, patterns: readonly string[]) {
   if (!text) {
     return false;
@@ -286,9 +313,116 @@ function includesAny(text: string, patterns: readonly string[]) {
   return patterns.some((pattern) => text.includes(pattern));
 }
 
+function findPatternOccurrences(text: string, pattern: string) {
+  const regex = new RegExp(`\\b${escapeRegExp(pattern)}\\b`, 'g');
+  const matches: Array<{ start: number; end: number }> = [];
+
+  for (const match of text.matchAll(regex)) {
+    const start = match.index ?? -1;
+    if (start < 0) {
+      continue;
+    }
+
+    matches.push({ start, end: start + match[0].length });
+  }
+
+  return matches;
+}
+
+function findLastClauseBoundaryIndex(text: string, endIndex: number) {
+  const prefix = text.slice(0, endIndex);
+  let boundaryIndex = -1;
+
+  for (const match of prefix.matchAll(NEGATION_CLAUSE_BOUNDARY_REGEX)) {
+    const start = match.index ?? -1;
+    if (start < 0) {
+      continue;
+    }
+
+    boundaryIndex = start + match[0].length;
+  }
+
+  return boundaryIndex;
+}
+
+function findLastNegationCue(text: string) {
+  let lastCue: { start: number; end: number } | null = null;
+
+  for (const cue of SYMPTOM_NEGATION_PREFIXES) {
+    const regex = new RegExp(`\\b${escapeRegExp(cue)}\\b`, 'g');
+
+    for (const match of text.matchAll(regex)) {
+      const start = match.index ?? -1;
+      if (start < 0) {
+        continue;
+      }
+
+      const candidate = { start, end: start + match[0].length };
+      if (
+        !lastCue
+        || candidate.start > lastCue.start
+        || (candidate.start === lastCue.start && candidate.end > lastCue.end)
+      ) {
+        lastCue = candidate;
+      }
+    }
+  }
+
+  return lastCue;
+}
+
+function isNegatedOccurrence(text: string, occurrence: { start: number; end: number }) {
+  const clauseStart = Math.max(0, findLastClauseBoundaryIndex(text, occurrence.start));
+  const clauseText = text.slice(clauseStart, occurrence.start);
+  const negationCue = findLastNegationCue(clauseText);
+
+  if (!negationCue) {
+    return false;
+  }
+
+  const betweenCueAndOccurrence = clauseText.slice(negationCue.end).trim();
+  if (!betweenCueAndOccurrence) {
+    return true;
+  }
+
+  if (NEGATION_BLOCKING_REGEX.test(betweenCueAndOccurrence)) {
+    return false;
+  }
+
+  return betweenCueAndOccurrence.split(/\s+/).filter(Boolean).length <= MAX_NEGATION_WORD_DISTANCE;
+}
+
+function hasNonNegatedPattern(text: string, pattern: string) {
+  const occurrences = findPatternOccurrences(text, pattern);
+  if (occurrences.length === 0) {
+    return false;
+  }
+
+  return occurrences.some((occurrence) => !isNegatedOccurrence(text, occurrence));
+}
+
+function includesAnyNonNegated(text: string, patterns: readonly string[]) {
+  if (!text) {
+    return false;
+  }
+
+  return patterns.some((pattern) => hasNonNegatedPattern(text, pattern));
+}
+
+function findSymptomDefinitionForQuery(normalizedCondition: string) {
+  if (!normalizedCondition) {
+    return null;
+  }
+
+  return SYMPTOM_SIGNAL_DEFINITIONS.find((definition) => (
+    definition.key === normalizedCondition
+    || definition.patterns.some((pattern) => pattern === normalizedCondition)
+  )) ?? null;
+}
+
 function extractSymptomSignals(text: string) {
   return SYMPTOM_SIGNAL_DEFINITIONS
-    .filter((definition) => includesAny(text, definition.patterns))
+    .filter((definition) => includesAnyNonNegated(text, definition.patterns))
     .map((definition) => ({ key: definition.key, label: definition.label }));
 }
 
@@ -383,6 +517,14 @@ export function matchesAnalyticsQuery(
 
   if (encounter.symptomSignals.some((entry) => entry.key.includes(normalizedCondition))) {
     return true;
+  }
+
+  const symptomDefinition = findSymptomDefinitionForQuery(normalizedCondition);
+  if (symptomDefinition) {
+    return includesAnyNonNegated(
+      encounter.searchableText,
+      uniqueBy([symptomDefinition.key, ...symptomDefinition.patterns], (value) => value),
+    );
   }
 
   return encounter.searchableText.includes(normalizedCondition);

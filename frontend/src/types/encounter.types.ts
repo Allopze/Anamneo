@@ -145,6 +145,9 @@ export interface MedicationCatalogItem {
   id: string;
   name: string;
   activeIngredient: string;
+  defaultDose?: string;
+  defaultRoute?: string;
+  defaultFrequency?: string;
   active: boolean;
 }
 

@@ -73,6 +73,9 @@ export class MedicationsCsvService {
             name: row.name,
             normalizedName: row.normalizedName,
             activeIngredient: row.activeIngredient,
+            ...(row.defaultDose !== undefined ? { defaultDose: row.defaultDose } : {}),
+            ...(row.defaultRoute !== undefined ? { defaultRoute: row.defaultRoute } : {}),
+            ...(row.defaultFrequency !== undefined ? { defaultFrequency: row.defaultFrequency } : {}),
             active: true,
           },
         });
@@ -84,6 +87,9 @@ export class MedicationsCsvService {
           name: row.name,
           normalizedName: row.normalizedName,
           activeIngredient: row.activeIngredient,
+          ...(row.defaultDose !== undefined ? { defaultDose: row.defaultDose } : {}),
+          ...(row.defaultRoute !== undefined ? { defaultRoute: row.defaultRoute } : {}),
+          ...(row.defaultFrequency !== undefined ? { defaultFrequency: row.defaultFrequency } : {}),
         },
       });
     });
@@ -158,6 +164,9 @@ export class MedicationsCsvService {
         rowNumber: row.rowNumber,
         name: row.name,
         activeIngredient: row.activeIngredient,
+        ...(row.defaultDose ? { defaultDose: row.defaultDose } : {}),
+        ...(row.defaultRoute ? { defaultRoute: row.defaultRoute } : {}),
+        ...(row.defaultFrequency ? { defaultFrequency: row.defaultFrequency } : {}),
         action,
       };
     });

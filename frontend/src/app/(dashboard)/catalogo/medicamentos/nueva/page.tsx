@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
+import { MEDICATION_ROUTE_OPTIONS } from '@/lib/medication-catalog';
 import { useAuthStore } from '@/stores/auth-store';
 
 export default function NuevoMedicamentoPage() {
@@ -15,6 +16,9 @@ export default function NuevoMedicamentoPage() {
   const { isAdmin } = useAuthStore();
   const [name, setName] = useState('');
   const [activeIngredient, setActiveIngredient] = useState('');
+  const [defaultDose, setDefaultDose] = useState('');
+  const [defaultRoute, setDefaultRoute] = useState('');
+  const [defaultFrequency, setDefaultFrequency] = useState('');
 
   useEffect(() => {
     if (!isAdmin()) {
@@ -24,7 +28,13 @@ export default function NuevoMedicamentoPage() {
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const response = await api.post('/medications', { name, activeIngredient });
+      const response = await api.post('/medications', {
+        name: name.trim(),
+        activeIngredient: activeIngredient.trim(),
+        defaultDose: defaultDose.trim() || null,
+        defaultRoute: defaultRoute || null,
+        defaultFrequency: defaultFrequency.trim() || null,
+      });
       return response.data;
     },
     onSuccess: () => {
@@ -65,6 +75,44 @@ export default function NuevoMedicamentoPage() {
             placeholder="ibuprofeno, omeprazol, ..."
           />
         </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div>
+            <label className="text-sm text-ink-secondary">Dosis sugerida</label>
+            <input
+              className="form-input"
+              value={defaultDose}
+              onChange={(event) => setDefaultDose(event.target.value)}
+              placeholder="Ej: 500 mg"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-ink-secondary">Vía sugerida</label>
+            <select
+              className="form-input"
+              value={defaultRoute}
+              onChange={(event) => setDefaultRoute(event.target.value)}
+            >
+              <option value="">Sin sugerencia</option>
+              {MEDICATION_ROUTE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm text-ink-secondary">Frecuencia sugerida</label>
+            <input
+              className="form-input"
+              value={defaultFrequency}
+              onChange={(event) => setDefaultFrequency(event.target.value)}
+              placeholder="Ej: cada 8 h"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-ink-muted">
+          Estas sugerencias solo ayudan a precompletar una prescripción frecuente. La indicación real sigue guardándose por atención.
+        </p>
 
         <div className="flex items-center gap-3">
           <button

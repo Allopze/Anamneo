@@ -201,6 +201,8 @@ Se obtienen por dos caminos:
 - desde el nuevo perfil abdominal estructurado,
 - y desde heuristicas de texto normalizado para dolor abdominal, vomitos, diarrea, nauseas, fiebre, distension y estrenimiento.
 
+Cuando la coincidencia textual es exacta para esos sintomas soportados, se excluyen negaciones por clausula para listas y formulaciones clinicas frecuentes, por ejemplo `sin vomitos ni diarrea`, `niega presencia de nauseas, fiebre o distension abdominal` o `libre de estrenimiento`, sin tapar sintomas afirmativos que aparezcan despues en otra clausula.
+
 ## Relacion con comida
 
 Prioridad actual:
@@ -223,6 +225,8 @@ La tabla de tratamientos considera cada medicamento estructurado indicado en el 
 - ajuste terapeutico,
 - alertas posteriores,
 - resolucion de problema.
+
+Las alertas posteriores respetan el mismo scope clinico del panel de alertas del medico. Si un paciente es visto por mas de un profesional, no se deben mezclar alertas ligadas a encuentros de otro medico.
 
 ## Superficies afectadas
 
@@ -258,6 +262,7 @@ La tabla de tratamientos considera cada medicamento estructurado indicado en el 
 - La vista es descriptiva y observacional.
 - No demuestra causalidad.
 - Si un encuentro tiene varios tratamientos o varios problemas clinicos, la atribucion de desenlace sigue siendo aproximada.
+- Si un mismo medicamento aparece con esquemas distintos dentro de la cohorte, la fila agregada conserva el conteo pero ya no muestra un subtitulo unico para evitar falsa precision.
 - `PARCIAL` hoy se conserva como estado estructurado distinto; no se agrupa automaticamente como favorable.
 - La tabla de desenlaces proxy actual se centra en medicamentos estructurados; examenes y derivaciones no tienen aun una tabla equivalente.
 - El drill-down actual existe para cohorte, medicamentos y sintomas; aun no cubre examenes, derivaciones ni exportacion CSV desde la vista.
@@ -268,10 +273,9 @@ Cuando esta seccion cambie:
 
 1. `npm --prefix backend run typecheck`
 2. `npm --prefix frontend run typecheck`
-3. `npm --prefix backend run test -- clinical-analytics.helpers.spec.ts`
-4. `npm --prefix backend run test -- --runTestsByPath backend/src/analytics/analytics.service.spec.ts`
-5. `npm --prefix frontend run test -- --runInBand --runTestsByPath frontend/src/__tests__/app/clinical-analytics-page.test.tsx frontend/src/__tests__/app/clinical-analytics-cases-page.test.tsx frontend/src/__tests__/components/dashboard-layout.analytics-navigation.test.tsx`
-6. `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` si se tocan encounter workflows, sanitizacion o contratos de seccion
+3. `npm --prefix backend run test -- --runTestsByPath src/analytics/clinical-analytics.helpers.spec.ts src/analytics/clinical-analytics.read-model.spec.ts src/analytics/analytics.service.spec.ts`
+4. `npm --prefix frontend run test -- --runInBand --runTestsByPath frontend/src/__tests__/app/clinical-analytics-page.test.tsx frontend/src/__tests__/app/clinical-analytics-cases-page.test.tsx frontend/src/__tests__/components/dashboard-layout.analytics-navigation.test.tsx`
+5. `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` si se tocan encounter workflows, sanitizacion o contratos de seccion
 
 ## Decision de producto vigente
 

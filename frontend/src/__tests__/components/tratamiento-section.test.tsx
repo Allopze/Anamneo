@@ -103,6 +103,9 @@ describe('TratamientoSection', () => {
           id: 'med-1',
           name: 'Omeprazol MK',
           activeIngredient: 'Omeprazol',
+          defaultDose: '40 mg',
+          defaultRoute: 'ORAL',
+          defaultFrequency: 'cada 24 h',
           active: true,
         },
       ],
@@ -145,6 +148,73 @@ describe('TratamientoSection', () => {
             id: 'med-row-1',
             nombre: 'Omeprazol MK',
             activeIngredient: 'Omeprazol',
+            dosis: '40 mg',
+            via: 'ORAL',
+            frecuencia: 'cada 24 h',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('does not overwrite dosage fields already filled in the encounter row', async () => {
+    const onChange = jest.fn();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    apiGetMock.mockResolvedValue({
+      data: [
+        {
+          id: 'med-1',
+          name: 'Omeprazol MK',
+          activeIngredient: 'Omeprazol',
+          defaultDose: '40 mg',
+          defaultRoute: 'ORAL',
+          defaultFrequency: 'cada 24 h',
+          active: true,
+        },
+      ],
+    });
+
+    render(
+      <StatefulTratamientoSection
+        initialData={{
+          medicamentosEstructurados: [
+            {
+              id: 'med-row-1',
+              nombre: '',
+              dosis: '10 mg',
+              via: 'IV',
+              frecuencia: 'cada 12 h',
+              duracion: '',
+            },
+          ],
+        }}
+        onChange={onChange}
+      />,
+    );
+
+    await user.type(screen.getByPlaceholderText('Medicamento'), 'ome');
+
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+
+    await waitFor(() => {
+      expect(apiGetMock).toHaveBeenCalledWith('/medications?search=ome');
+    });
+
+    await user.click(await screen.findByRole('button', { name: /Omeprazol MK/i }));
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        medicamentosEstructurados: [
+          expect.objectContaining({
+            id: 'med-row-1',
+            nombre: 'Omeprazol MK',
+            activeIngredient: 'Omeprazol',
+            dosis: '10 mg',
+            via: 'IV',
+            frecuencia: 'cada 12 h',
           }),
         ],
       }),

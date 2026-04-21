@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { FiEdit2, FiPackage, FiPlus, FiSearch, FiUpload } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
+import { formatMedicationCatalogDefaults } from '@/lib/medication-catalog';
 import { canImportMedicationsCsv } from '@/lib/permissions';
 import { useAuthStore } from '@/stores/auth-store';
 import { MedicationCatalogItem } from '@/types';
@@ -101,41 +102,50 @@ export default function MedicationsCatalogSection() {
         ) : medications && medications.length > 0 ? (
           <div className="divide-y divide-surface-muted/30">
             {medications.map((medication) => (
-              <div key={medication.id} className="group list-row cursor-pointer">
-                <div className="list-row-icon bg-sky-100 text-sky-700">
-                  <FiPackage className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-medium text-ink-primary">{medication.name}</h3>
-                    {!medication.active && (
-                      <span className="list-chip border border-status-red/40 bg-status-red/10 text-status-red">
-                        Inactivo
-                      </span>
+              (() => {
+                const defaultSummary = formatMedicationCatalogDefaults(medication);
+
+                return (
+                  <div key={medication.id} className="group list-row cursor-pointer">
+                    <div className="list-row-icon bg-sky-100 text-sky-700">
+                      <FiPackage className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-medium text-ink-primary">{medication.name}</h3>
+                        {!medication.active && (
+                          <span className="list-chip border border-status-red/40 bg-status-red/10 text-status-red">
+                            Inactivo
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm text-ink-secondary">
+                        Principio activo: {medication.activeIngredient}
+                      </p>
+                      {defaultSummary ? (
+                        <p className="mt-1 text-xs text-ink-muted">Sugerencia habitual: {defaultSummary}</p>
+                      ) : null}
+                    </div>
+                    {isAdminUser && (
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/catalogo/medicamentos/${medication.id}`}
+                          className="rounded-lg p-2 text-ink-muted opacity-0 transition-all hover:bg-accent/10 hover:text-accent group-hover:opacity-100"
+                        >
+                          <FiEdit2 className="h-4 w-4" />
+                        </Link>
+                        <button
+                          className="btn btn-danger"
+                          onClick={() => deleteMutation.mutate(medication.id)}
+                          disabled={deleteMutation.isPending}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     )}
                   </div>
-                  <p className="mt-1 text-sm text-ink-secondary">
-                    Principio activo: {medication.activeIngredient}
-                  </p>
-                </div>
-                {isAdminUser && (
-                  <div className="flex items-center gap-2">
-                    <Link
-                      href={`/catalogo/medicamentos/${medication.id}`}
-                      className="rounded-lg p-2 text-ink-muted opacity-0 transition-all hover:bg-accent/10 hover:text-accent group-hover:opacity-100"
-                    >
-                      <FiEdit2 className="h-4 w-4" />
-                    </Link>
-                    <button
-                      className="btn btn-danger"
-                      onClick={() => deleteMutation.mutate(medication.id)}
-                      disabled={deleteMutation.isPending}
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                )}
-              </div>
+                );
+              })()
             ))}
           </div>
         ) : (

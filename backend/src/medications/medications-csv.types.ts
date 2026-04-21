@@ -2,6 +2,9 @@ export interface ParsedMedicationCsvRow {
   rowNumber: number;
   name: string;
   activeIngredient: string;
+  defaultDose?: string;
+  defaultRoute?: string;
+  defaultFrequency?: string;
   normalizedName: string;
 }
 
@@ -24,6 +27,9 @@ export interface MedicationCsvPreviewItem {
   rowNumber: number;
   name: string;
   activeIngredient: string;
+  defaultDose?: string;
+  defaultRoute?: string;
+  defaultFrequency?: string;
   action: 'CREATE' | 'UPDATE' | 'REACTIVATE';
 }
 

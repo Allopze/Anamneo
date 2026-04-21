@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPatientProblemScopeWhere } from '../common/utils/patient-access';
-import { extractDateOnlyIso, startOfUtcDay, todayLocalDateOnly } from '../common/utils/local-date';
+import { calculateAgeFromBirthDate, extractDateOnlyIso, startOfUtcDay, todayLocalDateOnly } from '../common/utils/local-date';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { normalizeConditionName } from '../conditions/conditions-helpers';
 import {
@@ -70,8 +70,23 @@ function buildRankedRows(values: Map<string, RankedMetricRow>, limit: number) {
     .slice(0, limit);
 }
 
+function addEntryDetails(details: Set<string>, detail?: string) {
+  const normalizedDetail = detail?.trim();
+  if (normalizedDetail) {
+    details.add(normalizedDetail);
+  }
+}
+
+function resolveAggregatedSubtitle(details: Set<string>) {
+  if (details.size !== 1) {
+    return undefined;
+  }
+
+  return [...details][0];
+}
+
 function buildTreatmentRanking(encounters: ParsedClinicalAnalyticsEncounter[], key: 'medications' | 'exams' | 'referrals', limit: number) {
-  const aggregated = new Map<string, RankedMetricRow & { patients: Set<string>; details?: string }>();
+  const aggregated = new Map<string, RankedMetricRow & { patients: Set<string>; details: Set<string> }>();
 
   for (const encounter of encounters) {
     const seen = new Set<string>();
@@ -85,6 +100,7 @@ function buildTreatmentRanking(encounters: ParsedClinicalAnalyticsEncounter[], k
       if (current) {
         current.encounterCount += 1;
         current.patients.add(encounter.patientId);
+        addEntryDetails(current.details, entry.details);
         continue;
       }
 
@@ -92,17 +108,18 @@ function buildTreatmentRanking(encounters: ParsedClinicalAnalyticsEncounter[], k
         label: entry.label,
         encounterCount: 1,
         patientCount: 1,
-        subtitle: entry.details,
         patients: new Set([encounter.patientId]),
+        details: new Set(entry.details ? [entry.details] : []),
       });
     }
   }
 
-  for (const row of aggregated.values()) {
-    row.patientCount = row.patients.size;
-  }
-
-  return buildRankedRows(new Map([...aggregated.entries()].map(([keyValue, row]) => [keyValue, row])), limit);
+  return buildRankedRows(new Map([...aggregated.entries()].map(([keyValue, row]) => [keyValue, {
+    label: row.label,
+    encounterCount: row.encounterCount,
+    patientCount: row.patients.size,
+    subtitle: resolveAggregatedSubtitle(row.details),
+  }])), limit);
 }
 
 function buildSymptomRanking(encounters: ParsedClinicalAnalyticsEncounter[], normalizedCondition: string, limit: number) {
@@ -190,7 +207,7 @@ function buildTreatmentOutcomeRanking(
   evaluations: Map<string, EncounterOutcomeEvaluation>,
   limit: number,
 ) {
-  const aggregated = new Map<string, TreatmentOutcomeRow & { patients: Set<string> }>();
+  const aggregated = new Map<string, TreatmentOutcomeRow & { patients: Set<string>; details: Set<string> }>();
 
   for (const encounter of encounters) {
     const evaluation = evaluations.get(encounter.encounterId);
@@ -212,6 +229,7 @@ function buildTreatmentOutcomeRanking(
         current.favorableCount += evaluation.hasFavorableResponseProxy ? 1 : 0;
         current.adjustmentCount += evaluation.hasAdjustment ? 1 : 0;
         current.reconsultCount += evaluation.hasReconsult ? 1 : 0;
+        addEntryDetails(current.details, entry.details);
         continue;
       }
 
@@ -223,17 +241,18 @@ function buildTreatmentOutcomeRanking(
         favorableRate: 0,
         adjustmentCount: evaluation.hasAdjustment ? 1 : 0,
         reconsultCount: evaluation.hasReconsult ? 1 : 0,
-        subtitle: entry.details,
         patients: new Set([encounter.patientId]),
+        details: new Set(entry.details ? [entry.details] : []),
       });
     }
   }
 
   return [...aggregated.values()]
-    .map((row) => ({
+    .map(({ patients, details, ...row }) => ({
       ...row,
-      patientCount: row.patients.size,
+      patientCount: patients.size,
       favorableRate: ratio(row.favorableCount, row.encounterCount),
+      subtitle: resolveAggregatedSubtitle(details),
     }))
     .sort((left, right) => {
       if (right.favorableCount !== left.favorableCount) {
@@ -247,7 +266,7 @@ function buildTreatmentOutcomeRanking(
       return left.label.localeCompare(right.label, 'es');
     })
     .slice(0, limit)
-    .map(({ patients: _patients, ...row }) => row);
+    .map((row) => row);
 }
 
 function buildConditionRanking(encounters: ParsedClinicalAnalyticsEncounter[], query: ClinicalAnalyticsQueryDto) {
@@ -303,11 +322,19 @@ function calculateAverageAge(encounters: ParsedClinicalAnalyticsEncounter[]) {
   const uniquePatients = new Map<string, number>();
 
   for (const encounter of encounters) {
-    if (encounter.patient.edad === null || uniquePatients.has(encounter.patientId)) {
+    if (uniquePatients.has(encounter.patientId)) {
       continue;
     }
 
-    uniquePatients.set(encounter.patientId, encounter.patient.edad);
+    const ageAtEncounter = encounter.patient.fechaNacimiento
+      ? calculateAgeFromBirthDate(encounter.patient.fechaNacimiento, encounter.createdAt).edad
+      : encounter.patient.edad;
+
+    if (ageAtEncounter === null || ageAtEncounter === undefined) {
+      continue;
+    }
+
+    uniquePatients.set(encounter.patientId, ageAtEncounter);
   }
 
   if (uniquePatients.size === 0) {
@@ -420,6 +447,7 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
       patient: {
         select: {
           id: true,
+          fechaNacimiento: true,
           edad: true,
           sexo: true,
           prevision: true,
@@ -458,6 +486,10 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
           where: {
             patientId: { in: patientIds },
             createdAt: { gte: fromStart, lt: extendedEnd },
+            OR: [
+              { encounterId: null },
+              { encounter: { medicoId: effectiveMedicoId } },
+            ],
           },
           select: {
             patientId: true,

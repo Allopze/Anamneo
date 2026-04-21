@@ -137,6 +137,8 @@ export function analyticsSuite() {
   describe('Analytics', () => {
     let medicoAdminCookies: string[] = [];
     let analyticsEncounterId = '';
+    let sharedPatientAlertId = '';
+    let sharedPatientAlertOwnerCookies: string[] = [];
 
     beforeAll(async () => {
       analyticsEncounterId = await createCompletedAnalyticsEncounter();
@@ -157,9 +159,59 @@ export function analyticsSuite() {
         .expect(200);
 
       medicoAdminCookies = extractCookies(loginRes);
+
+      const sharedMedico = await prisma.user.create({
+        data: {
+          email: 'medico-analytics-shared@test.com',
+          passwordHash: await bcrypt.hash('Medico.Shared123', 10),
+          nombre: 'Medico Analytics Shared',
+          role: 'MEDICO',
+          isAdmin: false,
+        },
+        select: { id: true },
+      });
+
+      const sharedMedicoLoginRes = await req()
+        .post('/api/auth/login')
+        .send({ email: 'medico-analytics-shared@test.com', password: 'Medico.Shared123' })
+        .expect(200);
+
+      sharedPatientAlertOwnerCookies = extractCookies(sharedMedicoLoginRes);
+
+      const sharedEncounter = await prisma.encounter.create({
+        data: {
+          patientId: state.patientId,
+          medicoId: sharedMedico.id,
+          createdById: sharedMedico.id,
+          status: 'COMPLETADO',
+        },
+        select: { id: true },
+      });
+
+      const sharedAlert = await prisma.clinicalAlert.create({
+        data: {
+          patientId: state.patientId,
+          encounterId: sharedEncounter.id,
+          type: 'GENERAL',
+          severity: 'ALTA',
+          title: 'Alerta analytics paciente compartido',
+          message: 'No debe contarse en la analitica de otro medico',
+          createdById: sharedMedico.id,
+        },
+        select: { id: true },
+      });
+
+      sharedPatientAlertId = sharedAlert.id;
     });
 
-    it('GET /api/analytics/clinical/summary → medico returns scoped summary for a matching completed encounter', async () => {
+    it('GET /api/analytics/clinical/summary → medico excludes encounter-linked alerts from another medico on a shared patient', async () => {
+      const sharedAlertsRes = await req()
+        .get(`/api/alerts/patient/${state.patientId}?includeAcknowledged=true`)
+        .set('Cookie', cookieHeader(sharedPatientAlertOwnerCookies))
+        .expect(200);
+
+      expect(sharedAlertsRes.body.map((item: any) => item.id)).toContain(sharedPatientAlertId);
+
       const res = await req()
         .get('/api/analytics/clinical/summary')
         .query({

@@ -7,17 +7,49 @@ import type {
   ParsedMedicationCsvRow,
 } from './medications-csv.types';
 
-const HEADER_ALIASES = new Map<string, 'name' | 'activeIngredient'>([
+const REQUIRED_HEADERS = ['name', 'activeIngredient'] as const;
+const OPTIONAL_HEADERS = ['defaultDose', 'defaultRoute', 'defaultFrequency'] as const;
+type CanonicalHeader = (typeof REQUIRED_HEADERS)[number] | (typeof OPTIONAL_HEADERS)[number];
+
+const HEADER_ALIASES = new Map<string, CanonicalHeader>([
   ['name', 'name'],
   ['nombre', 'name'],
   ['activeingredient', 'activeIngredient'],
   ['principioactivo', 'activeIngredient'],
+  ['defaultdose', 'defaultDose'],
+  ['dosis', 'defaultDose'],
+  ['defaultroute', 'defaultRoute'],
+  ['via', 'defaultRoute'],
+  ['defaultfrequency', 'defaultFrequency'],
+  ['frecuencia', 'defaultFrequency'],
 ]);
-const REQUIRED_HEADERS = ['name', 'activeIngredient'] as const;
 const MIN_NAME_LENGTH = 2;
 const MAX_NAME_LENGTH = 300;
-
-type CanonicalHeader = (typeof REQUIRED_HEADERS)[number];
+const MAX_DEFAULT_LENGTH = 120;
+const MEDICATION_DEFAULT_ROUTES = [
+  'ORAL',
+  'IV',
+  'IM',
+  'SC',
+  'TOPICA',
+  'INHALATORIA',
+  'RECTAL',
+  'SUBLINGUAL',
+  'OFTALMICA',
+  'OTRA',
+] as const;
+const ROUTE_ALIASES = new Map<string, (typeof MEDICATION_DEFAULT_ROUTES)[number]>([
+  ['oral', 'ORAL'],
+  ['iv', 'IV'],
+  ['im', 'IM'],
+  ['sc', 'SC'],
+  ['topica', 'TOPICA'],
+  ['inhalatoria', 'INHALATORIA'],
+  ['rectal', 'RECTAL'],
+  ['sublingual', 'SUBLINGUAL'],
+  ['oftalmica', 'OFTALMICA'],
+  ['otra', 'OTRA'],
+]);
 
 export function parseMedicationCsvBuffer(buffer: Buffer): ParsedMedicationCsvResult {
   const content = buffer.toString('utf-8');
@@ -90,7 +122,8 @@ function assertSupportedHeaders(headers: string[]) {
     }
   }
 
-  const unknownHeaders = headers.filter((header) => header && !REQUIRED_HEADERS.includes(header as CanonicalHeader));
+  const supportedHeaders = new Set<CanonicalHeader>([...REQUIRED_HEADERS, ...OPTIONAL_HEADERS]);
+  const unknownHeaders = headers.filter((header) => header && !supportedHeaders.has(header as CanonicalHeader));
   if (unknownHeaders.length > 0) {
     throw new BadRequestException(`El CSV contiene columnas no soportadas: ${unknownHeaders.join(', ')}`);
   }
@@ -107,7 +140,7 @@ function assertSupportedHeaders(headers: string[]) {
 
 function buildHeaderIndexes(headers: string[]) {
   const indexes = new Map<CanonicalHeader, number>();
-  for (const header of REQUIRED_HEADERS) {
+  for (const header of [...REQUIRED_HEADERS, ...OPTIONAL_HEADERS]) {
     const index = headers.indexOf(header);
     if (index >= 0) {
       indexes.set(header, index);
@@ -122,6 +155,7 @@ function parseRecord(
   rowNumber: number,
   invalidRows: MedicationCsvInvalidRow[],
 ) {
+  const invalidRowCountBefore = invalidRows.length;
   const name = parseRequiredText(
     getRecordValue(record, headerIndexes, 'name'),
     rowNumber,
@@ -134,8 +168,25 @@ function parseRecord(
     invalidRows,
     'activeIngredient',
   );
+  const defaultDose = parseOptionalText(
+    getRecordValue(record, headerIndexes, 'defaultDose'),
+    rowNumber,
+    invalidRows,
+    'defaultDose',
+  );
+  const defaultRoute = parseOptionalRoute(
+    getRecordValue(record, headerIndexes, 'defaultRoute'),
+    rowNumber,
+    invalidRows,
+  );
+  const defaultFrequency = parseOptionalText(
+    getRecordValue(record, headerIndexes, 'defaultFrequency'),
+    rowNumber,
+    invalidRows,
+    'defaultFrequency',
+  );
 
-  if (!name || !activeIngredient) {
+  if (!name || !activeIngredient || invalidRows.length > invalidRowCountBefore) {
     return null;
   }
 
@@ -143,6 +194,9 @@ function parseRecord(
     rowNumber,
     name,
     activeIngredient,
+    ...(defaultDose ? { defaultDose } : {}),
+    ...(defaultRoute ? { defaultRoute } : {}),
+    ...(defaultFrequency ? { defaultFrequency } : {}),
     normalizedName: normalizeMedicationName(name),
   };
 }
@@ -183,6 +237,51 @@ function parseRequiredText(
   }
 
   return value;
+}
+
+function parseOptionalText(
+  rawValue: string | undefined,
+  rowNumber: number,
+  invalidRows: MedicationCsvInvalidRow[],
+  field: 'defaultDose' | 'defaultFrequency',
+) {
+  const value = rawValue?.trim() ?? '';
+  if (!value) {
+    return undefined;
+  }
+
+  if (value.length > MAX_DEFAULT_LENGTH) {
+    invalidRows.push({
+      rowNumber,
+      message: `La columna ${field} no puede exceder ${MAX_DEFAULT_LENGTH} caracteres`,
+    });
+    return undefined;
+  }
+
+  return value;
+}
+
+function parseOptionalRoute(
+  rawValue: string | undefined,
+  rowNumber: number,
+  invalidRows: MedicationCsvInvalidRow[],
+) {
+  const value = rawValue?.trim() ?? '';
+  if (!value) {
+    return undefined;
+  }
+
+  const normalizedValue = normalizeMedicationName(value);
+  const route = ROUTE_ALIASES.get(normalizedValue);
+  if (!route) {
+    invalidRows.push({
+      rowNumber,
+      message: `La columna defaultRoute debe ser una vía válida (${MEDICATION_DEFAULT_ROUTES.join(', ')})`,
+    });
+    return undefined;
+  }
+
+  return route;
 }
 
 function mergeDuplicateRows(rows: ParsedMedicationCsvRow[]) {

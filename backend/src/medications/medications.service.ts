@@ -26,6 +26,9 @@ export class MedicationsService {
         name: createDto.name,
         normalizedName,
         activeIngredient: createDto.activeIngredient,
+        ...(createDto.defaultDose !== undefined ? { defaultDose: createDto.defaultDose } : {}),
+        ...(createDto.defaultRoute !== undefined ? { defaultRoute: createDto.defaultRoute } : {}),
+        ...(createDto.defaultFrequency !== undefined ? { defaultFrequency: createDto.defaultFrequency } : {}),
       },
     });
 
@@ -83,6 +86,15 @@ export class MedicationsService {
     }
     if (updateDto.activeIngredient) {
       updateData.activeIngredient = updateDto.activeIngredient;
+    }
+    if (updateDto.defaultDose !== undefined) {
+      updateData.defaultDose = updateDto.defaultDose;
+    }
+    if (updateDto.defaultRoute !== undefined) {
+      updateData.defaultRoute = updateDto.defaultRoute;
+    }
+    if (updateDto.defaultFrequency !== undefined) {
+      updateData.defaultFrequency = updateDto.defaultFrequency;
     }
     if (updateDto.active !== undefined) {
       updateData.active = updateDto.active;

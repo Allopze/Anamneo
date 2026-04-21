@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
+import { MEDICATION_ROUTE_OPTIONS } from '@/lib/medication-catalog';
 import { useAuthStore } from '@/stores/auth-store';
 import { MedicationCatalogItem } from '@/types';
 
@@ -17,6 +18,9 @@ export default function EditarMedicamentoPage() {
   const { isAdmin } = useAuthStore();
   const [name, setName] = useState('');
   const [activeIngredient, setActiveIngredient] = useState('');
+  const [defaultDose, setDefaultDose] = useState('');
+  const [defaultRoute, setDefaultRoute] = useState('');
+  const [defaultFrequency, setDefaultFrequency] = useState('');
   const [active, setActive] = useState(true);
 
   const { data: medication, isLoading } = useQuery({
@@ -37,6 +41,9 @@ export default function EditarMedicamentoPage() {
     if (medication) {
       setName(medication.name);
       setActiveIngredient(medication.activeIngredient);
+      setDefaultDose(medication.defaultDose ?? '');
+      setDefaultRoute(medication.defaultRoute ?? '');
+      setDefaultFrequency(medication.defaultFrequency ?? '');
       setActive(medication.active);
     }
   }, [isAdmin, medication, router]);
@@ -44,8 +51,11 @@ export default function EditarMedicamentoPage() {
   const mutation = useMutation({
     mutationFn: async () => {
       const response = await api.put(`/medications/${id}`, {
-        name,
-        activeIngredient,
+        name: name.trim(),
+        activeIngredient: activeIngredient.trim(),
+        defaultDose: defaultDose.trim() || null,
+        defaultRoute: defaultRoute || null,
+        defaultFrequency: defaultFrequency.trim() || null,
         active,
       });
       return response.data;
@@ -95,6 +105,44 @@ export default function EditarMedicamentoPage() {
                 onChange={(event) => setActiveIngredient(event.target.value)}
               />
             </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <label className="text-sm text-ink-secondary">Dosis sugerida</label>
+                <input
+                  className="form-input"
+                  value={defaultDose}
+                  onChange={(event) => setDefaultDose(event.target.value)}
+                  placeholder="Ej: 500 mg"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-ink-secondary">Vía sugerida</label>
+                <select
+                  className="form-input"
+                  value={defaultRoute}
+                  onChange={(event) => setDefaultRoute(event.target.value)}
+                >
+                  <option value="">Sin sugerencia</option>
+                  {MEDICATION_ROUTE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm text-ink-secondary">Frecuencia sugerida</label>
+                <input
+                  className="form-input"
+                  value={defaultFrequency}
+                  onChange={(event) => setDefaultFrequency(event.target.value)}
+                  placeholder="Ej: cada 8 h"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-ink-muted">
+              Estas sugerencias se usan solo para precompletar campos vacíos al seleccionar el medicamento en una atención.
+            </p>
             <div>
               <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
                 <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />

@@ -8,6 +8,7 @@ describe('clinical-analytics.helpers', () => {
       createdAt: new Date('2026-04-01T12:00:00.000Z'),
       patient: {
         id: 'pat-1',
+        fechaNacimiento: new Date('1984-05-10T12:00:00.000Z'),
         edad: 42,
         sexo: 'F',
         prevision: 'FONASA',
@@ -81,6 +82,7 @@ describe('clinical-analytics.helpers', () => {
       createdAt: new Date('2026-04-03T12:00:00.000Z'),
       patient: {
         id: 'pat-2',
+        fechaNacimiento: null,
         edad: 35,
         sexo: 'M',
         prevision: 'ISAPRE',
@@ -134,5 +136,83 @@ describe('clinical-analytics.helpers', () => {
     expect(matchesAnalyticsQuery(encounter, 'ANY', 'dolor abdominal')).toBe(true);
     expect(matchesAnalyticsQuery(encounter, 'ANY', 'vomitos')).toBe(true);
     expect(matchesAnalyticsQuery(encounter, 'SOSPECHA_DIAGNOSTICA', 'dolor abdominal')).toBe(false);
+  });
+
+  it('keeps affirmative symptoms visible after a negated clause when matching raw searchable text', () => {
+    const encounter = {
+      probableConditions: [],
+      diagnosticConditions: [],
+      symptomSignals: [],
+      searchableText: 'niega presencia de nauseas fiebre o distension abdominal pero refiere dolor abdominal postprandial',
+    };
+
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'nauseas')).toBe(false);
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'fiebre')).toBe(false);
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'distension abdominal')).toBe(false);
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'dolor abdominal')).toBe(true);
+  });
+
+  it('excludes negated symptom mentions from symptom-driven matching', () => {
+    const encounter = buildClinicalAnalyticsEncounter({
+      id: 'enc-3',
+      patientId: 'pat-3',
+      createdAt: new Date('2026-04-05T12:00:00.000Z'),
+      patient: {
+        id: 'pat-3',
+        fechaNacimiento: null,
+        edad: 29,
+        sexo: 'F',
+        prevision: 'FONASA',
+      },
+      sections: [
+        {
+          sectionKey: 'ANAMNESIS_PROXIMA',
+          data: {
+            relatoAmpliado: 'Paciente sin dolor abdominal, niega vomitos y descarta diarrea.',
+            sintomasAsociados: 'Sin vomitos ni diarrea',
+          },
+        },
+      ],
+    });
+
+    expect(encounter.symptomSignals).toEqual([]);
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'dolor abdominal')).toBe(false);
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'vomitos')).toBe(false);
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'diarrea')).toBe(false);
+  });
+
+  it('excludes broader negated symptom lists and preserves later affirmative findings', () => {
+    const encounter = buildClinicalAnalyticsEncounter({
+      id: 'enc-4',
+      patientId: 'pat-4',
+      createdAt: new Date('2026-04-06T12:00:00.000Z'),
+      patient: {
+        id: 'pat-4',
+        fechaNacimiento: null,
+        edad: 41,
+        sexo: 'M',
+        prevision: 'ISAPRE',
+      },
+      sections: [
+        {
+          sectionKey: 'ANAMNESIS_PROXIMA',
+          data: {
+            relatoAmpliado: 'Paciente niega presencia de nauseas, fiebre o distension abdominal; libre de estrenimiento, pero refiere dolor abdominal postprandial.',
+            sintomasAsociados: 'No presenta vomitos ni diarrea.',
+          },
+        },
+      ],
+    });
+
+    expect(encounter.symptomSignals).toEqual([
+      { key: 'dolor abdominal', label: 'Dolor abdominal' },
+    ]);
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'nauseas')).toBe(false);
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'fiebre')).toBe(false);
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'distension abdominal')).toBe(false);
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'estrenimiento')).toBe(false);
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'vomitos')).toBe(false);
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'diarrea')).toBe(false);
+    expect(matchesAnalyticsQuery(encounter, 'ANY', 'dolor abdominal')).toBe(true);
   });
 });
