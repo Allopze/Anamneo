@@ -218,6 +218,14 @@ test('recovers the local draft after 401, login and return to the encounter', as
     });
   });
 
+  await page.route('**/api/settings/session-policy', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ inactivityTimeoutMinutes: 15 }),
+    });
+  });
+
   await page.route('**/api/patients/patient-1', async (route) => {
     await route.fulfill({
       status: 200,

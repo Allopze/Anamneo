@@ -8,11 +8,14 @@ import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.
 import {
   IsBoolean,
   IsEmail,
+  IsInt,
   IsOptional,
   IsString,
   IsUrl,
   Matches,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 
 class UpdateSettingsDto {
@@ -30,6 +33,11 @@ class UpdateSettingsDto {
   @IsString() @MaxLength(200) @IsOptional() smtpFromName?: string;
   @IsString() @MaxLength(300) @IsOptional() invitationSubject?: string;
   @IsString() @MaxLength(50000) @IsOptional() invitationTemplateHtml?: string;
+  @IsInt({ message: 'El tiempo de inactividad debe ser un número entero de minutos' })
+  @Min(5, { message: 'El tiempo de inactividad mínimo es 5 minutos' })
+  @Max(240, { message: 'El tiempo de inactividad máximo es 240 minutos' })
+  @IsOptional()
+  sessionInactivityTimeoutMinutes?: number;
 }
 
 @Controller('settings')
@@ -44,6 +52,11 @@ export class SettingsController {
   @Roles('ADMIN')
   getAll() {
     return this.settingsService.getAllAdminView();
+  }
+
+  @Get('session-policy')
+  getSessionPolicy() {
+    return this.settingsService.getSessionPolicy();
   }
 
   @Put()
@@ -64,6 +77,9 @@ export class SettingsController {
     if (dto.smtpFromName !== undefined) data['smtp.fromName'] = dto.smtpFromName;
     if (dto.invitationSubject !== undefined) data['email.invitationSubject'] = dto.invitationSubject;
     if (dto.invitationTemplateHtml !== undefined) data['email.invitationTemplateHtml'] = dto.invitationTemplateHtml;
+    if (dto.sessionInactivityTimeoutMinutes !== undefined) {
+      data['session.inactivityTimeoutMinutes'] = String(dto.sessionInactivityTimeoutMinutes);
+    }
     if (Object.keys(data).length === 0) {
       return this.settingsService.getAllAdminView();
     }

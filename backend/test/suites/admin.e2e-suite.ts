@@ -94,6 +94,26 @@ export function adminSuite() {
     it('GET /api/settings → non-admin gets 403', async () => {
       await req().get('/api/settings').set('Cookie', cookieHeader(state.medicoCookies)).expect(403);
     });
+
+    it('GET /api/settings/session-policy → authenticated users can read the effective inactivity timeout', async () => {
+      await req()
+        .put('/api/settings')
+        .set('Cookie', cookieHeader(state.adminCookies))
+        .send({ sessionInactivityTimeoutMinutes: 30 })
+        .expect(200);
+
+      const medicoRes = await req()
+        .get('/api/settings/session-policy')
+        .set('Cookie', cookieHeader(state.medicoCookies))
+        .expect(200);
+
+      expect(medicoRes.body).toEqual({
+        inactivityTimeoutMinutes: 30,
+        defaultMinutes: 15,
+        minMinutes: 5,
+        maxMinutes: 240,
+      });
+    });
   });
 
   describe('Admin - Audit', () => {

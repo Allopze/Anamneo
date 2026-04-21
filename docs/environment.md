@@ -88,7 +88,7 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 
 ### Produccion con Docker Compose + cloudflared
 
-- `docker-compose.yml` exige `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN` y `NEXT_PUBLIC_API_URL`.
+- `docker-compose.yml` exige `JWT_SECRET`, `JWT_REFRESH_SECRET`, `BOOTSTRAP_TOKEN`, `CORS_ORIGIN`, `APP_PUBLIC_URL` y `SETTINGS_ENCRYPTION_KEY`.
 - El frontend recibe `NEXT_PUBLIC_API_URL` como argumento de build y tambien como variable de runtime.
 - El backend aplica chequeos de seguridad al arrancar y falla rapido si encuentra placeholders.
 - `BACKEND_BIND_HOST` y `FRONTEND_BIND_HOST` deberian quedarse en `127.0.0.1` salvo que tengas un motivo muy claro para abrirlos.

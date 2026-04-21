@@ -113,33 +113,17 @@ export default function ConditionSelector({
   );
 
   return (
-    <div className="space-y-2" ref={wrapperRef}>
-      {label && <label className="form-label">{label}</label>}
-      
-      {/* Selected tags */}
-      <div className="flex flex-wrap gap-2 mb-2">
-        {selected.map((item) => (
-          <span
-            key={item}
-            className="inline-flex items-center gap-1 rounded-full border border-status-yellow/65 bg-status-yellow/35 px-2.5 py-1 text-sm font-medium text-accent-text animate-fade-in"
-          >
-            <FiTag className="w-3 h-3" />
-            {item}
-            <button
-              type="button"
-              onClick={() => handleRemove(item)}
-              className="rounded-full p-0.5 transition-colors hover:bg-status-yellow/40"
-            >
-              <FiX className="w-3 h-3" />
-            </button>
+    <div className="space-y-3" ref={wrapperRef}>
+      <div className="rounded-card border border-surface-muted/35 bg-surface-base/45 p-3">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          {label ? <label className="form-label mb-0">{label}</label> : <span className="text-sm font-medium text-ink">Catálogo</span>}
+          <span className="text-xs font-medium text-ink-muted">
+            {selected.length} {selected.length === 1 ? 'selección' : 'selecciones'}
           </span>
-        ))}
-      </div>
+        </div>
 
-      {/* Input and suggestions */}
-      <div className="relative">
         <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
+          <FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
           <input
             type="text"
             value={query}
@@ -149,19 +133,39 @@ export default function ConditionSelector({
             }}
             onFocus={() => setIsOpen(true)}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder || 'Buscar afección...'}
+            placeholder={placeholder || 'Buscar afección del catálogo...'}
             className="form-input pl-10"
           />
           {isLoading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              <div className="h-4 w-4 rounded-full border-2 border-frame/35 border-t-frame-dark animate-spin" />
             </div>
           )}
         </div>
+      </div>
 
-        {/* Dropdown */}
-        {isOpen && (trimmedQuery || suggestions.length > 0) && (
-          <div className="absolute z-50 w-full mt-2 dropdown-surface max-h-64 overflow-y-auto">
+      <div className="flex flex-wrap gap-2">
+        {selected.map((item) => (
+          <span
+            key={item}
+            className="inline-flex items-center gap-1 rounded-full border border-surface-muted/45 bg-surface-inset px-2.5 py-1 text-sm font-medium text-ink animate-fade-in"
+          >
+            <FiTag className="h-3 w-3 text-ink-muted" />
+            {item}
+            <button
+              type="button"
+              onClick={() => handleRemove(item)}
+              className="rounded-full p-0.5 text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
+            >
+              <FiX className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+      </div>
+
+      {isOpen && (trimmedQuery || suggestions.length > 0) && (
+        <div className="relative">
+          <div className="absolute z-50 mt-0 w-full dropdown-surface max-h-64 overflow-y-auto">
             {suggestions.length > 0 && (
               <div className="dropdown-header py-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Sugerencias</p>
@@ -179,30 +183,29 @@ export default function ConditionSelector({
                 <div>
                   <p className="font-medium text-ink-primary">{condition.name}</p>
                   {condition.tags?.length > 0 && (
-                    <div className="flex gap-1 mt-0.5">
+                    <div className="mt-0.5 flex gap-1">
                       {parseJsonArray(condition.tags).map((tag: string) => (
-                        <span key={tag} className="text-[10px] bg-surface-muted px-1 rounded">
+                        <span key={tag} className="rounded bg-surface-muted px-1 text-[10px] text-ink-secondary">
                           {tag}
                         </span>
                       ))}
                     </div>
                   )}
                 </div>
-                <FiPlus className="w-4 h-4 text-ink-muted" />
+                <FiPlus className="h-4 w-4 text-ink-muted" />
               </button>
             ))}
 
-            {/* Manual add option */}
             {trimmedQuery && !hasExactSuggestion && (
-              <div className="border-t border-surface-muted/20 bg-status-yellow/15">
+              <div className="border-t border-surface-muted/30 bg-surface-base/50">
                 <button
                   type="button"
                   onClick={() => {
                     void handleAdd(trimmedQuery);
                   }}
-                  className="dropdown-item py-3 text-accent-text"
+                  className="dropdown-item py-3 text-ink"
                 >
-                  <FiPlus className="w-4 h-4" />
+                  <FiPlus className="h-4 w-4" />
                   <span>Agregar solo al historial: <strong>"{trimmedQuery}"</strong></span>
                 </button>
                 {allowCatalogPersistence && (
@@ -213,11 +216,11 @@ export default function ConditionSelector({
                     }}
                     disabled={isPersistingToCatalog}
                     className={clsx(
-                      'dropdown-item py-3 text-ink-primary',
+                      'dropdown-item py-3 text-ink',
                       isPersistingToCatalog && 'cursor-not-allowed opacity-60',
                     )}
                   >
-                    <FiPlus className="w-4 h-4" />
+                    <FiPlus className="h-4 w-4" />
                     <span>
                       {isPersistingToCatalog
                         ? 'Guardando en catálogo local...'
@@ -229,13 +232,13 @@ export default function ConditionSelector({
             )}
 
             {!isLoading && trimmedQuery && suggestions.length === 0 && (
-              <div className="px-4 py-3 text-sm text-ink-muted text-center">
+              <div className="px-4 py-3 text-center text-sm text-ink-muted">
                 No se encontraron resultados para "{trimmedQuery}"
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

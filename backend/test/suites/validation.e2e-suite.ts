@@ -101,6 +101,7 @@ export function validationSuite() {
         .set('Cookie', cookieHeader(medico2Cookies))
         .send({
           nombre: 'Paciente Medico2',
+          fechaNacimiento: '1986-09-14',
           edad: 40,
           sexo: 'FEMENINO',
           prevision: 'ISAPRE',
@@ -408,6 +409,7 @@ export function validationSuite() {
         .set('Cookie', cookieHeader(state.medicoCookies))
         .send({
           nombre: 'Paciente Volumen',
+          fechaNacimiento: '1974-02-11',
           edad: 52,
           sexo: 'MASCULINO',
           prevision: 'FONASA',

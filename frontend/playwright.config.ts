@@ -1,9 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'path';
 
 const backendRoot = path.resolve(__dirname, '../backend');
-const testDbPath = path.join(backendRoot, 'prisma', 'e2e-playwright.db');
+const e2eRunId = process.env.PLAYWRIGHT_E2E_RUN_ID || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const e2eWorkspace = path.join(os.tmpdir(), 'anamneo-playwright-e2e', e2eRunId);
+fs.mkdirSync(e2eWorkspace, { recursive: true });
+
+const testDbPath = path.join(e2eWorkspace, 'database.db');
 const testDbUrl = `file:${testDbPath}`;
+const testUploadDir = path.join(e2eWorkspace, 'uploads');
 const host = process.env.PLAYWRIGHT_HOST || '127.0.0.1';
 const frontendPort = process.env.PLAYWRIGHT_FRONTEND_PORT || '5555';
 const backendPort = process.env.PLAYWRIGHT_BACKEND_PORT || '5678';
@@ -47,7 +54,7 @@ export default defineConfig({
         PORT: backendPort,
         CORS_ORIGIN: baseURL,
         TRUST_PROXY: '0',
-        UPLOAD_DEST: path.join(backendRoot, 'uploads-e2e'),
+        UPLOAD_DEST: testUploadDir,
         SETTINGS_ENCRYPTION_KEY: 'e2e-settings-encryption-key-0123456789ab',
         APP_PUBLIC_URL: baseURL,
         BOOTSTRAP_TOKEN: 'e2e-bootstrap-token',

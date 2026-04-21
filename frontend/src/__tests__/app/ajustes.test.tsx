@@ -104,6 +104,7 @@ describe('AjustesPage', () => {
         return Promise.resolve({
           data: {
             'clinic.name': 'Centro Demo',
+            'session.inactivityTimeoutMinutes': '30',
             'smtp.host': 'smtp.demo.cl',
             'smtp.user': 'mailer@demo.cl',
             'smtp.passwordConfigured': 'true',
@@ -180,6 +181,27 @@ describe('AjustesPage', () => {
     const [, payload] = apiPutMock.mock.calls[0];
     expect(payload.smtpPassword).toBeUndefined();
     expect(payload.smtpHost).toBe('smtp.demo.cl');
+  });
+
+  it('lets admin persist the inactivity timeout from the system tab', async () => {
+    searchParamsValue = 'tab=sistema';
+    render(<AjustesPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Tiempo de inactividad de sesión')).toBeInTheDocument();
+
+    const timeoutInput = screen.getByLabelText('Minutos antes del cierre automático') as HTMLInputElement;
+    expect(timeoutInput.value).toBe('30');
+
+    await userEvent.clear(timeoutInput);
+    await userEvent.type(timeoutInput, '45');
+    await userEvent.click(screen.getByRole('button', { name: /Guardar política de sesión/i }));
+
+    await waitFor(() => {
+      expect(apiPutMock).toHaveBeenCalledWith(
+        '/settings',
+        expect.objectContaining({ sessionInactivityTimeoutMinutes: 45 }),
+      );
+    });
   });
 
   it('does not query admin settings for a non-admin user', async () => {

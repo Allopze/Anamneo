@@ -54,7 +54,7 @@ export default function CambiarContrasenaPage() {
     try {
       await api.post('/auth/change-password', { currentPassword, newPassword });
       toast.success('Contraseña actualizada. Inicie sesión nuevamente.');
-      logout();
+      logout({ clearLocalState: true });
       router.replace('/login');
     } catch (err) {
       setError(getErrorMessage(err));

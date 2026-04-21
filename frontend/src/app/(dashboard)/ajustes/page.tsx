@@ -110,7 +110,11 @@ function AjustesContent() {
       )}
 
       {aj.isAdmin && aj.activeTab === 'sistema' && (
-        <SystemTab />
+        <SystemTab
+          systemConfig={aj.systemConfig}
+          setSystemConfig={aj.setSystemConfig}
+          clinicMutation={aj.clinicMutation}
+        />
       )}
     </div>
   );

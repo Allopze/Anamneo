@@ -124,6 +124,8 @@ unzip anamneo-<timestamp>.zip -d anamneo
 cd anamneo
 mkdir -p runtime/data runtime/uploads
 cp .env.example .env
+# Completa al menos JWT_SECRET, JWT_REFRESH_SECRET, BOOTSTRAP_TOKEN,
+# CORS_ORIGIN, APP_PUBLIC_URL y SETTINGS_ENCRYPTION_KEY antes de seguir.
 docker compose build
 docker compose run --rm --no-deps backend npx prisma migrate deploy
 docker compose up -d
@@ -136,14 +138,16 @@ unzip anamneo-<timestamp>.zip -d anamneo
 cd anamneo
 mkdir -p runtime/data runtime/uploads
 cp .env.example .env
+# Completa al menos JWT_SECRET, JWT_REFRESH_SECRET, BOOTSTRAP_TOKEN,
+# CORS_ORIGIN, APP_PUBLIC_URL y SETTINGS_ENCRYPTION_KEY antes de seguir.
 docker compose build
 npm run deploy
 ```
 
 El script `scripts/deploy.sh` ejecuta:
 
-1. Backup pre-migración de la DB activa (con WAL y SHM si existen).
-2. Restore drill sobre el backup para validar que es utilizable.
+1. Backup pre-migración usando `backend/scripts/sqlite-backup.js`, incluyendo metadata y snapshot de uploads.
+2. Restore drill sobre ese backup para validar que es utilizable también cuando existen adjuntos.
 3. `prisma migrate deploy`.
 4. Si la migración falla, ofrece rollback automático al estado previo.
 5. `docker compose up -d` y espera health check del backend.
@@ -173,18 +177,17 @@ Para rollback manual fuera del script:
 
 ```bash
 docker compose down
-cp runtime/data/backups/pre-deploy-<timestamp>.db runtime/data/anamneo.db
+cp runtime/data/backups/anamneo-<timestamp>.db runtime/data/anamneo.db
 docker compose up -d
 ```
 
 Si la migración ya se aplicó y necesitas volver atrás:
 
-1. Identifica el backup pre-deploy más reciente en `runtime/data/backups/`.
+1. Identifica el backup más reciente en `runtime/data/backups/`.
 2. Detén los servicios: `docker compose down`.
-3. Restaura la DB: `cp runtime/data/backups/pre-deploy-<timestamp>.db runtime/data/anamneo.db`.
-4. Si existen, restaura WAL y SHM con el mismo prefijo.
-5. Levanta: `docker compose up -d`.
-6. Verifica: `curl http://127.0.0.1:5678/api/health`.
+3. Restaura la DB: `cp runtime/data/backups/anamneo-<timestamp>.db runtime/data/anamneo.db`.
+4. Levanta: `docker compose up -d`.
+5. Verifica: `curl http://127.0.0.1:5678/api/health`.
 
 El cron de backup (`backup-cron`) ahora ejecuta `sqlite-ops-runner.js --mode=all`, que incluye backup + restore drill periódico + monitor + alertas. Los restore drills se ejecutan automáticamente según `SQLITE_RESTORE_DRILL_FREQUENCY_DAYS` (default: 7 días).
 

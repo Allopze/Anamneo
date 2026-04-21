@@ -10,6 +10,10 @@ import {
 } from './settings-encryption';
 
 const SECRET_SETTING_KEYS = new Set(['smtp.password']);
+const SESSION_INACTIVITY_TIMEOUT_KEY = 'session.inactivityTimeoutMinutes';
+const DEFAULT_SESSION_INACTIVITY_TIMEOUT_MINUTES = 15;
+const MIN_SESSION_INACTIVITY_TIMEOUT_MINUTES = 5;
+const MAX_SESSION_INACTIVITY_TIMEOUT_MINUTES = 240;
 
 @Injectable()
 export class SettingsService {
@@ -173,6 +177,42 @@ export class SettingsService {
 
     const [normalizedSetting] = await this.normalizeSecretSettings([setting]);
     return this.decodeSettingValue(normalizedSetting.key, normalizedSetting.value);
+  }
+
+  getSessionInactivityTimeoutConstraints() {
+    return {
+      defaultMinutes: DEFAULT_SESSION_INACTIVITY_TIMEOUT_MINUTES,
+      minMinutes: MIN_SESSION_INACTIVITY_TIMEOUT_MINUTES,
+      maxMinutes: MAX_SESSION_INACTIVITY_TIMEOUT_MINUTES,
+    };
+  }
+
+  private parseSessionInactivityTimeoutMinutes(rawValue: string | null) {
+    const constraints = this.getSessionInactivityTimeoutConstraints();
+
+    if (!rawValue) {
+      return constraints.defaultMinutes;
+    }
+
+    const parsedValue = Number.parseInt(rawValue, 10);
+    if (!Number.isFinite(parsedValue)) {
+      return constraints.defaultMinutes;
+    }
+
+    return Math.min(
+      constraints.maxMinutes,
+      Math.max(constraints.minMinutes, parsedValue),
+    );
+  }
+
+  async getSessionPolicy() {
+    const configuredValue = await this.get(SESSION_INACTIVITY_TIMEOUT_KEY);
+    const constraints = this.getSessionInactivityTimeoutConstraints();
+
+    return {
+      inactivityTimeoutMinutes: this.parseSessionInactivityTimeoutMinutes(configuredValue),
+      ...constraints,
+    };
   }
 
   async set(key: string, value: string) {

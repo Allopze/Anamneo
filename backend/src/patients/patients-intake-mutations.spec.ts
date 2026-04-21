@@ -44,6 +44,31 @@ describe('patients-intake-mutations', () => {
     expect(prisma.patient.create).not.toHaveBeenCalled();
   });
 
+  it('rejects full patient creation without birth date', async () => {
+    const prisma = {
+      patient: {
+        create: jest.fn(),
+        findFirst: jest.fn(),
+      },
+    };
+
+    await expect(
+      createPatientMutation({
+        prisma: prisma as never,
+        auditService: auditService as never,
+        createPatientDto: {
+          nombre: 'Paciente Demo',
+          edad: 35,
+          sexo: 'FEMENINO',
+          prevision: 'FONASA',
+        },
+        userId: 'med-1',
+      }),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(prisma.patient.create).not.toHaveBeenCalled();
+  });
+
   it('creates full patient and emits CREATE audit record', async () => {
     const createdPatient = {
       id: 'patient-1',
@@ -51,7 +76,7 @@ describe('patients-intake-mutations', () => {
       rut: null,
       rutExempt: false,
       rutExemptReason: null,
-      fechaNacimiento: null,
+      fechaNacimiento: new Date('1990-05-10T12:00:00.000Z'),
       edad: 35,
       edadMeses: 2,
       sexo: 'FEMENINO',
@@ -90,6 +115,7 @@ describe('patients-intake-mutations', () => {
         edadMeses: 2,
         sexo: 'FEMENINO',
         prevision: 'FONASA',
+        fechaNacimiento: '1990-05-10',
         trabajo: 'Profesora',
         domicilio: 'Calle 123',
         centroMedico: 'Centro',
@@ -103,7 +129,7 @@ describe('patients-intake-mutations', () => {
           createdById: 'med-1',
           registrationMode: 'COMPLETO',
           nombre: 'Paciente Demo',
-          fechaNacimiento: null,
+          fechaNacimiento: new Date('1990-05-10T12:00:00.000Z'),
         }),
         include: { history: true },
       }),

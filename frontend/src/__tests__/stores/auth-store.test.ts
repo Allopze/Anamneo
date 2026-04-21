@@ -40,8 +40,11 @@ beforeEach(() => {
   clearPendingSavesForUserMock.mockReset();
   clearPendingSavesForUserMock.mockResolvedValue(undefined);
   act(() => {
-    useAuthStore.getState().logout();
+    useAuthStore.getState().logout({ clearLocalState: true });
   });
+  clearEncounterLocalStateForUserMock.mockReset();
+  clearPendingSavesForUserMock.mockReset();
+  clearPendingSavesForUserMock.mockResolvedValue(undefined);
 });
 
 describe('useAuthStore', () => {
@@ -61,10 +64,23 @@ describe('useAuthStore', () => {
     expect(state.isAuthenticated).toBe(true);
   });
 
-  it('logout clears user', () => {
+  it('logout clears user without wiping drafts by default', () => {
     act(() => {
       useAuthStore.getState().login(medicoUser);
       useAuthStore.getState().logout();
+    });
+
+    const state = useAuthStore.getState();
+    expect(state.user).toBeNull();
+    expect(state.isAuthenticated).toBe(false);
+    expect(clearEncounterLocalStateForUserMock).not.toHaveBeenCalled();
+    expect(clearPendingSavesForUserMock).not.toHaveBeenCalled();
+  });
+
+  it('logout can clear local drafts on explicit logout', () => {
+    act(() => {
+      useAuthStore.getState().login(medicoUser);
+      useAuthStore.getState().logout({ clearLocalState: true });
     });
 
     const state = useAuthStore.getState();

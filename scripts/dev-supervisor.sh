@@ -3,7 +3,9 @@ set -euo pipefail
 
 backend_pid=""
 frontend_pid=""
+watchdog_pid=""
 is_stopping=0
+session_leader_pid="$(ps -o sid= -p $$ | tr -d ' ')"
 
 sanitize_local_env() {
   # Ignore incompatible global overrides and let each app load its local .env files.
@@ -31,11 +33,7 @@ start_process() {
 
   echo "[dev] Starting ${label}..." >&2
 
-  if command -v setsid >/dev/null 2>&1; then
-    setsid "$@" </dev/null >&2 &
-  else
-    "$@" </dev/null >&2 &
-  fi
+  "$@" </dev/null >&2 &
 
   local pid=$!
   echo "[dev] ${label} pid=${pid}" >&2
@@ -53,6 +51,32 @@ stop_process() {
   kill -TERM "-${pid}" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
 }
 
+stop_watchdog() {
+  if [[ -z "$watchdog_pid" ]] || ! kill -0 "$watchdog_pid" 2>/dev/null; then
+    return
+  fi
+
+  kill -TERM "$watchdog_pid" 2>/dev/null || true
+  wait "$watchdog_pid" 2>/dev/null || true
+}
+
+start_session_watchdog() {
+  if [[ -z "$session_leader_pid" ]] || [[ "$session_leader_pid" -le 1 ]]; then
+    return
+  fi
+
+  (
+    while kill -0 "$session_leader_pid" 2>/dev/null; do
+      sleep 1
+    done
+
+    echo "[dev] Terminal session ${session_leader_pid} ended. Stopping services..." >&2
+    kill -TERM "$$" 2>/dev/null || true
+  ) &
+
+  watchdog_pid=$!
+}
+
 shutdown() {
   local reason="${1:-EXIT}"
 
@@ -63,6 +87,7 @@ shutdown() {
 
   echo "[dev] Stopping services (${reason})..." >&2
 
+  stop_watchdog
   stop_process "$backend_pid"
   stop_process "$frontend_pid"
 
@@ -79,6 +104,7 @@ sanitize_local_env
 
 start_process backend_pid backend npm run dev:backend
 start_process frontend_pid frontend npm run dev:frontend
+start_session_watchdog
 
 # macOS bash does not support `wait -n`; poll the child PIDs instead.
 child_status=0

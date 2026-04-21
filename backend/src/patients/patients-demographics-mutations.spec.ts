@@ -253,4 +253,53 @@ describe('patients-demographics-mutations', () => {
       tx,
     );
   });
+
+  it('marks a previously verified record as incomplete when birth date is removed by admin fields update', async () => {
+    const existingPatient = buildExistingPatient();
+    const updatedPatient = {
+      ...existingPatient,
+      fechaNacimiento: null,
+      completenessStatus: 'INCOMPLETA',
+      demographicsVerifiedAt: null,
+      demographicsVerifiedById: null,
+    };
+
+    const tx = {
+      patient: {
+        update: jest.fn().mockResolvedValue(updatedPatient),
+      },
+    };
+
+    const prisma = {
+      patient: {
+        findUnique: jest.fn().mockResolvedValue(existingPatient),
+      },
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const auditService = { log: jest.fn().mockResolvedValue(undefined) };
+    const assertPatientAccess = jest.fn().mockResolvedValue(existingPatient);
+
+    const result = await updatePatientAdminDemographicsMutation({
+      prisma: prisma as never,
+      auditService: auditService as never,
+      patientId: 'patient-1',
+      dto: {
+        fechaNacimiento: null,
+      },
+      user: adminUser,
+      assertPatientAccess,
+    });
+
+    expect(result).toBe(updatedPatient);
+    expect(tx.patient.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          fechaNacimiento: null,
+          completenessStatus: 'INCOMPLETA',
+          demographicsVerifiedAt: null,
+          demographicsVerifiedById: null,
+        }),
+      }),
+    );
+  });
 });

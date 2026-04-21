@@ -30,7 +30,7 @@ interface AuthState {
   setUser: (user: User) => void;
   setHasHydrated: (value: boolean) => void;
   login: (user: User) => void;
-  logout: () => void;
+  logout: (options?: { clearLocalState?: boolean }) => void;
   isMedico: () => boolean;
   isAsistente: () => boolean;
   isAdmin: () => boolean;
@@ -58,9 +58,9 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
         }),
 
-      logout: () => {
+      logout: (options) => {
         const currentUserId = get().user?.id;
-        if (currentUserId) {
+        if (currentUserId && options?.clearLocalState) {
           clearEncounterLocalStateForUser(currentUserId);
           void clearPendingSavesForUser(currentUserId).catch(() => {
             // Ignore IndexedDB cleanup failures; the session still must close.

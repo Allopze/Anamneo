@@ -1,6 +1,7 @@
 const { existsSync } = require('node:fs');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
+const { installProcessGuard, readProcessIdentity } = require('../../scripts/dev-process-guard');
 
 const backendRoot = path.resolve(__dirname, '..');
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
@@ -9,6 +10,7 @@ const entryPoint = path.join(backendRoot, 'dist', 'backend', 'src', 'main.js');
 const args = new Set(process.argv.slice(2));
 const shouldMigrate = args.has('--migrate');
 const shouldInspect = args.has('--inspect');
+const processIdentity = readProcessIdentity();
 
 let buildProcess = null;
 let serverProcess = null;
@@ -59,7 +61,13 @@ function startServer() {
 
   serverProcess = spawn(process.execPath, nodeArgs, {
     cwd: backendRoot,
-    env: process.env,
+    env: {
+      ...process.env,
+      ANAMNEO_DEV_EXPECTED_PARENT_PID: String(process.pid),
+      ANAMNEO_DEV_SESSION_LEADER_PID: processIdentity.sessionLeaderPid
+        ? String(processIdentity.sessionLeaderPid)
+        : '',
+    },
     stdio: 'inherit',
   });
 
@@ -131,6 +139,17 @@ function shutdown(code = 0) {
     maybeExit();
   }
 }
+
+installProcessGuard({
+  onParentGone(reason) {
+    if (isStopping) {
+      return;
+    }
+
+    console.error(`[dev-watch] ${reason}. Shutting down backend watcher...`);
+    shutdown(0);
+  },
+});
 
 if (shouldMigrate) {
   runOrExit(npmCommand, ['run', 'prisma:migrate:prod']);

@@ -8,7 +8,6 @@ import { formatMedicationCatalogDefaults, MEDICATION_ROUTE_OPTIONS } from '@/lib
 import { parseHistoryField } from '@/lib/utils';
 import TreatmentDiagnosisSelect, { type TreatmentDiagnosisOption } from '@/components/sections/TreatmentDiagnosisSelect';
 import {
-  SectionAddButton,
   SectionIconButton,
 } from '@/components/sections/SectionPrimitives';
 
@@ -20,24 +19,23 @@ interface StructuredMedicationsEditorProps {
   diagnosticOptions?: TreatmentDiagnosisOption[];
 }
 
-interface MedicationCatalogFieldProps {
-  medication: StructuredMedication;
-  onManualChange: (value: string) => void;
-  onSelectSuggestion: (item: MedicationCatalogItem) => void;
+interface MedicationCatalogToolbarProps {
   readOnly?: boolean;
+  onSelectSuggestion: (item: MedicationCatalogItem) => void;
+  onAddManual: () => void;
 }
 
-function MedicationCatalogField({
-  medication,
-  onManualChange,
-  onSelectSuggestion,
+function MedicationCatalogToolbar({
   readOnly,
-}: MedicationCatalogFieldProps) {
+  onSelectSuggestion,
+  onAddManual,
+}: MedicationCatalogToolbarProps) {
+  const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<MedicationCatalogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const trimmedQuery = medication.nombre?.trim() || '';
+  const trimmedQuery = query.trim();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -85,40 +83,38 @@ function MedicationCatalogField({
     };
   }, [isOpen, readOnly, trimmedQuery]);
 
+  if (readOnly) {
+    return null;
+  }
+
   return (
     <div className="relative" ref={wrapperRef}>
-      <div className="relative">
-        <FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
-        <input
-          className="form-input pl-10"
-          placeholder="Medicamento"
-          value={medication.nombre || ''}
-          disabled={readOnly}
-          autoComplete="off"
-          onFocus={() => {
-            if (!readOnly) {
+      <div className="flex flex-col gap-2 rounded-card border border-surface-muted/35 bg-surface-base/45 p-3 lg:flex-row lg:items-center">
+        <div className="relative min-w-0 flex-1">
+          <FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+          <input
+            className="form-input pl-10"
+            placeholder="Buscar medicamento del catálogo..."
+            value={query}
+            autoComplete="off"
+            onFocus={() => setIsOpen(true)}
+            onChange={(event) => {
+              setQuery(event.target.value);
               setIsOpen(true);
-            }
-          }}
-          onChange={(event) => {
-            onManualChange(event.target.value);
-            if (!readOnly) {
-              setIsOpen(true);
-            }
-          }}
-        />
-        {isLoading ? (
-          <div className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-        ) : null}
+            }}
+          />
+          {isLoading ? (
+            <div className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-frame/35 border-t-frame-dark animate-spin" />
+          ) : null}
+        </div>
+
+        <button type="button" onClick={onAddManual} className="btn btn-secondary shrink-0">
+          <FiPlus className="h-4 w-4" />
+          Agregar manual
+        </button>
       </div>
 
-      {medication.activeIngredient ? (
-        <p className="mt-1 text-xs text-ink-muted">
-          Principio activo catalogado: {medication.activeIngredient}
-        </p>
-      ) : null}
-
-      {isOpen && !readOnly && trimmedQuery.length >= 2 ? (
+      {isOpen && trimmedQuery.length >= 2 ? (
         <div className="absolute z-50 mt-2 max-h-64 w-full overflow-y-auto dropdown-surface">
           {suggestions.length > 0 ? (
             <>
@@ -127,41 +123,73 @@ function MedicationCatalogField({
                   Catálogo de medicamentos
                 </p>
               </div>
-              {suggestions.map((item) => (
-                (() => {
-                  const defaultSummary = formatMedicationCatalogDefaults(item);
+              {suggestions.map((item) => {
+                const defaultSummary = formatMedicationCatalogDefaults(item);
 
-                  return (
-                    <button
-                      type="button"
-                      key={item.id}
-                      onClick={() => {
-                        onSelectSuggestion(item);
-                        setIsOpen(false);
-                      }}
-                      className="dropdown-item justify-between py-3"
-                    >
-                      <div className="min-w-0 text-left">
-                        <p className="truncate font-medium text-ink-primary">{item.name}</p>
-                        <p className="truncate text-xs text-ink-muted">
-                          Principio activo: {item.activeIngredient}
-                        </p>
-                        {defaultSummary ? (
-                          <p className="truncate text-xs text-ink-muted">Sugerido: {defaultSummary}</p>
-                        ) : null}
-                      </div>
-                      <FiPackage className="h-4 w-4 flex-shrink-0 text-ink-muted" />
-                    </button>
-                  );
-                })()
-              ))}
+                return (
+                  <button
+                    type="button"
+                    key={item.id}
+                    onClick={() => {
+                      onSelectSuggestion(item);
+                      setQuery('');
+                      setIsOpen(false);
+                    }}
+                    className="dropdown-item justify-between py-3"
+                  >
+                    <div className="min-w-0 text-left">
+                      <p className="truncate font-medium text-ink-primary">{item.name}</p>
+                      <p className="truncate text-xs text-ink-muted">
+                        Principio activo: {item.activeIngredient}
+                      </p>
+                      {defaultSummary ? (
+                        <p className="truncate text-xs text-ink-muted">Sugerido: {defaultSummary}</p>
+                      ) : null}
+                    </div>
+                    <FiPackage className="h-4 w-4 flex-shrink-0 text-ink-muted" />
+                  </button>
+                );
+              })}
             </>
           ) : !isLoading ? (
-            <div className="px-4 py-3 text-sm text-center text-ink-muted">
-              Sin coincidencias en el catálogo. Puedes seguir con texto libre.
+            <div className="px-4 py-3 text-center text-sm text-ink-muted">
+              Sin coincidencias en el catálogo.
             </div>
           ) : null}
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+interface MedicationNameFieldProps {
+  medication: StructuredMedication;
+  onManualChange: (value: string) => void;
+  readOnly?: boolean;
+}
+
+function MedicationNameField({
+  medication,
+  onManualChange,
+  readOnly,
+}: MedicationNameFieldProps) {
+  return (
+    <div>
+      <input
+        className="form-input"
+        placeholder="Medicamento"
+        value={medication.nombre || ''}
+        disabled={readOnly}
+        autoComplete="off"
+        onChange={(event) => {
+          onManualChange(event.target.value);
+        }}
+      />
+
+      {medication.activeIngredient ? (
+        <p className="mt-1 text-xs text-ink-muted">
+          Principio activo catalogado: {medication.activeIngredient}
+        </p>
       ) : null}
     </div>
   );
@@ -230,44 +258,85 @@ export default function StructuredMedicationsEditor({
     onChange(next);
   };
 
+  const createMedication = (patch: Partial<StructuredMedication> = {}) => ({
+    id: createId(),
+    nombre: '',
+    dosis: '',
+    via: '',
+    frecuencia: '',
+    duracion: '',
+    indicacion: '',
+    ...patch,
+  });
+
+  const appendMedication = (patch: Partial<StructuredMedication> = {}) => {
+    const blankIndex = medications.findIndex((item) =>
+      isBlank(item.nombre)
+      && isBlank(item.dosis)
+      && isBlank(item.via)
+      && isBlank(item.frecuencia)
+      && isBlank(item.duracion)
+      && isBlank(item.indicacion)
+      && !item.activeIngredient,
+    );
+
+    if (blankIndex >= 0) {
+      updateMedication(blankIndex, patch);
+      return;
+    }
+
+    onChange([...medications, createMedication(patch)]);
+  };
+
+  const addCatalogMedication = (item: MedicationCatalogItem) => {
+    const nameBlankIndex = medications.findIndex((entry) => isBlank(entry.nombre));
+
+    if (nameBlankIndex >= 0) {
+      const current = medications[nameBlankIndex];
+      updateMedication(nameBlankIndex, {
+        nombre: item.name,
+        activeIngredient: item.activeIngredient,
+        ...((!current.dosis || isBlank(current.dosis)) && item.defaultDose
+          ? { dosis: item.defaultDose }
+          : {}),
+        ...((!current.via || isBlank(current.via)) && item.defaultRoute
+          ? { via: item.defaultRoute }
+          : {}),
+        ...((!current.frecuencia || isBlank(current.frecuencia)) && item.defaultFrequency
+          ? { frecuencia: item.defaultFrequency }
+          : {}),
+      });
+      return;
+    }
+
+    appendMedication({
+      nombre: item.name,
+      activeIngredient: item.activeIngredient,
+      ...(item.defaultDose ? { dosis: item.defaultDose } : {}),
+      ...(item.defaultRoute ? { via: item.defaultRoute } : {}),
+      ...(item.defaultFrequency ? { frecuencia: item.defaultFrequency } : {}),
+    });
+  };
+
   return (
     <div className="space-y-2">
+      <MedicationCatalogToolbar
+        readOnly={readOnly}
+        onAddManual={() => appendMedication()}
+        onSelectSuggestion={addCatalogMedication}
+      />
+
       {medications.map((medication, index) => {
         const allergyMatch = getAllergyMatch(medication.nombre || '');
 
         return (
           <div key={medication.id} className="section-item-card grid grid-cols-1 gap-2 md:grid-cols-7">
             <div className={`md:col-span-2${allergyMatch ? ' rounded-input border border-status-red/60 p-2' : ''}`}>
-              <MedicationCatalogField
+              <MedicationNameField
                 medication={medication}
                 readOnly={readOnly}
                 onManualChange={(value) => {
                   updateMedication(index, { nombre: value, activeIngredient: undefined });
-                }}
-                onSelectSuggestion={(item) => {
-                  const nextMedication: Partial<StructuredMedication> = {
-                    nombre: item.name,
-                    activeIngredient: item.activeIngredient,
-                    ...(!medication.dosis || isBlank(medication.dosis)
-                      ? item.defaultDose
-                        ? { dosis: item.defaultDose }
-                        : {}
-                      : {}),
-                    ...(!medication.via || isBlank(medication.via)
-                      ? item.defaultRoute
-                        ? { via: item.defaultRoute }
-                        : {}
-                      : {}),
-                    ...(!medication.frecuencia || isBlank(medication.frecuencia)
-                      ? item.defaultFrequency
-                        ? { frecuencia: item.defaultFrequency }
-                        : {}
-                      : {}),
-                  };
-
-                  updateMedication(index, {
-                    ...nextMedication,
-                  });
                 }}
               />
             </div>
@@ -337,27 +406,6 @@ export default function StructuredMedicationsEditor({
         );
       })}
 
-      {!readOnly ? (
-        <SectionAddButton
-          onClick={() =>
-            onChange([
-              ...medications,
-              {
-                id: createId(),
-                nombre: '',
-                dosis: '',
-                via: '',
-                frecuencia: '',
-                duracion: '',
-                indicacion: '',
-              },
-            ])
-          }
-        >
-          <FiPlus className="h-4 w-4" />
-          Agregar medicamento
-        </SectionAddButton>
-      ) : null}
     </div>
   );
 }

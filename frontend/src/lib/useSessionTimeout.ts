@@ -13,7 +13,7 @@ const ACTIVITY_EVENTS = ['mousedown', 'keydown', 'touchstart', 'scroll'] as cons
  * Hook that logs the user out after a period of inactivity.
  * Fires a warning callback 2 minutes before the timeout.
  */
-export function useSessionTimeout(onWarning?: () => void) {
+export function useSessionTimeout(onWarning?: () => void, inactivityTimeoutMs = INACTIVITY_TIMEOUT_MS) {
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -35,12 +35,12 @@ export function useSessionTimeout(onWarning?: () => void) {
 
     warningRef.current = setTimeout(() => {
       onWarning?.();
-    }, INACTIVITY_TIMEOUT_MS - WARNING_BEFORE_MS);
+    }, Math.max(inactivityTimeoutMs - WARNING_BEFORE_MS, 0));
 
     timeoutRef.current = setTimeout(() => {
       void performLogout();
-    }, INACTIVITY_TIMEOUT_MS);
-  }, [performLogout, onWarning]);
+    }, inactivityTimeoutMs);
+  }, [inactivityTimeoutMs, performLogout, onWarning]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

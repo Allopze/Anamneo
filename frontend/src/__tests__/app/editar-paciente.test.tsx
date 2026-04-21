@@ -162,6 +162,19 @@ describe('EditarPacientePage', () => {
     });
   });
 
+  it('requires birth date for doctor edits before submitting', async () => {
+    const user = userEvent.setup();
+    render(<EditarPacientePage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByDisplayValue('2020-05-15')).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText('Fecha de nacimiento'));
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('La fecha de nacimiento es obligatoria')).toBeInTheDocument();
+    expect(apiPutMock).not.toHaveBeenCalled();
+  });
+
   it('does not fetch the patient when the user will be redirected for lack of permissions', async () => {
     authStoreState.user = {
       id: 'assistant-1',

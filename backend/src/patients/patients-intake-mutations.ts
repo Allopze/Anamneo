@@ -29,6 +29,10 @@ interface CreatePatientQuickMutationParams {
 export async function createPatientMutation(params: CreatePatientMutationParams) {
   const { prisma, auditService, createPatientDto, userId } = params;
 
+  if (!createPatientDto.fechaNacimiento) {
+    throw new BadRequestException('La fecha de nacimiento es obligatoria para el registro clínico completo');
+  }
+
   const { formattedRut, trimmedRutExemptReason } = await resolveCreatePatientRutInput({
     prisma,
     rut: createPatientDto.rut,
@@ -52,6 +56,7 @@ export async function createPatientMutation(params: CreatePatientMutationParams)
       rut: resolvedRut.rut,
       rutExempt: resolvedRut.rutExempt,
       rutExemptReason: resolvedRut.rutExemptReason,
+      fechaNacimiento: createPatientDto.fechaNacimiento,
       edad: createPatientDto.edad,
       sexo: createPatientDto.sexo,
       prevision: createPatientDto.prevision,

@@ -28,10 +28,8 @@ cd "$ROOT_DIR"
 RUNTIME_DATA="$ROOT_DIR/runtime/data"
 RUNTIME_UPLOADS="$ROOT_DIR/runtime/uploads"
 BACKUP_DIR="$RUNTIME_DATA/backups"
-ROLLBACK_TAG="pre-deploy-$(date +%Y%m%d-%H%M%S)"
-ROLLBACK_DB="$BACKUP_DIR/$ROLLBACK_TAG.db"
-ROLLBACK_META="$ROLLBACK_DB.meta.json"
 DB_PATH="$RUNTIME_DATA/anamneo.db"
+ROLLBACK_DB=""
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -58,26 +56,19 @@ mkdir -p "$RUNTIME_DATA" "$RUNTIME_UPLOADS"
 mkdir -p "$BACKUP_DIR"
 
 if [[ -f "$DB_PATH" ]]; then
-  log "Tomando backup pre-migración de la base..."
-  cp "$DB_PATH" "$ROLLBACK_DB"
+  log "Tomando backup pre-migración con sqlite-backup.js..."
+  BACKUP_RESULT="$(docker compose run --rm --no-deps \
+    -e DATABASE_URL="file:/app/data/anamneo.db" \
+    -e SQLITE_BACKUP_DIR="/app/data/backups" \
+    -e UPLOAD_DEST="/app/uploads" \
+    backend node scripts/sqlite-backup.js)"
 
-  # Copy WAL if exists (for consistency)
-  if [[ -f "$DB_PATH-wal" ]]; then
-    cp "$DB_PATH-wal" "$ROLLBACK_DB-wal"
-  fi
-  if [[ -f "$DB_PATH-shm" ]]; then
-    cp "$DB_PATH-shm" "$ROLLBACK_DB-shm"
-  fi
+  ROLLBACK_FILE="$(printf '%s' "$BACKUP_RESULT" | node -e "let data='';process.stdin.on('data',(chunk)=>data+=chunk);process.stdin.on('end',()=>{const parsed=JSON.parse(data);if(!parsed.backupFile){process.exit(1)}process.stdout.write(parsed.backupFile)})")"
+  ROLLBACK_DB="$BACKUP_DIR/$ROLLBACK_FILE"
 
-  # Write metadata for the restore drill
-  cat > "$ROLLBACK_META" <<EOF
-{
-  "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "tag": "$ROLLBACK_TAG",
-  "type": "pre-deploy",
-  "uploadsRoot": "$RUNTIME_UPLOADS"
-}
-EOF
+  if [[ ! -f "$ROLLBACK_DB" ]]; then
+    fail "El backup pre-migración reportó éxito pero no apareció en $ROLLBACK_DB"
+  fi
 
   DB_SIZE=$(du -h "$ROLLBACK_DB" | cut -f1)
   log "Backup guardado: $ROLLBACK_DB ($DB_SIZE)"
@@ -92,6 +83,7 @@ if [[ -f "$ROLLBACK_DB" ]]; then
   if docker compose run --rm --no-deps \
     -e DATABASE_URL="file:/app/data/anamneo.db" \
     -e SQLITE_BACKUP_DIR="/app/data/backups" \
+    -e UPLOAD_DEST="/app/uploads" \
     backend node scripts/sqlite-restore-drill.js --from="/app/data/backups/$(basename "$ROLLBACK_DB")"; then
     log "Restore drill pasó — el backup es válido."
   else
@@ -116,16 +108,12 @@ else
     echo ""
     echo "  docker compose down"
     echo "  cp \"$ROLLBACK_DB\" \"$DB_PATH\""
-    [[ -f "$ROLLBACK_DB-wal" ]] && echo "  cp \"$ROLLBACK_DB-wal\" \"$DB_PATH-wal\""
-    [[ -f "$ROLLBACK_DB-shm" ]] && echo "  cp \"$ROLLBACK_DB-shm\" \"$DB_PATH-shm\""
     echo "  docker compose up -d"
     echo ""
     read -r -p "¿Ejecutar rollback automático ahora? [s/N] " REPLY
     if [[ "$REPLY" =~ ^[sS]$ ]]; then
       docker compose down 2>/dev/null || true
       cp "$ROLLBACK_DB" "$DB_PATH"
-      [[ -f "$ROLLBACK_DB-wal" ]] && cp "$ROLLBACK_DB-wal" "$DB_PATH-wal"
-      [[ -f "$ROLLBACK_DB-shm" ]] && cp "$ROLLBACK_DB-shm" "$DB_PATH-shm"
       log "Base restaurada desde $ROLLBACK_DB"
       log "Levantando servicios con estado anterior..."
       docker compose up -d

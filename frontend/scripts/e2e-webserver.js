@@ -51,15 +51,38 @@ function startFrontend() {
     stdio: 'inherit',
   });
 
-  const forwardSignal = (signal) => {
-    if (!server.killed) {
-      server.kill(signal);
+  const killServer = (signal) => {
+    if (server.killed) {
+      return;
     }
+
+    server.kill(signal);
+    setTimeout(() => {
+      if (!server.killed) {
+        server.kill('SIGKILL');
+      }
+    }, 5000);
+  };
+
+  const handleExit = (signal) => {
+    killServer(signal);
   };
 
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-    process.on(signal, () => forwardSignal(signal));
+    process.on(signal, () => handleExit(signal));
   }
+
+  process.on('exit', () => killServer('SIGTERM'));
+  process.on('uncaughtException', (error) => {
+    console.error('[frontend-e2e-webserver] Uncaught exception:', error);
+    killServer('SIGTERM');
+    process.exit(1);
+  });
+  process.on('unhandledRejection', (reason) => {
+    console.error('[frontend-e2e-webserver] Unhandled rejection:', reason);
+    killServer('SIGTERM');
+    process.exit(1);
+  });
 
   server.on('exit', (code, signal) => {
     if (signal) {

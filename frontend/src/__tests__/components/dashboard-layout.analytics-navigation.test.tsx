@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
 const apiGetMock = jest.fn();
@@ -120,6 +121,17 @@ jest.mock('@/lib/login-redirect', () => ({
 }));
 
 describe('DashboardLayout analytics navigation', () => {
+  function renderWithQueryClient(ui: React.ReactElement) {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockUser = {
@@ -133,7 +145,7 @@ describe('DashboardLayout analytics navigation', () => {
   });
 
   it('shows the analytics navigation item for non-admin doctors', async () => {
-    render(
+    renderWithQueryClient(
       <DashboardLayout>
         <div>Contenido</div>
       </DashboardLayout>,
@@ -153,7 +165,7 @@ describe('DashboardLayout analytics navigation', () => {
     };
     apiGetMock.mockResolvedValue({ data: mockUser });
 
-    render(
+    renderWithQueryClient(
       <DashboardLayout>
         <div>Contenido</div>
       </DashboardLayout>,
@@ -173,7 +185,7 @@ describe('DashboardLayout analytics navigation', () => {
     };
     apiGetMock.mockResolvedValue({ data: mockUser });
 
-    render(
+    renderWithQueryClient(
       <DashboardLayout>
         <div>Contenido</div>
       </DashboardLayout>,

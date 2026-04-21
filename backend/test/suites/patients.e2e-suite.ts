@@ -182,6 +182,7 @@ export function patientsSuite() {
         .put(`/api/patients/${state.quickPatientId}/admin`)
         .set('Cookie', cookieHeader(state.assistantCookies))
         .send({
+          fechaNacimiento: '1996-08-20',
           edad: 28,
           sexo: 'FEMENINO',
           prevision: 'FONASA',

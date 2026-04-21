@@ -4,6 +4,7 @@ type PatientCompletenessShape = {
   rut?: string | null;
   rutExempt?: boolean | null;
   rutExemptReason?: string | null;
+  fechaNacimiento?: Date | string | null;
   edad?: number | null;
   sexo?: string | null;
   prevision?: string | null;
@@ -15,6 +16,7 @@ type PatientClinicalOutputEligibilityShape = PatientCompletenessShape & {
 
 export const PATIENT_DEMOGRAPHIC_MISSING_FIELDS = [
   'rut',
+  'fechaNacimiento',
   'edad',
   'sexo',
   'prevision',
@@ -25,6 +27,7 @@ export const PATIENT_VERIFICATION_FIELD_KEYS = [
   'rut',
   'rutExempt',
   'rutExemptReason',
+  'fechaNacimiento',
   'edad',
   'edadMeses',
   'sexo',
@@ -33,6 +36,7 @@ export const PATIENT_VERIFICATION_FIELD_KEYS = [
 
 export const PATIENT_DEMOGRAPHIC_FIELD_LABELS: Record<typeof PATIENT_DEMOGRAPHIC_MISSING_FIELDS[number], string> = {
   rut: 'RUT',
+  fechaNacimiento: 'fecha de nacimiento',
   edad: 'edad',
   sexo: 'sexo',
   prevision: 'prevision',
@@ -84,6 +88,14 @@ export function getPatientDemographicsMissingFields(
 
   if (!hasRut && !hasRutExemption) {
     missingFields.push('rut');
+  }
+
+  const hasBirthDate = patient.fechaNacimiento instanceof Date
+    ? !Number.isNaN(patient.fechaNacimiento.getTime())
+    : typeof patient.fechaNacimiento === 'string' && patient.fechaNacimiento.trim().length > 0;
+
+  if (!hasBirthDate) {
+    missingFields.push('fechaNacimiento');
   }
 
   if (typeof patient.edad !== 'number' || !Number.isFinite(patient.edad) || patient.edad < 0) {

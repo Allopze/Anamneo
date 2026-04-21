@@ -42,7 +42,7 @@ SQLite esta soportado en este proyecto, incluso en produccion, pero no como excu
 4. Configurar `SQLITE_ALERT_WEBHOOK_URL`.
 5. Revisar health checks y crecimiento del WAL.
 6. Si usas Docker Compose, asegúrate de que `backup-cron` monte `./runtime/uploads` en modo lectura y use `UPLOAD_DEST=/app/uploads`; si no, puedes terminar con backups válidos de la base pero sin adjuntos reales.
-7. Usar `npm run deploy` (o `scripts/deploy.sh`) para despliegues con backup pre-migración y rollback automático.
+7. Usar `npm run deploy` (o `scripts/deploy.sh`) para despliegues con backup pre-migración reutilizando `sqlite-backup.js`, restore drill y rollback automático.
 
 ## Comandos Operativos
 

@@ -1,6 +1,7 @@
 // IMPORTANT: instrument.ts must be imported before everything else
 import './instrument';
 
+import { existsSync } from 'node:fs';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -126,6 +127,16 @@ function resolveTrustProxySetting(rawValue: string | undefined) {
   return trimmed;
 }
 
+function readDevWatchProcessIds() {
+  const expectedParentPid = Number.parseInt(process.env.ANAMNEO_DEV_EXPECTED_PARENT_PID ?? '', 10);
+  const sessionLeaderPid = Number.parseInt(process.env.ANAMNEO_DEV_SESSION_LEADER_PID ?? '', 10);
+
+  return {
+    expectedParentPid: Number.isFinite(expectedParentPid) ? expectedParentPid : null,
+    sessionLeaderPid: Number.isFinite(sessionLeaderPid) ? sessionLeaderPid : null,
+  };
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
@@ -166,6 +177,42 @@ async function bootstrap() {
     process.once(signal, () => {
       void shutdown(signal);
     });
+  }
+
+  const devWatchProcessIds = readDevWatchProcessIds();
+  if (devWatchProcessIds.expectedParentPid || devWatchProcessIds.sessionLeaderPid) {
+    const interval = setInterval(() => {
+      if (
+        devWatchProcessIds.expectedParentPid
+        && devWatchProcessIds.expectedParentPid > 1
+        && process.ppid !== devWatchProcessIds.expectedParentPid
+      ) {
+        console.log(JSON.stringify({
+          level: 'info',
+          event: 'dev_parent_gone',
+          expectedParentPid: devWatchProcessIds.expectedParentPid,
+          currentParentPid: process.ppid,
+        }));
+        void shutdown('SIGTERM');
+        return;
+      }
+
+      if (
+        process.platform === 'linux'
+        && devWatchProcessIds.sessionLeaderPid
+        && devWatchProcessIds.sessionLeaderPid > 1
+        && !existsSync(`/proc/${devWatchProcessIds.sessionLeaderPid}`)
+      ) {
+        console.log(JSON.stringify({
+          level: 'info',
+          event: 'dev_session_gone',
+          sessionLeaderPid: devWatchProcessIds.sessionLeaderPid,
+        }));
+        void shutdown('SIGTERM');
+      }
+    }, 1000);
+
+    interval.unref();
   }
 
   const configService = app.get(ConfigService);

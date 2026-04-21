@@ -131,7 +131,7 @@ describe('TratamientoSection', () => {
       />,
     );
 
-    await user.type(screen.getByPlaceholderText('Medicamento'), 'ome');
+    await user.type(screen.getByPlaceholderText('Buscar medicamento del catálogo...'), 'ome');
 
     act(() => {
       jest.advanceTimersByTime(300);
@@ -196,7 +196,7 @@ describe('TratamientoSection', () => {
       />,
     );
 
-    await user.type(screen.getByPlaceholderText('Medicamento'), 'ome');
+    await user.type(screen.getByPlaceholderText('Buscar medicamento del catálogo...'), 'ome');
 
     act(() => {
       jest.advanceTimersByTime(300);

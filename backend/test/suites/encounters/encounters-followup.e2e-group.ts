@@ -8,6 +8,14 @@ import { PatientsExportBundleService } from '../../../src/patients/patients-expo
 const MEDICO_ONLY_SECTION_KEYS = ['SOSPECHA_DIAGNOSTICA', 'TRATAMIENTO', 'RESPUESTA_TRATAMIENTO'] as const;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
+function parseBinaryResponse(res: any, callback: (error: Error | null, body: Buffer) => void) {
+  const chunks: Buffer[] = [];
+
+  res.on('data', (chunk: Buffer | string) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+  res.on('end', () => callback(null, Buffer.concat(chunks)));
+  res.on('error', (error: Error) => callback(error, Buffer.alloc(0)));
+}
+
 export function registerEncounterFollowupTests() {
   it('POST /api/patients/:id/problems → create patient problem', async () => {
     const onsetDate = '2026-03-18';
@@ -315,6 +323,8 @@ export function registerEncounterFollowupTests() {
     const res = await req()
       .get(`/api/patients/${state.patientId}/export/bundle`)
       .set('Cookie', cookieHeader(state.medicoCookies))
+      .buffer(true)
+      .parse(parseBinaryResponse)
       .expect(200);
 
     expect(res.headers['content-type']).toContain('application/zip');
@@ -593,6 +603,7 @@ export function registerEncounterFollowupTests() {
       .put(`/api/patients/${state.blockedPatientId}/admin`)
       .set('Cookie', cookieHeader(state.assistantCookies))
       .send({
+        fechaNacimiento: '1994-03-18',
         edad: 31,
         sexo: 'FEMENINO',
         prevision: 'FONASA',

@@ -32,13 +32,13 @@ Que hace cada paso:
 |---|---|
 | `npm run dev` | Levanta backend y frontend al mismo tiempo |
 | `npm run dev:backend` | Arranca backend en watch, ejecuta `prisma migrate deploy` antes y reinicia usando `dist/backend/src/main.js` |
-| `npm run dev:frontend` | Arranca Next.js en `0.0.0.0:5555` |
+| `npm run dev:frontend` | Arranca Next.js en `0.0.0.0:5555` con watchdog de parent/session |
 | `npm run build` | Compila backend y frontend |
 | `npm run db:migrate` | Aplica nuevas migraciones locales |
 | `npm run db:seed` | Reinyecta datos iniciales |
 | `npm run db:reset` | Resetea la base de datos sin seed |
 
-Nota para backend: como el build emite archivos en `backend/dist/backend/src/*` por los imports compartidos con `shared/`, el watch de desarrollo usa un runner propio para reiniciar el servidor con esa ruta real en vez de depender de `dist/main.js`.
+Nota para backend: como el build emite archivos en `backend/dist/backend/src/*` por los imports compartidos con `shared/`, el watch de desarrollo usa un runner propio para reiniciar el servidor con esa ruta real en vez de depender de `dist/main.js`. Ese runner tambien apaga el backend si desaparece el parent inmediato o la sesion original de terminal.
 
 ## Puertos y URLs
 
@@ -55,6 +55,7 @@ El comando `npm run dev` usa `scripts/dev-supervisor.sh`. Ese script:
 - arranca backend y frontend como procesos hijos,
 - propaga `SIGINT`, `SIGTERM` y `SIGHUP`,
 - corta ambos procesos si uno cae,
+- vigila la sesion original del terminal para no dejar procesos huerfanos al cerrar el IDE o shell,
 - y sanitiza algunas variables globales antes de arrancar.
 
 La sanitizacion evita que un entorno global roto contamine el desarrollo local:

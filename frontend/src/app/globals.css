@@ -108,7 +108,7 @@ body {
   }
 
   .dropdown-item:hover {
-    @apply bg-surface-base/60 text-ink;
+    @apply bg-surface-inset text-ink;
   }
 
   .dropdown-item-danger {

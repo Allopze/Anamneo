@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { validateRut } from '@/lib/rut';
+import { calculateAgeFromBirthDate } from '@/lib/date';
 import type { PatientPrevision, PatientSexo } from '@/types';
 import {
   PATIENT_ADDRESS_MAX_LENGTH,
@@ -99,6 +100,20 @@ export function buildEditSchema(isDoctor: boolean) {
     })
     .superRefine((val, ctx) => {
       const anyVal = val as EditForm;
+      if (!anyVal.fechaNacimiento || anyVal.fechaNacimiento.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['fechaNacimiento'],
+          message: 'La fecha de nacimiento es obligatoria',
+        });
+      } else if (!calculateAgeFromBirthDate(anyVal.fechaNacimiento)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['fechaNacimiento'],
+          message: 'Debe ingresar una fecha de nacimiento válida',
+        });
+      }
+
       if (anyVal.rutExempt) {
         if (!anyVal.rutExemptReason || anyVal.rutExemptReason.trim().length === 0) {
           ctx.addIssue({

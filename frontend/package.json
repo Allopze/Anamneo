@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack -H 0.0.0.0 -p 5555",
-    "dev:turbo": "next dev -H 0.0.0.0 -p 5555",
+    "dev": "node scripts/dev-watch.js --webpack",
+    "dev:turbo": "node scripts/dev-watch.js",
     "build": "node ./scripts/next-build.js",
     "start": "next start -H 0.0.0.0 -p 5555",
     "lint": "eslint src",

@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsBoolean,
   IsDateString,
+  IsNotEmpty,
   Min,
   Max,
   MinLength,
@@ -54,8 +55,8 @@ export class CreatePatientDto {
   @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
   nombre: string;
 
+  @IsNotEmpty({ message: 'La fecha de nacimiento es obligatoria' })
   @IsDateString({}, { message: 'La fecha de nacimiento debe ser una fecha válida' })
-  @IsOptional()
   fechaNacimiento?: string;
 
   @IsInt()

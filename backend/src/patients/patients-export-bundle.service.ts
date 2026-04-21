@@ -153,6 +153,7 @@ export class PatientsExportBundleService {
         rut: true,
         rutExempt: true,
         rutExemptReason: true,
+        fechaNacimiento: true,
         edad: true,
         edadMeses: true,
         sexo: true,

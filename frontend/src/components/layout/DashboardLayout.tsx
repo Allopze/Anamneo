@@ -1,6 +1,7 @@
 'use client';
 
 import axios from 'axios';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -63,16 +64,29 @@ const secondaryNavigation: NavItem[] = [
 ];
 
 const DASHBOARD_SIDEBAR_COLLAPSED_KEY = 'anamneo:dashboard-sidebar-collapsed';
+const DEFAULT_SESSION_INACTIVITY_TIMEOUT_MINUTES = 15;
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isAuthenticated, hasHydrated, login, logout } = useAuthStore();
+  const sessionPolicyQuery = useQuery({
+    queryKey: ['settings', 'session-policy'],
+    queryFn: async () =>
+      (await api.get('/settings/session-policy')).data as {
+        inactivityTimeoutMinutes: number;
+      },
+    enabled: hasHydrated && isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const inactivityTimeoutMs =
+    (sessionPolicyQuery.data?.inactivityTimeoutMinutes ?? DEFAULT_SESSION_INACTIVITY_TIMEOUT_MINUTES) * 60 * 1000;
 
   // ── Session inactivity timeout ─────────────────────────────────────
   useSessionTimeout(() => {
     toast('Su sesión expirará pronto por inactividad', { icon: '⏱️' });
-  });
+  }, inactivityTimeoutMs);
 
   // ── Force password change redirect ─────────────────────────────────
   useEffect(() => {
@@ -233,7 +247,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       // Clear local state even if server call fails
     }
     clearAuthSessionPrefill();
-    logout();
+    logout({ clearLocalState: true });
     router.replace('/login');
   };
 

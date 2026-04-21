@@ -139,4 +139,35 @@ describe('SettingsService', () => {
     );
     expect(result).toHaveLength(2);
   });
+
+  it('returns session policy defaults when the setting is missing', async () => {
+    prisma.setting.findUnique.mockResolvedValue(null);
+
+    await expect(service.getSessionPolicy()).resolves.toEqual({
+      inactivityTimeoutMinutes: 15,
+      defaultMinutes: 15,
+      minMinutes: 5,
+      maxMinutes: 240,
+    });
+  });
+
+  it('clamps invalid session policy values into the allowed range', async () => {
+    prisma.setting.findUnique
+      .mockResolvedValueOnce({ id: 'setting-1', key: 'session.inactivityTimeoutMinutes', value: '999' })
+      .mockResolvedValueOnce({ id: 'setting-2', key: 'session.inactivityTimeoutMinutes', value: 'abc' });
+
+    await expect(service.getSessionPolicy()).resolves.toEqual({
+      inactivityTimeoutMinutes: 240,
+      defaultMinutes: 15,
+      minMinutes: 5,
+      maxMinutes: 240,
+    });
+
+    await expect(service.getSessionPolicy()).resolves.toEqual({
+      inactivityTimeoutMinutes: 15,
+      defaultMinutes: 15,
+      minMinutes: 5,
+      maxMinutes: 240,
+    });
+  });
 });

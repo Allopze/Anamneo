@@ -92,6 +92,9 @@ export function useAjustes() {
   const [smtpPasswordConfigured, setSmtpPasswordConfigured] = useState(false);
   const [previewSeed] = useState(() => new Date());
   const [testEmail, setTestEmail] = useState('');
+  const [systemConfig, setSystemConfig] = useState({
+    sessionInactivityTimeoutMinutes: '15',
+  });
   const [clinic, setClinic] = useState({
     clinicName: '',
     clinicAddress: '',
@@ -130,6 +133,9 @@ export function useAjustes() {
   // Effects
   useEffect(() => {
     if (settings) {
+      setSystemConfig({
+        sessionInactivityTimeoutMinutes: settings['session.inactivityTimeoutMinutes'] || '15',
+      });
       setClinic({
         clinicName: settings['clinic.name'] || '',
         clinicAddress: settings['clinic.address'] || '',
@@ -215,7 +221,7 @@ export function useAjustes() {
 
   // Mutations
   const buildSettingsPayload = () => {
-    const payload: Record<string, string | boolean> = {
+    const payload: Record<string, string | boolean | number> = {
       clinicName: clinic.clinicName,
       clinicAddress: clinic.clinicAddress,
       clinicPhone: clinic.clinicPhone,
@@ -230,6 +236,10 @@ export function useAjustes() {
       invitationSubject: clinic.invitationSubject,
       invitationTemplateHtml: clinic.invitationTemplateHtml,
     };
+    const inactivityTimeoutMinutes = Number.parseInt(systemConfig.sessionInactivityTimeoutMinutes, 10);
+    if (Number.isFinite(inactivityTimeoutMinutes)) {
+      payload.sessionInactivityTimeoutMinutes = inactivityTimeoutMinutes;
+    }
     if (clinic.smtpPassword.trim().length > 0) payload.smtpPassword = clinic.smtpPassword;
     return payload;
   };
@@ -254,7 +264,7 @@ export function useAjustes() {
       toast.success('Contraseña actualizada');
       passwordForm.reset();
       queryClient.clear();
-      logout();
+      logout({ clearLocalState: true });
       router.replace('/login');
     },
     onError: (err: any) => {
@@ -323,6 +333,8 @@ export function useAjustes() {
     // Clinic & SMTP
     clinic,
     setClinic,
+    systemConfig,
+    setSystemConfig,
     smtpPasswordConfigured,
     clinicMutation,
     testEmail,
