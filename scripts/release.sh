@@ -34,8 +34,6 @@ RELEASE_PATHS=(
   "frontend/"
   "shared/"
   "scripts/deploy.sh"
-  "runtime/data/"
-  "runtime/uploads/"
 )
 
 ZIP_EXCLUDES=(
@@ -71,9 +69,6 @@ mkdir -p "$RELEASE_DIR"
 
 echo "📦 Empaquetando release: $ZIP_NAME"
 
-# Create placeholder dirs so docker-compose volume mounts work out of the box
-mkdir -p runtime/data runtime/uploads
-
 for release_path in "${RELEASE_PATHS[@]}"; do
   if [[ ! -e "$ROOT_DIR/$release_path" ]]; then
     echo "❌ Falta archivo requerido para release: $release_path" >&2
@@ -97,10 +92,11 @@ echo ""
 echo "📋 Para desplegar:"
 echo "   1. Copiar el zip al servidor"
 echo "   2. unzip $ZIP_NAME -d anamneo && cd anamneo"
-echo "   3. cp .env.example .env  # editar con valores de producción"
-echo "   4. docker compose build"
-echo "   5. npm run deploy  # backup + migrate + restore drill + up"
+echo "   3. mkdir -p runtime/data runtime/uploads"
+echo "   4. cp .env.example .env  # editar con valores de producción"
+echo "   5. docker compose build"
+echo "   6. npm run deploy  # backup + migrate + restore drill + up"
 echo ""
 echo "   (alternativa manual sin rollback automático):"
-echo "   5. docker compose run --rm --no-deps backend npx prisma migrate deploy"
-echo "   6. docker compose up -d"
+echo "   6. docker compose run --rm --no-deps backend npx prisma migrate deploy"
+echo "   7. docker compose up -d"

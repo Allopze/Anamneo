@@ -80,7 +80,7 @@ describe('encounters-create-mutation', () => {
     );
     expect(copiedClinicalSections).toEqual(
       expect.arrayContaining(
-        copiedClinicalSections.map((section: any) =>
+        copiedClinicalSections.map(() =>
           expect.objectContaining({
             completed: false,
             notApplicable: false,

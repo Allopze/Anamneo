@@ -1,5 +1,4 @@
 import { NotFoundException } from '@nestjs/common';
-import { AuditService } from '../audit/audit.service';
 import { AUDIT_REASON_LABELS } from '../audit/audit-catalog';
 import { SectionKey } from '../common/types';
 import { ENCOUNTER_SECTION_LABELS as SECTION_LABELS } from '../common/utils/encounter-section-meta';

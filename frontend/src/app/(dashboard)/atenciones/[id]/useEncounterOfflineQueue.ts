@@ -3,6 +3,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
+import { writeEncounterSectionConflict, type EncounterSectionConflictBackup } from '@/lib/encounter-draft';
 import {
   countPendingSavesForUser,
   enqueueSave,
@@ -17,6 +18,37 @@ interface UseEncounterOfflineQueueParams {
   queryClient: QueryClient;
   userId?: string;
   onEncounterSavesSynced?: (info: { encounterIds: string[]; syncedAt: Date }) => void;
+}
+
+export async function persistRecoverableOfflineConflict(params: {
+  encounterId: string;
+  localData: Record<string, unknown>;
+  sectionKey: string;
+  userId: string;
+}) {
+  const { encounterId, localData, sectionKey, userId } = params;
+  const response = await api.get(`/encounters/${encounterId}`);
+  const latestEncounter = response.data as {
+    sections?: Array<{ sectionKey: string; data?: Record<string, unknown>; updatedAt: string }>;
+  };
+  const latestSection = latestEncounter.sections?.find((section) => section.sectionKey === sectionKey);
+
+  if (!latestSection) {
+    return false;
+  }
+
+  const conflictBackup: EncounterSectionConflictBackup = {
+    version: 2,
+    encounterId,
+    userId,
+    sectionKey,
+    localData,
+    serverData: (latestSection.data ?? {}) as Record<string, unknown>,
+    serverUpdatedAt: latestSection.updatedAt,
+    savedAt: new Date().toISOString(),
+  };
+  writeEncounterSectionConflict(conflictBackup);
+  return true;
 }
 
 export function useEncounterOfflineQueue(params: UseEncounterOfflineQueueParams) {
@@ -75,6 +107,16 @@ export function useEncounterOfflineQueue(params: UseEncounterOfflineQueueParams)
             syncedEncounterIds.add(save.encounterId);
           } catch (error) {
             if (axios.isAxiosError(error) && error.response?.status === 409) {
+              try {
+                await persistRecoverableOfflineConflict({
+                  encounterId: save.encounterId,
+                  localData: (save.data ?? {}) as Record<string, unknown>,
+                  sectionKey: save.sectionKey,
+                  userId: activeUserId,
+                });
+              } catch {
+                // Ignore backup refresh failures; the main conflict remains user-visible via toast.
+              }
               await removePendingSave(save.id!);
               conflicts++;
               continue;
@@ -96,7 +138,7 @@ export function useEncounterOfflineQueue(params: UseEncounterOfflineQueueParams)
         }
         if (conflicts > 0) {
           toast.error(
-            `${conflicts} guardado${conflicts > 1 ? 's' : ''} offline ya no se aplic${conflicts > 1 ? 'an' : 'a'} porque la sección cambió en otra sesión.`,
+            `${conflicts} guardado${conflicts > 1 ? 's' : ''} offline entr${conflicts > 1 ? 'aron' : 'ó'} en conflicto. Se conservó una copia local recuperable.`,
           );
         }
         if (synced > 0 || conflicts > 0) {

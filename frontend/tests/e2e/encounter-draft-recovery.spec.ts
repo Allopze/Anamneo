@@ -1,7 +1,5 @@
 import { expect, test } from '@playwright/test';
 
-const baseURL = 'http://127.0.0.1:5555';
-
 const medicoUser = {
   id: 'med-1',
   email: 'medico@anamneo.cl',
@@ -93,6 +91,7 @@ const savedIdentificationPayload = {
 };
 
 test('recovers the local draft after 401, login and return to the encounter', async ({ context, page }) => {
+  const baseURL = test.info().project.use.baseURL ?? 'http://127.0.0.1:5555';
   let shouldExpireOnSuggest = true;
 
   await context.addCookies([

@@ -81,18 +81,6 @@ function AtencionesListContent() {
     }
   }, [hasAdvancedFilters]);
 
-  if (isOperationalAdmin) {
-    return (
-      <RouteAccessGate
-        when={true}
-        title="Redirigiendo…"
-        description="Esta bandeja clínica no está disponible para perfiles administrativos. Te llevamos al inicio."
-        href="/"
-        actionLabel="Ir al inicio"
-      />
-    );
-  }
-
   const buildUrl = (overrides: Record<string, string>) => {
     const next = new URLSearchParams();
     const merged = { search, status: filters.status, reviewStatus: filters.reviewStatus, page: String(page), ...overrides };
@@ -157,7 +145,15 @@ function AtencionesListContent() {
   });
 
   if (isOperationalAdmin) {
-    return null;
+    return (
+      <RouteAccessGate
+        when={true}
+        title="Redirigiendo…"
+        description="Esta bandeja clínica no está disponible para perfiles administrativos. Te llevamos al inicio."
+        href="/"
+        actionLabel="Ir al inicio"
+      />
+    );
   }
 
   const hasEncounters = data?.data?.length > 0;

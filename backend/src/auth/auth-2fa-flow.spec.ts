@@ -1,4 +1,3 @@
-import { UnauthorizedException } from '@nestjs/common';
 import { authenticator } from '@otplib/v12-adapter';
 import { verify2FALoginFlow } from './auth-2fa-flow';
 

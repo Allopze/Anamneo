@@ -33,6 +33,13 @@ function getEncounterConflictKey(encounterId: string, userId: string, sectionKey
   return `${ENCOUNTER_CONFLICT_PREFIX}:v${ENCOUNTER_DRAFT_VERSION}:${userId}:${encounterId}:${sectionKey}`;
 }
 
+function getEncounterUserKeyPrefixes(userId: string) {
+  return [
+    `${ENCOUNTER_DRAFT_PREFIX}:v${ENCOUNTER_DRAFT_VERSION}:${userId}:`,
+    `${ENCOUNTER_CONFLICT_PREFIX}:v${ENCOUNTER_DRAFT_VERSION}:${userId}:`,
+  ];
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -177,6 +184,28 @@ export function clearEncounterDraft(encounterId: string, userId: string): void {
 export function clearEncounterSectionConflict(encounterId: string, userId: string, sectionKey: string): void {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(getEncounterConflictKey(encounterId, userId, sectionKey));
+}
+
+export function clearEncounterLocalStateForUser(userId: string): void {
+  if (typeof window === 'undefined') return;
+
+  const prefixes = getEncounterUserKeyPrefixes(userId);
+  const keysToRemove: string[] = [];
+
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (!key) {
+      continue;
+    }
+
+    if (prefixes.some((prefix) => key.startsWith(prefix))) {
+      keysToRemove.push(key);
+    }
+  }
+
+  keysToRemove.forEach((key) => {
+    window.localStorage.removeItem(key);
+  });
 }
 
 export function hasEncounterDraftUnsavedChanges(draft: Pick<EncounterDraft, 'formData' | 'savedSnapshot'>): boolean {

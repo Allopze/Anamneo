@@ -171,9 +171,8 @@ export function useFichaClinica() {
     await handleDownloadDocument('pdf');
   }, [handleDownloadDocument]);
 
-  // Section data extraction
-  const sections = encounter?.sections || [];
   const sectionData = useMemo(() => {
+    const sections = encounter?.sections ?? [];
     const get = (key: string) => sections.find((s) => s.sectionKey === key)?.data || {};
     const identificacion = get('IDENTIFICACION');
     const revisionSistemas = get('REVISION_SISTEMAS');
@@ -192,12 +191,9 @@ export function useFichaClinica() {
       treatmentPlan: getTreatmentPlanText(tratamiento),
       identificationMissingFields: formatPatientMissingFields(getIdentificationMissingFields(identificacion)),
     };
-  }, [sections]);
+  }, [encounter]);
 
-  const patientCompletenessMeta = useMemo(
-    () => encounter?.patient ? getPatientCompletenessMeta(encounter.patient) : null,
-    [encounter?.patient],
-  );
+  const patientCompletenessMeta = encounter?.patient ? getPatientCompletenessMeta(encounter.patient) : null;
 
   const linkedAttachmentsByOrderId = useMemo(
     () => groupAttachmentsByOrderId(encounter?.attachments),

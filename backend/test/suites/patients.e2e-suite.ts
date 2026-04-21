@@ -1,4 +1,4 @@
-import { state, req, extractCookies, cookieHeader } from '../helpers/e2e-setup';
+import { state, req, cookieHeader } from '../helpers/e2e-setup';
 
 export function patientsSuite() {
   describe('Patients', () => {

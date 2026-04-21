@@ -1,3 +1,14 @@
+const clearEncounterLocalStateForUserMock = jest.fn();
+const clearPendingSavesForUserMock = jest.fn();
+
+jest.mock('@/lib/encounter-draft', () => ({
+  clearEncounterLocalStateForUser: (...args: unknown[]) => clearEncounterLocalStateForUserMock(...args),
+}));
+
+jest.mock('@/lib/offline-queue', () => ({
+  clearPendingSavesForUser: (...args: unknown[]) => clearPendingSavesForUserMock(...args),
+}));
+
 import { useAuthStore, User } from '@/stores/auth-store';
 import { act } from '@testing-library/react';
 
@@ -25,6 +36,9 @@ const asistenteUser: User = {
 };
 
 beforeEach(() => {
+  clearEncounterLocalStateForUserMock.mockReset();
+  clearPendingSavesForUserMock.mockReset();
+  clearPendingSavesForUserMock.mockResolvedValue(undefined);
   act(() => {
     useAuthStore.getState().logout();
   });
@@ -56,6 +70,8 @@ describe('useAuthStore', () => {
     const state = useAuthStore.getState();
     expect(state.user).toBeNull();
     expect(state.isAuthenticated).toBe(false);
+    expect(clearEncounterLocalStateForUserMock).toHaveBeenCalledWith('1');
+    expect(clearPendingSavesForUserMock).toHaveBeenCalledWith('1');
   });
 
   it('setUser updates user without changing isAuthenticated', () => {

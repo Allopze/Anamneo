@@ -8,7 +8,6 @@ import {
 } from '../common/utils/patient-completeness';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
 import {
-  SEXO_MAP,
   buildEncounterDocumentFilename,
 } from './encounters-pdf.helpers';
 import { renderEncounterClinicalPdf, renderFocusedEncounterPdf } from './encounters-pdf.renderers';

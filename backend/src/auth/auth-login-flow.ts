@@ -43,11 +43,6 @@ interface LoginWithLockoutParams {
   normalizeEmail: NormalizeEmailFn;
 }
 
-interface LockoutRecord {
-  failedAttempts: number;
-  lockedUntil: Date | null;
-}
-
 export async function clearExpiredLockout(prisma: PrismaService, email: string, now: Date) {
   const loginAttempt = await prisma.loginAttempt.findUnique({
     where: { email },

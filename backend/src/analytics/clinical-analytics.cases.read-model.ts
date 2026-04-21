@@ -18,26 +18,6 @@ import type {
 const ANALYTICS_STATUSES = ['COMPLETADO', 'FIRMADO'] as const;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
-type AnalyticsCasesRawEncounter = {
-  id: string;
-  patientId: string;
-  status: string;
-  createdAt: Date;
-  patient: {
-    id: string;
-    nombre: string | null;
-    rut: string | null;
-    edad: number | null;
-    sexo: string | null;
-    prevision: string | null;
-  };
-  sections: Array<{
-    sectionKey: string;
-    data: unknown;
-    schemaVersion?: number | null;
-  }>;
-};
-
 function resolveDefaultFromDate(reference = new Date()) {
   return extractDateOnlyIso(new Date(reference.getTime() - 89 * DAY_IN_MS));
 }

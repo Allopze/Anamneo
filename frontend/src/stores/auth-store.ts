@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { clearEncounterLocalStateForUser } from '@/lib/encounter-draft';
+import { clearPendingSavesForUser } from '@/lib/offline-queue';
 import {
   canCreateEncounter as canCreateEncounterPermission,
   canCreatePatient as canCreatePatientPermission,
@@ -56,11 +58,20 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
         }),
 
-      logout: () =>
+      logout: () => {
+        const currentUserId = get().user?.id;
+        if (currentUserId) {
+          clearEncounterLocalStateForUser(currentUserId);
+          void clearPendingSavesForUser(currentUserId).catch(() => {
+            // Ignore IndexedDB cleanup failures; the session still must close.
+          });
+        }
+
         set({
           user: null,
           isAuthenticated: false,
-        }),
+        });
+      },
 
       isMedico: () => isMedicoUser(get().user),
 

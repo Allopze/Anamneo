@@ -86,8 +86,6 @@ El script `scripts/release.sh` genera `releases/anamneo-YYYYMMDD-HHMMSS.zip` e i
 - `frontend/`
 - `shared/`
 - `scripts/deploy.sh`
-- `runtime/data/`
-- `runtime/uploads/`
 
 El contenido queda en la raiz del zip, sin una carpeta contenedora adicional, para que al extraerlo puedas entrar directo al directorio destino y correr `docker compose build` o `npm run deploy`.
 
@@ -97,8 +95,8 @@ Excluye, entre otros:
 - `.next/`
 - `dist/`
 - bases SQLite y journals
-- backups locales
-- uploads locales
+- `runtime/data/` completo, incluyendo backups locales
+- `runtime/uploads/` completo
 - `.env*` reales
 - releases previos
 
@@ -124,6 +122,7 @@ Si quieres un release serio, corre primero build, typecheck y tests relevantes. 
 ```bash
 unzip anamneo-<timestamp>.zip -d anamneo
 cd anamneo
+mkdir -p runtime/data runtime/uploads
 cp .env.example .env
 docker compose build
 docker compose run --rm --no-deps backend npx prisma migrate deploy
@@ -135,6 +134,7 @@ docker compose up -d
 ```bash
 unzip anamneo-<timestamp>.zip -d anamneo
 cd anamneo
+mkdir -p runtime/data runtime/uploads
 cp .env.example .env
 docker compose build
 npm run deploy

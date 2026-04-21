@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuditAction, AuditReason, AuditResult } from '../common/types';
+import { AuditAction, AuditResult } from '../common/types';
 import { getRequestId } from '../common/utils/request-context';
 import { inferAuditReason, inferAuditResult } from './audit-catalog';
 import { LogInput, sanitizeDiff, parseDateFilter } from './audit-helpers';

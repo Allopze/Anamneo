@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FiDownload, FiX } from 'react-icons/fi';
 import { api } from '@/lib/api';
@@ -144,11 +145,16 @@ export default function AttachmentPreviewModal({
             )}
 
             {!loading && blobUrl && isImage && (
-              <img
-                src={blobUrl}
-                alt={attachment.originalName}
-                className="max-h-full max-w-full object-contain"
-              />
+              <div className="relative h-[70vh] w-full overflow-hidden">
+                <Image
+                  src={blobUrl}
+                  alt={attachment.originalName}
+                  fill
+                  unoptimized
+                  className="object-contain"
+                  sizes="(max-width: 1024px) 100vw, 1024px"
+                />
+              </div>
             )}
 
             {!loading && blobUrl && isPdf && (

@@ -54,6 +54,7 @@ fi
 
 # ── 1. Pre-migration backup ──────────────────────────────────
 
+mkdir -p "$RUNTIME_DATA" "$RUNTIME_UPLOADS"
 mkdir -p "$BACKUP_DIR"
 
 if [[ -f "$DB_PATH" ]]; then

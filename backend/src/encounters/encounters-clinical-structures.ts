@@ -31,16 +31,6 @@ type EncounterTreatmentRecord = {
   diagnosisSourceEntryId?: string;
 };
 
-type EncounterOutcomeRecord = {
-  treatmentIndex: number;
-  status: string;
-  source: string;
-  notes?: string;
-  adherenceStatus?: string;
-  adverseEventSeverity?: string;
-  adverseEventNotes?: string;
-};
-
 const CLINICAL_STRUCTURE_SECTIONS: SectionKey[] = [
   'MOTIVO_CONSULTA',
   'SOSPECHA_DIAGNOSTICA',

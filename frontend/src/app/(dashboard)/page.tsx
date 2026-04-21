@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -107,37 +107,35 @@ export default function DashboardPage() {
 
   const pendingEncounters = data?.recent.filter((e) => e.status === 'EN_PROGRESO') ?? [];
   const recentEncounters = data?.recent ?? [];
-  const recentPatients = useMemo(() => {
-    const patientMap = new Map<string, {
-      patientId: string;
-      patientName: string;
-      patientRut: string | null;
-      updatedAt: string;
-      latestEncounterId: string;
-      latestEncounterStatus: string;
-      encounterCount: number;
-    }>();
+  const patientMap = new Map<string, {
+    patientId: string;
+    patientName: string;
+    patientRut: string | null;
+    updatedAt: string;
+    latestEncounterId: string;
+    latestEncounterStatus: string;
+    encounterCount: number;
+  }>();
 
-    for (const encounter of recentEncounters) {
-      const existing = patientMap.get(encounter.patientId);
-      if (existing) {
-        existing.encounterCount += 1;
-        continue;
-      }
-
-      patientMap.set(encounter.patientId, {
-        patientId: encounter.patientId,
-        patientName: encounter.patientName,
-        patientRut: encounter.patientRut,
-        updatedAt: encounter.updatedAt,
-        latestEncounterId: encounter.id,
-        latestEncounterStatus: STATUS_LABELS[encounter.status as keyof typeof STATUS_LABELS] ?? encounter.status,
-        encounterCount: 1,
-      });
+  for (const encounter of recentEncounters) {
+    const existing = patientMap.get(encounter.patientId);
+    if (existing) {
+      existing.encounterCount += 1;
+      continue;
     }
 
-    return Array.from(patientMap.values()).slice(0, 5);
-  }, [recentEncounters]);
+    patientMap.set(encounter.patientId, {
+      patientId: encounter.patientId,
+      patientName: encounter.patientName,
+      patientRut: encounter.patientRut,
+      updatedAt: encounter.updatedAt,
+      latestEncounterId: encounter.id,
+      latestEncounterStatus: STATUS_LABELS[encounter.status as keyof typeof STATUS_LABELS] ?? encounter.status,
+      encounterCount: 1,
+    });
+  }
+
+  const recentPatients = Array.from(patientMap.values()).slice(0, 5);
   const upcomingTasks = data?.upcomingTasks ?? [];
   const reminderCards = data
     ? [

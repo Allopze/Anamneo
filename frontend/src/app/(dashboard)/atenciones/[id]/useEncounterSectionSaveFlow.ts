@@ -183,67 +183,6 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
     [activeSectionKeyRef, id, lastSavedRef, queryClient, setErrorSectionKey, setFormData, setHasUnsavedChanges, setLastSavedAt, setLastSaveOrigin, setRecoverableConflicts, setRecoverableConflict, setSavedSectionKey, setSavedSnapshotJson, setSaveStatus, setSavingSectionKey, userId],
   );
 
-  const saveSection = useCallback(
-    async ({
-      sectionKey,
-      data,
-      completed,
-      notApplicable,
-      notApplicableReason,
-    }: SaveSectionMutationVars): Promise<PersistSectionResult> => {
-      if (!canEdit || !encounter?.sections || !isDraftHydrated) return 'noop';
-
-      const currentData = data ?? getSectionPayloadData({
-        encounter,
-        sections,
-        formDataRef,
-        sectionKey,
-      });
-      const persistedSection = sections.find((section) => section.sectionKey === sectionKey);
-      const savedSnapshot = readSavedSnapshot(lastSavedRef);
-      const savedSectionData = JSON.stringify(savedSnapshot[sectionKey]);
-      const currentSectionData = JSON.stringify(currentData);
-      const shouldSaveData = currentSectionData !== savedSectionData;
-      const shouldSaveCompletion = completed !== undefined && persistedSection?.completed !== completed;
-      const shouldSaveNotApplicable = notApplicable !== undefined && persistedSection?.notApplicable !== notApplicable;
-      const normalizedReason = notApplicable ? (notApplicableReason ?? null) : null;
-      const shouldSaveNotApplicableReason = notApplicable && persistedSection?.notApplicableReason !== normalizedReason;
-
-      if (!shouldSaveData && !shouldSaveCompletion && !shouldSaveNotApplicable && !shouldSaveNotApplicableReason) {
-        return 'noop';
-      }
-
-      setSaveStatus('saving');
-      try {
-        await saveSectionMutation.mutateAsync({
-          sectionKey,
-          data: currentData,
-          baseUpdatedAt: getPersistedSectionUpdatedAt(sections, sectionKey),
-          ...(completed !== undefined ? { completed } : {}),
-          ...(notApplicable !== undefined ? { notApplicable } : {}),
-          ...(normalizedReason ? { notApplicableReason: normalizedReason } : {}),
-        });
-        return 'saved';
-      } catch (error) {
-        if (isNetworkError(error) && id && userId) {
-          return 'queued';
-        }
-        throw error;
-      }
-    },
-    [
-      canEdit,
-      encounter,
-      formDataRef,
-      id,
-      isDraftHydrated,
-      lastSavedRef,
-      sections,
-      setSaveStatus,
-      userId,
-    ],
-  );
-
   const saveSectionMutation = useMutation({
     mutationFn: async ({
       sectionKey,
@@ -378,6 +317,68 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       toast.error('Error al guardar: ' + getErrorMessage(error));
     },
   });
+
+  const saveSection = useCallback(
+    async ({
+      sectionKey,
+      data,
+      completed,
+      notApplicable,
+      notApplicableReason,
+    }: SaveSectionMutationVars): Promise<PersistSectionResult> => {
+      if (!canEdit || !encounter?.sections || !isDraftHydrated) return 'noop';
+
+      const currentData = data ?? getSectionPayloadData({
+        encounter,
+        sections,
+        formDataRef,
+        sectionKey,
+      });
+      const persistedSection = sections.find((section) => section.sectionKey === sectionKey);
+      const savedSnapshot = readSavedSnapshot(lastSavedRef);
+      const savedSectionData = JSON.stringify(savedSnapshot[sectionKey]);
+      const currentSectionData = JSON.stringify(currentData);
+      const shouldSaveData = currentSectionData !== savedSectionData;
+      const shouldSaveCompletion = completed !== undefined && persistedSection?.completed !== completed;
+      const shouldSaveNotApplicable = notApplicable !== undefined && persistedSection?.notApplicable !== notApplicable;
+      const normalizedReason = notApplicable ? (notApplicableReason ?? null) : null;
+      const shouldSaveNotApplicableReason = notApplicable && persistedSection?.notApplicableReason !== normalizedReason;
+
+      if (!shouldSaveData && !shouldSaveCompletion && !shouldSaveNotApplicable && !shouldSaveNotApplicableReason) {
+        return 'noop';
+      }
+
+      setSaveStatus('saving');
+      try {
+        await saveSectionMutation.mutateAsync({
+          sectionKey,
+          data: currentData,
+          baseUpdatedAt: getPersistedSectionUpdatedAt(sections, sectionKey),
+          ...(completed !== undefined ? { completed } : {}),
+          ...(notApplicable !== undefined ? { notApplicable } : {}),
+          ...(normalizedReason ? { notApplicableReason: normalizedReason } : {}),
+        });
+        return 'saved';
+      } catch (error) {
+        if (isNetworkError(error) && id && userId) {
+          return 'queued';
+        }
+        throw error;
+      }
+    },
+    [
+      canEdit,
+      encounter,
+      formDataRef,
+      id,
+      isDraftHydrated,
+      lastSavedRef,
+      saveSectionMutation,
+      sections,
+      setSaveStatus,
+      userId,
+    ],
+  );
 
   const persistSection = useCallback(
     async ({

@@ -25,7 +25,6 @@ import {
   REQUIRED_SEMANTIC_SECTIONS,
   VITAL_SIGNS_ALERT_GENERATION_WARNING,
   buildIdentificationSnapshotFromPatient,
-  buildAnamnesisRemotaSnapshotFromHistory,
   matchesCurrentPatientSnapshot,
   sanitizeSectionPayload,
   serializeSectionData,

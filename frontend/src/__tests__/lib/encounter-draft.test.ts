@@ -1,4 +1,5 @@
 import {
+  clearEncounterLocalStateForUser,
   clearEncounterSectionConflict,
   clearEncounterDraft,
   hasEncounterDraftUnsavedChanges,
@@ -163,5 +164,38 @@ describe('encounter draft helpers', () => {
       'MOTIVO_CONSULTA',
       'ANAMNESIS_PROXIMA',
     ]);
+  });
+
+  it('clears all persisted encounter drafts and conflicts for a user on logout', () => {
+    writeEncounterDraft({
+      version: 2,
+      encounterId,
+      userId,
+      currentSectionIndex: 1,
+      formData: { MOTIVO_CONSULTA: { texto: 'cefalea' } },
+      savedSnapshot: {},
+    });
+    writeEncounterSectionConflict({
+      version: 2,
+      encounterId,
+      userId,
+      sectionKey: 'MOTIVO_CONSULTA',
+      localData: { texto: 'cefalea severa' },
+      serverData: { texto: 'cefalea' },
+    });
+    writeEncounterDraft({
+      version: 2,
+      encounterId,
+      userId: 'user-2',
+      currentSectionIndex: 0,
+      formData: {},
+      savedSnapshot: {},
+    });
+
+    clearEncounterLocalStateForUser(userId);
+
+    expect(readEncounterDraft(encounterId, userId)).toBeNull();
+    expect(readEncounterSectionConflict(encounterId, userId, 'MOTIVO_CONSULTA')).toBeNull();
+    expect(readEncounterDraft(encounterId, 'user-2')).not.toBeNull();
   });
 });

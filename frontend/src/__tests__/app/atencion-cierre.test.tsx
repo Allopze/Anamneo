@@ -474,4 +474,5 @@ describe('EncounterWizardPage closing workflow', () => {
       );
     });
   });
+
 });

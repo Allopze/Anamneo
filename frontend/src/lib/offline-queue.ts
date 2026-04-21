@@ -9,6 +9,7 @@
 const DB_NAME = 'anamneo-offline';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending-saves';
+const PENDING_SAVE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface PendingSave {
   id?: number; // auto-incremented by IndexedDB
@@ -21,6 +22,15 @@ export interface PendingSave {
   notApplicableReason?: string;
   queuedAt: string;
   userId: string;
+}
+
+function isPendingSaveExpired(save: Pick<PendingSave, 'queuedAt'>): boolean {
+  const queuedAtTs = new Date(save.queuedAt).getTime();
+  if (Number.isNaN(queuedAtTs)) {
+    return true;
+  }
+
+  return Date.now() - queuedAtTs > PENDING_SAVE_TTL_MS;
 }
 
 function getPendingSaveIdentity(save: Pick<PendingSave, 'userId' | 'encounterId' | 'sectionKey'>): string {
@@ -114,17 +124,32 @@ export async function getPendingSaves(): Promise<PendingSave[]> {
   if (!isIndexedDBAvailable()) return [];
   const db = await openDb();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const request = tx.objectStore(STORE_NAME).getAll();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.getAll();
 
     request.onsuccess = () => {
-      db.close();
-      const saves = collapsePendingSaves(request.result as PendingSave[]);
-      resolve(saves);
+      const rawSaves = request.result as PendingSave[];
+      const activeSaves = rawSaves.filter((save) => !isPendingSaveExpired(save));
+
+      rawSaves.forEach((save) => {
+        if (save.id && isPendingSaveExpired(save)) {
+          store.delete(save.id);
+        }
+      });
+
+      resolve(collapsePendingSaves(activeSaves));
     };
     request.onerror = () => {
       db.close();
       reject(request.error);
+    };
+    tx.oncomplete = () => {
+      db.close();
+    };
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error);
     };
   });
 }
@@ -157,23 +182,40 @@ export async function removePendingSave(id: number): Promise<void> {
   });
 }
 
-/** Count of pending saves (for badge display). */
-export async function countPendingSaves(): Promise<number> {
-  if (!isIndexedDBAvailable()) return 0;
+export async function clearPendingSavesForUser(userId: string): Promise<void> {
+  if (!isIndexedDBAvailable()) return;
   const db = await openDb();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const request = tx.objectStore(STORE_NAME).count();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.getAll();
 
     request.onsuccess = () => {
-      db.close();
-      resolve(request.result);
+      (request.result as PendingSave[]).forEach((save) => {
+        if (save.id && save.userId === userId) {
+          store.delete(save.id);
+        }
+      });
     };
     request.onerror = () => {
       db.close();
       reject(request.error);
     };
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error);
+    };
   });
+}
+
+/** Count of pending saves (for badge display). */
+export async function countPendingSaves(): Promise<number> {
+  const saves = await getPendingSaves();
+  return saves.length;
 }
 
 export async function countPendingSavesForUser(userId: string): Promise<number> {
