@@ -115,5 +115,7 @@ describe('clinical-analytics.read-model', () => {
         subtitle: undefined,
       }),
     ]);
+    expect(result.treatmentOutcomeProxies.exams).toEqual([]);
+    expect(result.treatmentOutcomeProxies.referrals).toEqual([]);
   });
 });

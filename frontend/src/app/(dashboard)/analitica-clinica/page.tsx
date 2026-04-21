@@ -75,6 +75,26 @@ type ClinicalAnalyticsResponse = {
       reconsultCount: number;
       subtitle?: string;
     }>;
+    exams: Array<{
+      label: string;
+      patientCount: number;
+      encounterCount: number;
+      favorableCount: number;
+      favorableRate: number;
+      adjustmentCount: number;
+      reconsultCount: number;
+      subtitle?: string;
+    }>;
+    referrals: Array<{
+      label: string;
+      patientCount: number;
+      encounterCount: number;
+      favorableCount: number;
+      favorableRate: number;
+      adjustmentCount: number;
+      reconsultCount: number;
+      subtitle?: string;
+    }>;
   };
 };
 
@@ -228,10 +248,24 @@ export default function AnaliticaClinicaPage() {
           </section>
 
           <AnalyticsOutcomeTable
-            title="Tratamientos con respuesta favorable proxy"
-            description="Resume cuántas veces cada tratamiento estructurado quedó asociado a una evolución favorable proxy dentro de la ventana de seguimiento."
+            title="Medicamentos con respuesta favorable proxy"
+            description="Resume cuántas veces cada medicamento estructurado quedó asociado a una evolución favorable proxy dentro de la ventana de seguimiento."
             rows={data.treatmentOutcomeProxies.medications}
-            emptyMessage="No hay tratamientos estructurados suficientes para estimar respuesta favorable proxy en esta cohorte."
+            emptyMessage="No hay medicamentos estructurados suficientes para estimar respuesta favorable proxy en esta cohorte."
+          />
+
+          <AnalyticsOutcomeTable
+            title="Exámenes con respuesta favorable proxy"
+            description="Resume cuántas veces cada examen estructurado quedó asociado a una evolución favorable proxy dentro de la ventana de seguimiento."
+            rows={data.treatmentOutcomeProxies.exams}
+            emptyMessage="No hay exámenes estructurados suficientes para estimar respuesta favorable proxy en esta cohorte."
+          />
+
+          <AnalyticsOutcomeTable
+            title="Derivaciones con respuesta favorable proxy"
+            description="Resume cuántas veces cada derivación estructurada quedó asociada a una evolución favorable proxy dentro de la ventana de seguimiento."
+            rows={data.treatmentOutcomeProxies.referrals}
+            emptyMessage="No hay derivaciones estructuradas suficientes para estimar respuesta favorable proxy en esta cohorte."
           />
         </>
       ) : null}

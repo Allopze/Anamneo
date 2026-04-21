@@ -76,6 +76,7 @@ model Patient {
   createdBy  User             @relation("PatientCreatedBy", fields: [createdById], references: [id])
   history    PatientHistory?
   encounters Encounter[]
+  episodes   EncounterEpisode[]
   problems   PatientProblem[]
   tasks      EncounterTask[]
   consents   InformedConsent[]
@@ -119,6 +120,7 @@ model Encounter {
   reviewNote        String?   @map("review_note")
   completedAt       DateTime? @map("completed_at")
   completedById     String?   @map("completed_by_id")
+  episodeId         String?   @map("episode_id")
   closureNote       String?   @map("closure_note")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
@@ -129,6 +131,7 @@ model Encounter {
   reviewRequestedBy User?              @relation("EncounterReviewRequestedBy", fields: [reviewRequestedById], references: [id])
   reviewedBy  User?                    @relation("EncounterReviewedBy", fields: [reviewedById], references: [id])
   completedBy User?                    @relation("EncounterCompletedBy", fields: [completedById], references: [id])
+  episode     EncounterEpisode?        @relation(fields: [episodeId], references: [id], onDelete: SetNull)
   sections    EncounterSection[]
   signatures  EncounterSignature[]
   consents    InformedConsent[]
@@ -137,9 +140,32 @@ model Encounter {
   attachments Attachment[]
   tasks       EncounterTask[]
   problems    PatientProblem[]
+  diagnoses  EncounterDiagnosis[]
+  treatments EncounterTreatment[]
 
   @@index([medicoId])
   @@map("encounters")
+}
+
+model EncounterEpisode {
+  id              String   @id @default(uuid())
+  patientId       String   @map("patient_id")
+  label           String
+  normalizedLabel String   @default("") @map("normalized_label")
+  firstEncounterId String? @map("first_encounter_id")
+  lastEncounterId  String? @map("last_encounter_id")
+  startDate       DateTime? @map("start_date")
+  endDate         DateTime? @map("end_date")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounters Encounter[]
+
+  @@index([patientId])
+  @@index([normalizedLabel])
+  @@map("encounter_episodes")
 }
 
 model EncounterSignature {
@@ -174,6 +200,66 @@ model EncounterSection {
 
   @@unique([encounterId, sectionKey])
   @@map("encounter_sections")
+}
+
+model EncounterDiagnosis {
+  id              String    @id @default(uuid())
+  encounterId     String    @map("encounter_id")
+  source          String
+  label           String
+  normalizedLabel String    @default("") @map("normalized_label")
+  code            String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  treatments EncounterTreatment[]
+
+  @@index([encounterId])
+  @@index([normalizedLabel])
+  @@map("encounter_diagnoses")
+}
+
+model EncounterTreatment {
+  id              String    @id @default(uuid())
+  encounterId     String    @map("encounter_id")
+  diagnosisId     String?   @map("diagnosis_id")
+  treatmentType   String    @map("treatment_type")
+  label           String
+  normalizedLabel String    @default("") @map("normalized_label")
+  details         String?
+  dose            String?
+  route           String?
+  frequency       String?
+  duration        String?
+  indication      String?
+  status          String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  diagnosis EncounterDiagnosis? @relation(fields: [diagnosisId], references: [id], onDelete: SetNull)
+  outcomes EncounterTreatmentOutcome[]
+
+  @@index([encounterId])
+  @@index([diagnosisId])
+  @@index([normalizedLabel])
+  @@map("encounter_treatments")
+}
+
+model EncounterTreatmentOutcome {
+  id                   String    @id @default(uuid())
+  encounterTreatmentId String    @map("encounter_treatment_id")
+  outcomeStatus        String    @map("outcome_status")
+  outcomeSource        String    @map("outcome_source")
+  notes                String?
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  encounterTreatment EncounterTreatment @relation(fields: [encounterTreatmentId], references: [id], onDelete: Cascade)
+
+  @@index([encounterTreatmentId])
+  @@map("encounter_treatment_outcomes")
 }
 
 model ConditionCatalog {

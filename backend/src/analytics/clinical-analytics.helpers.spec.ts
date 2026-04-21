@@ -65,10 +65,19 @@ describe('clinical-analytics.helpers', () => {
 
     expect(encounter.probableConditions).toHaveLength(1);
     expect(encounter.diagnosticConditions).toHaveLength(1);
+    expect(encounter.diagnoses).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ source: 'AFECCION_PROBABLE' }),
+        expect.objectContaining({ source: 'SOSPECHA_DIAGNOSTICA', code: 'I10' }),
+      ]),
+    );
     expect(encounter.medications[0].label).toBe('Enalapril');
+    expect(encounter.medications[0].associatedConditionLabels).toEqual(['Hipertensión arterial', 'Hipertensión esencial']);
     expect(encounter.exams[0].label).toBe('Perfil lipídico');
+    expect(encounter.exams[0].associatedConditionLabels).toEqual(['Hipertensión arterial', 'Hipertensión esencial']);
     expect(encounter.symptomSignals.map((entry) => entry.label)).toEqual(expect.arrayContaining(['Dolor abdominal', 'Vómitos', 'Diarrea']));
     expect(encounter.foodRelation).toBe('ASSOCIATED');
+    expect(encounter.outcome).toEqual(expect.objectContaining({ status: 'FAVORABLE', source: 'ESTRUCTURADO' }));
     expect(encounter.hasStructuredTreatment).toBe(true);
     expect(encounter.hasTreatmentAdjustment).toBe(true);
     expect(encounter.hasFollowUpPlan).toBe(true);

@@ -11,6 +11,12 @@ import {
   VITAL_SIGNS_ALERT_GENERATION_WARNING,
 } from './encounters-sanitize';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
+import { syncEncounterClinicalStructures } from './encounters-clinical-structures';
+
+jest.mock('./encounters-clinical-structures', () => ({
+  syncEncounterClinicalStructures: jest.fn().mockResolvedValue(undefined),
+  shouldSyncEncounterClinicalStructures: jest.fn().mockReturnValue(true),
+}));
 
 jest.mock('./encounters-sanitize', () => ({
   IDENTIFICATION_SNAPSHOT_FIELD_META: [
@@ -285,6 +291,65 @@ describe('encounters-section-mutations', () => {
       }),
     );
     expect(result.warnings).toEqual([VITAL_SIGNS_ALERT_GENERATION_WARNING]);
+  });
+
+  it('syncs clinical structures for treatment section updates', async () => {
+    const prisma = {
+      encounter: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'enc-1',
+          medicoId: 'med-1',
+          status: 'EN_PROGRESO',
+          createdById: 'med-1',
+          patientId: 'pat-1',
+          patient: { id: 'pat-1' },
+          sections: [{ id: 'sec-1', sectionKey: 'TRATAMIENTO' }],
+        }),
+        update: jest.fn(),
+      },
+      encounterSection: {
+        update: jest.fn().mockResolvedValue({
+          id: 'sec-1',
+          encounterId: 'enc-1',
+          sectionKey: 'TRATAMIENTO',
+          completed: true,
+          notApplicable: false,
+          notApplicableReason: null,
+          updatedAt: new Date('2026-04-16T01:00:00.000Z'),
+          schemaVersion: 1,
+          data: '{"medicamentosEstructurados":[{"nombre":"Enalapril"}]}',
+        }),
+      },
+      $transaction: jest.fn().mockImplementation(async (callback) => callback({
+        encounterSection: { update: prisma.encounterSection.update },
+        encounter: { update: prisma.encounter.update },
+        encounterDiagnosis: { deleteMany: jest.fn(), create: jest.fn() },
+        encounterTreatment: { deleteMany: jest.fn(), create: jest.fn() },
+        encounterTreatmentOutcome: { deleteMany: jest.fn(), create: jest.fn() },
+      })),
+    };
+
+    await updateEncounterSectionMutation({
+      prisma: prisma as never,
+      auditService: auditService as never,
+      alertsService: { checkVitalSigns: jest.fn() } as never,
+      logger: { error: jest.fn() },
+      encounterId: 'enc-1',
+      sectionKey: 'TRATAMIENTO',
+      dto: {
+        data: { medicamentosEstructurados: [{ id: 'med-1', nombre: 'Enalapril' }] },
+      },
+      user: {
+        id: 'med-1',
+        role: 'MEDICO',
+        isAdmin: false,
+      },
+    });
+
+    expect(syncEncounterClinicalStructures).toHaveBeenCalledWith({
+      prisma: expect.any(Object),
+      encounterId: 'enc-1',
+    });
   });
 
   it('rejects manual divergence for identification snapshot data', async () => {

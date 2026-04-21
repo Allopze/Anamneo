@@ -15,6 +15,10 @@ import { SectionKey } from '../common/types';
 import { RequestUser } from '../common/utils/medico-id';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateSectionDto } from './dto/update-section.dto';
+import {
+  shouldSyncEncounterClinicalStructures,
+  syncEncounterClinicalStructures,
+} from './encounters-clinical-structures';
 import { assertEncounterAccess, canEditEncounterCreatedBy } from './encounter-policy';
 import {
   IDENTIFICATION_SNAPSHOT_FIELD_META,
@@ -186,18 +190,39 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
     }
   }
 
-  const updatedSection = await prisma.encounterSection.update({
-    where: { id: section.id },
-    data: {
-      data: serializeSectionData(sanitizedData),
-      schemaVersion: getEncounterSectionSchemaVersion(sectionKey),
-      completed: dto.completed ?? section.completed,
-      notApplicable: dto.notApplicable ?? section.notApplicable,
-      notApplicableReason: dto.notApplicable ? (dto.notApplicableReason ?? section.notApplicableReason) : null,
-    },
-  });
+  const runTransaction = async <T>(callback: (tx: typeof prisma) => Promise<T>) => {
+    if (typeof (prisma as any).$transaction === 'function') {
+      return await (prisma as any).$transaction(callback);
+    }
 
-  await touchEncounterUpdatedAt(prisma, encounterId);
+    return await callback(prisma as any);
+  };
+
+  const updatedSection = await runTransaction(async (tx) => {
+    const sectionUpdate = await tx.encounterSection.update({
+      where: { id: section.id },
+      data: {
+        data: serializeSectionData(sanitizedData),
+        schemaVersion: getEncounterSectionSchemaVersion(sectionKey),
+        completed: dto.completed ?? section.completed,
+        notApplicable: dto.notApplicable ?? section.notApplicable,
+        notApplicableReason: dto.notApplicable ? (dto.notApplicableReason ?? section.notApplicableReason) : null,
+      },
+    });
+
+    await tx.encounter.update({
+      where: { id: encounterId },
+      data: {
+        updatedAt: new Date(),
+      },
+    });
+
+    if (shouldSyncEncounterClinicalStructures(sectionKey)) {
+      await syncEncounterClinicalStructures({ prisma: tx, encounterId });
+    }
+
+    return sectionUpdate;
+  });
 
   await auditService.log({
     entityType: 'EncounterSection',

@@ -235,6 +235,137 @@ export type ClinicalTreatmentEntry = {
   key: string;
   label: string;
   details?: string;
+  associatedConditionLabels?: string[];
+};
+
+export type EncounterDiagnosisEntry = {
+  key: string;
+  label: string;
+  source: AnalyticsSourceValue;
+  code?: string | null;
+};
+
+export type EncounterOutcomeEntry = {
+  status: 'FAVORABLE' | 'PARCIAL' | 'SIN_RESPUESTA' | 'EMPEORA' | 'PROXY' | 'UNKNOWN';
+  source: 'ESTRUCTURADO' | 'TEXTO' | 'PROBLEM_RESOLUTION';
+  notes?: string;
+};
+
+type RawPersistentDiagnosis = {
+  source: 'AFECCION_PROBABLE' | 'SOSPECHA_DIAGNOSTICA';
+  label: string;
+  normalizedLabel: string;
+  code?: string | null;
+};
+
+type RawPersistentTreatment = {
+  treatmentType: 'MEDICATION' | 'EXAM' | 'REFERRAL';
+  label: string;
+  normalizedLabel: string;
+  details?: string | null;
+  dose?: string | null;
+  route?: string | null;
+  frequency?: string | null;
+  duration?: string | null;
+  indication?: string | null;
+  status?: string | null;
+  diagnosis?: { normalizedLabel?: string | null } | null;
+  outcomes?: Array<{ outcomeStatus: string; outcomeSource: string; notes?: string | null }> | null;
+};
+
+type RawEncounterWithPersistence = RawEncounter & {
+  diagnoses?: RawPersistentDiagnosis[];
+  treatments?: RawPersistentTreatment[];
+  episode?: { id: string; label: string; normalizedLabel: string; startDate?: Date | null; endDate?: Date | null; isActive: boolean } | null;
+};
+
+function aggregateTreatmentOutcome(outcomes: Array<{ outcomeStatus: string; outcomeSource: string; notes?: string | null }> | undefined): EncounterOutcomeEntry | null {
+  if (!outcomes || outcomes.length === 0) {
+    return null;
+  }
+
+  const normalized = outcomes.map((outcome) => ({
+    status: outcome.outcomeStatus,
+    source: outcome.outcomeSource,
+    notes: outcome.notes ?? undefined,
+  }));
+
+  const notes = normalized.map((item) => item.notes).filter(Boolean).join(' \n') || undefined;
+  const source = normalized[0].source as EncounterOutcomeEntry['source'];
+
+  if (normalized.some((item) => item.status === 'FAVORABLE')) {
+    return { status: 'FAVORABLE', source, notes };
+  }
+
+  if (normalized.some((item) => item.status === 'SIN_RESPUESTA' || item.status === 'EMPEORA')) {
+    return { status: 'SIN_RESPUESTA', source, notes };
+  }
+
+  if (normalized.some((item) => item.status === 'PARCIAL')) {
+    return { status: 'PARCIAL', source, notes };
+  }
+
+  return { status: 'UNKNOWN', source, notes };
+}
+
+export function buildClinicalAnalyticsEncounterFromPersistence(rawEncounter: RawEncounterWithPersistence) {
+  const parsedBySections = buildClinicalAnalyticsEncounter(rawEncounter as RawEncounter);
+
+  if (!rawEncounter.diagnoses && !rawEncounter.treatments) {
+    return parsedBySections;
+  }
+
+  const diagnoses = rawEncounter.diagnoses?.map((entry) => ({
+    key: entry.normalizedLabel,
+    label: entry.label,
+    source: entry.source,
+    code: entry.code ?? null,
+  })) ?? parsedBySections.diagnoses;
+
+  const associatedConditionLabels = diagnoses.length > 0 ? [...new Set(diagnoses.map((entry) => entry.label.trim()))] : undefined;
+
+  const medications = (rawEncounter.treatments ?? [])
+    .filter((entry) => entry.treatmentType === 'MEDICATION')
+    .map((entry) => ({
+      key: entry.normalizedLabel,
+      label: entry.label,
+      details: entry.details ?? undefined,
+      ...(associatedConditionLabels ? { associatedConditionLabels } : {}),
+    }));
+
+  const exams = (rawEncounter.treatments ?? [])
+    .filter((entry) => entry.treatmentType === 'EXAM')
+    .map((entry) => ({
+      key: entry.normalizedLabel,
+      label: entry.label,
+      details: entry.details ?? undefined,
+      ...(associatedConditionLabels ? { associatedConditionLabels } : {}),
+    }));
+
+  const referrals = (rawEncounter.treatments ?? [])
+    .filter((entry) => entry.treatmentType === 'REFERRAL')
+    .map((entry) => ({
+      key: entry.normalizedLabel,
+      label: entry.label,
+      details: entry.details ?? undefined,
+      ...(associatedConditionLabels ? { associatedConditionLabels } : {}),
+    }));
+
+  const outcome = aggregateTreatmentOutcome(
+    rawEncounter.treatments?.flatMap((entry) => entry.outcomes ?? []) ?? [],
+  ) ?? parsedBySections.outcome;
+
+  return {
+    ...parsedBySections,
+    diagnoses,
+    medications: medications.length > 0 ? medications : parsedBySections.medications,
+    exams: exams.length > 0 ? exams : parsedBySections.exams,
+    referrals: referrals.length > 0 ? referrals : parsedBySections.referrals,
+    outcome,
+    hasStructuredTreatment: medications.length > 0 || exams.length > 0 || referrals.length > 0 || parsedBySections.hasStructuredTreatment,
+    hasFavorableResponse: outcome.status === 'FAVORABLE' || parsedBySections.hasFavorableResponse,
+    hasUnfavorableResponse: outcome.status === 'SIN_RESPUESTA' || outcome.status === 'EMPEORA' || parsedBySections.hasUnfavorableResponse,
+  };
 };
 
 export type ParsedClinicalAnalyticsEncounter = {
@@ -244,12 +375,14 @@ export type ParsedClinicalAnalyticsEncounter = {
   patient: RawEncounter['patient'];
   probableConditions: ClinicalConditionEntry[];
   diagnosticConditions: ClinicalConditionEntry[];
+  diagnoses: EncounterDiagnosisEntry[];
   symptomSignals: ClinicalSymptomEntry[];
   medications: ClinicalTreatmentEntry[];
   exams: ClinicalTreatmentEntry[];
   referrals: ClinicalTreatmentEntry[];
   searchableText: string;
   foodRelation: FoodRelation;
+  outcome: EncounterOutcomeEntry;
   hasStructuredTreatment: boolean;
   hasTreatmentAdjustment: boolean;
   hasFollowUpPlan: boolean;
@@ -601,6 +734,15 @@ export function buildClinicalAnalyticsEncounter(rawEncounter: RawEncounter): Par
     (entry) => `${entry.key}:${entry.code ?? ''}`,
   );
 
+  const diagnoses: EncounterDiagnosisEntry[] = [...probableConditions, ...diagnosticConditions];
+
+  const associatedConditionLabels = uniqueBy(
+    [...probableConditions, ...diagnosticConditions].map((entry) => entry.label.trim()),
+    (label) => label,
+  );
+
+  const commonAssociatedConditions = associatedConditionLabels.length > 0 ? associatedConditionLabels : undefined;
+
   const medications = (tratamiento.medicamentosEstructurados || [])
     .map((entry) => {
       const label = entry.nombre?.trim();
@@ -613,6 +755,7 @@ export function buildClinicalAnalyticsEncounter(rawEncounter: RawEncounter): Par
         key: normalizeConditionName(label),
         label,
         details: [entry.dosis, entry.via, entry.frecuencia, entry.duracion].filter(Boolean).join(' · ') || undefined,
+        ...(commonAssociatedConditions ? { associatedConditionLabels: commonAssociatedConditions } : {}),
       };
     })
     .filter(isDefined);
@@ -629,6 +772,7 @@ export function buildClinicalAnalyticsEncounter(rawEncounter: RawEncounter): Par
         key: normalizeConditionName(label),
         label,
         details: [entry.estado, entry.indicacion].filter(Boolean).join(' · ') || undefined,
+        ...(commonAssociatedConditions ? { associatedConditionLabels: commonAssociatedConditions } : {}),
       };
     })
     .filter(isDefined);
@@ -645,9 +789,30 @@ export function buildClinicalAnalyticsEncounter(rawEncounter: RawEncounter): Par
         key: normalizeConditionName(label),
         label,
         details: [entry.estado, entry.indicacion].filter(Boolean).join(' · ') || undefined,
+        ...(commonAssociatedConditions ? { associatedConditionLabels: commonAssociatedConditions } : {}),
       };
     })
     .filter(isDefined);
+
+  const hasFavorableResponse = structuredResponse
+    ? structuredResponse.favorable
+    : includesAny(responseText, FAVORABLE_RESPONSE_PATTERNS) && !includesAny(responseText, UNFAVORABLE_RESPONSE_PATTERNS);
+
+  const hasUnfavorableResponse = structuredResponse
+    ? structuredResponse.unfavorable
+    : includesAny(responseText, UNFAVORABLE_RESPONSE_PATTERNS);
+
+  const outcome: EncounterOutcomeEntry = structuredResponse
+    ? {
+        status: structuredResponse.favorable ? 'FAVORABLE' : structuredResponse.unfavorable ? 'SIN_RESPUESTA' : 'PARCIAL',
+        source: 'ESTRUCTURADO',
+        notes: respuesta.respuestaEstructurada?.notas?.trim() || undefined,
+      }
+    : {
+        status: hasFavorableResponse ? 'FAVORABLE' : hasUnfavorableResponse ? 'SIN_RESPUESTA' : 'UNKNOWN',
+        source: 'TEXTO',
+        notes: responseText || undefined,
+      };
 
   const symptomSignals = uniqueBy(
     [...extractStructuredSymptomSignals(anamnesis.perfilDolorAbdominal), ...extractSymptomSignals(searchableText)],
@@ -661,20 +826,18 @@ export function buildClinicalAnalyticsEncounter(rawEncounter: RawEncounter): Par
     patient: rawEncounter.patient,
     probableConditions,
     diagnosticConditions,
+    diagnoses,
     symptomSignals,
     medications,
     exams,
     referrals,
     searchableText,
     foodRelation,
+    outcome,
     hasStructuredTreatment: medications.length > 0 || exams.length > 0 || referrals.length > 0,
     hasTreatmentAdjustment: Boolean(respuesta.ajustesTratamiento?.trim()),
     hasFollowUpPlan: Boolean(respuesta.planSeguimiento?.trim() || respuesta.evolucion?.trim()),
-    hasFavorableResponse: structuredResponse
-      ? structuredResponse.favorable
-      : includesAny(responseText, FAVORABLE_RESPONSE_PATTERNS) && !includesAny(responseText, UNFAVORABLE_RESPONSE_PATTERNS),
-    hasUnfavorableResponse: structuredResponse
-      ? structuredResponse.unfavorable
-      : includesAny(responseText, UNFAVORABLE_RESPONSE_PATTERNS),
+    hasFavorableResponse,
+    hasUnfavorableResponse,
   };
 }

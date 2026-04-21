@@ -120,6 +120,18 @@ describe('ClinicalAnalyticsPage', () => {
               reconsultCount: 2,
             },
           ],
+          exams: [
+            {
+              label: 'Perfil lipídico',
+              patientCount: 2,
+              encounterCount: 2,
+              favorableCount: 1,
+              favorableRate: 0.5,
+              adjustmentCount: 0,
+              reconsultCount: 1,
+            },
+          ],
+          referrals: [],
         },
       },
     });
@@ -138,8 +150,10 @@ describe('ClinicalAnalyticsPage', () => {
     expect(await screen.findByText('Vómitos')).toBeInTheDocument();
     expect(await screen.findByText('Relación con comida')).toBeInTheDocument();
     expect(await screen.findByText('Asociado a comida')).toBeInTheDocument();
-    expect(await screen.findByText('Tratamientos con respuesta favorable proxy')).toBeInTheDocument();
+    expect(await screen.findByText('Medicamentos con respuesta favorable proxy')).toBeInTheDocument();
+    expect(await screen.findByText('Exámenes con respuesta favorable proxy')).toBeInTheDocument();
     expect(await screen.findByText('Tratamiento A')).toBeInTheDocument();
+    expect((await screen.findAllByText('Perfil lipídico')).length).toBeGreaterThanOrEqual(1);
     expect(await screen.findByText(/no prueban efectividad comparativa/i)).toBeInTheDocument();
   });
 

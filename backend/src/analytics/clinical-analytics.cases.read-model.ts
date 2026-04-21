@@ -5,6 +5,7 @@ import { normalizeConditionName } from '../conditions/conditions-helpers';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   buildClinicalAnalyticsEncounter,
+  buildClinicalAnalyticsEncounterFromPersistence,
   getEncounterConditions,
   matchesAnalyticsQuery,
   type FoodRelation,
@@ -118,16 +119,58 @@ export async function getClinicalAnalyticsCasesReadModel(params: {
           schemaVersion: true,
         },
       },
+      diagnoses: {
+        select: {
+          source: true,
+          label: true,
+          normalizedLabel: true,
+          code: true,
+        },
+      },
+      treatments: {
+        select: {
+          treatmentType: true,
+          label: true,
+          normalizedLabel: true,
+          details: true,
+          dose: true,
+          route: true,
+          frequency: true,
+          duration: true,
+          indication: true,
+          status: true,
+          diagnosis: {
+            select: { normalizedLabel: true },
+          },
+          outcomes: {
+            select: {
+              outcomeStatus: true,
+              outcomeSource: true,
+              notes: true,
+            },
+          },
+        },
+      },
+      episode: {
+        select: {
+          id: true,
+          label: true,
+          normalizedLabel: true,
+          startDate: true,
+          endDate: true,
+          isActive: true,
+        },
+      },
     },
   });
 
   const normalizedCondition = query.condition ? normalizeConditionName(query.condition) : '';
   const normalizedFocusValue = query.focusValue ? normalizeConditionName(query.focusValue) : '';
 
-  const matchedEncounters = (rawEncounters as AnalyticsCasesRawEncounter[])
+  const matchedEncounters = rawEncounters
     .map((rawEncounter) => ({
       rawEncounter,
-      parsedEncounter: buildClinicalAnalyticsEncounter(rawEncounter),
+      parsedEncounter: buildClinicalAnalyticsEncounterFromPersistence(rawEncounter as any),
     }))
     .filter(({ parsedEncounter }) => matchesAnalyticsQuery(parsedEncounter, query.source, normalizedCondition))
     .filter(({ parsedEncounter }) => matchesCasesFocus(parsedEncounter, query.focusType, normalizedFocusValue));
@@ -166,9 +209,14 @@ export async function getClinicalAnalyticsCasesReadModel(params: {
       patientSex: rawEncounter.patient.sexo,
       patientPrevision: rawEncounter.patient.prevision,
       conditions: uniqueLabels(getEncounterConditions(parsedEncounter, 'ANY')),
+      diagnoses: uniqueLabels(parsedEncounter.diagnoses),
       medications: uniqueLabels(parsedEncounter.medications),
+      exams: uniqueLabels(parsedEncounter.exams),
+      referrals: uniqueLabels(parsedEncounter.referrals),
       symptoms: uniqueLabels(parsedEncounter.symptomSignals),
       foodRelation: localizeFoodRelation(parsedEncounter.foodRelation),
+      outcomeStatus: parsedEncounter.outcome.status,
+      outcomeSource: parsedEncounter.outcome.source,
       hasTreatmentAdjustment: parsedEncounter.hasTreatmentAdjustment,
       hasFavorableResponse: parsedEncounter.hasFavorableResponse,
     })),

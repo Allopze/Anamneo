@@ -6,6 +6,7 @@ import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { normalizeConditionName } from '../conditions/conditions-helpers';
 import {
   buildClinicalAnalyticsEncounter,
+  buildClinicalAnalyticsEncounterFromPersistence,
   getEncounterConditions,
   matchesAnalyticsQuery,
   type ClinicalTreatmentEntry,
@@ -205,6 +206,7 @@ function buildFoodRelationRanking(encounters: ParsedClinicalAnalyticsEncounter[]
 function buildTreatmentOutcomeRanking(
   encounters: ParsedClinicalAnalyticsEncounter[],
   evaluations: Map<string, EncounterOutcomeEvaluation>,
+  key: 'medications' | 'exams' | 'referrals',
   limit: number,
 ) {
   const aggregated = new Map<string, TreatmentOutcomeRow & { patients: Set<string>; details: Set<string> }>();
@@ -216,7 +218,7 @@ function buildTreatmentOutcomeRanking(
     }
 
     const seen = new Set<string>();
-    for (const entry of encounter.medications as ClinicalTreatmentEntry[]) {
+    for (const entry of encounter[key] as ClinicalTreatmentEntry[]) {
       if (seen.has(entry.key)) {
         continue;
       }
@@ -460,10 +462,54 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
           schemaVersion: true,
         },
       },
+      diagnoses: {
+        select: {
+          source: true,
+          label: true,
+          normalizedLabel: true,
+          code: true,
+        },
+      },
+      treatments: {
+        select: {
+          treatmentType: true,
+          label: true,
+          normalizedLabel: true,
+          details: true,
+          dose: true,
+          route: true,
+          frequency: true,
+          duration: true,
+          indication: true,
+          status: true,
+          diagnosis: {
+            select: { normalizedLabel: true },
+          },
+          outcomes: {
+            select: {
+              outcomeStatus: true,
+              outcomeSource: true,
+              notes: true,
+            },
+          },
+        },
+      },
+      episode: {
+        select: {
+          id: true,
+          label: true,
+          normalizedLabel: true,
+          startDate: true,
+          endDate: true,
+          isActive: true,
+        },
+      },
     },
   });
 
-  const parsedEncounters = rawEncounters.map(buildClinicalAnalyticsEncounter);
+  const parsedEncounters = rawEncounters.map((rawEncounter) =>
+    buildClinicalAnalyticsEncounterFromPersistence(rawEncounter as any),
+  );
   const baseEncounters = parsedEncounters.filter((entry) => entry.createdAt >= fromStart && entry.createdAt < toEndExclusive);
   const normalizedCondition = query.condition ? normalizeConditionName(query.condition) : '';
   const matchedEncounters = baseEncounters.filter((entry) => matchesAnalyticsQuery(entry, query.source, normalizedCondition));
@@ -587,7 +633,9 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
       referrals: buildTreatmentRanking(matchedEncounters, 'referrals', limit),
     },
     treatmentOutcomeProxies: {
-      medications: buildTreatmentOutcomeRanking(matchedEncounters, evaluationByEncounterId, limit),
+      medications: buildTreatmentOutcomeRanking(matchedEncounters, evaluationByEncounterId, 'medications', limit),
+      exams: buildTreatmentOutcomeRanking(matchedEncounters, evaluationByEncounterId, 'exams', limit),
+      referrals: buildTreatmentOutcomeRanking(matchedEncounters, evaluationByEncounterId, 'referrals', limit),
     },
     outcomeProxies: {
       reconsultWithinWindowRate: ratio(reconsultCount, matchedEncounters.length),
