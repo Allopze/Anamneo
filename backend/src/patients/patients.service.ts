@@ -6,6 +6,7 @@ import { CreatePatientQuickDto } from './dto/create-patient-quick.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { UpdatePatientAdminDto } from './dto/update-patient-admin.dto';
 import { UpdatePatientHistoryDto } from './dto/update-patient-history.dto';
+import { MergePatientDto } from './dto/merge-patient.dto';
 import { UpsertPatientProblemDto } from './dto/upsert-patient-problem.dto';
 import { UpdatePatientProblemDto } from './dto/update-patient-problem.dto';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
@@ -40,6 +41,7 @@ import {
   updatePatientHistoryMutation,
   verifyPatientDemographicsMutation,
 } from './patients-lifecycle-mutations';
+import { mergePatientIntoTarget } from './patients-merge-mutation';
 import {
   createPatientMutation,
   createQuickPatientMutation,
@@ -240,6 +242,22 @@ export class PatientsService {
     });
 
     return decoratePatient(updatedPatient);
+  }
+
+  async mergeIntoTarget(user: RequestUser, targetPatientId: string, dto: MergePatientDto) {
+    const result = await mergePatientIntoTarget({
+      prisma: this.prisma,
+      auditService: this.auditService,
+      user,
+      targetPatientId,
+      sourcePatientId: dto.sourcePatientId,
+      assertPatientAccess: this.assertPatientAccess,
+    });
+
+    return {
+      patient: decoratePatient(result.patient),
+      counts: result.counts,
+    };
   }
 
   async updateHistory(user: RequestUser, patientId: string, dto: UpdatePatientHistoryDto) {

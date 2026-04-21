@@ -7,6 +7,7 @@ import {
   readEncounterDraft,
   writeEncounterDraft,
 } from '@/lib/encounter-draft';
+import { isSharedDeviceModeEnabled, usePrivacySettingsStore } from '@/stores/privacy-settings-store';
 
 interface UseEncounterDraftSyncParams {
   encounter?: Encounter;
@@ -25,6 +26,8 @@ interface UseEncounterDraftSyncParams {
 }
 
 export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
+  const { hasHydrated, sharedDeviceMode } = usePrivacySettingsStore();
+  const effectiveSharedDeviceMode = hasHydrated ? sharedDeviceMode : isSharedDeviceModeEnabled();
   const {
     encounter,
     userId,
@@ -53,7 +56,7 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
       initialData[section.sectionKey] = section.data;
     });
 
-    const storedDraft = userId ? readEncounterDraft(encounter.id, userId) : null;
+    const storedDraft = effectiveSharedDeviceMode || !userId ? null : readEncounterDraft(encounter.id, userId);
     const draftIsStale =
       storedDraft?.encounterUpdatedAt
       && encounter.updatedAt
@@ -88,6 +91,7 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
     setFormData,
     setIsDraftHydrated,
     setSavedSnapshotJson,
+    effectiveSharedDeviceMode,
     userId,
   ]);
 
@@ -118,6 +122,11 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
       encounterUpdatedAt: encounter.updatedAt,
     };
 
+    if (effectiveSharedDeviceMode) {
+      clearEncounterDraft(encounter.id, userId);
+      return;
+    }
+
     if (hasEncounterDraftUnsavedChanges(draft)) {
       writeEncounterDraft(draft);
       return;
@@ -132,6 +141,7 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
     formData,
     initializedEncounterIdRef,
     savedSnapshotJson,
+    effectiveSharedDeviceMode,
     userId,
   ]);
 }

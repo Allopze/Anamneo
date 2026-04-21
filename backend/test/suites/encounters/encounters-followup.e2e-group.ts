@@ -1,8 +1,9 @@
 /// <reference types="jest" />
 
-import { state, req, cookieHeader } from '../../helpers/e2e-setup';
+import { state, req, cookieHeader, getApp } from '../../helpers/e2e-setup';
 import { extractDateOnlyIso, todayLocalDateOnly } from '../../../src/common/utils/local-date';
 import { getEncounterSectionSchemaVersion } from '../../../src/common/utils/encounter-section-meta';
+import { PatientsExportBundleService } from '../../../src/patients/patients-export-bundle.service';
 
 const MEDICO_ONLY_SECTION_KEYS = ['SOSPECHA_DIAGNOSTICA', 'TRATAMIENTO', 'RESPUESTA_TRATAMIENTO'] as const;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -276,6 +277,50 @@ export function registerEncounterFollowupTests() {
 
     expect(res.headers['content-type']).toContain('application/pdf');
     expect(res.headers['content-disposition']).toContain('hemograma.pdf');
+  });
+
+  it('POST /api/consents → creates a patient consent linked to the active encounter', async () => {
+    const res = await req()
+      .post('/api/consents')
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .send({
+        patientId: state.patientId,
+        encounterId: state.encounterId,
+        type: 'TRATAMIENTO',
+        description: 'Consentimiento exportable para paquete clínico.',
+      })
+      .expect(201);
+
+    expect(res.body.patientId).toBe(state.patientId);
+    expect(res.body.encounterId).toBe(state.encounterId);
+    expect(res.body.status).toBe('ACTIVO');
+  });
+
+  it('PatientsExportBundleService → builds the integrated patient clinical package', async () => {
+    const bundleService = getApp().get(PatientsExportBundleService);
+    const bundle = await bundleService.generateBundle(state.patientId, {
+      id: state.medicoUserId,
+      role: 'MEDICO',
+      email: 'medico@example.com',
+      nombre: 'Dr. Medico',
+      isAdmin: false,
+      medicoId: state.medicoUserId,
+    });
+
+    expect(Buffer.isBuffer(bundle.buffer)).toBe(true);
+    expect(bundle.buffer.length).toBeGreaterThan(200);
+  });
+
+  it('GET /api/patients/:id/export/bundle → returns a zip with the patient clinical package', async () => {
+    const res = await req()
+      .get(`/api/patients/${state.patientId}/export/bundle`)
+      .set('Cookie', cookieHeader(state.medicoCookies))
+      .expect(200);
+
+    expect(res.headers['content-type']).toContain('application/zip');
+    expect(res.headers['content-disposition']).toContain('.zip');
+    expect(Buffer.isBuffer(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(200);
   });
 
   it('PUT /api/encounters/:id/review-status → rejects review without contextual note', async () => {

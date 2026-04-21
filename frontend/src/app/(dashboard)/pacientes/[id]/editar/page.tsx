@@ -39,6 +39,10 @@ export default function EditarPacientePage() {
       prevision: null,
       trabajo: '',
       domicilio: '',
+      telefono: '',
+      email: '',
+      contactoEmergenciaNombre: '',
+      contactoEmergenciaTelefono: '',
       centroMedico: '',
       nombre: '',
       rut: '',
@@ -69,6 +73,10 @@ export default function EditarPacientePage() {
       prevision: patient.prevision,
       trabajo: patient.trabajo ?? '',
       domicilio: patient.domicilio ?? '',
+      telefono: patient.telefono ?? '',
+      email: patient.email ?? '',
+      contactoEmergenciaNombre: patient.contactoEmergenciaNombre ?? '',
+      contactoEmergenciaTelefono: patient.contactoEmergenciaTelefono ?? '',
       centroMedico: patient.centroMedico ?? '',
       nombre: patient.nombre ?? '',
       rut: patient.rut ?? '',
@@ -85,6 +93,10 @@ export default function EditarPacientePage() {
     prevision: PatientPrevision | null;
     trabajo?: string | null;
     domicilio?: string | null;
+    telefono?: string | null;
+    email?: string | null;
+    contactoEmergenciaNombre?: string | null;
+    contactoEmergenciaTelefono?: string | null;
     centroMedico?: string | null;
   };
 
@@ -126,6 +138,10 @@ export default function EditarPacientePage() {
     setErrorMsg(null);
 
     const calculatedAge = data.fechaNacimiento ? calculateAgeFromBirthDate(data.fechaNacimiento) : null;
+    const normalizeOptionalText = (value?: string | null) => {
+      const normalized = value?.trim();
+      return normalized ? normalized : null;
+    };
 
     const common = {
       fechaNacimiento: data.fechaNacimiento || undefined,
@@ -133,9 +149,13 @@ export default function EditarPacientePage() {
       edadMeses: calculatedAge?.edadMeses ?? null,
       sexo: data.sexo,
       prevision: data.prevision,
-      trabajo: data.trabajo ?? '',
-      domicilio: data.domicilio ?? '',
-      centroMedico: data.centroMedico ?? '',
+      trabajo: normalizeOptionalText(data.trabajo),
+      domicilio: normalizeOptionalText(data.domicilio),
+      telefono: normalizeOptionalText(data.telefono),
+      email: normalizeOptionalText(data.email),
+      contactoEmergenciaNombre: normalizeOptionalText(data.contactoEmergenciaNombre),
+      contactoEmergenciaTelefono: normalizeOptionalText(data.contactoEmergenciaTelefono),
+      centroMedico: normalizeOptionalText(data.centroMedico),
     };
 
     if (isDoctor) {

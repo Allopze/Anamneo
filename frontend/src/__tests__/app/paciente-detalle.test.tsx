@@ -153,6 +153,69 @@ describe('PatientDetailPage', () => {
     expect(pushMock).toHaveBeenCalledWith('/atenciones/enc-duplicated');
   });
 
+  it('can merge a duplicate patient into the current record', async () => {
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/patients/patient-1') {
+        return Promise.resolve({ data: basePatientResponse });
+      }
+      if (url === '/patients/possible-duplicates') {
+        return Promise.resolve({
+          data: {
+            data: [
+              {
+                id: 'patient-dup',
+                nombre: 'Paciente Demo Duplicado',
+                rut: null,
+                fechaNacimiento: '1990-05-12',
+                registrationMode: 'RAPIDO',
+                completenessStatus: 'PENDIENTE_VERIFICACION',
+                matchReasons: ['same_name_birth_date'],
+              },
+            ],
+          },
+        });
+      }
+      if (url === '/patients/patient-1/encounters?page=1&limit=10') {
+        return Promise.resolve({ data: baseEncounterListPage1 });
+      }
+      if (url === '/patients/patient-1/clinical-summary') {
+        return Promise.resolve({ data: baseClinicalSummary });
+      }
+      if (url === '/patients/patient-1/operational-history?limit=12') {
+        return Promise.resolve({ data: baseOperationalHistory });
+      }
+      throw new Error(`Unexpected GET ${url}`);
+    });
+    apiPostMock.mockResolvedValue({ data: { patient: basePatientResponse, counts: { encountersMoved: 1 } } });
+
+    render(<PatientDetailPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Posibles pacientes duplicados')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Consolidar en esta ficha' }));
+    expect(await screen.findByText('Fusionar ficha duplicada')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Fusionar en esta ficha' }));
+
+    await waitFor(() => {
+      expect(apiPostMock).toHaveBeenCalledWith('/patients/patient-1/merge', {
+        sourcePatientId: 'patient-dup',
+      });
+    });
+  });
+
+  it('renders contact information in the patient detail card', async () => {
+    render(<PatientDetailPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('paciente.demo@test.cl')).toBeInTheDocument();
+    expect(screen.getByText('+56 9 1111 2222')).toBeInTheDocument();
+    expect(screen.getByText(/Ana Familiar · \+56 9 3333 4444/)).toBeInTheDocument();
+  });
+
+  it('shows the clinical bundle export action for verified patients', async () => {
+    render(<PatientDetailPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByRole('button', { name: 'Paquete clínico' })).toBeInTheDocument();
+  });
+
   it('shows vital selector pills and expanded chart when full vitals are toggled', async () => {
     const originalImpl = apiGetMock.getMockImplementation()!;
     apiGetMock.mockImplementation((url: string) => {

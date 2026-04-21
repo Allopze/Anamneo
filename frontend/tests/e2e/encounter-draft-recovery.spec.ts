@@ -92,7 +92,7 @@ const savedIdentificationPayload = {
 
 test('recovers the local draft after 401, login and return to the encounter', async ({ context, page }) => {
   const baseURL = test.info().project.use.baseURL ?? 'http://127.0.0.1:5555';
-  let shouldExpireOnSuggest = true;
+  let failNextAuthMe = false;
 
   await context.addCookies([
     { name: 'access_token', value: 'test-access', url: baseURL },
@@ -100,6 +100,16 @@ test('recovers the local draft after 401, login and return to the encounter', as
   ]);
 
   await page.route('**/api/auth/me', async (route) => {
+    if (failNextAuthMe) {
+      failNextAuthMe = false;
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Unauthorized', statusCode: 401 }),
+      });
+      return;
+    }
+
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -137,16 +147,6 @@ test('recovers the local draft after 401, login and return to the encounter', as
   });
 
   await page.route('**/api/conditions/suggest', async (route) => {
-    if (shouldExpireOnSuggest) {
-      shouldExpireOnSuggest = false;
-      await route.fulfill({
-        status: 401,
-        contentType: 'application/json',
-        body: JSON.stringify({ message: 'Unauthorized', statusCode: 401 }),
-      });
-      return;
-    }
-
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -258,6 +258,27 @@ test('recovers the local draft after 401, login and return to the encounter', as
     });
   });
 
+  await page.route('**/api/patients/patient-1/clinical-summary', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        patientId: 'patient-1',
+        generatedAt: '2026-04-04T12:00:00.000Z',
+        counts: {
+          totalEncounters: 1,
+          activeProblems: 0,
+          pendingTasks: 0,
+        },
+        latestEncounterSummary: null,
+        vitalTrend: [],
+        recentDiagnoses: [],
+        activeProblems: [],
+        pendingTasks: [],
+      }),
+    });
+  });
+
   await page.route('**/api/templates**', async (route) => {
     await route.fulfill({
       status: 200,
@@ -276,6 +297,14 @@ test('recovers the local draft after 401, login and return to the encounter', as
 
   const motivoTextarea = page.getByPlaceholder('Ej: Paciente refiere dolor de cabeza intenso de 3 días de evolución, que empeora con la luz...');
   await motivoTextarea.fill(draftNote);
+
+  await expect
+    .poll(async () => page.evaluate(() => window.localStorage.getItem('anamneo:encounter-draft:v2:med-1:enc-1') || ''))
+    .toContain(draftNote);
+
+  failNextAuthMe = true;
+  await context.clearCookies();
+  await page.goto('/atenciones/enc-1');
 
   await page.waitForURL('**/login?from=*');
   await expect(page).toHaveURL(/\/login\?from=%2Fatenciones%2Fenc-1/);

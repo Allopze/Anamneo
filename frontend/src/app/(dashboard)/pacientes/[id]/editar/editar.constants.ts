@@ -3,10 +3,14 @@ import { validateRut } from '@/lib/rut';
 import type { PatientPrevision, PatientSexo } from '@/types';
 import {
   PATIENT_ADDRESS_MAX_LENGTH,
+  PATIENT_EMAIL_MAX_LENGTH,
+  PATIENT_EMERGENCY_CONTACT_NAME_MAX_LENGTH,
+  PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH,
   PATIENT_JOB_MAX_LENGTH,
   PATIENT_MEDICAL_CENTER_MAX_LENGTH,
   PATIENT_NAME_MAX_LENGTH,
   PATIENT_NAME_MIN_LENGTH,
+  PATIENT_PHONE_MAX_LENGTH,
   PATIENT_RUT_EXEMPT_REASON_MAX_LENGTH,
   PATIENT_RUT_MAX_LENGTH,
 } from '../../../../../../../shared/patient-field-constraints';
@@ -17,6 +21,10 @@ export type EditForm = {
   prevision: PatientPrevision | null;
   trabajo?: string | null;
   domicilio?: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  contactoEmergenciaNombre?: string | null;
+  contactoEmergenciaTelefono?: string | null;
   centroMedico?: string | null;
   nombre?: string;
   rut?: string | null;
@@ -35,6 +43,29 @@ export function buildEditSchema(isDoctor: boolean) {
       .optional(),
     domicilio: z.string()
       .max(PATIENT_ADDRESS_MAX_LENGTH, `El domicilio no puede exceder ${PATIENT_ADDRESS_MAX_LENGTH} caracteres`)
+      .nullable()
+      .optional(),
+    telefono: z.string()
+      .max(PATIENT_PHONE_MAX_LENGTH, `El teléfono no puede exceder ${PATIENT_PHONE_MAX_LENGTH} caracteres`)
+      .nullable()
+      .optional(),
+    email: z.string()
+      .max(PATIENT_EMAIL_MAX_LENGTH, `El email no puede exceder ${PATIENT_EMAIL_MAX_LENGTH} caracteres`)
+      .nullable()
+      .optional()
+      .refine((value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()), 'Email inválido'),
+    contactoEmergenciaNombre: z.string()
+      .max(
+        PATIENT_EMERGENCY_CONTACT_NAME_MAX_LENGTH,
+        `El contacto de emergencia no puede exceder ${PATIENT_EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres`,
+      )
+      .nullable()
+      .optional(),
+    contactoEmergenciaTelefono: z.string()
+      .max(
+        PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH,
+        `El teléfono de emergencia no puede exceder ${PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH} caracteres`,
+      )
       .nullable()
       .optional(),
     centroMedico: z.string()

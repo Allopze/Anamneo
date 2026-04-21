@@ -339,6 +339,63 @@ export function EditarPacienteFormSections({
               {...editForm.register('domicilio')}
             />
           </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label htmlFor="telefono" className="form-label">Teléfono</label>
+              <input
+                id="telefono"
+                type="tel"
+                autoComplete="tel"
+                className={clsx('form-input', editForm.formState.errors.telefono && 'form-input-error')}
+                {...editForm.register('telefono')}
+              />
+              {editForm.formState.errors.telefono ? (
+                <p className="form-error">{String(editForm.formState.errors.telefono.message || '')}</p>
+              ) : null}
+            </div>
+
+            <div>
+              <label htmlFor="email" className="form-label">Email</label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                className={clsx('form-input', editForm.formState.errors.email && 'form-input-error')}
+                {...editForm.register('email')}
+              />
+              {editForm.formState.errors.email ? (
+                <p className="form-error">{String(editForm.formState.errors.email.message || '')}</p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label htmlFor="contactoEmergenciaNombre" className="form-label">Contacto de emergencia</label>
+              <input
+                id="contactoEmergenciaNombre"
+                className={clsx('form-input', editForm.formState.errors.contactoEmergenciaNombre && 'form-input-error')}
+                {...editForm.register('contactoEmergenciaNombre')}
+              />
+              {editForm.formState.errors.contactoEmergenciaNombre ? (
+                <p className="form-error">{String(editForm.formState.errors.contactoEmergenciaNombre.message || '')}</p>
+              ) : null}
+            </div>
+
+            <div>
+              <label htmlFor="contactoEmergenciaTelefono" className="form-label">Teléfono de emergencia</label>
+              <input
+                id="contactoEmergenciaTelefono"
+                type="tel"
+                className={clsx('form-input', editForm.formState.errors.contactoEmergenciaTelefono && 'form-input-error')}
+                {...editForm.register('contactoEmergenciaTelefono')}
+              />
+              {editForm.formState.errors.contactoEmergenciaTelefono ? (
+                <p className="form-error">{String(editForm.formState.errors.contactoEmergenciaTelefono.message || '')}</p>
+              ) : null}
+            </div>
+          </div>
         </section>
 
         <div className="sticky bottom-4 z-10 rounded-card border border-surface-muted/40 bg-surface-elevated/95 p-4 shadow-soft backdrop-blur-sm">

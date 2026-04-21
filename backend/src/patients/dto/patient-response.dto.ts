@@ -73,6 +73,10 @@ export class PatientResponseDto {
   demographicsVerifiedAt: Date | null;
   demographicsVerifiedById: string | null;
   domicilio: string | null;
+  telefono: string | null;
+  email: string | null;
+  contactoEmergenciaNombre: string | null;
+  contactoEmergenciaTelefono: string | null;
   centroMedico: string | null;
   createdAt: Date;
   updatedAt: Date;

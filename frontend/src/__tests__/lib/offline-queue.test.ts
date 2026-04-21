@@ -1,4 +1,9 @@
-import { collapsePendingSaves, filterPendingSavesByUser, isNetworkError } from '@/lib/offline-queue';
+import { collapsePendingSaves, enqueueSave, filterPendingSavesByUser, isNetworkError } from '@/lib/offline-queue';
+import { usePrivacySettingsStore } from '@/stores/privacy-settings-store';
+
+beforeEach(() => {
+  usePrivacySettingsStore.setState({ sharedDeviceMode: false, hasHydrated: true });
+});
 
 describe('isNetworkError', () => {
   it('returns true for ERR_NETWORK code', () => {
@@ -122,5 +127,21 @@ describe('collapsePendingSaves', () => {
         data: { texto: 'Versión nueva' },
       }),
     ]);
+  });
+});
+
+describe('shared-device mode', () => {
+  it('rejects offline queue persistence when shared-device mode is enabled', async () => {
+    usePrivacySettingsStore.setState({ sharedDeviceMode: true, hasHydrated: true });
+
+    await expect(
+      enqueueSave({
+        encounterId: 'enc-1',
+        sectionKey: 'MOTIVO_CONSULTA',
+        data: { texto: 'Sin conexión' },
+        queuedAt: new Date().toISOString(),
+        userId: 'user-1',
+      }),
+    ).rejects.toThrow('El modo equipo compartido desactiva el guardado offline local');
   });
 });

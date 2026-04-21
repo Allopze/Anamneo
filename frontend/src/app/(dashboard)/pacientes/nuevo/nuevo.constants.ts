@@ -3,10 +3,14 @@ import { validateRut } from '@/lib/rut';
 import { calculateAgeFromBirthDate } from '@/lib/date';
 import {
   PATIENT_ADDRESS_MAX_LENGTH,
+  PATIENT_EMAIL_MAX_LENGTH,
+  PATIENT_EMERGENCY_CONTACT_NAME_MAX_LENGTH,
+  PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH,
   PATIENT_JOB_MAX_LENGTH,
   PATIENT_MEDICAL_CENTER_MAX_LENGTH,
   PATIENT_NAME_MAX_LENGTH,
   PATIENT_NAME_MIN_LENGTH,
+  PATIENT_PHONE_MAX_LENGTH,
   PATIENT_RUT_EXEMPT_REASON_MAX_LENGTH,
   PATIENT_RUT_MAX_LENGTH,
 } from '../../../../../../shared/patient-field-constraints';
@@ -29,6 +33,26 @@ const basePatientObject = z.object({
   trabajo: z.string().max(PATIENT_JOB_MAX_LENGTH, `El trabajo no puede exceder ${PATIENT_JOB_MAX_LENGTH} caracteres`).optional(),
   domicilio: z.string()
     .max(PATIENT_ADDRESS_MAX_LENGTH, `El domicilio no puede exceder ${PATIENT_ADDRESS_MAX_LENGTH} caracteres`)
+    .optional(),
+  telefono: z.string()
+    .max(PATIENT_PHONE_MAX_LENGTH, `El teléfono no puede exceder ${PATIENT_PHONE_MAX_LENGTH} caracteres`)
+    .optional()
+    .refine((value) => !value || value.trim().length > 0, 'El teléfono no puede estar vacío'),
+  email: z.string()
+    .max(PATIENT_EMAIL_MAX_LENGTH, `El email no puede exceder ${PATIENT_EMAIL_MAX_LENGTH} caracteres`)
+    .optional()
+    .refine((value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()), 'Email inválido'),
+  contactoEmergenciaNombre: z.string()
+    .max(
+      PATIENT_EMERGENCY_CONTACT_NAME_MAX_LENGTH,
+      `El contacto de emergencia no puede exceder ${PATIENT_EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres`,
+    )
+    .optional(),
+  contactoEmergenciaTelefono: z.string()
+    .max(
+      PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH,
+      `El teléfono de emergencia no puede exceder ${PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH} caracteres`,
+    )
     .optional(),
   centroMedico: z.string()
     .max(

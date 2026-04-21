@@ -144,6 +144,16 @@ export default function PatientAdministrativeDetailPage() {
             <DetailField label="Estado" value={completenessMeta.label} />
             <DetailField label="Trabajo" value={data.trabajo || 'No informado'} />
             <DetailField label="Domicilio" value={data.domicilio || 'No informado'} />
+            <DetailField label="Teléfono" value={data.telefono || 'No informado'} />
+            <DetailField label="Email" value={data.email || 'No informado'} />
+            <DetailField
+              label="Contacto emergencia"
+              value={data.contactoEmergenciaNombre || 'No informado'}
+            />
+            <DetailField
+              label="Teléfono emergencia"
+              value={data.contactoEmergenciaTelefono || 'No informado'}
+            />
             <DetailField label="Centro médico" value={data.centroMedico || 'No informado'} />
           </dl>
         </section>

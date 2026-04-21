@@ -1,3 +1,5 @@
+import { isSharedDeviceModeEnabled } from '@/stores/privacy-settings-store';
+
 const ENCOUNTER_DRAFT_VERSION = 2;
 const ENCOUNTER_DRAFT_PREFIX = 'anamneo:encounter-draft';
 const ENCOUNTER_CONFLICT_PREFIX = 'anamneo:encounter-conflict';
@@ -46,6 +48,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 export function readEncounterDraft(encounterId: string, userId: string): EncounterDraft | null {
   if (typeof window === 'undefined') return null;
+  if (isSharedDeviceModeEnabled()) return null;
 
   try {
     const raw = window.localStorage.getItem(getEncounterDraftKey(encounterId, userId));
@@ -88,6 +91,7 @@ export function readEncounterDraft(encounterId: string, userId: string): Encount
 
 export function writeEncounterDraft(draft: EncounterDraft): void {
   if (typeof window === 'undefined') return;
+  if (isSharedDeviceModeEnabled()) return;
 
   window.localStorage.setItem(
     getEncounterDraftKey(draft.encounterId, draft.userId),
@@ -101,6 +105,7 @@ export function readEncounterSectionConflict(
   sectionKey: string,
 ): EncounterSectionConflictBackup | null {
   if (typeof window === 'undefined') return null;
+  if (isSharedDeviceModeEnabled()) return null;
 
   try {
     const raw = window.localStorage.getItem(getEncounterConflictKey(encounterId, userId, sectionKey));
@@ -140,6 +145,7 @@ export function readEncounterSectionConflict(
 
 export function writeEncounterSectionConflict(conflict: EncounterSectionConflictBackup): void {
   if (typeof window === 'undefined') return;
+  if (isSharedDeviceModeEnabled()) return;
 
   window.localStorage.setItem(
     getEncounterConflictKey(conflict.encounterId, conflict.userId, conflict.sectionKey),
@@ -152,6 +158,7 @@ export function listEncounterSectionConflicts(
   userId: string,
 ): EncounterSectionConflictBackup[] {
   if (typeof window === 'undefined') return [];
+  if (isSharedDeviceModeEnabled()) return [];
 
   const prefix = `${ENCOUNTER_CONFLICT_PREFIX}:v${ENCOUNTER_DRAFT_VERSION}:${userId}:${encounterId}:`;
   const conflicts: EncounterSectionConflictBackup[] = [];

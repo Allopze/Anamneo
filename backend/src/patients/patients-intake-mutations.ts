@@ -9,7 +9,7 @@ import {
   calculateAgeFromBirthDate,
   parseDateOnlyToStoredUtcDate,
 } from '../common/utils/local-date';
-import { decoratePatient, resolvePatientVerificationState } from './patients-format';
+import { decoratePatient, normalizeNullableEmail, normalizeNullableString, resolvePatientVerificationState } from './patients-format';
 import { resolveCreatePatientRutInput, resolvePatientRutState } from './patients-create-utils';
 
 interface CreatePatientMutationParams {
@@ -80,10 +80,14 @@ export async function createPatientMutation(params: CreatePatientMutationParams)
         edad: resolvedAge.edad,
         edadMeses: resolvedAge.edadMeses ?? null,
         sexo: createPatientDto.sexo,
-        trabajo: createPatientDto.trabajo,
+        trabajo: normalizeNullableString(createPatientDto.trabajo),
         prevision: createPatientDto.prevision,
-        domicilio: createPatientDto.domicilio,
-        centroMedico: createPatientDto.centroMedico,
+        domicilio: normalizeNullableString(createPatientDto.domicilio),
+        telefono: normalizeNullableString(createPatientDto.telefono),
+        email: normalizeNullableEmail(createPatientDto.email),
+        contactoEmergenciaNombre: normalizeNullableString(createPatientDto.contactoEmergenciaNombre),
+        contactoEmergenciaTelefono: normalizeNullableString(createPatientDto.contactoEmergenciaTelefono),
+        centroMedico: normalizeNullableString(createPatientDto.centroMedico),
         registrationMode: 'COMPLETO',
         ...verificationState,
         history: {

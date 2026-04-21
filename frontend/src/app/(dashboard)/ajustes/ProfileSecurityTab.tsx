@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
+import { clearEncounterLocalStateForUser } from '@/lib/encounter-draft';
+import { clearPendingSavesForUser } from '@/lib/offline-queue';
 import { useAuthStore } from '@/stores/auth-store';
+import { usePrivacySettingsStore } from '@/stores/privacy-settings-store';
 import type { AjustesHook } from './useAjustes';
 
 type Props = Pick<
@@ -21,6 +24,9 @@ export default function ProfileSecurityTab({
   passwordMutation,
   userRole,
 }: Props) {
+  const { user } = useAuthStore();
+  const { sharedDeviceMode, setSharedDeviceMode } = usePrivacySettingsStore();
+  const [updatingPrivacyMode, setUpdatingPrivacyMode] = useState(false);
   const {
     register: registerProfile,
     handleSubmit: handleProfile,
@@ -32,6 +38,27 @@ export default function ProfileSecurityTab({
     handleSubmit: handlePassword,
     formState: { errors: passwordErrors },
   } = passwordForm;
+
+  const handleSharedDeviceModeChange = async (enabled: boolean) => {
+    setUpdatingPrivacyMode(true);
+    setSharedDeviceMode(enabled);
+
+    if (enabled && user?.id) {
+      clearEncounterLocalStateForUser(user.id);
+      try {
+        await clearPendingSavesForUser(user.id);
+      } catch {
+        // Ignore cleanup failures; the stricter mode still needs to be enabled.
+      }
+    }
+
+    toast.success(
+      enabled
+        ? 'Modo equipo compartido activado. Se deshabilitó la persistencia local clínica en este navegador.'
+        : 'Modo equipo compartido desactivado. Los borradores locales vuelven a estar disponibles en este navegador.',
+    );
+    setUpdatingPrivacyMode(false);
+  };
 
   return (
     <div role="tabpanel" id="tabpanel-perfil" aria-labelledby="tab-perfil">
@@ -160,6 +187,41 @@ export default function ProfileSecurityTab({
             </button>
           </form>
         </div>
+      </div>
+
+      <div className="card mb-6">
+        <div className="panel-header">
+          <h2 className="panel-title">Privacidad del dispositivo</h2>
+        </div>
+
+        <p className="text-sm text-ink-muted mb-4">
+          Activa este modo en computadores compartidos para deshabilitar borradores locales, copias recuperables en
+          conflicto y la cola offline clínica en este navegador.
+        </p>
+
+        <label className="flex items-start gap-3 rounded-card border border-surface-muted/40 bg-surface-elevated/50 p-4 cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={sharedDeviceMode}
+            disabled={updatingPrivacyMode}
+            onChange={(event) => {
+              void handleSharedDeviceModeChange(event.target.checked);
+            }}
+            aria-label="Activar modo equipo compartido"
+          />
+          <div>
+            <p className="text-sm font-semibold text-ink">Modo equipo compartido</p>
+            <p className="mt-1 text-sm text-ink-secondary">
+              La sesión sigue usando cookies seguras, pero los datos clínicos ya no se guardan localmente entre cortes,
+              conflictos o trabajo offline.
+            </p>
+            <p className="mt-3 text-xs text-ink-muted">
+              Úsalo en notebooks del centro, boxes compartidos o cualquier equipo donde no quieras dejar PHI persistida
+              en almacenamiento del navegador.
+            </p>
+          </div>
+        </label>
       </div>
 
       <TwoFactorSection />

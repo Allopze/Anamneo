@@ -6,11 +6,11 @@ Fecha de auditoria: 2026-04-21
 
 Audite el repositorio completo con foco en una EMR chica de uso real para 1 a 5 usuarios: arquitectura, auth/permisos, modelo de datos, backend NestJS, frontend Next.js, Prisma/SQLite, scripts operativos, build, tests, lint, release y riesgos de privacidad.
 
-Estado general: bueno a nivel de backend y sorprendentemente maduro para el tamano del proyecto. Hay varias decisiones bien resueltas para una app chica: permisos por rol y medico, cookies HttpOnly same-origin, auditoria, restore drill de backups SQLite, firma/inmutabilidad de atenciones, validaciones de secciones y una cobertura backend fuerte.
+Estado general: bueno y claramente mas cerca de produccion chica despues de las correcciones implementadas. Hay varias decisiones bien resueltas para una app chica: permisos por rol y medico, cookies HttpOnly same-origin, auditoria, restore drill de backups SQLite, firma/inmutabilidad de atenciones, validaciones de secciones y una cobertura backend fuerte.
 
-Riesgo global: medio-alto hoy. No por falta de arquitectura enterprise, sino por 2 riesgos concretos que si pegan directo en produccion: el release puede empaquetar datos clinicos reales y la cola offline puede descartar cambios clinicos locales cuando hay conflicto `409`.
+Riesgo global: medio-bajo hoy. Los riesgos de codigo mas serios detectados en la auditoria ya quedaron corregidos; lo que sigue abierto es sobre todo operativo y de cierre final para uso real en equipo chico.
 
-Conclusion corta: Anamneo esta cerca de estar lista para una produccion chica, pero hoy todavia no la pondria en uso real sin una ronda corta de correcciones sobre release, conflictos offline, persistencia local de PHI y limpieza de hooks/lint en frontend.
+Conclusion corta: Anamneo quedo bastante mejor encaminada y con fixes valiosos en areas clinicas reales. La validacion browser completa ya quedo cerrada; lo que sigue bloqueando una produccion chica responsable es sobre todo confirmar cifrado operativo del host y hacer un smoke manual final sobre entorno parecido al definitivo.
 
 ## Estado tras implementacion
 
@@ -56,6 +56,69 @@ Se implementaron fixes sugeridos adicionales para cerrar deuda de calidad y hace
 - `npm --prefix frontend run test`: OK, `58 suites / 278 tests`
 - `PLAYWRIGHT_FRONTEND_PORT=5565 PLAYWRIGHT_BACKEND_PORT=5688 npm --prefix frontend run test:e2e:smoke`: OK, `2 tests`
 
+### Pasada 3 completada
+
+Se implementaron dos funcionalidades de alto valor para una EMR chica y se corrigio una regresion clinica real detectada durante la validacion:
+
+- **Implementado**: datos de contacto del paciente en modelo, backend y frontend. Ahora existen `telefono`, `email`, `contactoEmergenciaNombre` y `contactoEmergenciaTelefono` en Prisma, DTOs, formularios de alta/edicion, vistas de detalle y resumen administrativo, y export CSV.
+- **Implementado**: merge de pacientes duplicados. Se agrego `POST /api/patients/:id/merge`, integracion frontend en la ficha del paciente y consolidacion de datos clinicos/operativos desde la ficha origen hacia la canonica.
+- **Corregido**: al fusionar, una atencion `EN_PROGRESO` proveniente del duplicado podia quedar reutilizable con snapshots clinicos viejos. Ahora las atenciones en progreso movidas por merge rebasingean `IDENTIFICACION` y `ANAMNESIS_REMOTA` al estado consolidado del paciente, evitando que una consulta siga trabajando contra snapshots de la ficha equivocada.
+- **Corregido**: la auditoria del merge ya no rompe la transaccion por una razon no catalogada.
+- **Actualizado**: los tests E2E backend ahora cubren contactos del paciente, merge de duplicados, preservacion de historia clinica complementaria y reuso seguro de atenciones en progreso tras merge.
+
+### Validacion despues de la pasada 3
+
+- `npm --prefix backend run typecheck`: OK
+- `npm --prefix backend run lint:check`: OK
+- `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts`: OK, `214 tests`
+
+### Pendientes relevantes despues de la pasada 3
+
+- Sigue pendiente la confirmacion operativa real de cifrado en reposo del host y luego fijar `ENCRYPTION_AT_REST_CONFIRMED=true`.
+- Sigue faltando un modo explicito de "equipo compartido" para endurecer mas la persistencia local de PHI en frontend.
+- Falta correr la suite completa `npm --prefix frontend run test:e2e`; hoy quedaron validados `lint`, `typecheck`, tests unitarios frontend y un smoke Playwright, pero no toda la bateria E2E browser.
+- Conviene hacer un smoke manual final de produccion chica: login, alta de paciente, merge, apertura de atencion, guardado, cierre y export.
+
+### Pasada 4 completada
+
+Se implemento una ronda final de endurecimiento puntual sobre privacidad local y configuracion operativa:
+
+- **Implementado**: modo explicito de "equipo compartido" en `Ajustes > Perfil y seguridad`. Cuando se activa, el frontend deshabilita borradores locales, copias recuperables en conflicto y la cola offline clinica en ese navegador.
+- **Corregido**: la lectura del modo compartido queda efectiva incluso antes de que termine la rehidratacion del store, evitando una ventana en la que se pudiera restaurar un borrador local por error al cargar la app.
+- **Corregido**: si el usuario queda sin conexion mientras el modo compartido esta activo, el flujo de guardado ya no promete una cola offline inexistente; ahora falla de forma explicita y pide reconexion antes de continuar.
+- **Corregido**: `backend/.env.example` quedo alineado con `.env.example` raiz y dejo de sugerir placeholders debiles para `JWT_SECRET` y `JWT_REFRESH_SECRET`.
+
+### Validacion despues de la pasada 4
+
+- `npm --prefix frontend run typecheck`: OK
+- `npm --prefix frontend run test`: OK, `58 suites / 283 tests`
+
+### Pendientes relevantes despues de la pasada 4
+
+- Sigue pendiente la confirmacion operativa real de cifrado en reposo del host y luego fijar `ENCRYPTION_AT_REST_CONFIRMED=true`.
+- Falta correr la suite completa `npm --prefix frontend run test:e2e`; hoy quedaron validados `typecheck`, la suite unitaria completa frontend y un smoke Playwright, pero no toda la bateria E2E browser.
+- Conviene hacer un smoke manual final de produccion chica: login, alta de paciente, merge, apertura de atencion, guardado, cierre y export.
+
+### Pasada 5 completada
+
+Se cerro la validacion browser completa y se corrigio una regresion funcional real detectada durante esa corrida:
+
+- **Corregido**: los formularios de alta y edicion de paciente ya no envian `email: ''` ni otros opcionales vacios al backend. Ahora normalizan campos opcionales vacios antes del submit, evitando rechazos falsos en registros completos sin email.
+- **Corregido**: el spec Playwright de recuperacion de borrador ahora mockea el resumen clinico que la pagina de atencion consulta al montar, y fuerza la expiracion de sesion de forma deterministica despues de comprobar que el draft quedo persistido.
+- **Validado**: la suite completa `frontend test:e2e` ya corre en verde con los puertos configurables introducidos en la pasada anterior.
+
+### Validacion despues de la pasada 5
+
+- `npm --prefix frontend run typecheck`: OK
+- `npm --prefix frontend run test`: OK, `58 suites / 283 tests`
+- `npm --prefix frontend run lint`: OK
+- `PLAYWRIGHT_FRONTEND_PORT=5565 PLAYWRIGHT_BACKEND_PORT=5688 npm --prefix frontend run test:e2e`: OK, `13 tests`
+
+### Pendientes relevantes despues de la pasada 5
+
+- Sigue pendiente la confirmacion operativa real de cifrado en reposo del host y luego fijar `ENCRYPTION_AT_REST_CONFIRMED=true`.
+- Conviene hacer un smoke manual final de produccion chica: login, alta de paciente, merge, apertura de atencion, guardado, cierre y export.
+
 ### Validaciones ejecutadas
 
 - `npm install`: OK
@@ -64,12 +127,15 @@ Se implementaron fixes sugeridos adicionales para cerrar deuda de calidad y hace
 - `npm --prefix backend run typecheck`: OK
 - `npm --prefix frontend run typecheck`: OK
 - `npm --prefix backend run test`: OK, `52 suites / 284 tests`
-- `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts`: OK, `208 tests`
-- `npm --prefix frontend run test`: OK en rerun, `57 suites / 275 tests`
-- `npm --prefix frontend run lint`: FALLA, `5 errors / 4 warnings`
-- `npm --prefix backend run lint:check`: FALLA, `10 errors`
-- `npm run release`: OK; confirma que el zip incluye `runtime/data/` y `runtime/uploads/`
-- `npm --prefix frontend run test:e2e`: no concluyente; Playwright aborta porque `http://localhost:5555` ya estaba ocupado por un `next dev` externo al flujo de auditoria
+- `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts`: OK, `214 tests`
+- `npm --prefix frontend run test`: OK, `58 suites / 280 tests`
+- `npm --prefix frontend run typecheck`: OK (pasada 4)
+- `npm --prefix frontend run test`: OK, `58 suites / 283 tests` (pasada 4)
+- `npm --prefix frontend run lint`: OK
+- `npm --prefix backend run lint:check`: OK
+- `npm run release`: OK; el zip ya no incluye `runtime/data/` ni `runtime/uploads/`
+- `PLAYWRIGHT_FRONTEND_PORT=5565 PLAYWRIGHT_BACKEND_PORT=5688 npm --prefix frontend run test:e2e:smoke`: OK, `2 tests`
+- `PLAYWRIGHT_FRONTEND_PORT=5565 PLAYWRIGHT_BACKEND_PORT=5688 npm --prefix frontend run test:e2e`: OK, `13 tests` (pasada 5)
 
 ## 2. Veredicto de produccion
 
@@ -77,14 +143,15 @@ Se implementaron fixes sugeridos adicionales para cerrar deuda de calidad y hace
 
 Justificacion concreta:
 
-- Hay un riesgo critico de privacidad/operacion: el release empaqueta `runtime/data/` y `runtime/uploads/`, por lo que un deploy rutinario podria arrastrar base, backups o adjuntos reales.
-- Hay un riesgo alto de integridad clinica: la sincronizacion offline elimina guardados en conflicto `409` sin conservar una copia recuperable del cambio local.
-- El frontend no esta limpio a nivel hooks/lint: hay violaciones reales de `rules-of-hooks` y de React Compiler en pantallas centrales.
-- El cliente deja PHI en `localStorage` e `IndexedDB` mas alla de la sesion sin una politica suficiente de purge para equipos compartidos.
+- El codigo ya no tiene abiertos los hallazgos criticos que bloqueaban una produccion chica razonable.
+- Lo que sigue pendiente es cerrar el control operativo mas importante de privacidad: cifrado real en reposo del host.
+- La validacion automatizada ya quedo bien cerrada, incluyendo la suite browser completa.
 
-Si se corrigen esos puntos y se valida el checklist minimo de despliegue, el proyecto si podria quedar razonablemente apto para un consultorio chico real.
+Si se corrigen esos puntos y se valida el checklist minimo de despliegue, el proyecto ya quedaria razonablemente apto para un consultorio chico real.
 
 ## 3. Hallazgos criticos y altos
+
+Estado actual: los hallazgos de la tabla siguiente ya fueron corregidos en esta ronda y se conservan por trazabilidad. Los pendientes abiertos vigentes estan resumidos en "Pendientes relevantes despues de la pasada 5".
 
 | Severidad | Titulo | Archivos afectados | Descripcion | Impacto | Recomendacion | Esfuerzo |
 |---|---|---|---|---|---|---|
@@ -117,7 +184,7 @@ Si se corrigen esos puntos y se valida el checklist minimo de despliegue, el pro
 - El release hoy es el mayor riesgo de privacidad.
 - El navegador persiste PHI localmente mas de lo deseable para un entorno clinico.
 - El cifrado en reposo de adjuntos, DB y backups depende del host. El backend solo advierte si `ENCRYPTION_AT_REST_CONFIRMED` no esta en `true`; no lo fuerza.
-- `backend/.env.example` sigue mostrando placeholders debiles (`your-secret-key-change-in-production`), aunque el runtime de produccion los rechaza. Es un riesgo bajo, pero conviene alinearlo con el `.env.example` raiz para no inducir malas copias manuales.
+- `backend/.env.example` ya dejo de mostrar placeholders debiles para secretos JWT. El riesgo residual aca pasa a ser mas operativo que de plantilla.
 
 ### Evaluacion pragmatica
 
@@ -163,18 +230,18 @@ Para una EMR pequena no hace falta sobredisenar. Pero si hace falta:
 ### Imprescindibles
 
 - Flujo de resolucion/merge de pacientes duplicados
-  - Ya existe deteccion de posibles duplicados. Falta la accion realmente util para el dia a dia: consolidarlos sin perder historia.
+  - **Ya implementado**: existe `POST /api/patients/:id/merge` y accion frontend en la ficha del paciente para consolidar historia clinica y operativa.
 - Recuperacion guiada de conflictos offline
-  - No alcanza con un toast. Se necesita ver "tu version vs servidor" y restaurar lo local si corresponde.
+  - **Ya implementado**: existe panel de recuperacion con diff resumido, restauracion de copia local y descarte por seccion.
 - Modo de privacidad para equipo compartido
-  - Toggle simple para limpiar drafts/cola al logout, acortar TTL o directamente desactivar persistencia local de PHI.
+  - **Ya implementado**: existe toggle en ajustes para desactivar persistencia local clinica en ese navegador.
 
 ### Muy utiles
 
 - Campos de contacto del paciente
-  - Telefono principal, email y contacto de emergencia son datos de alto valor practico en consultorio chico.
+  - **Ya implementado**: telefono principal, email y contacto de emergencia ya existen en modelo, formularios, detalle y export CSV.
 - Estado operativo de backups visible
-  - Una tarjeta simple en ajustes/admin con ultimo backup, ultimo restore drill y alerta si esta vencido aporta mucho mas que otra capa de infraestructura.
+  - **Ya implementado**: `Ajustes > Sistema` muestra ultimo backup, restore drill y alertas operativas.
 
 ### Opcionales
 
@@ -183,19 +250,11 @@ Para una EMR pequena no hace falta sobredisenar. Pero si hace falta:
 
 ## 9. Quick wins
 
-- Excluir `runtime/data/**` y `runtime/uploads/**` del release hoy mismo.
-- En conflicto `409` del replay offline, guardar copia recuperable y no borrar el payload local automaticamente.
-- Limpiar `localStorage`/`IndexedDB` clinico al logout y agregar TTL a la cola offline.
-- Corregir los `rules-of-hooks` de `dashboard` y `atenciones`, y reordenar `useEncounterSectionSaveFlow`.
-- Dejar `frontend lint` y `backend lint:check` en verde antes de seguir agregando features.
-- Unificar `.env.example` raiz y `backend/.env.example`.
+- Confirmar cifrado real del host y luego fijar `ENCRYPTION_AT_REST_CONFIRMED=true`.
+- Hacer el smoke manual final sobre un entorno similar al definitivo.
 
 ## 10. Checklist minimo antes de produccion
 
-- Corregir el release para que no empaquete datos reales.
-- Corregir el flujo de conflicto offline y probarlo manualmente.
-- Limpiar/purgar persistencia local de PHI en logout y definir politica para equipos compartidos.
-- Dejar build, typecheck, tests y lint en verde.
 - Verificar deploy sobre storage cifrado y luego fijar `ENCRYPTION_AT_REST_CONFIRMED=true`.
 - Ejecutar un smoke real con login, alta de paciente, apertura de atencion, guardado, cierre y export PDF en un entorno similar al definitivo.
 
@@ -203,8 +262,7 @@ Para una EMR pequena no hace falta sobredisenar. Pero si hace falta:
 
 - No inspeccione datos clinicos reales ni nombres de archivos sensibles. El `runtime/` del workspace estaba vacio durante la auditoria.
 - El riesgo del release esta comprobado por lectura del script y por ejecucion de `npm run release`, no por una fuga real observada.
-- `frontend test:e2e` no fue concluyente porque el puerto `5555` ya estaba ocupado por un `next dev` ajeno al flujo de auditoria.
-- La suite frontend fallo una vez en corrida completa y luego paso al rerun; lo trate como evidencia de inestabilidad, no como bug funcional deterministico ya probado.
+- La suite `frontend test:e2e` quedo validada en esta ronda usando puertos configurables; durante esa corrida se detecto y corrigio una regresion real en el submit de paciente con email opcional vacio.
 - No tuve un servidor de produccion ni configuracion real de disco/volumen para validar cifrado en reposo del host.
 
 ## Nota final

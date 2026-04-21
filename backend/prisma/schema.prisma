@@ -67,6 +67,10 @@ model Patient {
   demographicsVerifiedAt DateTime? @map("demographics_verified_at")
   demographicsVerifiedById String? @map("demographics_verified_by_id")
   domicilio       String?
+  telefono        String?   @map("telefono")
+  email           String?   @map("email")
+  contactoEmergenciaNombre String? @map("contacto_emergencia_nombre")
+  contactoEmergenciaTelefono String? @map("contacto_emergencia_telefono")
   centroMedico    String?   @map("centro_medico")
   archivedAt      DateTime? @map("archived_at")
   archivedById    String?   @map("archived_by_id")

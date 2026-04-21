@@ -39,11 +39,15 @@ export async function exportPatientsCsvReadModel(params: ExportPatientsCsvParams
   });
 
   const header =
-    'Nombre,RUT,Edad,Sexo,Previsión,Modo registro,Estado completitud,Trabajo,Domicilio,Atenciones,Creado';
+    'Nombre,RUT,Teléfono,Email,Contacto emergencia,Teléfono emergencia,Edad,Sexo,Previsión,Modo registro,Estado completitud,Trabajo,Domicilio,Atenciones,Creado';
   const rows = patients.map((p) => {
     const fields = [
       toCsvCell(p.nombre || ''),
       toCsvCell(p.rut),
+      toCsvCell(p.telefono),
+      toCsvCell(p.email),
+      toCsvCell(p.contactoEmergenciaNombre),
+      toCsvCell(p.contactoEmergenciaTelefono),
       toCsvCell(p.edad),
       toCsvCell(p.sexo),
       toCsvCell(p.prevision),
@@ -100,6 +104,10 @@ export async function getPatientAdminSummaryReadModel(params: GetPatientAdminSum
       demographicsVerifiedAt: true,
       demographicsVerifiedById: true,
       domicilio: true,
+      telefono: true,
+      email: true,
+      contactoEmergenciaNombre: true,
+      contactoEmergenciaTelefono: true,
       centroMedico: true,
       createdAt: true,
       updatedAt: true,

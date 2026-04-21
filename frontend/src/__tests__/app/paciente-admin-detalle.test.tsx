@@ -73,6 +73,10 @@ describe('PatientAdministrativeDetailPage', () => {
         demographicsVerifiedById: null,
         demographicsMissingFields: [],
         domicilio: 'Santiago',
+        telefono: '+56 9 1234 5678',
+        email: 'paciente.demo@test.cl',
+        contactoEmergenciaNombre: 'Ana Familiar',
+        contactoEmergenciaTelefono: '+56 9 8765 4321',
         centroMedico: 'Centro Administrativo Norte',
         createdAt: '2026-03-31T08:00:00.000Z',
         updatedAt: '2026-04-01T10:00:00.000Z',
@@ -97,6 +101,8 @@ describe('PatientAdministrativeDetailPage', () => {
     expect(screen.getByText('Atenciones registradas')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('Centro Administrativo Norte')).toBeInTheDocument();
+    expect(screen.getByText('paciente.demo@test.cl')).toBeInTheDocument();
+    expect(screen.getByText('+56 9 8765 4321')).toBeInTheDocument();
     expect(screen.getAllByText('Pendiente de verificación médica')).toHaveLength(2);
     expect(apiGetMock).toHaveBeenCalledWith('/patients/patient-1/admin-summary');
   });

@@ -7,5 +7,6 @@ import { AuditModule } from '../audit/audit.module';
   imports: [AuditModule],
   controllers: [ConsentsController],
   providers: [ConsentsService],
+  exports: [ConsentsService],
 })
 export class ConsentsModule {}

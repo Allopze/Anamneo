@@ -245,6 +245,7 @@ export class PatientsPdfService {
       entityId: patientId,
       userId: user.id,
       action: 'EXPORT',
+      reason: 'PATIENT_LONGITUDINAL_EXPORTED',
       diff: {
         export: {
           type: 'longitudinal_pdf',

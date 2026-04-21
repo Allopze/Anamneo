@@ -6,7 +6,7 @@ import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatDateOnly } from '@/lib/date';
 
-type PossiblePatientDuplicate = {
+export type PossiblePatientDuplicate = {
   id: string;
   nombre: string;
   rut: string | null;
@@ -27,6 +27,12 @@ type PossiblePatientDuplicatesNoticeProps = {
     label: string;
     helperText?: string;
     onClick: () => void;
+  };
+  duplicateAction?: {
+    label: string;
+    pendingLabel?: string;
+    pendingDuplicateId?: string | null;
+    onClick: (duplicate: PossiblePatientDuplicate) => void;
   };
 };
 
@@ -141,9 +147,22 @@ export function PossiblePatientDuplicatesNotice(props: PossiblePatientDuplicates
                   {duplicate.fechaNacimiento ? ` · ${formatDateOnly(duplicate.fechaNacimiento)}` : ''}
                 </p>
               </div>
-              <Link href={`/pacientes/${duplicate.id}`} className="btn btn-secondary text-xs">
-                Abrir ficha
-              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                {props.duplicateAction ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary text-xs"
+                    onClick={() => props.duplicateAction?.onClick(duplicate)}
+                  >
+                    {props.duplicateAction.pendingDuplicateId === duplicate.id
+                      ? (props.duplicateAction.pendingLabel || 'Procesando...')
+                      : props.duplicateAction.label}
+                  </button>
+                ) : null}
+                <Link href={`/pacientes/${duplicate.id}`} className="btn btn-secondary text-xs">
+                  Abrir ficha
+                </Link>
+              </div>
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">

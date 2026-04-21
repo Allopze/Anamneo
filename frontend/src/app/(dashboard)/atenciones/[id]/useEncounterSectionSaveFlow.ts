@@ -9,6 +9,7 @@ import {
 } from '@/lib/encounter-draft';
 import { isNetworkError, type PendingSave } from '@/lib/offline-queue';
 import { invalidateAlertOverviewQueries } from '@/lib/query-invalidation';
+import { isSharedDeviceModeEnabled } from '@/stores/privacy-settings-store';
 import type { Encounter, SectionKey } from '@/types';
 import toast from 'react-hot-toast';
 import type { SaveSectionResponse } from './encounter-wizard.constants';
@@ -273,6 +274,13 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       setSavedSectionKey(null);
 
       if (isNetworkError(error) && id && userId) {
+        if (isSharedDeviceModeEnabled()) {
+          setErrorSectionKey(variables.sectionKey);
+          setSaveStatus('error');
+          toast.error('Sin conexión. El modo equipo compartido desactiva borradores y cola offline local; reconecte antes de continuar.');
+          return;
+        }
+
         void enqueueOfflineSave({
           encounterId: id,
           sectionKey: variables.sectionKey,
@@ -360,7 +368,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
         });
         return 'saved';
       } catch (error) {
-        if (isNetworkError(error) && id && userId) {
+        if (isNetworkError(error) && id && userId && !isSharedDeviceModeEnabled()) {
           return 'queued';
         }
         throw error;

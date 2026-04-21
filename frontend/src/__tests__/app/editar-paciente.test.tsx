@@ -90,6 +90,10 @@ describe('EditarPacientePage', () => {
             prevision: 'FONASA',
             trabajo: 'Docente',
             domicilio: 'Santiago',
+            telefono: '+56 9 1111 2222',
+            email: 'paciente@test.cl',
+            contactoEmergenciaNombre: 'Ana Familiar',
+            contactoEmergenciaTelefono: '+56 9 3333 4444',
             centroMedico: 'Centro Base',
             completenessStatus: 'VERIFICADA',
           },
@@ -135,7 +139,7 @@ describe('EditarPacientePage', () => {
     });
   });
 
-  it('submits centroMedico together with the editable demographic payload', async () => {
+  it('submits centroMedico and contact fields together with the editable demographic payload', async () => {
     const user = userEvent.setup();
     render(<EditarPacientePage />, { wrapper: createWrapper() });
 
@@ -143,6 +147,8 @@ describe('EditarPacientePage', () => {
 
     await user.clear(screen.getByLabelText('Centro médico'));
     await user.type(screen.getByLabelText('Centro médico'), 'Centro Norte');
+    await user.clear(screen.getByLabelText('Teléfono'));
+    await user.type(screen.getByLabelText('Teléfono'), '+56 9 9999 0000');
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
     await waitFor(() => {
@@ -150,6 +156,7 @@ describe('EditarPacientePage', () => {
         '/patients/patient-1',
         expect.objectContaining({
           centroMedico: 'Centro Norte',
+          telefono: '+56 9 9999 0000',
         }),
       );
     });

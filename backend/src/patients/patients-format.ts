@@ -82,6 +82,10 @@ export function decoratePatient<T extends Record<string, any>>(patient: T) {
     demographicsVerifiedAt: patient.demographicsVerifiedAt ?? null,
     demographicsVerifiedById: patient.demographicsVerifiedById ?? null,
     domicilio: patient.domicilio,
+    telefono: patient.telefono ?? null,
+    email: patient.email ?? null,
+    contactoEmergenciaNombre: patient.contactoEmergenciaNombre ?? null,
+    contactoEmergenciaTelefono: patient.contactoEmergenciaTelefono ?? null,
     centroMedico: patient.centroMedico,
     archivedAt: patient.archivedAt ?? null,
     archivedById: patient.archivedById ?? null,
@@ -113,6 +117,10 @@ export function formatAdminSummary(patient: {
   demographicsVerifiedAt: Date | null;
   demographicsVerifiedById: string | null;
   domicilio: string | null;
+  telefono: string | null;
+  email: string | null;
+  contactoEmergenciaNombre: string | null;
+  contactoEmergenciaTelefono: string | null;
   centroMedico: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -144,6 +152,10 @@ export function formatAdminSummary(patient: {
     demographicsVerifiedById: summary.demographicsVerifiedById,
     demographicsMissingFields: getPatientDemographicsMissingFields(summary),
     domicilio: summary.domicilio,
+    telefono: summary.telefono,
+    email: summary.email,
+    contactoEmergenciaNombre: summary.contactoEmergenciaNombre,
+    contactoEmergenciaTelefono: summary.contactoEmergenciaTelefono,
     centroMedico: summary.centroMedico,
     createdAt: summary.createdAt,
     updatedAt: summary.updatedAt,
@@ -242,6 +254,11 @@ export function normalizeNullableString(value: string | null | undefined, trim =
 
   const normalized = trim ? value.trim() : value;
   return normalized.length > 0 ? normalized : null;
+}
+
+export function normalizeNullableEmail(value: string | null | undefined) {
+  const normalized = normalizeNullableString(value);
+  return typeof normalized === 'string' ? normalized.toLowerCase() : normalized;
 }
 
 export function matchesClinicalSearch(rawData: unknown, clinicalSearch: string) {

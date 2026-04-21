@@ -9,12 +9,14 @@ import {
   writeEncounterSectionConflict,
   writeEncounterDraft,
 } from '@/lib/encounter-draft';
+import { usePrivacySettingsStore } from '@/stores/privacy-settings-store';
 
 describe('encounter draft helpers', () => {
   const encounterId = 'enc-1';
   const userId = 'user-1';
 
   beforeEach(() => {
+    usePrivacySettingsStore.setState({ sharedDeviceMode: false, hasHydrated: true });
     window.localStorage.clear();
   });
 
@@ -197,5 +199,31 @@ describe('encounter draft helpers', () => {
     expect(readEncounterDraft(encounterId, userId)).toBeNull();
     expect(readEncounterSectionConflict(encounterId, userId, 'MOTIVO_CONSULTA')).toBeNull();
     expect(readEncounterDraft(encounterId, 'user-2')).not.toBeNull();
+  });
+
+  it('does not persist drafts or conflicts when shared-device mode is enabled', () => {
+    usePrivacySettingsStore.setState({ sharedDeviceMode: true, hasHydrated: true });
+
+    writeEncounterDraft({
+      version: 2,
+      encounterId,
+      userId,
+      currentSectionIndex: 1,
+      formData: { MOTIVO_CONSULTA: { texto: 'cefalea' } },
+      savedSnapshot: {},
+    });
+    writeEncounterSectionConflict({
+      version: 2,
+      encounterId,
+      userId,
+      sectionKey: 'MOTIVO_CONSULTA',
+      localData: { texto: 'cefalea intensa' },
+      serverData: { texto: 'cefalea leve' },
+    });
+
+    expect(readEncounterDraft(encounterId, userId)).toBeNull();
+    expect(readEncounterSectionConflict(encounterId, userId, 'MOTIVO_CONSULTA')).toBeNull();
+    expect(listEncounterSectionConflicts(encounterId, userId)).toEqual([]);
+    expect(Object.keys(window.localStorage)).toEqual(['anamneo-privacy-settings']);
   });
 });

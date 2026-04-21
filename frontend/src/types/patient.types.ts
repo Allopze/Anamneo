@@ -23,6 +23,10 @@ export interface Patient {
   demographicsVerifiedById?: string | null;
   demographicsMissingFields: PatientDemographicMissingField[];
   domicilio: string | null;
+  telefono: string | null;
+  email: string | null;
+  contactoEmergenciaNombre: string | null;
+  contactoEmergenciaTelefono: string | null;
   archivedAt?: string | null;
   archivedById?: string | null;
   centroMedico: string | null;
@@ -165,6 +169,10 @@ export interface PatientAdminSummary {
   demographicsVerifiedById?: string | null;
   demographicsMissingFields: PatientDemographicMissingField[];
   domicilio: string | null;
+  telefono: string | null;
+  email: string | null;
+  contactoEmergenciaNombre: string | null;
+  contactoEmergenciaTelefono: string | null;
   centroMedico: string | null;
   createdAt: string;
   updatedAt: string;

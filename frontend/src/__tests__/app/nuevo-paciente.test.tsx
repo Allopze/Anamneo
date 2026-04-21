@@ -61,6 +61,8 @@ describe('NuevoPacientePage', () => {
     await user.type(screen.getByLabelText(/Fecha de nacimiento/i), today);
     await user.selectOptions(screen.getByLabelText(/^Sexo/i), 'FEMENINO');
     await user.selectOptions(screen.getByLabelText(/Previsión de salud/i), 'FONASA');
+    await user.type(screen.getByLabelText(/^Teléfono$/i), '+56 9 1234 5678');
+    await user.type(screen.getByLabelText(/^Email$/i), 'paciente@correo.cl');
     await user.click(screen.getByRole('button', { name: /Guardar paciente/i }));
 
     await waitFor(() => {
@@ -71,6 +73,8 @@ describe('NuevoPacientePage', () => {
     expect(payload.fechaNacimiento).toBe(today);
     expect(payload.edad).toBe(0);
     expect(payload.edadMeses).toBe(0);
+    expect(payload.telefono).toBe('+56 9 1234 5678');
+    expect(payload.email).toBe('paciente@correo.cl');
     expect(toastSuccessMock).toHaveBeenCalledWith('Paciente creado correctamente');
     expect(pushMock).toHaveBeenCalledWith('/pacientes/patient-1');
     expect(toastErrorMock).not.toHaveBeenCalled();

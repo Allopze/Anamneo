@@ -60,6 +60,11 @@ export default function NuevoPacientePage() {
     );
   }
 
+  const normalizeOptionalText = (value?: string) => {
+    const normalized = value?.trim();
+    return normalized ? normalized : undefined;
+  };
+
   const onSubmit = async (data: PatientForm) => {
     setIsLoading(true);
     setError(null);
@@ -88,9 +93,13 @@ export default function NuevoPacientePage() {
             edadMeses: calculatedAge?.edadMeses,
             sexo: data.sexo,
             prevision: data.prevision,
-            trabajo: data.trabajo,
-            domicilio: data.domicilio,
-            centroMedico: data.centroMedico,
+            trabajo: normalizeOptionalText(data.trabajo),
+            domicilio: normalizeOptionalText(data.domicilio),
+            telefono: normalizeOptionalText(data.telefono),
+            email: normalizeOptionalText(data.email),
+            contactoEmergenciaNombre: normalizeOptionalText(data.contactoEmergenciaNombre),
+            contactoEmergenciaTelefono: normalizeOptionalText(data.contactoEmergenciaTelefono),
+            centroMedico: normalizeOptionalText(data.centroMedico),
             rut: data.rutExempt ? undefined : formattedRut,
             rutExempt: data.rutExempt,
             rutExemptReason: data.rutExempt ? normalizedRutExemptReason : undefined,
@@ -315,6 +324,70 @@ export default function NuevoPacientePage() {
             placeholder="Ej: Hospital Clínico UC, Clínica Santa María"
             {...register('centroMedico')}
           />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label htmlFor="telefono" className="form-label">
+              Teléfono
+            </label>
+            <input
+              id="telefono"
+              type="tel"
+              className={`form-input ${errors.telefono ? 'form-input-error' : ''}`}
+              placeholder="Ej: +56 9 1234 5678"
+              {...register('telefono')}
+            />
+            {errors.telefono && <p className="form-error">{errors.telefono.message}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="email" className="form-label">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              className={`form-input ${errors.email ? 'form-input-error' : ''}`}
+              placeholder="Ej: paciente@correo.cl"
+              {...register('email')}
+            />
+            {errors.email && <p className="form-error">{errors.email.message}</p>}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label htmlFor="contactoEmergenciaNombre" className="form-label">
+              Contacto de emergencia
+            </label>
+            <input
+              id="contactoEmergenciaNombre"
+              type="text"
+              className={`form-input ${errors.contactoEmergenciaNombre ? 'form-input-error' : ''}`}
+              placeholder="Ej: Ana Pérez"
+              {...register('contactoEmergenciaNombre')}
+            />
+            {errors.contactoEmergenciaNombre && (
+              <p className="form-error">{errors.contactoEmergenciaNombre.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="contactoEmergenciaTelefono" className="form-label">
+              Teléfono de emergencia
+            </label>
+            <input
+              id="contactoEmergenciaTelefono"
+              type="tel"
+              className={`form-input ${errors.contactoEmergenciaTelefono ? 'form-input-error' : ''}`}
+              placeholder="Ej: +56 9 8765 4321"
+              {...register('contactoEmergenciaTelefono')}
+            />
+            {errors.contactoEmergenciaTelefono && (
+              <p className="form-error">{errors.contactoEmergenciaTelefono.message}</p>
+            )}
+          </div>
         </div>
 
           </>

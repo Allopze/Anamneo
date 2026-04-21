@@ -13,12 +13,19 @@ import PatientContextBar from '@/components/PatientContextBar';
 import type { InProgressEncounterSummary } from '@/components/common/InProgressEncounterConflictModal';
 import {
   invalidateDashboardOverviewQueries,
+  invalidateOperationalQueries,
   invalidateTaskOverviewQueries,
 } from '@/lib/query-invalidation';
 import toast from 'react-hot-toast';
 import { problemSchema, taskSchema, type ProblemForm, type TaskForm, type VitalKey } from './patient-detail.constants';
 import { usePatientDetailQueries } from './usePatientDetailQueries';
-import { downloadPatientHistoryPdf, normalizeTaskUpdatePayload, type TaskUpdatePayload } from './patient-detail.helpers';
+import {
+  downloadPatientExportBundle,
+  downloadPatientHistoryPdf,
+  normalizeTaskUpdatePayload,
+  type TaskUpdatePayload,
+} from './patient-detail.helpers';
+import type { PossiblePatientDuplicate } from '@/components/common/PossiblePatientDuplicatesNotice';
 
 export function usePatientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +41,8 @@ export function usePatientDetail() {
   const [showFullVitals, setShowFullVitals] = useState(false);
   const [selectedVitalKey, setSelectedVitalKey] = useState<VitalKey>('peso');
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingBundle, setExportingBundle] = useState(false);
+  const [mergeCandidate, setMergeCandidate] = useState<PossiblePatientDuplicate | null>(null);
 
   const problemForm = useForm<ProblemForm>({
     resolver: zodResolver(problemSchema),
@@ -158,6 +167,30 @@ export function usePatientDetail() {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
+  const mergePatientMutation = useMutation({
+    mutationFn: async (sourcePatientId: string) =>
+      api.post(`/patients/${id}/merge`, { sourcePatientId }),
+    onSuccess: async (response) => {
+      const counts = (response.data as { counts?: { encountersMoved?: number } })?.counts;
+      setMergeCandidate(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['patient', id] }),
+        queryClient.invalidateQueries({ queryKey: ['patient-encounters', id] }),
+        queryClient.invalidateQueries({ queryKey: ['patient-operational-history', id] }),
+        queryClient.invalidateQueries({ queryKey: ['patient-clinical-summary', id] }),
+        queryClient.invalidateQueries({ queryKey: ['patient-admin-summary', id] }),
+        queryClient.invalidateQueries({ queryKey: ['patients'] }),
+        invalidateOperationalQueries(queryClient),
+      ]);
+      toast.success(
+        counts?.encountersMoved && counts.encountersMoved > 0
+          ? `Ficha fusionada. Se movieron ${counts.encountersMoved} atenciones a este paciente.`
+          : 'Ficha fusionada correctamente',
+      );
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  });
+
   const createProblemMutation = useMutation({
     mutationFn: async (data: ProblemForm) => api.post(`/patients/${id}/problems`, data),
     onSuccess: () => {
@@ -223,6 +256,18 @@ export function usePatientDetail() {
     }
   };
 
+  const handleExportBundle = async () => {
+    if (!patient || exportingBundle) return;
+    setExportingBundle(true);
+    try {
+      await downloadPatientExportBundle(id, patient);
+    } catch {
+      toast.error('Error al exportar el paquete clínico');
+    } finally {
+      setExportingBundle(false);
+    }
+  };
+
   return {
     id,
     router,
@@ -266,6 +311,8 @@ export function usePatientDetail() {
     setShowDeleteConfirm,
     conflictEncounters,
     setConflictEncounters,
+    mergeCandidate,
+    setMergeCandidate,
 
     // Editing state
     editingProblemId,
@@ -275,9 +322,11 @@ export function usePatientDetail() {
 
     // Mutation state
     exportingPdf,
+    exportingBundle,
     deleteMutation,
     createEncounterMutation,
     verifyDemographicsMutation,
+    mergePatientMutation,
     createProblemMutation,
     updateProblemMutation,
     createTaskMutation,
@@ -285,7 +334,12 @@ export function usePatientDetail() {
 
     // Actions
     handleExportHistorial,
+    handleExportBundle,
     handleDelete: () => setShowDeleteConfirm(true),
+    confirmMerge: () => {
+      if (!mergeCandidate) return;
+      mergePatientMutation.mutate(mergeCandidate.id);
+    },
     confirmDelete: () => {
       setShowDeleteConfirm(false);
       deleteMutation.mutate();

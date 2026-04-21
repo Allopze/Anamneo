@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AjustesPage from '@/app/(dashboard)/ajustes/page';
 import type { User } from '@/stores/auth-store';
+import { usePrivacySettingsStore } from '@/stores/privacy-settings-store';
 
 const replaceMock = jest.fn();
 const pushMock = jest.fn();
@@ -13,6 +14,8 @@ const apiPostMock = jest.fn();
 const apiPatchMock = jest.fn();
 const setUserMock = jest.fn();
 const logoutMock = jest.fn();
+const clearEncounterLocalStateForUserMock = jest.fn();
+const clearPendingSavesForUserMock = jest.fn();
 let searchParamsValue = '';
 
 const authStoreState: {
@@ -34,6 +37,14 @@ const authStoreState: {
 
 jest.mock('@/stores/auth-store', () => ({
   useAuthStore: () => authStoreState,
+}));
+
+jest.mock('@/lib/encounter-draft', () => ({
+  clearEncounterLocalStateForUser: (...args: any[]) => clearEncounterLocalStateForUserMock(...args),
+}));
+
+jest.mock('@/lib/offline-queue', () => ({
+  clearPendingSavesForUser: (...args: any[]) => clearPendingSavesForUserMock(...args),
 }));
 
 jest.mock('next/navigation', () => ({
@@ -76,6 +87,9 @@ describe('AjustesPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     searchParamsValue = '';
+    window.localStorage.clear();
+    usePrivacySettingsStore.setState({ sharedDeviceMode: false, hasHydrated: true });
+    clearPendingSavesForUserMock.mockResolvedValue(undefined);
     authStoreState.user = {
       id: 'admin-1',
       email: 'admin@anamneo.cl',
@@ -320,5 +334,20 @@ describe('AjustesPage', () => {
     expect(screen.getByText('Runbook embebido')).toBeInTheDocument();
     expect(screen.getByText('1. Backup fresco')).toBeInTheDocument();
     expect(screen.getByText('npm run db:restore:drill')).toBeInTheDocument();
+  });
+
+  it('enables shared-device mode and clears local clinical persistence for the active user', async () => {
+    render(<AjustesPage />, { wrapper: createWrapper() });
+
+    const toggle = screen.getByLabelText('Activar modo equipo compartido') as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+
+    await userEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(usePrivacySettingsStore.getState().sharedDeviceMode).toBe(true);
+      expect(clearEncounterLocalStateForUserMock).toHaveBeenCalledWith('admin-1');
+      expect(clearPendingSavesForUserMock).toHaveBeenCalledWith('admin-1');
+    });
   });
 });

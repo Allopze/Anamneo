@@ -18,6 +18,8 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   PATIENT_ARCHIVED: 'Archivo de paciente',
   PATIENT_RESTORED: 'Restauración de paciente',
   PATIENT_EXPORT_CSV: 'Exportación CSV de pacientes',
+  PATIENT_LONGITUDINAL_EXPORTED: 'Exportación de historial clínico longitudinal',
+  PATIENT_BUNDLE_EXPORTED: 'Exportación de paquete clínico de paciente',
   ENCOUNTER_CREATED: 'Creación de atención',
   ENCOUNTER_SECTION_UPDATED: 'Actualización de sección clínica',
   ENCOUNTER_COMPLETED: 'Cierre de atención',

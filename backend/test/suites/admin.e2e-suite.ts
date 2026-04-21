@@ -106,7 +106,7 @@ export function adminSuite() {
 
       expect(res.headers['content-type']).toContain('text/csv');
       expect(res.headers['x-request-id']).toBe('audit-export-request');
-      expect(String(res.text)).toContain('Nombre,RUT,Edad');
+      expect(String(res.text)).toContain('Nombre,RUT,Teléfono,Email,Contacto emergencia,Teléfono emergencia,Edad');
     });
 
     it('GET /api/audit → admin can filter same-day logs with inclusive dateTo', async () => {

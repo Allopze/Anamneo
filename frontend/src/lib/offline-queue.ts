@@ -1,3 +1,5 @@
+import { isSharedDeviceModeEnabled } from '@/stores/privacy-settings-store';
+
 /**
  * Offline save queue backed by IndexedDB.
  *
@@ -80,6 +82,10 @@ function openDb(): Promise<IDBDatabase> {
 
 /** Enqueue a failed section save for later retry. */
 export async function enqueueSave(save: Omit<PendingSave, 'id'>): Promise<void> {
+  if (isSharedDeviceModeEnabled()) {
+    throw new Error('El modo equipo compartido desactiva el guardado offline local');
+  }
+
   if (!isIndexedDBAvailable()) {
     throw new Error('IndexedDB no disponible — no se puede encolar el guardado offline');
   }
@@ -121,6 +127,7 @@ export async function enqueueSave(save: Omit<PendingSave, 'id'>): Promise<void> 
 
 /** Read all pending saves ordered by queuedAt (oldest first). */
 export async function getPendingSaves(): Promise<PendingSave[]> {
+  if (isSharedDeviceModeEnabled()) return [];
   if (!isIndexedDBAvailable()) return [];
   const db = await openDb();
   return new Promise((resolve, reject) => {

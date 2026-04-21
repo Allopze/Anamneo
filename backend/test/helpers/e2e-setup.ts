@@ -109,6 +109,10 @@ export function req() {
   return request(httpServer);
 }
 
+export function getApp() {
+  return app;
+}
+
 // ── Bootstrap / Teardown ────────────────────────────────────────────
 
 export async function bootstrapApp() {

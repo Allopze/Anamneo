@@ -11,7 +11,7 @@ import {
   FiTrash2,
   FiUser,
 } from 'react-icons/fi';
-import { parseHistoryField, patientHistoryHasContent } from '@/lib/utils';
+import { parseHistoryField } from '@/lib/utils';
 import { formatDateOnly } from '@/lib/date';
 import {
   formatPatientAge,
@@ -151,14 +151,24 @@ export default function PatientDetailPage() {
               </Link>
             )}
             {patient.completenessStatus === 'VERIFICADA' && (
-              <button
-                onClick={pd.handleExportHistorial}
-                disabled={pd.exportingPdf}
-                className="btn btn-secondary flex items-center gap-2"
-              >
-                <FiDownload className="w-4 h-4" />
-                {pd.exportingPdf ? 'Exportando...' : 'Historial PDF'}
-              </button>
+              <>
+                <button
+                  onClick={pd.handleExportHistorial}
+                  disabled={pd.exportingPdf}
+                  className="btn btn-secondary flex items-center gap-2"
+                >
+                  <FiDownload className="w-4 h-4" />
+                  {pd.exportingPdf ? 'Exportando...' : 'Historial PDF'}
+                </button>
+                <button
+                  onClick={pd.handleExportBundle}
+                  disabled={pd.exportingBundle}
+                  className="btn btn-secondary flex items-center gap-2"
+                >
+                  <FiDownload className="w-4 h-4" />
+                  {pd.exportingBundle ? 'Armando paquete...' : 'Paquete clínico'}
+                </button>
+              </>
             )}
             {pd.isDoctor && (
               <button
@@ -209,6 +219,12 @@ export default function PatientDetailPage() {
         rut={patient.rut}
         rutExempt={patient.rutExempt}
         excludePatientId={patient.id}
+        duplicateAction={pd.isDoctor ? {
+          label: 'Consolidar en esta ficha',
+          pendingLabel: 'Fusionando...',
+          pendingDuplicateId: pd.mergePatientMutation.isPending ? pd.mergeCandidate?.id ?? null : null,
+          onClick: (duplicate) => pd.setMergeCandidate(duplicate),
+        } : undefined}
         resolutionAction={pd.isDoctor ? {
           label: 'Archivar esta ficha duplicada',
           helperText: 'Úsalo solo después de revisar la otra ficha y confirmar cuál debe quedar vigente.',
@@ -269,6 +285,27 @@ export default function PatientDetailPage() {
                 <div>
                   <dt className="text-sm text-ink-muted">Domicilio</dt>
                   <dd className="font-medium">{patient.domicilio}</dd>
+                </div>
+              )}
+              {patient.telefono && (
+                <div>
+                  <dt className="text-sm text-ink-muted">Teléfono</dt>
+                  <dd className="font-medium">{patient.telefono}</dd>
+                </div>
+              )}
+              {patient.email && (
+                <div>
+                  <dt className="text-sm text-ink-muted">Email</dt>
+                  <dd className="font-medium">{patient.email}</dd>
+                </div>
+              )}
+              {patient.contactoEmergenciaNombre && (
+                <div>
+                  <dt className="text-sm text-ink-muted">Contacto de emergencia</dt>
+                  <dd className="font-medium">
+                    {patient.contactoEmergenciaNombre}
+                    {patient.contactoEmergenciaTelefono ? ` · ${patient.contactoEmergenciaTelefono}` : ''}
+                  </dd>
                 </div>
               )}
               {patient.centroMedico && (
@@ -379,6 +416,21 @@ export default function PatientDetailPage() {
           />
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={Boolean(pd.mergeCandidate)}
+        onClose={() => pd.setMergeCandidate(null)}
+        onConfirm={pd.confirmMerge}
+        title="Fusionar ficha duplicada"
+        message={
+          pd.mergeCandidate
+            ? `Se moverán atenciones, seguimientos, problemas, consentimientos y alertas de ${pd.mergeCandidate.nombre} hacia esta ficha. La ficha origen quedará archivada.`
+            : ''
+        }
+        confirmLabel="Fusionar en esta ficha"
+        variant="warning"
+        loading={pd.mergePatientMutation.isPending}
+      />
 
       <ConfirmModal
         isOpen={pd.showDeleteConfirm}

@@ -11,6 +11,7 @@ import {
   type EncounterSectionConflictBackup,
 } from '@/lib/encounter-draft';
 import type { Encounter, IdentificacionData, SectionKey } from '@/types';
+import { isSharedDeviceModeEnabled, usePrivacySettingsStore } from '@/stores/privacy-settings-store';
 import toast from 'react-hot-toast';
 import { useEncounterDraftSync } from './useEncounterDraftSync';
 import { useEncounterAutosave } from './useEncounterAutosave';
@@ -31,6 +32,8 @@ interface UseEncounterSectionPersistenceParams {
 }
 
 export function useEncounterSectionPersistence(params: UseEncounterSectionPersistenceParams) {
+  const { hasHydrated, sharedDeviceMode } = usePrivacySettingsStore();
+  const effectiveSharedDeviceMode = hasHydrated ? sharedDeviceMode : isSharedDeviceModeEnabled();
   const {
     canEdit,
     currentSection,
@@ -101,7 +104,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
   });
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || effectiveSharedDeviceMode) {
       setLocalDraft(null);
       setRecoverableConflicts([]);
       setRecoverableConflict(null);
@@ -119,7 +122,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
 
     setRecoverableConflicts(storedConflicts);
     setRecoverableConflict(storedConflict ?? storedConflicts[0] ?? null);
-  }, [currentSectionIndex, formData, id, savedSnapshotJson, sections, userId]);
+  }, [currentSectionIndex, effectiveSharedDeviceMode, formData, id, savedSnapshotJson, sections, userId]);
 
   const {
     saveSection,

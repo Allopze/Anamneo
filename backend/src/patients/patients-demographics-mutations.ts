@@ -17,7 +17,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RequestUser } from '../common/utils/medico-id';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { UpdatePatientAdminDto } from './dto/update-patient-admin.dto';
-import { normalizeNullableString, resolvePatientVerificationState } from './patients-format';
+import { normalizeNullableEmail, normalizeNullableString, resolvePatientVerificationState } from './patients-format';
 
 type ExistingPatient = Patient & {
   createdBy?: {
@@ -65,10 +65,27 @@ function applySharedDemographicFields(
     prevision?: string | null;
     trabajo?: string | null;
     domicilio?: string | null;
+    telefono?: string | null;
+    email?: string | null;
+    contactoEmergenciaNombre?: string | null;
+    contactoEmergenciaTelefono?: string | null;
     centroMedico?: string | null;
   },
 ) {
-  const { fechaNacimiento, edad, edadMeses, sexo, prevision, trabajo, domicilio, centroMedico } = params;
+  const {
+    fechaNacimiento,
+    edad,
+    edadMeses,
+    sexo,
+    prevision,
+    trabajo,
+    domicilio,
+    telefono,
+    email,
+    contactoEmergenciaNombre,
+    contactoEmergenciaTelefono,
+    centroMedico,
+  } = params;
 
   if (fechaNacimiento !== undefined) {
     if (fechaNacimiento && isDateOnlyAfterToday(fechaNacimiento)) {
@@ -108,6 +125,22 @@ function applySharedDemographicFields(
 
   if (domicilio !== undefined) {
     updateData.domicilio = normalizeNullableString(domicilio);
+  }
+
+  if (telefono !== undefined) {
+    updateData.telefono = normalizeNullableString(telefono);
+  }
+
+  if (email !== undefined) {
+    updateData.email = normalizeNullableEmail(email);
+  }
+
+  if (contactoEmergenciaNombre !== undefined) {
+    updateData.contactoEmergenciaNombre = normalizeNullableString(contactoEmergenciaNombre);
+  }
+
+  if (contactoEmergenciaTelefono !== undefined) {
+    updateData.contactoEmergenciaTelefono = normalizeNullableString(contactoEmergenciaTelefono);
   }
 
   if (centroMedico !== undefined) {
@@ -160,6 +193,10 @@ export async function updatePatientDemographicsMutation(params: UpdatePatientDem
     prevision: updatePatientDto.prevision,
     trabajo: updatePatientDto.trabajo,
     domicilio: updatePatientDto.domicilio,
+    telefono: updatePatientDto.telefono,
+    email: updatePatientDto.email,
+    contactoEmergenciaNombre: updatePatientDto.contactoEmergenciaNombre,
+    contactoEmergenciaTelefono: updatePatientDto.contactoEmergenciaTelefono,
     centroMedico: updatePatientDto.centroMedico,
   });
 
@@ -274,6 +311,10 @@ export async function updatePatientAdminDemographicsMutation(params: UpdatePatie
     prevision: dto.prevision,
     trabajo: dto.trabajo,
     domicilio: dto.domicilio,
+    telefono: dto.telefono,
+    email: dto.email,
+    contactoEmergenciaNombre: dto.contactoEmergenciaNombre,
+    contactoEmergenciaTelefono: dto.contactoEmergenciaTelefono,
     centroMedico: dto.centroMedico,
   });
 

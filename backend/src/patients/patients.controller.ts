@@ -8,17 +8,20 @@ import {
   Delete,
   Query,
   Res,
+  StreamableFile,
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { PatientsService } from './patients.service';
+import { PatientsExportBundleService } from './patients-export-bundle.service';
 import { PatientsPdfService } from './patients-pdf.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreatePatientQuickDto } from './dto/create-patient-quick.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { UpdatePatientAdminDto } from './dto/update-patient-admin.dto';
 import { UpdatePatientHistoryDto } from './dto/update-patient-history.dto';
+import { MergePatientDto } from './dto/merge-patient.dto';
 import { UpsertPatientProblemDto } from './dto/upsert-patient-problem.dto';
 import { UpdatePatientProblemDto } from './dto/update-patient-problem.dto';
 import { UpsertPatientTaskDto } from './dto/upsert-patient-task.dto';
@@ -35,6 +38,7 @@ export class PatientsController {
   constructor(
     private readonly patientsService: PatientsService,
     private readonly patientsPdfService: PatientsPdfService,
+    private readonly patientsExportBundleService: PatientsExportBundleService,
   ) {}
 
   @Post()
@@ -192,6 +196,16 @@ export class PatientsController {
     return this.patientsService.findById(user, id);
   }
 
+  @Post(':id/merge')
+  @Roles('MEDICO')
+  mergeIntoTarget(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: MergePatientDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.patientsService.mergeIntoTarget(user, id, dto);
+  }
+
   @Put(':id')
   @Roles('MEDICO')
   update(
@@ -285,6 +299,20 @@ export class PatientsController {
       'Content-Length': buffer.length.toString(),
     });
     res.end(buffer);
+  }
+
+  @Get(':id/export/bundle')
+  @Roles('MEDICO', 'ASISTENTE')
+  async exportPatientBundle(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserData,
+  ): Promise<StreamableFile> {
+    const { buffer } = await this.patientsExportBundleService.generateBundle(id, user);
+    return new StreamableFile(buffer, {
+      type: 'application/zip',
+      disposition: `attachment; filename="patient-bundle-${id}.zip"`,
+      length: buffer.length,
+    });
   }
 
   @Delete(':id')

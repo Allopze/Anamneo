@@ -2,6 +2,8 @@ import { state, req, cookieHeader } from '../helpers/e2e-setup';
 
 export function patientsSuite() {
   describe('Patients', () => {
+    let duplicatePatientId = '';
+
     it('POST /api/patients → create patient', async () => {
       const res = await req()
         .post('/api/patients')
@@ -86,11 +88,18 @@ export function patientsSuite() {
       const res = await req()
         .put(`/api/patients/${state.patientId}`)
         .set('Cookie', cookieHeader(state.medicoCookies))
-        .send({ nombre: 'Paciente Actualizado', edad: 36 })
+        .send({
+          nombre: 'Paciente Actualizado',
+          edad: 36,
+          telefono: '+56 9 1111 2222',
+          email: 'paciente.actualizado@test.com',
+        })
         .expect(200);
 
       expect(res.body.nombre).toBe('Paciente Actualizado');
       expect(res.body.edad).toBe(36);
+      expect(res.body.telefono).toBe('+56 9 1111 2222');
+      expect(res.body.email).toBe('paciente.actualizado@test.com');
     });
 
     it('PUT /api/patients/:id/history → rejects malformed history payloads', async () => {
@@ -158,10 +167,14 @@ export function patientsSuite() {
         .set('Cookie', cookieHeader(state.assistantCookies))
         .send({
           trabajo: 'Ingeniero clínico',
+          contactoEmergenciaNombre: 'Ana Familiar',
+          contactoEmergenciaTelefono: '+56 9 3333 4444',
         })
         .expect(200);
 
       expect(res.body.trabajo).toBe('Ingeniero clínico');
+      expect(res.body.contactoEmergenciaNombre).toBe('Ana Familiar');
+      expect(res.body.contactoEmergenciaTelefono).toBe('+56 9 3333 4444');
     });
 
     it('PUT /api/patients/:id/admin → assistant completes quick registration and leaves it pending medical verification', async () => {
@@ -269,6 +282,10 @@ export function patientsSuite() {
         email: 'medico@test.com',
       });
       expect(res.body.centroMedico).toBeNull();
+      expect(res.body.telefono).toBe('+56 9 1111 2222');
+      expect(res.body.email).toBe('paciente.actualizado@test.com');
+      expect(res.body.contactoEmergenciaNombre).toBe('Ana Familiar');
+      expect(res.body.contactoEmergenciaTelefono).toBe('+56 9 3333 4444');
       expect(res.body.history).toBeUndefined();
       expect(res.body.problems).toBeUndefined();
       expect(res.body.tasks).toBeUndefined();
@@ -296,6 +313,95 @@ export function patientsSuite() {
         .expect(200);
 
       expect(res.body.data.length).toBe(1);
+    });
+
+    it('POST /api/patients → creates a duplicate candidate with complementary contact data', async () => {
+      const res = await req()
+        .post('/api/patients')
+        .set('Cookie', cookieHeader(state.medicoCookies))
+        .send({
+          nombre: 'Paciente Actualizado',
+          fechaNacimiento: '1990-05-12',
+          edad: 35,
+          sexo: 'MASCULINO',
+          prevision: 'FONASA',
+          rutExempt: true,
+          rutExemptReason: 'Documento en regularización',
+          contactoEmergenciaNombre: 'Carlos Familiar',
+          contactoEmergenciaTelefono: '+56 9 7777 8888',
+        })
+        .expect(201);
+
+      duplicatePatientId = res.body.id;
+      expect(res.body.contactoEmergenciaNombre).toBe('Carlos Familiar');
+    });
+
+    it('PUT /api/patients/:id/history → duplicate candidate can carry complementary history', async () => {
+      const res = await req()
+        .put(`/api/patients/${duplicatePatientId}/history`)
+        .set('Cookie', cookieHeader(state.medicoCookies))
+        .send({
+          antecedentesSociales: {
+            texto: 'Vive con familia y cuenta con red de apoyo',
+          },
+        })
+        .expect(200);
+
+      expect(JSON.parse(res.body.antecedentesSociales)).toEqual({
+        texto: 'Vive con familia y cuenta con red de apoyo',
+      });
+    });
+
+    it('POST /api/encounters/patient/:id → duplicate candidate can have encounters before merge', async () => {
+      const res = await req()
+        .post(`/api/encounters/patient/${duplicatePatientId}`)
+        .set('Cookie', cookieHeader(state.medicoCookies))
+        .send({})
+        .expect(201);
+
+      expect(res.body.patientId).toBe(duplicatePatientId);
+    });
+
+    it('POST /api/patients/:id/merge → doctor merges duplicate data into the current patient', async () => {
+      const res = await req()
+        .post(`/api/patients/${state.patientId}/merge`)
+        .set('Cookie', cookieHeader(state.medicoCookies))
+        .send({ sourcePatientId: duplicatePatientId })
+        .expect(201);
+
+      expect(res.body.patient.id).toBe(state.patientId);
+      expect(res.body.patient.contactoEmergenciaNombre).toBe('Ana Familiar');
+      expect(res.body.patient.contactoEmergenciaTelefono).toBe('+56 9 3333 4444');
+      expect(res.body.counts.encountersMoved).toBe(1);
+    });
+
+    it('GET /api/patients/:id → merged patient keeps complementary history and remains canonical', async () => {
+      const res = await req()
+        .get(`/api/patients/${state.patientId}`)
+        .set('Cookie', cookieHeader(state.medicoCookies))
+        .expect(200);
+
+      expect(res.body.contactoEmergenciaNombre).toBe('Ana Familiar');
+      expect(JSON.parse(res.body.history.antecedentesMedicos)).toEqual({
+        texto: 'Hipertensión arterial en tratamiento',
+        items: ['HTA'],
+      });
+      expect(JSON.parse(res.body.history.alergias)).toEqual({
+        items: ['Penicilina', 'Polen'],
+      });
+      expect(JSON.parse(res.body.history.medicamentos)).toEqual({
+        texto: 'Losartán 50 mg cada 12 horas',
+      });
+      expect(JSON.parse(res.body.history.antecedentesSociales)).toEqual({
+        texto: 'Vive con familia y cuenta con red de apoyo',
+      });
+    });
+
+    it('GET /api/patients/:id → merged source patient is archived and no longer visible', async () => {
+      await req()
+        .get(`/api/patients/${duplicatePatientId}`)
+        .set('Cookie', cookieHeader(state.medicoCookies))
+        .expect(404);
     });
 
     it('POST /api/encounters/patient/:id → create an in-progress encounter before archive', async () => {

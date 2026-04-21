@@ -1,4 +1,5 @@
 import {
+  IsEmail,
   IsString,
   IsInt,
   IsIn,
@@ -14,10 +15,14 @@ import { Transform } from 'class-transformer';
 import { Sexo, Prevision, SEXOS, PREVISIONES } from '../../common/types';
 import {
   PATIENT_ADDRESS_MAX_LENGTH,
+  PATIENT_EMAIL_MAX_LENGTH,
+  PATIENT_EMERGENCY_CONTACT_NAME_MAX_LENGTH,
+  PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH,
   PATIENT_JOB_MAX_LENGTH,
   PATIENT_MEDICAL_CENTER_MAX_LENGTH,
   PATIENT_NAME_MAX_LENGTH,
   PATIENT_NAME_MIN_LENGTH,
+  PATIENT_PHONE_MAX_LENGTH,
   PATIENT_RUT_EXEMPT_REASON_MAX_LENGTH,
   PATIENT_RUT_MAX_LENGTH,
 } from '../../../../shared/patient-field-constraints';
@@ -81,13 +86,47 @@ export class CreatePatientDto {
   @MaxLength(PATIENT_ADDRESS_MAX_LENGTH, {
     message: `El domicilio no puede exceder ${PATIENT_ADDRESS_MAX_LENGTH} caracteres`,
   })
+  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
   @IsOptional()
   domicilio?: string;
+
+  @IsString()
+  @MaxLength(PATIENT_PHONE_MAX_LENGTH, {
+    message: `El teléfono no puede exceder ${PATIENT_PHONE_MAX_LENGTH} caracteres`,
+  })
+  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  @IsOptional()
+  telefono?: string;
+
+  @IsEmail({}, { message: 'El email debe ser válido' })
+  @MaxLength(PATIENT_EMAIL_MAX_LENGTH, {
+    message: `El email no puede exceder ${PATIENT_EMAIL_MAX_LENGTH} caracteres`,
+  })
+  @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
+  @IsOptional()
+  email?: string;
+
+  @IsString()
+  @MaxLength(PATIENT_EMERGENCY_CONTACT_NAME_MAX_LENGTH, {
+    message: `El contacto de emergencia no puede exceder ${PATIENT_EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres`,
+  })
+  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  @IsOptional()
+  contactoEmergenciaNombre?: string;
+
+  @IsString()
+  @MaxLength(PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH, {
+    message: `El teléfono de emergencia no puede exceder ${PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH} caracteres`,
+  })
+  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  @IsOptional()
+  contactoEmergenciaTelefono?: string;
 
   @IsString()
   @MaxLength(PATIENT_MEDICAL_CENTER_MAX_LENGTH, {
     message: `El centro médico no puede exceder ${PATIENT_MEDICAL_CENTER_MAX_LENGTH} caracteres`,
   })
+  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
   @IsOptional()
   centroMedico?: string;
 }
