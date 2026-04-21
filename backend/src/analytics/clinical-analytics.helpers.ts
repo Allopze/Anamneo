@@ -72,6 +72,7 @@ type ExamenFisicoData = {
 
 type TreatmentData = {
   medicamentosEstructurados?: Array<{
+    id?: string;
     nombre?: string;
     dosis?: string;
     via?: string;
@@ -80,12 +81,14 @@ type TreatmentData = {
     sospechaId?: string;
   }>;
   examenesEstructurados?: Array<{
+    id?: string;
     nombre?: string;
     indicacion?: string;
     estado?: string;
     sospechaId?: string;
   }>;
   derivacionesEstructuradas?: Array<{
+    id?: string;
     nombre?: string;
     indicacion?: string;
     estado?: string;

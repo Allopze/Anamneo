@@ -282,7 +282,14 @@ function buildEncounterOutcome(
   return treatments.flatMap((treatment, index) => {
     const explicitOutcome = treatment.sourceItemId ? explicitOutcomeByItemId.get(treatment.sourceItemId) : undefined;
     const fallbackOutcome = structuredStatus || textNotes
-      ? { status, source, notes: textNotes || undefined }
+      ? {
+          status,
+          source,
+          notes: textNotes || undefined,
+          adherenceStatus: undefined,
+          adverseEventSeverity: undefined,
+          adverseEventNotes: undefined,
+        }
       : null;
     const selectedOutcome = explicitOutcome ?? fallbackOutcome;
 
