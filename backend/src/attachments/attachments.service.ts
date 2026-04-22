@@ -162,7 +162,6 @@ export class AttachmentsService {
 
   async remove(id: string, user: RequestUser) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
-    const uploadsRoot = getUploadsRoot(this.configService.get<string>('UPLOAD_DEST'));
 
     const attachment = await this.prisma.attachment.findUnique({
       where: { id },

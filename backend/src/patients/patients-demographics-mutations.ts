@@ -12,7 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RequestUser } from '../common/utils/medico-id';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { UpdatePatientAdminDto } from './dto/update-patient-admin.dto';
-import { normalizeNullableEmail, normalizeNullableString, resolvePatientVerificationState } from './patients-format';
+import { resolvePatientVerificationState } from './patients-format';
 import { applySharedDemographicFields, findDuplicateRut } from './patients-demographics-mutations.helpers';
 
 type ExistingPatient = Patient & {

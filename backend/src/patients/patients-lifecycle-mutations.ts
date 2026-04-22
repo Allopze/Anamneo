@@ -1,9 +1,8 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { RequestUser } from '../common/utils/medico-id';
 import { getPatientDemographicsMissingFields } from '../common/utils/patient-completeness';
 import { PATIENT_HISTORY_FIELD_KEYS, sanitizePatientHistoryFieldValue } from '../common/utils/patient-history';
-import { isPatientOwnedByMedico } from '../common/utils/patient-access';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdatePatientHistoryDto } from './dto/update-patient-history.dto';
 import { resolvePatientVerificationState } from './patients-format';

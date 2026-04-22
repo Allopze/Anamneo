@@ -35,12 +35,14 @@ Convención:
 - [x] backend/src/patients/patients.service.ts
 - [x] backend/src/prisma/prisma.service.ts
 - [x] backend/src/users/users.service.ts
-- [ ] backend/test/suites/analytics.e2e-suite.ts
-- [ ] backend/test/suites/auth.e2e-suite.ts
-- [ ] backend/test/suites/encounters/encounters-followup.e2e-group.ts
-- [ ] backend/test/suites/encounters/encounters-sections.e2e-group.ts
+- [x] backend/test/suites/analytics.e2e-suite.ts
+- [x] backend/test/suites/auth.e2e-suite.ts
+- [x] backend/test/suites/encounters/encounters-followup.e2e-group.ts
+- [x] backend/test/suites/encounters/encounters-sections.e2e-group.ts
 - [x] backend/test/suites/patients.e2e-suite.ts
-- [ ] backend/test/suites/validation.e2e-suite.ts
+- [x] backend/test/suites/validation.e2e-suite.ts
+- [ ] backend/test/suites/validation-isolation.e2e-suite.ts
+- [ ] backend/test/suites/encounters/encounters-followup-export-review.e2e-group.ts
 
 ## Frontend
 
