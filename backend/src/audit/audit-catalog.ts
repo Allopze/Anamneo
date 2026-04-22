@@ -20,6 +20,9 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   PATIENT_EXPORT_CSV: 'Exportación CSV de pacientes',
   PATIENT_LONGITUDINAL_EXPORTED: 'Exportación de historial clínico longitudinal',
   PATIENT_BUNDLE_EXPORTED: 'Exportación de paquete clínico de paciente',
+  CLINICAL_ANALYTICS_CSV_EXPORTED: 'Exportación CSV de casos clínicos analíticos',
+  CLINICAL_ANALYTICS_SUMMARY_CSV_EXPORTED: 'Exportación CSV del resumen clínico analítico',
+  CLINICAL_ANALYTICS_SUMMARY_REPORT_EXPORTED: 'Exportación de reporte Markdown del resumen clínico analítico',
   ENCOUNTER_CREATED: 'Creación de atención',
   ENCOUNTER_SECTION_UPDATED: 'Actualización de sección clínica',
   ENCOUNTER_COMPLETED: 'Cierre de atención',
@@ -70,6 +73,9 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'PatientArchive' && action === 'DELETE') return 'PATIENT_ARCHIVED';
   if (entityType === 'PatientRestore' && action === 'CREATE') return 'PATIENT_RESTORED';
   if (entityType === 'PatientExport' && action === 'EXPORT') return 'PATIENT_EXPORT_CSV';
+  if (entityType === 'ClinicalAnalyticsCasesExport' && action === 'EXPORT') return 'CLINICAL_ANALYTICS_CSV_EXPORTED';
+  if (entityType === 'ClinicalAnalyticsSummaryExport' && action === 'EXPORT') return 'CLINICAL_ANALYTICS_SUMMARY_CSV_EXPORTED';
+  if (entityType === 'ClinicalAnalyticsSummaryReportExport' && action === 'EXPORT') return 'CLINICAL_ANALYTICS_SUMMARY_REPORT_EXPORTED';
   if (entityType === 'Encounter' && action === 'CREATE') return 'ENCOUNTER_CREATED';
   if (entityType === 'Encounter' && action === 'EXPORT') return 'ENCOUNTER_DOCUMENT_EXPORTED';
   if (entityType === 'Encounter' && action === 'UPDATE' && hasDiffKey(diff, 'reviewStatus')) return 'ENCOUNTER_REVIEW_STATUS_UPDATED';

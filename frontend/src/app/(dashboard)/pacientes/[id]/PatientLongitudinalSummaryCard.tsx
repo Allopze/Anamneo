@@ -1,7 +1,7 @@
 'use client';
 
 import { formatDateOnly } from '@/lib/date';
-import { formatHistoryFieldText } from '@/lib/clinical';
+import { splitHistoryField } from '@/lib/clinical';
 import type { Patient, PatientClinicalSummary } from '@/types';
 
 interface PatientLongitudinalSummaryCardProps {
@@ -13,8 +13,8 @@ export default function PatientLongitudinalSummaryCard({
   patient,
   clinicalSummary,
 }: PatientLongitudinalSummaryCardProps) {
-  const alergias = formatHistoryFieldText(patient.history?.alergias);
-  const medicamentos = formatHistoryFieldText(patient.history?.medicamentos);
+  const alergias = splitHistoryField(patient.history?.alergias);
+  const medicamentos = splitHistoryField(patient.history?.medicamentos);
   const latestLines = clinicalSummary?.latestEncounterSummary?.lines ?? [];
   const diagnoses = clinicalSummary?.recentDiagnoses ?? [];
   const activeProblems = clinicalSummary?.activeProblems ?? [];
@@ -76,13 +76,42 @@ export default function PatientLongitudinalSummaryCard({
 
         <div>
           <p className="text-xs font-medium text-ink-muted">Alergias y medicación</p>
-          <div className="mt-2 space-y-2 text-sm text-ink-secondary">
-            <p>
-              <span className="font-medium text-ink">Alergias:</span> {alergias || 'Sin registro'}
-            </p>
-            <p>
-              <span className="font-medium text-ink">Medicamentos:</span> {medicamentos || 'Sin registro'}
-            </p>
+          <div className="mt-2 space-y-4 text-sm text-ink-secondary">
+            <div className="space-y-2">
+              <p className="font-medium text-ink">Alergias</p>
+              {alergias.items.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {alergias.items.map((item) => (
+                    <span
+                      key={item}
+                      className="inline-flex items-center rounded-full border border-status-red/25 bg-status-red/10 px-2.5 py-1 text-xs font-medium text-status-red-text"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {alergias.text ? <p className="text-ink-secondary">{alergias.text}</p> : null}
+              {!alergias.items.length && !alergias.text ? <p className="text-ink-muted">Sin registro</p> : null}
+            </div>
+
+            <div className="space-y-2">
+              <p className="font-medium text-ink">Medicación habitual</p>
+              {medicamentos.items.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {medicamentos.items.map((item) => (
+                    <span
+                      key={item}
+                      className="inline-flex items-center rounded-full border border-status-green/25 bg-status-green/10 px-2.5 py-1 text-xs font-medium text-status-green-text"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {medicamentos.text ? <p className="text-ink-secondary">{medicamentos.text}</p> : null}
+              {!medicamentos.items.length && !medicamentos.text ? <p className="text-ink-muted">Sin registro</p> : null}
+            </div>
           </div>
         </div>
       </div>

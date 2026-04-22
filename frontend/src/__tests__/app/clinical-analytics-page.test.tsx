@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ClinicalAnalyticsPage from '@/app/(dashboard)/analitica-clinica/page';
 
 const apiGetMock = jest.fn();
 const pushMock = jest.fn();
+const toastSuccessMock = jest.fn();
+const toastErrorMock = jest.fn();
 let mockUser: {
   id: string;
   nombre: string;
@@ -22,6 +24,14 @@ jest.mock('@/lib/api', () => ({
     get: (...args: any[]) => apiGetMock(...args),
   },
   getErrorMessage: (error: any) => error?.message || 'Error desconocido',
+}));
+
+jest.mock('react-hot-toast', () => ({
+  __esModule: true,
+  default: {
+    success: (...args: any[]) => toastSuccessMock(...args),
+    error: (...args: any[]) => toastErrorMock(...args),
+  },
 }));
 
 jest.mock('@/stores/auth-store', () => ({
@@ -45,6 +55,11 @@ function createWrapper() {
 }
 
 describe('ClinicalAnalyticsPage', () => {
+  const createObjectUrlSpy = jest.fn(() => 'blob:summary-csv');
+  const createObjectUrlMarkdownSpy = jest.fn(() => 'blob:summary-md');
+  const revokeObjectUrlSpy = jest.fn();
+  const clickSpy = jest.fn();
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockUser = {
@@ -135,6 +150,20 @@ describe('ClinicalAnalyticsPage', () => {
         },
       },
     });
+
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      writable: true,
+      value: createObjectUrlSpy,
+    });
+    Object.defineProperty(window.URL, 'revokeObjectURL', {
+      writable: true,
+      value: revokeObjectUrlSpy,
+    });
+    jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(clickSpy);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('renders cards, caveats and ranked clinical tables', async () => {
@@ -172,6 +201,167 @@ describe('ClinicalAnalyticsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar vista' }));
 
     expect(pushMock).toHaveBeenCalledWith('/analitica-clinica?condition=dolor+abdominal&source=ANY&fromDate=2026-01-01&toDate=2026-04-20&followUpDays=30&limit=10');
+  });
+
+  it('downloads the current summary as CSV', async () => {
+    apiGetMock.mockResolvedValueOnce({
+      data: {
+        filters: {
+          condition: null,
+          source: 'ANY',
+          fromDate: '2026-01-01',
+          toDate: '2026-04-20',
+          followUpDays: 30,
+          limit: 10,
+        },
+        caveats: ['Los resultados son descriptivos y observacionales; no prueban efectividad comparativa ni causalidad.'],
+        summary: {
+          matchedPatients: 12,
+          matchedEncounters: 18,
+          structuredTreatmentCount: 14,
+          structuredTreatmentCoverage: 14 / 18,
+          reconsultWithinWindowCount: 7,
+          reconsultWithinWindowRate: 0.4,
+          treatmentAdjustmentCount: 4,
+          treatmentAdjustmentRate: 0.2,
+          resolvedProblemCount: 3,
+          resolvedProblemRate: 0.15,
+          alertAfterIndexCount: 2,
+          alertAfterIndexRate: 0.1,
+          adherenceDocumentedCount: 8,
+          adherenceDocumentedRate: 0.44,
+          adverseEventCount: 1,
+          adverseEventRate: 0.05,
+          demographics: {
+            averageAge: 51,
+            bySex: { F: 8, M: 4 },
+          },
+        },
+        topConditions: [{ label: 'Hipertensión arterial', encounterCount: 10, patientCount: 7, badge: 'Afección probable' }],
+        cohortBreakdown: {
+          associatedSymptoms: [],
+          foodRelation: [],
+        },
+        treatmentPatterns: {
+          medications: [],
+          exams: [],
+          referrals: [],
+        },
+        treatmentOutcomeProxies: {
+          medications: [],
+          exams: [],
+          referrals: [],
+        },
+      },
+    });
+    apiGetMock.mockResolvedValueOnce({
+      data: new Blob(['csv']),
+      headers: {
+        'content-disposition': 'attachment; filename="resumen_analitica_clinica_2026-04-22.csv"',
+      },
+    });
+
+    render(<ClinicalAnalyticsPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Analítica clínica')).toBeInTheDocument();
+    expect(await screen.findByText('Hipertensión arterial')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar resumen CSV' }));
+
+    await waitFor(() => {
+      expect(apiGetMock).toHaveBeenCalledWith(
+        '/analytics/clinical/summary/export/csv?source=ANY&fromDate=2026-01-01&toDate=2026-04-20&followUpDays=30&limit=10',
+        { responseType: 'blob' },
+      );
+    });
+
+    expect(createObjectUrlSpy).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:summary-csv');
+    expect(toastSuccessMock).toHaveBeenCalledWith('CSV descargado');
+  });
+
+  it('downloads the current summary as a Markdown report', async () => {
+    apiGetMock.mockResolvedValueOnce({
+      data: {
+        filters: {
+          condition: null,
+          source: 'ANY',
+          fromDate: '2026-01-01',
+          toDate: '2026-04-20',
+          followUpDays: 30,
+          limit: 10,
+        },
+        caveats: ['Los resultados son descriptivos y observacionales; no prueban efectividad comparativa ni causalidad.'],
+        summary: {
+          matchedPatients: 12,
+          matchedEncounters: 18,
+          structuredTreatmentCount: 14,
+          structuredTreatmentCoverage: 14 / 18,
+          reconsultWithinWindowCount: 7,
+          reconsultWithinWindowRate: 0.4,
+          treatmentAdjustmentCount: 4,
+          treatmentAdjustmentRate: 0.2,
+          resolvedProblemCount: 3,
+          resolvedProblemRate: 0.15,
+          alertAfterIndexCount: 2,
+          alertAfterIndexRate: 0.1,
+          adherenceDocumentedCount: 8,
+          adherenceDocumentedRate: 0.44,
+          adverseEventCount: 1,
+          adverseEventRate: 0.05,
+          demographics: {
+            averageAge: 51,
+            bySex: { F: 8, M: 4 },
+          },
+        },
+        topConditions: [{ label: 'Hipertensión arterial', encounterCount: 10, patientCount: 7, badge: 'Afección probable' }],
+        cohortBreakdown: {
+          associatedSymptoms: [],
+          foodRelation: [],
+        },
+        treatmentPatterns: {
+          medications: [],
+          exams: [],
+          referrals: [],
+        },
+        treatmentOutcomeProxies: {
+          medications: [],
+          exams: [],
+          referrals: [],
+        },
+      },
+    });
+    apiGetMock.mockResolvedValueOnce({
+      data: new Blob(['# reporte']),
+      headers: {
+        'content-disposition': 'attachment; filename="reporte_analitica_clinica_2026-04-22.md"',
+      },
+    });
+
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      writable: true,
+      value: createObjectUrlMarkdownSpy,
+    });
+
+    render(<ClinicalAnalyticsPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Analítica clínica')).toBeInTheDocument();
+    expect(await screen.findByText('Hipertensión arterial')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar reporte' }));
+
+    await waitFor(() => {
+      expect(apiGetMock).toHaveBeenCalledWith(
+        '/analytics/clinical/summary/export/md?source=ANY&fromDate=2026-01-01&toDate=2026-04-20&followUpDays=30&limit=10',
+        { responseType: 'blob' },
+      );
+    });
+
+    expect(createObjectUrlMarkdownSpy).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:summary-md');
+    expect(toastSuccessMock).toHaveBeenCalledWith('Reporte descargado');
   });
 
   it('redirects assistants away without querying analytics data', async () => {

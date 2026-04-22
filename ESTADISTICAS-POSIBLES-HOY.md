@@ -8,6 +8,9 @@ Anamneo ya tiene una capa de analitica clinica funcional y accesible, con backen
 
 - Vista frontend: `/analitica-clinica` y drill-down a `/analitica-clinica/casos`.
 - Endpoints backend: `/api/analytics/clinical/summary` y `/api/analytics/clinical/cases`.
+- Exportación CSV de la cohorte filtrada de casos desde `/analitica-clinica/casos` y `/api/analytics/clinical/cases/export/csv`.
+- Exportación CSV del resumen agregado desde `/analitica-clinica` y `/api/analytics/clinical/summary/export/csv`.
+- Reporte Markdown compartible del resumen agregado desde `/analitica-clinica` y `/api/analytics/clinical/summary/export/md`.
 - Acceso de usuario: la vista está pensada para `MEDICO` y se valida con `JwtAuthGuard` + `RolesGuard`.
 - Cohortes basadas en:
   - `MOTIVO_CONSULTA.afeccionSeleccionada`
@@ -76,6 +79,9 @@ Anamneo ya tiene una capa de analitica clinica funcional y accesible, con backen
 - Problema resuelto identificado por `PatientProblem.resolvedAt`.
 - Alertas posteriores de `ClinicalAlert`.
 - Distribución básica por sexo y edad.
+- Descarga CSV de los casos filtrados para compartir o revisar fuera de la UI.
+- Descarga CSV del resumen agregado para compartir la foto general sin entrar al drill-down.
+- Descarga de reporte Markdown del resumen agregado para compartir un entregable más legible fuera de la UI.
 
 ## Qué falta o no está formalmente resuelto
 

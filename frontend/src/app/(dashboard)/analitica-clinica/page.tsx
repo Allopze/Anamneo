@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { FiAlertTriangle, FiBarChart2, FiFilter, FiRefreshCw, FiUsers } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { FiAlertTriangle, FiBarChart2, FiFileText, FiFilter, FiRefreshCw, FiUsers } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 import { api, getErrorMessage } from '@/lib/api';
@@ -17,6 +18,7 @@ import {
   resolveDefaultClinicalAnalyticsFilters,
   type ClinicalAnalyticsFilterState,
 } from './analytics-filters';
+import { downloadClinicalAnalyticsSummaryCsv, downloadClinicalAnalyticsSummaryMarkdown } from './summary-export';
 
 type RankedRow = {
   label: string;
@@ -116,6 +118,8 @@ export default function AnaliticaClinicaPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
+  const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
+  const [isDownloadingMarkdown, setIsDownloadingMarkdown] = useState(false);
   const canAccess = user?.role === 'MEDICO' && !user?.isAdmin;
   const defaults = useMemo(() => resolveDefaultClinicalAnalyticsFilters(), []);
   const searchParamsKey = searchParams.toString();
@@ -179,6 +183,30 @@ export default function AnaliticaClinicaPage() {
     actionLabel: 'Ver casos',
   }));
 
+  const handleDownloadCsv = async () => {
+    setIsDownloadingCsv(true);
+    try {
+      await downloadClinicalAnalyticsSummaryCsv(appliedFilters);
+      toast.success('CSV descargado');
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsDownloadingCsv(false);
+    }
+  };
+
+  const handleDownloadMarkdown = async () => {
+    setIsDownloadingMarkdown(true);
+    try {
+      await downloadClinicalAnalyticsSummaryMarkdown(appliedFilters);
+      toast.success('Reporte descargado');
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsDownloadingMarkdown(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in space-y-6">
       <div className="page-header">
@@ -187,6 +215,26 @@ export default function AnaliticaClinicaPage() {
           <p className="page-header-description">
             Cohortes por afección o síntoma, patrones de tratamiento y desenlaces proxy sobre atenciones completadas o firmadas.
           </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn btn-secondary inline-flex items-center gap-2"
+            onClick={handleDownloadCsv}
+            disabled={isDownloadingCsv || isLoading}
+          >
+            <FiBarChart2 className="h-4 w-4" />
+            {isDownloadingCsv ? 'Descargando…' : 'Descargar resumen CSV'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary inline-flex items-center gap-2"
+            onClick={handleDownloadMarkdown}
+            disabled={isDownloadingMarkdown || isLoading}
+          >
+            <FiFileText className="h-4 w-4" />
+            {isDownloadingMarkdown ? 'Descargando…' : 'Descargar reporte'}
+          </button>
         </div>
       </div>
 

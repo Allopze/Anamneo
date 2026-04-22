@@ -8,11 +8,15 @@ Audité el repositorio completo de Anamneo como EMR/EHR chica para 1 a 5 usuario
 
 Estado general: la base es buena para un proyecto chico real. Hay arquitectura modular razonable, permisos clínicos bien pensados, exportes útiles, auditoría, backups/restore documentados para SQLite y una cobertura backend por encima del promedio. El trabajo pendiente ya no es “hacer la app”, sino terminar de cerrar algunos bordes de seguridad práctica, integridad clínica y mantenibilidad.
 
-En esta pasada se cerraron dos mejoras pedidas por producto:
+En esta pasada se cerraron cuatro mejoras pedidas por producto:
 
 - acción de “cerrar otras sesiones” en un solo clic;
 - resumen clínico fijo dentro de la atención con alergias, medicación habitual, problemas activos y alertas;
+- historial de paciente con medicación habitual más estructurada, separando lista y detalle clínico;
+- el resumen longitudinal y el resumen fijo de la atención ya muestran alergias y medicación habitual como estructura visible, no solo como texto plano;
 - además se apretó el tipado visible del render clínico en la atención.
+- además se agregó exportación CSV del resumen agregado de analítica clínica.
+- además se agregó un reporte Markdown compartible del resumen agregado de analítica clínica.
 
 Riesgo global actual: **Medio**.
 
@@ -247,9 +251,11 @@ Para 1 a 5 usuarios el riesgo operativo es bajo, pero si se quiere usar la caden
 ### Muy útiles
 
 - Medicación habitual estructurada a nivel paciente.
-  Valor: hoy la medicación crónica vive sobre todo en texto libre; una estructura simple mejoraría alertas, búsqueda y lectura longitudinal.
+  Valor: ya quedó estructurada en el historial maestro con lista de medicamentos y detalle clínico, y además se ve separada en los resúmenes longitudinales y de atención.
 - Exportación CSV desde analítica clínica.
-  Valor: `docs/clinical-analytics.md` ya reconoce que falta y es útil para seguimiento simple.
+  Valor: ya quedó implementada para la cohorte filtrada de casos y para el resumen agregado; el siguiente paso natural, si hace falta, sería un export entregable más clínico o por paciente.
+- Exportación de reporte Markdown desde analítica clínica.
+  Valor: ya quedó implementada como salida más legible para compartir fuera de la UI, sin perder la trazabilidad del read model.
 
 ### Opcionales
 
@@ -264,7 +270,7 @@ Para 1 a 5 usuarios el riesgo operativo es bajo, pero si se quiere usar la caden
 
 - Tipar mejor los formateadores/exportes clínicos donde hoy hay `any`.
 - Partir uno o dos archivos muy grandes del flujo de atención para bajar riesgo de regresión.
-- Estructurar al menos alergias y medicación habitual en paciente, aunque sea con un modelo simple.
+- Extender el mismo patrón de historial estructurado a otros campos textuales del paciente si se quiere seguir reduciendo texto libre. Medicación habitual ya quedó cubierta.
 - Sumar un smoke browser corto para login, atención, export y logout sobre el stack completo.
 
 ## 10. Checklist mínimo antes de producción

@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { FiArrowLeft, FiFileText, FiUsers } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { FiArrowLeft, FiDownload, FiFileText, FiUsers } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 import { api, getErrorMessage } from '@/lib/api';
@@ -16,6 +17,7 @@ import {
   resolveDefaultClinicalAnalyticsFilters,
 } from '../analytics-filters';
 import { AnalyticsCasesTable, type AnalyticsCaseRow } from './AnalyticsCasesTable';
+import { downloadClinicalAnalyticsCasesCsv } from '@/app/(dashboard)/analitica-clinica/casos/analytics-cases-export';
 
 type ClinicalAnalyticsCasesResponse = {
   filters: {
@@ -57,6 +59,7 @@ function describeFocus(response: ClinicalAnalyticsCasesResponse) {
 export default function ClinicalAnalyticsCasesPage() {
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
+  const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
   const canAccess = user?.role === 'MEDICO' && !user?.isAdmin;
   const defaults = useMemo(() => resolveDefaultClinicalAnalyticsFilters(), []);
   const searchParamsKey = searchParams.toString();
@@ -68,6 +71,7 @@ export default function ClinicalAnalyticsCasesPage() {
   const focusType = parsedSearchParams.get('focusType') as 'MEDICATION' | 'SYMPTOM' | null;
   const focusValue = parsedSearchParams.get('focusValue') || '';
   const page = Number(parsedSearchParams.get('page') || '1');
+  const activeFocus = focusType && focusValue.trim() ? { type: focusType, value: focusValue.trim() } : undefined;
 
   const requestParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -108,14 +112,26 @@ export default function ClinicalAnalyticsCasesPage() {
 
   const previousPageHref = buildClinicalAnalyticsCasesUrl(
     filters,
-    focusType && focusValue.trim() ? { type: focusType, value: focusValue } : undefined,
+    activeFocus,
     Math.max(1, page - 1),
   );
   const nextPageHref = buildClinicalAnalyticsCasesUrl(
     filters,
-    focusType && focusValue.trim() ? { type: focusType, value: focusValue } : undefined,
+    activeFocus,
     page + 1,
   );
+
+  const handleDownloadCsv = async () => {
+    setIsDownloadingCsv(true);
+    try {
+      await downloadClinicalAnalyticsCasesCsv(filters, activeFocus);
+      toast.success('CSV descargado');
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsDownloadingCsv(false);
+    }
+  };
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -127,13 +143,25 @@ export default function ClinicalAnalyticsCasesPage() {
           </p>
         </div>
 
-        <Link
-          href={buildClinicalAnalyticsSummaryUrl(filters)}
-          className="btn btn-secondary inline-flex items-center gap-2"
-        >
-          <FiArrowLeft className="h-4 w-4" />
-          Volver a la analítica
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn btn-secondary inline-flex items-center gap-2"
+            onClick={handleDownloadCsv}
+            disabled={isDownloadingCsv || isLoading}
+          >
+            <FiDownload className="h-4 w-4" />
+            {isDownloadingCsv ? 'Descargando…' : 'Descargar CSV'}
+          </button>
+
+          <Link
+            href={buildClinicalAnalyticsSummaryUrl(filters)}
+            className="btn btn-secondary inline-flex items-center gap-2"
+          >
+            <FiArrowLeft className="h-4 w-4" />
+            Volver a la analítica
+          </Link>
+        </div>
       </div>
 
       {error ? <ErrorAlert message={getErrorMessage(error)} /> : null}

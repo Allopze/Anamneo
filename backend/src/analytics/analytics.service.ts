@@ -1,14 +1,21 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUserData } from '../common/decorators/current-user.decorator';
 import { getClinicalAnalyticsSummaryReadModel } from './clinical-analytics.read-model';
 import { ClinicalAnalyticsQueryDto } from './dto/clinical-analytics-query.dto';
 import { getClinicalAnalyticsCasesReadModel } from './clinical-analytics.cases.read-model';
 import { ClinicalAnalyticsCasesQueryDto } from './dto/clinical-analytics-cases-query.dto';
+import { exportClinicalAnalyticsCasesCsvReadModel } from './clinical-analytics.cases.export';
+import { exportClinicalAnalyticsSummaryCsvReadModel } from './clinical-analytics.summary.export';
+import { exportClinicalAnalyticsSummaryMarkdownReadModel } from './clinical-analytics.summary.report';
 
 @Injectable()
 export class AnalyticsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   private assertClinicalAnalyticsAccess(user: CurrentUserData) {
     if (user.role !== 'MEDICO' || user.isAdmin) {
@@ -31,6 +38,39 @@ export class AnalyticsService {
 
     return getClinicalAnalyticsCasesReadModel({
       prisma: this.prisma,
+      user,
+      query,
+    });
+  }
+
+  exportClinicalCasesCsv(user: CurrentUserData, query: ClinicalAnalyticsCasesQueryDto) {
+    this.assertClinicalAnalyticsAccess(user);
+
+    return exportClinicalAnalyticsCasesCsvReadModel({
+      prisma: this.prisma,
+      auditService: this.auditService,
+      user,
+      query,
+    });
+  }
+
+  exportClinicalSummaryCsv(user: CurrentUserData, query: ClinicalAnalyticsQueryDto) {
+    this.assertClinicalAnalyticsAccess(user);
+
+    return exportClinicalAnalyticsSummaryCsvReadModel({
+      prisma: this.prisma,
+      auditService: this.auditService,
+      user,
+      query,
+    });
+  }
+
+  exportClinicalSummaryMarkdown(user: CurrentUserData, query: ClinicalAnalyticsQueryDto) {
+    this.assertClinicalAnalyticsAccess(user);
+
+    return exportClinicalAnalyticsSummaryMarkdownReadModel({
+      prisma: this.prisma,
+      auditService: this.auditService,
       user,
       query,
     });

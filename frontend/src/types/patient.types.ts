@@ -5,6 +5,11 @@ export type PatientRegistrationMode = 'COMPLETO' | 'RAPIDO';
 export type PatientCompletenessStatus = 'INCOMPLETA' | 'PENDIENTE_VERIFICACION' | 'VERIFICADA';
 export type PatientDemographicMissingField = 'rut' | 'edad' | 'sexo' | 'prevision';
 
+export interface PatientHistoryFieldValue {
+  texto?: string;
+  items?: string[];
+}
+
 export interface Patient {
   id: string;
   rut: string | null;
@@ -44,16 +49,16 @@ export interface Patient {
 export interface PatientHistory {
   id: string;
   patientId: string;
-  antecedentesMedicos: any;
-  antecedentesQuirurgicos: any;
-  antecedentesGinecoobstetricos: any;
-  antecedentesFamiliares: any;
-  habitos: any;
-  medicamentos: any;
-  alergias: any;
-  inmunizaciones: any;
-  antecedentesSociales: any;
-  antecedentesPersonales: any;
+  antecedentesMedicos: PatientHistoryFieldValue | string | null;
+  antecedentesQuirurgicos: PatientHistoryFieldValue | string | null;
+  antecedentesGinecoobstetricos: PatientHistoryFieldValue | string | null;
+  antecedentesFamiliares: PatientHistoryFieldValue | string | null;
+  habitos: PatientHistoryFieldValue | string | null;
+  medicamentos: PatientHistoryFieldValue | string | null;
+  alergias: PatientHistoryFieldValue | string | null;
+  inmunizaciones: PatientHistoryFieldValue | string | null;
+  antecedentesSociales: PatientHistoryFieldValue | string | null;
+  antecedentesPersonales: PatientHistoryFieldValue | string | null;
   updatedAt: string;
 }
 

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FiAlertTriangle, FiClipboard, FiHeart, FiShield } from 'react-icons/fi';
 
 import { api } from '@/lib/api';
-import { formatHistoryFieldText } from '@/lib/clinical';
+import { splitHistoryField } from '@/lib/clinical';
 import { buildClinicalAlertItems } from '@/lib/clinical-alerts';
 import type { PatientClinicalSummary, Patient } from '@/types';
 
@@ -27,8 +27,8 @@ export default function EncounterClinicalSummaryCard({ patientId, patient }: Enc
     return null;
   }
 
-  const allergies = formatHistoryFieldText(patient.history?.alergias);
-  const habitualMedication = formatHistoryFieldText(patient.history?.medicamentos);
+  const allergies = splitHistoryField(patient.history?.alergias);
+  const habitualMedication = splitHistoryField(patient.history?.medicamentos);
   const activeProblems = (patient.problems ?? []).filter((problem) => problem.status !== 'RESUELTO');
   const alerts = buildClinicalAlertItems(patient, clinicalSummary);
 
@@ -56,7 +56,22 @@ export default function EncounterClinicalSummaryCard({ patientId, patient }: Enc
               <FiAlertTriangle className="h-4 w-4 text-status-red" />
               Alergias
             </div>
-            <p className="mt-3 text-sm text-ink-secondary">{allergies || 'Sin registro'}</p>
+            <div className="mt-3 space-y-2 text-sm text-ink-secondary">
+              {allergies.items.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {allergies.items.map((item) => (
+                    <span
+                      key={item}
+                      className="inline-flex items-center rounded-full border border-status-red/25 bg-status-red/10 px-2.5 py-1 text-xs font-medium text-status-red-text"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {allergies.text ? <p>{allergies.text}</p> : null}
+              {!allergies.items.length && !allergies.text ? <p>Sin registro</p> : null}
+            </div>
           </div>
 
           <div className="rounded-card border border-surface-muted/40 bg-surface-base/65 p-4">
@@ -64,7 +79,22 @@ export default function EncounterClinicalSummaryCard({ patientId, patient }: Enc
               <FiHeart className="h-4 w-4 text-status-green" />
               Medicación habitual
             </div>
-            <p className="mt-3 text-sm text-ink-secondary">{habitualMedication || 'Sin registro'}</p>
+            <div className="mt-3 space-y-2 text-sm text-ink-secondary">
+              {habitualMedication.items.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {habitualMedication.items.map((item) => (
+                    <span
+                      key={item}
+                      className="inline-flex items-center rounded-full border border-status-green/25 bg-status-green/10 px-2.5 py-1 text-xs font-medium text-status-green-text"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {habitualMedication.text ? <p>{habitualMedication.text}</p> : null}
+              {!habitualMedication.items.length && !habitualMedication.text ? <p>Sin registro</p> : null}
+            </div>
           </div>
 
           <div className="rounded-card border border-surface-muted/40 bg-surface-base/65 p-4 sm:col-span-2">

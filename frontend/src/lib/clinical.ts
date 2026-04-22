@@ -17,6 +17,28 @@ export function getSectionData<T>(encounter: Encounter | undefined, key: Section
   return (encounter?.sections?.find((section) => section.sectionKey === key)?.data || {}) as T;
 }
 
+export function splitHistoryField(field: HistoryFieldValue | string | null | undefined): { items: string[]; text: string } {
+  const parsed = parseHistoryField(field);
+  const items: string[] = [];
+  if (Array.isArray(parsed?.items)) {
+    for (const item of parsed.items) {
+      if (typeof item === 'string') {
+        const trimmed = item.trim();
+        if (trimmed) {
+          items.push(trimmed);
+        }
+      }
+    }
+  }
+  const text = typeof parsed?.texto === 'string'
+    ? parsed.texto.trim()
+    : typeof parsed === 'string'
+    ? parsed.trim()
+    : '';
+
+  return { items, text };
+}
+
 export function getTreatmentPlanText(tratamiento: Partial<TratamientoData> | undefined) {
   const plan = tratamiento?.plan?.trim() || '';
   const indicaciones = tratamiento?.indicaciones?.trim() || '';
@@ -33,19 +55,7 @@ export function getTreatmentPlanText(tratamiento: Partial<TratamientoData> | und
 }
 
 export function formatHistoryFieldText(field: HistoryFieldValue | string | null | undefined) {
-  const parsed = parseHistoryField(field);
-  if (!parsed) {
-    return '';
-  }
-
-  const items = Array.isArray(parsed.items)
-    ? parsed.items.map((item: string) => item.trim()).filter(Boolean)
-    : [];
-  const text = typeof parsed.texto === 'string'
-    ? parsed.texto.trim()
-    : typeof parsed === 'string'
-    ? parsed.trim()
-    : '';
+  const { items, text } = splitHistoryField(field);
 
   if (!items.length) {
     return text;

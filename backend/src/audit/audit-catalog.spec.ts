@@ -17,6 +17,9 @@ describe('audit-catalog', () => {
     ['UserInvitation', 'DELETE', {}, 'USER_INVITATION_REVOKED'],
     ['User', 'PASSWORD_CHANGED', { reset: true }, 'USER_PASSWORD_RESET'],
     ['MedicationCatalog', 'UPDATE', { scope: 'CSV_IMPORT' }, 'MEDICATION_CSV_IMPORTED'],
+    ['ClinicalAnalyticsCasesExport', 'EXPORT', { export: { format: 'csv' } }, 'CLINICAL_ANALYTICS_CSV_EXPORTED'],
+    ['ClinicalAnalyticsSummaryExport', 'EXPORT', { export: { format: 'csv' } }, 'CLINICAL_ANALYTICS_SUMMARY_CSV_EXPORTED'],
+    ['ClinicalAnalyticsSummaryReportExport', 'EXPORT', { export: { format: 'md' } }, 'CLINICAL_ANALYTICS_SUMMARY_REPORT_EXPORTED'],
     ['Setting', 'UPDATE', {}, 'SETTINGS_UPDATED'],
   ])('maps %s/%s to %s', (entityType, action, diff, expected) => {
     expect(inferAuditReason(entityType as any, action as any, diff)).toBe(expected);

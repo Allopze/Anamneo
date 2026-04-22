@@ -12,6 +12,7 @@ import ConditionSelector from '@/components/common/ConditionSelector';
 import { parseHistoryField } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
+import PatientMedicationHistoryField, { type PatientMedicationHistoryValue } from '../PatientMedicationHistoryField';
 
 const HISTORY_FIELDS = [
   { key: 'antecedentesMedicos', label: 'Antecedentes médicos', placeholder: 'Selecciona o escribe afecciones médicas...', type: 'tags' },
@@ -19,12 +20,23 @@ const HISTORY_FIELDS = [
   { key: 'antecedentesGinecoobstetricos', label: 'Antecedentes ginecoobstétricos', placeholder: 'Menarquia, embarazos, menopausia...', type: 'text' },
   { key: 'antecedentesFamiliares', label: 'Antecedentes familiares', placeholder: 'Enfermedades hereditarias...', type: 'text' },
   { key: 'habitos', label: 'Hábitos', placeholder: 'Tabaco, alcohol, drogas, ejercicio...', type: 'text' },
-  { key: 'medicamentos', label: 'Uso de medicamentos', placeholder: 'Medicamentos actuales, dosis, frecuencia...', type: 'text' },
+  { key: 'medicamentos', label: 'Uso de medicamentos', placeholder: 'Medicamentos actuales, dosis, frecuencia...', type: 'compound' },
   { key: 'alergias', label: 'Alergias', placeholder: 'Medicamentos, alimentos, ambientales...', type: 'tags' },
   { key: 'inmunizaciones', label: 'Inmunizaciones', placeholder: 'Vacunas recibidas, fechas...', type: 'text' },
   { key: 'antecedentesSociales', label: 'Antecedentes sociales', placeholder: 'Vivienda, trabajo, situación económica...', type: 'text' },
   { key: 'antecedentesPersonales', label: 'Antecedentes personales', placeholder: 'Otros datos relevantes...', type: 'text' },
-];
+ ] as const;
+
+type HistoryFieldType = 'tags' | 'text' | 'compound';
+
+type HistoryFormValue = string | string[] | PatientMedicationHistoryValue;
+
+type HistoryFieldConfig = {
+  key: keyof PatientHistory;
+  label: string;
+  placeholder: string;
+  type: HistoryFieldType;
+};
 
 export default function HistorialPacientePage() {
   const { id } = useParams<{ id: string }>();
@@ -32,7 +44,7 @@ export default function HistorialPacientePage() {
   const queryClient = useQueryClient();
   const { user, canEditAntecedentes } = useAuthStore();
   const canEditHistory = canEditAntecedentes();
-  const [formData, setFormData] = useState<any>({});
+  const [formData, setFormData] = useState<Record<string, HistoryFormValue>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -58,13 +70,18 @@ export default function HistorialPacientePage() {
       initializedPatientIdRef.current = patient.id;
 
       // Initialize form with existing history
-      const initialData: any = {};
-      HISTORY_FIELDS.forEach(field => {
+      const initialData: Record<string, HistoryFormValue> = {};
+      HISTORY_FIELDS.forEach((field) => {
         const rawVal = patient.history![field.key as keyof PatientHistory];
         const val = parseHistoryField(rawVal);
         
         if (field.type === 'tags') {
           initialData[field.key] = typeof val === 'object' ? val?.items || [] : [];
+        } else if (field.type === 'compound') {
+          initialData[field.key] = {
+            items: typeof val === 'object' && Array.isArray(val?.items) ? val.items : [],
+            texto: typeof val === 'object' ? val?.texto || '' : typeof val === 'string' ? val : '',
+          };
         } else {
           initialData[field.key] = typeof val === 'object' ? val?.texto || '' : (typeof val === 'string' ? val : '');
         }
@@ -74,7 +91,7 @@ export default function HistorialPacientePage() {
   }, [patient]);
 
   const updateMutation = useMutation({
-    mutationFn: (data: any) => api.put(`/patients/${id}/history`, data),
+    mutationFn: (data: Record<string, unknown>) => api.put(`/patients/${id}/history`, data),
     onSuccess: () => {
       toast.success('Historial actualizado correctamente');
       queryClient.invalidateQueries({ queryKey: ['patient', id] });
@@ -92,20 +109,30 @@ export default function HistorialPacientePage() {
     setErrorMsg(null);
     
     // Format data for backend
-    const payload: any = {};
-    HISTORY_FIELDS.forEach(field => {
+    const payload: Record<string, unknown> = {};
+    HISTORY_FIELDS.forEach((field) => {
       if (field.type === 'tags') {
-        payload[field.key] = { items: formData[field.key] || [] };
+        payload[field.key] = { items: (formData[field.key] as string[] | undefined) || [] };
+      } else if (field.type === 'compound') {
+        const currentValue = (formData[field.key] as PatientMedicationHistoryValue | undefined) || {
+          items: [],
+          texto: '',
+        };
+
+        payload[field.key] = {
+          items: currentValue.items || [],
+          texto: currentValue.texto || '',
+        };
       } else {
-        payload[field.key] = { texto: formData[field.key] || '' };
+        payload[field.key] = { texto: (formData[field.key] as string | undefined) || '' };
       }
     });
 
     updateMutation.mutate(payload);
   };
 
-  const handleFieldChange = (key: string, value: any) => {
-    setFormData((prev: any) => ({ ...prev, [key]: value }));
+  const handleFieldChange = (key: string, value: HistoryFormValue) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
   if (!canEditHistory || user?.isAdmin) {
@@ -195,14 +222,19 @@ export default function HistorialPacientePage() {
               <div className="flex-1">
                 {field.type === 'tags' ? (
                   <ConditionSelector
-                    selected={formData[field.key] || []}
+                    selected={(formData[field.key] as string[] | undefined) || []}
                     onChange={(tags) => handleFieldChange(field.key, tags)}
                     placeholder={field.placeholder}
                     allowCatalogPersistence
                   />
+                ) : field.type === 'compound' ? (
+                  <PatientMedicationHistoryField
+                    value={((formData[field.key] as PatientMedicationHistoryValue | undefined) || { items: [], texto: '' })}
+                    onChange={(next: PatientMedicationHistoryValue) => handleFieldChange(field.key, next)}
+                  />
                 ) : (
                   <textarea
-                    value={formData[field.key] || ''}
+                    value={(formData[field.key] as string | undefined) || ''}
                     onChange={(e) => handleFieldChange(field.key, e.target.value)}
                     placeholder={field.placeholder}
                     rows={4}
