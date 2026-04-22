@@ -1,8 +1,6 @@
 import { buildClinicalAnalyticsEncounter } from './clinical-analytics-encounter';
 import type {
   ClinicalConditionEntry,
-  ClinicalTreatmentEntry,
-  EncounterDiagnosisEntry,
   ParsedClinicalAnalyticsEncounter,
 } from './clinical-analytics-encounter';
 import {

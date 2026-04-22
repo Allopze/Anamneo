@@ -1,11 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'path';
 
 const backendRoot = path.resolve(__dirname, '../backend');
 const e2eRunId = process.env.PLAYWRIGHT_E2E_RUN_ID || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const e2eWorkspace = path.join(os.tmpdir(), 'anamneo-playwright-e2e', e2eRunId);
+// Keep uploads and DB inside backend/ so backend upload-root guard stays active in E2E.
+const e2eWorkspace = path.join(backendRoot, '.playwright-e2e', e2eRunId);
 fs.mkdirSync(e2eWorkspace, { recursive: true });
 
 const testDbPath = path.join(e2eWorkspace, 'database.db');

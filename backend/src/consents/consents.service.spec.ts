@@ -113,4 +113,50 @@ describe('ConsentsService', () => {
     );
     expect(result.status).toBe('REVOCADO');
   });
+
+  it('allows revoking a patient-level consent created by an assistant assigned to the same medico', async () => {
+    const tx = {
+      informedConsent: {
+        update: jest.fn().mockResolvedValue({
+          id: 'consent-1',
+          patientId: 'pat-1',
+          encounterId: null,
+          type: 'TRATAMIENTO',
+          description: 'Consentimiento administrativo',
+          grantedAt: new Date('2026-04-16T10:00:00.000Z'),
+          grantedById: 'assistant-1',
+          revokedAt: new Date('2026-04-16T10:10:00.000Z'),
+          revokedById: 'med-1',
+          revokedReason: 'Revisión médica',
+          createdAt: new Date('2026-04-16T10:00:00.000Z'),
+          updatedAt: new Date('2026-04-16T10:10:00.000Z'),
+        }),
+      },
+    };
+    const prisma = {
+      informedConsent: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'consent-1',
+          patientId: 'pat-1',
+          encounterId: null,
+          revokedAt: null,
+          grantedById: 'assistant-1',
+          grantedBy: { medicoId: 'med-1' },
+          encounter: null,
+        }),
+      },
+      $transaction: jest.fn().mockImplementation(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const audit = { log: jest.fn().mockResolvedValue(undefined) };
+    const service = new ConsentsService(prisma as never, audit as never);
+
+    const result = await service.revoke(
+      'consent-1',
+      { reason: 'Revisión médica' },
+      { id: 'med-1', role: 'MEDICO' } as never,
+    );
+
+    expect(tx.informedConsent.update).toHaveBeenCalled();
+    expect(result.status).toBe('REVOCADO');
+  });
 });

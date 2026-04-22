@@ -305,7 +305,7 @@ export function validationSuite() {
         .expect(404);
     });
 
-    it('Encounter-linked consents and alerts do not leak across medicos sharing the same patient', async () => {
+    it('Encounter-linked and patient-level consents and alerts do not leak across medicos sharing the same patient', async () => {
       const [consent, alert] = await prisma.$transaction([
         prisma.informedConsent.create({
           data: {
@@ -329,6 +329,29 @@ export function validationSuite() {
         }),
       ]);
 
+      const [patientLevelConsent, patientLevelAlert] = await prisma.$transaction([
+        prisma.informedConsent.create({
+          data: {
+            patientId: state.patientId,
+            encounterId: null,
+            type: 'DATOS_PERSONALES',
+            description: 'Consentimiento paciente-nivel filtrado',
+            grantedById: medico2UserId,
+          },
+        }),
+        prisma.clinicalAlert.create({
+          data: {
+            patientId: state.patientId,
+            encounterId: null,
+            type: 'GENERAL',
+            severity: 'MEDIA',
+            title: 'Alerta paciente-nivel filtrada',
+            message: 'Tampoco deberia verse desde otro medico',
+            createdById: medico2UserId,
+          },
+        }),
+      ]);
+
       leakedConsentId = consent.id;
       leakedAlertId = alert.id;
 
@@ -338,6 +361,7 @@ export function validationSuite() {
         .expect(200);
 
       expect(consentsRes.body.map((item: any) => item.id)).not.toContain(leakedConsentId);
+      expect(consentsRes.body.map((item: any) => item.id)).not.toContain(patientLevelConsent.id);
 
       const alertsRes = await req()
         .get(`/api/alerts/patient/${state.patientId}?includeAcknowledged=true`)
@@ -345,6 +369,7 @@ export function validationSuite() {
         .expect(200);
 
       expect(alertsRes.body.map((item: any) => item.id)).not.toContain(leakedAlertId);
+      expect(alertsRes.body.map((item: any) => item.id)).not.toContain(patientLevelAlert.id);
 
       await req()
         .post(`/api/consents/${leakedConsentId}/revoke`)
@@ -358,12 +383,25 @@ export function validationSuite() {
         .send({})
         .expect(404);
 
+      await req()
+        .post(`/api/consents/${patientLevelConsent.id}/revoke`)
+        .set('Cookie', cookieHeader(state.medicoCookies))
+        .send({ reason: 'Intento paciente-nivel fuera de scope' })
+        .expect(404);
+
+      await req()
+        .post(`/api/alerts/${patientLevelAlert.id}/acknowledge`)
+        .set('Cookie', cookieHeader(state.medicoCookies))
+        .send({})
+        .expect(404);
+
       const medico2ConsentsRes = await req()
         .get(`/api/consents/patient/${state.patientId}`)
         .set('Cookie', cookieHeader(medico2Cookies))
         .expect(200);
 
       expect(medico2ConsentsRes.body.map((item: any) => item.id)).toContain(leakedConsentId);
+      expect(medico2ConsentsRes.body.map((item: any) => item.id)).toContain(patientLevelConsent.id);
 
       const medico2AlertsRes = await req()
         .get(`/api/alerts/patient/${state.patientId}?includeAcknowledged=true`)
@@ -371,6 +409,7 @@ export function validationSuite() {
         .expect(200);
 
       expect(medico2AlertsRes.body.map((item: any) => item.id)).toContain(leakedAlertId);
+      expect(medico2AlertsRes.body.map((item: any) => item.id)).toContain(patientLevelAlert.id);
     });
 
     it('First medico cannot update second medico patient history or admin fields', async () => {

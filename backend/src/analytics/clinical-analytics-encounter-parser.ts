@@ -27,7 +27,6 @@ import type {
   TreatmentData,
   ResponseData,
   ParsedClinicalAnalyticsEncounter,
-  ClinicalConditionEntry,
   EncounterDiagnosisEntry,
   EncounterOutcomeEntry,
 } from './clinical-analytics-encounter';

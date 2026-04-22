@@ -20,6 +20,7 @@ describe('PatientsPdfService', () => {
           rut: '11.111.111-1',
           rutExempt: false,
           rutExemptReason: null,
+          fechaNacimiento: new Date('1986-03-18T00:00:00.000Z'),
           edad: 40,
           edadMeses: null,
           sexo: 'FEMENINO',

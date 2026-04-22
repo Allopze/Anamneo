@@ -180,7 +180,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         if (shouldPreserveLocalSessionOnBootstrapError(error) && isAuthenticated) {
           if (!hasShownBootstrapWarningRef.current) {
             hasShownBootstrapWarningRef.current = true;
-            toast.error('No se pudo validar la sesión por un problema temporal de conexión. Se conserva la sesión local.');
+            toast.error('No se pudo validar la sesión por un problema de red. Se conserva temporalmente la sesión local.');
           }
         } else if (axios.isAxiosError(error) && error.response?.status === 401) {
           logout();

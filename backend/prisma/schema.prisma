@@ -45,6 +45,10 @@ model User {
   patientProblems       PatientProblem[]
   medicoPatientProblems PatientProblem[]  @relation("ProblemMedico")
   medicoEncounterTasks  EncounterTask[]   @relation("TaskMedico")
+  grantedConsents       InformedConsent[] @relation("ConsentGrantedBy")
+  revokedConsents       InformedConsent[] @relation("ConsentRevokedBy")
+  createdClinicalAlerts ClinicalAlert[]   @relation("ClinicalAlertCreatedBy")
+  acknowledgedAlerts    ClinicalAlert[]   @relation("ClinicalAlertAcknowledgedBy")
 
   @@map("users")
 }
@@ -521,6 +525,8 @@ model InformedConsent {
 
   patient   Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
   encounter Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  grantedBy User       @relation("ConsentGrantedBy", fields: [grantedById], references: [id])
+  revokedBy User?      @relation("ConsentRevokedBy", fields: [revokedById], references: [id])
 
   @@index([patientId, revokedAt])
   @@map("informed_consents")
@@ -540,8 +546,10 @@ model ClinicalAlert {
   createdById String    @map("created_by_id")
   createdAt   DateTime  @default(now()) @map("created_at")
 
-  patient   Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  encounter Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  patient         Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounter       Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
+  createdBy       User       @relation("ClinicalAlertCreatedBy", fields: [createdById], references: [id])
+  acknowledgedBy  User?      @relation("ClinicalAlertAcknowledgedBy", fields: [acknowledgedById], references: [id])
 
   @@index([patientId, acknowledgedAt])
   @@map("clinical_alerts")

@@ -126,11 +126,40 @@ function resolveSqliteDatabasePath(databaseUrl = process.env.DATABASE_URL) {
   return path.isAbsolute(rawPath) ? rawPath : path.resolve(process.cwd(), rawPath);
 }
 
+function resolveConfiguredPath(configuredPath) {
+  if (path.isAbsolute(configuredPath)) {
+    return configuredPath;
+  }
+
+  const cwd = process.cwd();
+  const parent = path.resolve(cwd, '..');
+  const normalizedPath = configuredPath.replace(/\\/g, '/');
+  const normalizedWithoutBackendPrefix = normalizedPath.replace(/^\.\/backend\//, './');
+  const candidates = [
+    path.resolve(cwd, configuredPath),
+    path.resolve(parent, configuredPath),
+  ];
+
+  if (normalizedWithoutBackendPrefix !== normalizedPath) {
+    candidates.push(
+      path.resolve(cwd, normalizedWithoutBackendPrefix),
+      path.resolve(parent, normalizedWithoutBackendPrefix),
+    );
+  }
+
+  const uniqueCandidates = [...new Set(candidates)];
+  const existingPath = uniqueCandidates.find((candidate) => fs.existsSync(candidate));
+  if (existingPath) {
+    return existingPath;
+  }
+
+  const candidateWithExistingDir = uniqueCandidates.find((candidate) => fs.existsSync(path.dirname(candidate)));
+  return candidateWithExistingDir || uniqueCandidates[0];
+}
+
 function resolveBackupDir(dbPath, configuredBackupDir = process.env.SQLITE_BACKUP_DIR) {
   if (configuredBackupDir && configuredBackupDir.trim().length > 0) {
-    return path.isAbsolute(configuredBackupDir)
-      ? configuredBackupDir
-      : path.resolve(process.cwd(), configuredBackupDir);
+    return resolveConfiguredPath(configuredBackupDir.trim());
   }
 
   return path.resolve(path.dirname(dbPath), 'backups');

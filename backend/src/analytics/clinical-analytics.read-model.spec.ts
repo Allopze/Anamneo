@@ -92,7 +92,13 @@ describe('clinical-analytics.read-model', () => {
         where: expect.objectContaining({
           patientId: { in: ['pat-1', 'pat-2'] },
           OR: [
-            { encounterId: null },
+            {
+              encounterId: null,
+              OR: [
+                { createdById: 'med-1' },
+                { createdBy: { medicoId: 'med-1' } },
+              ],
+            },
             { encounter: { medicoId: 'med-1' } },
           ],
         }),

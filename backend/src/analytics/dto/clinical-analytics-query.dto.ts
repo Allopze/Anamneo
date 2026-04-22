@@ -1,7 +1,8 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 
 export const CLINICAL_ANALYTICS_SOURCES = ['ANY', 'AFECCION_PROBABLE', 'SOSPECHA_DIAGNOSTICA'] as const;
+export const CLINICAL_ANALYTICS_FILTER_TEXT_MAX_LENGTH = 300;
 
 export type ClinicalAnalyticsSource = (typeof CLINICAL_ANALYTICS_SOURCES)[number];
 
@@ -25,6 +26,9 @@ function toOptionalNumber(value: unknown) {
 export class ClinicalAnalyticsQueryDto {
   @IsOptional()
   @IsString()
+  @MaxLength(CLINICAL_ANALYTICS_FILTER_TEXT_MAX_LENGTH, {
+    message: `El filtro no puede exceder ${CLINICAL_ANALYTICS_FILTER_TEXT_MAX_LENGTH} caracteres`,
+  })
   @Transform(({ value }) => toOptionalTrimmedString(value))
   condition?: string;
 

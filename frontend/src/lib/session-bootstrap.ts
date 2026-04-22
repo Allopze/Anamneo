@@ -5,9 +5,9 @@ export function shouldPreserveLocalSessionOnBootstrapError(error: unknown): bool
     return false;
   }
 
-  if (!error.response) {
+  if (error.request && !error.response) {
     return true;
   }
 
-  return error.response.status >= 500;
+  return false;
 }

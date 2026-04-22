@@ -20,6 +20,23 @@ export class AlertsService {
     private readonly audit: AuditService,
   ) {}
 
+  private buildPatientLevelOwnershipWhere(effectiveMedicoId: string) {
+    return {
+      encounterId: null,
+      OR: [
+        { createdById: effectiveMedicoId },
+        { createdBy: { medicoId: effectiveMedicoId } },
+      ],
+    };
+  }
+
+  private isPatientLevelAlertInMedicoScope(
+    alert: { createdById: string; createdBy?: { medicoId: string | null } | null },
+    effectiveMedicoId: string,
+  ) {
+    return alert.createdById === effectiveMedicoId || alert.createdBy?.medicoId === effectiveMedicoId;
+  }
+
   private async assertEncounterMatchesPatient(encounterId: string, patientId: string, user: RequestUser) {
     const encounter = await this.prisma.encounter.findUnique({
       where: { id: encounterId },
@@ -134,7 +151,7 @@ export class AlertsService {
         ...(effectiveMedicoId
           ? {
               OR: [
-                { encounterId: null },
+                this.buildPatientLevelOwnershipWhere(effectiveMedicoId),
                 { encounter: { medicoId: effectiveMedicoId } },
               ],
             }
@@ -147,10 +164,14 @@ export class AlertsService {
   }
 
   async acknowledge(id: string, user: RequestUser) {
+    const effectiveMedicoId = user.isAdmin ? null : getEffectiveMedicoId(user);
     const alert = await this.prisma.clinicalAlert.findUnique({
       where: { id },
       include: {
         encounter: {
+          select: { medicoId: true },
+        },
+        createdBy: {
           select: { medicoId: true },
         },
       },
@@ -159,8 +180,14 @@ export class AlertsService {
 
     await assertPatientAccess(this.prisma, user, alert.patientId);
 
-    if (alert.encounterId && !user.isAdmin && alert.encounter?.medicoId !== getEffectiveMedicoId(user)) {
-      throw new NotFoundException('Alerta no encontrada');
+    if (!user.isAdmin && effectiveMedicoId) {
+      if (alert.encounterId) {
+        if (alert.encounter?.medicoId !== effectiveMedicoId) {
+          throw new NotFoundException('Alerta no encontrada');
+        }
+      } else if (!this.isPatientLevelAlertInMedicoScope(alert, effectiveMedicoId)) {
+        throw new NotFoundException('Alerta no encontrada');
+      }
     }
 
     if (alert.acknowledgedAt) {
@@ -260,7 +287,7 @@ export class AlertsService {
           ? {
               OR: [
                 {
-                  encounterId: null,
+                  ...this.buildPatientLevelOwnershipWhere(effectiveMedicoId),
                   patient: patientWhere,
                 },
                 {
@@ -289,7 +316,7 @@ export class AlertsService {
           ? {
               OR: [
                 {
-                  encounterId: null,
+                  ...this.buildPatientLevelOwnershipWhere(effectiveMedicoId),
                   patient: patientWhere,
                 },
                 {

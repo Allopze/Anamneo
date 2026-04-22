@@ -17,14 +17,7 @@ type AccessiblePatient = {
 type PatientScopeCandidate = Pick<AccessiblePatient, 'id' | 'createdById' | 'archivedAt' | 'createdBy'>;
 
 type ScopedClinicalRecord = {
-  encounterId?: string | null;
-  createdById?: string | null;
-  encounter?: {
-    medicoId: string;
-  } | null;
-  createdBy?: {
-    medicoId: string | null;
-  } | null;
+  medicoId?: string | null;
 };
 
 export function buildOwnedPatientsWhere(effectiveMedicoId: string): Prisma.PatientWhereInput {
@@ -41,44 +34,18 @@ export function isPatientOwnedByMedico(
 }
 
 export function buildPatientProblemScopeWhere(effectiveMedicoId: string): Prisma.PatientProblemWhereInput {
-  return {
-    OR: [
-      { medicoId: effectiveMedicoId },
-      // Fallback for legacy records without denormalized medicoId
-      { medicoId: null, encounter: { medicoId: effectiveMedicoId } },
-      {
-        medicoId: null,
-        encounterId: null,
-        OR: [{ createdById: effectiveMedicoId }, { createdBy: { medicoId: effectiveMedicoId } }],
-      },
-    ],
-  };
+  return { medicoId: effectiveMedicoId };
 }
 
 export function buildEncounterTaskScopeWhere(effectiveMedicoId: string): Prisma.EncounterTaskWhereInput {
-  return {
-    OR: [
-      { medicoId: effectiveMedicoId },
-      // Fallback for legacy records without denormalized medicoId
-      { medicoId: null, encounter: { medicoId: effectiveMedicoId } },
-      {
-        medicoId: null,
-        encounterId: null,
-        OR: [{ createdById: effectiveMedicoId }, { createdBy: { medicoId: effectiveMedicoId } }],
-      },
-    ],
-  };
+  return { medicoId: effectiveMedicoId };
 }
 
 export function isClinicalRecordInMedicoScope(
-  record: Pick<ScopedClinicalRecord, 'encounterId' | 'createdById' | 'encounter' | 'createdBy'>,
+  record: Pick<ScopedClinicalRecord, 'medicoId'>,
   effectiveMedicoId: string,
 ): boolean {
-  if (record.encounterId) {
-    return record.encounter?.medicoId === effectiveMedicoId;
-  }
-
-  return record.createdById === effectiveMedicoId || record.createdBy?.medicoId === effectiveMedicoId;
+  return record.medicoId === effectiveMedicoId;
 }
 
 function buildArchiveFilterWhere(archiveFilter: PatientArchiveFilter): Prisma.PatientWhereInput {

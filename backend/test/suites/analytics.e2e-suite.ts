@@ -138,7 +138,9 @@ export function analyticsSuite() {
     let medicoAdminCookies: string[] = [];
     let analyticsEncounterId = '';
     let sharedPatientAlertId = '';
+    let sharedPatientLevelAlertId = '';
     let sharedPatientAlertOwnerCookies: string[] = [];
+    let sharedPatientAlertOwnerUserId = '';
 
     beforeAll(async () => {
       analyticsEncounterId = await createCompletedAnalyticsEncounter();
@@ -177,6 +179,7 @@ export function analyticsSuite() {
         .expect(200);
 
       sharedPatientAlertOwnerCookies = extractCookies(sharedMedicoLoginRes);
+      sharedPatientAlertOwnerUserId = sharedMedico.id;
 
       const sharedEncounter = await prisma.encounter.create({
         data: {
@@ -202,15 +205,31 @@ export function analyticsSuite() {
       });
 
       sharedPatientAlertId = sharedAlert.id;
+
+      const patientLevelAlert = await prisma.clinicalAlert.create({
+        data: {
+          patientId: state.patientId,
+          encounterId: null,
+          type: 'GENERAL',
+          severity: 'ALTA',
+          title: 'Alerta paciente-nivel compartida',
+          message: 'No deberia entrar al summary de otro medico',
+          createdById: sharedPatientAlertOwnerUserId,
+        },
+        select: { id: true },
+      });
+
+      sharedPatientLevelAlertId = patientLevelAlert.id;
     });
 
-    it('GET /api/analytics/clinical/summary → medico excludes encounter-linked alerts from another medico on a shared patient', async () => {
+    it('GET /api/analytics/clinical/summary → medico excludes encounter-linked and patient-level alerts from another medico on a shared patient', async () => {
       const sharedAlertsRes = await req()
         .get(`/api/alerts/patient/${state.patientId}?includeAcknowledged=true`)
         .set('Cookie', cookieHeader(sharedPatientAlertOwnerCookies))
         .expect(200);
 
       expect(sharedAlertsRes.body.map((item: any) => item.id)).toContain(sharedPatientAlertId);
+      expect(sharedAlertsRes.body.map((item: any) => item.id)).toContain(sharedPatientLevelAlertId);
 
       const res = await req()
         .get('/api/analytics/clinical/summary')

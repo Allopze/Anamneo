@@ -1,6 +1,10 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
-import { CLINICAL_ANALYTICS_SOURCES, type ClinicalAnalyticsSource } from './clinical-analytics-query.dto';
+import { IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import {
+  CLINICAL_ANALYTICS_FILTER_TEXT_MAX_LENGTH,
+  CLINICAL_ANALYTICS_SOURCES,
+  type ClinicalAnalyticsSource,
+} from './clinical-analytics-query.dto';
 
 export const CLINICAL_ANALYTICS_CASE_FOCUS_TYPES = ['MEDICATION', 'SYMPTOM'] as const;
 
@@ -26,6 +30,9 @@ function toOptionalNumber(value: unknown) {
 export class ClinicalAnalyticsCasesQueryDto {
   @IsOptional()
   @IsString()
+  @MaxLength(CLINICAL_ANALYTICS_FILTER_TEXT_MAX_LENGTH, {
+    message: `El filtro no puede exceder ${CLINICAL_ANALYTICS_FILTER_TEXT_MAX_LENGTH} caracteres`,
+  })
   @Transform(({ value }) => toOptionalTrimmedString(value))
   condition?: string;
 
@@ -48,12 +55,15 @@ export class ClinicalAnalyticsCasesQueryDto {
   @Max(365)
   followUpDays: number = 30;
 
-  @IsOptional()
+  @ValidateIf((object) => object.focusType !== undefined || object.focusValue !== undefined)
   @IsIn(CLINICAL_ANALYTICS_CASE_FOCUS_TYPES)
   focusType?: ClinicalAnalyticsCaseFocusType;
 
-  @IsOptional()
+  @ValidateIf((object) => object.focusType !== undefined || object.focusValue !== undefined)
   @IsString()
+  @MaxLength(CLINICAL_ANALYTICS_FILTER_TEXT_MAX_LENGTH, {
+    message: `El filtro de foco no puede exceder ${CLINICAL_ANALYTICS_FILTER_TEXT_MAX_LENGTH} caracteres`,
+  })
   @Transform(({ value }) => toOptionalTrimmedString(value))
   focusValue?: string;
 

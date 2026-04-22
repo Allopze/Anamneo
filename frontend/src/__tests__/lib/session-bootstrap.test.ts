@@ -8,17 +8,22 @@ describe('shouldPreserveLocalSessionOnBootstrapError', () => {
 
   it('returns true for network errors without response', () => {
     jest.spyOn(axios, 'isAxiosError').mockReturnValue(true);
-    expect(shouldPreserveLocalSessionOnBootstrapError({ response: undefined })).toBe(true);
+    expect(shouldPreserveLocalSessionOnBootstrapError({ request: {}, response: undefined })).toBe(true);
   });
 
-  it('returns true for server-side bootstrap errors', () => {
+  it('returns false for server-side bootstrap errors', () => {
     jest.spyOn(axios, 'isAxiosError').mockReturnValue(true);
-    expect(shouldPreserveLocalSessionOnBootstrapError({ response: { status: 503 } })).toBe(true);
+    expect(shouldPreserveLocalSessionOnBootstrapError({ request: {}, response: { status: 503 } })).toBe(false);
   });
 
   it('returns false for 401 auth errors', () => {
     jest.spyOn(axios, 'isAxiosError').mockReturnValue(true);
-    expect(shouldPreserveLocalSessionOnBootstrapError({ response: { status: 401 } })).toBe(false);
+    expect(shouldPreserveLocalSessionOnBootstrapError({ request: {}, response: { status: 401 } })).toBe(false);
+  });
+
+  it('returns false for setup errors without request', () => {
+    jest.spyOn(axios, 'isAxiosError').mockReturnValue(true);
+    expect(shouldPreserveLocalSessionOnBootstrapError({ message: 'invalid config' })).toBe(false);
   });
 
   it('returns false for non-Axios errors', () => {

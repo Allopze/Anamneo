@@ -20,14 +20,22 @@ import {
   evaluateEncounterOutcome,
   ratio,
   resolveDefaultFromDate,
-  type EncounterOutcomeEvaluation,
-  type RankedMetricRow,
   type ScopedProblem,
 } from './clinical-analytics-summary';
 import type { ClinicalAnalyticsQueryDto } from './dto/clinical-analytics-query.dto';
 
 const ANALYTICS_STATUSES = ['COMPLETADO', 'FIRMADO'] as const;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+function buildPatientLevelAlertScopeWhere(effectiveMedicoId: string) {
+  return {
+    encounterId: null,
+    OR: [
+      { createdById: effectiveMedicoId },
+      { createdBy: { medicoId: effectiveMedicoId } },
+    ],
+  };
+}
 
 export async function getClinicalAnalyticsSummaryReadModel(params: {
   prisma: PrismaService;
@@ -147,7 +155,7 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
             patientId: { in: patientIds },
             createdAt: { gte: fromStart, lt: extendedEnd },
             OR: [
-              { encounterId: null },
+              buildPatientLevelAlertScopeWhere(effectiveMedicoId),
               { encounter: { medicoId: effectiveMedicoId } },
             ],
           },

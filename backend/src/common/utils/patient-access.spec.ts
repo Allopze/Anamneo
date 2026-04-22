@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { assertLoadedPatientAccess } from './patient-access';
+import { assertLoadedPatientAccess, isClinicalRecordInMedicoScope } from './patient-access';
 import type { RequestUser } from './medico-id';
 
 describe('patient-access', () => {
@@ -57,5 +57,38 @@ describe('patient-access', () => {
       where: { patientId: 'patient-1', medicoId: 'med-1' },
       select: { id: true },
     });
+  });
+
+  it('allows clinical records scoped to the same medicoId', () => {
+    expect(
+      isClinicalRecordInMedicoScope(
+        {
+          medicoId: 'med-1',
+        },
+        'med-1',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects clinical records from another medico outside scope', () => {
+    expect(
+      isClinicalRecordInMedicoScope(
+        {
+          medicoId: 'med-2',
+        },
+        'med-1',
+      ),
+    ).toBe(false);
+  });
+
+  it('rejects clinical records without a medicoId in scope checks', () => {
+    expect(
+      isClinicalRecordInMedicoScope(
+        {
+          medicoId: null,
+        },
+        'med-1',
+      ),
+    ).toBe(false);
   });
 });

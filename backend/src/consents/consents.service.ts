@@ -27,6 +27,23 @@ export class ConsentsService {
     private readonly audit: AuditService,
   ) {}
 
+  private buildPatientLevelOwnershipWhere(effectiveMedicoId: string) {
+    return {
+      encounterId: null,
+      OR: [
+        { grantedById: effectiveMedicoId },
+        { grantedBy: { medicoId: effectiveMedicoId } },
+      ],
+    };
+  }
+
+  private isPatientLevelConsentInMedicoScope(
+    consent: { grantedById: string; grantedBy?: { medicoId: string | null } | null },
+    effectiveMedicoId: string,
+  ) {
+    return consent.grantedById === effectiveMedicoId || consent.grantedBy?.medicoId === effectiveMedicoId;
+  }
+
   private async resolveUserNames(userIds: string[]) {
     if (userIds.length === 0) {
       return new Map<string, string>();
@@ -124,7 +141,7 @@ export class ConsentsService {
         ...(effectiveMedicoId
           ? {
               OR: [
-                { encounterId: null },
+                this.buildPatientLevelOwnershipWhere(effectiveMedicoId),
                 { encounter: { medicoId: effectiveMedicoId } },
               ],
             }
@@ -139,10 +156,14 @@ export class ConsentsService {
   }
 
   async revoke(id: string, dto: RevokeConsentDto, user: RequestUser) {
+    const effectiveMedicoId = user.isAdmin ? null : getEffectiveMedicoId(user);
     const consent = await this.prisma.informedConsent.findUnique({
       where: { id },
       include: {
         encounter: {
+          select: { medicoId: true },
+        },
+        grantedBy: {
           select: { medicoId: true },
         },
       },
@@ -152,8 +173,14 @@ export class ConsentsService {
 
     await assertPatientAccess(this.prisma, user, consent.patientId);
 
-    if (consent.encounterId && !user.isAdmin && consent.encounter?.medicoId !== getEffectiveMedicoId(user)) {
-      throw new NotFoundException('Consentimiento no encontrado');
+    if (!user.isAdmin && effectiveMedicoId) {
+      if (consent.encounterId) {
+        if (consent.encounter?.medicoId !== effectiveMedicoId) {
+          throw new NotFoundException('Consentimiento no encontrado');
+        }
+      } else if (!this.isPatientLevelConsentInMedicoScope(consent, effectiveMedicoId)) {
+        throw new NotFoundException('Consentimiento no encontrado');
+      }
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {

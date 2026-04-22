@@ -6,6 +6,11 @@ import { CreatePatientQuickDto } from '../../patients/dto/create-patient-quick.d
 import { UpdatePatientTaskStatusDto } from '../../patients/dto/update-patient-task-status.dto';
 import { UpdateSectionDto } from '../../encounters/dto/update-section.dto';
 import { ChangePasswordDto } from '../../auth/dto/change-password.dto';
+import { CreateConsentDto, RevokeConsentDto } from '../../consents/dto/consent.dto';
+import { CreateAlertDto } from '../../alerts/dto/alert.dto';
+import { ClinicalAnalyticsQueryDto } from '../../analytics/dto/clinical-analytics-query.dto';
+import { ClinicalAnalyticsCasesQueryDto } from '../../analytics/dto/clinical-analytics-cases-query.dto';
+import { UpdateReviewStatusDto } from '../../encounters/dto/update-review-status.dto';
 
 describe('DTO Validation', () => {
   describe('RegisterDto', () => {
@@ -286,6 +291,135 @@ describe('DTO Validation', () => {
       const errors = await validate(dto);
 
       expect(errors.some((e) => e.property === 'recurrenceRule')).toBe(true);
+    });
+  });
+
+  describe('Consent DTOs', () => {
+    it('should reject an invalid patientId in CreateConsentDto', async () => {
+      const dto = plainToInstance(CreateConsentDto, {
+        patientId: 'not-a-uuid',
+        type: 'TRATAMIENTO',
+        description: 'Consentimiento informado',
+      });
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'patientId')).toBe(true);
+    });
+
+    it('should trim and reject too-short revoke reasons', async () => {
+      const dto = plainToInstance(RevokeConsentDto, {
+        reason: '  ',
+      });
+      expect(dto.reason).toBe('');
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'reason')).toBe(true);
+    });
+  });
+
+  describe('CreateAlertDto', () => {
+    it('should reject an invalid encounterId', async () => {
+      const dto = plainToInstance(CreateAlertDto, {
+        patientId: '7f7836e2-cf8d-4fe4-82a0-2dc0b4a0cc01',
+        encounterId: 'bad-id',
+        type: 'GENERAL',
+        severity: 'MEDIA',
+        title: 'Alerta breve',
+        message: 'Mensaje clínico válido',
+      });
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'encounterId')).toBe(true);
+    });
+
+    it('should trim and reject too-short title and message', async () => {
+      const dto = plainToInstance(CreateAlertDto, {
+        patientId: '7f7836e2-cf8d-4fe4-82a0-2dc0b4a0cc01',
+        type: 'GENERAL',
+        severity: 'MEDIA',
+        title: ' ',
+        message: ' ',
+      });
+      expect(dto.title).toBe('');
+      expect(dto.message).toBe('');
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'title')).toBe(true);
+      expect(errors.some((e) => e.property === 'message')).toBe(true);
+    });
+  });
+
+  describe('Clinical analytics DTOs', () => {
+    it('should trim condition and reject oversized summary filters', async () => {
+      const dto = plainToInstance(ClinicalAnalyticsQueryDto, {
+        condition: `  ${'A'.repeat(301)}  `,
+      });
+
+      expect(dto.condition).toBe('A'.repeat(301));
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'condition')).toBe(true);
+    });
+
+    it('should reject focusType without focusValue in cases query', async () => {
+      const dto = plainToInstance(ClinicalAnalyticsCasesQueryDto, {
+        condition: 'Dolor abdominal',
+        focusType: 'MEDICATION',
+      });
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'focusValue')).toBe(true);
+    });
+
+    it('should reject focusValue without focusType in cases query', async () => {
+      const dto = plainToInstance(ClinicalAnalyticsCasesQueryDto, {
+        condition: 'Dolor abdominal',
+        focusValue: 'Paracetamol',
+      });
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'focusType')).toBe(true);
+    });
+
+    it('should trim and accept paired focus filters in cases query', async () => {
+      const dto = plainToInstance(ClinicalAnalyticsCasesQueryDto, {
+        condition: ' Dolor abdominal ',
+        focusType: 'MEDICATION',
+        focusValue: ' Paracetamol ',
+      });
+
+      expect(dto.condition).toBe('Dolor abdominal');
+      expect(dto.focusValue).toBe('Paracetamol');
+
+      const errors = await validate(dto);
+
+      expect(errors.length).toBe(0);
+    });
+  });
+
+  describe('UpdateReviewStatusDto', () => {
+    it('should require a trimmed review note when marking an encounter as reviewed', async () => {
+      const dto = plainToInstance(UpdateReviewStatusDto, {
+        reviewStatus: 'REVISADA_POR_MEDICO',
+        note: '   ',
+      });
+
+      expect(dto.note).toBeUndefined();
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'note')).toBe(true);
+    });
+
+    it('should trim and accept an optional review note for pending review', async () => {
+      const dto = plainToInstance(UpdateReviewStatusDto, {
+        reviewStatus: 'LISTA_PARA_REVISION',
+        note: '  Revisar contexto clínico  ',
+      });
+
+      expect(dto.note).toBe('Revisar contexto clínico');
+
+      const errors = await validate(dto);
+
+      expect(errors.length).toBe(0);
     });
   });
 });

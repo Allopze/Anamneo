@@ -7,9 +7,7 @@ import {
   buildClinicalAnalyticsEncounter,
   buildClinicalAnalyticsEncounterFromPersistence,
   type ClinicalConditionEntry,
-  type ClinicalTreatmentEntry,
   type EncounterDiagnosisEntry,
-  type FoodRelation,
   type ParsedClinicalAnalyticsEncounter,
 } from './clinical-analytics-encounter';
 
