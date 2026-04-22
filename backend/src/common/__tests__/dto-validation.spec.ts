@@ -1,16 +1,23 @@
+import 'reflect-metadata';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { RegisterDto } from '../../auth/dto/register.dto';
 import { LoginDto } from '../../auth/dto/login.dto';
 import { CreatePatientQuickDto } from '../../patients/dto/create-patient-quick.dto';
+import { UpdatePatientHistoryDto } from '../../patients/dto/update-patient-history.dto';
 import { UpdatePatientTaskStatusDto } from '../../patients/dto/update-patient-task-status.dto';
 import { UpdateSectionDto } from '../../encounters/dto/update-section.dto';
+import { SignEncounterDto } from '../../encounters/dto/sign-encounter.dto';
 import { ChangePasswordDto } from '../../auth/dto/change-password.dto';
 import { CreateConsentDto, RevokeConsentDto } from '../../consents/dto/consent.dto';
 import { CreateAlertDto } from '../../alerts/dto/alert.dto';
 import { ClinicalAnalyticsQueryDto } from '../../analytics/dto/clinical-analytics-query.dto';
 import { ClinicalAnalyticsCasesQueryDto } from '../../analytics/dto/clinical-analytics-cases-query.dto';
 import { UpdateReviewStatusDto } from '../../encounters/dto/update-review-status.dto';
+import { UploadAttachmentDto } from '../../attachments/dto/upload-attachment.dto';
+import { CreateTemplateDto, UpdateTemplateDto } from '../../templates/dto/template.dto';
+import { SaveSuggestionDto } from '../../conditions/dto/save-suggestion.dto';
+import { CompleteEncounterDto } from '../../encounters/dto/complete-encounter.dto';
 
 describe('DTO Validation', () => {
   describe('RegisterDto', () => {
@@ -182,6 +189,21 @@ describe('DTO Validation', () => {
       const errors = await validate(dto);
       expect(errors.some((e) => e.property === 'nombre')).toBe(true);
     });
+
+    it('should trim optional rut fields and normalize blank values', async () => {
+      const dto = plainToInstance(CreatePatientQuickDto, {
+        nombre: 'Juan Pérez',
+        rut: '  ',
+        rutExemptReason: '  Sin documento nacional  ',
+      });
+
+      expect(dto.rut).toBeUndefined();
+      expect(dto.rutExemptReason).toBe('Sin documento nacional');
+
+      const errors = await validate(dto);
+
+      expect(errors.length).toBe(0);
+    });
   });
 
   describe('UpdateSectionDto', () => {
@@ -203,6 +225,16 @@ describe('DTO Validation', () => {
       expect(errors.some((e) => e.property === 'data')).toBe(true);
     });
 
+    it('should fail when data is an array payload', async () => {
+      const dto = plainToInstance(UpdateSectionDto, {
+        data: ['motivo', 'dolor'],
+      });
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'data')).toBe(true);
+    });
+
     it('should accept completed as optional', async () => {
       const dto = plainToInstance(UpdateSectionDto, {
         data: { motivo: 'dolor' },
@@ -218,6 +250,86 @@ describe('DTO Validation', () => {
       });
       const errors = await validate(dto);
       expect(errors.some((e) => e.property === 'baseUpdatedAt')).toBe(true);
+    });
+
+    it('should require a trimmed reason when marking section as not applicable', async () => {
+      const dto = plainToInstance(UpdateSectionDto, {
+        data: { motivo: 'dolor' },
+        notApplicable: true,
+        notApplicableReason: '   ',
+      });
+
+      expect(dto.notApplicableReason).toBeUndefined();
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'notApplicableReason')).toBe(true);
+    });
+
+    it('should reject oversized notApplicableReason', async () => {
+      const dto = plainToInstance(UpdateSectionDto, {
+        data: { motivo: 'dolor' },
+        notApplicable: true,
+        notApplicableReason: 'A'.repeat(1001),
+      });
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'notApplicableReason')).toBe(true);
+    });
+
+    it('should reject section payloads with too many top-level keys', async () => {
+      const data = Object.fromEntries(Array.from({ length: 121 }, (_, idx) => [`campo${idx}`, `valor ${idx}`]));
+
+      const dto = plainToInstance(UpdateSectionDto, {
+        data,
+      });
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'data')).toBe(true);
+    });
+
+    it('should reject section payloads with oversized serialized content', async () => {
+      const dto = plainToInstance(UpdateSectionDto, {
+        data: {
+          motivo: 'A'.repeat(120001),
+        },
+      });
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'data')).toBe(true);
+    });
+  });
+
+  describe('UpdatePatientHistoryDto', () => {
+    it('should sanitize and accept valid nested history objects', async () => {
+      const dto = plainToInstance(UpdatePatientHistoryDto, {
+        antecedentesMedicos: {
+          texto: '  Hipertensión controlada  ',
+          items: ['HTA', ' HTA ', '  '],
+        },
+      });
+
+      expect(dto.antecedentesMedicos?.texto).toBe('Hipertensión controlada');
+      expect(dto.antecedentesMedicos?.items).toEqual(['HTA']);
+
+      const errors = await validate(dto);
+
+      expect(errors.length).toBe(0);
+    });
+
+    it('should reject invalid nested history item types', async () => {
+      const dto = plainToInstance(UpdatePatientHistoryDto, {
+        alergias: {
+          items: ['Penicilina', 42],
+        },
+      });
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'alergias')).toBe(true);
     });
   });
 
@@ -416,6 +528,146 @@ describe('DTO Validation', () => {
       });
 
       expect(dto.note).toBe('Revisar contexto clínico');
+
+      const errors = await validate(dto);
+
+      expect(errors.length).toBe(0);
+    });
+  });
+
+  describe('SignEncounterDto', () => {
+    it('should reject passwords exceeding 72 characters', async () => {
+      const dto = plainToInstance(SignEncounterDto, {
+        password: `A1${'a'.repeat(71)}`,
+      });
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'password')).toBe(true);
+    });
+  });
+
+  describe('UploadAttachmentDto', () => {
+    it('should trim optional metadata and normalize blanks', async () => {
+      const dto = plainToInstance(UploadAttachmentDto, {
+        category: '  ',
+        description: '  Control de laboratorio  ',
+        linkedOrderType: '  EXAMEN  ',
+        linkedOrderId: '  ',
+      });
+
+      expect(dto.category).toBeUndefined();
+      expect(dto.description).toBe('Control de laboratorio');
+      expect(dto.linkedOrderType).toBe('EXAMEN');
+      expect(dto.linkedOrderId).toBeUndefined();
+
+      const errors = await validate(dto);
+
+      expect(errors.length).toBe(0);
+    });
+  });
+
+  describe('Template DTOs', () => {
+    it('should trim and reject blank required fields in CreateTemplateDto', async () => {
+      const dto = plainToInstance(CreateTemplateDto, {
+        name: '  ',
+        content: '  ',
+      });
+
+      expect(dto.name).toBe('');
+      expect(dto.content).toBe('');
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'name')).toBe(true);
+      expect(errors.some((e) => e.property === 'content')).toBe(true);
+    });
+
+    it('should trim optional fields in UpdateTemplateDto and drop blank values', async () => {
+      const dto = plainToInstance(UpdateTemplateDto, {
+        name: '  Resumen clínico  ',
+        content: '  Plantilla base  ',
+        sectionKey: '  ',
+      });
+
+      expect(dto.name).toBe('Resumen clínico');
+      expect(dto.content).toBe('Plantilla base');
+      expect(dto.sectionKey).toBeUndefined();
+
+      const errors = await validate(dto);
+
+      expect(errors.length).toBe(0);
+    });
+  });
+
+  describe('SaveSuggestionDto', () => {
+    it('should trim and reject blank inputText', async () => {
+      const dto = plainToInstance(SaveSuggestionDto, {
+        inputText: '  ',
+        chosenConditionId: null,
+        chosenMode: 'AUTO',
+        suggestions: [
+          {
+            id: '11111111-1111-4111-8111-111111111111',
+            name: 'Gastritis',
+            score: 10,
+            confidence: 80,
+          },
+        ],
+      });
+
+      expect(dto.inputText).toBe('');
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'inputText')).toBe(true);
+    });
+
+    it('should trim nested suggestion names and normalize blank snapshots', async () => {
+      const dto = plainToInstance(SaveSuggestionDto, {
+        inputText: '  dolor epigástrico  ',
+        persistedTextSnapshot: '   ',
+        chosenConditionId: null,
+        chosenMode: 'MANUAL',
+        suggestions: [
+          {
+            id: '11111111-1111-4111-8111-111111111111',
+            name: '  Gastritis erosiva  ',
+            score: 12,
+            confidence: 90,
+          },
+        ],
+      });
+
+      expect(dto.inputText).toBe('dolor epigástrico');
+      expect(dto.persistedTextSnapshot).toBeUndefined();
+      expect(dto.suggestions[0].name).toBe('Gastritis erosiva');
+
+      const errors = await validate(dto);
+
+      expect(errors.length).toBe(0);
+    });
+  });
+
+  describe('CompleteEncounterDto', () => {
+    it('should trim and reject a too-short closure note when provided', async () => {
+      const dto = plainToInstance(CompleteEncounterDto, {
+        closureNote: '   breve   ',
+      });
+
+      expect(dto.closureNote).toBe('breve');
+
+      const errors = await validate(dto);
+
+      expect(errors.some((e) => e.property === 'closureNote')).toBe(true);
+    });
+
+    it('should accept a trimmed valid closure note', async () => {
+      const dto = plainToInstance(CompleteEncounterDto, {
+        closureNote: '  Evolución clínica estable y plan indicado  ',
+      });
+
+      expect(dto.closureNote).toBe('Evolución clínica estable y plan indicado');
 
       const errors = await validate(dto);
 

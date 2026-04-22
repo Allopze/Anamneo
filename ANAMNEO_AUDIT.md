@@ -17,6 +17,9 @@ Fecha: 2026-04-21
 - 2026-04-22, pasada 9: eliminada la compatibilidad legacy para problemas y tareas sin `medicoId`, junto con el backfill asociado, porque no existen datos previos que conservar.
 - 2026-04-22, pasada 10: endurecidos los DTOs de analytics para limitar filtros libres y exigir que `focusType` y `focusValue` viajen juntos en `/clinical/cases`.
 - 2026-04-22, pasada 11: endurecido el DTO de revisión de atenciones para exigir nota válida cuando un médico marca una atención como revisada.
+- 2026-04-22, pasada 12: endurecidos DTOs clínicos de severidad media (adjuntos, plantillas, guardado de sugerencias, cierre de atención y registro rápido de paciente) con `trim`, normalización de blancos y mínimos cuando aplica.
+- 2026-04-22, pasada 13: endurecidos DTOs clínicos de alta prioridad para historial maestro de paciente, motivo de “no aplica” en secciones y firma de atención, con cobertura unitaria y revalidación E2E.
+- 2026-04-22, pasada 14: acotado `UpdateSectionDto.data` con validación mínima de payload (objeto plano, máximo de campos de primer nivel y tamaño serializado), manteniendo el sanitizado clínico por sección.
 - Estado después de esta pasada: el veredicto general se mantiene en `Casi lista para producción chica`, con foco ya puesto en validación final y no en compatibilidad hacia atrás.
 
 ## 1. Resumen ejecutivo
@@ -25,7 +28,7 @@ Audité el repositorio completo con foco en una EMR/EHR pequeña para 1 a 5 usua
 
 La base del proyecto es buena para una app chica: el backend arranca con guardrails de configuración, la autenticación usa cookies `HttpOnly` con `sameSite: 'strict'`, hay validación fuerte en backend, existe bitácora de auditoría, hay bloqueo de emisión/cierre cuando la ficha maestra está incompleta, hay backup/restore drill SQLite y la cobertura E2E backend es inusualmente buena para el tamaño del producto.
 
-La señal de “lista para salir” quedó casi limpia. El hueco principal de permisos en consentimientos/alertas paciente-nivel ya quedó corregido en esta rama, la regresión del harness E2E frontend también, el drift operativo de backups SQLite también, los tests unitarios de export/PDF ya volvieron a estar alineados y el backend quedó en verde en lint, typecheck, tests y E2E. Además, el bootstrap de sesión frontend ya no conserva permisos/rol locales ante `5xx` del backend: esa tolerancia quedó limitada a errores de red sin respuesta. Dado que no existen datos previos que conservar, también se eliminó la compatibilidad legacy para problemas y tareas sin `medicoId`, simplificando el scope clínico. En analytics, los filtros libres ya no aceptan cadenas arbitrariamente grandes y el endpoint de casos dejó de tolerar focos incompletos. En workflow clínico, la revisión médica ya no acepta una “nota” vacía que recién falle más abajo en negocio: ese contrato quedó movido al DTO. Para una producción chica y restringida, la app ya está cerca de estar lista.
+La señal de “lista para salir” quedó casi limpia. El hueco principal de permisos en consentimientos/alertas paciente-nivel ya quedó corregido en esta rama, la regresión del harness E2E frontend también, el drift operativo de backups SQLite también, los tests unitarios de export/PDF ya volvieron a estar alineados y el backend quedó en verde en lint, typecheck, tests y E2E. Además, el bootstrap de sesión frontend ya no conserva permisos/rol locales ante `5xx` del backend: esa tolerancia quedó limitada a errores de red sin respuesta. Dado que no existen datos previos que conservar, también se eliminó la compatibilidad legacy para problemas y tareas sin `medicoId`, simplificando el scope clínico. En analytics, los filtros libres ya no aceptan cadenas arbitrariamente grandes y el endpoint de casos dejó de tolerar focos incompletos. En workflow clínico, la revisión médica ya no acepta una “nota” vacía que recién falle más abajo en negocio: ese contrato quedó movido al DTO. En las últimas pasadas también se endurecieron DTOs clínicos medios y altos, y ahora además se limitó el tamaño/forma del payload de secciones para reducir superficie de entrada blanda antes del sanitizado. Para una producción chica y restringida, la app ya está cerca de estar lista.
 
 Riesgo global: Medio.
 
@@ -38,7 +41,7 @@ Conclusión corta: la considero casi lista para producción pequeña y restringi
 | `npm --prefix backend run typecheck` | OK | Sin errores |
 | `npm --prefix frontend run typecheck` | OK | Sin errores |
 | `npm --prefix backend run test -- --runInBand` | OK | 53 suites, 299 tests en verde |
-| `npm --prefix backend run test -- --runInBand src/common/__tests__/dto-validation.spec.ts` | OK | 38 tests en verde, incluyendo consentimientos, alertas, analytics y review workflow |
+| `npm --prefix backend run test -- --runInBand src/common/__tests__/dto-validation.spec.ts` | OK | 54 tests en verde, incluyendo consentimientos, alertas, analytics, review workflow y hardening de payload en secciones |
 | `npm --prefix frontend run test -- --runInBand` | OK | 59 suites, 288 tests |
 | `npm --prefix frontend run test -- --runInBand src/__tests__/lib/session-bootstrap.test.ts src/__tests__/components/dashboard-layout.analytics-navigation.test.tsx` | OK | 2 suites, 8 tests en verde |
 | `npm --prefix backend run lint:check` | OK | Sin errores |
@@ -106,6 +109,15 @@ No encontré un hallazgo crítico comprobado que por sí solo vuelva inviable el
 7. La revisión de atenciones ya no permite marcar `REVISADA_POR_MEDICO` sin una nota válida desde la capa DTO.
    Evidencia: `backend/src/encounters/dto/update-review-status.dto.ts` ahora recorta la nota, exige mínimo de 10 caracteres cuando `reviewStatus = REVISADA_POR_MEDICO` y mantiene la nota opcional para otros estados; `src/common/__tests__/dto-validation.spec.ts` cubre el caso inválido y el opcional válido.
 
+8. El endurecimiento de DTOs clínicos medios ya quedó aplicado en esta rama.
+   Evidencia: `backend/src/attachments/dto/upload-attachment.dto.ts` normaliza metadatos opcionales en blanco; `backend/src/templates/dto/template.dto.ts` recorta y evita campos vacíos en create/update; `backend/src/conditions/dto/save-suggestion.dto.ts` exige texto de entrada no vacío tras recorte y sanea snapshots opcionales; `backend/src/encounters/dto/complete-encounter.dto.ts` recorta y exige mínimo de longitud cuando se informa nota de cierre; `backend/src/patients/dto/create-patient-quick.dto.ts` recorta y normaliza `rut` y `rutExemptReason`; `src/common/__tests__/dto-validation.spec.ts` cubre todos estos contratos.
+
+9. El endurecimiento de DTOs clínicos de alta prioridad ya quedó aplicado en esta rama.
+   Evidencia: `backend/src/patients/dto/update-patient-history.dto.ts` ahora valida objetos anidados de historial con texto/listas saneadas y límites de tamaño; `backend/src/encounters/dto/update-section.dto.ts` ahora exige y acota `notApplicableReason` cuando corresponde; `backend/src/encounters/dto/sign-encounter.dto.ts` acota longitud de contraseña de firma; `src/common/__tests__/dto-validation.spec.ts` cubre estos nuevos contratos; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` volvió a pasar con 219 tests.
+
+10. `UpdateSectionDto.data` ya no acepta payloads arbitrarios sin tope básico de tamaño/forma.
+   Evidencia: `backend/src/encounters/dto/update-section.dto.ts` ahora aplica una constraint dedicada para rechazar payload no-objeto (incluyendo arrays), exceso de campos de primer nivel y contenido serializado excesivo; `src/common/__tests__/dto-validation.spec.ts` cubre los tres escenarios inválidos; `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` se mantuvo en verde.
+
 ## 5. Seguridad y privacidad
 
 ### Lo que está bien
@@ -159,7 +171,7 @@ No encontré un hallazgo crítico comprobado que por sí solo vuelva inviable el
 
 ### Validaciones de negocio que faltan o conviene endurecer
 
-6. Replicar este mismo estándar de `trim + min/max + UUID` en cualquier DTO clínico que todavía quede con validación sólo tipada.
+6. Mantener vigilancia de payloads clínicos excepcionales para ajustar los límites de `UpdateSectionDto.data` solo si aparecen falsos positivos en uso real.
 
 ## 7. Mantenibilidad y deuda técnica
 

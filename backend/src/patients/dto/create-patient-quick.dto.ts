@@ -7,6 +7,15 @@ import {
   PATIENT_RUT_MAX_LENGTH,
 } from '../../../../shared/patient-field-constraints';
 
+const toOptionalTrimmedString = (value: unknown): unknown => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue.length > 0 ? trimmedValue : undefined;
+};
+
 export class CreatePatientQuickDto {
   @IsString()
   @MinLength(PATIENT_NAME_MIN_LENGTH, {
@@ -21,6 +30,7 @@ export class CreatePatientQuickDto {
   @IsString()
   @MaxLength(PATIENT_RUT_MAX_LENGTH, { message: `El RUT no puede exceder ${PATIENT_RUT_MAX_LENGTH} caracteres` })
   @IsOptional()
+  @Transform(({ value }) => toOptionalTrimmedString(value))
   rut?: string;
 
   @IsBoolean()
@@ -32,5 +42,6 @@ export class CreatePatientQuickDto {
     message: `El motivo no puede exceder ${PATIENT_RUT_EXEMPT_REASON_MAX_LENGTH} caracteres`,
   })
   @IsOptional()
+  @Transform(({ value }) => toOptionalTrimmedString(value))
   rutExemptReason?: string;
 }
