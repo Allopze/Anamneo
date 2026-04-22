@@ -12,7 +12,7 @@ export default function AjustesPage() {
   return (
     <Suspense
       fallback={
-        <div className="animate-fade-in max-w-5xl">
+        <div className="animate-fade-in w-full">
           <div className="h-8 w-32 skeleton rounded-lg mb-4" />
           <div className="h-10 w-64 skeleton rounded-lg mb-6" />
           <div className="card">
@@ -38,7 +38,7 @@ function AjustesContent() {
   const visibleTabs = TAB_DEFS.filter((t) => !t.adminOnly || aj.isAdmin);
 
   return (
-    <div className="animate-fade-in max-w-5xl">
+    <div className="animate-fade-in w-full">
       <div className="page-header">
         <div>
           <h1 className="page-header-title">Ajustes</h1>
