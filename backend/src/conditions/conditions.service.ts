@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConditionsSimilarityService, SuggestionResult } from './conditions-similarity.service';
 import { CreateConditionDto } from './dto/create-condition.dto';
@@ -13,14 +13,9 @@ import {
   CONDITION_SUGGESTION_RANKING_VERSION,
 } from './conditions-suggestion-log';
 import { validateSuggestionChoicePayload } from './conditions-suggestion-choice';
-import {
-  normalizeConditionName,
-  sanitizeStringArray,
-  mergeUniqueStrings,
-  parseStringArray,
-  toConditionResponse,
-  getInstanceId,
-} from './conditions-helpers';
+import { getMergedConditions } from './conditions-local-queries';
+import { createLocalCondition, updateLocalCondition, removeLocalCondition, hideBaseCondition } from './conditions-local-operations';
+import { getInstanceId, normalizeConditionName, toConditionResponse } from './conditions-helpers';
 
 @Injectable()
 export class ConditionsService {
@@ -28,22 +23,6 @@ export class ConditionsService {
     private prisma: PrismaService,
     private similarityService: ConditionsSimilarityService,
   ) {}
-
-  private async findLocalConditionDuplicates(instanceId: string, name: string, excludeId?: string) {
-    const normalizedName = normalizeConditionName(name);
-    const localConditions = await this.prisma.conditionCatalogLocal.findMany({
-      where: { medicoId: instanceId },
-      orderBy: [{ active: 'desc' }, { hidden: 'asc' }, { createdAt: 'asc' }],
-    });
-
-    return localConditions.filter((condition) => {
-      if (excludeId && condition.id === excludeId) {
-        return false;
-      }
-
-      return normalizeConditionName(condition.name) === normalizedName;
-    });
-  }
 
   async create(createDto: CreateConditionDto) {
     const normalizedName = normalizeConditionName(createDto.name);
@@ -70,64 +49,6 @@ export class ConditionsService {
     return condition;
   }
 
-  private async getMergedConditions(user: CurrentUserData, search?: string) {
-    const instanceId = getInstanceId(user);
-    const searchLower = search?.trim().toLowerCase();
-
-    const [globalConditions, localConditions] = await Promise.all([
-      this.prisma.conditionCatalog.findMany({
-        where: { active: true },
-        orderBy: { name: 'asc' },
-      }),
-      this.prisma.conditionCatalogLocal.findMany({
-        where: { medicoId: instanceId },
-        orderBy: { name: 'asc' },
-      }),
-    ]);
-
-    const localByBase = new Map<string, typeof localConditions[number]>();
-    const localOnly: typeof localConditions[number][] = [];
-
-    for (const local of localConditions) {
-      if (local.baseConditionId) {
-        localByBase.set(local.baseConditionId, local);
-      } else {
-        localOnly.push(local);
-      }
-    }
-
-    const merged: ReturnType<typeof toConditionResponse>[] = [];
-
-    for (const condition of globalConditions) {
-      const local = localByBase.get(condition.id);
-      if (local) {
-        if (local.hidden || !local.active) {
-          continue;
-        }
-        merged.push(
-          toConditionResponse(
-            local,
-            'LOCAL',
-            condition.id,
-          )
-        );
-      } else {
-        merged.push(toConditionResponse(condition, 'GLOBAL'));
-      }
-    }
-
-    for (const local of localOnly) {
-      if (local.hidden || !local.active) continue;
-      merged.push(toConditionResponse(local, 'LOCAL'));
-    }
-
-    const filtered = searchLower
-      ? merged.filter((item) => item.name.toLowerCase().includes(searchLower))
-      : merged;
-
-    return filtered.sort((a, b) => a.name.localeCompare(b.name));
-  }
-
   async findAll(search: string | undefined, user: CurrentUserData) {
     if (user?.isAdmin) {
       const where = search ? { name: { contains: search } } : {};
@@ -138,7 +59,7 @@ export class ConditionsService {
       return conditions.map((condition) => toConditionResponse(condition, 'GLOBAL'));
     }
 
-    return this.getMergedConditions(user, search);
+    return getMergedConditions(this.prisma, user, search);
   }
 
   async findById(id: string) {
@@ -218,223 +139,24 @@ export class ConditionsService {
       return this.similarityService.suggest(dto.text, dto.limit || 3);
     }
 
-    const conditions = await this.getMergedConditions(user);
+    const conditions = await getMergedConditions(this.prisma, user);
     return this.similarityService.suggestFromConditions(conditions, dto.text, dto.limit || 3);
   }
 
   async createLocal(user: CurrentUserData, dto: CreateLocalConditionDto) {
-    const instanceId = getInstanceId(user);
-    const trimmedName = dto.name?.trim();
-    const sanitizedSynonyms = sanitizeStringArray(dto.synonyms);
-    const sanitizedTags = sanitizeStringArray(dto.tags);
-
-    if (!trimmedName || trimmedName.length < 2) {
-      throw new BadRequestException('El nombre debe tener al menos 2 caracteres');
-    }
-
-    const duplicateByName = await this.findLocalConditionDuplicates(instanceId, trimmedName);
-    const existingByName = duplicateByName[0];
-
-    if (dto.baseConditionId) {
-      const base = await this.prisma.conditionCatalog.findUnique({
-        where: { id: dto.baseConditionId },
-      });
-      if (!base) {
-        throw new NotFoundException('Afección base no encontrada');
-      }
-
-      if (
-        existingByName
-        && existingByName.baseConditionId
-        && existingByName.baseConditionId !== dto.baseConditionId
-      ) {
-        throw new BadRequestException('Ya existe una afección local con ese nombre en el catálogo');
-      }
-
-      if (existingByName) {
-        const updated = await this.prisma.conditionCatalogLocal.update({
-          where: { id: existingByName.id },
-          data: {
-            baseConditionId: dto.baseConditionId,
-            name: trimmedName,
-            synonyms: JSON.stringify(
-              mergeUniqueStrings(
-                parseStringArray(existingByName.synonyms),
-                sanitizedSynonyms,
-              ),
-            ),
-            tags: JSON.stringify(
-              mergeUniqueStrings(
-                parseStringArray(existingByName.tags),
-                sanitizedTags,
-              ),
-            ),
-            active: true,
-            hidden: false,
-          },
-        });
-
-        return {
-          ...toConditionResponse(updated, 'LOCAL', dto.baseConditionId),
-          deduplicatedByName: true,
-        };
-      }
-
-      const upserted = await this.prisma.conditionCatalogLocal.upsert({
-        where: {
-          medicoId_baseConditionId: {
-            medicoId: instanceId,
-            baseConditionId: dto.baseConditionId,
-          },
-        },
-        create: {
-          medicoId: instanceId,
-          baseConditionId: dto.baseConditionId,
-          name: trimmedName,
-          synonyms: JSON.stringify(sanitizedSynonyms),
-          tags: JSON.stringify(sanitizedTags),
-          active: true,
-          hidden: false,
-        },
-        update: {
-          name: trimmedName,
-          synonyms: JSON.stringify(sanitizedSynonyms),
-          tags: JSON.stringify(sanitizedTags),
-          active: true,
-          hidden: false,
-        },
-      });
-
-      return toConditionResponse(upserted, 'LOCAL', dto.baseConditionId);
-    }
-
-    if (existingByName) {
-      const updated = await this.prisma.conditionCatalogLocal.update({
-        where: { id: existingByName.id },
-        data: {
-          name: trimmedName,
-          synonyms: JSON.stringify(
-            mergeUniqueStrings(
-              parseStringArray(existingByName.synonyms),
-              sanitizedSynonyms,
-            ),
-          ),
-          tags: JSON.stringify(
-            mergeUniqueStrings(
-              parseStringArray(existingByName.tags),
-              sanitizedTags,
-            ),
-          ),
-          active: true,
-          hidden: false,
-        },
-      });
-
-      return {
-        ...toConditionResponse(updated, 'LOCAL', updated.baseConditionId ?? null),
-        deduplicatedByName: true,
-      };
-    }
-
-    const created = await this.prisma.conditionCatalogLocal.create({
-      data: {
-        medicoId: instanceId,
-        name: trimmedName,
-        synonyms: JSON.stringify(sanitizedSynonyms),
-        tags: JSON.stringify(sanitizedTags),
-      },
-    });
-
-    return toConditionResponse(created, 'LOCAL');
+    return createLocalCondition(this.prisma, user, dto);
   }
 
   async updateLocal(user: CurrentUserData, id: string, dto: UpdateLocalConditionDto) {
-    const instanceId = getInstanceId(user);
-    const existing = await this.prisma.conditionCatalogLocal.findFirst({
-      where: { id, medicoId: instanceId },
-    });
-
-    if (!existing) {
-      throw new NotFoundException('Afección local no encontrada');
-    }
-
-    const nextName = dto.name?.trim() || existing.name;
-    const duplicateByName = await this.findLocalConditionDuplicates(instanceId, nextName, id);
-    if (duplicateByName.length > 0) {
-      throw new BadRequestException('Ya existe una afección local con ese nombre en el catálogo');
-    }
-
-    const updateData: Record<string, unknown> = {};
-    if (dto.name) updateData.name = dto.name.trim();
-    if (dto.synonyms) updateData.synonyms = JSON.stringify(sanitizeStringArray(dto.synonyms));
-    if (dto.tags) updateData.tags = JSON.stringify(sanitizeStringArray(dto.tags));
-
-    const updated = await this.prisma.conditionCatalogLocal.update({
-      where: { id },
-      data: updateData,
-    });
-
-    return toConditionResponse(updated, 'LOCAL', updated.baseConditionId ?? null);
+    return updateLocalCondition(this.prisma, user, id, dto);
   }
 
   async removeLocal(user: CurrentUserData, id: string) {
-    const instanceId = getInstanceId(user);
-    const existing = await this.prisma.conditionCatalogLocal.findFirst({
-      where: { id, medicoId: instanceId },
-    });
-
-    if (!existing) {
-      throw new NotFoundException('Afección local no encontrada');
-    }
-
-    if (existing.baseConditionId) {
-      await this.prisma.conditionCatalogLocal.update({
-        where: { id },
-        data: { hidden: true, active: false },
-      });
-    } else {
-      await this.prisma.conditionCatalogLocal.update({
-        where: { id },
-        data: { active: false },
-      });
-    }
-
-    return { message: 'Afección eliminada de la instancia' };
+    return removeLocalCondition(this.prisma, user, id);
   }
 
   async hideBaseCondition(user: CurrentUserData, baseConditionId: string) {
-    const instanceId = getInstanceId(user);
-    const base = await this.prisma.conditionCatalog.findUnique({
-      where: { id: baseConditionId },
-    });
-
-    if (!base) {
-      throw new NotFoundException('Afección base no encontrada');
-    }
-
-    const override = await this.prisma.conditionCatalogLocal.upsert({
-      where: {
-        medicoId_baseConditionId: {
-          medicoId: instanceId,
-          baseConditionId,
-        },
-      },
-      create: {
-        medicoId: instanceId,
-        baseConditionId,
-        name: base.name,
-        synonyms: base.synonyms,
-        tags: base.tags,
-        active: false,
-        hidden: true,
-      },
-      update: {
-        active: false,
-        hidden: true,
-      },
-    });
-
-    return { message: 'Afección ocultada en la instancia', id: override.id };
+    return hideBaseCondition(this.prisma, user, baseConditionId);
   }
 
   async logSuggestion(

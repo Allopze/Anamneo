@@ -1,21 +1,15 @@
 'use client';
 
-import { useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  FiSearch,
-  FiLogOut,
-  FiUser,
-  FiFileText,
-  FiArrowRight,
-} from 'react-icons/fi';
+import { FiLogOut } from 'react-icons/fi';
 import clsx from 'clsx';
 import { getNameInitial } from '@/lib/utils';
 import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
 import Tooltip from '@/components/common/Tooltip';
-import type { SearchResult } from './useDashboardSearch';
 import type { IconType } from 'react-icons';
+import { SidebarCollapseButton, SidebarNavItem } from './DashboardSidebarParts';
+import { DashboardSidebarSearch } from './DashboardSidebarSearch';
 
 export interface NavItem {
   name: string;
@@ -32,7 +26,7 @@ interface DashboardSidebarProps {
   isOperationalAdmin: boolean;
   searchQuery: string;
   searchOpen: boolean;
-  searchResults: SearchResult[];
+  searchResults: Array<{ id: string; type: 'patient' | 'encounter'; title: string; subtitle: string; href: string }>;
   searchLoading: boolean;
   searchActiveIndex: number;
   shortcutHint: string;
@@ -72,40 +66,7 @@ export default function DashboardSidebar({
   searchInputRef,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
-  const searchContainerRef = useRef<HTMLDivElement>(null);
   const userRoleLabel = user?.isAdmin ? 'Administrador' : user?.role === 'MEDICO' ? 'Médico' : 'Asistente';
-
-  useEffect(() => {
-    if (!searchOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
-        onSearchClose();
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [searchOpen, onSearchClose]);
-
-  useEffect(() => {
-    if (collapsed && searchOpen) {
-      onSearchClose();
-    }
-  }, [collapsed, searchOpen, onSearchClose]);
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onSearchClose();
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      onSearchActiveIndexChange(searchActiveIndex < searchResults.length - 1 ? searchActiveIndex + 1 : 0);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      onSearchActiveIndexChange(searchActiveIndex > 0 ? searchActiveIndex - 1 : searchResults.length - 1);
-    } else if (e.key === 'Enter' && searchActiveIndex >= 0 && searchResults[searchActiveIndex]) {
-      e.preventDefault();
-      onSearchNavigate(searchResults[searchActiveIndex].href);
-    }
-  };
 
   return (
     <div className={clsx('relative hidden lg:flex flex-shrink-0 py-4 pr-3', showCollapseToggle ? 'pl-7' : 'pl-4')}>
@@ -155,53 +116,22 @@ export default function DashboardSidebar({
         </div>
 
         {!isOperationalAdmin ? (
-          <div className={clsx(collapsed ? 'mb-3 px-3' : 'mb-3 px-4')} ref={searchContainerRef}>
-            {collapsed ? (
-              <div className="flex justify-center">
-                <Tooltip label={`Buscar (${shortcutHint})`} side="right">
-                  <button
-                    type="button"
-                    onClick={onSearchOpen}
-                    className="flex h-11 w-11 items-center justify-center rounded-card border border-white/[0.12] bg-white/[0.08] text-white/70 transition-colors hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
-                    aria-label={`Buscar pacientes y atenciones (${shortcutHint})`}
-                  >
-                    <FiSearch className="h-4 w-4" />
-                  </button>
-                </Tooltip>
-              </div>
-            ) : (
-              <div className="relative">
-                <FiSearch className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => onSearchChange(e.target.value)}
-                  onFocus={onSearchFocus}
-                  onKeyDown={handleSearchKeyDown}
-                  placeholder={`Buscar… ${shortcutHint}`}
-                  role="combobox"
-                  aria-expanded={searchOpen && !!searchQuery.trim()}
-                  aria-controls="search-results-listbox"
-                  aria-autocomplete="list"
-                  aria-activedescendant={searchActiveIndex >= 0 && searchResults[searchActiveIndex] ? `search-result-${searchResults[searchActiveIndex].id}` : undefined}
-                  aria-label="Buscar pacientes y atenciones"
-                  className="w-full rounded-pill border border-white/[0.1] bg-white/[0.08] py-2.5 pl-10 pr-4 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-accent/50 focus:bg-white/[0.12]"
-                />
-
-                {searchOpen && searchQuery.trim() && (
-                  <SearchResultsDropdown
-                    results={searchResults}
-                    loading={searchLoading}
-                    query={searchQuery}
-                    activeIndex={searchActiveIndex}
-                    onNavigate={onSearchNavigate}
-                    onActiveIndexChange={onSearchActiveIndexChange}
-                  />
-                )}
-              </div>
-            )}
-          </div>
+          <DashboardSidebarSearch
+            collapsed={collapsed}
+            shortcutHint={shortcutHint}
+            searchQuery={searchQuery}
+            searchOpen={searchOpen}
+            searchResults={searchResults}
+            searchLoading={searchLoading}
+            searchActiveIndex={searchActiveIndex}
+            onSearchChange={onSearchChange}
+            onSearchOpen={onSearchOpen}
+            onSearchFocus={onSearchFocus}
+            onSearchNavigate={onSearchNavigate}
+            onSearchActiveIndexChange={onSearchActiveIndexChange}
+            onSearchClose={onSearchClose}
+            searchInputRef={searchInputRef}
+          />
         ) : null}
 
         <nav
@@ -252,147 +182,6 @@ export default function DashboardSidebar({
           )}
         </div>
       </aside>
-    </div>
-  );
-}
-
-function SidebarCollapseButton({
-  collapsed,
-  onToggle,
-}: {
-  collapsed: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <Tooltip label={collapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'} side="right">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="absolute left-0 top-10 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-surface-muted/35 bg-surface-elevated text-ink-secondary shadow-soft transition-colors hover:border-frame/18 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20"
-        aria-label={collapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'}
-        aria-expanded={!collapsed}
-      >
-        {collapsed ? <span className="text-base leading-none">»</span> : <span className="text-base leading-none">«</span>}
-      </button>
-    </Tooltip>
-  );
-}
-
-function SidebarNavItem({
-  item,
-  isActive,
-  collapsed,
-}: {
-  item: NavItem;
-  isActive: boolean;
-  collapsed: boolean;
-}) {
-  const link = (
-    <Link
-      href={item.href}
-      aria-label={item.name}
-      title={collapsed ? item.name : undefined}
-      className={clsx(
-        'transition-all',
-        collapsed
-          ? isActive
-            ? 'flex h-11 w-11 items-center justify-center rounded-card bg-accent text-accent-text shadow-soft'
-            : 'flex h-11 w-11 items-center justify-center rounded-card text-white/55 hover:bg-frame-dark hover:text-white'
-          : isActive
-            ? 'flex w-full items-center rounded-pill bg-accent px-4 py-3.5 text-sm font-bold text-accent-text'
-            : 'flex w-full items-center rounded-pill px-4 py-3.5 text-sm font-bold text-white/50 hover:bg-frame-dark hover:text-white',
-      )}
-    >
-      <span className={clsx(collapsed ? 'flex h-5 w-5 items-center justify-center' : 'mr-4 flex h-5 w-5 items-center justify-center')}>
-        <item.icon className={clsx('h-5 w-5', isActive ? 'text-accent-text' : 'text-white/40')} />
-      </span>
-      {!collapsed ? item.name : null}
-    </Link>
-  );
-
-  if (collapsed) {
-    return (
-      <div className="flex w-full justify-center">
-        <Tooltip label={item.name} side="right">
-          {link}
-        </Tooltip>
-      </div>
-    );
-  }
-
-  return link;
-}
-
-function SearchResultsDropdown({
-  results,
-  loading,
-  query,
-  activeIndex,
-  onNavigate,
-  onActiveIndexChange,
-}: {
-  results: SearchResult[];
-  loading: boolean;
-  query: string;
-  activeIndex: number;
-  onNavigate: (href: string) => void;
-  onActiveIndexChange: (index: number) => void;
-}) {
-  const patients = useMemo(() => results.filter(r => r.type === 'patient'), [results]);
-  const encounters = useMemo(() => results.filter(r => r.type === 'encounter'), [results]);
-
-  return (
-    <div id="search-results-listbox" role="listbox" aria-label="Resultados de búsqueda" className="absolute left-0 top-full mt-2 w-full bg-surface-elevated rounded-card shadow-dropdown border border-surface-muted/30 overflow-hidden z-50 animate-fade-in">
-      {loading && (
-        <div className="flex items-center justify-center py-6">
-          <div className="animate-spin rounded-full h-5 w-5 border-2 border-accent border-t-transparent" />
-        </div>
-      )}
-      {!loading && results.length === 0 && (
-        <div className="text-center py-6 text-ink-muted text-sm">
-          Sin resultados para &ldquo;{query}&rdquo;
-        </div>
-      )}
-      {!loading && results.length > 0 && (
-        <div className="py-1.5 max-h-72 overflow-y-auto">
-          {patients.length > 0 && (
-            <div>
-              <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-muted">Pacientes</div>
-              {patients.map((r) => {
-                const flatIndex = results.indexOf(r);
-                return (
-                  <button key={r.id} id={`search-result-${r.id}`} role="option" aria-selected={flatIndex === activeIndex} onClick={() => onNavigate(r.href)} onMouseEnter={() => onActiveIndexChange(flatIndex)} className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${flatIndex === activeIndex ? 'bg-surface-inset/70' : 'hover:bg-surface-inset/50'}`}>
-                    <FiUser className="w-4 h-4 text-ink-muted shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-ink truncate">{r.title}</p>
-                      <p className="text-micro text-ink-muted truncate">{r.subtitle}</p>
-                    </div>
-                    <FiArrowRight className="w-3.5 h-3.5 text-ink-muted shrink-0" />
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {encounters.length > 0 && (
-            <div>
-              <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-muted">Atenciones</div>
-              {encounters.map((r) => {
-                const flatIndex = results.indexOf(r);
-                return (
-                  <button key={r.id} id={`search-result-${r.id}`} role="option" aria-selected={flatIndex === activeIndex} onClick={() => onNavigate(r.href)} onMouseEnter={() => onActiveIndexChange(flatIndex)} className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${flatIndex === activeIndex ? 'bg-surface-inset/70' : 'hover:bg-surface-inset/50'}`}>
-                    <FiFileText className="w-4 h-4 text-ink-muted shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-ink truncate">{r.title}</p>
-                      <p className="text-micro text-ink-muted truncate">{r.subtitle}</p>
-                    </div>
-                    <FiArrowRight className="w-3.5 h-3.5 text-ink-muted shrink-0" />
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
 import { shouldPreserveLocalSessionOnBootstrapError } from '@/lib/session-bootstrap';
@@ -16,29 +15,17 @@ import {
   FiHome,
   FiUsers,
   FiFileText,
+  FiClipboard,
   FiList,
   FiSettings,
   FiShield,
-  FiLogOut,
-  FiMenu,
-  FiX,
   FiBookmark,
-  FiClipboard,
-  FiChevronsLeft,
-  FiChevronsRight,
 } from 'react-icons/fi';
-import clsx from 'clsx';
-import OfflineBanner from '@/components/common/OfflineBanner';
-import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
-import Tooltip from '@/components/common/Tooltip';
-import SmartHeaderBar from './SmartHeaderBar';
-import { HeaderBarSlotContext } from './HeaderBarSlotContext';
-import DashboardSidebar from './DashboardSidebar';
 import type { NavItem } from './DashboardSidebar';
-import MobileSearchOverlay from './MobileSearchOverlay';
 import { useDashboardSearch } from './useDashboardSearch';
 import { clearAuthSessionPrefill, consumeAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
 import { buildLoginRedirectPath, getCurrentAppPath } from '@/lib/login-redirect';
+import DashboardLayoutShell from './DashboardLayoutShell';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -116,7 +103,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [headerBarSlot, setHeaderBarSlot] = useState<ReactNode>(null);
-  const headerBarSlotCtx = useMemo(() => ({ setHeaderBarSlot }), []);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const hasShownBootstrapWarningRef = useRef(false);
@@ -258,158 +244,38 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
     );
   }
-
   return (
-    <div className="min-h-screen bg-surface-base">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-pill focus:bg-frame-dark focus:text-white focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:shadow-elevated"
-      >
-        Saltar al contenido
-      </a>
-      <OfflineBanner />
-
-      {/* ── App Shell — Sidebar + Content ─────────────────────── */}
-      <div className="flex h-screen overflow-hidden">
-
-        {/* ── Floating Sidebar (Desktop) ─────────────────────── */}
-        <DashboardSidebar
-          user={user}
-          primaryItems={primaryItems}
-          secondaryItems={secondaryItems}
-          collapsed={sidebarCollapsed}
-          isOperationalAdmin={isOperationalAdmin}
-          searchQuery={search.searchQuery}
-          searchOpen={search.searchOpen}
-          searchResults={search.searchResults}
-          searchLoading={search.searchLoading}
-          searchActiveIndex={search.searchActiveIndex}
-          shortcutHint={shortcutHint}
-          showCollapseToggle={isEncounterWorkspace}
-          onCollapsedChange={updateSidebarCollapsed}
-          onSearchChange={search.handleSearchChange}
-          onSearchOpen={openDashboardSearch}
-          onSearchFocus={() => search.setSearchOpen(true)}
-          onSearchNavigate={search.handleSearchNavigate}
-          onSearchActiveIndexChange={search.setSearchActiveIndex}
-          onSearchClose={search.closeSearch}
-          onLogout={handleLogout}
-          searchInputRef={searchInputRef}
-        />
-
-        {/* ── Main Content Area ───────────────────────────────── */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-
-          {/* ── Mobile Header ─────────────────────────────────── */}
-          <header className="lg:hidden bg-surface-elevated rounded-b-card shadow-soft flex items-center justify-between px-5 h-16 z-20 mx-2 mt-2 flex-shrink-0">
-            <Link href="/" className="flex items-center gap-2">
-              <AnamneoLogo
-                className="gap-2"
-                iconClassName="h-6 w-6"
-                textClassName="text-xl font-extrabold text-ink"
-              />
-            </Link>
-            <div className="flex items-center gap-2">
-              <button
-                className="p-2 text-ink-secondary hover:text-ink"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                aria-label={mobileMenuOpen ? 'Cerrar menú' : 'Abrir menú de navegación'}
-              >
-                {mobileMenuOpen ? <FiX className="w-5 h-5" /> : <FiMenu className="w-5 h-5" />}
-              </button>
-            </div>
-          </header>
-
-          {/* Mobile nav accordion */}
-          {mobileMenuOpen && (
-            <nav className="lg:hidden bg-frame mx-2 rounded-card px-4 pb-3 pt-2 animate-fade-in" aria-label="Navegación móvil">
-              <div className="flex flex-wrap gap-1.5">
-                {[...primaryItems, ...secondaryItems].map((item) => {
-                  const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={clsx(
-                        'flex items-center gap-3 px-3.5 py-2.5 rounded-pill text-sm font-bold transition-all duration-200',
-                        isActive
-                          ? 'bg-accent text-accent-text'
-                          : 'text-white/60 hover:bg-white/[0.08] hover:text-white'
-                      )}
-                    >
-                      <item.icon className="w-4 h-4" />
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </div>
-              <button
-                onClick={handleLogout}
-                className="mt-2 flex items-center gap-2 px-3.5 py-2.5 rounded-pill text-sm font-bold text-status-red hover:bg-status-red/10 transition-colors"
-              >
-                <FiLogOut className="w-4 h-4" />
-                Cerrar sesión
-              </button>
-            </nav>
-          )}
-
-          {/* ── KPI + Context Bar ─────────────────────────────── */}
-          <HeaderBarSlotContext.Provider value={headerBarSlotCtx}>
-            <div className="flex-1 overflow-auto">
-              {!isEncounterWorkspace ? (
-                <div className="px-3 pt-4 pb-2 lg:px-6">
-                  <div className="flex items-stretch gap-3">
-                    <Tooltip label={sidebarCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'} side="bottom">
-                      <button
-                        type="button"
-                        onClick={() => updateSidebarCollapsed(!sidebarCollapsed)}
-                        className="hidden lg:flex min-h-[56px] shrink-0 aspect-square items-center justify-center self-stretch rounded-full border border-surface-muted/35 bg-surface-elevated text-ink-secondary shadow-soft transition-colors hover:border-frame/18 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20"
-                        aria-label={sidebarCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'}
-                        aria-expanded={!sidebarCollapsed}
-                      >
-                        {sidebarCollapsed ? <FiChevronsRight className="h-4.5 w-4.5" /> : <FiChevronsLeft className="h-4.5 w-4.5" />}
-                      </button>
-                    </Tooltip>
-
-                    <SmartHeaderBar
-                      className="mx-0 mt-0 mb-0 min-h-[56px] min-w-0 flex-1"
-                      onSearchOpen={openDashboardSearch}
-                      contextSlot={headerBarSlot}
-                    />
-                  </div>
-                </div>
-              ) : null}
-
-              {/* ── Page Content ───────────────────────────────────── */}
-              <main
-                id="main-content"
-                className={clsx(
-                  'min-h-full',
-                  isEncounterWorkspace ? 'px-0 py-0' : 'px-3 pb-6 lg:px-6 lg:pb-8',
-                )}
-              >
-                {children}
-              </main>
-            </div>
-          </HeaderBarSlotContext.Provider>
-        </div>
-      </div>
-
-      {/* ── Mobile Search Overlay ─────────────────────────────── */}
-      {search.searchOpen && !isOperationalAdmin && (
-        <MobileSearchOverlay
-          searchQuery={search.searchQuery}
-          searchResults={search.searchResults}
-          searchLoading={search.searchLoading}
-          searchActiveIndex={search.searchActiveIndex}
-          inputRef={mobileSearchInputRef}
-          onSearchChange={search.handleSearchChange}
-          onSearchNavigate={search.handleSearchNavigate}
-          onActiveIndexChange={search.setSearchActiveIndex}
-          onClose={search.closeSearch}
-        />
-      )}
-    </div>
+    <DashboardLayoutShell
+      user={user}
+      pathname={pathname}
+      primaryItems={primaryItems}
+      secondaryItems={secondaryItems}
+      isOperationalAdmin={isOperationalAdmin}
+      isEncounterWorkspace={isEncounterWorkspace}
+      sidebarCollapsed={sidebarCollapsed}
+      shortcutHint={shortcutHint}
+      mobileMenuOpen={mobileMenuOpen}
+      headerBarSlot={headerBarSlot}
+      setHeaderBarSlot={setHeaderBarSlot}
+      searchQuery={search.searchQuery}
+      searchOpen={search.searchOpen}
+      searchResults={search.searchResults}
+      searchLoading={search.searchLoading}
+      searchActiveIndex={search.searchActiveIndex}
+      showCollapseToggle={isEncounterWorkspace}
+      searchInputRef={searchInputRef}
+      mobileSearchInputRef={mobileSearchInputRef}
+      onCollapsedChange={updateSidebarCollapsed}
+      onMobileMenuToggle={setMobileMenuOpen}
+      onSearchChange={search.handleSearchChange}
+      onSearchOpen={openDashboardSearch}
+      onSearchFocus={() => search.setSearchOpen(true)}
+      onSearchNavigate={search.handleSearchNavigate}
+      onSearchActiveIndexChange={search.setSearchActiveIndex}
+      onSearchClose={search.closeSearch}
+      onLogout={handleLogout}
+    >
+      {children}
+    </DashboardLayoutShell>
   );
 }
