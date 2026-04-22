@@ -2,11 +2,14 @@
 
 import clsx from 'clsx';
 import { SECTION_STATUS_META } from './encounter-wizard.constants';
+import type { Encounter } from '@/types';
+
+type SectionNavItem = NonNullable<Encounter['sections']>[number];
 
 type Props = {
-  sections: Array<{ id: string; label: string }>;
+  sections: SectionNavItem[];
   currentSectionIndex: number;
-  getSectionUiState: (section: any) => keyof typeof SECTION_STATUS_META;
+  getSectionUiState: (section: SectionNavItem) => keyof typeof SECTION_STATUS_META;
   moveToSection: (index: number) => void;
 };
 

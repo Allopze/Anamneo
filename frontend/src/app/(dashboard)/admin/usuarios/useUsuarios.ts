@@ -12,7 +12,6 @@ import {
   type UserInvitationResponse,
   type CreatedInvitationState,
   isValidEmail,
-  getPasswordError,
   getBrowserOrigin,
 } from './usuarios.constants';
 
@@ -32,7 +31,6 @@ export function useUsuarios() {
   const [editForm, setEditForm] = useState({
     nombre: '',
     email: '',
-    password: '',
     role: 'MEDICO' as Role,
     medicoId: '' as string,
     active: true,
@@ -53,9 +51,6 @@ export function useUsuarios() {
     const errors: string[] = [];
     if (editForm.nombre.trim().length < 2) errors.push('Nombre debe tener al menos 2 caracteres');
     if (!isValidEmail(editForm.email)) errors.push('Email inválido');
-
-    const passwordError = getPasswordError(editForm.password, false);
-    if (passwordError) errors.push(passwordError);
 
     return errors;
   }, [editForm]);
@@ -169,7 +164,6 @@ export function useUsuarios() {
         role: editForm.role,
         active: editForm.active,
       };
-      if (editForm.password?.trim()) payload.password = editForm.password;
       if (editForm.role === 'ASISTENTE') {
         payload.medicoId = editForm.medicoId || null;
       } else {
@@ -233,7 +227,6 @@ export function useUsuarios() {
     setEditForm({
       nombre: target.nombre,
       email: target.email,
-      password: '',
       role: target.role,
       medicoId: target.medicoId || '',
       active: target.active,

@@ -6,6 +6,10 @@ describe('UsersService', () => {
   let auditService: {
     log: jest.Mock;
   };
+  let usersSessionService: {
+    rotateRefreshTokenVersion: jest.Mock;
+    revokeAllSessionsForUser: jest.Mock;
+  };
   let prisma: {
     user: {
       findUnique: jest.Mock;
@@ -27,7 +31,12 @@ describe('UsersService', () => {
       log: jest.fn(),
     };
 
-    service = new UsersService(prisma as any, auditService as any);
+    usersSessionService = {
+      rotateRefreshTokenVersion: jest.fn(),
+      revokeAllSessionsForUser: jest.fn(),
+    };
+
+    service = new UsersService(prisma as any, auditService as any, usersSessionService as any);
   });
 
   describe('update', () => {
@@ -61,6 +70,33 @@ describe('UsersService', () => {
       await expect(
         service.update('admin-1', { role: 'MEDICO' as any }, 'actor-1'),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('revokes sessions when an admin changes a password', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'med@test.com',
+        nombre: 'Medico',
+        role: 'MEDICO',
+        isAdmin: false,
+        active: true,
+        medicoId: null,
+      });
+      prisma.user.update.mockResolvedValue({
+        id: 'user-1',
+        email: 'med@test.com',
+        nombre: 'Medico',
+        role: 'MEDICO',
+        medicoId: null,
+        isAdmin: false,
+        active: true,
+        updatedAt: new Date(),
+      });
+
+      await service.update('user-1', { password: 'Password1' }, 'actor-1');
+
+      expect(usersSessionService.rotateRefreshTokenVersion).toHaveBeenCalledWith('user-1');
+      expect(usersSessionService.revokeAllSessionsForUser).toHaveBeenCalledWith('user-1');
     });
   });
 

@@ -2,8 +2,16 @@
 
 import clsx from 'clsx';
 import { FiCheck, FiChevronLeft, FiChevronRight, FiSlash } from 'react-icons/fi';
-import type { SectionKey } from '@/types';
+import type {
+  AnamnesisRemotaData,
+  Encounter,
+  MotivoConsultaData,
+  SectionKey,
+  SospechaDiagnosticaData,
+  TratamientoData,
+} from '@/types';
 import TemplateSelector from '@/components/TemplateSelector';
+import { getSectionData } from '@/lib/clinical';
 import {
   REQUIRED_SEMANTIC_SECTIONS,
   SURFACE_PANEL_CLASS,
@@ -13,12 +21,12 @@ import {
 
 type Props = {
   wiz: any;
-  encounter: any;
-  sections: any[];
-  currentSection: any;
+  encounter: Encounter;
+  sections: NonNullable<Encounter['sections']>;
+  currentSection: NonNullable<Encounter['sections']>[number] | undefined;
   currentSectionIndex: number;
   SectionComponent: any;
-  formData: Record<string, any>;
+  formData: Record<string, unknown>;
 };
 
 export default function EncounterActiveSectionCard({
@@ -30,6 +38,8 @@ export default function EncounterActiveSectionCard({
   SectionComponent,
   formData,
 }: Props) {
+  const activeSection = currentSection ?? sections[currentSectionIndex];
+
   return (
     <section className={SURFACE_PANEL_CLASS}>
       <div className="border-b border-surface-muted/40 px-5 py-4 sm:px-6">
@@ -39,7 +49,7 @@ export default function EncounterActiveSectionCard({
               <span>
                 Sección {currentSectionIndex + 1} de {sections.length}
               </span>
-              {!(wiz.currentSectionStatusMeta as any).hidden && (
+              {!wiz.currentSectionStatusMeta.hidden && (
                 <span className={clsx('flex items-center gap-2', wiz.currentSectionStatusMeta.badgeClassName)}>
                   <span className={clsx('h-1.5 w-1.5 rounded-full', wiz.currentSectionStatusMeta.dotClassName)} />
                   {wiz.currentSectionStatusMeta.label}
@@ -63,17 +73,17 @@ export default function EncounterActiveSectionCard({
 
       <div className="px-5 py-5 sm:px-6">
         <div className="mx-auto max-w-4xl">
-          {SectionComponent ? (
+          {SectionComponent && activeSection ? (
             <SectionComponent
-              data={formData[currentSection.sectionKey] || {}}
-              onChange={(data: any) => wiz.handleSectionDataChange(currentSection.sectionKey, data)}
+              data={formData[activeSection.sectionKey] || {}}
+              onChange={(data: unknown) => wiz.handleSectionDataChange(activeSection.sectionKey, data)}
               encounter={encounter}
-              readOnly={!wiz.canEdit || currentSection.sectionKey === 'IDENTIFICACION'}
+              readOnly={!wiz.canEdit || activeSection.sectionKey === 'IDENTIFICACION'}
               snapshotStatus={
-                currentSection.sectionKey === 'IDENTIFICACION' ? wiz.identificationSnapshotStatus : undefined
+                activeSection.sectionKey === 'IDENTIFICACION' ? wiz.identificationSnapshotStatus : undefined
               }
               onRestoreFromPatient={
-                currentSection.sectionKey === 'IDENTIFICACION' && wiz.canEdit
+                activeSection.sectionKey === 'IDENTIFICACION' && wiz.canEdit
                   ? wiz.handleRestoreIdentificationFromPatient
                   : undefined
               }
@@ -86,27 +96,26 @@ export default function EncounterActiveSectionCard({
               patientAgeMonths={wiz.identificationData.edadMeses ?? encounter.patient?.edadMeses}
               patientSexo={wiz.identificationData.sexo ?? encounter.patient?.sexo}
               motivoConsultaData={
-                currentSection.sectionKey === 'SOSPECHA_DIAGNOSTICA'
-                  ? (formData.MOTIVO_CONSULTA ??
-                    encounter?.sections?.find((s: any) => s.sectionKey === 'MOTIVO_CONSULTA')?.data)
+                activeSection.sectionKey === 'SOSPECHA_DIAGNOSTICA'
+                  ? ((formData.MOTIVO_CONSULTA as MotivoConsultaData | undefined) ?? getSectionData<MotivoConsultaData>(encounter, 'MOTIVO_CONSULTA'))
                   : undefined
               }
               allergyData={
-                currentSection.sectionKey === 'TRATAMIENTO'
-                  ? (formData.ANAMNESIS_REMOTA?.alergias ??
-                    encounter?.sections?.find((s: any) => s.sectionKey === 'ANAMNESIS_REMOTA')?.data?.alergias)
+                activeSection.sectionKey === 'TRATAMIENTO'
+                  ? ((formData.ANAMNESIS_REMOTA as AnamnesisRemotaData | undefined)?.alergias ??
+                    getSectionData<AnamnesisRemotaData>(encounter, 'ANAMNESIS_REMOTA')?.alergias)
                   : undefined
               }
               diagnosticData={
-                currentSection.sectionKey === 'TRATAMIENTO'
-                  ? (formData.SOSPECHA_DIAGNOSTICA ??
-                    encounter?.sections?.find((s: any) => s.sectionKey === 'SOSPECHA_DIAGNOSTICA')?.data)
+                activeSection.sectionKey === 'TRATAMIENTO'
+                  ? ((formData.SOSPECHA_DIAGNOSTICA as SospechaDiagnosticaData | undefined) ??
+                    getSectionData<SospechaDiagnosticaData>(encounter, 'SOSPECHA_DIAGNOSTICA'))
                   : undefined
               }
               treatmentData={
-                currentSection.sectionKey === 'RESPUESTA_TRATAMIENTO'
-                  ? (formData.TRATAMIENTO ??
-                    encounter?.sections?.find((s: any) => s.sectionKey === 'TRATAMIENTO')?.data)
+                activeSection.sectionKey === 'RESPUESTA_TRATAMIENTO'
+                  ? ((formData.TRATAMIENTO as TratamientoData | undefined) ??
+                    getSectionData<TratamientoData>(encounter, 'TRATAMIENTO'))
                   : undefined
               }
             />

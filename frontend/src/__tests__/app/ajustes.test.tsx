@@ -12,6 +12,7 @@ const apiGetMock = jest.fn();
 const apiPutMock = jest.fn();
 const apiPostMock = jest.fn();
 const apiPatchMock = jest.fn();
+const apiDeleteMock = jest.fn();
 const setUserMock = jest.fn();
 const logoutMock = jest.fn();
 const clearEncounterLocalStateForUserMock = jest.fn();
@@ -36,7 +37,8 @@ const authStoreState: {
 };
 
 jest.mock('@/stores/auth-store', () => ({
-  useAuthStore: () => authStoreState,
+  useAuthStore: (selector?: (state: typeof authStoreState) => unknown) =>
+    selector ? selector(authStoreState) : authStoreState,
 }));
 
 jest.mock('@/lib/encounter-draft', () => ({
@@ -58,6 +60,7 @@ jest.mock('@/lib/api', () => ({
     put: (...args: any[]) => apiPutMock(...args),
     post: (...args: any[]) => apiPostMock(...args),
     patch: (...args: any[]) => apiPatchMock(...args),
+    delete: (...args: any[]) => apiDeleteMock(...args),
   },
   getErrorMessage: (err: any) => err?.message || 'Error desconocido',
 }));
@@ -150,12 +153,36 @@ describe('AjustesPage', () => {
         });
       }
 
+      if (url === '/auth/sessions') {
+        return Promise.resolve({
+          data: [
+            {
+              id: 'session-current',
+              userAgent: 'Chrome sobre macOS',
+              ipAddress: '127.0.0.1',
+              createdAt: '2026-04-22T08:00:00.000Z',
+              lastUsedAt: '2026-04-22T09:00:00.000Z',
+              isCurrent: true,
+            },
+            {
+              id: 'session-remote',
+              userAgent: 'Safari sobre iPad',
+              ipAddress: '10.0.0.8',
+              createdAt: '2026-04-21T18:00:00.000Z',
+              lastUsedAt: '2026-04-22T07:30:00.000Z',
+              isCurrent: false,
+            },
+          ],
+        });
+      }
+
       throw new Error(`Unexpected GET ${url}`);
     });
 
     apiPutMock.mockResolvedValue({ data: [] });
     apiPostMock.mockResolvedValue({ data: { sent: true, reason: null, subject: 'Prueba' } });
     apiPatchMock.mockResolvedValue({ data: authStoreState.user });
+    apiDeleteMock.mockResolvedValue({ data: { message: 'Sesión revocada' } });
   });
 
   it('uses smtp.passwordConfigured without repopulating the SMTP password field', async () => {
@@ -218,7 +245,31 @@ describe('AjustesPage', () => {
 
     expect(screen.queryByText('Correo SMTP para invitaciones')).not.toBeInTheDocument();
     await waitFor(() => {
-      expect(apiGetMock).not.toHaveBeenCalled();
+      expect(apiGetMock).toHaveBeenCalledWith('/auth/sessions');
+      expect(apiGetMock).not.toHaveBeenCalledWith('/settings');
+    });
+  });
+
+  it('lists active sessions and allows revoking a remote one', async () => {
+    authStoreState.user = {
+      id: 'med-1',
+      email: 'medico@anamneo.cl',
+      nombre: 'Medico Demo',
+      role: 'MEDICO',
+      isAdmin: false,
+      medicoId: null,
+      totpEnabled: false,
+    };
+
+    render(<AjustesPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Safari sobre iPad')).toBeInTheDocument();
+    expect(screen.getByText('Sesión actual')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cerrar sesión remota' }));
+
+    await waitFor(() => {
+      expect(apiDeleteMock).toHaveBeenCalledWith('/auth/sessions/session-remote');
     });
   });
 

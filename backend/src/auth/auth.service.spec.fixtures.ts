@@ -15,6 +15,7 @@ export const mockSession = {
   tokenVersion: 1,
   userAgent: null,
   ipAddress: null,
+  lastUsedAt: new Date(),
   revokedAt: null,
 };
 
@@ -42,6 +43,7 @@ export function createMockServices() {
     }),
     revokeSessionById: jest.fn(),
     revokeAllSessionsForUser: jest.fn(),
+    revokeAllSessionsForUserExcept: jest.fn().mockResolvedValue(0),
   };
 
   const invitationService = {
@@ -75,6 +77,12 @@ export function createMockServices() {
     log: jest.fn().mockResolvedValue(undefined),
   };
 
+  const settingsService = {
+    getSessionPolicy: jest.fn().mockResolvedValue({
+      inactivityTimeoutMinutes: 15,
+    }),
+  };
+
   return {
     usersService,
     sessionService,
@@ -83,5 +91,6 @@ export function createMockServices() {
     jwtService,
     configService,
     auditService,
+    settingsService,
   };
 }

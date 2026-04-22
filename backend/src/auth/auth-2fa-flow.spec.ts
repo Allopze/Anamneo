@@ -44,6 +44,7 @@ describe('verify2FALoginFlow', () => {
         tempToken: 'bad-token',
         code: '123456',
         issueTokens,
+        resolveTotpSecret: (secret) => secret,
       }),
     ).rejects.toThrow('Token temporal inválido o expirado');
   });
@@ -60,6 +61,7 @@ describe('verify2FALoginFlow', () => {
         tempToken: 'temp-token',
         code: '123456',
         issueTokens,
+        resolveTotpSecret: (secret) => secret,
       }),
     ).rejects.toThrow('Token temporal inválido');
   });
@@ -77,6 +79,7 @@ describe('verify2FALoginFlow', () => {
         tempToken: 'temp-token',
         code: '123456',
         issueTokens,
+        resolveTotpSecret: (secret) => secret,
       }),
     ).rejects.toThrow('Token temporal ya utilizado');
   });
@@ -94,6 +97,7 @@ describe('verify2FALoginFlow', () => {
         tempToken: 'temp-token',
         code: '123456',
         issueTokens,
+        resolveTotpSecret: (secret) => secret,
       }),
     ).rejects.toThrow('Usuario no encontrado o 2FA no configurado');
   });
@@ -119,6 +123,7 @@ describe('verify2FALoginFlow', () => {
         tempToken: 'temp-token',
         code: '123456',
         issueTokens,
+        resolveTotpSecret: (secret) => secret,
       }),
     ).rejects.toThrow('Código TOTP inválido');
   });
@@ -144,6 +149,7 @@ describe('verify2FALoginFlow', () => {
       code: '123456',
       sessionContext: { ipAddress: '127.0.0.1' },
       issueTokens,
+      resolveTotpSecret: (secret) => secret,
     });
 
     expect(result).toEqual({
@@ -181,6 +187,7 @@ describe('verify2FALoginFlow', () => {
       tempToken: 'temp-token',
       code: '123456',
       issueTokens,
+      resolveTotpSecret: (secret) => secret,
     });
 
     expect(usedTempTokenJtis.has('expired-jti')).toBe(false);

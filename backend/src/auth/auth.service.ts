@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -8,12 +8,14 @@ import { UsersService } from '../users/users.service';
 import { UsersSessionService } from '../users/users-session.service';
 import { UsersInvitationService } from '../users/users-invitation.service';
 import { AuditService } from '../audit/audit.service';
+import { SettingsService } from '../settings/settings.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterWithInvitationDto } from './dto/register-with-invitation.dto';
 import { loginWithLockout } from './auth-login-flow';
 import { issueTokensWithSession } from './auth-token-issuance';
 import { verify2FALoginFlow } from './auth-2fa-flow';
 import { refreshTokensFlow } from './auth-refresh-flow';
+import { decryptStoredTotpSecret } from './auth-totp-secret';
 import {
   getBootstrapStateFlow,
   getInvitationPreviewFlow,
@@ -65,6 +67,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private auditService: AuditService,
+    private settingsService: SettingsService,
   ) {}
 
   private toSessionUser(user: {
@@ -196,6 +199,8 @@ export class AuthService {
   }
 
   async refreshTokens(refreshToken: string, sessionContext?: SessionContext): Promise<AuthTokens> {
+    const { inactivityTimeoutMinutes } = await this.settingsService.getSessionPolicy();
+
     return refreshTokensFlow({
       jwtService: this.jwtService,
       configService: this.configService,
@@ -203,6 +208,7 @@ export class AuthService {
       refreshToken,
       sessionContext,
       issueTokens: (user, context) => this.issueTokens(user, context),
+      sessionInactivityTimeoutMinutes: inactivityTimeoutMinutes,
     });
   }
 
@@ -243,6 +249,36 @@ export class AuthService {
     await this.sessionService.revokeAllSessionsForUser(userId);
   }
 
+  async revokeOtherUserSessions(userId: string, currentSessionId?: string) {
+    if (!currentSessionId) {
+      throw new BadRequestException('Sesión actual no disponible');
+    }
+
+    return this.sessionService.revokeAllSessionsForUserExcept(userId, currentSessionId);
+  }
+
+  async listUserSessions(userId: string, currentSessionId?: string) {
+    const sessions = await this.sessionService.listActiveSessionsForUser(userId);
+
+    return sessions.map((session) => ({
+      ...session,
+      isCurrent: !!currentSessionId && session.id === currentSessionId,
+    }));
+  }
+
+  async revokeUserSession(userId: string, sessionId: string, currentSessionId?: string) {
+    if (currentSessionId && sessionId === currentSessionId) {
+      throw new BadRequestException('Usa cerrar sesión para finalizar la sesión actual');
+    }
+
+    const revoked = await this.sessionService.revokeOwnedSession(userId, sessionId);
+    if (!revoked) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
+
+    return { id: sessionId, message: 'Sesión revocada' };
+  }
+
   private async issueTokens(
     user: { id: string; email: string; role: string },
     sessionContext?: SessionContext,
@@ -272,6 +308,7 @@ export class AuthService {
       code,
       sessionContext,
       issueTokens: (user, context) => this.issueTokens(user, context),
+      resolveTotpSecret: (storedSecret) => decryptStoredTotpSecret(storedSecret, this.configService),
     });
   }
 }

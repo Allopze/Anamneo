@@ -19,6 +19,7 @@ describe('refreshTokensFlow', () => {
     sessionService = {
       findAuthById: jest.fn(),
       findActiveSessionById: jest.fn(),
+      revokeSessionById: jest.fn(),
     };
 
     issueTokens = jest.fn().mockResolvedValue({
@@ -45,6 +46,7 @@ describe('refreshTokensFlow', () => {
       id: 'session-1',
       userId: 'user-1',
       tokenVersion: 2,
+      lastUsedAt: new Date(),
     });
 
     const result = await refreshTokensFlow({
@@ -54,6 +56,7 @@ describe('refreshTokensFlow', () => {
       refreshToken: 'refresh-token',
       sessionContext: { userAgent: 'jest' },
       issueTokens,
+      sessionInactivityTimeoutMinutes: 15,
     });
 
     expect(result).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
@@ -78,6 +81,7 @@ describe('refreshTokensFlow', () => {
         sessionService,
         refreshToken: 'bad-token',
         issueTokens,
+        sessionInactivityTimeoutMinutes: 15,
       }),
     ).rejects.toThrow(UnauthorizedException);
   });
@@ -102,6 +106,7 @@ describe('refreshTokensFlow', () => {
         sessionService,
         refreshToken: 'refresh-token',
         issueTokens,
+        sessionInactivityTimeoutMinutes: 15,
       }),
     ).rejects.toThrow('Token de refresco inválido');
   });
@@ -124,6 +129,7 @@ describe('refreshTokensFlow', () => {
         sessionService,
         refreshToken: 'refresh-token',
         issueTokens,
+        sessionInactivityTimeoutMinutes: 15,
       }),
     ).rejects.toThrow('Token de refresco inválido');
   });
@@ -144,6 +150,7 @@ describe('refreshTokensFlow', () => {
       id: 'session-1',
       userId: 'other-user',
       tokenVersion: 2,
+      lastUsedAt: new Date(),
     });
 
     await expect(
@@ -153,7 +160,41 @@ describe('refreshTokensFlow', () => {
         sessionService,
         refreshToken: 'refresh-token',
         issueTokens,
+        sessionInactivityTimeoutMinutes: 15,
       }),
     ).rejects.toThrow('Token de refresco inválido');
+  });
+
+  it('revokes the session when it expired by inactivity', async () => {
+    jwtService.verify.mockReturnValue({
+      sub: 'user-1',
+      rv: 4,
+      sid: 'session-1',
+      sv: 2,
+    });
+    sessionService.findAuthById.mockResolvedValue({
+      id: 'user-1',
+      active: true,
+      refreshTokenVersion: 4,
+    });
+    sessionService.findActiveSessionById.mockResolvedValue({
+      id: 'session-1',
+      userId: 'user-1',
+      tokenVersion: 2,
+      lastUsedAt: new Date(Date.now() - 16 * 60 * 1000),
+    });
+
+    await expect(
+      refreshTokensFlow({
+        jwtService,
+        configService,
+        sessionService,
+        refreshToken: 'refresh-token',
+        issueTokens,
+        sessionInactivityTimeoutMinutes: 15,
+      }),
+    ).rejects.toThrow('Sesión expirada por inactividad');
+
+    expect(sessionService.revokeSessionById).toHaveBeenCalledWith('session-1');
   });
 });

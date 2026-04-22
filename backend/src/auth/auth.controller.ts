@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, Patch, UseGuards, Res, UnauthorizedException, Param } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Get, Patch, UseGuards, Res, UnauthorizedException, Param, Delete } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -166,6 +166,33 @@ export class AuthController {
 
     this.clearAuthCookies(res);
     return { message: 'Sesión cerrada' };
+  }
+
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  async listSessions(@CurrentUser() user: CurrentUserData) {
+    return this.authService.listUserSessions(user.id, user.sessionId);
+  }
+
+  @Delete('sessions/:id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async revokeSession(@CurrentUser() user: CurrentUserData, @Param('id') id: string) {
+    return this.authService.revokeUserSession(user.id, id, user.sessionId);
+  }
+
+  @Delete('sessions/others')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async revokeOtherSessions(@CurrentUser() user: CurrentUserData) {
+    const revokedCount = await this.authService.revokeOtherUserSessions(user.id, user.sessionId);
+    return {
+      revokedCount,
+      message:
+        revokedCount > 0
+          ? 'Otras sesiones cerradas'
+          : 'No había otras sesiones activas para cerrar',
+    };
   }
 
   // ── 2FA / TOTP ──────────────────────────────────────────────────────

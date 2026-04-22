@@ -178,7 +178,10 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
 
   const currentSectionState = currentSection ? getSectionUiState(currentSection) : 'idle';
   const currentSectionStatusMeta = SECTION_STATUS_META[currentSectionState];
-  const completedCount = useMemo(() => sections.filter((section) => section.completed).length, [sections]);
+  const completedCount = useMemo(
+    () => sections.filter((section) => section.completed || section.notApplicable).length,
+    [sections],
+  );
   const progressPercentage = sections.length > 0 ? (completedCount / sections.length) * 100 : 0;
 
   const generatedSummary = useMemo(() => {

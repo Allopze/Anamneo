@@ -28,6 +28,7 @@ interface Verify2FALoginFlowParams {
   code: string;
   sessionContext?: SessionContext;
   issueTokens: IssueTokensFn;
+  resolveTotpSecret: (storedSecret: string) => string;
 }
 
 function purgeExpiredTempTokenJtis(usedTempTokenJtis: Map<string, number>, now: number) {
@@ -50,6 +51,7 @@ export async function verify2FALoginFlow(
     code,
     sessionContext,
     issueTokens,
+    resolveTotpSecret,
   } = params;
   const now = Date.now();
 
@@ -78,7 +80,10 @@ export async function verify2FALoginFlow(
     throw new UnauthorizedException('Usuario no encontrado o 2FA no configurado');
   }
 
-  const isValid = authenticator.verify({ token: code, secret: user.totpSecret });
+  const isValid = authenticator.verify({
+    token: code,
+    secret: resolveTotpSecret(user.totpSecret),
+  });
   if (!isValid) {
     throw new UnauthorizedException('Código TOTP inválido');
   }

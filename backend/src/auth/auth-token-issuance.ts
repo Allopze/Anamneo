@@ -60,6 +60,7 @@ export async function issueTokensWithSession(
     sub: authUser.id,
     email: user.email,
     role: user.role,
+    sid: session.id,
   };
 
   const refreshPayload: JwtPayload = {

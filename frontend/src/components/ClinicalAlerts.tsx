@@ -2,8 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { PatientClinicalSummary } from '@/types';
-import { listVitalSignAssessments } from '../../../shared/vital-sign-alerts';
+import { buildClinicalAlertItems } from '@/lib/clinical-alerts';
+import type { Patient, PatientClinicalSummary } from '@/types';
 import { FiAlertTriangle, FiInfo } from 'react-icons/fi';
 
 interface ClinicalAlertsProps {
@@ -16,7 +16,7 @@ export default function ClinicalAlerts({ patientId, variant = 'panel' }: Clinica
     queryKey: ['patient', patientId],
     queryFn: async () => {
       const res = await api.get(`/patients/${patientId}`);
-      return res.data;
+      return res.data as Patient;
     },
     staleTime: 60_000,
   });
@@ -32,63 +32,7 @@ export default function ClinicalAlerts({ patientId, variant = 'panel' }: Clinica
 
   if (!patient) return null;
 
-  const history = patient.history;
-  const alerts: Array<{ type: 'warning' | 'info'; label: string; value: string }> = [];
-
-  // Parse JSON fields safely
-  const parse = (raw: string | null): string => {
-    if (!raw) return '';
-    try {
-      const parsed = JSON.parse(raw);
-      if (typeof parsed === 'string') return parsed;
-      if (Array.isArray(parsed)) return parsed.join(', ');
-      if (typeof parsed === 'object') return Object.values(parsed).filter(Boolean).join(', ');
-      return String(parsed);
-    } catch {
-      return raw;
-    }
-  };
-
-  const alergias = parse(history?.alergias || null);
-  const medicamentos = parse(history?.medicamentos || null);
-  const antecedentesMedicos = parse(history?.antecedentesMedicos || null);
-
-  if (alergias) alerts.push({ type: 'warning', label: 'Alergias', value: alergias });
-  if (medicamentos) alerts.push({ type: 'info', label: 'Medicamentos activos', value: medicamentos });
-  if (antecedentesMedicos) alerts.push({ type: 'info', label: 'Antecedentes', value: antecedentesMedicos });
-
-  const activeProblems = (patient.problems || []).filter((problem: any) => problem.status !== 'RESUELTO');
-  if (activeProblems.length > 0) {
-    alerts.push({
-      type: 'info',
-      label: 'Problemas activos',
-      value: activeProblems.slice(0, 3).map((problem: any) => problem.label).join(', '),
-    });
-  }
-
-  const pendingTasks = (patient.tasks || []).filter((task: any) => task.status === 'PENDIENTE' || task.status === 'EN_PROCESO');
-  if (pendingTasks.length > 0) {
-    alerts.push({
-      type: 'warning',
-      label: 'Seguimientos pendientes',
-      value: pendingTasks.slice(0, 2).map((task: any) => task.title).join(', '),
-    });
-  }
-
-  const latestVitals = clinicalSummary?.vitalTrend?.[0];
-  if (latestVitals) {
-    listVitalSignAssessments({
-      presionArterial: latestVitals.presionArterial ?? undefined,
-      temperatura: latestVitals.temperatura !== null ? String(latestVitals.temperatura) : undefined,
-      saturacionOxigeno: latestVitals.saturacionOxigeno !== null ? String(latestVitals.saturacionOxigeno) : undefined,
-    }).forEach((assessment) => {
-      alerts.push({
-        type: assessment.severity === 'critical' ? 'warning' : assessment.severity,
-        label: assessment.summary,
-        value: assessment.primaryDetail,
-      });
-    });
-  }
+  const alerts = buildClinicalAlertItems(patient, clinicalSummary);
 
   if (alerts.length === 0) return null;
 

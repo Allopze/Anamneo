@@ -7,6 +7,7 @@ import { clearPendingSavesForUser } from '@/lib/offline-queue';
 import { useAuthStore } from '@/stores/auth-store';
 import { usePrivacySettingsStore } from '@/stores/privacy-settings-store';
 import type { AjustesHook } from './useAjustes';
+import SessionManagementSection from './SessionManagementSection';
 
 type Props = Pick<
   AjustesHook,
@@ -223,6 +224,8 @@ export default function ProfileSecurityTab({
           </div>
         </label>
       </div>
+
+      <SessionManagementSection />
 
       <TwoFactorSection />
     </div>

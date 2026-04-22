@@ -29,6 +29,7 @@ function assertSafeConfig(configService: ConfigService) {
     'replace-with-a-secure-random-secret',
     'replace-with-a-different-secure-random-secret',
     'replace-with-a-secure-bootstrap-token',
+    'replace-with-a-secure-settings-key',
     'change_this_in_production',
     'change_this_refresh_secret_too',
   ]);

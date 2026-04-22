@@ -7,6 +7,7 @@ import { UsersSessionService } from '../users/users-session.service';
 import { UsersInvitationService } from '../users/users-invitation.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { SettingsService } from '../settings/settings.service';
 import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { authenticator } from '@otplib/v12-adapter';
@@ -23,6 +24,7 @@ describe('AuthService', () => {
   let jwtService: ReturnType<typeof createMockServices>['jwtService'];
   let configService: ReturnType<typeof createMockServices>['configService'];
   let auditService: ReturnType<typeof createMockServices>['auditService'];
+  let settingsService: ReturnType<typeof createMockServices>['settingsService'];
 
   beforeEach(async () => {
     const mocks = createMockServices();
@@ -33,6 +35,7 @@ describe('AuthService', () => {
     jwtService = mocks.jwtService;
     configService = mocks.configService;
     auditService = mocks.auditService;
+    settingsService = mocks.settingsService;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -44,6 +47,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
         { provide: AuditService, useValue: auditService },
+        { provide: SettingsService, useValue: settingsService },
       ],
     }).compile();
 
@@ -358,6 +362,20 @@ describe('AuthService', () => {
       await expect(service.refreshTokens('invalid-token')).rejects.toThrow(
         UnauthorizedException,
       );
+    });
+  });
+
+  describe('revokeOtherUserSessions', () => {
+    it('should revoke all sessions except the current one', async () => {
+      (sessionService.revokeAllSessionsForUserExcept as jest.Mock).mockResolvedValue(2);
+
+      const revokedCount = await service.revokeOtherUserSessions('user-1', 'session-1');
+
+      expect(sessionService.revokeAllSessionsForUserExcept).toHaveBeenCalledWith(
+        'user-1',
+        'session-1',
+      );
+      expect(revokedCount).toBe(2);
     });
   });
 

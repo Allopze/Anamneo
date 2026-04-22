@@ -1,11 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as QRCode from 'qrcode';
 import { authenticator } from '@otplib/v12-adapter';
 import { AuthTotpService } from './auth-totp.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { decryptStoredTotpSecret } from './auth-totp-secret';
 
 jest.mock('bcrypt');
 
@@ -20,6 +22,9 @@ describe('AuthTotpService', () => {
   let auditService: {
     log: jest.Mock;
   };
+  let configService: {
+    get: jest.Mock;
+  };
 
   beforeEach(async () => {
     prismaService = {
@@ -33,11 +38,20 @@ describe('AuthTotpService', () => {
       log: jest.fn().mockResolvedValue(undefined),
     };
 
+    configService = {
+      get: jest.fn((key: string) => {
+        if (key === 'SETTINGS_ENCRYPTION_KEY') return 'x'.repeat(32);
+        if (key === 'SETTINGS_ENCRYPTION_KEYS') return '';
+        return undefined;
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthTotpService,
         { provide: PrismaService, useValue: prismaService },
         { provide: AuditService, useValue: auditService },
+        { provide: ConfigService, useValue: configService },
       ],
     }).compile();
 
@@ -86,8 +100,16 @@ describe('AuthTotpService', () => {
       expect(generateSecretSpy).toHaveBeenCalled();
       expect(prismaService.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { totpSecret: 'SECRET123' },
+        data: {
+          totpSecret: expect.stringMatching(/^enc:v1:/),
+        },
       });
+      expect(
+        decryptStoredTotpSecret(
+          prismaService.user.update.mock.calls[0][0].data.totpSecret,
+          configService as any,
+        ),
+      ).toBe('SECRET123');
       expect(keyUriSpy).toHaveBeenCalledWith('medico@test.com', 'Anamneo', 'SECRET123');
       expect(qrSpy).toHaveBeenCalledWith('otpauth://totp/mock');
       expect(result).toEqual({
@@ -112,7 +134,7 @@ describe('AuthTotpService', () => {
     it('throws BadRequestException when 2FA is already enabled', async () => {
       prismaService.user.findUnique.mockResolvedValue({
         id: 'user-1',
-        totpSecret: 'SECRET123',
+        totpSecret: 'enc:v1:mock',
         totpEnabled: true,
       });
 
@@ -126,20 +148,23 @@ describe('AuthTotpService', () => {
         totpSecret: 'SECRET123',
         totpEnabled: false,
       });
-      jest.spyOn(authenticator, 'verify').mockReturnValue(false);
+      const verifySpy = jest.spyOn(authenticator, 'verify').mockReturnValue(false);
 
       await expect(service.enable2FA('user-1', '000000')).rejects.toThrow('Código TOTP inválido');
       expect(prismaService.user.update).not.toHaveBeenCalled();
+      expect(verifySpy).toHaveBeenCalledWith({ token: '000000', secret: 'SECRET123' });
     });
 
     it('enables 2FA and emits audit log on valid code', async () => {
+      const encryptedSecret = 'enc:v1:stored';
       prismaService.user.findUnique.mockResolvedValue({
         id: 'user-1',
-        totpSecret: 'SECRET123',
+        totpSecret: encryptedSecret,
         totpEnabled: false,
       });
       prismaService.user.update.mockResolvedValue(undefined);
-      jest.spyOn(authenticator, 'verify').mockReturnValue(true);
+      jest.spyOn(authenticator, 'verify').mockImplementation(({ secret }) => secret === 'SECRET123');
+      jest.spyOn(require('./auth-totp-secret'), 'decryptStoredTotpSecret').mockReturnValue('SECRET123');
 
       const result = await service.enable2FA('user-1', '123456');
 

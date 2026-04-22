@@ -1,15 +1,18 @@
 import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as QRCode from 'qrcode';
 import { authenticator } from '@otplib/v12-adapter';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { decryptStoredTotpSecret, encryptStoredTotpSecret } from './auth-totp-secret';
 
 @Injectable()
 export class AuthTotpService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
+    private configService: ConfigService,
   ) {}
 
   async setup2FA(userId: string) {
@@ -18,7 +21,10 @@ export class AuthTotpService {
     if (user.totpEnabled) throw new BadRequestException('2FA ya está habilitado');
 
     const secret = authenticator.generateSecret();
-    await this.prisma.user.update({ where: { id: userId }, data: { totpSecret: secret } });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { totpSecret: encryptStoredTotpSecret(secret, this.configService) },
+    });
 
     const otpauthUrl = authenticator.keyuri(user.email, 'Anamneo', secret);
     const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
@@ -31,7 +37,8 @@ export class AuthTotpService {
     if (!user || !user.totpSecret) throw new BadRequestException('Primero debe configurar 2FA');
     if (user.totpEnabled) throw new BadRequestException('2FA ya está habilitado');
 
-    const isValid = authenticator.verify({ token: code, secret: user.totpSecret });
+    const resolvedSecret = decryptStoredTotpSecret(user.totpSecret, this.configService);
+    const isValid = authenticator.verify({ token: code, secret: resolvedSecret });
     if (!isValid) throw new BadRequestException('Código TOTP inválido');
 
     await this.prisma.user.update({ where: { id: userId }, data: { totpEnabled: true } });

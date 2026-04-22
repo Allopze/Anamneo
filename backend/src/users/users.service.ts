@@ -9,13 +9,20 @@ import {
   normalizeEmail,
   validateTemporaryPassword,
 } from './users-helpers';
+import { UsersSessionService } from './users-session.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     private prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly usersSessionService: UsersSessionService,
   ) {}
+
+  private async revokeUserSessions(userId: string) {
+    await this.usersSessionService.rotateRefreshTokenVersion(userId);
+    await this.usersSessionService.revokeAllSessionsForUser(userId);
+  }
 
   private async assertNotLeavingSystemWithoutAdmin(user: {
     id: string;
@@ -234,6 +241,10 @@ export class UsersService {
       },
     });
 
+    if (updateUserDto.password) {
+      await this.revokeUserSessions(updated.id);
+    }
+
     await this.auditService.log({
       entityType: 'User',
       entityId: updated.id,
@@ -392,6 +403,7 @@ export class UsersService {
       where: { id },
       data: { passwordHash, mustChangePassword: true },
     });
+    await this.revokeUserSessions(id);
 
     await this.auditService.log({
       entityType: 'User',

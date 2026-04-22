@@ -35,6 +35,7 @@ interface RefreshTokensFlowParams {
   refreshToken: string;
   sessionContext?: SessionContext;
   issueTokens: IssueTokensFn;
+  sessionInactivityTimeoutMinutes: number;
 }
 
 export async function refreshTokensFlow(params: RefreshTokensFlowParams): Promise<AuthTokens> {
@@ -45,6 +46,7 @@ export async function refreshTokensFlow(params: RefreshTokensFlowParams): Promis
     refreshToken,
     sessionContext,
     issueTokens,
+    sessionInactivityTimeoutMinutes,
   } = params;
 
   try {
@@ -68,6 +70,13 @@ export async function refreshTokensFlow(params: RefreshTokensFlowParams): Promis
     const session = await sessionService.findActiveSessionById(payload.sid);
     if (!session || session.userId !== user.id || session.tokenVersion !== payload.sv) {
       throw new UnauthorizedException('Token de refresco inválido');
+    }
+
+    const inactivityDeadlineMs =
+      session.lastUsedAt.getTime() + sessionInactivityTimeoutMinutes * 60 * 1000;
+    if (Number.isFinite(inactivityDeadlineMs) && inactivityDeadlineMs <= Date.now()) {
+      await sessionService.revokeSessionById(session.id);
+      throw new UnauthorizedException('Sesión expirada por inactividad');
     }
 
     return issueTokens(user, {

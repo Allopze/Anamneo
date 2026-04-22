@@ -39,6 +39,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       medicoId: user.medicoId ?? null,
       mustChangePassword: user.mustChangePassword ?? false,
       totpEnabled: user.totpEnabled ?? false,
+      sessionId: typeof payload.sid === 'string' ? payload.sid : undefined,
     };
   }
 }

@@ -312,15 +312,6 @@ export default function AdminUsuariosPage() {
               />
             </div>
             <div>
-              <label className="text-sm text-ink-secondary">Nueva contraseña (opcional)</label>
-              <input
-                type="password"
-                className="form-input"
-                value={editForm.password}
-                onChange={(e) => setEditForm((p) => ({ ...p, password: e.target.value }))}
-              />
-            </div>
-            <div>
               <label className="text-sm text-ink-secondary">Rol</label>
               <select
                 className="form-input"
@@ -382,6 +373,10 @@ export default function AdminUsuariosPage() {
               <span className="text-xs text-status-red">{editErrors[0]}</span>
             )}
           </div>
+          <p className="mt-3 text-xs text-ink-secondary">
+            El cambio de contraseña administrativa se hace desde “Reset password” para emitir una clave temporal
+            y forzar recambio en el próximo ingreso.
+          </p>
         </div>
       )}
 

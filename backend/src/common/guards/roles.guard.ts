@@ -24,9 +24,9 @@ export class RolesGuard implements CanActivate {
     ]);
 
     if (!requiredRoles || requiredRoles.length === 0) {
-      // Deny-by-default: endpoints without @Roles() or @Public() require authentication
-      // but allow any authenticated user through (same as before for backwards compat).
-      // The JwtAuthGuard already ensured the user is authenticated.
+      // Backwards-compatible authenticated fallback:
+      // endpoints without @Roles() or @Public() still require authentication
+      // via JwtAuthGuard, but do not apply an extra role restriction here.
       return true;
     }
 

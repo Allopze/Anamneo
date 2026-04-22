@@ -66,6 +66,7 @@ export class UsersSessionService {
         tokenVersion: true,
         userAgent: true,
         ipAddress: true,
+        lastUsedAt: true,
         revokedAt: true,
       },
     });
@@ -83,6 +84,7 @@ export class UsersSessionService {
         tokenVersion: true,
         userAgent: true,
         ipAddress: true,
+        lastUsedAt: true,
         revokedAt: true,
       },
     });
@@ -145,5 +147,54 @@ export class UsersSessionService {
         revokedAt: new Date(),
       },
     });
+  }
+
+  async revokeAllSessionsForUserExcept(userId: string, excludedSessionId: string) {
+    const result = await this.prisma.userSession.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+        id: {
+          not: excludedSessionId,
+        },
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+
+    return result.count;
+  }
+
+  async listActiveSessionsForUser(userId: string) {
+    return this.prisma.userSession.findMany({
+      where: {
+        userId,
+        revokedAt: null,
+      },
+      orderBy: [{ lastUsedAt: 'desc' }, { createdAt: 'desc' }],
+      select: {
+        id: true,
+        userAgent: true,
+        ipAddress: true,
+        lastUsedAt: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async revokeOwnedSession(userId: string, id: string) {
+    const updated = await this.prisma.userSession.updateMany({
+      where: {
+        id,
+        userId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+
+    return updated.count > 0;
   }
 }

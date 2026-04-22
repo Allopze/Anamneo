@@ -280,7 +280,7 @@ export default function EmailTab({
               </button>
             </div>
             <textarea
-              className="input w-full min-h-[34rem] font-mono text-xs leading-6"
+              className="form-input w-full h-[34rem] min-h-[34rem] font-mono text-xs leading-6"
               value={clinic.invitationTemplateHtml}
               onChange={(e) => setClinic((current) => ({ ...current, invitationTemplateHtml: e.target.value }))}
               spellCheck={false}

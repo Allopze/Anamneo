@@ -4,7 +4,6 @@ import Link from 'next/link';
 import clsx from 'clsx';
 import { FiAlertCircle } from 'react-icons/fi';
 
-import ClinicalAlerts from '@/components/ClinicalAlerts';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SignEncounterModal from '@/components/common/SignEncounterModal';
 import AttachmentPreviewModal from '@/components/common/AttachmentPreviewModal';
@@ -22,6 +21,7 @@ import { NotApplicableModal } from './NotApplicableModal';
 import EncounterClinicalWarnings from './EncounterClinicalWarnings';
 import EncounterMobileSectionNav from './EncounterMobileSectionNav';
 import EncounterActiveSectionCard from './EncounterActiveSectionCard';
+import EncounterClinicalSummaryCard from './EncounterClinicalSummaryCard';
 
 export default function EncounterWizardPage() {
   const wiz = useEncounterWizard();
@@ -135,7 +135,9 @@ export default function EncounterWizardPage() {
               moveToSection={wiz.moveToSection}
             />
 
-            {encounter.patientId ? <ClinicalAlerts patientId={encounter.patientId} variant="workspace-sticky" /> : null}
+            {encounter.patientId ? (
+              <EncounterClinicalSummaryCard patientId={encounter.patientId} patient={encounter.patient} />
+            ) : null}
 
             {wiz.localDraft || wiz.recoverableConflicts.length > 0 ? (
               <EncounterRecoveryPanel
@@ -281,7 +283,11 @@ export default function EncounterWizardPage() {
         reviewStatusPending={wiz.reviewStatusMutation.isPending}
         generatedSummary={wiz.generatedSummary}
         onSaveGeneratedSummary={wiz.handleSaveGeneratedSummary}
-        quickNotesValue={(wiz.formData.OBSERVACIONES as any)?.notasInternas || ''}
+        quickNotesValue={
+          typeof wiz.formData.OBSERVACIONES === 'object' && wiz.formData.OBSERVACIONES !== null
+            ? ((wiz.formData.OBSERVACIONES as { notasInternas?: string }).notasInternas ?? '')
+            : ''
+        }
         quickNotesDisabled={!wiz.canEdit}
         quickNotesSaving={wiz.saveSectionMutation.isPending}
         onQuickNotesSave={wiz.handleQuickNotesSave}
