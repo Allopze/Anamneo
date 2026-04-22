@@ -5,13 +5,17 @@ import { CreateAlertDto } from './dto/alert.dto';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { assertPatientAccess, buildAccessiblePatientsWhere } from '../common/utils/patient-access';
 import { getClinicalAlertMessages } from '../../../shared/vital-sign-alerts';
-
-const ALERT_SEVERITY_WEIGHT: Record<string, number> = {
-  CRITICA: 4,
-  ALTA: 3,
-  MEDIA: 2,
-  BAJA: 1,
-};
+import {
+  assertEncounterMatchesPatient,
+  attachUserNames,
+  buildPatientLevelOwnershipWhere,
+  isPatientLevelAlertInMedicoScope,
+  sortAlertsByPriority,
+} from './alerts.service.helpers';
+import {
+  countUnacknowledgedAlerts,
+  findRecentUnacknowledgedAlerts,
+} from './alerts.service.metrics';
 
 @Injectable()
 export class AlertsService {
@@ -20,93 +24,11 @@ export class AlertsService {
     private readonly audit: AuditService,
   ) {}
 
-  private buildPatientLevelOwnershipWhere(effectiveMedicoId: string) {
-    return {
-      encounterId: null,
-      OR: [
-        { createdById: effectiveMedicoId },
-        { createdBy: { medicoId: effectiveMedicoId } },
-      ],
-    };
-  }
-
-  private isPatientLevelAlertInMedicoScope(
-    alert: { createdById: string; createdBy?: { medicoId: string | null } | null },
-    effectiveMedicoId: string,
-  ) {
-    return alert.createdById === effectiveMedicoId || alert.createdBy?.medicoId === effectiveMedicoId;
-  }
-
-  private async assertEncounterMatchesPatient(encounterId: string, patientId: string, user: RequestUser) {
-    const encounter = await this.prisma.encounter.findUnique({
-      where: { id: encounterId },
-      select: { patientId: true, medicoId: true },
-    });
-
-    if (!encounter) {
-      throw new BadRequestException('La atención indicada no existe');
-    }
-
-    if (encounter.patientId !== patientId) {
-      throw new BadRequestException('La atención indicada no corresponde al paciente');
-    }
-
-    if (!user.isAdmin && encounter.medicoId !== getEffectiveMedicoId(user)) {
-      throw new BadRequestException('La atención indicada no existe para este paciente');
-    }
-  }
-
-  private sortAlertsByPriority<T extends { severity: string; createdAt: Date }>(alerts: T[]) {
-    return [...alerts].sort((left, right) => {
-      const severityDelta = (ALERT_SEVERITY_WEIGHT[right.severity] || 0) - (ALERT_SEVERITY_WEIGHT[left.severity] || 0);
-      if (severityDelta !== 0) {
-        return severityDelta;
-      }
-
-      return right.createdAt.getTime() - left.createdAt.getTime();
-    });
-  }
-
-  private async attachUserNames<
-    T extends {
-      createdById: string;
-      acknowledgedById?: string | null;
-    },
-  >(alerts: T[]) {
-    const userIds = Array.from(
-      new Set(
-        alerts
-          .flatMap((alert) => [alert.createdById, alert.acknowledgedById])
-          .filter((value): value is string => Boolean(value)),
-      ),
-    );
-
-    if (userIds.length === 0) {
-      return alerts.map((alert) => ({
-        ...alert,
-        createdBy: null,
-        acknowledgedBy: null,
-      }));
-    }
-
-    const users = await this.prisma.user.findMany({
-      where: { id: { in: userIds } },
-      select: { id: true, nombre: true },
-    });
-    const userMap = new Map(users.map((user) => [user.id, user]));
-
-    return alerts.map((alert) => ({
-      ...alert,
-      createdBy: userMap.get(alert.createdById) || null,
-      acknowledgedBy: alert.acknowledgedById ? userMap.get(alert.acknowledgedById) || null : null,
-    }));
-  }
-
   async create(dto: CreateAlertDto, user: RequestUser) {
     await assertPatientAccess(this.prisma, user, dto.patientId);
 
     if (dto.encounterId) {
-      await this.assertEncounterMatchesPatient(dto.encounterId, dto.patientId, user);
+      await assertEncounterMatchesPatient(this.prisma, dto.encounterId, dto.patientId, user);
     }
 
     const alert = await this.prisma.clinicalAlert.create({
@@ -151,7 +73,7 @@ export class AlertsService {
         ...(effectiveMedicoId
           ? {
               OR: [
-                this.buildPatientLevelOwnershipWhere(effectiveMedicoId),
+                buildPatientLevelOwnershipWhere(effectiveMedicoId),
                 { encounter: { medicoId: effectiveMedicoId } },
               ],
             }
@@ -159,8 +81,8 @@ export class AlertsService {
       },
     });
 
-    const sortedAlerts = this.sortAlertsByPriority(alerts);
-    return this.attachUserNames(sortedAlerts);
+    const sortedAlerts = sortAlertsByPriority(alerts);
+    return attachUserNames(this.prisma, sortedAlerts);
   }
 
   async acknowledge(id: string, user: RequestUser) {
@@ -185,7 +107,7 @@ export class AlertsService {
         if (alert.encounter?.medicoId !== effectiveMedicoId) {
           throw new NotFoundException('Alerta no encontrada');
         }
-      } else if (!this.isPatientLevelAlertInMedicoScope(alert, effectiveMedicoId)) {
+      } else if (!isPatientLevelAlertInMedicoScope(alert, effectiveMedicoId)) {
         throw new NotFoundException('Alerta no encontrada');
       }
     }
@@ -277,73 +199,11 @@ export class AlertsService {
   }
 
   async countUnacknowledged(user: RequestUser): Promise<number> {
-    const patientWhere = buildAccessiblePatientsWhere(user);
-    const effectiveMedicoId = user.isAdmin ? null : getEffectiveMedicoId(user);
-
-    return this.prisma.clinicalAlert.count({
-      where: {
-        acknowledgedAt: null,
-        ...(effectiveMedicoId
-          ? {
-              OR: [
-                {
-                  ...this.buildPatientLevelOwnershipWhere(effectiveMedicoId),
-                  patient: patientWhere,
-                },
-                {
-                  encounter: {
-                    medicoId: effectiveMedicoId,
-                    patient: { archivedAt: null },
-                  },
-                },
-              ],
-            }
-          : {
-              patient: patientWhere,
-            }),
-      },
-    });
+    return countUnacknowledgedAlerts(this.prisma, user);
   }
 
   async findRecentUnacknowledged(user: RequestUser, take = 10) {
-    const patientWhere = buildAccessiblePatientsWhere(user);
-    const effectiveMedicoId = user.isAdmin ? null : getEffectiveMedicoId(user);
-
-    const alerts = await this.prisma.clinicalAlert.findMany({
-      where: {
-        acknowledgedAt: null,
-        ...(effectiveMedicoId
-          ? {
-              OR: [
-                {
-                  ...this.buildPatientLevelOwnershipWhere(effectiveMedicoId),
-                  patient: patientWhere,
-                },
-                {
-                  encounter: {
-                    medicoId: effectiveMedicoId,
-                    patient: { archivedAt: null },
-                  },
-                },
-              ],
-            }
-          : {
-              patient: patientWhere,
-            }),
-      },
-      select: {
-        id: true,
-        type: true,
-        severity: true,
-        title: true,
-        message: true,
-        createdAt: true,
-        patient: {
-          select: { id: true, nombre: true },
-        },
-      },
-    });
-
-    return this.sortAlertsByPriority(alerts).slice(0, take);
+    const alerts = await findRecentUnacknowledgedAlerts(this.prisma, user, take);
+    return sortAlertsByPriority(alerts).slice(0, take);
   }
 }

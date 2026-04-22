@@ -61,6 +61,7 @@ export const state = {
   assistantUserId: '',
   patientId: '',
   quickPatientId: '',
+  duplicatePatientId: '',
   blockedPatientId: '',
   encounterId: '',
   blockedEncounterId: '',

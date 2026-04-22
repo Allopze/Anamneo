@@ -3,21 +3,17 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
-import { parseStoredJson } from '../common/utils/encounter-sections';
-import { resolveUploadsRoot } from '../common/utils/uploads-root';
 import * as fs from 'fs/promises';
-import * as path from 'path';
+import { sanitizeFilename, type AttachmentMetadata } from './attachments-helpers';
 import {
-  SIGNATURE_BYTES_TO_READ,
-  SUPPORTED_MIME_TYPES,
-  LINKABLE_ORDER_FIELDS,
-  sanitizeFilename,
-  normalizeMimeType,
-  detectMimeFromSignature,
-  type LinkedOrderType,
-  type AttachmentMetadata,
-  type StructuredOrder,
-} from './attachments-helpers';
+  getUploadsRoot,
+  resolveStoragePath,
+  toStoredStoragePath,
+  validateFileContent,
+  safeUnlink,
+} from './attachments.storage';
+import { resolveLinkedOrder } from './attachments.linked-order';
+import { getAttachmentFile } from './attachments.file-operations';
 
 @Injectable()
 export class AttachmentsService {
@@ -27,116 +23,10 @@ export class AttachmentsService {
     private auditService: AuditService,
   ) {}
 
-  private getUploadsRoot(): string {
-    return resolveUploadsRoot(this.configService.get<string>('UPLOAD_DEST'));
-  }
-
-  private resolveStoragePath(storagePath: string): string {
-    const uploadsRoot = this.getUploadsRoot();
-    const absolutePath = path.isAbsolute(storagePath)
-      ? path.normalize(storagePath)
-      : path.resolve(uploadsRoot, storagePath);
-    const relativeToRoot = path.relative(uploadsRoot, absolutePath);
-
-    if (!relativeToRoot || relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot)) {
-      throw new NotFoundException('Archivo no encontrado');
-    }
-
-    return absolutePath;
-  }
-
-  private toStoredStoragePath(absolutePath: string): string {
-    const relativePath = path.relative(this.getUploadsRoot(), absolutePath);
-    return relativePath.replace(/\\/g, '/');
-  }
-
-  private async readFileSignature(filePath: string): Promise<Buffer> {
-    const fileHandle = await fs.open(filePath, 'r');
-    try {
-      const buffer = Buffer.alloc(SIGNATURE_BYTES_TO_READ);
-      const { bytesRead } = await fileHandle.read(buffer, 0, SIGNATURE_BYTES_TO_READ, 0);
-      return buffer.subarray(0, bytesRead);
-    } finally {
-      await fileHandle.close();
-    }
-  }
-
-  private async validateFileContent(filePath: string, declaredMime: string): Promise<string> {
-    const normalizedDeclaredMime = normalizeMimeType(declaredMime);
-    const header = await this.readFileSignature(filePath);
-    const detectedMime = detectMimeFromSignature(header);
-
-    if (!detectedMime || !SUPPORTED_MIME_TYPES.has(detectedMime)) {
-      throw new BadRequestException('El contenido del archivo no corresponde a un tipo permitido');
-    }
-
-    if (normalizedDeclaredMime !== 'application/octet-stream' && normalizedDeclaredMime !== detectedMime) {
-      throw new BadRequestException('El tipo de archivo declarado no coincide con su contenido');
-    }
-
-    return detectedMime;
-  }
-
   private assertEncounterAllowsAttachmentMutation(status: string) {
     if (status !== 'EN_PROGRESO') {
       throw new BadRequestException('Solo se pueden modificar adjuntos de atenciones en progreso');
     }
-  }
-
-  private async safeUnlink(filePath: string): Promise<void> {
-    try {
-      await fs.unlink(filePath);
-    } catch {
-      // Ignore cleanup failures.
-    }
-  }
-
-  private async resolveLinkedOrder(
-    encounterId: string,
-    metadata?: AttachmentMetadata,
-  ): Promise<{ linkedOrderType: LinkedOrderType; linkedOrderId: string; linkedOrderLabel: string } | null> {
-    const linkedOrderId = metadata?.linkedOrderId?.trim();
-    const linkedOrderTypeRaw = metadata?.linkedOrderType?.trim().toUpperCase();
-
-    if (!linkedOrderId && !linkedOrderTypeRaw) {
-      return null;
-    }
-
-    if (!linkedOrderId || !linkedOrderTypeRaw) {
-      throw new BadRequestException('Debe indicar el tipo y el identificador del item vinculado');
-    }
-
-    if (!(linkedOrderTypeRaw in LINKABLE_ORDER_FIELDS)) {
-      throw new BadRequestException('El tipo de item vinculado no es valido');
-    }
-
-    const treatmentSection = await this.prisma.encounterSection.findUnique({
-      where: {
-        encounterId_sectionKey: {
-          encounterId,
-          sectionKey: 'TRATAMIENTO',
-        },
-      },
-      select: {
-        data: true,
-      },
-    });
-
-    const treatmentData = parseStoredJson<Record<string, StructuredOrder[]>>(treatmentSection?.data, {});
-    const orderField = LINKABLE_ORDER_FIELDS[linkedOrderTypeRaw as LinkedOrderType];
-    const order = (Array.isArray(treatmentData[orderField]) ? treatmentData[orderField] : []).find(
-      (item) => item?.id === linkedOrderId,
-    );
-
-    if (!order) {
-      throw new BadRequestException('No se encontro el examen o derivacion estructurada seleccionada');
-    }
-
-    return {
-      linkedOrderType: linkedOrderTypeRaw as LinkedOrderType,
-      linkedOrderId,
-      linkedOrderLabel: order.nombre?.trim() || linkedOrderId,
-    };
   }
 
   async create(
@@ -147,7 +37,6 @@ export class AttachmentsService {
   ) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
 
-    // Verify encounter exists
     const encounter = await this.prisma.encounter.findUnique({
       where: { id: encounterId },
       include: { patient: true },
@@ -163,12 +52,13 @@ export class AttachmentsService {
 
     this.assertEncounterAllowsAttachmentMutation(encounter.status);
 
-    const resolvedStoragePath = this.resolveStoragePath(file.path);
-    const linkedOrder = await this.resolveLinkedOrder(encounterId, metadata);
+    const uploadsRoot = getUploadsRoot(this.configService.get<string>('UPLOAD_DEST'));
+    const resolvedStoragePath = resolveStoragePath(file.path, uploadsRoot);
+    const linkedOrder = await resolveLinkedOrder(this.prisma, encounterId, metadata);
 
     try {
       await fs.access(resolvedStoragePath);
-      const normalizedMime = await this.validateFileContent(resolvedStoragePath, file.mimetype);
+      const normalizedMime = await validateFileContent(resolvedStoragePath, file.mimetype);
 
       const attachment = await this.prisma.$transaction(async (tx) => {
         const createdAttachment = await tx.attachment.create({
@@ -178,7 +68,7 @@ export class AttachmentsService {
             originalName: sanitizeFilename(file.originalname),
             mime: normalizedMime,
             size: file.size,
-            storagePath: this.toStoredStoragePath(resolvedStoragePath),
+            storagePath: toStoredStoragePath(resolvedStoragePath, uploadsRoot),
             uploadedById: user.id,
             category: metadata?.category?.trim() || null,
             description: metadata?.description?.trim() || null,
@@ -227,7 +117,7 @@ export class AttachmentsService {
         uploadedAt: attachment.uploadedAt,
       };
     } catch (error) {
-      await this.safeUnlink(resolvedStoragePath);
+      await safeUnlink(resolvedStoragePath);
       throw error;
     }
   }
@@ -266,35 +156,13 @@ export class AttachmentsService {
   }
 
   async getFile(id: string, user: RequestUser) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-
-    const attachment = await this.prisma.attachment.findUnique({
-      where: { id },
-      include: {
-        encounter: { include: { patient: true } },
-      },
-    });
-
-    if (!attachment || attachment.deletedAt) {
-      throw new NotFoundException('Archivo no encontrado');
-    }
-
-    if (attachment.encounter.medicoId !== effectiveMedicoId) {
-      throw new NotFoundException('Archivo no encontrado');
-    }
-
-    const resolvedPath = this.resolveStoragePath(attachment.storagePath);
-    await fs.access(resolvedPath);
-
-    return {
-      path: resolvedPath,
-      filename: sanitizeFilename(attachment.originalName),
-      mime: attachment.mime,
-    };
+    const uploadsRoot = getUploadsRoot(this.configService.get<string>('UPLOAD_DEST'));
+    return getAttachmentFile(this.prisma, uploadsRoot, id, getEffectiveMedicoId(user));
   }
 
   async remove(id: string, user: RequestUser) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
+    const uploadsRoot = getUploadsRoot(this.configService.get<string>('UPLOAD_DEST'));
 
     const attachment = await this.prisma.attachment.findUnique({
       where: { id },
@@ -317,33 +185,35 @@ export class AttachmentsService {
 
     this.assertEncounterAllowsAttachmentMutation(attachment.encounter.status);
 
-    // Soft-delete: mark as deleted, keep the physical file for retention period
     await this.prisma.$transaction(async (tx) => {
       await tx.attachment.update({
         where: { id },
         data: { deletedAt: new Date(), deletedById: user.id },
       });
 
-      await this.auditService.log({
-        entityType: 'Attachment',
-        entityId: attachment.id,
-        userId: user.id,
-        action: 'SOFT_DELETE',
-        diff: {
-          deleted: {
-            id: attachment.id,
-            encounterId: attachment.encounterId,
-            uploadedById: attachment.uploadedById,
-            originalName: attachment.originalName,
-            mime: attachment.mime,
-            size: attachment.size,
-            storagePath: attachment.storagePath,
-            category: attachment.category,
-            linkedOrderType: attachment.linkedOrderType,
-            linkedOrderId: attachment.linkedOrderId,
+      await this.auditService.log(
+        {
+          entityType: 'Attachment',
+          entityId: attachment.id,
+          userId: user.id,
+          action: 'SOFT_DELETE',
+          diff: {
+            deleted: {
+              id: attachment.id,
+              encounterId: attachment.encounterId,
+              uploadedById: attachment.uploadedById,
+              originalName: attachment.originalName,
+              mime: attachment.mime,
+              size: attachment.size,
+              storagePath: attachment.storagePath,
+              category: attachment.category,
+              linkedOrderType: attachment.linkedOrderType,
+              linkedOrderId: attachment.linkedOrderId,
+            },
           },
         },
-      }, tx);
+        tx,
+      );
     });
 
     return { message: 'Archivo movido a papelera' };
@@ -352,6 +222,7 @@ export class AttachmentsService {
   async purgeExpiredAttachments(retentionDays: number = 30): Promise<{ purged: number; errors: string[] }> {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - retentionDays);
+    const uploadsRoot = getUploadsRoot(this.configService.get<string>('UPLOAD_DEST'));
 
     const expired = await this.prisma.attachment.findMany({
       where: {
@@ -365,8 +236,8 @@ export class AttachmentsService {
 
     for (const att of expired) {
       try {
-        const resolvedPath = this.resolveStoragePath(att.storagePath);
-        await this.safeUnlink(resolvedPath);
+        const resolvedPath = resolveStoragePath(att.storagePath, uploadsRoot);
+        await safeUnlink(resolvedPath);
         await this.prisma.attachment.delete({ where: { id: att.id } });
         purged++;
       } catch (err) {

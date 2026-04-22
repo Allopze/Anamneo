@@ -9,44 +9,37 @@ import { UpdatePatientHistoryDto } from './dto/update-patient-history.dto';
 import { MergePatientDto } from './dto/merge-patient.dto';
 import { UpsertPatientProblemDto } from './dto/upsert-patient-problem.dto';
 import { UpdatePatientProblemDto } from './dto/update-patient-problem.dto';
-import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
-import { decoratePatient } from './patients-format';
-import { getClinicalSummaryReadModel, getEncounterTimelineReadModel } from './patients-clinical-read-model';
-import {
-  updatePatientAdminDemographicsMutation,
-  updatePatientDemographicsMutation,
-} from './patients-demographics-mutations';
-import {
-  createPatientProblemCommand,
-  createPatientTaskCommand,
-  CreatePatientTaskInput,
-  updatePatientProblemCommand,
-  updatePatientTaskCommand,
-  UpdatePatientTaskInput,
-} from './patients-clinical-write-side';
-import {
-  exportPatientsCsvReadModel,
-  findPatientByIdReadModel,
-  findPossiblePatientDuplicatesReadModel,
-  findPatientsReadModel,
-  FindPatientsFilters,
-  getPatientAdminSummaryReadModel,
-} from './patients-read-side';
-import { getPatientOperationalHistoryReadModel } from './patients-operational-history-read-model';
-import type { PossiblePatientDuplicate } from './patients-read-side';
-import { findPatientTasksReadModel, PatientTaskInboxFilters } from './patients-task-read-model';
-import {
-  archivePatientMutation,
-  restorePatientMutation,
-  updatePatientHistoryMutation,
-  verifyPatientDemographicsMutation,
-} from './patients-lifecycle-mutations';
-import { mergePatientIntoTarget } from './patients-merge-mutation';
-import {
-  createPatientMutation,
-  createQuickPatientMutation,
-} from './patients-intake-mutations';
+import { CreatePatientTaskInput, UpdatePatientTaskInput } from './patients-clinical-write-side';
+import { RequestUser } from '../common/utils/medico-id';
 import { assertPatientAccessScope } from './patients-access';
+import { FindPatientsFilters } from './patients-read-side';
+import { PatientTaskInboxFilters } from './patients-task-read-model';
+import {
+  findAllPatients,
+  findPossiblePatientDuplicates,
+  exportPatientsCsv,
+  getPatientAdminSummary,
+  findPatientById,
+  findEncounterTimeline,
+  findOperationalHistory,
+  getClinicalSummary,
+  findTasks,
+} from './patients-service-read.helpers';
+import {
+  createPatient,
+  createQuickPatient,
+  updatePatient,
+  updateAdminFields,
+  verifyDemographics,
+  mergeIntoTarget,
+  updateHistory,
+  removePatient,
+  restorePatient,
+  createProblem,
+  updateProblem,
+  createTask,
+  updateTaskStatus,
+} from './patients-service-write.helpers';
 
 @Injectable()
 export class PatientsService {
@@ -62,21 +55,11 @@ export class PatientsService {
   });
 
   async create(createPatientDto: CreatePatientDto, userId: string) {
-    return createPatientMutation({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      createPatientDto,
-      userId,
-    });
+    return createPatient(this.prisma, this.auditService, createPatientDto, userId);
   }
 
   async createQuick(createPatientDto: CreatePatientQuickDto, user: RequestUser) {
-    return createQuickPatientMutation({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      createPatientDto,
-      user,
-    });
+    return createQuickPatient(this.prisma, this.auditService, createPatientDto, user);
   }
 
   async findAll(
@@ -86,16 +69,7 @@ export class PatientsService {
     limit = 20,
     filters?: FindPatientsFilters,
   ) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-    return findPatientsReadModel({
-      prisma: this.prisma,
-      user,
-      effectiveMedicoId,
-      search,
-      page,
-      limit,
-      filters,
-    });
+    return findAllPatients(this.prisma, user, search, page, limit, filters);
   }
 
   async findPossibleDuplicates(
@@ -106,72 +80,30 @@ export class PatientsService {
       fechaNacimiento?: string;
       excludePatientId?: string;
     },
-  ): Promise<PossiblePatientDuplicate[]> {
-    return findPossiblePatientDuplicatesReadModel({
-      prisma: this.prisma,
-      user,
-      ...params,
-    });
+  ) {
+    return findPossiblePatientDuplicates(this.prisma, user, params);
   }
 
-  /**
-   * Exports all non-archived patients as CSV.
-   *
-   * Scope: This endpoint is intentionally restricted to ADMIN users only
-   * (enforced by AdminGuard in the controller) and exports patients across
-   * all medicos in the system. This is by design for administrative oversight
-   * and reporting — it is NOT scoped per medico.
-   *
-   * The export event is recorded in the audit log with the total patient count.
-   */
   async exportCsv(user: RequestUser) {
-    return exportPatientsCsvReadModel({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      user,
-    });
+    return exportPatientsCsv(this.prisma, this.auditService, user);
   }
 
   async getAdminSummary(user: RequestUser, id: string) {
-    return getPatientAdminSummaryReadModel({
-      prisma: this.prisma,
-      id,
-    });
+    return getPatientAdminSummary(this.prisma, user, id);
   }
 
   async findById(user: RequestUser, id: string) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-    return findPatientByIdReadModel({
-      prisma: this.prisma,
-      user,
-      id,
-      effectiveMedicoId,
-    });
+    return findPatientById(this.prisma, user, id);
   }
 
   async findEncounterTimeline(user: RequestUser, patientId: string, page = 1, limit = 10) {
     await this.assertPatientAccess(user, patientId);
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-
-    return getEncounterTimelineReadModel({
-      prisma: this.prisma,
-      patientId,
-      effectiveMedicoId,
-      page,
-      limit,
-    });
+    return findEncounterTimeline(this.prisma, user, patientId, page, limit);
   }
 
   async findOperationalHistory(user: RequestUser, patientId: string, limit = 20) {
     await this.assertPatientAccess(user, patientId);
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-
-    return getPatientOperationalHistoryReadModel({
-      prisma: this.prisma,
-      patientId,
-      effectiveMedicoId,
-      limit,
-    });
+    return findOperationalHistory(this.prisma, user, patientId, limit);
   }
 
   async getClinicalSummary(
@@ -180,139 +112,50 @@ export class PatientsService {
     options?: { fullVitalHistory?: boolean },
   ) {
     await this.assertPatientAccess(user, patientId);
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-    const fullVitals = options?.fullVitalHistory === true;
-
-    return getClinicalSummaryReadModel({
-      prisma: this.prisma,
-      user,
-      patientId,
-      effectiveMedicoId,
-      fullVitals,
-    });
+    return getClinicalSummary(this.prisma, user, patientId, options);
   }
 
   async findTasks(
     user: RequestUser,
     filters?: PatientTaskInboxFilters,
   ) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-    return findPatientTasksReadModel({
-      prisma: this.prisma,
-      user,
-      effectiveMedicoId,
-      filters,
-    });
+    return findTasks(this.prisma, user, filters);
   }
 
   async update(id: string, updatePatientDto: UpdatePatientDto, user: RequestUser) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-    const patient = await updatePatientDemographicsMutation({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      id,
-      updatePatientDto,
-      user,
-      effectiveMedicoId,
-    });
-
-    return decoratePatient(patient);
+    return updatePatient(this.prisma, this.auditService, id, updatePatientDto, user);
   }
 
   async updateAdminFields(user: RequestUser, patientId: string, dto: UpdatePatientAdminDto) {
-    const patient = await updatePatientAdminDemographicsMutation({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      patientId,
-      dto,
-      user,
-      assertPatientAccess: this.assertPatientAccess,
-    });
-
-    return decoratePatient(patient);
+    return updateAdminFields(this.prisma, this.auditService, user, patientId, dto, this.assertPatientAccess);
   }
 
   async verifyDemographics(user: RequestUser, patientId: string) {
-    const updatedPatient = await verifyPatientDemographicsMutation({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      user,
-      patientId,
-      assertPatientAccess: this.assertPatientAccess,
-    });
-
-    return decoratePatient(updatedPatient);
+    return verifyDemographics(this.prisma, this.auditService, user, patientId, this.assertPatientAccess);
   }
 
   async mergeIntoTarget(user: RequestUser, targetPatientId: string, dto: MergePatientDto) {
-    const result = await mergePatientIntoTarget({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      user,
-      targetPatientId,
-      sourcePatientId: dto.sourcePatientId,
-      assertPatientAccess: this.assertPatientAccess,
-    });
-
-    return {
-      patient: decoratePatient(result.patient),
-      counts: result.counts,
-    };
+    return mergeIntoTarget(this.prisma, this.auditService, user, targetPatientId, dto, this.assertPatientAccess);
   }
 
   async updateHistory(user: RequestUser, patientId: string, dto: UpdatePatientHistoryDto) {
-    return updatePatientHistoryMutation({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      user,
-      patientId,
-      dto,
-      assertPatientAccess: this.assertPatientAccess,
-    });
+    return updateHistory(this.prisma, this.auditService, user, patientId, dto, this.assertPatientAccess);
   }
 
   async remove(id: string, user: RequestUser) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-    return archivePatientMutation({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      id,
-      user,
-      effectiveMedicoId,
-    });
+    return removePatient(this.prisma, this.auditService, id, user);
   }
 
   async restore(id: string, user: RequestUser) {
-    const effectiveMedicoId = getEffectiveMedicoId(user);
-    return restorePatientMutation({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      id,
-      user,
-      effectiveMedicoId,
-    });
+    return restorePatient(this.prisma, this.auditService, id, user);
   }
 
   async createProblem(user: RequestUser, patientId: string, dto: UpsertPatientProblemDto) {
-    return createPatientProblemCommand({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      assertPatientAccess: this.assertPatientAccess,
-      user,
-      patientId,
-      dto,
-    });
+    return createProblem(this.prisma, this.auditService, user, patientId, dto, this.assertPatientAccess);
   }
 
   async updateProblem(user: RequestUser, problemId: string, dto: UpdatePatientProblemDto) {
-    return updatePatientProblemCommand({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      assertPatientAccess: this.assertPatientAccess,
-      user,
-      problemId,
-      dto,
-    });
+    return updateProblem(this.prisma, this.auditService, user, problemId, dto, this.assertPatientAccess);
   }
 
   async createTask(
@@ -320,14 +163,7 @@ export class PatientsService {
     patientId: string,
     dto: CreatePatientTaskInput,
   ) {
-    return createPatientTaskCommand({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      assertPatientAccess: this.assertPatientAccess,
-      user,
-      patientId,
-      dto,
-    });
+    return createTask(this.prisma, this.auditService, user, patientId, dto, this.assertPatientAccess);
   }
 
   async updateTaskStatus(
@@ -335,13 +171,6 @@ export class PatientsService {
     taskId: string,
     dto: UpdatePatientTaskInput,
   ) {
-    return updatePatientTaskCommand({
-      prisma: this.prisma,
-      auditService: this.auditService,
-      assertPatientAccess: this.assertPatientAccess,
-      user,
-      taskId,
-      dto,
-    });
+    return updateTaskStatus(this.prisma, this.auditService, user, taskId, dto, this.assertPatientAccess);
   }
 }

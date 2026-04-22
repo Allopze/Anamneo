@@ -4,12 +4,14 @@ import { PatientsService } from './patients.service';
 import { PatientsExportBundleService } from './patients-export-bundle.service';
 import { PatientsPdfService } from './patients-pdf.service';
 import { PatientsController } from './patients.controller';
+import { PatientsManagementController } from './patients-management.controller';
+import { PatientsAuxController } from './patients-aux.controller';
 import { AuditModule } from '../audit/audit.module';
 import { ConsentsModule } from '../consents/consents.module';
 
 @Module({
   imports: [AuditModule, ConfigModule, ConsentsModule],
-  controllers: [PatientsController],
+  controllers: [PatientsController, PatientsManagementController, PatientsAuxController],
   providers: [PatientsService, PatientsPdfService, PatientsExportBundleService],
   exports: [PatientsService],
 })

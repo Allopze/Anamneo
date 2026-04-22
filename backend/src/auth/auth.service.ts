@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -21,6 +20,14 @@ import {
   getInvitationPreviewFlow,
   registerWithInvitationFlow,
 } from './auth-register-flow';
+import {
+  getConfiguredBootstrapToken,
+  hasValidBootstrapToken,
+  normalizeEmail,
+  toSessionUser,
+  type SessionUser,
+} from './auth.service.helpers';
+export type { SessionUser } from './auth.service.helpers';
 
 export interface JwtPayload {
   sub: string;
@@ -34,17 +41,6 @@ export interface JwtPayload {
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
-}
-
-export interface SessionUser {
-  id: string;
-  email: string;
-  nombre: string;
-  role: string;
-  isAdmin: boolean;
-  medicoId: string | null;
-  mustChangePassword: boolean;
-  totpEnabled: boolean;
 }
 
 type SessionContext = {
@@ -70,41 +66,14 @@ export class AuthService {
     private settingsService: SettingsService,
   ) {}
 
-  private toSessionUser(user: {
-    id: string;
-    email: string;
-    nombre: string;
-    role: string;
-    isAdmin?: boolean | null;
-    medicoId?: string | null;
-    mustChangePassword?: boolean | null;
-    totpEnabled?: boolean | null;
-    active?: boolean | null;
-  }): SessionUser {
-    if (!user.active) {
-      throw new UnauthorizedException('Usuario no encontrado o inactivo');
-    }
-
-    return {
-      id: user.id,
-      email: user.email,
-      nombre: user.nombre,
-      role: user.role,
-      isAdmin: !!user.isAdmin,
-      medicoId: user.medicoId ?? null,
-      mustChangePassword: !!user.mustChangePassword,
-      totpEnabled: !!user.totpEnabled,
-    };
-  }
-
   async getSessionUserByEmail(email: string): Promise<SessionUser> {
-    const user = await this.usersService.findByEmail(this.normalizeEmail(email));
+    const user = await this.usersService.findByEmail(normalizeEmail(email));
 
     if (!user) {
       throw new UnauthorizedException('Usuario no encontrado o inactivo');
     }
 
-    return this.toSessionUser(user);
+    return toSessionUser(user);
   }
 
   async getSessionUserById(userId: string): Promise<SessionUser> {
@@ -114,35 +83,7 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no encontrado o inactivo');
     }
 
-    return this.toSessionUser(user);
-  }
-
-  private normalizeEmail(email: string): string {
-    return email.trim().toLowerCase();
-  }
-
-  private getConfiguredBootstrapToken(): string | null {
-    const token = this.configService.get<string>('BOOTSTRAP_TOKEN')?.trim();
-    return token ? token : null;
-  }
-
-  private hasValidBootstrapToken(candidateToken: string | undefined, expectedToken: string | null) {
-    if (!expectedToken) {
-      return true;
-    }
-
-    const normalizedCandidate = candidateToken?.trim();
-    if (!normalizedCandidate) {
-      return false;
-    }
-
-    const expectedBuffer = Buffer.from(expectedToken);
-    const candidateBuffer = Buffer.from(normalizedCandidate);
-    if (expectedBuffer.length !== candidateBuffer.length) {
-      return false;
-    }
-
-    return crypto.timingSafeEqual(expectedBuffer, candidateBuffer);
+    return toSessionUser(user);
   }
 
   async getInvitationPreview(token: string) {
@@ -159,16 +100,16 @@ export class AuthService {
       registerDto,
       sessionContext,
       issueTokens: (user, context) => this.issueTokens(user, context),
-      normalizeEmail: (email) => this.normalizeEmail(email),
-      getConfiguredBootstrapToken: () => this.getConfiguredBootstrapToken(),
-      hasValidBootstrapToken: (candidate, expected) => this.hasValidBootstrapToken(candidate, expected),
+      normalizeEmail,
+      getConfiguredBootstrapToken: () => getConfiguredBootstrapToken(this.configService),
+      hasValidBootstrapToken,
     });
   }
 
   async getBootstrapState() {
     return getBootstrapStateFlow({
       usersService: this.usersService,
-      getConfiguredBootstrapToken: () => this.getConfiguredBootstrapToken(),
+      getConfiguredBootstrapToken: () => getConfiguredBootstrapToken(this.configService),
     });
   }
 
@@ -194,7 +135,7 @@ export class AuthService {
         return user;
       },
       issueTokens: (user, context) => this.issueTokens(user, context),
-      normalizeEmail: (email) => this.normalizeEmail(email),
+      normalizeEmail,
     });
   }
 

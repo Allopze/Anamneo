@@ -10,7 +10,8 @@ import { formatEncounterSectionForRead } from '../common/utils/encounter-section
 import {
   buildEncounterDocumentFilename,
 } from './encounters-pdf.helpers';
-import { renderEncounterClinicalPdf, renderFocusedEncounterPdf } from './encounters-pdf.renderers';
+import { renderEncounterClinicalPdf } from './encounters-pdf.renderers';
+import { renderFocusedEncounterPdf } from './encounters-pdf.focused.renderers';
 
 @Injectable()
 export class EncountersPdfService {
