@@ -1,5 +1,4 @@
-import { state, req, extractCookies, cookieHeader, prisma } from '../helpers/e2e-setup';
-import { authenticator } from '@otplib/v12-adapter';
+import { state, req, extractCookies, cookieHeader } from '../helpers/e2e-setup';
 
 const TEST_BOOTSTRAP_TOKEN = 'bootstrap-token-e2e-0123456789abcdef';
 

@@ -52,7 +52,7 @@ export function renderFocusedEncounterPdf(
   if (kind === 'ordenes') {
     doc.font('Helvetica-Bold').text('Examenes solicitados');
     if (Array.isArray(trat.examenesEstructurados) && trat.examenesEstructurados.length > 0) {
-      trat.examenesEstructuradas.forEach((item: any) => {
+      trat.examenesEstructurados.forEach((item: any) => {
         doc.text(`• ${[item.nombre, item.indicacion, item.estado].filter(Boolean).join(' · ')}`);
       });
     } else {

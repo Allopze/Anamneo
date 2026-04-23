@@ -132,13 +132,13 @@ ENCRYPTION_AT_REST_CONFIRMED=true
 
 ### Verificacion
 
-En produccion, si `ENCRYPTION_AT_REST_CONFIRMED` no esta en `true`, el backend emite un warning en cada arranque:
+En produccion, si `ENCRYPTION_AT_REST_CONFIRMED` no esta en `true`, el backend falla el arranque:
 
 ```
-encryption_at_rest_not_confirmed: Clinical attachments and database backups are stored unencrypted on disk.
+ENCRYPTION_AT_REST_CONFIRMED=true is required in production after verifying filesystem-level encryption for the database, uploads, and backups volumes.
 ```
 
-Ese warning no bloquea el arranque, pero si aparece en produccion, alguien deberia preguntar por que.
+Ese fallo es deliberado: para este proyecto el cifrado en reposo del host ya no queda como un recordatorio optativo.
 
 ## Reglas Practicas
 

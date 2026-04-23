@@ -57,6 +57,7 @@ export class SettingsController {
   }
 
   @Get('session-policy')
+  @Roles('ADMIN', 'MEDICO', 'ASISTENTE')
   getSessionPolicy() {
     return this.settingsService.getSessionPolicy();
   }

@@ -1,8 +1,5 @@
 import {
   buildClinicalAnalyticsEncounter,
-  buildClinicalAnalyticsEncounterFromPersistence,
-  getEncounterConditions,
-  matchesAnalyticsCondition,
   matchesAnalyticsQuery,
 } from './clinical-analytics.helpers';
 

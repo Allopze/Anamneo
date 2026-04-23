@@ -1,7 +1,6 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import type { Patient, Prisma } from '@prisma/client';
+import { ForbiddenException } from '@nestjs/common';
+import type { Patient } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
-import { parseStoredJson } from '../common/utils/encounter-sections';
 import { isPatientOwnedByMedico } from '../common/utils/patient-access';
 import type { RequestUser } from '../common/utils/medico-id';
 import { PrismaService } from '../prisma/prisma.service';

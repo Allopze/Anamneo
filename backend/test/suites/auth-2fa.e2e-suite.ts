@@ -1,7 +1,5 @@
-import { state, req, extractCookies, cookieHeader, prisma } from '../helpers/e2e-setup';
+import { state, req, extractCookies, cookieHeader } from '../helpers/e2e-setup';
 import { authenticator } from '@otplib/v12-adapter';
-
-const TEST_BOOTSTRAP_TOKEN = 'bootstrap-token-e2e-0123456789abcdef';
 
 export function authTwoFactorSuite() {
   describe('Auth - 2FA', () => {

@@ -74,7 +74,7 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 |---|---|---|
 | `UPLOAD_MAX_SIZE` | `10485760` | Limite maximo por archivo |
 | `UPLOAD_DEST` | `./uploads` en ejemplo, `/app/uploads` en Docker | Destino de archivos. Debe permanecer dentro del directorio de la app |
-| `ENCRYPTION_AT_REST_CONFIRMED` | `false` | Confirma que el host tiene cifrado de filesystem (LUKS/dm-crypt) en los volumenes de datos clinicos. Si no se confirma, el backend emite un warning en produccion |
+| `ENCRYPTION_AT_REST_CONFIRMED` | `false` | Confirma que el host tiene cifrado de filesystem (LUKS/dm-crypt) en los volumenes de datos clinicos. En produccion debe quedar en `true` despues de verificarlo; si no, el backend falla al arrancar |
 | `SENTRY_DSN` | vacio | Sentry backend |
 | `NEXT_PUBLIC_SENTRY_DSN` | vacio | Sentry frontend |
 
@@ -88,9 +88,9 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 
 ### Produccion con Docker Compose + cloudflared
 
-- `docker-compose.yml` exige `JWT_SECRET`, `JWT_REFRESH_SECRET`, `BOOTSTRAP_TOKEN`, `CORS_ORIGIN`, `APP_PUBLIC_URL` y `SETTINGS_ENCRYPTION_KEY`.
+- `docker-compose.yml` exige `JWT_SECRET`, `JWT_REFRESH_SECRET`, `BOOTSTRAP_TOKEN`, `CORS_ORIGIN`, `APP_PUBLIC_URL`, `SETTINGS_ENCRYPTION_KEY` y `ENCRYPTION_AT_REST_CONFIRMED`.
 - El frontend recibe `NEXT_PUBLIC_API_URL` como argumento de build y tambien como variable de runtime.
-- El backend aplica chequeos de seguridad al arrancar y falla rapido si encuentra placeholders.
+- El backend aplica chequeos de seguridad al arrancar y falla rapido si encuentra placeholders o si falta la confirmacion de cifrado en reposo.
 - `BACKEND_BIND_HOST` y `FRONTEND_BIND_HOST` deberian quedarse en `127.0.0.1` salvo que tengas un motivo muy claro para abrirlos.
 - `APP_PUBLIC_URL` y `CORS_ORIGIN` deben apuntar al hostname HTTPS publico que entrega Cloudflare Tunnel.
 - `NEXT_PUBLIC_API_URL` debe mantenerse en `/api` para preservar cookies `HttpOnly` y same-origin.

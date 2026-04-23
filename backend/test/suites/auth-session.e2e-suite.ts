@@ -1,7 +1,4 @@
 import { state, req, extractCookies, cookieHeader, prisma } from '../helpers/e2e-setup';
-import { authenticator } from '@otplib/v12-adapter';
-
-const TEST_BOOTSTRAP_TOKEN = 'bootstrap-token-e2e-0123456789abcdef';
 
 export function authSessionManagementSuite() {
   describe('Auth - Logout', () => {
@@ -43,6 +40,23 @@ export function authSessionManagementSuite() {
       expect(res.body.message).toBe('Tokens actualizados');
       const newCookies = extractCookies(res);
       expect(newCookies.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('POST /api/auth/refresh → rejects refresh tokens sent only in the body', async () => {
+      const loginRes = await req()
+        .post('/api/auth/login')
+        .send({ email: 'admin@test.com', password: 'Admin123' })
+        .expect(200);
+
+      const refreshCookie = extractCookies(loginRes).find((cookie) => cookie.startsWith('refresh_token='));
+      expect(refreshCookie).toBeDefined();
+
+      const refreshToken = refreshCookie?.split(';')[0]?.replace('refresh_token=', '');
+
+      await req()
+        .post('/api/auth/refresh')
+        .send({ refreshToken })
+        .expect(401);
     });
 
     it('POST /api/auth/refresh → rejects a session expired by inactivity and revokes it', async () => {

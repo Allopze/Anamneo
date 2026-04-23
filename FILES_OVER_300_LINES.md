@@ -84,5 +84,5 @@ Convención:
 
 ## Documentación y referencias
 
-- [ ] ANAMNEO_AUDIT.md
+- [x] ANAMNEO_AUDIT.md
 - [ ] UI/UX_REFERENCE.jsx

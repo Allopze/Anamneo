@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { readSqliteRestoreDrillStatus } from './sqlite-ops-state';
 
 export type SqliteSynchronousMode = 'OFF' | 'NORMAL' | 'FULL' | 'EXTRA';
 

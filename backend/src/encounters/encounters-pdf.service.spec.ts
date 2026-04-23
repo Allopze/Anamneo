@@ -25,6 +25,7 @@ describe('EncountersPdfService', () => {
             rut: '11.111.111-1',
             rutExempt: false,
             rutExemptReason: null,
+            fechaNacimiento: new Date('1986-04-08T00:00:00.000Z'),
             edad: 40,
             sexo: 'FEMENINO',
             prevision: 'FONASA',
@@ -44,5 +45,74 @@ describe('EncountersPdfService', () => {
         nombre: 'Dra. Rivera',
       }),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('renders the focused ordenes PDF when structured exams are present', async () => {
+    const prisma = {
+      encounter: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'enc-2',
+          patientId: 'patient-1',
+          medicoId: 'med-1',
+          reviewStatus: 'NO_REQUIERE_REVISION',
+          status: 'COMPLETADO',
+          createdAt: new Date('2026-04-08T12:00:00.000Z'),
+          sections: [
+            {
+              sectionKey: 'IDENTIFICACION',
+              schemaVersion: 1,
+              data: JSON.stringify({
+                nombre: 'Paciente Demo',
+                edad: 40,
+              }),
+            },
+            {
+              sectionKey: 'TRATAMIENTO',
+              schemaVersion: 1,
+              data: JSON.stringify({
+                examenesEstructurados: [
+                  {
+                    nombre: 'Hemograma',
+                    indicacion: 'Control anual',
+                    estado: 'PENDIENTE',
+                  },
+                ],
+              }),
+            },
+          ],
+          patient: {
+            id: 'patient-1',
+            nombre: 'Paciente Demo',
+            rut: '11.111.111-1',
+            rutExempt: false,
+            rutExemptReason: null,
+            fechaNacimiento: new Date('1986-04-08T00:00:00.000Z'),
+            edad: 40,
+            sexo: 'FEMENINO',
+            prevision: 'FONASA',
+            completenessStatus: 'VERIFICADA',
+          },
+          createdBy: { nombre: 'Dra. Rivera', email: 'medico@anamneo.cl' },
+        }),
+      },
+    };
+
+    const service = new EncountersPdfService(prisma as any, auditService as any);
+
+    const pdfBuffer = await service.generateFocusedPdf('enc-2', 'ordenes', {
+      id: 'med-1',
+      role: 'MEDICO',
+      nombre: 'Dra. Rivera',
+    });
+
+    expect(pdfBuffer).toBeInstanceOf(Buffer);
+    expect(pdfBuffer.length).toBeGreaterThan(0);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: 'Encounter',
+        entityId: 'enc-2',
+        action: 'EXPORT',
+      }),
+    );
   });
 });

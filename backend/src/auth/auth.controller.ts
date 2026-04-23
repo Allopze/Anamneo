@@ -5,7 +5,6 @@ import { AuthService } from './auth.service';
 import { AuthTotpService } from './auth-totp.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterWithInvitationDto } from './dto/register-with-invitation.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { VerifyTotpDto, DisableTotpDto, VerifyTotpLoginDto } from './dto/totp.dto';
@@ -115,10 +114,9 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Res({ passthrough: true }) res: Response, @Body() body?: RefreshTokenDto) {
-    // Try cookie first, fallback to body (backward compat)
+  async refresh(@Res({ passthrough: true }) res: Response) {
     const req = res.req as Request & { cookies?: Record<string, string> };
-    const refreshToken = req.cookies?.refresh_token || body?.refreshToken;
+    const refreshToken = req.cookies?.refresh_token;
     if (!refreshToken) {
       this.clearAuthCookies(res);
       throw new UnauthorizedException('Token de refresco no proporcionado');
@@ -156,9 +154,9 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@Res({ passthrough: true }) res: Response, @Body() body?: RefreshTokenDto) {
+  async logout(@Res({ passthrough: true }) res: Response) {
     const req = res.req as Request & { cookies?: Record<string, string> };
-    const refreshToken = req.cookies?.refresh_token || body?.refreshToken;
+    const refreshToken = req.cookies?.refresh_token;
 
     if (refreshToken) {
       await this.authService.revokeByRefreshToken(refreshToken);

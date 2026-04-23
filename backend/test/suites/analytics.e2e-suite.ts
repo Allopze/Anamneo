@@ -1,6 +1,6 @@
 import * as bcrypt from 'bcrypt';
 import { cookieHeader, extractCookies, prisma, req, state } from '../helpers/e2e-setup';
-import { ANALYTICS_DIAGNOSIS_LABEL, ANALYTICS_MEDICATION_LABEL, markIdentificationSectionComplete, createCompletedAnalyticsEncounter } from './analytics.helpers';
+import { ANALYTICS_DIAGNOSIS_LABEL, ANALYTICS_MEDICATION_LABEL, createCompletedAnalyticsEncounter } from './analytics.helpers';
 
 export function analyticsSuite() {
   describe('Analytics', () => {

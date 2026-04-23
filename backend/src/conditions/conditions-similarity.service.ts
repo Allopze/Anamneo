@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import * as natural from 'natural';
 import { parseStringArray } from '../conditions/conditions-helpers';
 import { buildDocument, buildWeightedSearchText, rankDocuments } from './conditions-similarity.helpers';
-import type { ConditionInput, SuggestionReason, SuggestionResult } from './conditions-similarity.types';
+import type { ConditionInput, SuggestionResult } from './conditions-similarity.types';
 
 export type { SuggestionReason, SuggestionResult } from './conditions-similarity.types';
 

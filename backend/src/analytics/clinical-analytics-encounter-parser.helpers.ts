@@ -4,7 +4,6 @@ import { normalizeConditionName } from '../conditions/conditions-helpers';
 import { resolveAssociatedConditionLabels } from './clinical-analytics-encounter-utils';
 import type {
   RawSection,
-  ProbableConditionData,
   ResponseData,
 } from './clinical-analytics-encounter';
 

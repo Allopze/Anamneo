@@ -7,7 +7,7 @@ import { authenticator } from '@otplib/v12-adapter';
 import { AuthTotpService } from './auth-totp.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { decryptStoredTotpSecret } from './auth-totp-secret';
+import * as authTotpSecret from './auth-totp-secret';
 
 jest.mock('bcrypt');
 
@@ -105,7 +105,7 @@ describe('AuthTotpService', () => {
         },
       });
       expect(
-        decryptStoredTotpSecret(
+        authTotpSecret.decryptStoredTotpSecret(
           prismaService.user.update.mock.calls[0][0].data.totpSecret,
           configService as any,
         ),
@@ -164,7 +164,7 @@ describe('AuthTotpService', () => {
       });
       prismaService.user.update.mockResolvedValue(undefined);
       jest.spyOn(authenticator, 'verify').mockImplementation(({ secret }) => secret === 'SECRET123');
-      jest.spyOn(require('./auth-totp-secret'), 'decryptStoredTotpSecret').mockReturnValue('SECRET123');
+      jest.spyOn(authTotpSecret, 'decryptStoredTotpSecret').mockReturnValue('SECRET123');
 
       const result = await service.enable2FA('user-1', '123456');
 

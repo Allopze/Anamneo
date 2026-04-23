@@ -7,7 +7,6 @@ import {
   sanitizeText,
   sanitizeTextListField,
 } from './encounters-sanitize-primitives';
-import { sanitizeRespuestaTratamientoData } from './encounters-sanitize-clinical.helpers';
 
 export function sanitizeExamenFisicoData(data: Record<string, unknown>) {
   const signosVitalesRaw = data.signosVitales;

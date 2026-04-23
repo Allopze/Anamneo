@@ -1,4 +1,3 @@
-import { BadRequestException } from '@nestjs/common';
 import { MedicationCsvInvalidRow, ParsedMedicationCsvRow } from './medications-csv.types';
 import { normalizeMedicationName } from './medications-helpers';
 

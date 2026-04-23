@@ -1,7 +1,6 @@
 /// <reference types="jest" />
 
-import { state, alertsService, req, cookieHeader } from '../../helpers/e2e-setup';
-import { getEncounterSectionSchemaVersion } from '../../../src/common/utils/encounter-section-meta';
+import { state, req, cookieHeader } from '../../helpers/e2e-setup';
 
 export function registerEncounterSectionValidationTests() {
   it('PUT /api/encounters/:id/sections/SOSPECHA_DIAGNOSTICA → rejects malformed ranked diagnoses', async () => {

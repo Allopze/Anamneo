@@ -1,307 +1,248 @@
-# Auditoría técnica y funcional de Anamneo
+# Auditoria tecnica y funcional de Anamneo
 
 Fecha: 2026-04-22
+Actualizado: 2026-04-23
 
 ## 1. Resumen ejecutivo
 
-Audité el repositorio completo de Anamneo como EMR/EHR chica para 1 a 5 usuarios: backend NestJS + Prisma, frontend Next.js, autenticación, permisos, flujos clínicos, exports, adjuntos, configuración, scripts operativos, tests y build.
+Audite el repositorio completo de Anamneo como EMR/EHR chica para 1 a 5 usuarios, con foco en backend NestJS + Prisma, frontend Next.js, autenticacion, permisos, validaciones, flujos clinicos, exportes, adjuntos, operacion SQLite, tests y build.
 
-Estado general: la base es buena para un proyecto chico real. Hay arquitectura modular razonable, permisos clínicos bien pensados, exportes útiles, auditoría, backups/restore documentados para SQLite y una cobertura backend por encima del promedio. El trabajo pendiente ya no es “hacer la app”, sino terminar de cerrar algunos bordes de seguridad práctica, integridad clínica y mantenibilidad.
+Estado general:
 
-En esta pasada se cerraron cuatro mejoras pedidas por producto:
+- La base tecnica sigue siendo buena para una app chica real: arquitectura por dominios clara, permisos clinicos bastante explicitados, cookies HttpOnly + same-origin, sesiones persistidas, auditoria con hash chain, backups/restore drill para SQLite y documentacion superior al promedio de un proyecto pequeno.
+- No veo necesidad de reescritura ni de arquitectura enterprise. Para este tamano, el stack actual es razonable.
+- Los hallazgos altos y medios que dejaban a la app en rojo en la auditoria inicial quedaron corregidos y revalidados.
 
-- acción de “cerrar otras sesiones” en un solo clic;
-- resumen clínico fijo dentro de la atención con alergias, medicación habitual, problemas activos y alertas;
-- historial de paciente con medicación habitual más estructurada, separando lista y detalle clínico;
-- el resumen longitudinal y el resumen fijo de la atención ya muestran alergias y medicación habitual como estructura visible, no solo como texto plano;
-- además se apretó el tipado visible del render clínico en la atención.
-- además se agregó exportación CSV del resumen agregado de analítica clínica.
-- además se agregó un reporte Markdown compartible del resumen agregado de analítica clínica.
+Riesgo global actual: **Medio**, principalmente por riesgos operativos residuales y algunos puntos de endurecimiento no bloqueantes.
 
-Riesgo global actual: **Medio**.
+Conclusion corta: **tras esta ronda de fixes, la considero apta para una salida chica o piloto controlado, siempre que el despliegue real cumpla el checklist operativo de secretos, cifrado del host y backup/restore**.
 
-Conclusión corta: **después de esta segunda pasada de fixes la considero lista para producción pequeña, con un remanente ya bastante acotado de mejoras clínicas y técnicas no bloqueantes**.
+Validaciones ejecutadas en la ronda de remediacion:
 
-Validación ejecutada:
+- `npm --prefix backend run lint:check` -> PASS
+- `npm --prefix backend run test` -> PASS
+- `npm --prefix backend run typecheck` -> PASS
+- `npm --prefix backend run build` -> PASS
+- `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` -> PASS (220/220)
+- `npm --prefix frontend run lint` -> PASS
+- `npm --prefix frontend run test` -> PASS (61 suites, 295 tests)
+- `npm --prefix frontend run test:e2e:smoke` -> PASS (2/2)
 
-- `npm --prefix backend run typecheck` ✅
-- `npm --prefix frontend run typecheck` ✅
-- `npm --prefix backend run lint:check` ✅
-- `npm --prefix frontend run lint` ✅
-- `npm --prefix backend run test` ✅
-- `npm --prefix frontend run test` ✅
-- `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` ✅
-- `npm run build` ✅
-- `curl http://127.0.0.1:5678/api/health` ✅ respondió `200 OK`
-- `curl http://127.0.0.1:5555` ✅ respondió `307` a `/login`
-- `npm --prefix backend test -- auth.service.spec.ts --runInBand` ✅
-- `npm --prefix backend run typecheck` ✅
-- `npm --prefix frontend run typecheck` ✅
-- `npm --prefix frontend test -- ClinicalAlerts.test.tsx --runInBand` ✅
-- `PLAYWRIGHT_REUSE_EXISTING=true npm --prefix frontend run test:e2e -- tests/e2e/smoke.spec.ts --workers=1` ⚠️ 1 test pasó y 1 falló por timeout en el bootstrap del smoke
+Estado de remediacion de hallazgos altos y medios:
 
-Notas de ejecución:
+- [x] Corregido el 500 en `GET /api/encounters/:id/export/document/ordenes`.
+- [x] Agregada cobertura de regresion para export focused `ordenes`.
+- [x] Eliminada la suite placeholder que rompia Jest backend.
+- [x] Reparado el mock desactualizado del flujo de cierre en frontend.
+- [x] Limpiado el backend hasta dejar `lint:check` en verde.
+- [x] Endurecido el arranque en produccion para exigir `ENCRYPTION_AT_REST_CONFIRMED=true`.
+- [x] Resuelto el warning pendiente de hooks en `DashboardClinicalView`.
+- [x] `GET /api/settings/session-policy` ya no depende del fallback fail-open de `RolesGuard`.
+- [x] `POST /api/auth/refresh` acepta refresh token solo por cookie `HttpOnly`.
 
-- No reinstalé dependencias porque el workspace ya tenía `node_modules` y pude correr typecheck, tests y build.
-- El arranque directo con `npm --prefix backend run start:prod` y `npm --prefix frontend run start` chocó con `EADDRINUSE`, pero no por falla de la app: en este entorno ya había procesos escuchando en `:5678` y `:5555`.
-- El smoke e2e con Playwright quedó inconcluso en este entorno; no lo tomo como bug confirmado.
-- El smoke e2e con Playwright dejó un fallo de bootstrap en este entorno; el caso pasado siguió en verde y no lo tomo como regresión confirmada del cambio.
-- Para algunos fixes usé documentación oficial vía Context7, puntualmente para saneo de stores persistidos de Zustand en tests, para verificar el flujo seguro de TOTP con `otplib` y para mantener consistente la invalidación de queries/mutaciones de la nueva UI de sesiones con TanStack Query.
+## 2. Veredicto de produccion
 
-## 2. Veredicto de producción
+**Lista para produccion pequena o piloto controlado**, usando como criterio una app medica pequena de 1 a 5 usuarios y no un SaaS masivo.
 
-**Lista para producción**, usando como criterio una app médica pequeña de 1 a 5 usuarios y no un SaaS masivo.
+Justificacion concreta:
 
-Justificación concreta:
+- El fallo clinico reproducible en el export de `ordenes` quedo corregido y validado en unitarias y e2e.
+- Las compuertas minimas de calidad que estaban rotas en la auditoria inicial quedaron verdes: backend lint, backend test, backend typecheck/build, backend e2e principal y frontend test.
+- La seguridad base esta bien encaminada y ahora el arranque en produccion falla si no se confirma `ENCRYPTION_AT_REST_CONFIRMED=true`.
 
-- Los hallazgos altos detectados en la primera pasada y que sí bloqueaban una salida prudente quedaron corregidos en código:
-  - revocación de sesiones en cambios/reset administrativos de contraseña,
-  - enforcement server-side del timeout de inactividad,
-  - cifrado en reposo de `totpSecret`,
-  - validación más estricta de `SETTINGS_ENCRYPTION_KEY`,
-  - estabilidad de la suite frontend,
-  - consistencia de progreso en la atención,
-  - simplificación del flujo administrativo de cambio de contraseña,
-  - autogestión básica de sesiones activas con cierre remoto,
-  - y cobertura e2e explícita para inactividad real y revocación de sesiones.
-- La matriz técnica importante quedó verde: typecheck, lint, tests backend, tests frontend, e2e backend y build.
-- Lo que queda abierto es más propio de endurecimiento razonable, UX clínica y deuda técnica que de bloqueantes reales para un consultorio chico.
+Matiz importante:
 
-Reserva importante:
+- Esto no elimina la disciplina operativa necesaria: el host debe estar realmente cifrado, los secretos deben ser reales y el backup/restore debe haberse probado en el entorno final.
+- Siguen existiendo riesgos menores o de endurecimiento, pero ya no veo un bloqueo alto o medio que por si solo impida una salida pequena prudente.
 
-Este veredicto asume un despliegue simple pero prolijo: secretos reales, HTTPS, backup verificable, restore drill ejecutado y host razonablemente endurecido. Si se desplegara con placeholders, sin backups o sin cifrado básico del entorno, el veredicto deja de aplicar.
+## 3. Hallazgos criticos y altos
 
-## 3. Hallazgos críticos y altos
+No confirme hallazgos **criticos**. Si confirme los siguientes **altos**:
 
-No quedan hallazgos **críticos** ni **altos** abiertos después de la pasada de remediación del 2026-04-22.
+| Severidad | Titulo | Archivo(s) afectados | Descripcion | Impacto | Recomendacion | Esfuerzo |
+| --- | --- | --- | --- | --- | --- | --- |
+| Alto | Export de ordenes clinicas devuelve 500 | `backend/src/encounters/encounters-pdf.focused.renderers.ts`, `backend/src/encounters/encounters-pdf.service.ts`, `backend/test/suites/encounters/encounters-followup-export-review.e2e-group.ts` | La suite `app.e2e-spec.ts` falla en `GET /api/encounters/:id/export/document/ordenes`. En el renderer hay un typo: valida `trat.examenesEstructurados` pero luego itera `trat.examenesEstructuradas`. | Rompe una salida clinica real para emitir ordenes/examenes. En consulta real esto bloquea un uso importante del sistema. | Corregir el typo, agregar test unitario/focused e2e para los 3 documentos (`receta`, `ordenes`, `derivacion`) y no volver a liberar si ese endpoint responde 500. | Bajo |
+| Alto | El cifrado en reposo del host no es obligatorio al arrancar en produccion | `backend/src/main.helpers.ts`, `docs/security-and-permissions.md`, `docs/environment.md`, `docker-compose.yml` | Si `ENCRYPTION_AT_REST_CONFIRMED` no esta en `true`, el backend solo emite warning y sigue arrancando. DB SQLite, adjuntos y backups quedan dependiendo totalmente del cifrado del host. | En desarrollo no es un incidente real porque los datos son de prueba. En produccion, si se despliega asi sin disco cifrado, una intrusion o acceso al host expone datos clinicos y adjuntos. | Exigir este control en el checklist de salida como condicion operativa obligatoria. Si se quiere endurecer mas, fallar el arranque en produccion cuando falte esa confirmacion documentada. | Bajo-Medio |
 
-Hallazgos altos corregidos en esta pasada:
-
-| Severidad original | Estado | Título | Archivo(s) afectados | Descripción | Impacto residual | Recomendación restante | Esfuerzo restante |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Alto | Corregido | Cambios administrativos de contraseña no revocaban sesiones activas | `backend/src/users/users.service.ts`, `backend/src/users/users.service.spec.ts`, `frontend/src/app/(dashboard)/ajustes/SessionManagementSection.tsx`, `backend/src/auth/auth.controller.ts` | Ahora tanto `update()` con cambio de contraseña como `resetPassword()` rotan versión de refresh token y revocan sesiones activas del usuario; además el usuario ya puede listar y cerrar sesiones remotas desde Ajustes. | Muy bajo | Como mejora incremental, sumar cierre masivo de “otras sesiones” en un solo clic. | Bajo |
-| Alto | Corregido | El timeout de inactividad solo vivía en frontend | `backend/src/auth/auth-refresh-flow.ts`, `backend/src/auth/auth.service.ts`, `backend/src/users/users-session.service.ts`, `backend/test/suites/auth.e2e-suite.ts` | El refresh ahora consulta la política efectiva de sesión, compara `lastUsedAt`, revoca la sesión vencida y rechaza el refresh por inactividad. La cobertura ya incluye prueba e2e del flujo real. | Muy bajo | Opcional: agregar también una prueba browser end-to-end completa del redirect por inactividad en frontend. | Bajo |
-| Alto | Corregido | El secreto TOTP quedaba almacenado en texto plano | `backend/src/auth/auth-totp-secret.ts`, `backend/src/auth/auth-totp.service.ts`, `backend/src/auth/auth-2fa-flow.ts`, specs asociadas | La semilla TOTP ahora se cifra con la infraestructura existente de secretos de settings; la lectura mantiene compatibilidad con secretos legacy en texto plano. | Bajo | Considerar una migración batch opcional para reencriptar usuarios legacy ya existentes. | Bajo |
-| Alto | Corregido | La protección contra placeholders de `SETTINGS_ENCRYPTION_KEY` era incompleta | `backend/src/main.ts` | El startup check ahora bloquea explícitamente `replace-with-a-secure-settings-key`. | Muy bajo | Mantener el mismo criterio en cualquier futura variable sensible. | Bajo |
+Estado 2026-04-23: **ambos hallazgos altos quedaron corregidos**.
 
 ## 4. Bugs e inconsistencias funcionales
 
-### 4.1 Suite frontend no confiable como compuerta de release
+### 4.1 Export clinico roto para ordenes
 
-**Corregido.**
+- Hecho comprobado: la suite integrada del backend falla en `GET /api/encounters/:id/export/document/ordenes -> 500`.
+- Evidencia tecnica: typo en `renderFocusedEncounterPdf()` dentro de `backend/src/encounters/encounters-pdf.focused.renderers.ts`.
+- Relevancia funcional: una consulta real puede necesitar imprimir o entregar ordenes de examenes aunque el resto de la atencion funcione.
+- Estado 2026-04-23: **resuelto**. El typo fue corregido y la suite integrada paso en verde.
 
-- `frontend/src/__tests__/setup.ts` ahora hace cleanup global y resetea `localStorage`, `sessionStorage` y stores persistidos relevantes entre tests.
-- Resultado comprobado: `npm --prefix frontend run test` quedó verde completo.
+### 4.2 La suite backend queda en rojo por un archivo placeholder que Jest sigue descubriendo
 
-### 4.2 Inconsistencia visual de progreso en la atención
+- `backend/src/common/__tests__/dto-validation.spec.ts` ya no contiene tests: solo comentarios que dicen que fue dividido.
+- `npm --prefix backend run test` falla con `Your test suite must contain at least one test`.
+- Esto no parece bug de producto, pero si una regression clara del flujo de mantenimiento despues del split de specs.
+- Estado 2026-04-23: **resuelto**. El archivo placeholder fue eliminado y la suite backend completa paso en verde.
 
-**Corregido.**
+### 4.3 La suite frontend del flujo de cierre esta rota por un mock desactualizado
 
-- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizardDerived.ts` ahora cuenta como resueltas tanto las secciones `completed` como `notApplicable`, igual que la barra lateral.
-- Resultado: el progreso mostrado en header y rail vuelve a ser consistente en consulta real.
+- `npm --prefix frontend run test` falla con 10 tests en `frontend/src/__tests__/app/atencion-cierre.test.tsx`.
+- La causa visible no es un bug productivo directo: el mock de `@/lib/clinical` solo exporta `buildGeneratedClinicalSummary`, pero el componente `frontend/src/app/(dashboard)/atenciones/[id]/EncounterClinicalSummaryCard.tsx` ahora tambien usa `splitHistoryField`.
+- Impacto: se pierde confianza automatica justo en el flujo de cierre de atencion, que es uno de los mas sensibles.
+- Estado 2026-04-23: **resuelto**. El mock ahora reutiliza el modulo real y la suite frontend completa paso en verde.
 
-### 4.3 Dos flujos administrativos de contraseña con semánticas distintas
+### 4.4 Lint backend roto por refactors incompletos
 
-**Corregido parcialmente y simplificado.**
+- `npm --prefix backend run lint:check` falla con 75 errores, casi todos por imports o variables no usados.
+- Hay errores en codigo de dominio y tambien en suites (`alerts`, `analytics`, `patients`, `auth`, `encounters`, etc.).
+- Esto no bloquea la app en runtime, pero si muestra que el release gate de higiene esta caido.
+- Estado 2026-04-23: **resuelto en esta ronda**. `npm --prefix backend run lint:check` quedo en verde tras limpiar imports y variables residuales.
 
-- Se quitó de la edición de usuario el campo de cambio directo de contraseña en `frontend/src/app/(dashboard)/admin/usuarios/page.tsx` y `useUsuarios.ts`.
-- Quedó como camino administrativo principal el reset temporal con `mustChangePassword`, que es más coherente para una app chica y reduce ambigüedad operativa.
-- Además, el backend ahora revoca sesiones en cualquier mutación administrativa de contraseña.
+### 4.5 Warning de hooks en frontend
 
-### 4.4 Comentario de seguridad y comportamiento real no coinciden en `RolesGuard`
-
-**Corregido a nivel documental, no de comportamiento.**
-
-- El comentario engañoso se actualizó en `backend/src/common/guards/roles.guard.ts`.
-- El comportamiento sigue siendo backward-compatible: si un endpoint autenticado no declara `@Roles()`, pasa el usuario autenticado.
-- No encontré evidencia de exposición actual por esto, pero sigue siendo un footgun de mantenimiento para futuras rutas.
-
-### 4.5 Estado funcional después de la remediación
-
-No quedaron bugs altos/medios confirmados en los flujos auditados. Los pendientes actuales están más del lado de UX clínica incremental, endurecimiento operativo y deuda técnica.
-
-### 4.6 Autogestión básica de sesiones
-
-**Corregido e implementado.**
-
-- El backend ahora expone `GET /api/auth/sessions` y `DELETE /api/auth/sessions/:id` para la propia cuenta autenticada.
-- El frontend muestra la sesión actual, lista sesiones remotas y permite cerrarlas desde Perfil y seguridad.
-- El `access_token` ahora carga `sid`, lo que permite identificar correctamente la sesión actual sin depender del refresh token.
-- Resultado comprobado: cobertura frontend y e2e backend para listado, revocación remota e imposibilidad de refrescar una sesión revocada.
-
-### 4.7 Cierre rápido de otras sesiones y resumen clínico fijo
-
-**Corregido e implementado.**
-
-- El backend ahora expone `DELETE /api/auth/sessions/others` para cerrar todas las sesiones de la cuenta excepto la actual.
-- La tarjeta de sesiones en Ajustes agrega una acción de un clic para cerrar otras sesiones y refresca la lista en el acto.
-- La atención ahora muestra un bloque fijo con alergias, medicación habitual, problemas activos y alertas relevantes antes del editor de secciones.
-- En el render clínico visible se reemplazaron varios casts laxos por accesos tipados y helpers de sección.
+- `npm --prefix frontend run lint` deja un warning en `frontend/src/app/(dashboard)/DashboardClinicalView.tsx` por dependencias de `useMemo`.
+- No lo considero bloqueante, pero es una senal de que el estado de UI puede no estar tan estabilizado como parece a simple vista.
+- Estado 2026-04-23: **resuelto**. `recentEncounters` quedo estabilizado y `npm --prefix frontend run lint` paso en verde.
 
 ## 5. Seguridad y privacidad
 
-### 5.1 Riesgo observado hoy en desarrollo
+### Riesgo observado hoy en desarrollo
 
-- No traté los datos del entorno como incidente real porque el contexto indica que son ficticios o sintéticos.
-- No vi secretos sensibles versionados de forma obvia en archivos tracked.
-- El riesgo más importante del entorno de desarrollo ya no es una brecha concreta, sino la posibilidad de arrastrar malas prácticas al deployment real si no se replica el mismo nivel de guardrails.
+- No trate los datos visibles del entorno como incidente real porque el contexto indica que son ficticios/sinteticos.
+- No vi evidencia de secretos reales trackeados en git: `.env` esta ignorado en `.gitignore` y `.env.example` usa placeholders.
+- El smoke browser confirma que una ruta privada redirige a login cuando no hay sesion valida.
 
-### 5.2 Riesgos potenciales si esto se despliega así en producción
+### Lo que esta bien resuelto
 
-#### Auth y sesiones
+- Cookies `HttpOnly`, `sameSite: 'strict'` y `secure` en produccion: `backend/src/auth/auth.controller.ts`.
+- Frontend same-origin por `/api` con rewrite server-side: `frontend/next.config.js`.
+- Guardrails de arranque para `JWT_SECRET`, `JWT_REFRESH_SECRET`, `BOOTSTRAP_TOKEN`, placeholders y SQLite en produccion: `backend/src/main.helpers.ts`.
+- Sesiones persistidas y timeout de inactividad aplicado en refresh: `backend/src/auth/auth-refresh-flow.ts`, `backend/prisma/schema.prisma` (`UserSession`).
+- Auditoria con hash chain y verificacion disponible: `backend/src/audit/audit.service.ts`, `backend/src/audit/audit.controller.ts`.
 
-- Corregido: cambio/reset administrativo de contraseña ahora revoca sesiones.
-- Corregido: el timeout de inactividad ya no depende solo del browser.
-- Corregido: existe ya una UI visible de sesiones activas y cierre remoto por sesión.
-- Corregido: ahora existe también una acción masiva de “cerrar las demás sesiones” desde Ajustes.
+### Riesgos potenciales si se despliega asi en produccion
 
-#### 2FA
+#### 5.1 Cifrado en reposo del host
 
-- Corregido: `totpSecret` ahora se guarda cifrado en reposo.
-- La implementación quedó además backward-compatible con secretos legacy sin cifrar, lo cual reduce riesgo de corte durante despliegue.
+- La app ya no advierte solamente: ahora falla al arrancar en produccion si el operador no confirma `ENCRYPTION_AT_REST_CONFIRMED=true`.
+- Para una EMR chica esto no requiere un sistema sofisticado: basta con un host/volumen cifrado y una operacion disciplinada. Pero si eso falta en la realidad del despliegue, el riesgo sigue siendo real.
 
-#### Secrets y configuración sensible
+#### 5.2 `RolesGuard` es fail-open para endpoints autenticados sin `@Roles()`
 
-- Corregido: el startup check ahora rechaza también el placeholder de ejemplo para `SETTINGS_ENCRYPTION_KEY`.
-- Sigue siendo cierto que la app no puede garantizar por sí sola cifrado del filesystem del host. En producción con SQLite, uploads y backups conviene asumir que el host debe estar cifrado o al menos muy bien controlado.
+- En `backend/src/common/guards/roles.guard.ts`, si un endpoint autenticado no declara `@Roles()` ni `@Public()`, el guard devuelve `true` y deja la restriccion solo en `JwtAuthGuard`.
+- Estado 2026-04-23: **endurecido**. La unica ruta real que dependia de ese fallback en esta auditoria, `GET /api/settings/session-policy`, ya quedo decorada explicitamente.
+- Estado 2026-04-23: **endurecido**. `backend/src/common/__tests__/controller-roles.spec.ts` ahora recorre los controladores y falla si encuentra una ruta con `JwtAuthGuard` + `RolesGuard` sin `@Roles()`, sin `@Public()` y sin `AdminGuard`.
+- El fallback sigue existiendo en runtime, pero dejo de ser un fallo silencioso de mantenimiento porque CI/test lo detecta apenas aparezca una nueva ruta mal decorada.
 
-#### Permisos
+#### 5.3 Refresh token tambien aceptado por body por compatibilidad
 
-- La base FE/BE de permisos y alcance clínico sigue siendo uno de los puntos fuertes del proyecto.
-- `JwtStrategy` vuelve a cargar el usuario desde base en cada request, lo cual reduce confianza en claims viejos.
-- Riesgo de diseño a futuro: `RolesGuard` sigue siendo fail-open para usuarios autenticados si una ruta nueva se olvida de declarar `@Roles()`. No lo vi explotado hoy, pero conviene mantener disciplina fuerte de decoradores.
+- Estado anterior: `backend/src/auth/auth.controller.ts` tomaba `refresh_token` desde cookie o desde body.
+- Estado 2026-04-23: **resuelto**. El refresh ya es cookie-only, que es mas coherente con el modelo same-origin actual.
 
-### 5.3 Cosas bien resueltas
+## 6. Modelo de datos e integridad clinica
 
-- Cookies `HttpOnly`, `sameSite: 'strict'` y sin Bearer fallback en `JwtStrategy`.
-- Patrón same-origin `/api` documentado y mantenido.
-- Guardrails de arranque razonables en `backend/src/main.ts`.
-- Existe auditoría con hash chain y catálogo de razones.
-- Tras la remediación, el manejo de sesiones y 2FA quedó mucho más alineado con el nivel de riesgo esperable para una EMR chica.
+### Lo que esta bien
 
-## 6. Modelo de datos e integridad clínica
+- El modelo base es razonable para una EMR chica: `Patient`, `PatientHistory`, `Encounter`, `EncounterSection`, `Attachment`, `InformedConsent`, `ClinicalAlert`, `PatientProblem`, `EncounterTask`, `UserSession`.
+- Hay validaciones compartidas y consistentes para campos de paciente tanto en backend como en frontend: `shared/patient-field-constraints.ts`, DTOs de `patients`, schemas Zod en `frontend/src/app/(dashboard)/pacientes/...`.
+- `UpdateSectionDto` pone limites concretos al payload de secciones: tipo objeto, maximo de claves, maximo serializado y razon minima para `notApplicable`.
 
-Estado general: **razonablemente bueno para una EMR chica**. El modelo cubre pacientes, antecedentes, encuentros, problemas, tareas, consentimientos, alertas, adjuntos, firmas y exportes longitudinales.
+### Riesgos o limitaciones
 
-Puntos fuertes:
+#### 6.1 Mucha informacion clinica sigue guardandose como texto/JSON serializado
 
-- `Patient`, `PatientHistory`, `Encounter`, `EncounterSection`, `PatientProblem`, `EncounterTask`, `InformedConsent`, `ClinicalAlert` y `Attachment` forman un conjunto coherente para primera producción chica.
-- Hay exporte longitudinal PDF y paquete ZIP clínico por paciente: `backend/src/patients/patients.controller.ts`, `backend/src/patients/patients-export-bundle.service.ts`.
-- Hay validaciones sanas para payload de secciones y motivo de “no aplica”: `backend/src/encounters/dto/update-section.dto.ts`.
+- `PatientHistory` guarda varios campos como `String?`.
+- `EncounterSection.data` se guarda como `String` serializado en Prisma.
+- Esto es pragmatico y valido para este tamano, pero hace mas fragil la evolucion de schemas, la explotacion analitica y la validacion fuerte a largo plazo.
 
-Riesgos y limitaciones vigentes:
+#### 6.2 Los outputs oficiales son mas fragiles que el modelo base
 
-- `PatientHistory` guarda alergias y medicación habitual como texto libre. Para una app pequeña es aceptable, pero limita alertas, filtros y chequeos futuros.
-- `EncounterSection.data` es JSON serializado en `String` con `schemaVersion`. Es flexible y práctico, pero exige disciplina en tests de compatibilidad cuando cambien estructuras clínicas.
-- Varias capas de formateo/export usan `any` en datos clínicos. Ejemplos: `backend/src/patients/patients-format.ts`, `backend/src/patients/patients-pdf.service.ts`, `backend/src/encounters/encounters-pdf.renderers.ts`. Eso baja la seguridad de tipo justo en superficies sensibles.
+- El bug actual de `ordenes` no nace en Prisma ni en permisos, sino en la ultima capa de render de documento.
+- Conclusion: la integridad del dato base esta mejor cuidada que la integridad de sus salidas oficiales. Para una EMR, ambos importan.
 
-No encontré evidencia de corrupción de datos ya ocurriendo. Sí veo una combinación de flexibilidad + tipado laxo que merece más tests focalizados en exportes, impresión y rehidratación de secciones.
+#### 6.3 SQLite es aceptable aqui, pero la recuperabilidad no puede quedar solo en “deberia funcionar”
 
-## 7. Mantenibilidad y deuda técnica
+- El repo trae `sqlite-backup`, `sqlite-monitor`, `sqlite-ops-runner` y `sqlite-restore-drill`, lo cual esta muy bien para este tamano.
+- Para salir a produccion chica, lo importante no es cambiar de motor “por enterprise”, sino verificar en el host real que backup y restore drill corran de verdad y que adjuntos queden incluidos.
 
-### 7.1 Fortaleza general
+## 7. Mantenibilidad y deuda tecnica
 
-- La arquitectura por dominios está clara.
-- La documentación operativa es superior al promedio de proyectos chicos.
-- Backend con muy buen nivel de pruebas: unitarias, service specs y e2e stateful realistas.
-- Después de esta pasada, el frontend también volvió a tener una suite estable como señal de calidad.
-- Los nuevos flujos de sesión no quedaron solo en unit tests: también tienen cobertura e2e real.
-- El nuevo resumen clínico fijo quedó cubierto al menos por typecheck y por la suite de alertas clínicas que comparte parte de su derivación.
+### Hallazgos
 
-### 7.2 Deuda técnica relevante
+- El propio repo lleva un inventario de archivos grandes en `FILES_OVER_300_LINES.md` y aun quedan varios pendientes, sobre todo en frontend y suites e2e.
+- Hay senales de refactor incompleto: el archivo `backend/src/common/__tests__/dto-validation.spec.ts` quedo como stub, pero sigue dentro del patron de descubrimiento de Jest.
+- La suite frontend del flujo de cierre depende de mocks demasiado acoplados a imports internos (`@/lib/clinical`), por eso se rompio sin que fallara el build.
+- El lint backend roto por 75 errores indica que la higiene automatica no esta integrada como verdadera compuerta de merge/release.
 
-#### Archivos demasiado grandes para el estándar del repo
+### Balance
 
-El propio `AGENTS.md` pide mantener archivos manuales cerca de 300 líneas y marca 500 como límite duro. Hoy hay varios archivos importantes por encima de 400:
-
-- `frontend/src/components/EncounterDrawer.tsx`
-- `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts`
-- `backend/src/patients/patients-format.ts`
-- `backend/src/attachments/attachments.service.ts`
-- `backend/src/users/users.service.ts`
-
-No es un desastre, pero sí complica auditar y tocar flujos clínicos con confianza.
-
-#### Tipado laxo en superficies clínicas
-
-Los `any` en formateadores, PDF y summary builders son deuda técnica real. En una EMR chica no hace falta sobrediseñar, pero sí conviene blindar mejor los puntos donde se transforma historia clínica para mostrar o exportar.
-
-#### Auditoría con riesgo de carrera teórica
-
-Hipótesis razonable, no bug reproducido.
-
-- `backend/src/audit/audit.service.ts` calcula el hash leyendo el último registro y luego insertando el nuevo.
-- Si dos writes concurrentes leen el mismo `previousHash`, la cadena podría bifurcarse.
-
-Para 1 a 5 usuarios el riesgo operativo es bajo, pero si se quiere usar la cadena como integridad fuerte conviene serializar mejor ese paso o al menos añadir test concurrente.
-
-#### Cobertura browser todavía menos madura que la cobertura backend
-
-- El backend queda muy bien cubierto.
-- El frontend unit/integration quedó verde.
-- Sigue faltando una pasada browser realmente confiable para login, atención, export y logout, idealmente con Playwright estable contra el stack completo.
+- No veo deuda tecnica “terminal”.
+- Si veo deuda de mantenimiento rapido: refactors utiles pero aun no del todo consolidados con herramientas y tests.
 
 ## 8. Funcionalidades sugeridas alineadas con Anamneo
 
 ### Imprescindibles
 
-- Exportación clínica simple y verificable por paciente.
-  Valor: ya hay exportes fuertes; conviene asegurar un formato muy fácil de entregar o archivar fuera del sistema ante contingencias.
+1. **Checklist pre-consulta para asistente**
+   Valor real: evitar pasar a consulta un paciente con datos demograficos incompletos, adjuntos faltantes o consentimientos pendientes.
 
-### Muy útiles
+2. **Panel simple de pendientes clinicos y operativos**
+   Valor real: para 1 a 5 usuarios, un tablero corto con atenciones abiertas, pacientes pendientes de verificacion y seguimientos vencidos resuelve mas que cualquier dashboard complejo.
 
-- Medicación habitual estructurada a nivel paciente.
-  Valor: ya quedó estructurada en el historial maestro con lista de medicamentos y detalle clínico, y además se ve separada en los resúmenes longitudinales y de atención.
-- Exportación CSV desde analítica clínica.
-  Valor: ya quedó implementada para la cohorte filtrada de casos y para el resumen agregado; el siguiente paso natural, si hace falta, sería un export entregable más clínico o por paciente.
-- Exportación de reporte Markdown desde analítica clínica.
-  Valor: ya quedó implementada como salida más legible para compartir fuera de la UI, sin perder la trazabilidad del read model.
+### Muy utiles
+
+1. **Plantillas de texto por medico para motivos/controles frecuentes**
+   Valor real: acelera la carga sin aumentar complejidad tecnica.
+
+2. **Previsualizacion segura de adjuntos PDF/imagen dentro de la atencion**
+   Valor real: menos cambio de contexto y menos descargas innecesarias durante la consulta.
+
+3. **Exportacion administrativa simple por rango de fechas y medico**
+   Valor real: soporte operativo y cierre mensual sin tocar base ni scripts manuales.
 
 ### Opcionales
 
-- Plantillas clínicas contextuales por motivo frecuente o diagnóstico.
-  Valor: acelera la consulta sin rehacer arquitectura.
-- Mejoras de UX en conflictos/offline.
-  Valor: ya existe autosave y cola offline; hacer más explícito el estado daría mucha tranquilidad en uso diario.
-- Paquete de exportación “entregable al paciente” más liviano.
-  Valor: complementa el bundle técnico completo con un formato más práctico para derivaciones o continuidad asistencial.
+1. **Comparacion de versiones de una seccion**
+   Valor real: mejora la auditabilidad clinica cuando una nota cambia varias veces.
+
+2. **Busqueda avanzada de pacientes/atenciones**
+   Valor real: util si el volumen crece, pero no la pondria antes que los quick wins anteriores.
 
 ## 9. Quick wins
 
-- Tipar mejor los formateadores/exportes clínicos donde hoy hay `any`.
-- Partir uno o dos archivos muy grandes del flujo de atención para bajar riesgo de regresión.
-- Extender el mismo patrón de historial estructurado a otros campos textuales del paciente si se quiere seguir reduciendo texto libre. Medicación habitual ya quedó cubierta.
-- Sumar un smoke browser corto para login, atención, export y logout sobre el stack completo.
+1. [x] Corregir `trat.examenesEstructuradas` -> `trat.examenesEstructurados` en el renderer de PDF focalizado.
+2. [x] Sacar `backend/src/common/__tests__/dto-validation.spec.ts` del patron de tests o convertirlo en un archivo que no matchee Jest.
+3. [x] Actualizar el mock de `@/lib/clinical` en `frontend/src/__tests__/app/atencion-cierre.test.tsx` para incluir `splitHistoryField` y helpers relacionados.
+4. [x] Limpiar los 75 errores de lint backend; muchos eran unused imports/variables residuales.
+5. [x] Agregar una compuerta minima de release que exija verdes: backend lint, backend test, frontend test, backend e2e principal y smoke Playwright.
 
-## 10. Checklist mínimo antes de producción
+## 10. Checklist minimo antes de produccion
 
-- Desplegar con secretos reales y no placeholders.
-- Confirmar HTTPS y cookies seguras en el entorno final.
-- Confirmar backup automático y restore drill verificable en el host objetivo.
-- Hacer una pasada manual breve de login, paciente, atención, export y logout en el deployment real.
-- Verificar que el entorno final tenga cifrado o control fuerte del host para SQLite, adjuntos y backups.
+1. Dejar verde el export de `ordenes` y revalidar `receta` + `derivacion`.
+2. Dejar verdes `npm --prefix backend run lint:check`, `npm --prefix backend run test`, `npm --prefix frontend run test` y `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts`.
+3. Confirmar secretos reales, no placeholders, en el entorno objetivo.
+4. Confirmar cifrado del host/volumen para DB, adjuntos y backups, y dejar `ENCRYPTION_AT_REST_CONFIRMED=true` solo despues de verificarlo.
+5. Ejecutar un backup real y un restore drill real en el host final.
+6. Hacer una pasada manual corta de login -> paciente -> atencion -> cierre -> exportes -> logout.
 
 ## 11. Supuestos y limitaciones
 
-- Asumí que los datos del entorno de desarrollo son ficticios, como indicó el contexto.
-- No tomé la mera existencia de fichas, usuarios o pacientes de prueba como incidente de privacidad real.
-- No pude validar una sesión completa con Playwright hasta el final en este entorno; por eso no marqué bugs visuales no reproducidos como hechos.
-- El arranque directo manual quedó condicionado por puertos ya ocupados por procesos existentes; verifiqué salud del backend y respuesta del frontend vía `curl`.
-- No audité infraestructura productiva real, certificados TLS, cifrado de disco del host ni políticas reales de backup del deployment final. Solo audité lo que el repositorio implementa o documenta.
+- Asumi que los datos de desarrollo son ficticios y no los trate como incidente de privacidad real.
+- No inspeccione valores reales de secretos del `.env` local para no exponer material sensible innecesariamente.
+- No audite infraestructura productiva real, TLS real del despliegue ni cifrado efectivo del host; solo lo que el repositorio implementa o documenta.
+- No ejecute la suite completa de Playwright clinico; si ejecute el smoke e2e, que paso en verde.
+- No levante `docker-compose` completo porque ya pude validar build y smoke integrado con el harness del repo.
 
-## Balance final
+## Cierre
 
 Lo mejor de Anamneo hoy:
 
-- buena base técnica para app pequeña,
-- permisos y alcance clínico razonables,
-- exportes clínicos reales,
-- backend bien probado,
-- y una remediación efectiva de los principales riesgos de sesión/2FA/test suite.
+- buena base tecnica para una EMR chica,
+- permisos clinicos bastante explicitados,
+- operaciones SQLite mas maduras de lo esperable para un proyecto pequeno,
+- auth/sesiones razonables,
+- y documentacion util para operar sin sobredimensionar el sistema.
 
-Lo que todavía conviene mejorar pronto:
+Lo que falta para una salida prudente:
 
-- cierre masivo opcional de otras sesiones,
-- UX clínica más resumida durante la consulta,
-- tipado más fuerte en exportes y render clínico,
-- y una pasada browser más sólida sobre el stack completo.
+- sostener estas validaciones como compuerta de release y no solo como verificacion manual puntual,
+- asegurar que el despliegue real tenga secretos, backup y cifrado del host bien resueltos,
+- y endurecer algunos detalles menores de seguridad y mantenibilidad que ya no son bloqueo alto o medio.

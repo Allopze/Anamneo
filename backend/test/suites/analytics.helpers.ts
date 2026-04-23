@@ -1,8 +1,7 @@
 export const ANALYTICS_DIAGNOSIS_LABEL = 'Analitica E2E Dolor Abdominal';
 export const ANALYTICS_MEDICATION_LABEL = 'Paracetamol Analitica E2E';
 
-import * as bcrypt from 'bcrypt';
-import { cookieHeader, extractCookies, prisma, req, state } from '../helpers/e2e-setup';
+import { cookieHeader, req, state } from '../helpers/e2e-setup';
 
 export async function markIdentificationSectionComplete(encounterId: string) {
   const encounterRes = await req()

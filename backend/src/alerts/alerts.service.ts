@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateAlertDto } from './dto/alert.dto';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
-import { assertPatientAccess, buildAccessiblePatientsWhere } from '../common/utils/patient-access';
+import { assertPatientAccess } from '../common/utils/patient-access';
 import { getClinicalAlertMessages } from '../../../shared/vital-sign-alerts';
 import {
   assertEncounterMatchesPatient,

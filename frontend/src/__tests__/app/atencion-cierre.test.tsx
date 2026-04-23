@@ -69,9 +69,13 @@ jest.mock('@/lib/encounter-draft', () => ({
   writeEncounterDraft: jest.fn(),
 }));
 
-jest.mock('@/lib/clinical', () => ({
-  buildGeneratedClinicalSummary: jest.fn(() => 'Resumen sugerido de cierre'),
-}));
+jest.mock('@/lib/clinical', () => {
+  const actual = jest.requireActual('@/lib/clinical');
+  return {
+    ...actual,
+    buildGeneratedClinicalSummary: jest.fn(() => 'Resumen sugerido de cierre'),
+  };
+});
 
 jest.mock('@/components/ClinicalAlerts', () => () => null);
 jest.mock('@/components/TemplateSelector', () => () => null);

@@ -1,4 +1,4 @@
-import { state, prisma, req, extractCookies, cookieHeader } from '../helpers/e2e-setup';
+import { state, prisma, req, cookieHeader } from '../helpers/e2e-setup';
 import {
   ENCOUNTER_SECTION_ORDER,
   getEncounterSectionSchemaVersion,

@@ -1,7 +1,6 @@
 import { PrismaService } from '../prisma/prisma.service';
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { validateRut } from '../common/utils/helpers';
 import { isDateOnlyAfterToday, calculateAgeFromBirthDate, parseDateOnlyToStoredUtcDate } from '../common/utils/local-date';
 import { normalizeNullableEmail, normalizeNullableString } from './patients-format';
 

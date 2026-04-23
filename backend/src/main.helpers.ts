@@ -89,11 +89,9 @@ export function assertSafeConfig(configService: ConfigService) {
   if (isProduction) {
     const encryptionAtRestConfirmed = configService.get<string>('ENCRYPTION_AT_REST_CONFIRMED', 'false') === 'true';
     if (!encryptionAtRestConfirmed) {
-      console.warn(JSON.stringify({
-        level: 'warn',
-        event: 'encryption_at_rest_not_confirmed',
-        message: 'ENCRYPTION_AT_REST_CONFIRMED is not set. Clinical attachments and database backups are stored unencrypted on disk. If the host filesystem is not encrypted (e.g. LUKS/dm-crypt), a host compromise exposes clinical data. Set ENCRYPTION_AT_REST_CONFIRMED=true after enabling filesystem-level encryption.',
-      }));
+      throw new Error(
+        'ENCRYPTION_AT_REST_CONFIRMED=true is required in production after verifying filesystem-level encryption for the database, uploads, and backups volumes.',
+      );
     }
   }
 }

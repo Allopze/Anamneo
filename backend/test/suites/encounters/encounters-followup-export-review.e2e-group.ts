@@ -2,7 +2,6 @@
 
 import { state, req, cookieHeader, getApp } from '../../helpers/e2e-setup';
 import { MEDICO_ONLY_SECTION_KEYS, parseBinaryResponse } from './encounters-followup.helpers';
-import { extractDateOnlyIso, todayLocalDateOnly } from '../../../src/common/utils/local-date';
 import { getEncounterSectionSchemaVersion } from '../../../src/common/utils/encounter-section-meta';
 import { PatientsExportBundleService } from '../../../src/patients/patients-export-bundle.service';
 

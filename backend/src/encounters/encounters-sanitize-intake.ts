@@ -1,11 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
-import { PREVISIONES, SEXOS } from '../common/types';
 import { sanitizePatientHistoryPayload } from '../common/utils/patient-history';
 import {
   sanitizeText,
   sanitizeTextListField,
 } from './encounters-sanitize-primitives';
-import { sanitizeIdentificacionData } from './encounters-sanitize-intake.helpers';
 
 const CHOSEN_MODES = ['AUTO', 'MANUAL'] as const;
 const ASOCIACION_COMIDA = ['SI', 'NO', 'NO_CLARO'] as const;

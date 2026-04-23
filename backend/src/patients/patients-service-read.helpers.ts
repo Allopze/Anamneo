@@ -1,4 +1,3 @@
-import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RequestUser, getEffectiveMedicoId } from '../common/utils/medico-id';
 import { exportPatientsCsvReadModel } from './patients-read-side';

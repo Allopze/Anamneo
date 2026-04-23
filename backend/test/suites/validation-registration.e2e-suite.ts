@@ -1,8 +1,4 @@
-import { state, prisma, req, extractCookies, cookieHeader } from '../helpers/e2e-setup';
-import {
-  ENCOUNTER_SECTION_ORDER,
-  getEncounterSectionSchemaVersion,
-} from '../../src/common/utils/encounter-section-meta';
+import { state, req, cookieHeader } from '../helpers/e2e-setup';
 
 export function validationRegistrationSuite() {
   describe('Validation', () => {

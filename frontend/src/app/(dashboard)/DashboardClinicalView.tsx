@@ -47,12 +47,12 @@ export default function DashboardClinicalView({
   overdueTasks,
   onDismissOverdueAlert,
 }: DashboardClinicalViewProps) {
-  const pendingEncounters = useMemo(
-    () => data?.recent.filter((e) => e.status === 'EN_PROGRESO') ?? [],
-    [data],
-  );
+  const recentEncounters = useMemo(() => data?.recent ?? [], [data?.recent]);
 
-  const recentEncounters = data?.recent ?? [];
+  const pendingEncounters = useMemo(
+    () => recentEncounters.filter((e) => e.status === 'EN_PROGRESO'),
+    [recentEncounters],
+  );
 
   const patientMap = useMemo(() => {
     const map = new Map<string, {

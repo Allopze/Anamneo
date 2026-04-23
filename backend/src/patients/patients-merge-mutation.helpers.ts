@@ -1,4 +1,3 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { PatientHistory, Prisma } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { parseStoredJson } from '../common/utils/encounter-sections';

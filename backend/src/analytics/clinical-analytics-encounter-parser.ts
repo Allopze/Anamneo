@@ -11,7 +11,6 @@ import {
   aggregateTreatmentOutcome,
   isDefined,
   resolveStructuredResponse,
-  resolveAssociatedConditionLabels,
   uniqueBy,
 } from './clinical-analytics-encounter-utils';
 import {

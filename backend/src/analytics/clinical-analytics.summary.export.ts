@@ -5,8 +5,6 @@ import type { RequestUser } from '../common/utils/medico-id';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { ClinicalAnalyticsQueryDto } from './dto/clinical-analytics-query.dto';
 
-type SummaryResult = Awaited<ReturnType<typeof getClinicalAnalyticsSummaryReadModel>>;
-
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return null;

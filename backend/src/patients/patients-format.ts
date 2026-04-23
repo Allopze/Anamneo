@@ -7,18 +7,17 @@ import { ENCOUNTER_SECTION_LABELS, ENCOUNTER_SECTION_ORDER } from '../common/uti
 import { SectionKey } from '../common/types';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
 import {
-  decoratePatient,
-  formatAdminSummary,
-  formatProblem,
   formatTask,
-  resolvePatientVerificationState,
+} from './patients-presenters';
+
+export {
+  formatTask,
 } from './patients-presenters';
 
 export {
   decoratePatient,
   formatAdminSummary,
   formatProblem,
-  formatTask,
   resolvePatientVerificationState,
 } from './patients-presenters';
 

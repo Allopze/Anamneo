@@ -92,7 +92,7 @@ export class UsersService {
     );
   }
 
-  async remove(id: string, actorUserId: string) {
+  async remove(id: string, _actorUserId: string) {
     return removeUser(this.prisma, this.auditService, id);
   }
 

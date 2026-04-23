@@ -1,6 +1,5 @@
 import { Prisma } from '@prisma/client';
 import { getPatientDemographicsMissingFields, hasPatientVerificationFieldChanges, isPatientDemographicsComplete } from '../common/utils/patient-completeness';
-import type { CurrentUserData } from '../common/decorators/current-user.decorator';
 
 export function formatTask(task: any) {
   return {
