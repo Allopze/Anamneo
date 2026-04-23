@@ -1,16 +1,17 @@
 # Build stage
 FROM node:20-alpine AS builder
 
-WORKDIR /app
+WORKDIR /app/frontend
 
 # Copy package files
-COPY package*.json ./
+COPY frontend/package*.json ./
 
 # Install dependencies
 RUN npm ci
 
 # Copy source files
-COPY . .
+COPY frontend ./
+COPY shared ../shared
 
 # Set build-time environment variables
 ARG NEXT_PUBLIC_API_URL=/api
@@ -29,9 +30,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Copy built assets with correct ownership (use built-in node user, uid 1000)
-COPY --from=builder --chown=node:node /app/public ./public
-COPY --from=builder --chown=node:node /app/.next/standalone ./
-COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/frontend/.next/standalone ./
+COPY --from=builder --chown=node:node /app/frontend/.next/static ./frontend/.next/static
 
 USER node
 
@@ -40,4 +40,4 @@ EXPOSE 5555
 ENV PORT=5555
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["node", "frontend/server.js"]

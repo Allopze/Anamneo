@@ -1,0 +1,16 @@
+.git
+.gitignore
+.DS_Store
+runtime
+
+**/node_modules
+**/.next
+**/.swc
+**/coverage
+**/test-results
+**/.playwright-e2e
+**/npm-debug.log
+
+frontend/.env
+backend/.env
+.env

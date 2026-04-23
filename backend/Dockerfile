@@ -4,18 +4,19 @@ FROM node:20-alpine AS builder
 # Prisma engine download needs openssl to detect the correct target
 RUN apk add --no-cache openssl
 
-WORKDIR /app
+WORKDIR /app/backend
 
 # Install dependencies
-COPY package*.json ./
-COPY prisma ./prisma/
+COPY backend/package*.json ./
+COPY backend/prisma ./prisma/
 RUN npm ci
 
 # Generate Prisma client
 RUN npx prisma generate
 
 # Build application
-COPY . .
+COPY backend ./
+COPY shared ../shared
 RUN npm run build
 
 # Production image
@@ -27,13 +28,13 @@ RUN apk add --no-cache openssl
 WORKDIR /app
 
 # Install only runtime dependencies while keeping Prisma CLI available for explicit migrate steps
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/backend/package*.json ./
+COPY --from=builder /app/backend/prisma ./prisma
 RUN npm ci --omit=dev
 
 # Copy built artifacts with correct ownership (use built-in node user, uid 1000)
-COPY --from=builder --chown=node:node /app/dist ./dist
-COPY --from=builder --chown=node:node /app/scripts ./scripts
+COPY --from=builder --chown=node:node /app/backend/dist ./dist
+COPY --from=builder --chown=node:node /app/backend/scripts ./scripts
 
 # Create writable data directories
 RUN mkdir -p uploads data data/backups && \

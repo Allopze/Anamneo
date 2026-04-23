@@ -1,8 +1,8 @@
 services:
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: anamneo-backend
     restart: unless-stopped
     environment:
@@ -58,8 +58,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: /api
         API_PROXY_TARGET: http://backend:5678/api
@@ -86,8 +86,8 @@ services:
 
   backup-cron:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: anamneo-backup-cron
     restart: unless-stopped
     user: root
