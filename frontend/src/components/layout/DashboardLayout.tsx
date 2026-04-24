@@ -262,7 +262,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       searchResults={search.searchResults}
       searchLoading={search.searchLoading}
       searchActiveIndex={search.searchActiveIndex}
-      showCollapseToggle={isEncounterWorkspace}
+      showCollapseToggle={false}
       searchInputRef={searchInputRef}
       mobileSearchInputRef={mobileSearchInputRef}
       onCollapsedChange={updateSidebarCollapsed}

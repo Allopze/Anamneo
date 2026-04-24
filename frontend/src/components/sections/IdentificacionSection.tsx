@@ -39,9 +39,9 @@ export default function IdentificacionSection({
   return (
     <div className="flex flex-col gap-5">
       <div className="rounded-card border border-surface-muted/30 bg-surface-base/40 p-5">
-        <p className="text-sm font-medium text-ink-primary">Snapshot administrativo de la atención</p>
+        <p className="text-sm font-medium text-ink-primary">Identificación de esta atención</p>
         <p className="mt-2 text-sm text-ink-secondary">
-          Esta sección representa la identificación usada dentro de esta atención. No se edita aquí: si necesitas corregir el dato maestro, hazlo en la ficha del paciente y luego restaura este snapshot.
+          Muestra los datos usados en esta atención. Si hay que corregirlos, actualiza la ficha del paciente y restaura aquí.
         </p>
         {snapshotStatus?.hasDifferences ? (
           <div className="mt-4 rounded-card border border-status-yellow/70 bg-status-yellow/40 p-4 text-sm text-accent-text">

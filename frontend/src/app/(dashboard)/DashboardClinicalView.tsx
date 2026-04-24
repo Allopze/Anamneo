@@ -16,6 +16,7 @@ import {
   FiUsers,
 } from 'react-icons/fi';
 import { formatDateOnly } from '@/lib/date';
+import { getFirstName } from '@/lib/utils';
 import { STATUS_LABELS, TASK_TYPE_LABELS } from '@/types';
 import {
   type DashboardData,
@@ -27,6 +28,7 @@ import RecentActivitySection from './RecentActivitySection';
 import RecentPatientsSection from './RecentPatientsSection';
 
 interface DashboardClinicalViewProps {
+  user: { nombre?: string } | null;
   data?: DashboardData;
   isLoading: boolean;
   canNewEncounter: boolean;
@@ -38,6 +40,7 @@ interface DashboardClinicalViewProps {
 }
 
 export default function DashboardClinicalView({
+  user,
   data,
   isLoading,
   canNewEncounter,
@@ -163,7 +166,7 @@ export default function DashboardClinicalView({
         <div className="grid xl:grid-cols-[minmax(0,1.8fr)_360px]">
           <div className="px-6 py-8 lg:px-10 lg:py-10">
             <h1 className="text-[2rem] font-extrabold tracking-tight text-ink sm:text-[2.4rem]">
-              {getGreeting()}, Equipo
+              {getGreeting()}, {getFirstName(user?.nombre)}
             </h1>
             <p className="mt-2 max-w-2xl text-base text-ink-secondary">
               Tablero clínico — carga activa, seguimientos y actividad reciente en un vistazo.

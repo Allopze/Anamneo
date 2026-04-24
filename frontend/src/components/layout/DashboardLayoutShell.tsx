@@ -1,6 +1,7 @@
 'use client';
 
 import type { Dispatch, ReactNode, RefObject, SetStateAction } from 'react';
+import { useMemo } from 'react';
 import clsx from 'clsx';
 import Link from 'next/link';
 import { FiChevronsLeft, FiChevronsRight, FiLogOut, FiMenu, FiX } from 'react-icons/fi';
@@ -76,6 +77,8 @@ export default function DashboardLayoutShell({
   onSearchClose,
   onLogout,
 }: DashboardLayoutShellProps) {
+  const headerBarSlotContextValue = useMemo(() => ({ setHeaderBarSlot }), [setHeaderBarSlot]);
+
   return (
     <div className="min-h-screen bg-surface-base">
       <a
@@ -160,27 +163,27 @@ export default function DashboardLayoutShell({
             </nav>
           ) : null}
 
-          <HeaderBarSlotContext.Provider value={{ setHeaderBarSlot }}>
+          <HeaderBarSlotContext.Provider value={headerBarSlotContextValue}>
             <div className="flex-1 overflow-auto">
-              {!isEncounterWorkspace ? (
-                <div className="px-3 pb-2 pt-4 lg:px-6">
-                  <div className="flex items-stretch gap-3">
-                    <Tooltip label={sidebarCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'} side="bottom">
-                      <button
-                        type="button"
-                        onClick={() => onCollapsedChange(!sidebarCollapsed)}
-                        className="hidden min-h-[56px] aspect-square shrink-0 items-center justify-center self-stretch rounded-full border border-surface-muted/35 bg-surface-elevated text-ink-secondary shadow-soft transition-colors hover:border-frame/18 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20 lg:flex"
-                        aria-label={sidebarCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'}
-                        aria-expanded={!sidebarCollapsed}
-                      >
-                        {sidebarCollapsed ? <FiChevronsRight className="h-4.5 w-4.5" /> : <FiChevronsLeft className="h-4.5 w-4.5" />}
-                      </button>
-                    </Tooltip>
+              <div className={clsx('px-3 pt-4 lg:px-6', isEncounterWorkspace ? 'pb-0' : 'pb-2')}>
+                <div className="flex items-stretch gap-3">
+                  <Tooltip label={sidebarCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'} side="bottom">
+                    <button
+                      type="button"
+                      onClick={() => onCollapsedChange(!sidebarCollapsed)}
+                      className="hidden min-h-[56px] aspect-square shrink-0 items-center justify-center self-stretch rounded-full border border-surface-muted/35 bg-surface-elevated text-ink-secondary shadow-soft transition-colors hover:border-frame/18 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20 lg:flex"
+                      aria-label={sidebarCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'}
+                      aria-expanded={!sidebarCollapsed}
+                    >
+                      {sidebarCollapsed ? <FiChevronsRight className="h-4.5 w-4.5" /> : <FiChevronsLeft className="h-4.5 w-4.5" />}
+                    </button>
+                  </Tooltip>
 
+                  {!isEncounterWorkspace ? (
                     <SmartHeaderBar className="mx-0 mt-0 mb-0 min-h-[56px] min-w-0 flex-1" onSearchOpen={onSearchOpen} contextSlot={headerBarSlot} />
-                  </div>
+                  ) : null}
                 </div>
-              ) : null}
+              </div>
 
               <main
                 id="main-content"

@@ -46,6 +46,7 @@ export function PossiblePatientDuplicatesNotice(props: PossiblePatientDuplicates
   const deferredFechaNacimiento = useDeferredValue((props.fechaNacimiento || '').trim());
   const deferredRut = useDeferredValue(props.rutExempt ? '' : (props.rut || '').trim());
   const requestIdRef = useRef(0);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [duplicates, setDuplicates] = useState<PossiblePatientDuplicate[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
@@ -53,40 +54,52 @@ export function PossiblePatientDuplicatesNotice(props: PossiblePatientDuplicates
     deferredRut.length > 0 || (deferredNombre.length >= 3 && deferredFechaNacimiento.length > 0);
 
   useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
     if (!shouldCheck) {
       setDuplicates([]);
       setStatus('idle');
       return;
     }
 
-    const currentRequestId = requestIdRef.current + 1;
-    requestIdRef.current = currentRequestId;
-    setStatus('loading');
+    debounceTimerRef.current = setTimeout(() => {
+      const currentRequestId = requestIdRef.current + 1;
+      requestIdRef.current = currentRequestId;
+      setStatus('loading');
 
-    void api
-      .get('/patients/possible-duplicates', {
-        params: {
-          nombre: deferredNombre || undefined,
-          fechaNacimiento: deferredFechaNacimiento || undefined,
-          rut: deferredRut || undefined,
-          excludePatientId: props.excludePatientId || undefined,
-        },
-      })
-      .then((response) => {
-        if (requestIdRef.current !== currentRequestId) {
-          return;
-        }
+      void api
+        .get('/patients/possible-duplicates', {
+          params: {
+            nombre: deferredNombre || undefined,
+            fechaNacimiento: deferredFechaNacimiento || undefined,
+            rut: deferredRut || undefined,
+            excludePatientId: props.excludePatientId || undefined,
+          },
+        })
+        .then((response) => {
+          if (requestIdRef.current !== currentRequestId) {
+            return;
+          }
 
-        setDuplicates(response.data?.data || []);
-        setStatus('success');
-      })
-      .catch(() => {
-        if (requestIdRef.current !== currentRequestId) {
-          return;
-        }
+          setDuplicates(response.data?.data || []);
+          setStatus('success');
+        })
+        .catch(() => {
+          if (requestIdRef.current !== currentRequestId) {
+            return;
+          }
 
-        setStatus('error');
-      });
+          setStatus('error');
+        });
+    }, 350);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
   }, [deferredFechaNacimiento, deferredNombre, deferredRut, props.excludePatientId, shouldCheck]);
 
   if (!shouldCheck) {

@@ -5,6 +5,7 @@ backend_pid=""
 frontend_pid=""
 watchdog_pid=""
 is_stopping=0
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 session_leader_pid="$(ps -o sid= -p $$ | tr -d ' ')"
 
 sanitize_local_env() {
@@ -53,10 +54,57 @@ kill_existing_port() {
   fi
 }
 
+find_previous_dev_pids() {
+  ps -eo pid=,command= | awk -v root="$repo_root" -v self="$$" '
+    $1 == self { next }
+    index($0, root "/backend/dist/backend/src/main.js") { print $1; next }
+    index($0, root "/backend/scripts/dev-watch.js") { print $1; next }
+    index($0, root "/backend/node_modules/.bin/nest build --watch") { print $1; next }
+    index($0, root "/frontend/scripts/dev-watch.js") { print $1; next }
+    index($0, root "/frontend/node_modules/next/dist/bin/next dev") { print $1; next }
+    index($0, root) && index($0, "npm --prefix backend run start:dev:migrate") { print $1; next }
+    index($0, root) && index($0, "npm --prefix frontend run dev") { print $1; next }
+  ' | sort -u | tr '\n' ' '
+}
+
+kill_processes() {
+  local reason="$1"
+  shift
+  local pids="$*"
+
+  if [[ -z "$pids" ]]; then
+    return
+  fi
+
+  echo "[dev] Killing ${reason}: ${pids}" >&2
+  kill -TERM $pids 2>/dev/null || true
+  sleep 0.5
+
+  local survivors=""
+  local pid
+  for pid in $pids; do
+    if kill -0 "$pid" 2>/dev/null; then
+      survivors="${survivors} ${pid}"
+    fi
+  done
+
+  if [[ -n "$survivors" ]]; then
+    echo "[dev] Force killing ${reason}:${survivors}" >&2
+    kill -KILL $survivors 2>/dev/null || true
+  fi
+}
+
 cleanup_port_conflicts() {
   for port in 5555 5678; do
     kill_existing_port "$port"
   done
+}
+
+cleanup_previous_dev_processes() {
+  local pids
+
+  pids="$(find_previous_dev_pids)"
+  kill_processes "previous dev processes" $pids
 }
 
 start_process() {
@@ -135,6 +183,7 @@ trap 'shutdown EXIT' EXIT
 
 sanitize_local_env
 
+cleanup_previous_dev_processes
 cleanup_port_conflicts
 
 start_process backend_pid backend npm run dev:backend

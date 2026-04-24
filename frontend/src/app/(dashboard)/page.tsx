@@ -43,6 +43,7 @@ export default function DashboardPage() {
 
   return (
     <DashboardClinicalView
+      user={user}
       data={data}
       isLoading={isLoading}
       canNewEncounter={canNewEncounter}

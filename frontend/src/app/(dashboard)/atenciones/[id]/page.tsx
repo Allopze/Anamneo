@@ -127,7 +127,7 @@ export default function EncounterWizardPage() {
         />
 
         <main className="min-w-0">
-          <div className="mx-auto flex max-w-5xl flex-col gap-5">
+          <div className="mx-auto flex max-w-7xl flex-col gap-5">
             <EncounterMobileSectionNav
               sections={sections}
               currentSectionIndex={currentSectionIndex}

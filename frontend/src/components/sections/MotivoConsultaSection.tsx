@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import axios from 'axios';
 import { api } from '@/lib/api';
 import { ConditionSuggestion, MotivoConsultaData, Encounter } from '@/types';
 import { FiInfo, FiCheck, FiSearch } from 'react-icons/fi';
@@ -19,6 +20,7 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
   const [suggestions, setSuggestions] = useState<ConditionSuggestion[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const requestAbortRef = useRef<AbortController | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const dataRef = useRef(data);
@@ -43,9 +45,15 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
   // Debounced search for suggestions
   const searchSuggestions = useCallback((text: string) => {
     if (timerRef.current) clearTimeout(timerRef.current);
+    if (requestAbortRef.current) {
+      requestAbortRef.current.abort();
+      requestAbortRef.current = null;
+    }
+
     if (text.length < 3) {
       lastSearchedText.current = '';
       setSuggestions([]);
+      setIsSearching(false);
       return;
     }
     if (text === lastSearchedText.current) return;
@@ -53,8 +61,11 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
     timerRef.current = setTimeout(async () => {
       lastSearchedText.current = text;
       setIsSearching(true);
+      const controller = new AbortController();
+      requestAbortRef.current = controller;
+
       try {
-        const response = await api.post('/conditions/suggest', { text, limit: 3 });
+        const response = await api.post('/conditions/suggest', { text, limit: 3 }, { signal: controller.signal });
         setSuggestions(response.data);
 
         // Auto-select top suggestion only when the user has not explicitly forced manual mode.
@@ -70,11 +81,30 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
           });
         }
       } catch (error) {
+        if (axios.isCancel(error) || (error as any)?.code === 'ERR_CANCELED') {
+          return;
+        }
+
         console.error('Error searching suggestions:', error);
       } finally {
-        setIsSearching(false);
+        if (requestAbortRef.current === controller) {
+          requestAbortRef.current = null;
+          setIsSearching(false);
+        }
       }
     }, 500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+      if (requestAbortRef.current) {
+        requestAbortRef.current.abort();
+        requestAbortRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
