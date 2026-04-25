@@ -59,7 +59,7 @@ describe('MotivoConsultaSection', () => {
       expect(apiPostMock).toHaveBeenCalledWith('/conditions/suggest', {
         text: 'dolor de cabeza intenso',
         limit: 3,
-      });
+      }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     });
 
     await waitFor(() => {
@@ -114,7 +114,7 @@ describe('MotivoConsultaSection', () => {
       expect(apiPostMock).toHaveBeenCalledWith('/conditions/suggest', {
         text: 'dolor de cabeza intenso',
         limit: 3,
-      });
+      }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     });
 
     expect(onChange).not.toHaveBeenCalled();

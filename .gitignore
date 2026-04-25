@@ -22,7 +22,6 @@ backend/prisma/*.db.*
 backend/prisma/*.db-journal
 backend/prisma/*.db-shm
 backend/prisma/*.db-wal
-backend/prisma/C:/
 backend/prisma/backups/
 
 # Uploads / generated runtime data
@@ -42,10 +41,6 @@ releases/
 # OS / editor
 .DS_Store
 .vscode/
-node_modules
-node_modules
-node_modules
-node_modules
 
 # Sentry Config File
 .sentryclirc

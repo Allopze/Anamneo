@@ -78,7 +78,6 @@ El schema ya agrega indices en las rutas de acceso mas sensibles, por ejemplo:
 
 ## Observaciones de Diseño
 
-- Hay varias estructuras JSON o listas serializadas como `String` (`synonyms`, `tags`, `topSuggestions`, `EncounterSection.data`).
 - Hay varias estructuras JSON o listas serializadas como `String` (`synonyms`, `tags`, `topSuggestions`, `rankingMetadata`, `EncounterSection.data`).
 - Eso simplifica ciertas migraciones, pero vuelve mas delicado el contrato entre backend y frontend.
 - Los estados persistidos como strings exigen validacion fuerte en DTOs y servicios para no degradarse con el tiempo.

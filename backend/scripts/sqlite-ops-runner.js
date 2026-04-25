@@ -122,6 +122,33 @@ function truncateOutput(value) {
   return `${value.slice(0, MAX_ALERT_OUTPUT_LENGTH)}...`;
 }
 
+function formatAlertPayload(payload) {
+  const lines = [
+    `Anamneo SQLite alerta: ${payload.status.toUpperCase()}`,
+    `Servicio: ${payload.service}`,
+    `Modo: ${payload.mode}`,
+    `Politica de notificacion: ${payload.notifyPolicy}`,
+  ];
+
+  if (payload.backupDir) {
+    lines.push(`Backup dir: ${payload.backupDir}`);
+  }
+
+  const failedTasks = (payload.tasks || []).filter((task) => task.status === 'failed');
+  if (failedTasks.length > 0) {
+    lines.push('Fallos detectados:');
+    failedTasks.forEach((task) => {
+      lines.push(`- ${task.name} (exit ${task.exitCode}): ${task.output || 'sin salida'}`);
+    });
+  }
+
+  return {
+    ...payload,
+    content: lines.join('\n'),
+    text: lines.join('\n'),
+  };
+}
+
 async function sendAlertWebhook(payload) {
   const webhookUrl = process.env.SQLITE_ALERT_WEBHOOK_URL;
   if (!webhookUrl) {
@@ -141,7 +168,7 @@ async function sendAlertWebhook(payload) {
       headers: {
         'content-type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(formatAlertPayload(payload)),
     });
 
     if (!response.ok) {

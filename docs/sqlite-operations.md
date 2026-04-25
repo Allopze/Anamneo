@@ -26,6 +26,31 @@ SQLite esta soportado en este proyecto, incluso en produccion, pero no como excu
 | `SQLITE_NOTIFY_POLICY` | `on-failure` | Politica de alertas |
 | `SQLITE_ALERT_WEBHOOK_URL` | vacio | Webhook de salida |
 
+## Configurar alertas con Discord / Slack
+
+`SQLITE_ALERT_WEBHOOK_URL` debe apuntar a un webhook HTTP que reciba JSON. El runner operativo de SQLite envía una alerta cuando falla el backup, cuando el restore drill no pasa o cuando el monitor detecta condiciones críticas.
+
+- Para Discord: crea un webhook en el canal deseado y copia la URL de `https://discord.com/api/webhooks/...`.
+- Para Slack: crea un Incoming Webhook en la app de Slack y copia la URL de `https://hooks.slack.com/services/...`.
+- Opcional: usa un transformador de webhook (Pipedream, n8n, Huginn o similar) si quieres enriquecer el mensaje o reenviarlo a otros destinos.
+
+El runner ahora incluye tanto `content` como `text` en la carga útil, de modo que los webhooks Discord y Slack pueden recibir una notificación legible. El cuerpo JSON contiene también el resumen completo del evento, el modo ejecutado y el estado de cada tarea.
+
+### Ejemplo de configuración
+
+```bash
+SQLITE_ALERT_WEBHOOK_URL=https://discord.com/api/webhooks/XXXX/YYYY
+SQLITE_NOTIFY_POLICY=on-failure
+SQLITE_ALERT_SERVICE_NAME=anamneo-backend
+```
+
+### Recomendaciones
+
+- Mantén `SQLITE_NOTIFY_POLICY=on-failure` para recibir alertas solo cuando algo falla.
+- Si quieres monitoreo continuo, usa `SQLITE_NOTIFY_POLICY=always` y revisa los mensajes periódicos.
+- Comprueba que `backup-cron` tenga acceso al mismo volumen de `SQLITE_BACKUP_DIR` y `UPLOAD_DEST` que el backend.
+- Verifica el webhook con `npm run db:ops` y busca en la salida JSON el campo `alert.sent: true`.
+
 ## Operacion Recomendada
 
 ### En desarrollo
