@@ -54,6 +54,7 @@ export function createMockServices() {
   const prismaService = {
     user: {
       findUnique: jest.fn().mockResolvedValue({ totpEnabled: false }),
+      update: jest.fn(),
     },
     loginAttempt: {
       findUnique: jest.fn().mockResolvedValue(null),

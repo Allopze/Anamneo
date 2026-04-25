@@ -18,6 +18,7 @@ import {
   type AuditLogEntry,
 } from './auditoria.constants';
 import AuditDetailModal from './AuditDetailModal';
+import AuditIntegrityCard from './AuditIntegrityCard';
 
 export default function AuditoriaPage() {
   const router = useRouter();
@@ -83,6 +84,8 @@ export default function AuditoriaPage() {
           <p className="page-header-description">Historial de cambios críticos y trazabilidad operativa del sistema.</p>
         </div>
       </div>
+
+      <AuditIntegrityCard />
 
       <div className="filter-surface">
         <div className="flex items-center gap-2 mb-4">

@@ -23,6 +23,7 @@ model User {
   mustChangePassword  Boolean  @default(false) @map("must_change_password")
   totpSecret          String?  @map("totp_secret")
   totpEnabled         Boolean  @default(false) @map("totp_enabled")
+  totpRecoveryCodes   String?  @map("totp_recovery_codes")
   refreshTokenVersion Int      @default(0) @map("refresh_token_version")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")

@@ -7,6 +7,8 @@ import { getRequestId } from '../common/utils/request-context';
 import { inferAuditReason, inferAuditResult } from './audit-catalog';
 import { LogInput, sanitizeDiff, parseDateFilter } from './audit-helpers';
 
+type AuditLogClient = Prisma.TransactionClient | PrismaService;
+
 type IntegrityPayload = {
   entityType: string;
   entityId: string;
@@ -47,11 +49,29 @@ function computeIntegrityHash(previousHash: string, payload: IntegrityPayload) {
     .digest('hex');
 }
 
+function supportsRootTransactions(client: AuditLogClient): client is PrismaService {
+  return '$transaction' in client;
+}
+
+function supportsRawUnsafe(client: unknown): client is {
+  $executeRawUnsafe: (query: string) => Promise<unknown>;
+} {
+  return !!client && typeof (client as { $executeRawUnsafe?: unknown }).$executeRawUnsafe === 'function';
+}
+
 @Injectable()
 export class AuditService {
   constructor(private prisma: PrismaService) {}
 
-  async log(input: LogInput, client: Prisma.TransactionClient | PrismaService = this.prisma) {
+  async log(input: LogInput, client: AuditLogClient = this.prisma) {
+    if (supportsRootTransactions(client)) {
+      return client.$transaction(async (tx) => this.appendLog(input, tx));
+    }
+
+    return this.appendLog(input, client);
+  }
+
+  private async appendLog(input: LogInput, client: Prisma.TransactionClient) {
     const sanitizedDiff = sanitizeDiff(input.entityType, input.diff);
     const reason = input.reason ?? inferAuditReason(input.entityType, input.action, input.diff);
 
@@ -61,7 +81,12 @@ export class AuditService {
       );
     }
 
-    // Get hash of last audit entry for chain
+    // Force SQLite to upgrade the surrounding transaction to a write lock
+    // before reading the chain head, so concurrent appends cannot fork it.
+    if (supportsRawUnsafe(client)) {
+      await client.$executeRawUnsafe('DELETE FROM audit_logs WHERE 1 = 0');
+    }
+
     const lastEntry = await client.auditLog.findFirst({
       orderBy: { timestamp: 'desc' },
       select: { integrityHash: true },
@@ -150,11 +175,14 @@ export class AuditService {
     });
   }
 
-  async verifyChain(limit = 1000): Promise<{ valid: boolean; checked: number; total: number; brokenAt?: string; warning?: string }> {
+  async verifyChain(limit?: number): Promise<{ valid: boolean; checked: number; total: number; brokenAt?: string; warning?: string }> {
     const total = await this.prisma.auditLog.count();
+    const normalizedLimit = typeof limit === 'number' && Number.isFinite(limit) && limit > 0
+      ? Math.trunc(limit)
+      : undefined;
     const entries = await this.prisma.auditLog.findMany({
       orderBy: { timestamp: 'asc' },
-      take: limit,
+      take: normalizedLimit,
       select: {
         id: true,
         entityType: true,
@@ -193,7 +221,7 @@ export class AuditService {
       expectedPreviousHash = entry.integrityHash;
     }
 
-    const warning = total > entries.length
+    const warning = normalizedLimit && total > entries.length
       ? `Solo se verificaron ${entries.length} de ${total} entradas. Aumente el parámetro limit para una verificación completa.`
       : undefined;
 

@@ -1,5 +1,8 @@
 import { authenticator } from '@otplib/v12-adapter';
+import * as bcrypt from 'bcrypt';
 import { verify2FALoginFlow } from './auth-2fa-flow';
+
+jest.mock('bcrypt');
 
 describe('verify2FALoginFlow', () => {
   let jwtService: any;
@@ -15,6 +18,7 @@ describe('verify2FALoginFlow', () => {
     prisma = {
       user: {
         findUnique: jest.fn(),
+        update: jest.fn(),
       },
     };
 
@@ -103,7 +107,7 @@ describe('verify2FALoginFlow', () => {
   });
 
   it('throws UnauthorizedException when TOTP code is invalid', async () => {
-    jwtService.verify.mockReturnValue({ sub: 'user-1', purpose: '2fa' });
+    jwtService.verify.mockReturnValue({ sub: 'user-1', purpose: '2fa', jti: 'temp-jti-invalid' });
     prisma.user.findUnique.mockResolvedValue({
       id: 'user-1',
       email: 'medico@test.com',
@@ -111,6 +115,7 @@ describe('verify2FALoginFlow', () => {
       active: true,
       totpEnabled: true,
       totpSecret: 'SECRET',
+      totpRecoveryCodes: null,
     });
     jest.spyOn(authenticator, 'verify').mockReturnValue(false);
 
@@ -125,7 +130,51 @@ describe('verify2FALoginFlow', () => {
         issueTokens,
         resolveTotpSecret: (secret) => secret,
       }),
-    ).rejects.toThrow('Código TOTP inválido');
+    ).rejects.toThrow('Código de verificación inválido');
+    expect(usedTempTokenJtis.has('temp-jti-invalid')).toBe(false);
+  });
+
+  it('accepts a valid recovery code and consumes it after login', async () => {
+    jwtService.verify.mockReturnValue({ sub: 'user-1', purpose: '2fa', jti: 'temp-jti-recovery' });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-1',
+      email: 'medico@test.com',
+      role: 'MEDICO',
+      active: true,
+      totpEnabled: true,
+      totpSecret: 'SECRET',
+      totpRecoveryCodes: JSON.stringify(['hash:ABCD1234', 'hash:WXYZ5678']),
+    });
+    jest.spyOn(authenticator, 'verify').mockReturnValue(false);
+    (bcrypt.compare as jest.Mock).mockImplementation(async (code: string, hash: string) => (
+      code === 'ABCD1234' && hash === 'hash:ABCD1234'
+    ));
+
+    const result = await verify2FALoginFlow({
+      jwtService,
+      prisma,
+      usedTempTokenJtis,
+      tempTokenTtlMs: 300_000,
+      tempToken: 'temp-token',
+      code: 'ABCD-1234',
+      issueTokens,
+      resolveTotpSecret: (secret) => secret,
+    });
+
+    expect(result).toEqual({
+      tokens: {
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      },
+      userId: 'user-1',
+    });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: {
+        totpRecoveryCodes: JSON.stringify(['hash:WXYZ5678']),
+      },
+    });
+    expect(usedTempTokenJtis.has('temp-jti-recovery')).toBe(true);
   });
 
   it('returns auth tokens, userId and consumes jti on valid 2FA verification', async () => {
@@ -137,6 +186,7 @@ describe('verify2FALoginFlow', () => {
       active: true,
       totpEnabled: true,
       totpSecret: 'SECRET',
+      totpRecoveryCodes: null,
     });
     jest.spyOn(authenticator, 'verify').mockReturnValue(true);
 
@@ -176,6 +226,7 @@ describe('verify2FALoginFlow', () => {
       active: true,
       totpEnabled: true,
       totpSecret: 'SECRET',
+      totpRecoveryCodes: null,
     });
     jest.spyOn(authenticator, 'verify').mockReturnValue(true);
 

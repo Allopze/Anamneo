@@ -6,6 +6,7 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   AUTH_LOGIN_REJECTED: 'Credenciales rechazadas',
   AUTH_2FA_ENABLED: 'Activación de autenticación de dos factores',
   AUTH_2FA_DISABLED: 'Desactivación de autenticación de dos factores',
+  AUTH_2FA_RECOVERY_CODES_REGENERATED: 'Regeneración de códigos de recuperación 2FA',
   PATIENT_CREATED: 'Alta de paciente',
   PATIENT_HISTORY_CREATED: 'Alta de historial maestro',
   PATIENT_UPDATED: 'Actualización de paciente',

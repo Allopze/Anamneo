@@ -32,7 +32,7 @@ ENV NODE_ENV=production
 # Copy built assets with correct ownership (use built-in node user, uid 1000)
 COPY --from=builder --chown=node:node /app/frontend/.next/standalone ./
 COPY --from=builder --chown=node:node /app/frontend/.next/static ./frontend/.next/static
-COPY --from=builder --chown=node:node /app/frontend/public ./public
+COPY --from=builder --chown=node:node /app/frontend/public ./frontend/public
 
 USER node
 

@@ -2,7 +2,7 @@ import { BadRequestException, Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { diskStorage } from 'multer';
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { mkdirSync } from 'fs';
 import { AttachmentsService } from './attachments.service';
@@ -31,7 +31,7 @@ const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.gif']);
           storage: diskStorage({
             destination: uploadsRoot,
             filename: (req, file, cb) => {
-              const uniqueName = `${uuid()}${extname(file.originalname)}`;
+              const uniqueName = `${randomUUID()}${extname(file.originalname)}`;
               cb(null, uniqueName);
             },
           }),

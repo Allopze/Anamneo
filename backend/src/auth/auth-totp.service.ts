@@ -5,6 +5,11 @@ import * as QRCode from 'qrcode';
 import { authenticator } from '@otplib/v12-adapter';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import {
+  generateRecoveryCodes,
+  hashRecoveryCodes,
+  serializeRecoveryCodeHashes,
+} from './auth-recovery-codes';
 import { decryptStoredTotpSecret, encryptStoredTotpSecret } from './auth-totp-secret';
 
 @Injectable()
@@ -41,7 +46,16 @@ export class AuthTotpService {
     const isValid = authenticator.verify({ token: code, secret: resolvedSecret });
     if (!isValid) throw new BadRequestException('Código TOTP inválido');
 
-    await this.prisma.user.update({ where: { id: userId }, data: { totpEnabled: true } });
+    const recoveryCodes = generateRecoveryCodes();
+    const recoveryCodeHashes = await hashRecoveryCodes(recoveryCodes);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        totpEnabled: true,
+        totpRecoveryCodes: serializeRecoveryCodeHashes(recoveryCodeHashes),
+      },
+    });
 
     this.auditService.log({
       entityType: 'Auth',
@@ -49,10 +63,10 @@ export class AuthTotpService {
       userId,
       action: 'UPDATE',
       reason: 'AUTH_2FA_ENABLED',
-      diff: { totpEnabled: true },
+      diff: { totpEnabled: true, recoveryCodesIssued: recoveryCodes.length },
     }).catch(() => {});
 
-    return { message: '2FA habilitado correctamente' };
+    return { message: '2FA habilitado correctamente', recoveryCodes };
   }
 
   async disable2FA(userId: string, password: string) {
@@ -65,7 +79,7 @@ export class AuthTotpService {
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { totpEnabled: false, totpSecret: null },
+      data: { totpEnabled: false, totpSecret: null, totpRecoveryCodes: null },
     });
 
     this.auditService.log({
@@ -74,9 +88,42 @@ export class AuthTotpService {
       userId,
       action: 'UPDATE',
       reason: 'AUTH_2FA_DISABLED',
-      diff: { totpEnabled: false },
+      diff: { totpEnabled: false, recoveryCodesCleared: true },
     }).catch(() => {});
 
     return { message: '2FA deshabilitado correctamente' };
+  }
+
+  async regenerateRecoveryCodes(userId: string, password: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Usuario no encontrado');
+    if (!user.totpEnabled) throw new BadRequestException('2FA no está habilitado');
+
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) throw new UnauthorizedException('Contraseña incorrecta');
+
+    const recoveryCodes = generateRecoveryCodes();
+    const recoveryCodeHashes = await hashRecoveryCodes(recoveryCodes);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        totpRecoveryCodes: serializeRecoveryCodeHashes(recoveryCodeHashes),
+      },
+    });
+
+    this.auditService.log({
+      entityType: 'Auth',
+      entityId: userId,
+      userId,
+      action: 'UPDATE',
+      reason: 'AUTH_2FA_RECOVERY_CODES_REGENERATED',
+      diff: {
+        recoveryCodesIssued: recoveryCodes.length,
+        recoveryCodesRegeneratedAt: new Date().toISOString(),
+      },
+    }).catch(() => {});
+
+    return { message: 'Códigos de recuperación regenerados', recoveryCodes };
   }
 }

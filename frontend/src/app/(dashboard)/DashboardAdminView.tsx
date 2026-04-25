@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { FiChevronRight, FiPlus, FiUsers } from 'react-icons/fi';
 import { getFirstName } from '@/lib/utils';
+import DashboardOperationalChecks from './DashboardOperationalChecks';
 import {
   ADMIN_CARDS,
   type DashboardData,
@@ -27,6 +28,10 @@ export default function DashboardAdminView({ user }: DashboardAdminViewProps) {
         <p className="mt-2 max-w-2xl text-base text-ink-secondary">
           Panel operativo — gestiona usuarios, auditoría, catálogo y el registro administrativo de pacientes.
         </p>
+      </section>
+
+      <section className="animate-fade-in" style={sectionAnimation(30)}>
+        <DashboardOperationalChecks />
       </section>
 
       <section

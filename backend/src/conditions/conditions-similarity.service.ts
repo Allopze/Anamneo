@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import * as natural from 'natural';
 import { parseStringArray } from '../conditions/conditions-helpers';
+import { ConditionsTfIdf } from './conditions-tfidf';
 import { buildDocument, buildWeightedSearchText, rankDocuments } from './conditions-similarity.helpers';
 import type { ConditionInput, SuggestionResult } from './conditions-similarity.types';
 
@@ -9,7 +9,7 @@ export type { SuggestionReason, SuggestionResult } from './conditions-similarity
 
 @Injectable()
 export class ConditionsSimilarityService implements OnModuleInit {
-  private tfidf: natural.TfIdf;
+  private tfidf: ConditionsTfIdf;
   private documents: Array<{
     id: string;
     name: string;
@@ -20,7 +20,7 @@ export class ConditionsSimilarityService implements OnModuleInit {
   private initialized = false;
 
   constructor(private prisma: PrismaService) {
-    this.tfidf = new natural.TfIdf();
+    this.tfidf = new ConditionsTfIdf();
   }
 
   async onModuleInit() {
@@ -32,7 +32,7 @@ export class ConditionsSimilarityService implements OnModuleInit {
       where: { active: true },
     });
 
-    this.tfidf = new natural.TfIdf();
+    this.tfidf = new ConditionsTfIdf();
     this.documents = [];
 
     for (const condition of conditions) {
@@ -75,7 +75,7 @@ export class ConditionsSimilarityService implements OnModuleInit {
       return [];
     }
 
-    const tfidf = new natural.TfIdf();
+    const tfidf = new ConditionsTfIdf();
     const documents = conditions.map((condition) => {
       const document = buildDocument(condition);
       tfidf.addDocument(buildWeightedSearchText(document));

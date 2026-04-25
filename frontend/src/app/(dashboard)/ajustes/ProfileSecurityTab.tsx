@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { usePrivacySettingsStore } from '@/stores/privacy-settings-store';
 import type { AjustesHook } from './useAjustes';
 import SessionManagementSection from './SessionManagementSection';
+import TwoFactorRecoveryCodesPanel from './TwoFactorRecoveryCodesPanel';
 
 type Props = Pick<
   AjustesHook,
@@ -242,6 +243,8 @@ function TwoFactorSection() {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [totpCode, setTotpCode] = useState('');
   const [disablePassword, setDisablePassword] = useState('');
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [error, setError] = useState('');
 
   const setupMutation = useMutation({
@@ -258,13 +261,15 @@ function TwoFactorSection() {
 
   const enableMutation = useMutation({
     mutationFn: async (code: string) => {
-      await api.post('/auth/2fa/enable', { code });
+      const res = await api.post('/auth/2fa/enable', { code });
+      return res.data as { message: string; recoveryCodes?: string[] };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('Autenticación de dos factores activada');
       if (user) setUser({ ...user, totpEnabled: true });
       setQrCodeDataUrl(null);
       setTotpCode('');
+      setRecoveryCodes(data.recoveryCodes ?? []);
       setError('');
     },
     onError: (err) => setError(getTwoFactorErrorMessage(err, 'No se pudo activar 2FA. Intenta nuevamente.')),
@@ -278,9 +283,25 @@ function TwoFactorSection() {
       toast.success('Autenticación de dos factores desactivada');
       if (user) setUser({ ...user, totpEnabled: false });
       setDisablePassword('');
+      setRecoveryPassword('');
+      setRecoveryCodes([]);
       setError('');
     },
     onError: (err) => setError(getTwoFactorErrorMessage(err, 'No se pudo desactivar 2FA. Intenta nuevamente.')),
+  });
+
+  const regenerateCodesMutation = useMutation({
+    mutationFn: async (password: string) => {
+      const res = await api.post('/auth/2fa/recovery-codes/regenerate', { password });
+      return res.data as { message: string; recoveryCodes?: string[] };
+    },
+    onSuccess: (data) => {
+      toast.success('Códigos de recuperación actualizados');
+      setRecoveryCodes(data.recoveryCodes ?? []);
+      setRecoveryPassword('');
+      setError('');
+    },
+    onError: (err) => setError(getTwoFactorErrorMessage(err, 'No se pudieron regenerar los códigos de recuperación.')),
   });
 
   const isEnabled = !!user?.totpEnabled;
@@ -374,33 +395,78 @@ function TwoFactorSection() {
 
       {isEnabled && (
         <div className="space-y-4">
-          <p className="text-sm text-ink-secondary">
-            Para desactivar la verificación en dos pasos, ingresa tu contraseña actual.
-          </p>
-          <div>
-            <label htmlFor="disable-2fa-password" className="block text-sm font-medium text-ink-secondary mb-1">
-              Contraseña
-            </label>
-            <input
-              id="disable-2fa-password"
-              type="password"
-              autoComplete="current-password"
-              value={disablePassword}
-              onChange={(e) => {
-                setDisablePassword(e.target.value);
-                setError('');
-              }}
-              placeholder="Tu contraseña actual"
-              className="input w-full max-w-sm"
-            />
+          {recoveryCodes.length > 0 ? (
+            <TwoFactorRecoveryCodesPanel codes={recoveryCodes} onDismiss={() => setRecoveryCodes([])} />
+          ) : null}
+
+          <div className="rounded-2xl border border-surface-muted/40 bg-surface-elevated/60 p-4">
+            <p className="text-sm font-medium text-ink-primary">Códigos de recuperación de un solo uso</p>
+            <p className="mt-1 text-sm text-ink-secondary">
+              Si pierdes el acceso a tu app autenticadora, podrás entrar con uno de estos códigos. Regenera un set nuevo si no sabes dónde quedaron guardados.
+            </p>
+
+            {recoveryCodes.length === 0 ? (
+              <p className="mt-3 text-sm text-ink-muted">
+                Los códigos sólo se vuelven a mostrar al activar 2FA o al regenerarlos.
+              </p>
+            ) : null}
+
+            <div className="mt-4">
+              <label htmlFor="recovery-2fa-password" className="block text-sm font-medium text-ink-secondary mb-1">
+                Contraseña actual para regenerar códigos
+              </label>
+              <input
+                id="recovery-2fa-password"
+                type="password"
+                autoComplete="current-password"
+                value={recoveryPassword}
+                onChange={(e) => {
+                  setRecoveryPassword(e.target.value);
+                  setError('');
+                }}
+                placeholder="Tu contraseña actual"
+                className="input w-full max-w-sm"
+              />
+            </div>
+
+            <button
+              onClick={() => regenerateCodesMutation.mutate(recoveryPassword)}
+              disabled={!recoveryPassword.trim() || regenerateCodesMutation.isPending}
+              className="btn btn-secondary mt-4"
+            >
+              {regenerateCodesMutation.isPending ? 'Regenerando...' : 'Generar nuevos códigos'}
+            </button>
           </div>
-          <button
-            onClick={() => disableMutation.mutate(disablePassword)}
-            disabled={!disablePassword.trim() || disableMutation.isPending}
-            className="btn btn-secondary text-status-red-text"
-          >
-            {disableMutation.isPending ? 'Desactivando...' : 'Desactivar 2FA'}
-          </button>
+
+          <div className="rounded-2xl border border-surface-muted/40 bg-surface-elevated/60 p-4">
+            <p className="text-sm text-ink-secondary">
+              Para desactivar la verificación en dos pasos, ingresa tu contraseña actual.
+            </p>
+            <div className="mt-4">
+              <label htmlFor="disable-2fa-password" className="block text-sm font-medium text-ink-secondary mb-1">
+                Contraseña
+              </label>
+              <input
+                id="disable-2fa-password"
+                type="password"
+                autoComplete="current-password"
+                value={disablePassword}
+                onChange={(e) => {
+                  setDisablePassword(e.target.value);
+                  setError('');
+                }}
+                placeholder="Tu contraseña actual"
+                className="input w-full max-w-sm"
+              />
+            </div>
+            <button
+              onClick={() => disableMutation.mutate(disablePassword)}
+              disabled={!disablePassword.trim() || disableMutation.isPending}
+              className="btn btn-secondary mt-4 text-status-red-text"
+            >
+              {disableMutation.isPending ? 'Desactivando...' : 'Desactivar 2FA'}
+            </button>
+          </div>
         </div>
       )}
     </div>

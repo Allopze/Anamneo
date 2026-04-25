@@ -78,6 +78,7 @@ export const state = {
   assistantCookies: [] as string[],
   medicoInvitationToken: '',
   medicoTotpSecret: '',
+  medicoRecoveryCodes: [] as string[],
   medicoTempToken: '',
   revokedInvitationId: '',
   revokedInvitationToken: '',

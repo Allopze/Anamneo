@@ -1,4 +1,4 @@
-import { IsString, Length } from 'class-validator';
+import { IsString, Length, MaxLength, MinLength } from 'class-validator';
 
 export class VerifyTotpDto {
   @IsString()
@@ -16,6 +16,12 @@ export class VerifyTotpLoginDto {
   tempToken: string;
 
   @IsString()
-  @Length(6, 6)
+  @MinLength(6)
+  @MaxLength(32)
   code: string;
+}
+
+export class RegenerateRecoveryCodesDto {
+  @IsString()
+  password: string;
 }

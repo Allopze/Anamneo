@@ -7,6 +7,7 @@ import { authenticator } from '@otplib/v12-adapter';
 import { AuthTotpService } from './auth-totp.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import * as authRecoveryCodes from './auth-recovery-codes';
 import * as authTotpSecret from './auth-totp-secret';
 
 jest.mock('bcrypt');
@@ -45,6 +46,8 @@ describe('AuthTotpService', () => {
         return undefined;
       }),
     };
+
+    (bcrypt.hash as jest.Mock).mockImplementation(async (value: string) => `hash:${value}`);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -156,6 +159,10 @@ describe('AuthTotpService', () => {
     });
 
     it('enables 2FA and emits audit log on valid code', async () => {
+      jest.spyOn(authRecoveryCodes, 'generateRecoveryCodes').mockReturnValue([
+        'ABCD-EFGH',
+        'JKLM-NPQR',
+      ]);
       const encryptedSecret = 'enc:v1:stored';
       prismaService.user.findUnique.mockResolvedValue({
         id: 'user-1',
@@ -170,7 +177,10 @@ describe('AuthTotpService', () => {
 
       expect(prismaService.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { totpEnabled: true },
+        data: {
+          totpEnabled: true,
+          totpRecoveryCodes: JSON.stringify(['hash:ABCDEFGH', 'hash:JKLMNPQR']),
+        },
       });
       expect(auditService.log).toHaveBeenCalledWith({
         entityType: 'Auth',
@@ -178,12 +188,16 @@ describe('AuthTotpService', () => {
         userId: 'user-1',
         action: 'UPDATE',
         reason: 'AUTH_2FA_ENABLED',
-        diff: { totpEnabled: true },
+        diff: { totpEnabled: true, recoveryCodesIssued: 2 },
       });
-      expect(result).toEqual({ message: '2FA habilitado correctamente' });
+      expect(result).toEqual({
+        message: '2FA habilitado correctamente',
+        recoveryCodes: ['ABCD-EFGH', 'JKLM-NPQR'],
+      });
     });
 
     it('enables 2FA even when audit log rejects (fire-and-forget)', async () => {
+      jest.spyOn(authRecoveryCodes, 'generateRecoveryCodes').mockReturnValue(['ABCD-EFGH']);
       prismaService.user.findUnique.mockResolvedValue({
         id: 'user-1',
         totpSecret: 'SECRET123',
@@ -195,10 +209,14 @@ describe('AuthTotpService', () => {
 
       await expect(service.enable2FA('user-1', '123456')).resolves.toEqual({
         message: '2FA habilitado correctamente',
+        recoveryCodes: ['ABCD-EFGH'],
       });
       expect(prismaService.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { totpEnabled: true },
+        data: {
+          totpEnabled: true,
+          totpRecoveryCodes: JSON.stringify(['hash:ABCDEFGH']),
+        },
       });
       expect(auditService.log).toHaveBeenCalled();
     });
@@ -247,7 +265,7 @@ describe('AuthTotpService', () => {
 
       expect(prismaService.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { totpEnabled: false, totpSecret: null },
+        data: { totpEnabled: false, totpSecret: null, totpRecoveryCodes: null },
       });
       expect(auditService.log).toHaveBeenCalledWith({
         entityType: 'Auth',
@@ -255,7 +273,7 @@ describe('AuthTotpService', () => {
         userId: 'user-1',
         action: 'UPDATE',
         reason: 'AUTH_2FA_DISABLED',
-        diff: { totpEnabled: false },
+        diff: { totpEnabled: false, recoveryCodesCleared: true },
       });
       expect(result).toEqual({ message: '2FA deshabilitado correctamente' });
     });
@@ -275,9 +293,59 @@ describe('AuthTotpService', () => {
       });
       expect(prismaService.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { totpEnabled: false, totpSecret: null },
+        data: { totpEnabled: false, totpSecret: null, totpRecoveryCodes: null },
       });
       expect(auditService.log).toHaveBeenCalled();
+    });
+  });
+
+  describe('regenerateRecoveryCodes', () => {
+    it('throws BadRequestException when 2FA is not enabled', async () => {
+      prismaService.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        totpEnabled: false,
+        passwordHash: '$2b$10$hash',
+      });
+
+      await expect(service.regenerateRecoveryCodes('user-1', 'Password1')).rejects.toThrow(BadRequestException);
+      expect(prismaService.user.update).not.toHaveBeenCalled();
+    });
+
+    it('replaces recovery codes and emits an audit log on valid password', async () => {
+      jest.spyOn(authRecoveryCodes, 'generateRecoveryCodes').mockReturnValue(['WXYZ-2345', 'QRST-6789']);
+      prismaService.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        totpEnabled: true,
+        passwordHash: '$2b$10$hash',
+      });
+      prismaService.user.update.mockResolvedValue(undefined);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.regenerateRecoveryCodes('user-1', 'Password1');
+
+      expect(prismaService.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: {
+          totpRecoveryCodes: JSON.stringify(['hash:WXYZ2345', 'hash:QRST6789']),
+        },
+      });
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entityType: 'Auth',
+          entityId: 'user-1',
+          userId: 'user-1',
+          action: 'UPDATE',
+          reason: 'AUTH_2FA_RECOVERY_CODES_REGENERATED',
+          diff: expect.objectContaining({
+            recoveryCodesIssued: 2,
+            recoveryCodesRegeneratedAt: expect.any(String),
+          }),
+        }),
+      );
+      expect(result).toEqual({
+        message: 'Códigos de recuperación regenerados',
+        recoveryCodes: ['WXYZ-2345', 'QRST-6789'],
+      });
     });
   });
 });

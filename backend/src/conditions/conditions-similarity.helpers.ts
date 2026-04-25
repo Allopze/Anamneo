@@ -1,4 +1,4 @@
-import * as natural from 'natural';
+import { ConditionsTfIdf } from './conditions-tfidf';
 import { ConditionInput, SuggestionReason, SuggestionResult } from './conditions-similarity.types';
 
 export interface ConditionDocument {
@@ -34,7 +34,7 @@ export function buildWeightedSearchText(document: ConditionDocument) {
 }
 
 export function rankDocuments(
-  tfidf: natural.TfIdf,
+  tfidf: ConditionsTfIdf,
   documents: ConditionDocument[],
   inputText: string,
   limit: number,
@@ -68,19 +68,13 @@ export function rankDocuments(
 }
 
 function scoreDocument(
-  tfidf: natural.TfIdf,
+  tfidf: ConditionsTfIdf,
   index: number,
   document: ConditionDocument,
   normalizedInput: string,
   inputTokens: string[],
 ) {
-  let score = 0;
-
-  tfidf.tfidfs(normalizedInput, (documentIndex, measure) => {
-    if (documentIndex === index) {
-      score = measure;
-    }
-  });
+  let score = tfidf.scoreDocument(index, normalizedInput);
 
   score += scoreTerm(document.normalizedName, normalizedInput, inputTokens, {
     exact: 10,

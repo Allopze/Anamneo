@@ -258,9 +258,44 @@ Buena para el tamano del proyecto, con deuda manejable. No veo necesidad de gran
 1. La auditoria se hizo en desarrollo y con datos ficticios; no reporte la mera presencia de esos datos como incidente real.
 2. No inspeccione el `.env` real para no exponer secretos locales; me base en `.env.example`, validaciones de arranque y `docker-compose.yml`.
 3. No desplegue `docker compose` + `cloudflared` completo contra un host publico; evalua el modelo soportado, pero no lo certifique extremo a extremo.
-4. No ejecute toda la suite Playwright completa; si ejecute smoke y el flujo clinico principal.
-5. El restore drill que corri no valido adjuntos reales porque el backup auditado no tenia adjuntos cargados.
-6. El riesgo de posible bifurcacion de la cadena de auditoria por concurrencia es una inferencia de diseno basada en codigo, no una falla reproducida durante esta auditoria.
+
+## 12. Seguimiento 2026-04-25
+
+Cambios cerrados despues de la pasada principal de auditoria:
+
+- Recovery codes 2FA: la migracion `20260425110000_add_totp_recovery_codes` ya fue aplicada correctamente con `prisma migrate deploy`, y el flujo soportado de release/deploy sigue ejecutando ese paso antes de levantar servicios.
+- Backend sin deuda residual de `uuid`: se elimino la dependencia clinica a `natural`, se reemplazo el UUID directo por `crypto.randomUUID()` y `npm --prefix backend audit --omit=dev` quedo en `0` vulnerabilidades.
+- Frontend sin advisory residual de `uuid`: el arbol efectivo actual del frontend quedo limpio; `npm --prefix frontend audit --json` reporta `0` vulnerabilidades y `npm --prefix frontend ls uuid --all` no devuelve dependencias activas con `uuid`.
+- Verificacion de integridad ampliada: la vista admin ahora solicita verificacion completa de la cadena via `full=true`, mientras el endpoint mantiene el modo parcial para chequeos baratos cuando haga falta.
+- Playwright completo ejecutado: `npm --prefix frontend run test:e2e` paso con `13/13` pruebas, incluyendo alta de paciente, adjuntos, recuperacion de draft y cierre/firma del flujo clinico principal.
+- Restore drill con adjuntos reales validado: sobre `backend/prisma/e2e-playwright.db` se genero un backup con snapshot de uploads (`uploadsFileCount: 1`) y el restore drill paso con `attachmentCount: 1`.
+- Riesgo de concurrencia en auditoria confirmado como reproducible: una prueba aislada con `AuditService.log()` contra una copia temporal de `backend/prisma/e2e-playwright.db` rompio la cadena en el primer intento (`verifyChain => valid:false, checked:2, total:26`).
+- Concurrencia de auditoria corregida y revalidada: `AuditService.log()` ahora fuerza lock de escritura solo cuando el cliente soporta raw SQL (sin romper mocks de unit test), y la verificacion concurrente quedo estable (`audit.service.spec.ts` + `audit.service.concurrency.spec.ts`: `12/12` OK).
+- Smoke HTTPS real sigue abierto: en este host habia `cloudflared` activo, pero no el stack de Anamneo escuchando en `127.0.0.1:5555/5678`, asi que no existia una salida operativa completa que certificar extremo a extremo.
+
+Validacion ejecutada en esta pasada:
+
+- `npm --prefix backend run db:sqlite:backup`: OK.
+- `npm --prefix backend run prisma:migrate:prod`: OK, aplico `20260425110000_add_totp_recovery_codes`.
+- `npm --prefix backend run typecheck`: OK.
+- `npm --prefix backend test -- --runInBand conditions-similarity.service.spec.ts audit.service.spec.ts`: OK.
+- `npm --prefix frontend test -- --runInBand admin-auditoria.test.tsx`: OK.
+- `npm --prefix frontend run typecheck`: OK.
+- `npm --prefix frontend audit --json`: OK, `0` vulnerabilidades.
+- `npm --prefix frontend ls uuid --all`: sin coincidencias en el arbol efectivo.
+- `npm --prefix frontend run test:e2e`: OK, `13/13` pruebas Playwright.
+- `DATABASE_URL=file:/home/allopze/dev/Anamneo/backend/prisma/e2e-playwright.db UPLOAD_DEST=/home/allopze/dev/Anamneo/backend/uploads-e2e npm --prefix backend run db:sqlite:backup`: OK, snapshot con `1` adjunto.
+- `DATABASE_URL=file:/home/allopze/dev/Anamneo/backend/prisma/e2e-playwright.db npm --prefix backend run db:sqlite:restore:drill -- --from=/home/allopze/dev/Anamneo/backend/prisma/backups/anamneo-20260425-032144.db`: OK, `attachmentCount: 1`.
+- Prueba aislada de concurrencia contra copia temporal de `backend/prisma/e2e-playwright.db`: reproduce quiebre de cadena (`valid:false`, `checked:2/26`).
+- `npm --prefix backend run test -- --runInBand audit.service.spec.ts audit.service.concurrency.spec.ts`: OK, `12/12`.
+- `command -v cloudflared; ps -ef | grep '[c]loudflared'; docker compose -f /home/allopze/dev/Anamneo/docker-compose.yml ps`: `cloudflared` activo, stack local apagado.
+- `curl -fsS http://127.0.0.1:5555` y `curl -fsS http://127.0.0.1:5678/api/health`: `FRONTEND_UP=0`, `BACKEND_UP=0`.
+- `cloudflared tunnel info 71f8b604-0d0a-43f6-8ac0-4d452ae85be2`: falla por `origincert` ausente en este host, por lo que no se pudo inspeccionar el `hostname` publicado desde CLI local.
+- `npm --prefix backend audit --omit=dev --json`: OK, `0` vulnerabilidades.
+
+Pendientes que siguen abiertos despues de este seguimiento:
+
+- Repetir smoke final del despliegue HTTPS real cuando se haga la proxima salida operativa completa y el hostname publico efectivamente enrute al frontend local.
 
 ## Cierre
 

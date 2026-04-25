@@ -93,6 +93,12 @@ describe('AjustesPage', () => {
     window.localStorage.clear();
     usePrivacySettingsStore.setState({ sharedDeviceMode: false, hasHydrated: true });
     clearPendingSavesForUserMock.mockResolvedValue(undefined);
+    setUserMock.mockImplementation((nextUser: User) => {
+      authStoreState.user = nextUser;
+    });
+    logoutMock.mockImplementation(() => {
+      authStoreState.user = null;
+    });
     authStoreState.user = {
       id: 'admin-1',
       email: 'admin@anamneo.cl',
@@ -344,6 +350,51 @@ describe('AjustesPage', () => {
       await screen.findByText('Demasiados intentos. Por favor espere un momento antes de reintentar.'),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Código incorrecto/i)).not.toBeInTheDocument();
+  });
+
+  it('shows recovery codes after enabling 2FA', async () => {
+    authStoreState.user = {
+      id: 'med-1',
+      email: 'medico@anamneo.cl',
+      nombre: 'Medico Demo',
+      role: 'MEDICO',
+      isAdmin: false,
+      medicoId: null,
+      totpEnabled: false,
+    };
+
+    apiPostMock.mockImplementation((url: string) => {
+      if (url === '/auth/2fa/setup') {
+        return Promise.resolve({
+          data: {
+            secret: 'SECRET',
+            qrCodeDataUrl: 'data:image/png;base64,qr-demo',
+          },
+        });
+      }
+
+      if (url === '/auth/2fa/enable') {
+        return Promise.resolve({
+          data: {
+            message: '2FA habilitado correctamente',
+            recoveryCodes: ['ABCD-EFGH', 'JKLM-NPQR'],
+          },
+        });
+      }
+
+      return Promise.resolve({ data: {} });
+    });
+
+    render(<AjustesPage />, { wrapper: createWrapper() });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Configurar 2FA' }));
+    await screen.findByAltText('Código QR para 2FA');
+    await userEvent.type(screen.getByLabelText('Código de verificación'), '123456');
+    await userEvent.click(screen.getByRole('button', { name: 'Activar 2FA' }));
+
+    expect(await screen.findByText('Códigos de recuperación')).toBeInTheDocument();
+    expect(screen.getByText('ABCD-EFGH')).toBeInTheDocument();
+    expect(screen.getByText('JKLM-NPQR')).toBeInTheDocument();
   });
 
   it('shows the real disable error instead of blaming the password for every failure', async () => {

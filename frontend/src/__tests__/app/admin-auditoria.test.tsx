@@ -52,6 +52,16 @@ beforeEach(() => {
       });
     }
 
+    if (url === '/audit/integrity/verify?full=true') {
+      return Promise.resolve({
+        data: {
+          valid: true,
+          checked: 1,
+          total: 1,
+        },
+      });
+    }
+
     if (url.startsWith('/audit?')) {
       return Promise.resolve({
         data: {
@@ -86,6 +96,9 @@ beforeEach(() => {
 describe('AuditoriaPage', () => {
   it('renders audit rows and opens the diff modal', async () => {
     render(<AuditoriaPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Cadena íntegra')).toBeInTheDocument();
+    expect(screen.getByText('Entradas verificadas')).toBeInTheDocument();
 
     const openDiffButton = await screen.findByRole('button', { name: 'Ver diff' });
     const table = screen.getByRole('table');

@@ -373,9 +373,16 @@ export async function resetUserPassword(
   }
 
   const passwordHash = await bcrypt.hash(normalizedPassword, BCRYPT_ROUNDS);
+  const hadTotpEnrollment = !!user.totpEnabled || !!user.totpSecret || !!user.totpRecoveryCodes;
   await prisma.user.update({
     where: { id },
-    data: { passwordHash, mustChangePassword: true },
+    data: {
+      passwordHash,
+      mustChangePassword: true,
+      totpEnabled: false,
+      totpSecret: null,
+      totpRecoveryCodes: null,
+    },
   });
   await revokeUserSessions(usersSessionService, id);
 
@@ -389,6 +396,7 @@ export async function resetUserPassword(
         id: user.id,
         email: user.email,
         temporary: true,
+        totpEnrollmentReset: hadTotpEnrollment,
       },
     },
   });

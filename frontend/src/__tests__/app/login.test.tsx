@@ -44,11 +44,24 @@ jest.mock('@/components/branding/AnamneoLogo', () => ({
 beforeEach(() => {
   jest.clearAllMocks();
   fromParam = null;
+  apiGetMock.mockResolvedValue({
+    data: {
+      hasAdmin: true,
+      requiresBootstrapToken: false,
+    },
+  });
 });
 
+async function renderLoginPage() {
+  render(<LoginPage />);
+  await waitFor(() => {
+    expect(apiGetMock).toHaveBeenCalledWith('/auth/bootstrap');
+  });
+}
+
 describe('LoginPage', () => {
-  it('renders login form', () => {
-    render(<LoginPage />);
+  it('renders login form', async () => {
+    await renderLoginPage();
     expect(screen.getByLabelText('Correo electrónico')).toBeInTheDocument();
     expect(screen.getByLabelText('Contraseña')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeInTheDocument();
@@ -56,7 +69,7 @@ describe('LoginPage', () => {
 
   it('shows validation errors for empty submit', async () => {
     const user = userEvent.setup();
-    render(<LoginPage />);
+    await renderLoginPage();
 
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
@@ -68,7 +81,7 @@ describe('LoginPage', () => {
 
   it('does not submit with invalid email', async () => {
     const user = userEvent.setup();
-    render(<LoginPage />);
+    await renderLoginPage();
 
     await user.type(screen.getByLabelText('Correo electrónico'), 'invalid');
     await user.type(screen.getByLabelText('Contraseña'), 'somepassword');
@@ -98,7 +111,7 @@ describe('LoginPage', () => {
     });
 
     const user = userEvent.setup();
-    render(<LoginPage />);
+  await renderLoginPage();
 
     await user.type(screen.getByLabelText('Correo electrónico'), 'doc@test.cl');
     await user.type(screen.getByLabelText('Contraseña'), 'Password1');
@@ -109,7 +122,6 @@ describe('LoginPage', () => {
         email: 'doc@test.cl',
         password: 'Password1',
       });
-      expect(apiGetMock).not.toHaveBeenCalled();
       expect(pushMock).toHaveBeenCalledWith('/');
     });
   });
@@ -132,15 +144,59 @@ describe('LoginPage', () => {
     });
 
     const user = userEvent.setup();
-    render(<LoginPage />);
+  await renderLoginPage();
 
     await user.type(screen.getByLabelText('Correo electrónico'), 'doc@test.cl');
     await user.type(screen.getByLabelText('Contraseña'), 'Password1');
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     await waitFor(() => {
-      expect(apiGetMock).not.toHaveBeenCalled();
       expect(pushMock).toHaveBeenCalledWith('/atenciones/enc-1?panel=review');
+    });
+  });
+
+  it('allows completing the 2FA step with a recovery code', async () => {
+    apiPostMock
+      .mockResolvedValueOnce({
+        data: {
+          requires2FA: true,
+          tempToken: 'temp-token',
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          user: {
+            id: '1',
+            email: 'doc@test.cl',
+            nombre: 'Dr. Test',
+            role: 'MEDICO',
+            isAdmin: false,
+            medicoId: null,
+            mustChangePassword: false,
+            totpEnabled: true,
+          },
+        },
+      });
+
+    const user = userEvent.setup();
+  await renderLoginPage();
+
+    await user.type(screen.getByLabelText('Correo electrónico'), 'doc@test.cl');
+    await user.type(screen.getByLabelText('Contraseña'), 'Password1');
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+
+    expect(await screen.findByText('Verificación 2FA')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Usar código de recuperación' }));
+    await user.type(screen.getByLabelText('Código de recuperación'), 'ABCD-EFGH');
+    await user.click(screen.getByRole('button', { name: 'Verificar código' }));
+
+    await waitFor(() => {
+      expect(apiPostMock).toHaveBeenNthCalledWith(2, '/auth/2fa/verify', {
+        tempToken: 'temp-token',
+        code: 'ABCD-EFGH',
+      });
+      expect(pushMock).toHaveBeenCalledWith('/');
     });
   });
 
@@ -153,7 +209,7 @@ describe('LoginPage', () => {
     jest.spyOn(require('axios'), 'isAxiosError').mockReturnValue(true);
 
     const user = userEvent.setup();
-    render(<LoginPage />);
+  await renderLoginPage();
 
     await user.type(screen.getByLabelText('Correo electrónico'), 'doc@test.cl');
     await user.type(screen.getByLabelText('Contraseña'), 'wrong');
@@ -180,7 +236,7 @@ describe('LoginPage', () => {
     jest.spyOn(require('axios'), 'isAxiosError').mockReturnValue(true);
 
     const user = userEvent.setup();
-    render(<LoginPage />);
+  await renderLoginPage();
 
     await user.type(screen.getByLabelText('Correo electrónico'), 'doc@test.cl');
     await user.type(screen.getByLabelText('Contraseña'), 'wrong');
@@ -193,9 +249,24 @@ describe('LoginPage', () => {
     });
   });
 
-  it('has link to register page', () => {
-    render(<LoginPage />);
-    const link = screen.getByText('Crear cuenta');
+  it('shows invitation guidance when public registration is closed', async () => {
+    await renderLoginPage();
+
+    expect(await screen.findByText('¿Necesitas acceso? Pide una invitación válida al administrador del espacio clínico.')).toBeInTheDocument();
+    expect(screen.queryByText('Crear cuenta')).not.toBeInTheDocument();
+  });
+
+  it('shows the register CTA when bootstrap registration is still open', async () => {
+    apiGetMock.mockResolvedValueOnce({
+      data: {
+        hasAdmin: false,
+        requiresBootstrapToken: true,
+      },
+    });
+
+    await renderLoginPage();
+
+    const link = await screen.findByRole('link', { name: /Crear cuenta/i });
     expect(link).toHaveAttribute('href', '/register');
   });
 });

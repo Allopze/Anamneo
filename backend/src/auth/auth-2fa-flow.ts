@@ -2,6 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { authenticator } from '@otplib/v12-adapter';
 import { PrismaService } from '../prisma/prisma.service';
+import { consumeRecoveryCode, serializeRecoveryCodeHashes } from './auth-recovery-codes';
 
 type SessionContext = {
   userAgent?: string | null;
@@ -39,6 +40,10 @@ function purgeExpiredTempTokenJtis(usedTempTokenJtis: Map<string, number>, now: 
   }
 }
 
+function isTotpToken(code: string) {
+  return /^\d{6}$/.test(code.trim());
+}
+
 export async function verify2FALoginFlow(
   params: Verify2FALoginFlowParams,
 ): Promise<{ tokens: AuthTokens; userId: string }> {
@@ -72,20 +77,43 @@ export async function verify2FALoginFlow(
     if (usedTempTokenJtis.has(payload.jti)) {
       throw new UnauthorizedException('Token temporal ya utilizado');
     }
-    usedTempTokenJtis.set(payload.jti, now + tempTokenTtlMs);
   }
 
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
-  if (!user || !user.active || !user.totpEnabled || !user.totpSecret) {
+  if (!user || !user.active || !user.totpEnabled || (!user.totpSecret && !user.totpRecoveryCodes)) {
     throw new UnauthorizedException('Usuario no encontrado o 2FA no configurado');
   }
 
-  const isValid = authenticator.verify({
-    token: code,
-    secret: resolveTotpSecret(user.totpSecret),
-  });
+  let recoveryCodeHashesAfterConsume: string[] | null = null;
+  let isValid = false;
+
+  if (isTotpToken(code) && user.totpSecret) {
+    isValid = authenticator.verify({
+      token: code.trim(),
+      secret: resolveTotpSecret(user.totpSecret),
+    });
+  }
+
   if (!isValid) {
-    throw new UnauthorizedException('Código TOTP inválido');
+    recoveryCodeHashesAfterConsume = await consumeRecoveryCode(code, user.totpRecoveryCodes);
+    isValid = recoveryCodeHashesAfterConsume !== null;
+  }
+
+  if (!isValid) {
+    throw new UnauthorizedException('Código de verificación inválido');
+  }
+
+  if (recoveryCodeHashesAfterConsume !== null) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        totpRecoveryCodes: serializeRecoveryCodeHashes(recoveryCodeHashesAfterConsume),
+      },
+    });
+  }
+
+  if (payload.jti) {
+    usedTempTokenJtis.set(payload.jti, now + tempTokenTtlMs);
   }
 
   return {

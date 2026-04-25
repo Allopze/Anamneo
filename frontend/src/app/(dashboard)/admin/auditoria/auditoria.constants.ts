@@ -56,6 +56,7 @@ export const REASON_LABELS: Record<string, string> = {
   AUTH_LOGIN_REJECTED: 'Login rechazado',
   AUTH_2FA_ENABLED: '2FA activado',
   AUTH_2FA_DISABLED: '2FA desactivado',
+  AUTH_2FA_RECOVERY_CODES_REGENERATED: 'Recovery codes 2FA regenerados',
   PATIENT_CREATED: 'Alta de paciente',
   PATIENT_UPDATED: 'Actualización de paciente',
   PATIENT_ADMIN_UPDATED: 'Actualización administrativa',

@@ -121,4 +121,47 @@ describe('UsersService', () => {
       await expect(service.remove('missing', 'actor-1')).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe('resetPassword', () => {
+    it('clears prior TOTP enrollment and revokes sessions on admin reset', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'med@test.com',
+        totpEnabled: true,
+        totpSecret: 'enc:v1:secret',
+        totpRecoveryCodes: '["hash:ABCD1234"]',
+      });
+
+      await service.resetPassword('user-1', 'Temporal123', 'admin-1');
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: expect.objectContaining({
+          mustChangePassword: true,
+          totpEnabled: false,
+          totpSecret: null,
+          totpRecoveryCodes: null,
+          passwordHash: expect.any(String),
+        }),
+      });
+      expect(usersSessionService.rotateRefreshTokenVersion).toHaveBeenCalledWith('user-1');
+      expect(usersSessionService.revokeAllSessionsForUser).toHaveBeenCalledWith('user-1');
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entityType: 'User',
+          entityId: 'user-1',
+          userId: 'admin-1',
+          action: 'PASSWORD_CHANGED',
+          diff: {
+            reset: expect.objectContaining({
+              id: 'user-1',
+              email: 'med@test.com',
+              temporary: true,
+              totpEnrollmentReset: true,
+            }),
+          },
+        }),
+      );
+    });
+  });
 });

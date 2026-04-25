@@ -148,9 +148,11 @@ El script `scripts/deploy.sh` ejecuta:
 
 1. Backup pre-migración usando `backend/scripts/sqlite-backup.js`, incluyendo metadata y snapshot de uploads.
 2. Restore drill sobre ese backup para validar que es utilizable también cuando existen adjuntos.
-3. `prisma migrate deploy`.
+3. `prisma migrate deploy` sobre todas las migraciones pendientes empaquetadas en `backend/prisma/migrations/`.
 4. Si la migración falla, ofrece rollback automático al estado previo.
 5. `docker compose up -d` y espera health check del backend.
+
+Eso incluye cambios de esquema puntuales como la migración de recovery codes 2FA (`20260425110000_add_totp_recovery_codes`) sin requerir pasos manuales extra fuera del flujo de release.
 
 Hasta aca el stack queda listo en el host, no publicado a internet. La publicacion soportada ocurre cuando `cloudflared` enruta tu hostname HTTPS al frontend local.
 
@@ -161,6 +163,11 @@ docker compose exec backend npm run prisma:seed
 ```
 
 ## Smoke Checks
+
+Prerequisitos para este smoke final:
+
+- El stack de Anamneo debe estar realmente arriba en loopback (`127.0.0.1:<BACKEND_PORT>` y `127.0.0.1:<FRONTEND_PORT>`).
+- Debes conocer el hostname HTTPS publicado por el tunnel. Un proceso `cloudflared` activo sin frontend respondiendo en loopback no valida el despliegue soportado.
 
 1. `GET http://127.0.0.1:<BACKEND_PORT>/api/health` responde OK en el host.
 2. El frontend carga localmente en `http://127.0.0.1:<FRONTEND_PORT>`.

@@ -34,8 +34,14 @@ export class AuditController {
 
   @Get('integrity/verify')
   @UseGuards(AdminGuard)
-  verifyChain(@Query('limit') limit?: string) {
-    return this.auditService.verifyChain(limit ? parseInt(limit, 10) : 1000);
+  verifyChain(
+    @Query('limit') limit?: string,
+    @Query('full') full?: string,
+  ) {
+    const shouldVerifyFullChain = full === 'true';
+    return this.auditService.verifyChain(
+      shouldVerifyFullChain ? undefined : (limit ? parseInt(limit, 10) : 1000),
+    );
   }
 
   @Get(':entityType/:entityId')

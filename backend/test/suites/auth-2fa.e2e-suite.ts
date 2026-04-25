@@ -25,6 +25,9 @@ export function authTwoFactorSuite() {
         .expect(200);
 
       expect(res.body.message).toBe('2FA habilitado correctamente');
+      expect(Array.isArray(res.body.recoveryCodes)).toBe(true);
+      expect(res.body.recoveryCodes.length).toBeGreaterThan(0);
+      state.medicoRecoveryCodes = res.body.recoveryCodes;
     });
 
     it('POST /api/auth/login → returns temp token when 2FA is enabled', async () => {
@@ -49,6 +52,35 @@ export function authTwoFactorSuite() {
       await req()
         .post('/api/auth/2fa/verify')
         .send({ tempToken: 'expired.invalid.token', code: '123456' })
+        .expect(401);
+    });
+
+    it('POST /api/auth/2fa/verify → exchanges temp token with a recovery code and consumes it', async () => {
+      const loginRes = await req()
+        .post('/api/auth/login')
+        .send({ email: 'medico@test.com', password: 'New.Pass123' })
+        .expect(200);
+
+      expect(loginRes.body.requires2FA).toBe(true);
+      expect(typeof loginRes.body.tempToken).toBe('string');
+
+      const recoveryCode = state.medicoRecoveryCodes[0];
+      const res = await req()
+        .post('/api/auth/2fa/verify')
+        .send({ tempToken: loginRes.body.tempToken, code: recoveryCode })
+        .expect(200);
+
+      expect(res.body.message).toBe('Verificación 2FA exitosa');
+      expect(res.body.user.email).toBe('medico@test.com');
+
+      const secondLoginRes = await req()
+        .post('/api/auth/login')
+        .send({ email: 'medico@test.com', password: 'New.Pass123' })
+        .expect(200);
+
+      await req()
+        .post('/api/auth/2fa/verify')
+        .send({ tempToken: secondLoginRes.body.tempToken, code: recoveryCode })
         .expect(401);
     });
 

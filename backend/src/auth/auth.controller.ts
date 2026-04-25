@@ -7,7 +7,12 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterWithInvitationDto } from './dto/register-with-invitation.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { VerifyTotpDto, DisableTotpDto, VerifyTotpLoginDto } from './dto/totp.dto';
+import {
+  VerifyTotpDto,
+  DisableTotpDto,
+  VerifyTotpLoginDto,
+  RegenerateRecoveryCodesDto,
+} from './dto/totp.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { UsersService } from '../users/users.service';
@@ -213,6 +218,16 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async disable2FA(@CurrentUser() user: CurrentUserData, @Body() dto: DisableTotpDto) {
     return this.authTotpService.disable2FA(user.id, dto.password);
+  }
+
+  @Post('2fa/recovery-codes/regenerate')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async regenerateRecoveryCodes(
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: RegenerateRecoveryCodesDto,
+  ) {
+    return this.authTotpService.regenerateRecoveryCodes(user.id, dto.password);
   }
 
   @Post('2fa/verify')
