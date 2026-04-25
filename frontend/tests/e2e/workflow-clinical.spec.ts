@@ -427,8 +427,8 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
       await diagnosisInput.fill('Apendicitis aguda probable');
       await completeVisibleSection(page, 'Tratamiento');
 
-      await page.getByRole('button', { name: /agregar medicamento/i }).click();
-      await page.getByPlaceholder('Medicamento').fill('Paracetamol');
+      await page.getByTestId('medication-add-manual').click();
+      await page.getByTestId('medication-manual-name').fill('Paracetamol');
       await completeVisibleSection(page, 'Respuesta al tratamiento');
 
       const drawer = await openDrawerTab(page, 'Cierre');

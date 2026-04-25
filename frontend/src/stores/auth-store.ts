@@ -60,7 +60,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: (options) => {
         const currentUserId = get().user?.id;
-        if (currentUserId && options?.clearLocalState) {
+        if (currentUserId && options?.clearLocalState !== false) {
           clearEncounterLocalStateForUser(currentUserId);
           void clearPendingSavesForUser(currentUserId).catch(() => {
             // Ignore IndexedDB cleanup failures; the session still must close.

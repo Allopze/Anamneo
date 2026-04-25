@@ -64,7 +64,7 @@ describe('useAuthStore', () => {
     expect(state.isAuthenticated).toBe(true);
   });
 
-  it('logout clears user without wiping drafts by default', () => {
+  it('logout clears user and wipes drafts by default', () => {
     act(() => {
       useAuthStore.getState().login(medicoUser);
       useAuthStore.getState().logout();
@@ -73,21 +73,21 @@ describe('useAuthStore', () => {
     const state = useAuthStore.getState();
     expect(state.user).toBeNull();
     expect(state.isAuthenticated).toBe(false);
-    expect(clearEncounterLocalStateForUserMock).not.toHaveBeenCalled();
-    expect(clearPendingSavesForUserMock).not.toHaveBeenCalled();
+    expect(clearEncounterLocalStateForUserMock).toHaveBeenCalledWith('1');
+    expect(clearPendingSavesForUserMock).toHaveBeenCalledWith('1');
   });
 
-  it('logout can clear local drafts on explicit logout', () => {
+  it('logout can preserve local drafts when explicitly requested', () => {
     act(() => {
       useAuthStore.getState().login(medicoUser);
-      useAuthStore.getState().logout({ clearLocalState: true });
+      useAuthStore.getState().logout({ clearLocalState: false });
     });
 
     const state = useAuthStore.getState();
     expect(state.user).toBeNull();
     expect(state.isAuthenticated).toBe(false);
-    expect(clearEncounterLocalStateForUserMock).toHaveBeenCalledWith('1');
-    expect(clearPendingSavesForUserMock).toHaveBeenCalledWith('1');
+    expect(clearEncounterLocalStateForUserMock).not.toHaveBeenCalled();
+    expect(clearPendingSavesForUserMock).not.toHaveBeenCalled();
   });
 
   it('setUser updates user without changing isAuthenticated', () => {

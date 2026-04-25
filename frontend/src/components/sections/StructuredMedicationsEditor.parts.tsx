@@ -95,7 +95,12 @@ export function MedicationCatalogToolbar({
           ) : null}
         </div>
 
-        <button type="button" onClick={onAddManual} className="btn btn-secondary shrink-0">
+        <button
+          type="button"
+          onClick={onAddManual}
+          className="btn btn-secondary shrink-0"
+          data-testid="medication-add-manual"
+        >
           <FiPlus className="h-4 w-4" />
           Agregar manual
         </button>
@@ -168,6 +173,7 @@ export function MedicationNameField({
       <input
         className="form-input"
         placeholder="Medicamento"
+        data-testid="medication-manual-name"
         value={medication.nombre || ''}
         disabled={readOnly}
         autoComplete="off"
