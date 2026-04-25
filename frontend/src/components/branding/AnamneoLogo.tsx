@@ -27,10 +27,10 @@ export function AnamneoLogo({
         <Image
           src="/anamneo-logo.svg"
           alt=""
-          width={96}
-          height={96}
+          width={128}
+          height={128}
           priority={priority}
-          className={clsx('h-10 w-auto', iconClassName)}
+          className={clsx('h-12 w-auto', iconClassName)}
         />
       </span>
       <span

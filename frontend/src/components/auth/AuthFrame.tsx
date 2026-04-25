@@ -38,7 +38,7 @@ export function AuthFrame({
         <div className="auth-hero-panel">
           <AnamneoLogo
             className="mb-6 hidden lg:flex"
-            iconClassName="h-10 w-10"
+            iconClassName="h-12 w-12"
             textClassName="text-2xl font-bold text-ink-onDark"
             priority
           />
@@ -62,7 +62,7 @@ export function AuthFrame({
           <div className="auth-card-header">
             <AnamneoLogo
               className="justify-center lg:hidden"
-              iconClassName="h-10 w-10"
+              iconClassName="h-12 w-12"
               textClassName="text-2xl font-bold text-ink-primary"
               priority
             />

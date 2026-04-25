@@ -151,7 +151,7 @@ export function FichaSignaturePanel({
           {signatureDiff.hasChanges ? (
             <div className="mt-4 flex flex-col gap-4">
               {signatureDiff.sections.map((section) => (
-                <div key={section.sectionKey} className="rounded-input border border-surface-muted/35 bg-surface-base/55 px-4 py-3">
+                <div key={section.sectionKey} className="rounded-card border border-surface-muted/35 bg-surface-base/55 px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-medium text-ink">{section.label}</p>
                     <span className="text-xs text-ink-muted">
@@ -175,7 +175,7 @@ export function FichaSignaturePanel({
               ))}
 
               {signatureDiff.attachmentChanges.length > 0 ? (
-                <div className="rounded-input border border-surface-muted/35 bg-surface-base/55 px-4 py-3">
+                <div className="rounded-card border border-surface-muted/35 bg-surface-base/55 px-4 py-3">
                   <p className="text-sm font-medium text-ink">Adjuntos</p>
                   <div className="mt-3 flex flex-col gap-2">
                     {signatureDiff.attachmentChanges.map((change, index) => (

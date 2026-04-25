@@ -117,7 +117,7 @@ export default function DashboardLayoutShell({
         <div className="relative flex h-full flex-1 flex-col overflow-hidden">
           <header className="z-20 mx-2 mt-2 flex h-16 flex-shrink-0 items-center justify-between rounded-b-card bg-surface-elevated px-5 shadow-soft lg:hidden">
             <Link href="/" className="flex items-center gap-2">
-              <AnamneoLogo className="gap-2" iconClassName="h-6 w-6" textClassName="text-xl font-extrabold text-ink" />
+              <AnamneoLogo className="gap-2" iconClassName="h-8 w-8" textClassName="text-xl font-extrabold text-ink" />
             </Link>
             <div className="flex items-center gap-2">
               <button
