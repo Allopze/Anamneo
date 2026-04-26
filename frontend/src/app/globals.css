@@ -664,7 +664,7 @@ body {
   }
 
   .smart-header-context-slot {
-    @apply flex min-w-0 flex-1 items-center justify-end overflow-x-auto;
+    @apply flex min-w-0 flex-1 items-center justify-end;
   }
 
   .smart-header-action-btn {

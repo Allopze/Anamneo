@@ -100,6 +100,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     initializedEncounterIdRef,
     formDataRef,
     lastSavedRef,
+    setRestoredDraft: setLocalDraft,
     setIsDraftHydrated,
   });
 
@@ -110,8 +111,6 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
       setRecoverableConflict(null);
       return;
     }
-    const storedDraft = readEncounterDraft(id, userId);
-    setLocalDraft(storedDraft && hasEncounterDraftUnsavedChanges(storedDraft) ? storedDraft : null);
 
     const visibleSectionKeys = new Set(sections.map((section) => section.sectionKey));
     const storedConflict = sections
@@ -122,7 +121,24 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
 
     setRecoverableConflicts(storedConflicts);
     setRecoverableConflict(storedConflict ?? storedConflicts[0] ?? null);
-  }, [currentSectionIndex, effectiveSharedDeviceMode, formData, id, savedSnapshotJson, sections, userId]);
+  }, [effectiveSharedDeviceMode, id, sections, userId]);
+
+  useEffect(() => {
+    if (!localDraft) {
+      return;
+    }
+
+    let savedSnapshot: Record<string, any> = {};
+    try {
+      savedSnapshot = JSON.parse(savedSnapshotJson || '{}');
+    } catch {
+      savedSnapshot = {};
+    }
+
+    if (!hasEncounterDraftUnsavedChanges({ formData, savedSnapshot })) {
+      setLocalDraft(null);
+    }
+  }, [formData, localDraft, savedSnapshotJson]);
 
   const {
     saveSection,

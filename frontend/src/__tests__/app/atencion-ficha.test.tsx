@@ -205,14 +205,18 @@ describe('FichaClinicaPage clinical-output block', () => {
   });
 
   it('disables print and official export actions when the patient record is pending verification', async () => {
+    const user = userEvent.setup();
+
     render(<FichaClinicaPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Receta' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Órdenes' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Derivación' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Descargar PDF' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Imprimir' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Exportar documentos' }));
+
+    expect(screen.getByRole('menuitem', { name: 'Receta' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Órdenes' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Derivación' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Descargar PDF' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Imprimir' })).toBeDisabled();
     expect(screen.getByText('Salidas clinicas bloqueadas')).toBeInTheDocument();
     expect(screen.getByText('Impresión bloqueada')).toBeInTheDocument();
     expect(screen.getAllByText(/pendiente de verificación médica/i)).toHaveLength(3);
@@ -220,6 +224,8 @@ describe('FichaClinicaPage clinical-output block', () => {
   });
 
   it('disables official outputs when the encounter is not yet completed even if the patient is verified', async () => {
+    const user = userEvent.setup();
+
     apiGetMock.mockImplementation((url: string) => {
       if (url === '/encounters/enc-1') {
         return Promise.resolve({
@@ -243,11 +249,13 @@ describe('FichaClinicaPage clinical-output block', () => {
     render(<FichaClinicaPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Receta' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Órdenes' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Derivación' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Descargar PDF' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Imprimir' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Exportar documentos' }));
+
+    expect(screen.getByRole('menuitem', { name: 'Receta' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Órdenes' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Derivación' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Descargar PDF' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Imprimir' })).toBeDisabled();
     expect(screen.getByText('PDF clínico completo e impresión aún no disponibles')).toBeInTheDocument();
     expect(screen.getByText(/Las recetas, órdenes y derivaciones siguen disponibles/i)).toBeInTheDocument();
   });
@@ -285,7 +293,8 @@ describe('FichaClinicaPage clinical-output block', () => {
     render(<FichaClinicaPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Receta' }));
+    await user.click(screen.getByRole('button', { name: 'Exportar documentos' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Receta' }));
 
     await waitFor(() => {
       expect(apiGetMock).toHaveBeenCalledWith('/encounters/enc-1/export/document/receta', {
@@ -352,7 +361,8 @@ describe('FichaClinicaPage clinical-output block', () => {
     render(<FichaClinicaPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Nuevo seguimiento' }));
+    await user.click(screen.getByRole('button', { name: 'Más acciones' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Nuevo seguimiento' }));
 
     await waitFor(() => {
       expect(apiPostMock).toHaveBeenCalledWith('/encounters/enc-1/duplicate');

@@ -6,6 +6,7 @@ import {
   hasEncounterDraftUnsavedChanges,
   readEncounterDraft,
   writeEncounterDraft,
+  type EncounterDraft,
 } from '@/lib/encounter-draft';
 import { isSharedDeviceModeEnabled, usePrivacySettingsStore } from '@/stores/privacy-settings-store';
 
@@ -22,6 +23,7 @@ interface UseEncounterDraftSyncParams {
   initializedEncounterIdRef: React.MutableRefObject<string | null>;
   formDataRef: React.MutableRefObject<Record<string, any>>;
   lastSavedRef: React.MutableRefObject<string>;
+  setRestoredDraft: React.Dispatch<React.SetStateAction<EncounterDraft | null>>;
   setIsDraftHydrated: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
@@ -41,6 +43,7 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
     initializedEncounterIdRef,
     formDataRef,
     lastSavedRef,
+    setRestoredDraft,
     setIsDraftHydrated,
   } = params;
 
@@ -65,11 +68,13 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
     const useDraft = storedDraft && !draftIsStale;
     const restoredFormData = useDraft ? storedDraft.formData : initialData;
     const restoredSavedSnapshot = useDraft ? storedDraft.savedSnapshot : initialData;
+    const restoredDraft = useDraft && hasEncounterDraftUnsavedChanges(storedDraft) ? storedDraft : null;
 
     setFormData(restoredFormData);
     formDataRef.current = restoredFormData;
     lastSavedRef.current = JSON.stringify(restoredSavedSnapshot);
     setSavedSnapshotJson(lastSavedRef.current);
+    setRestoredDraft(restoredDraft);
     setCurrentSectionIndex(
       Math.min(Math.max(useDraft ? storedDraft.currentSectionIndex : 0, 0), Math.max(sectionsLength - 1, 0)),
     );
@@ -78,7 +83,7 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
     if (draftIsStale && storedDraft && hasEncounterDraftUnsavedChanges(storedDraft)) {
       toast('Se descartó un borrador local porque la atención fue actualizada en otra sesión', { icon: '⚠️' });
       if (userId) clearEncounterDraft(encounter.id, userId);
-    } else if (useDraft && hasEncounterDraftUnsavedChanges(storedDraft)) {
+    } else if (restoredDraft) {
       toast.success('Se restauró un borrador local de esta atención');
     }
   }, [
@@ -90,6 +95,7 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
     setCurrentSectionIndex,
     setFormData,
     setIsDraftHydrated,
+    setRestoredDraft,
     setSavedSnapshotJson,
     effectiveSharedDeviceMode,
     userId,

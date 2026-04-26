@@ -3,7 +3,10 @@
  * Extracted from EncountersPdfService to keep the service focused on document orchestration.
  */
 import * as path from 'path';
-import { getPatientDemographicsMissingFields } from '../common/utils/patient-completeness';
+import {
+  getPatientDemographicsMissingFields,
+  type PatientDemographicMissingField,
+} from '../common/utils/patient-completeness';
 
 // ─── Display maps ────────────────────────────────────────────────────────────
 
@@ -167,6 +170,46 @@ export function formatEncounterDateOnly(value: string | Date) {
     day: '2-digit',
     timeZone: PDF_TIME_ZONE,
   }).format(new Date(value)).replace(/\//g, '-');
+}
+
+export function hasEncounterIdentificationBirthDate(value: unknown) {
+  if (value instanceof Date) {
+    return !Number.isNaN(value.getTime());
+  }
+
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+export function getEncounterIdentificationMissingFields(
+  ident: Record<string, unknown>,
+): PatientDemographicMissingField[] {
+  const missingFields: PatientDemographicMissingField[] = [];
+
+  const hasRut = typeof ident.rut === 'string' && ident.rut.trim().length > 0;
+  const hasRutExemption = Boolean(ident.rutExempt)
+    && typeof ident.rutExemptReason === 'string'
+    && ident.rutExemptReason.trim().length > 0;
+
+  if (!hasRut && !hasRutExemption) {
+    missingFields.push('rut');
+  }
+
+  const hasBirthDate = hasEncounterIdentificationBirthDate(ident.fechaNacimiento);
+  const hasAge = typeof ident.edad === 'number' && Number.isFinite(ident.edad) && ident.edad >= 0;
+
+  if (!hasBirthDate && !hasAge) {
+    missingFields.push('edad');
+  }
+
+  if (typeof ident.sexo !== 'string' || ident.sexo.trim().length === 0) {
+    missingFields.push('sexo');
+  }
+
+  if (typeof ident.prevision !== 'string' || ident.prevision.trim().length === 0) {
+    missingFields.push('prevision');
+  }
+
+  return missingFields;
 }
 
 export function sanitizeFilenameSegment(value: string | undefined | null) {

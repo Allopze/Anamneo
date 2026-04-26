@@ -5,16 +5,17 @@ import {
   STATUS_MAP,
   REVIEW_STATUS_MAP,
   ANAMNESIS_REMOTA_FIELD_LABELS,
+  formatEncounterDateOnly,
   formatEncounterDateTime,
   formatRutDisplay,
   formatSospechaDiagnosticaLabel,
+  getEncounterIdentificationMissingFields,
   getIdentificationDifferenceLabels,
   getTreatmentPlanText,
   formatStructuredMedicationLine,
   formatHistoryFieldText,
   formatRevisionSystemEntries,
   getRutDisplayData,
-  getPatientDemographicsMissingFields,
 } from './encounters-pdf.helpers';
 
 export function renderEncounterClinicalPdf(doc: any, pageWidth: number, encounter: any, sectionsMap: Record<string, any>) {
@@ -60,11 +61,15 @@ export function renderEncounterClinicalPdf(doc: any, pageWidth: number, encounte
 
   const ident = sectionsMap['IDENTIFICACION'] || {};
   const identificationDifferences = getIdentificationDifferenceLabels(encounter, ident);
-  const identificationMissingFields = getPatientDemographicsMissingFields(ident);
+  const identificationMissingFields = getEncounterIdentificationMissingFields(ident);
   sectionTitle(1, 'IDENTIFICACIÓN DEL PACIENTE');
   field('Nombre', ident.nombre || encounter.patient.nombre);
   field('RUT', formatRutDisplay(getRutDisplayData(ident, encounter.patient)));
-  field('Edad', ident.edad ? `${ident.edad} años${ident.edadMeses ? ` ${ident.edadMeses} meses` : ''}` : undefined);
+  field(
+    'Fecha de nacimiento',
+    ident.fechaNacimiento ? formatEncounterDateOnly(ident.fechaNacimiento) : undefined,
+  );
+  field('Edad', ident.edad != null ? `${ident.edad} años${ident.edadMeses ? ` ${ident.edadMeses} meses` : ''}` : undefined);
   field('Sexo', SEXO_MAP[ident.sexo] || ident.sexo);
   field('Previsión', PREVISION_MAP[ident.prevision] || ident.prevision);
   field('Trabajo', ident.trabajo);

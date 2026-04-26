@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useCallback } from 'react';
 import { FiShield } from 'react-icons/fi';
 import SignEncounterModal from '@/components/common/SignEncounterModal';
 import AttachmentPreviewModal from '@/components/common/AttachmentPreviewModal';
@@ -50,6 +51,11 @@ export default function FichaClinicaPage() {
     handleDuplicateEncounter,
   } = useFichaClinica();
 
+  // Stable callbacks to open modals — avoid recreating inline handlers
+  // on every render which can cause upstream slots to remount.
+  const openSignModal = useCallback(() => setShowSignModal(true), [setShowSignModal]);
+  const openReopenModal = useCallback(() => setShowReopenModal(true), [setShowReopenModal]);
+
   if (isOperationalAdmin) {
     return (
       <RouteAccessGate
@@ -95,8 +101,8 @@ export default function FichaClinicaPage() {
         onDownloadDocument={handleDownloadDocument}
         onDownloadPdf={handleDownloadPdf}
         onPrint={handlePrint}
-        onSign={() => setShowSignModal(true)}
-        onReopen={() => setShowReopenModal(true)}
+        onSign={openSignModal}
+        onReopen={openReopenModal}
         onDuplicate={handleDuplicateEncounter}
       />
 

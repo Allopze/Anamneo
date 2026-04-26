@@ -1,4 +1,11 @@
-import { formatEncounterDateTime, formatRutDisplay, getRutDisplayData, getTreatmentPlanText, formatStructuredMedicationLine } from './encounters-pdf.helpers';
+import {
+  formatEncounterDateOnly,
+  formatEncounterDateTime,
+  formatRutDisplay,
+  getRutDisplayData,
+  getTreatmentPlanText,
+  formatStructuredMedicationLine,
+} from './encounters-pdf.helpers';
 
 export function renderFocusedEncounterPdf(
   doc: any,
@@ -29,7 +36,8 @@ export function renderFocusedEncounterPdf(
   doc.moveDown(1);
   field('Paciente', ident.nombre || encounter.patient.nombre);
   field('RUT', formatRutDisplay(getRutDisplayData(ident, encounter.patient)));
-  field('Edad', ident.edad ? `${ident.edad} años` : undefined);
+  field('Fecha de nacimiento', ident.fechaNacimiento ? formatEncounterDateOnly(ident.fechaNacimiento) : undefined);
+  field('Edad', ident.edad != null ? `${ident.edad} años` : undefined);
   field('Profesional', encounter.createdBy?.nombre || '-');
   doc.moveDown(1);
   doc.moveTo(doc.x, doc.y).lineTo(doc.x + pageWidth, doc.y).lineWidth(1).stroke();

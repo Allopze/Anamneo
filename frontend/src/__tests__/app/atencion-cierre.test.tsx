@@ -30,7 +30,16 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('next/dynamic', () => {
   return (_loader: unknown) => {
-    const MockDynamicComponent = () => <div data-testid="dynamic-section" />;
+    const MockDynamicComponent = ({ data = {}, onChange }: any) => (
+      <div data-testid="dynamic-section">
+        <label htmlFor="dynamic-section-input">Campo clínico</label>
+        <input
+          id="dynamic-section-input"
+          value={data.__text ?? ''}
+          onChange={(event) => onChange?.({ ...data, __text: event.target.value })}
+        />
+      </div>
+    );
     MockDynamicComponent.displayName = 'MockDynamicComponent';
     return MockDynamicComponent;
   };
@@ -313,6 +322,44 @@ describe('EncounterWizardPage closing workflow', () => {
 
     expect(clearEncounterSectionConflictMock).toHaveBeenCalledWith('enc-1', 'med-1', 'IDENTIFICACION');
     expect(toast.success).toHaveBeenCalledWith('Se descartó la copia local en conflicto.');
+  });
+
+  it('does not show the recovery panel for the live draft created in the current session', async () => {
+    const user = userEvent.setup();
+    let draftReads = 0;
+
+    readEncounterDraftMock.mockImplementation(() => {
+      draftReads += 1;
+
+      if (draftReads === 1) {
+        return null;
+      }
+
+      return {
+        version: 2,
+        encounterId: 'enc-1',
+        userId: 'med-1',
+        currentSectionIndex: 0,
+        formData: { IDENTIFICACION: { __text: 'Borrador activo de la sesión' } },
+        savedSnapshot: { IDENTIFICACION: {} },
+        savedAt: '2026-04-19T09:59:00.000Z',
+      };
+    });
+    hasEncounterDraftUnsavedChangesMock.mockImplementation((draft) => {
+      if (!draft) {
+        return false;
+      }
+
+      return JSON.stringify(draft.formData) !== JSON.stringify(draft.savedSnapshot);
+    });
+
+    render(<EncounterWizardPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Campo clínico'), 'abc');
+
+    expect(screen.queryByText(/borradores y conflictos listos para revisar/i)).not.toBeInTheDocument();
   });
 
   it('keeps the completion action available for the treating doctor even when the encounter was created by an assistant', async () => {
