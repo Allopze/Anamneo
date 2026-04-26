@@ -374,7 +374,7 @@ export default function AdminUsuariosPage() {
             )}
           </div>
           <p className="mt-3 text-xs text-ink-secondary">
-            El cambio de contraseña administrativa se hace desde “Reset password” para emitir una clave temporal
+            El cambio de contraseña administrativa se hace desde “Restablecer clave” para emitir una clave temporal
             y forzar recambio en el próximo ingreso.
           </p>
         </div>

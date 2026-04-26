@@ -85,7 +85,9 @@ export default function DashboardSidebar({
           <Link href="/" className="flex items-center" aria-label="Inicio — Anamneo">
             <AnamneoLogo
               className={clsx(collapsed ? 'justify-center gap-0' : 'gap-2')}
-              iconClassName={clsx('brightness-0 invert', collapsed ? 'h-10 w-10' : 'h-10 w-10')}
+              inlineIcon={true}
+              iconContainerClassName="text-white"
+              iconClassName="h-10 w-10 transform scale-150"
               textClassName={clsx('text-2xl font-extrabold text-white tracking-tight', collapsed && 'hidden')}
             />
           </Link>

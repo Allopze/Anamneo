@@ -49,13 +49,11 @@ export function UsersCard({
             {users.map((u) => (
               <div key={u.id} className="group list-row flex-col sm:flex-row sm:items-center">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-ink-primary truncate">{u.nombre}</span>
-                    {u.isAdmin && (
-                      <span className="list-chip border border-status-yellow/60 bg-status-yellow/30 text-accent-text">
-                        Admin
-                      </span>
-                    )}
+                  <div className="font-medium text-ink-primary truncate">
+                    {u.nombre}
+                  </div>
+                  <div className="text-sm text-ink-muted truncate">{u.email}</div>
+                  <div className="mt-1 flex items-center gap-2 flex-wrap">
                     <span className="list-chip bg-surface-muted text-ink-secondary">
                       {ROLE_LABELS[u.role]}
                     </span>
@@ -68,7 +66,6 @@ export function UsersCard({
                       {u.active ? 'Activo' : 'Inactivo'}
                     </span>
                   </div>
-                  <div className="text-sm text-ink-muted truncate">{u.email}</div>
                   {u.role === 'ASISTENTE' && u.medicoId && (
                     <div className="text-xs text-ink-muted">Asignado a médico: {users?.find(m => m.id === u.medicoId)?.nombre || u.medicoId}</div>
                   )}
@@ -81,7 +78,7 @@ export function UsersCard({
                   <button
                     className="btn btn-secondary"
                     onClick={() => {
-                      if (confirm(`¿Resetear la contraseña de ${u.nombre}?`)) {
+                      if (confirm(`¿Restablecer la contraseña de ${u.nombre}?`)) {
                         const temporaryPassword = window.prompt(
                           `Ingresa una contraseña temporal para ${u.nombre}`,
                           generateTemporaryPassword(),
@@ -104,7 +101,7 @@ export function UsersCard({
                     }}
                     disabled={resetPasswordMutation.isPending}
                   >
-                    Reset pass
+                    Restablecer clave
                   </button>
                   <button
                     className={u.active ? 'btn btn-danger' : 'btn btn-secondary'}
