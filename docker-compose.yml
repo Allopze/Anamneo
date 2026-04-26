@@ -63,6 +63,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: /api
         API_PROXY_TARGET: http://backend:5678/api
+        NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE: ${NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE:-false}
     container_name: anamneo-frontend
     restart: unless-stopped
     depends_on:
@@ -72,6 +73,7 @@ services:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: /api
       API_PROXY_TARGET: http://backend:5678/api
+      NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE: ${NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE:-false}
       NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
       PORT: 5555
       HOSTNAME: "0.0.0.0"

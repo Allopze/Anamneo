@@ -72,8 +72,6 @@ export default function EncounterWizardPage() {
     <div className="min-h-screen overflow-x-clip bg-surface-base">
       <EncounterToolbar
         encounter={encounter}
-        sections={sections}
-        completedCount={wiz.completedCount}
         canEdit={wiz.canEdit}
         canDuplicateEncounter={wiz.canDuplicateEncounter}
         canComplete={wiz.canComplete}
@@ -81,7 +79,6 @@ export default function EncounterWizardPage() {
         hasUnsavedChanges={wiz.hasUnsavedChanges}
         saveStatus={wiz.saveStatus}
         saveStateLabel={wiz.saveStateLabel}
-        saveStateToneClass={wiz.saveStateToneClass}
         drawerShortcutHint={wiz.drawerShortcutHint}
         isDrawerOpen={wiz.isDrawerOpen}
         setIsDrawerOpen={wiz.setIsDrawerOpen}

@@ -135,7 +135,12 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
       {/* ── Left: contextual KPI chips ────────── */}
 
       {/* Mobile compact */}
-      <div className="flex md:hidden items-center gap-2 flex-1 min-w-0 overflow-x-auto">
+      <div
+        className={clsx(
+          'flex md:hidden items-center gap-2 min-w-0 overflow-x-auto',
+          contextSlot ? 'flex-none' : 'flex-1',
+        )}
+      >
         {showSkeleton ? (
           <div className="h-5 w-32 skeleton rounded-lg" />
         ) : isError && !isCatalogRoute ? (
@@ -165,7 +170,12 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
       </div>
 
       {/* Desktop KPI chips */}
-      <div className="hidden md:flex items-center gap-2 flex-1 min-w-0 flex-wrap">
+      <div
+        className={clsx(
+          'hidden md:flex items-center gap-2 min-w-0 flex-wrap',
+          contextSlot ? 'flex-none' : 'flex-1',
+        )}
+      >
         {showSkeleton ? (
           <div className="h-7 w-48 skeleton rounded-pill" />
         ) : isError && !isCatalogRoute ? (

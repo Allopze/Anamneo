@@ -7,11 +7,24 @@ import { ADMIN_EMAIL, ADMIN_NOMBRE, ADMIN_PASSWORD, BOOTSTRAP_TOKEN } from './e2
  * The backend is started via Playwright webServer config with a dedicated test DB.
  */
 
-test('full smoke: register, verify dashboard', async ({ page }) => {
+test('full smoke: bootstrap-aware access flow', async ({ page, request }) => {
   test.setTimeout(60_000);
 
-  // --- Register ---
+  const bootstrapResponse = await request.get('/api/auth/bootstrap');
+  expect(bootstrapResponse.ok()).toBeTruthy();
+  const bootstrapState = (await bootstrapResponse.json()) as {
+    hasAdmin?: boolean;
+  };
+
   await page.goto('/register');
+
+  if (bootstrapState.hasAdmin) {
+    await expect(page.getByText(/Necesita una invitación válida para crear una cuenta\./i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByLabel('Token de instalación')).toHaveCount(0);
+    return;
+  }
+
+  // --- Register ---
   await page.getByLabel('Nombre completo').fill(ADMIN_NOMBRE);
   await page.getByLabel('Correo electrónico').fill(ADMIN_EMAIL);
   await page.getByLabel('Contraseña', { exact: true }).fill(ADMIN_PASSWORD);

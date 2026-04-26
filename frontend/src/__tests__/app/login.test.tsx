@@ -252,7 +252,7 @@ describe('LoginPage', () => {
   it('shows invitation guidance when public registration is closed', async () => {
     await renderLoginPage();
 
-    expect(await screen.findByText('¿Necesitas acceso? Pide una invitación válida al administrador del espacio clínico.')).toBeInTheDocument();
+    expect(await screen.findByText('El acceso requiere una invitación válida del administrador del espacio clínico.')).toBeInTheDocument();
     expect(screen.queryByText('Crear cuenta')).not.toBeInTheDocument();
   });
 

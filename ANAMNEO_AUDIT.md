@@ -285,6 +285,23 @@ Valor: ayuda operativa, aunque hoy ya existe base funcional de tareas y seguimie
 - El fallo inicial del smoke Playwright no se considero bug del producto porque la misma suite paso completa al ejecutarse en puertos aislados con stack limpio.
 - El veredicto asume el escenario declarado: consultorio pequeno, muy pocos usuarios, sin carga alta ni multi-tenant.
 
+## 12. Estado de remediacion (2026-04-26)
+
+### Pasada 1 completada
+
+- [x] Quick win 2 (drift Next.js): eliminada la dependencia `next` del package root para evitar drift con `frontend/package.json`.
+- [x] Quick win 3 (smoke bootstrap-aware): `frontend/tests/e2e/smoke.spec.ts` ahora consulta `/api/auth/bootstrap` y adapta el flujo segun `hasAdmin`.
+- [x] Quick win 4 (rollback DB + uploads): `scripts/deploy.sh` ahora detecta y restaura snapshot de uploads asociado al backup cuando existe.
+- [x] Quick win 5 (health frontend en deploy): `scripts/deploy.sh` agrega healthcheck explicito del frontend antes de declarar deploy OK.
+- [x] Quick win 7 (doc cifrado en reposo): `.env.example` ahora refleja que `ENCRYPTION_AT_REST_CONFIRMED=true` es requisito de arranque en produccion.
+- [x] Hallazgo alto de privacidad (mitigacion opcion 2): se agrego politica global por entorno para forzar modo equipo compartido (`NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE`) en `frontend/src/stores/privacy-settings-store.ts`, con wiring en `frontend/Dockerfile`, `docker-compose.yml` y mensaje explicito en `ProfileSecurityTab`.
+
+### Pendientes tras pasada 1
+
+- [ ] Hallazgo alto de privacidad: falta agregar decision operativa visible en primer login (opcion 1) o banner persistente fuera de Ajustes cuando no hay forzado global.
+- [ ] Recomendacion de seguridad: 2FA sigue opcional por usuario; no hay enforcement obligatorio para ADMIN/MEDICO.
+- [ ] Quick win 6 / checklist de produccion: `SQLITE_ALERT_WEBHOOK_URL` sigue opcional por configuracion; falta politica final (obligatorio en prod o procedimiento operativo equivalente).
+
 ## Cierre
 
 Anamneo ya no parece un prototipo improvisado. Tiene suficientes controles, pruebas y recuperabilidad como para usarse de verdad en un contexto chico. Los siguientes pasos valiosos no son reescribir arquitectura, sino cerrar la privacidad local, ajustar dos o tres bordes operativos y mantener la coherencia cross-layer que hoy es una de sus fortalezas.

@@ -26,8 +26,6 @@ import {
 type Props = Pick<
   EncounterWizardHook,
   | 'encounter'
-  | 'sections'
-  | 'completedCount'
   | 'canEdit'
   | 'canDuplicateEncounter'
   | 'canComplete'
@@ -35,7 +33,6 @@ type Props = Pick<
   | 'hasUnsavedChanges'
   | 'saveStatus'
   | 'saveStateLabel'
-  | 'saveStateToneClass'
   | 'drawerShortcutHint'
   | 'isDrawerOpen'
   | 'setIsDrawerOpen'
@@ -55,18 +52,16 @@ type Props = Pick<
 
 // Compact variants for SmartHeaderBar — extend the CSS .toolbar-btn foundation
 const COMPACT_BTN =
-  'toolbar-btn min-h-9 gap-1.5 px-2.5 py-1.5 text-xs';
+  'toolbar-btn min-h-9 shrink-0 gap-1.5 px-2.5 py-1.5 text-xs xl:px-3';
 
 const COMPACT_BTN_PRIMARY =
-  'toolbar-btn-primary min-h-9 gap-1.5 px-2.5 py-1.5 text-xs';
+  'toolbar-btn-primary min-h-9 shrink-0 gap-1.5 px-2.5 py-1.5 text-xs xl:px-3';
 
 const COMPACT_BTN_SUCCESS =
-  'toolbar-btn-success min-h-9 gap-1.5 px-2.5 py-1.5 text-xs';
+  'toolbar-btn-success min-h-9 shrink-0 gap-1.5 px-2.5 py-1.5 text-xs xl:px-3';
 
 export default function EncounterToolbar({
   encounter,
-  sections,
-  completedCount,
   canEdit,
   canDuplicateEncounter,
   canComplete,
@@ -74,7 +69,6 @@ export default function EncounterToolbar({
   hasUnsavedChanges,
   saveStatus,
   saveStateLabel,
-  saveStateToneClass,
   drawerShortcutHint,
   isDrawerOpen,
   setIsDrawerOpen,
@@ -108,21 +102,11 @@ export default function EncounterToolbar({
       });
     }
 
-    items.push({
-      key: 'review',
-      label: `Revisión: ${reviewStatusLabel}`,
-      icon: FiActivity,
-      onSelect: () => openDrawerTab('revision'),
-      title: `Estado de revisión: ${reviewStatusLabel}`,
-    });
-
     return items;
   }, [
     canDuplicateEncounter,
     duplicateEncounterMutation.isPending,
     handleDuplicateEncounter,
-    openDrawerTab,
-    reviewStatusLabel,
   ]);
 
   const toolbarActions = useMemo(() => {
@@ -134,49 +118,70 @@ export default function EncounterToolbar({
       saveStatus === 'queued' ? <FiWifiOff className="h-3 w-3" /> :
       saveStatus === 'error' ? <FiAlertCircle className="h-3 w-3" /> :
       <FiSave className="h-3 w-3" />;
+    const saveStatusBadgeClass =
+      saveStatus === 'error'
+        ? 'border-status-red/40 bg-status-red/10 text-status-red-text'
+        : saveStatus === 'saved'
+          ? 'border-status-green/40 bg-status-green/10 text-status-green-text'
+          : saveStatus === 'queued'
+            ? 'border-status-yellow/60 bg-status-yellow/20 text-accent-text'
+            : saveStatus === 'saving'
+              ? 'border-frame/20 bg-surface-inset text-ink'
+              : 'border-frame/10 bg-surface-base/70 text-ink-secondary';
+    const reviewButtonClass =
+      encounter.reviewStatus === 'REVISADA_POR_MEDICO'
+        ? 'border-status-green/40 bg-status-green/10 text-status-green-text hover:bg-status-green/20'
+        : encounter.reviewStatus === 'LISTA_PARA_REVISION'
+          ? 'border-status-yellow/60 bg-status-yellow/20 text-accent-text hover:bg-status-yellow/30'
+          : 'border-frame/10 bg-surface-base/70 text-ink-secondary hover:text-ink';
 
     return (
-      <div className="flex min-w-0 items-center justify-end gap-1.5 py-0.5">
-        {/* ── Progress chip ─────── */}
-        <span className="hidden items-center gap-1.5 rounded-md border border-frame/10 bg-surface-base/60 px-2 py-1 text-[11px] font-medium text-ink-secondary xl:inline-flex">
-          <span className="font-bold text-ink">{completedCount}/{sections.length}</span>
-          secciones
-        </span>
-
+      <div className="flex min-w-0 flex-nowrap items-center justify-end gap-2 overflow-x-auto py-0.5 md:flex-wrap md:overflow-visible">
         {/* ── Save status badge ─── */}
         {canEdit && saveStateLabel ? (
           <div
             className={clsx(
-              'inline-flex items-center gap-1 rounded-md border border-frame/10 px-2 py-1 text-[11px] font-medium transition-colors',
-              saveStateToneClass,
+              'inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors',
+              saveStatusBadgeClass,
             )}
             aria-live="polite"
             role="status"
           >
             {saveStatusIcon}
-            <span className="hidden sm:inline">{saveStateLabel}</span>
+            <span className="hidden max-w-[13rem] truncate sm:inline">{saveStateLabel}</span>
           </div>
         ) : null}
-
-        {/* ── Divider ──────────── */}
-        <div className="mx-0.5 hidden h-5 w-px bg-surface-muted/60 sm:block" aria-hidden="true" />
 
         {/* ── Save button ─────── */}
         {canEdit ? (
           <button
             onClick={saveCurrentSection}
             disabled={!hasUnsavedChanges || saveSectionMutation.isPending}
-            className={COMPACT_BTN_PRIMARY}
+            className={clsx(
+              hasUnsavedChanges ? COMPACT_BTN_PRIMARY : COMPACT_BTN,
+              !hasUnsavedChanges && 'bg-surface-inset text-ink-muted hover:bg-surface-inset',
+            )}
           >
             <FiSave className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Guardar</span>
+            <span className="hidden lg:inline">Guardar ahora</span>
           </button>
         ) : null}
 
         {/* ── Navigation buttons ─ */}
         <button onClick={handleViewFicha} className={COMPACT_BTN}>
           <FiEye className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Ficha</span>
+          <span className="hidden lg:inline">Ficha clínica</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => openDrawerTab('revision')}
+          className={clsx(COMPACT_BTN, reviewButtonClass)}
+          aria-label={`Estado de revisión: ${reviewStatusLabel}`}
+          title={`Estado de revisión: ${reviewStatusLabel}`}
+        >
+          <FiActivity className="h-3.5 w-3.5" />
+          <span className="hidden xl:inline">{reviewStatusLabel}</span>
         </button>
 
         <button
@@ -193,7 +198,7 @@ export default function EncounterToolbar({
           title={`${drawerShortcutHint} para alternar`}
         >
           <FiLayout className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Panel</span>
+          <span className="hidden lg:inline">Panel lateral</span>
           {encounter.reviewStatus === 'LISTA_PARA_REVISION' && !isDrawerOpen && (
             <span className="absolute -right-0.5 -top-0.5 flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-status-yellow opacity-75" />
@@ -211,9 +216,6 @@ export default function EncounterToolbar({
           compactLabel
         />
 
-        {/* ── Divider ──────────── */}
-        <div className="mx-0.5 hidden h-5 w-px bg-surface-muted/60 sm:block" aria-hidden="true" />
-
         {/* ── Workflow CTA ─────── */}
         {canComplete ? (
           <button
@@ -223,7 +225,7 @@ export default function EncounterToolbar({
             title={completionBlockedReason ?? undefined}
           >
             <FiCheck className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Finalizar</span>
+            <span className="hidden lg:inline">Finalizar atención</span>
           </button>
         ) : null}
 
@@ -234,18 +236,15 @@ export default function EncounterToolbar({
             className={COMPACT_BTN_PRIMARY}
           >
             <FiShield className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Firmar</span>
+            <span className="hidden lg:inline">Firmar atención</span>
           </button>
         ) : null}
       </div>
     );
   }, [
     encounter,
-    sections.length,
-    completedCount,
     canEdit,
     saveStateLabel,
-    saveStateToneClass,
     saveStatus,
     hasUnsavedChanges,
     saveSectionMutation.isPending,
@@ -254,6 +253,8 @@ export default function EncounterToolbar({
     drawerShortcutHint,
     isDrawerOpen,
     setIsDrawerOpen,
+    openDrawerTab,
+    reviewStatusLabel,
     moreMenuItems,
     canComplete,
     completeMutation.isPending,

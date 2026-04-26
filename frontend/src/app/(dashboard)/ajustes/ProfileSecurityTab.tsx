@@ -5,7 +5,7 @@ import { api, getErrorMessage } from '@/lib/api';
 import { clearEncounterLocalStateForUser } from '@/lib/encounter-draft';
 import { clearPendingSavesForUser } from '@/lib/offline-queue';
 import { useAuthStore } from '@/stores/auth-store';
-import { usePrivacySettingsStore } from '@/stores/privacy-settings-store';
+import { isSharedDeviceModeForced, usePrivacySettingsStore } from '@/stores/privacy-settings-store';
 import type { AjustesHook } from './useAjustes';
 import SessionManagementSection from './SessionManagementSection';
 import TwoFactorRecoveryCodesPanel from './TwoFactorRecoveryCodesPanel';
@@ -28,6 +28,7 @@ export default function ProfileSecurityTab({
 }: Props) {
   const { user } = useAuthStore();
   const { sharedDeviceMode, setSharedDeviceMode } = usePrivacySettingsStore();
+  const sharedDeviceModeForced = isSharedDeviceModeForced();
   const [updatingPrivacyMode, setUpdatingPrivacyMode] = useState(false);
   const {
     register: registerProfile,
@@ -201,12 +202,19 @@ export default function ProfileSecurityTab({
           conflicto y la cola offline clínica en este navegador.
         </p>
 
+        {sharedDeviceModeForced ? (
+          <p className="text-sm text-status-green-text mb-4" role="status">
+            Este entorno fuerza el modo equipo compartido por política global. La persistencia clínica local queda
+            desactivada en todo momento.
+          </p>
+        ) : null}
+
         <label className="flex items-start gap-3 rounded-card border border-surface-muted/40 bg-surface-elevated/50 p-4 cursor-pointer">
           <input
             type="checkbox"
             className="mt-1"
             checked={sharedDeviceMode}
-            disabled={updatingPrivacyMode}
+            disabled={updatingPrivacyMode || sharedDeviceModeForced}
             onChange={(event) => {
               void handleSharedDeviceModeChange(event.target.checked);
             }}

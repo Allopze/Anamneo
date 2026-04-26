@@ -11,7 +11,18 @@ import { api, getErrorMessage } from '@/lib/api';
 import { sanitizeRedirectPath } from '@/lib/login-redirect';
 import { useAuthStore } from '@/stores/auth-store';
 import { stashAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
-import { FiArrowRight, FiCheck, FiClipboard, FiFileText, FiLock, FiMail, FiShield, FiUsers } from 'react-icons/fi';
+import {
+  FiArrowRight,
+  FiCheck,
+  FiClipboard,
+  FiEye,
+  FiEyeOff,
+  FiFileText,
+  FiHeadphones,
+  FiLock,
+  FiMail,
+  FiShield,
+} from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { AuthFrame } from '@/components/auth/AuthFrame';
 import toast from 'react-hot-toast';
@@ -32,10 +43,21 @@ type VerificationMethod = 'totp' | 'recovery';
 type RegistrationMode = 'loading' | 'bootstrap-open' | 'invitation-only';
 
 const LOGIN_CHIPS = [
-  { icon: <FiClipboard className="h-3.5 w-3.5" />, label: 'Flujo clínico' },
-  { icon: <FiFileText className="h-3.5 w-3.5" />, label: 'Revisión' },
-  { icon: <FiShield className="h-3.5 w-3.5" />, label: 'Trazabilidad' },
-  { icon: <FiUsers className="h-3.5 w-3.5" />, label: 'Roles' },
+  {
+    icon: <FiClipboard className="h-8 w-8" />,
+    label: 'Historia clínica completa',
+    description: 'Encuentros, secciones y seguimiento en contexto.',
+  },
+  {
+    icon: <FiShield className="h-8 w-8" />,
+    label: 'Seguridad y cumplimiento',
+    description: 'Roles, permisos y trazabilidad de cada acción.',
+  },
+  {
+    icon: <FiFileText className="h-8 w-8" />,
+    label: 'Consentimientos y adjuntos',
+    description: 'Todo lo necesario, organizado y disponible.',
+  },
 ];
 
 export default function LoginPage() {
@@ -65,6 +87,7 @@ function LoginContent() {
   const [tempToken, setTempToken] = useState<string | null>(null);
   const [verificationMethod, setVerificationMethod] = useState<VerificationMethod>('totp');
   const [registrationMode, setRegistrationMode] = useState<RegistrationMode>('loading');
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -112,7 +135,7 @@ function LoginContent() {
   const registrationFooter =
     registrationMode === 'invitation-only' ? (
       <p className="text-center text-ink-secondary">
-        ¿Necesitas acceso? Pide una invitación válida al administrador del espacio clínico.
+        El acceso requiere una invitación válida del administrador del espacio clínico.
       </p>
     ) : registrationMode === 'loading' ? (
       <p className="text-center text-ink-muted">Verificando opciones de acceso…</p>
@@ -191,6 +214,7 @@ function LoginContent() {
     <AuthFrame
       eyebrow="Espacio Clínico"
       title="Contexto clínico desde el primer acceso."
+      description="Anamneo organiza la información clave para que tu práctica funcione con claridad, seguridad y continuidad."
       chips={LOGIN_CHIPS}
       cardEyebrow="Acceso"
       cardTitle={step === '2fa' ? 'Verificación 2FA' : 'Iniciar sesión'}
@@ -198,7 +222,18 @@ function LoginContent() {
         ? verificationMethod === 'totp'
           ? 'Ingresa el código de tu app autenticadora.'
           : 'Ingresa uno de tus códigos de recuperación de un solo uso.'
-        : undefined}
+        : 'Ingresa con tu cuenta de Anamneo.'}
+      logoIconClassName="!h-24 !w-24"
+      logoTextClassName="!text-4xl"
+      heroFooter={
+        <div className="auth-help">
+          <FiHeadphones className="h-8 w-8" aria-hidden="true" />
+          <span>
+            <span className="auth-help-title">¿Necesitas ayuda?</span>
+            <span className="auth-help-copy">Escríbenos a soporte@anamneo.cl</span>
+          </span>
+        </div>
+      }
       footer={registrationFooter}
     >
       {step === '2fa' && (
@@ -356,24 +391,30 @@ function LoginContent() {
         </div>
 
         <div>
-          <div className="mb-1.5 flex items-center justify-between gap-3">
-            <label htmlFor="password" className="form-label mb-0">
-              Contraseña
-            </label>
-            <span className="text-micro text-ink-muted">Usa la clave asignada a tu cuenta</span>
-          </div>
+          <label htmlFor="password" className="form-label">
+            Contraseña
+          </label>
+          <span className="auth-forgot-password">¿Olvidaste tu contraseña?</span>
           <div className="relative">
             <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
             <input
               id="password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
-              className={`form-input pl-10 ${errors.password ? 'form-input-error' : ''}`}
+              className={`form-input pl-10 pr-12 ${errors.password ? 'form-input-error' : ''}`}
               placeholder="••••••••"
               aria-invalid={!!errors.password}
               aria-describedby={errors.password ? 'password-error' : undefined}
               {...register('password')}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((visible) => !visible)}
+              className="auth-password-toggle"
+              aria-label={showPassword ? 'Ocultar clave' : 'Mostrar clave'}
+            >
+              {showPassword ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
+            </button>
           </div>
           {errors.password ? (
             <p id="password-error" className="form-error" role="alert">

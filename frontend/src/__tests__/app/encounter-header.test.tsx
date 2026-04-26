@@ -29,8 +29,6 @@ describe('EncounterToolbar', () => {
             prevision: 'FONASA',
           },
         } as any}
-        sections={[{ id: 'sec-1', label: 'Motivo de consulta' } as any]}
-        completedCount={1}
         canEdit={false}
         canDuplicateEncounter={true}
         canComplete={false}
@@ -38,7 +36,6 @@ describe('EncounterToolbar', () => {
         hasUnsavedChanges={false}
         saveStatus="idle"
         saveStateLabel=""
-        saveStateToneClass=""
         drawerShortcutHint=""
         isDrawerOpen={false}
         setIsDrawerOpen={jest.fn()}

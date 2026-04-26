@@ -394,10 +394,9 @@ body {
 
   /* ── Auth Screens ─────────────── */
   .auth-shell {
-    @apply relative min-h-screen overflow-hidden lg:grid lg:grid-cols-[1.02fr,0.98fr];
+    @apply relative min-h-screen overflow-hidden lg:grid lg:grid-cols-[0.94fr,1.06fr];
     background:
-      radial-gradient(circle at top left, rgba(234, 248, 50, 0.2), transparent 34%),
-      linear-gradient(180deg, rgba(253, 252, 251, 0.92), rgba(235, 233, 228, 0.98));
+      linear-gradient(180deg, rgba(253, 252, 251, 0.96), rgba(239, 237, 232, 0.98));
   }
 
   .auth-shell::before {
@@ -406,40 +405,92 @@ body {
     inset: 0;
     pointer-events: none;
     background-image:
-      linear-gradient(rgba(64, 64, 64, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(64, 64, 64, 0.06) 1px, transparent 1px);
-    background-size: 28px 28px;
-    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.65), transparent 88%);
+      linear-gradient(rgba(64, 64, 64, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(64, 64, 64, 0.035) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.42), transparent 78%);
   }
 
   .auth-hero {
-    @apply relative flex flex-col justify-center border-b border-frame/10 bg-frame px-5 py-6 text-white sm:px-6 sm:py-8 lg:min-h-screen lg:border-b-0 lg:px-12 lg:py-12;
+    @apply relative flex flex-col justify-center border-b border-frame/10 bg-frame px-5 py-7 text-white sm:px-6 sm:py-10 lg:min-h-screen lg:border-b-0 lg:px-14 lg:py-14;
     background:
-      radial-gradient(circle at 12% 18%, rgba(234, 248, 50, 0.22), transparent 36%),
-      linear-gradient(155deg, rgba(50, 50, 50, 0.88), rgba(58, 58, 58, 0.94));
+      linear-gradient(155deg, rgba(39, 39, 37, 0.99), rgba(54, 54, 51, 0.99));
   }
 
   .auth-hero-panel {
-    @apply relative z-[1] mx-auto w-full max-w-2xl;
+    @apply relative z-[1] mx-auto w-full max-w-xl;
+  }
+
+  .auth-logo-text-on-dark {
+    color: #ffffff !important;
+  }
+
+  .auth-logo-text-on-light {
+    color: var(--ink) !important;
   }
 
   .auth-kicker {
-    @apply mb-3 inline-flex rounded-pill border border-white/10 bg-white/5 px-3 py-1 text-micro font-semibold uppercase tracking-[0.14em] text-accent;
+    @apply mb-5 inline-flex rounded-md border border-white/10 px-3 py-1 text-micro font-semibold uppercase tracking-[0.12em];
+    background: rgba(214, 221, 72, 0.25);
+    color: #d6dd48;
   }
 
   .auth-headline {
-    @apply max-w-md text-[1.6rem] font-semibold leading-tight tracking-tight text-balance text-ink-onDark sm:text-[2rem];
+    @apply max-w-xl text-[1.75rem] font-semibold leading-tight tracking-tight text-balance text-ink-onDark sm:text-[2.75rem];
+  }
+
+  .auth-hero-description {
+    @apply mt-4 max-w-lg text-base leading-7;
+    color: rgba(255, 255, 255, 0.72);
   }
 
   .auth-chip-band {
-    @apply mt-6 flex flex-wrap gap-2;
+    @apply mt-7 hidden max-w-lg gap-0 border-y sm:grid;
+    border-color: rgba(255, 255, 255, 0.18);
   }
 
   .auth-chip {
-    @apply inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-micro font-medium tracking-wide;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.75);
+    @apply flex items-start gap-5 px-1 py-5 text-left;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.76);
+  }
+
+  .auth-chip:first-child {
+    border-top: 0;
+  }
+
+  .auth-chip-icon {
+    @apply mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center;
+    color: #d6dd48;
+  }
+
+  .auth-chip-title {
+    @apply block text-base font-semibold text-white;
+  }
+
+  .auth-chip-copy {
+    @apply mt-1 block text-sm leading-5;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .auth-hero-footer {
+    @apply mt-7 hidden max-w-lg border-t pt-6 sm:block;
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+
+  .auth-help {
+    @apply flex items-center gap-5 px-1;
+    color: #d6dd48;
+  }
+
+  .auth-help-title {
+    @apply block text-sm font-medium;
+    color: rgba(255, 255, 255, 0.82);
+  }
+
+  .auth-help-copy {
+    @apply mt-1 block text-sm;
+    color: rgba(255, 255, 255, 0.66);
   }
 
   .auth-footnote {
@@ -452,27 +503,60 @@ body {
   }
 
   .auth-card {
-    @apply w-full max-w-lg rounded-shell border border-surface-muted/30 bg-surface-elevated/95 p-6 shadow-elevated sm:p-8;
+    @apply w-full max-w-md border border-surface-muted/55 bg-surface-elevated p-6 shadow-card sm:p-8;
+    border-radius: 14px;
   }
 
   .auth-card-header {
-    @apply mb-8 space-y-3 text-center lg:text-left;
+    @apply mb-7 space-y-2 text-center lg:text-left;
   }
 
   .auth-card-kicker {
-    @apply text-micro font-semibold uppercase tracking-[0.14em] text-ink-muted;
+    @apply text-micro font-semibold uppercase tracking-[0.12em] text-ink-muted;
   }
 
   .auth-card-title {
-    @apply text-[1.8rem] font-extrabold tracking-tight text-ink;
+    @apply text-[1.85rem] font-bold tracking-tight text-ink;
   }
 
   .auth-card-description {
-    @apply mx-auto max-w-md text-body leading-7 text-ink-secondary lg:mx-0;
+    @apply mx-auto max-w-md text-sm leading-6 text-ink-secondary lg:mx-0;
   }
 
   .auth-card-footer {
-    @apply mt-6 border-t border-surface-muted/35 pt-5;
+    @apply mt-6 border-t border-surface-muted/35 pt-5 text-sm;
+  }
+
+  .auth-card .form-input {
+    @apply bg-white px-4 py-3 shadow-none;
+    border-radius: 8px;
+  }
+
+  .auth-card .form-input.pl-10 {
+    padding-left: 2.625rem;
+  }
+
+  .auth-card .btn {
+    @apply shadow-none active:scale-100;
+    border-radius: 8px;
+  }
+
+  .auth-card .btn-accent {
+    background: #d6dd48;
+    border: 1px solid rgba(43, 43, 43, 0.08);
+  }
+
+  .auth-card .btn-accent:hover {
+    background: #c9d43a;
+  }
+
+  .auth-password-toggle {
+    @apply absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center text-ink-muted transition-colors hover:bg-surface-muted/45 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20;
+    border-radius: 6px;
+  }
+
+  .auth-forgot-password {
+    @apply float-right -mt-6 text-micro font-medium text-ink-muted;
   }
 
   .auth-note {

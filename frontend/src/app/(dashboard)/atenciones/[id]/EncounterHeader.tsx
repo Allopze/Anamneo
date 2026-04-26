@@ -39,41 +39,47 @@ export default function EncounterHeader({
   const patientMeta = [ageLabel, encounter.patient?.sexo, encounter.patient?.prevision].filter(
     (value): value is string => Boolean(value),
   );
+  const totalSections = sections.length;
+  const progressLabel = `${completedCount}/${totalSections} secciones`;
 
   return (
-    <header className="border-b border-frame/10 bg-surface-elevated/96">
-      <div className="w-full px-4 py-3.5 lg:px-6 xl:px-8">
-        <div className="grid gap-4 xl:grid-cols-[minmax(21rem,1fr)_minmax(15rem,21rem)] xl:items-center">
-          {/* ── Patient info ──────────────────────── */}
+    <header className="border-b border-frame/10 bg-surface-elevated/96 shadow-[0_1px_0_rgba(43,43,43,0.02)]">
+      <div className="w-full px-4 py-4 lg:px-6 xl:px-8">
+        <div className="grid gap-5 xl:grid-cols-[minmax(28rem,1fr)_minmax(20rem,28rem)] xl:items-end">
           <div className="min-w-0">
             <div className="flex items-start gap-3">
               <Link
                 href={`/pacientes/${encounter.patientId}`}
                 aria-label="Volver al paciente"
-                className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-surface-muted/45 bg-surface-base text-ink-secondary transition-colors hover:bg-surface-muted/18 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20"
+                className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg border border-surface-muted/60 bg-surface-base text-ink-secondary transition-colors hover:border-frame/20 hover:bg-surface-muted/20 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20"
               >
                 <FiArrowLeft className="h-4 w-4" />
               </Link>
 
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-secondary">
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-ink-secondary">
                   <span>Atención</span>
-                  <span className="text-surface-muted">/</span>
+                  <span className="h-1 w-1 rounded-full bg-surface-muted" aria-hidden="true" />
                   <span>{encounter.patient?.rut || 'Sin RUT'}</span>
-                  <span className="text-surface-muted">/</span>
+                  <span className="h-1 w-1 rounded-full bg-surface-muted" aria-hidden="true" />
                   <span>{formatDateTime(encounter.createdAt)}</span>
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1.5">
                     <FiClock className="h-3.5 w-3.5" />
                     {elapsedLabel}
                   </span>
                 </div>
-                <h1 className="mt-1 truncate text-xl font-bold tracking-tight text-ink lg:text-2xl">{encounter.patient?.nombre}</h1>
+                <h1 className="mt-2 break-words text-[1.65rem] font-extrabold leading-tight tracking-tight text-ink sm:truncate sm:text-[1.9rem] lg:text-[2.15rem]">
+                  {encounter.patient?.nombre}
+                </h1>
                 {patientMeta.length > 0 && (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-ink-secondary">
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-sm font-medium text-ink-secondary">
                     {patientMeta.map((item, index) => (
                       <span
                         key={`${item}-${index}`}
-                        className={clsx(index > 0 && 'border-l border-surface-muted/70 pl-2')}
+                        className={clsx(
+                          'inline-flex min-h-7 items-center rounded-lg border border-surface-muted/40 bg-surface-inset/50 px-3',
+                          index === 0 && 'tabular-nums',
+                        )}
                       >
                         {item}
                       </span>
@@ -84,17 +90,26 @@ export default function EncounterHeader({
             </div>
           </div>
 
-          {/* ── Progress ──────────────────────────── */}
-          <div className="min-w-0 border-surface-muted/50 xl:border-l xl:pl-5">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="text-ink-secondary">Progreso</span>
+          <div className="min-w-0 rounded-xl border border-surface-muted/40 bg-surface-inset/50 p-4 xl:justify-self-end">
+            <div className="flex items-center justify-between gap-4 text-sm">
+              <span className="font-medium text-ink-secondary">Progreso de la atención</span>
               <span className="shrink-0 font-medium text-ink">
-                {completedCount}/{sections.length} secciones
+                {progressLabel}
               </span>
             </div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-muted/45">
+            <div
+              className="mt-3 h-2 overflow-hidden rounded-full bg-surface-muted/50"
+              aria-label={`Progreso de la atención: ${progressLabel}`}
+              aria-valuemin={0}
+              aria-valuemax={totalSections}
+              aria-valuenow={completedCount}
+              role="progressbar"
+            >
               <div
-                className="h-full rounded-full bg-accent transition-all duration-300"
+                className={clsx(
+                  'h-full rounded-full bg-accent transition-all duration-300',
+                  progressPercentage > 0 && 'min-w-[0.5rem]',
+                )}
                 style={{ width: `${progressPercentage}%` }}
               />
             </div>

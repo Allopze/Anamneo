@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 const PRIVACY_SETTINGS_STORAGE_KEY = 'anamneo-privacy-settings';
+const FORCE_SHARED_DEVICE_MODE = process.env.NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE === 'true';
 
 type PrivacySettingsState = {
   sharedDeviceMode: boolean;
@@ -17,6 +18,10 @@ const noopStorage = {
 };
 
 function readPersistedSharedDeviceMode(): boolean {
+  if (FORCE_SHARED_DEVICE_MODE) {
+    return true;
+  }
+
   if (typeof window === 'undefined') {
     return false;
   }
@@ -40,10 +45,10 @@ function readPersistedSharedDeviceMode(): boolean {
 export const usePrivacySettingsStore = create<PrivacySettingsState>()(
   persist(
     (set) => ({
-      sharedDeviceMode: false,
+      sharedDeviceMode: FORCE_SHARED_DEVICE_MODE,
       hasHydrated: false,
       setHasHydrated: (value) => set({ hasHydrated: value }),
-      setSharedDeviceMode: (value) => set({ sharedDeviceMode: value }),
+      setSharedDeviceMode: (value) => set({ sharedDeviceMode: FORCE_SHARED_DEVICE_MODE ? true : value }),
     }),
     {
       name: PRIVACY_SETTINGS_STORAGE_KEY,
@@ -57,10 +62,18 @@ export const usePrivacySettingsStore = create<PrivacySettingsState>()(
 );
 
 export function isSharedDeviceModeEnabled(): boolean {
+  if (FORCE_SHARED_DEVICE_MODE) {
+    return true;
+  }
+
   const state = usePrivacySettingsStore.getState();
   if (state.hasHydrated) {
     return state.sharedDeviceMode;
   }
 
   return readPersistedSharedDeviceMode() || state.sharedDeviceMode;
+}
+
+export function isSharedDeviceModeForced(): boolean {
+  return FORCE_SHARED_DEVICE_MODE;
 }

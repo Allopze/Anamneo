@@ -30,6 +30,7 @@ RUNTIME_UPLOADS="$ROOT_DIR/runtime/uploads"
 BACKUP_DIR="$RUNTIME_DATA/backups"
 DB_PATH="$RUNTIME_DATA/anamneo.db"
 ROLLBACK_DB=""
+ROLLBACK_UPLOADS_SNAPSHOT=""
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -72,6 +73,20 @@ if [[ -f "$DB_PATH" ]]; then
 
   DB_SIZE=$(du -h "$ROLLBACK_DB" | cut -f1)
   log "Backup guardado: $ROLLBACK_DB ($DB_SIZE)"
+
+  ROLLBACK_META="${ROLLBACK_DB}.meta.json"
+  if [[ -f "$ROLLBACK_META" ]]; then
+    ROLLBACK_UPLOADS_RELATIVE="$(node -e "const fs=require('fs');const file=process.argv[1];const parsed=JSON.parse(fs.readFileSync(file,'utf8'));process.stdout.write(parsed.uploadsSnapshotRelativePath || '')" "$ROLLBACK_META" 2>/dev/null || true)"
+    if [[ -n "$ROLLBACK_UPLOADS_RELATIVE" ]]; then
+      ROLLBACK_UPLOADS_SNAPSHOT="$BACKUP_DIR/$ROLLBACK_UPLOADS_RELATIVE"
+      if [[ -d "$ROLLBACK_UPLOADS_SNAPSHOT" ]]; then
+        log "Snapshot de uploads para rollback: $ROLLBACK_UPLOADS_SNAPSHOT"
+      else
+        warn "Metadata de backup incluye uploadsSnapshotRelativePath, pero no existe el directorio: $ROLLBACK_UPLOADS_SNAPSHOT"
+        ROLLBACK_UPLOADS_SNAPSHOT=""
+      fi
+    fi
+  fi
 else
   warn "No existe $DB_PATH — primera instalación, no se requiere backup."
 fi
@@ -108,6 +123,11 @@ else
     echo ""
     echo "  docker compose down"
     echo "  cp \"$ROLLBACK_DB\" \"$DB_PATH\""
+    if [[ -n "$ROLLBACK_UPLOADS_SNAPSHOT" ]]; then
+      echo "  rm -rf \"$RUNTIME_UPLOADS\""
+      echo "  mkdir -p \"$RUNTIME_UPLOADS\""
+      echo "  cp -a \"$ROLLBACK_UPLOADS_SNAPSHOT\"/. \"$RUNTIME_UPLOADS\"/"
+    fi
     echo "  docker compose up -d"
     echo ""
     read -r -p "¿Ejecutar rollback automático ahora? [s/N] " REPLY
@@ -115,6 +135,14 @@ else
       docker compose down 2>/dev/null || true
       cp "$ROLLBACK_DB" "$DB_PATH"
       log "Base restaurada desde $ROLLBACK_DB"
+      if [[ -n "$ROLLBACK_UPLOADS_SNAPSHOT" && -d "$ROLLBACK_UPLOADS_SNAPSHOT" ]]; then
+        rm -rf "$RUNTIME_UPLOADS"
+        mkdir -p "$RUNTIME_UPLOADS"
+        cp -a "$ROLLBACK_UPLOADS_SNAPSHOT"/. "$RUNTIME_UPLOADS"/
+        log "Uploads restaurados desde $ROLLBACK_UPLOADS_SNAPSHOT"
+      else
+        warn "Rollback de uploads omitido: no se detectó snapshot de uploads para este backup."
+      fi
       log "Levantando servicios con estado anterior..."
       docker compose up -d
       log "Rollback completado. Verifica el estado del sistema."
@@ -149,6 +177,25 @@ fi
 
 log "Backend healthy."
 
+log "Esperando health check del frontend..."
+TRIES=0
+MAX_TRIES=30
+while [[ $TRIES -lt $MAX_TRIES ]]; do
+  if docker compose exec -T frontend wget -q --spider http://127.0.0.1:5555 2>/dev/null; then
+    break
+  fi
+  TRIES=$((TRIES + 1))
+  sleep 2
+done
+
+if [[ $TRIES -ge $MAX_TRIES ]]; then
+  warn "Frontend no respondió al health check después de ${MAX_TRIES} intentos."
+  warn "Verifica los logs: docker compose logs frontend"
+  exit 1
+fi
+
+log "Frontend healthy."
+
 # ── 5. Post-deploy summary ───────────────────────────────────
 
 echo ""
@@ -159,13 +206,19 @@ echo ""
 echo "  Backup pre-migración: $ROLLBACK_DB"
 echo "  Servicios:            docker compose ps"
 echo "  Logs:                 docker compose logs -f"
-echo "  Health:               curl http://127.0.0.1:5678/api/health"
+echo "  Health backend:       curl http://127.0.0.1:5678/api/health"
+echo "  Health frontend:      curl -I http://127.0.0.1:5555"
 echo ""
 
 if [[ -f "$ROLLBACK_DB" ]]; then
   echo -e "  ${YELLOW}Si necesitas rollback:${NC}"
   echo "    docker compose down"
   echo "    cp \"$ROLLBACK_DB\" \"$DB_PATH\""
+  if [[ -n "$ROLLBACK_UPLOADS_SNAPSHOT" ]]; then
+    echo "    rm -rf \"$RUNTIME_UPLOADS\""
+    echo "    mkdir -p \"$RUNTIME_UPLOADS\""
+    echo "    cp -a \"$ROLLBACK_UPLOADS_SNAPSHOT\"/. \"$RUNTIME_UPLOADS\"/"
+  fi
   echo "    docker compose up -d"
   echo ""
 fi
