@@ -179,6 +179,34 @@ body {
            focus-visible:ring-status-red;
   }
 
+  /* ── Toolbar Buttons ─────────── */
+  .toolbar-btn {
+    @apply inline-flex min-h-10 touch-manipulation items-center justify-center gap-2
+           rounded-lg border border-frame/15 bg-surface-elevated px-3 py-2
+           text-sm font-medium text-ink shadow-none transition-colors
+           hover:border-frame/30 hover:bg-surface-base
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .toolbar-btn-primary {
+    @apply inline-flex min-h-10 touch-manipulation items-center justify-center gap-2
+           rounded-lg border border-accent/70 bg-accent px-3 py-2
+           text-sm font-semibold text-accent-text shadow-none transition-colors
+           hover:bg-accent-bright
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .toolbar-btn-success {
+    @apply inline-flex min-h-10 touch-manipulation items-center justify-center gap-2
+           rounded-lg bg-status-green px-3 py-2
+           text-sm font-medium text-status-green-text transition-colors
+           hover:brightness-95
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-green/40
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
   /* ── Cards ────────────────────── */
   .card {
     @apply rounded-card border border-surface-muted/30 bg-surface-elevated p-6 shadow-soft;

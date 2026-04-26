@@ -15,8 +15,6 @@ import { getSectionData } from '@/lib/clinical';
 import {
   REQUIRED_SEMANTIC_SECTIONS,
   SURFACE_PANEL_CLASS,
-  TOOLBAR_BUTTON_CLASS,
-  TOOLBAR_PRIMARY_BUTTON_CLASS,
 } from './encounter-wizard.constants';
 
 type Props = {
@@ -132,7 +130,7 @@ export default function EncounterActiveSectionCard({
           <button
             onClick={() => wiz.handleNavigate('prev')}
             disabled={currentSectionIndex === 0}
-            className={TOOLBAR_BUTTON_CLASS}
+            className="toolbar-btn"
           >
             <FiChevronLeft className="h-4 w-4" />
             Anterior
@@ -149,7 +147,7 @@ export default function EncounterActiveSectionCard({
                   currentSection?.completed ||
                   currentSection?.notApplicable
                 }
-                className={TOOLBAR_BUTTON_CLASS}
+                className="toolbar-btn"
                 title="Marcar esta sección como no aplica para este paciente"
               >
                 <FiSlash className="h-4 w-4" />
@@ -158,7 +156,7 @@ export default function EncounterActiveSectionCard({
             ) : null}
 
             {currentSectionIndex < sections.length - 1 ? (
-              <button onClick={() => wiz.handleNavigate('next')} className={TOOLBAR_PRIMARY_BUTTON_CLASS}>
+              <button onClick={() => wiz.handleNavigate('next')} className="toolbar-btn-primary">
                 Siguiente
                 <FiChevronRight className="h-4 w-4" />
               </button>
@@ -168,7 +166,7 @@ export default function EncounterActiveSectionCard({
                   currentSection && wiz.persistSection({ sectionKey: currentSection.sectionKey, completed: true })
                 }
                 disabled={wiz.saveSectionMutation.isPending || currentSection?.completed || !wiz.canEdit}
-                className={TOOLBAR_PRIMARY_BUTTON_CLASS}
+                className="toolbar-btn-primary"
                 title="Marcar como completa y guardar los últimos cambios"
               >
                 Completar

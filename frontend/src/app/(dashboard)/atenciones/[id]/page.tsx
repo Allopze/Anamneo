@@ -13,6 +13,7 @@ import { getErrorMessage } from '@/lib/api';
 import { useEncounterWizard } from './useEncounterWizard';
 import { setEncounterDrawerOpen, setEncounterDrawerTab } from './encounter-drawer-state';
 import EncounterHeader from './EncounterHeader';
+import EncounterToolbar from './EncounterToolbar';
 import EncounterSectionRail from './EncounterSectionRail';
 import EncounterAttachmentsModal from './EncounterAttachmentsModal';
 import EncounterRecoveryPanel from './EncounterRecoveryPanel';
@@ -69,14 +70,10 @@ export default function EncounterWizardPage() {
 
   return (
     <div className="min-h-screen overflow-x-clip bg-surface-base">
-      <EncounterHeader
+      <EncounterToolbar
         encounter={encounter}
         sections={sections}
         completedCount={wiz.completedCount}
-        progressPercentage={wiz.progressPercentage}
-        elapsedMinutes={wiz.elapsedMinutes}
-        isOnline={wiz.isOnline}
-        pendingSaveCount={wiz.pendingSaveCount}
         canEdit={wiz.canEdit}
         canDuplicateEncounter={wiz.canDuplicateEncounter}
         canComplete={wiz.canComplete}
@@ -99,6 +96,16 @@ export default function EncounterWizardPage() {
         completeMutation={wiz.completeMutation}
         signMutation={wiz.signMutation}
         setShowSignModal={wiz.setShowSignModal}
+      />
+
+      <EncounterHeader
+        encounter={encounter}
+        sections={sections}
+        completedCount={wiz.completedCount}
+        progressPercentage={wiz.progressPercentage}
+        elapsedMinutes={wiz.elapsedMinutes}
+        isOnline={wiz.isOnline}
+        pendingSaveCount={wiz.pendingSaveCount}
       />
 
       <EncounterClinicalWarnings

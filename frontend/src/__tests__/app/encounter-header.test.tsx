@@ -1,14 +1,20 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import EncounterHeader from '@/app/(dashboard)/atenciones/[id]/EncounterHeader';
+import EncounterToolbar from '@/app/(dashboard)/atenciones/[id]/EncounterToolbar';
 
-describe('EncounterHeader', () => {
+// Stub the HeaderBarSlotContext so the toolbar renders its fallback inline
+jest.mock('@/components/layout/HeaderBarSlotContext', () => ({
+  useHeaderBarSlot: () => null,
+}));
+
+describe('EncounterToolbar', () => {
   it('shows the follow-up action for a closed encounter and triggers it from the toolbar', async () => {
     const user = userEvent.setup();
     const handleDuplicate = jest.fn();
 
     render(
-      <EncounterHeader
+      <EncounterToolbar
         encounter={{
           id: 'enc-1',
           patientId: 'patient-1',
@@ -25,10 +31,6 @@ describe('EncounterHeader', () => {
         } as any}
         sections={[{ id: 'sec-1', label: 'Motivo de consulta' } as any]}
         completedCount={1}
-        progressPercentage={100}
-        elapsedMinutes={30}
-        isOnline={true}
-        pendingSaveCount={0}
         canEdit={false}
         canDuplicateEncounter={true}
         canComplete={false}
@@ -54,11 +56,15 @@ describe('EncounterHeader', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Nuevo seguimiento' }));
+    // The button is inside the "Más" dropdown menu
+    await user.click(screen.getByRole('button', { name: 'Más acciones de atención' }));
+    await user.click(screen.getByText('Nuevo seguimiento'));
 
     expect(handleDuplicate).toHaveBeenCalledTimes(1);
   });
+});
 
+describe('EncounterHeader', () => {
   it('surfaces queued offline saves clearly in the header state badges', () => {
     render(
       <EncounterHeader
@@ -82,32 +88,9 @@ describe('EncounterHeader', () => {
         elapsedMinutes={30}
         isOnline={false}
         pendingSaveCount={1}
-        canEdit={true}
-        canDuplicateEncounter={false}
-        canComplete={false}
-        canSign={false}
-        hasUnsavedChanges={true}
-        saveStatus="queued"
-        saveStateLabel="Guardado en cola local"
-        saveStateToneClass="text-status-amber-text"
-        drawerShortcutHint=""
-        isDrawerOpen={false}
-        setIsDrawerOpen={jest.fn()}
-        completionBlockedReason={null}
-        saveCurrentSection={jest.fn()}
-        handleDuplicateEncounter={jest.fn()}
-        handleComplete={jest.fn()}
-        handleViewFicha={jest.fn()}
-        openDrawerTab={jest.fn()}
-        saveSectionMutation={{ isPending: false } as any}
-        duplicateEncounterMutation={{ isPending: false } as any}
-        completeMutation={{ isPending: false } as any}
-        signMutation={{ isPending: false } as any}
-        setShowSignModal={jest.fn()}
       />,
     );
 
-    expect(screen.getByText('Guardado en cola local')).toBeInTheDocument();
     expect(screen.getByText('Sin conexión · 1 pendiente')).toBeInTheDocument();
   });
 });

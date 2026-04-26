@@ -2,8 +2,6 @@ import { FiX, FiDownload, FiTrash2 } from 'react-icons/fi';
 import type { Attachment } from '@/types';
 import type { EncounterWizardHook } from './useEncounterWizard';
 import {
-  TOOLBAR_BUTTON_CLASS,
-  TOOLBAR_PRIMARY_BUTTON_CLASS,
   LINKABLE_ATTACHMENT_LABELS,
   formatDateTime,
   formatFileSize,
@@ -79,7 +77,7 @@ export default function EncounterAttachmentsModal({
             </p>
           </div>
           <button
-            className={TOOLBAR_BUTTON_CLASS}
+            className="toolbar-btn"
             onClick={() => {
               setShowDeleteAttachment(null);
               setIsAttachmentsOpen(false);
@@ -238,7 +236,7 @@ export default function EncounterAttachmentsModal({
                 </p>
                 <button
                   type="submit"
-                  className={TOOLBAR_PRIMARY_BUTTON_CLASS}
+                  className="toolbar-btn-primary"
                   disabled={uploadMutation.isPending || !selectedFile}
                 >
                   {uploadMutation.isPending ? 'Subiendo…' : 'Subir Archivo'}
@@ -308,7 +306,7 @@ function AttachmentList({
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => onDownload(attachment)} className={TOOLBAR_BUTTON_CLASS}>
+            <button type="button" onClick={() => onDownload(attachment)} className="toolbar-btn">
               <FiDownload className="h-4 w-4" />
               Descargar
             </button>

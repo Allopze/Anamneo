@@ -7,7 +7,7 @@ import clsx from 'clsx';
 import FloatingQuickNotes from '@/components/FloatingQuickNotes';
 import { REVIEW_STATUS_LABELS, TASK_STATUS_LABELS, TASK_TYPE_LABELS } from '@/types';
 import { WORKFLOW_NOTE_MIN_LENGTH } from '@/lib/encounter-completion';
-import { INNER_PANEL_CLASS, TOOLBAR_BUTTON_CLASS, TOOLBAR_PRIMARY_BUTTON_CLASS, formatCompactDate, formatDateTime } from './encounter-drawer.constants';
+import { INNER_PANEL_CLASS, formatCompactDate, formatDateTime } from './encounter-drawer.constants';
 import type { EncounterDrawerProps } from './encounter-drawer.constants';
 
 type ReviewTabPanelProps = Pick<
@@ -105,7 +105,7 @@ export function ReviewTabPanel({
       <div className="mt-4 flex flex-wrap gap-2">
         {canRequestMedicalReview && encounter.reviewStatus !== 'LISTA_PARA_REVISION' ? (
           <button
-            className={TOOLBAR_BUTTON_CLASS}
+            className="toolbar-btn"
             onClick={() => onReviewStatusChange('LISTA_PARA_REVISION')}
             disabled={reviewStatusPending}
           >
@@ -114,7 +114,7 @@ export function ReviewTabPanel({
         ) : null}
         {canMarkReviewedByDoctor && encounter.reviewStatus !== 'REVISADA_POR_MEDICO' ? (
           <button
-            className={TOOLBAR_BUTTON_CLASS}
+            className="toolbar-btn"
             onClick={() => onReviewStatusChange('REVISADA_POR_MEDICO')}
             disabled={reviewStatusPending}
           >
@@ -167,11 +167,11 @@ export function SupportTabPanel({
           saving={quickNotesSaving}
           onSave={onQuickNotesSave}
         />
-        <button type="button" className={TOOLBAR_BUTTON_CLASS} onClick={onOpenAttachments}>
+        <button type="button" className="toolbar-btn" onClick={onOpenAttachments}>
           Adjuntos de la Atención
         </button>
         {canEditAntecedentes ? (
-          <Link href={`/pacientes/${encounter.patientId}/historial`} className={TOOLBAR_BUTTON_CLASS}>
+          <Link href={`/pacientes/${encounter.patientId}/historial`} className="toolbar-btn">
             Antecedentes del Paciente
           </Link>
         ) : null}
@@ -219,7 +219,7 @@ export function SupportTabPanel({
           </div>
           <button
             type="submit"
-            className={TOOLBAR_PRIMARY_BUTTON_CLASS}
+            className="toolbar-btn-primary"
             disabled={!quickTask.title.trim() || createTaskPending}
           >
             {createTaskPending ? 'Creando…' : 'Crear Seguimiento'}

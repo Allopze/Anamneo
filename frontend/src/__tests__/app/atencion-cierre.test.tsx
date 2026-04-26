@@ -86,6 +86,10 @@ jest.mock('@/lib/clinical', () => {
   };
 });
 
+jest.mock('@/components/layout/HeaderBarSlotContext', () => ({
+  useHeaderBarSlot: () => null,
+}));
+
 jest.mock('@/components/ClinicalAlerts', () => () => null);
 jest.mock('@/components/TemplateSelector', () => () => null);
 
@@ -195,7 +199,7 @@ describe('EncounterWizardPage closing workflow', () => {
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
 
     await openDrawerTab(user, 'Cierre');
-    await user.click(screen.getByRole('button', { name: 'Finalizar Atención' }));
+    await user.click(screen.getByRole('button', { name: /Finalizar/i }));
 
     expect(toast.error).toHaveBeenCalledWith('La nota de cierre debe tener al menos 10 caracteres');
     expect(apiPostMock).not.toHaveBeenCalled();
@@ -230,7 +234,7 @@ describe('EncounterWizardPage closing workflow', () => {
     render(<EncounterWizardPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Finalizar Atención' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Finalizar/i })).toBeDisabled();
     expect(screen.getAllByText(/pendiente de verificación médica/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole('link', { name: 'Revisar ficha administrativa' })).toHaveAttribute(
       'href',
@@ -251,7 +255,7 @@ describe('EncounterWizardPage closing workflow', () => {
     fireEvent.change(closureNoteField, {
       target: { value: '  Paciente estable al cierre, con control y signos de alarma informados.  ' },
     });
-    await user.click(screen.getByRole('button', { name: 'Finalizar Atención' }));
+    await user.click(screen.getByRole('button', { name: /Finalizar/i }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Finalizar atención' });
     expect(dialog).toBeInTheDocument();
@@ -383,7 +387,7 @@ describe('EncounterWizardPage closing workflow', () => {
     render(<EncounterWizardPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Finalizar Atención' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Finalizar/i })).toBeEnabled();
   });
 
   it('keeps the review note editable for a doctor who can still mark a completed encounter as reviewed', async () => {

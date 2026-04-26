@@ -134,15 +134,6 @@ export type SectionUiState = keyof typeof SECTION_STATUS_META;
 
 // ─── CSS class tokens ───────────────────────────────────────────
 
-export const TOOLBAR_BUTTON_CLASS =
-  'inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-input border border-frame/15 bg-surface-elevated px-4 py-3 text-sm font-medium text-ink shadow-soft transition-colors hover:border-frame/30 hover:bg-surface-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20 disabled:cursor-not-allowed disabled:opacity-50';
-
-export const TOOLBAR_PRIMARY_BUTTON_CLASS =
-  'inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-input border border-accent/70 bg-accent px-4 py-3 text-sm font-semibold text-accent-text shadow-soft transition-colors hover:bg-accent-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:cursor-not-allowed disabled:opacity-50';
-
-export const TOOLBAR_SUCCESS_BUTTON_CLASS =
-  'inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-input bg-status-green px-4 py-3 text-sm font-medium text-status-green-text transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-green/40 disabled:cursor-not-allowed disabled:opacity-50';
-
 export const SURFACE_PANEL_CLASS =
   'overflow-hidden rounded-card border border-frame/10 bg-surface-elevated shadow-soft';
 
@@ -152,7 +143,7 @@ export const INNER_PANEL_CLASS =
 export const RAIL_PANEL_CLASS =
   'overflow-hidden rounded-card border border-frame/10 bg-surface-elevated/78 shadow-soft';
 
-export const WORKSPACE_STICKY_OFFSET_CLASS = 'top-[110px]';
+export const WORKSPACE_STICKY_OFFSET_CLASS = 'top-[170px]';
 
 // ─── Formatters ─────────────────────────────────────────────────
 

@@ -9,8 +9,6 @@ import { REVIEW_STATUS_LABELS, TASK_STATUS_LABELS, TASK_TYPE_LABELS } from '@/ty
 import EncounterAuditTimeline from '@/components/EncounterAuditTimeline';
 import {
   INNER_PANEL_CLASS,
-  TOOLBAR_BUTTON_CLASS,
-  TOOLBAR_PRIMARY_BUTTON_CLASS,
   SIDEBAR_TABS,
   type EncounterDrawerProps,
 } from './encounter-drawer.constants';

@@ -179,9 +179,7 @@ export default function DashboardLayoutShell({
                     </button>
                   </Tooltip>
 
-                  {!isEncounterWorkspace ? (
-                    <SmartHeaderBar className="mx-0 mt-0 mb-0 min-h-[56px] min-w-0 flex-1" onSearchOpen={onSearchOpen} contextSlot={headerBarSlot} />
-                  ) : null}
+                  <SmartHeaderBar className="mx-0 mt-0 mb-0 min-h-[56px] min-w-0 flex-1" onSearchOpen={onSearchOpen} contextSlot={headerBarSlot} />
                 </div>
               </div>
 

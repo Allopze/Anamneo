@@ -272,7 +272,7 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
       : saveStatus === 'saved'
         ? 'text-status-green-text'
         : saveStatus === 'queued'
-          ? 'text-status-amber-text'
+          ? 'text-accent-text'
         : saveStatus === 'saving'
           ? 'text-ink'
           : 'text-ink-secondary';
