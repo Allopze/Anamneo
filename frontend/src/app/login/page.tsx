@@ -46,17 +46,17 @@ const LOGIN_CHIPS = [
   {
     icon: <FiClipboard className="h-8 w-8" />,
     label: 'Historia clínica completa',
-    description: 'Encuentros, secciones y seguimiento en contexto.',
+    description: 'Encuentros, secciones y seguimiento.',
   },
   {
     icon: <FiShield className="h-8 w-8" />,
-    label: 'Seguridad y cumplimiento',
-    description: 'Roles, permisos y trazabilidad de cada acción.',
+    label: 'Seguridad y trazabilidad',
+    description: 'Roles, permisos y registro de actividad.',
   },
   {
     icon: <FiFileText className="h-8 w-8" />,
-    label: 'Consentimientos y adjuntos',
-    description: 'Todo lo necesario, organizado y disponible.',
+    label: 'Consentimientos y documentos',
+    description: 'Adjuntos ordenados y disponibles.',
   },
 ];
 
@@ -212,9 +212,9 @@ function LoginContent() {
 
   return (
     <AuthFrame
-      eyebrow="Espacio Clínico"
-      title="Contexto clínico desde el primer acceso."
-      description="Anamneo organiza la información clave para que tu práctica funcione con claridad, seguridad y continuidad."
+      eyebrow="Plataforma clínica"
+      title="Contexto clínico desde el acceso."
+      description="Anamneo mantiene la información clave de tu práctica ordenada, segura y disponible."
       chips={LOGIN_CHIPS}
       cardEyebrow="Acceso"
       cardTitle={step === '2fa' ? 'Verificación 2FA' : 'Iniciar sesión'}
@@ -223,14 +223,14 @@ function LoginContent() {
           ? 'Ingresa el código de tu app autenticadora.'
           : 'Ingresa uno de tus códigos de recuperación de un solo uso.'
         : 'Ingresa con tu cuenta de Anamneo.'}
-      logoIconClassName="!h-24 !w-24"
+      logoIconClassName="!h-20 !w-20"
       logoTextClassName="!text-4xl"
       heroFooter={
         <div className="auth-help">
           <FiHeadphones className="h-8 w-8" aria-hidden="true" />
           <span>
-            <span className="auth-help-title">¿Necesitas ayuda?</span>
-            <span className="auth-help-copy">Escríbenos a soporte@anamneo.cl</span>
+            <span className="auth-help-title">Soporte</span>
+            <span className="auth-help-copy">soporte@anamneo.cl</span>
           </span>
         </div>
       }

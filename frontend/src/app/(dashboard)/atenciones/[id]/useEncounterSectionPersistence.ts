@@ -255,7 +255,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
       lastSavedRef.current = JSON.stringify(snapshot);
       setSavedSnapshotJson(lastSavedRef.current);
       queryClient.invalidateQueries({ queryKey: ['encounter', id] });
-      toast.success('Se restauró la identificación desde la ficha maestra del paciente');
+      toast.success('Se actualizó la identificación con datos de la ficha del paciente');
     } catch (error) {
       toast.error(getErrorMessage(error));
     }

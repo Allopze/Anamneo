@@ -414,11 +414,11 @@ body {
   .auth-hero {
     @apply relative flex flex-col justify-center border-b border-frame/10 bg-frame px-5 py-7 text-white sm:px-6 sm:py-10 lg:min-h-screen lg:border-b-0 lg:px-14 lg:py-14;
     background:
-      linear-gradient(155deg, rgba(39, 39, 37, 0.99), rgba(54, 54, 51, 0.99));
+      linear-gradient(155deg, rgba(36, 36, 34, 0.99), rgba(48, 49, 45, 0.99));
   }
 
   .auth-hero-panel {
-    @apply relative z-[1] mx-auto w-full max-w-xl;
+    @apply relative z-[1] mx-auto w-full max-w-xl lg:-mt-5;
   }
 
   .auth-logo-text-on-dark {
@@ -430,13 +430,13 @@ body {
   }
 
   .auth-kicker {
-    @apply mb-5 inline-flex rounded-md border border-white/10 px-3 py-1 text-micro font-semibold uppercase tracking-[0.12em];
-    background: rgba(214, 221, 72, 0.25);
+    @apply mb-4 inline-flex rounded-md border border-white/10 px-2.5 py-1 text-micro font-semibold uppercase tracking-[0.08em];
+    background: rgba(214, 221, 72, 0.18);
     color: #d6dd48;
   }
 
   .auth-headline {
-    @apply max-w-xl text-[1.75rem] font-semibold leading-tight tracking-tight text-balance text-ink-onDark sm:text-[2.75rem];
+    @apply max-w-xl text-[1.75rem] font-semibold leading-tight tracking-tight text-balance text-ink-onDark sm:text-[2.55rem];
   }
 
   .auth-hero-description {
@@ -446,12 +446,12 @@ body {
 
   .auth-chip-band {
     @apply mt-7 hidden max-w-lg gap-0 border-y sm:grid;
-    border-color: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.14);
   }
 
   .auth-chip {
-    @apply flex items-start gap-5 px-1 py-5 text-left;
-    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    @apply flex items-start gap-4 px-1 py-4 text-left;
+    border-top: 1px solid rgba(255, 255, 255, 0.11);
     color: rgba(255, 255, 255, 0.76);
   }
 
@@ -460,7 +460,7 @@ body {
   }
 
   .auth-chip-icon {
-    @apply mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center;
+    @apply mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center;
     color: #d6dd48;
   }
 
@@ -474,18 +474,18 @@ body {
   }
 
   .auth-hero-footer {
-    @apply mt-7 hidden max-w-lg border-t pt-6 sm:block;
-    border-color: rgba(255, 255, 255, 0.18);
+    @apply mt-6 hidden max-w-lg border-t pt-5 sm:block;
+    border-color: rgba(255, 255, 255, 0.14);
   }
 
   .auth-help {
-    @apply flex items-center gap-5 px-1;
-    color: #d6dd48;
+    @apply flex items-center gap-4 px-1;
+    color: rgba(214, 221, 72, 0.82);
   }
 
   .auth-help-title {
     @apply block text-sm font-medium;
-    color: rgba(255, 255, 255, 0.82);
+    color: rgba(255, 255, 255, 0.68);
   }
 
   .auth-help-copy {

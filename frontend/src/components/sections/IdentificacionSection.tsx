@@ -41,15 +41,15 @@ export default function IdentificacionSection({
       <div className="rounded-card border border-surface-muted/30 bg-surface-base/40 p-5">
         <p className="text-sm font-medium text-ink-primary">Identificación de esta atención</p>
         <p className="mt-2 text-sm text-ink-secondary">
-          Muestra los datos usados en esta atención. Si hay que corregirlos, actualiza la ficha del paciente y restaura aquí.
+          Muestra los datos usados en esta atención. Si hay que corregirlos, actualiza la ficha del paciente y vuelve a traerlos aquí.
         </p>
         {snapshotStatus?.hasDifferences ? (
           <div className="mt-4 rounded-card border border-status-yellow/70 bg-status-yellow/40 p-4 text-sm text-accent-text">
             <div className="flex items-start gap-2">
               <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
-                <p className="font-medium">Se detectó divergencia con la ficha maestra</p>
-                <p className="mt-1">Campos con diferencia: {snapshotStatus.differingFieldLabels.join(', ')}.</p>
+                <p className="font-medium">Estos datos no coinciden con la ficha del paciente</p>
+                <p className="mt-1">Campos distintos: {snapshotStatus.differingFieldLabels.join(', ')}.</p>
               </div>
             </div>
             {onRestoreFromPatient ? (
@@ -59,7 +59,7 @@ export default function IdentificacionSection({
                 className="btn btn-secondary mt-3 inline-flex items-center gap-2"
               >
                 <FiRefreshCcw className="h-4 w-4" />
-                Restaurar desde ficha maestra
+                Actualizar con datos de la ficha
               </button>
             ) : null}
           </div>

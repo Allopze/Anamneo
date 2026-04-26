@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import IdentificacionSection from '@/components/sections/IdentificacionSection';
 
 describe('IdentificacionSection', () => {
-  it('offers snapshot restoration when patient master data diverges', async () => {
+  it('offers updating the encounter identification from the patient record', async () => {
     const onRestoreFromPatient = jest.fn();
 
     render(
@@ -28,10 +28,10 @@ describe('IdentificacionSection', () => {
       />,
     );
 
-    expect(screen.getByText(/Se detectó divergencia con la ficha maestra/i)).toBeInTheDocument();
+    expect(screen.getByText(/Estos datos no coinciden con la ficha del paciente/i)).toBeInTheDocument();
     expect(screen.getByText(/previsión, domicilio/i)).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: /Restaurar desde ficha maestra/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Actualizar con datos de la ficha/i }));
 
     expect(onRestoreFromPatient).toHaveBeenCalledTimes(1);
   });

@@ -34,20 +34,20 @@ export function IdentificationSection({
         </div>
       ) : null}
       {encounter.identificationSnapshotStatus?.hasDifferences ? (
-        <div className="mb-4 rounded-2xl border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
+        <div className="mb-4 rounded-card border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
           <div className="flex items-start gap-2">
             <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
-              <p className="font-medium">Snapshot administrativo con divergencias</p>
+              <p className="font-medium">Identificación distinta a la ficha del paciente</p>
               <p className="mt-1">
-                La identificación impresa corresponde a esta atención y hoy difiere de la ficha maestra del paciente en: {encounter.identificationSnapshotStatus.differingFieldLabels.join(', ')}.
+                La identificación de esta atención se mantiene para el documento clínico, pero hoy difiere de la ficha del paciente en: {encounter.identificationSnapshotStatus.differingFieldLabels.join(', ')}.
               </p>
             </div>
           </div>
         </div>
       ) : null}
       {patientCompletenessMeta && encounter.patient?.completenessStatus && encounter.patient.completenessStatus !== 'VERIFICADA' ? (
-        <div className="mb-4 rounded-2xl border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
+        <div className="mb-4 rounded-card border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
           <p className="font-medium">{patientCompletenessMeta.label}</p>
           <p className="mt-1">{patientCompletenessMeta.description}</p>
         </div>

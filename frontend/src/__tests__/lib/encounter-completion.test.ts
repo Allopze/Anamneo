@@ -39,7 +39,7 @@ describe('encounter completion helpers', () => {
           completenessStatus: 'PENDIENTE_VERIFICACION',
           missingFields: [],
           blockedActions: ['COMPLETE_ENCOUNTER'],
-          reason: 'La ficha maestra del paciente sigue pendiente de verificación médica.',
+          reason: 'La ficha del paciente sigue pendiente de verificación médica.',
         },
         sections: [
           { sectionKey: 'IDENTIFICACION', completed: true, data: { nombre: 'Paciente Demo' } },

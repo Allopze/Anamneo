@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FiAlertCircle, FiEdit2 } from 'react-icons/fi';
+import { FiAlertCircle, FiEdit2, FiExternalLink } from 'react-icons/fi';
 import { parseHistoryField } from '@/lib/utils';
 import { AnamnesisRemotaData } from '@/types';
 import { SectionBlock, SectionCallout } from '@/components/sections/SectionPrimitives';
@@ -112,22 +112,24 @@ export default function AnamnesisRemotaSection({
       {isReadOnlyFromHistory && (
         <SectionCallout
           tone="warning"
-          title="Snapshot cargado desde el historial del paciente"
+          title="Antecedentes traídos desde la ficha del paciente"
           actions={!readOnly ? (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <button
+                type="button"
                 onClick={handleEnableEdit}
-                className="inline-flex items-center gap-1 text-sm font-medium text-accent-text hover:text-ink"
+                className="btn btn-primary min-h-10 gap-2 rounded-lg px-3 py-2 text-sm"
               >
                 <FiEdit2 className="w-4 h-4" />
-                Editar solo esta atención
+                Editar solo en esta atención
               </button>
               {patientId && canEditPatientHistory && (
                 <Link
                   href={`/pacientes/${patientId}/historial`}
-                  className="inline-flex items-center gap-1 text-sm font-medium text-accent-text hover:text-ink"
+                  className="btn btn-secondary min-h-10 gap-2 rounded-lg px-3 py-2 text-sm"
                 >
-                  Ir al historial maestro
+                  <FiExternalLink className="h-4 w-4" />
+                  Abrir ficha del paciente
                 </Link>
               )}
             </div>
@@ -136,8 +138,8 @@ export default function AnamnesisRemotaSection({
           <div className="flex items-start gap-2">
             <FiAlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <p>
-              Esta información proviene del historial del paciente. Si la editas aquí,
-              el cambio quedará solo en esta atención y ya no seguirá sincronizado con la ficha maestra.
+              Estos antecedentes vienen guardados desde la ficha del paciente. Si los editas aquí,
+              el cambio quedará solo en esta atención y no actualizará la ficha del paciente.
             </p>
           </div>
         </SectionCallout>

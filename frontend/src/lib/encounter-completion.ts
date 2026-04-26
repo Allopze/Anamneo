@@ -217,9 +217,9 @@ export function buildEncounterCompletionChecklist(
     },
     {
       id: 'patient-record',
-      label: 'Ficha maestra habilitada para cierre',
+      label: 'Ficha del paciente lista para cierre',
       status: blockReason ? 'blocked' : 'ready',
-      detail: blockReason ?? 'La ficha administrativa permite cierre y documentos clínicos oficiales.',
+      detail: blockReason ?? 'La ficha del paciente permite cierre y documentos clínicos oficiales.',
     },
   ];
 }

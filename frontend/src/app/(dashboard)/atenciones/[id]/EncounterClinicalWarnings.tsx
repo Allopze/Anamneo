@@ -37,7 +37,7 @@ export default function EncounterClinicalWarnings({
         ) : null}
         {hasCompletenessWarning ? (
           <p className={identificationMissingFields.length > 0 ? 'mt-2' : ''}>
-            La ficha maestra del paciente está en estado &ldquo;{patientCompletenessMeta?.label.toLowerCase()}&rdquo;.
+            La ficha del paciente está en estado &ldquo;{patientCompletenessMeta?.label.toLowerCase()}&rdquo;.
           </p>
         ) : null}
         {clinicalOutputBlockReason ? (

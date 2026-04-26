@@ -99,7 +99,7 @@ const encounterResponse = {
     completenessStatus: 'PENDIENTE_VERIFICACION',
     missingFields: [],
     blockedActions: ['COMPLETE_ENCOUNTER', 'EXPORT_OFFICIAL_DOCUMENTS', 'PRINT_CLINICAL_RECORD'],
-    reason: 'La ficha maestra del paciente está pendiente de verificación médica antes de habilitar cierres y documentos clínicos oficiales.',
+    reason: 'La ficha del paciente está pendiente de verificación médica antes de habilitar cierres y documentos clínicos oficiales.',
   },
   sections: [
     {

@@ -12,7 +12,7 @@ describe('clinical-output helpers', () => {
     completenessStatus: 'PENDIENTE_VERIFICACION',
     missingFields: [],
     blockedActions: ['COMPLETE_ENCOUNTER', 'EXPORT_OFFICIAL_DOCUMENTS', 'PRINT_CLINICAL_RECORD'],
-    reason: 'La ficha maestra del paciente está pendiente de verificación médica.',
+    reason: 'La ficha del paciente está pendiente de verificación médica.',
   };
 
   it('returns true when the action is blocked', () => {

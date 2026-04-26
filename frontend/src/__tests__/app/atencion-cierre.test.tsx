@@ -222,7 +222,7 @@ describe('EncounterWizardPage closing workflow', () => {
               missingFields: [],
               blockedActions: ['COMPLETE_ENCOUNTER', 'EXPORT_OFFICIAL_DOCUMENTS', 'PRINT_CLINICAL_RECORD'],
               reason:
-                'La ficha maestra del paciente está pendiente de verificación médica antes de habilitar cierres y documentos clínicos oficiales.',
+                'La ficha del paciente está pendiente de verificación médica antes de habilitar cierres y documentos clínicos oficiales.',
             },
           },
         });
@@ -286,7 +286,7 @@ describe('EncounterWizardPage closing workflow', () => {
     expect(screen.getByText('Secciones obligatorias completas')).toBeInTheDocument();
     expect(screen.getByText('Contenido clínico esencial')).toBeInTheDocument();
     expect(screen.getAllByText('Nota de cierre').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Ficha maestra habilitada para cierre')).toBeInTheDocument();
+    expect(screen.getByText('Ficha del paciente lista para cierre')).toBeInTheDocument();
   });
 
   it('shows a recoverable conflict banner and lets the user dismiss the local copy', async () => {

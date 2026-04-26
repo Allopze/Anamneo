@@ -9,7 +9,7 @@ function getFieldTextarea(labelText: RegExp) {
 }
 
 describe('AnamnesisRemotaSection', () => {
-  it('lets the user decouple the encounter snapshot and navigate to master history', async () => {
+  it('lets the user edit only this encounter and navigate to patient history', async () => {
     const onChange = jest.fn();
 
     render(
@@ -31,13 +31,13 @@ describe('AnamnesisRemotaSection', () => {
       getFieldTextarea(/Antecedentes médicos/i),
     ).toBeDisabled();
 
-    expect(screen.getByText(/Snapshot cargado desde el historial del paciente/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Ir al historial maestro/i })).toHaveAttribute(
+    expect(screen.getByText(/Antecedentes traídos desde la ficha del paciente/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Abrir ficha del paciente/i })).toHaveAttribute(
       'href',
       '/pacientes/patient-1/historial',
     );
 
-    await userEvent.click(screen.getByRole('button', { name: /Editar solo esta atención/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Editar solo en esta atención/i }));
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -92,6 +92,6 @@ describe('AnamnesisRemotaSection', () => {
     expect(
       getFieldTextarea(/Antecedentes médicos/i),
     ).toBeEnabled();
-    expect(screen.queryByText(/Snapshot cargado desde el historial del paciente/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Antecedentes traídos desde la ficha del paciente/i)).not.toBeInTheDocument();
   });
 });
