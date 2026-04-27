@@ -41,7 +41,7 @@ export default function EncounterSectionRail({
   return (
     <aside className="hidden xl:block">
       <div className={clsx('sticky', WORKSPACE_STICKY_OFFSET_CLASS)}>
-        <div className={clsx(RAIL_PANEL_CLASS, 'transition-all duration-200')}>
+        <div className={clsx(RAIL_PANEL_CLASS, 'transition-[width] duration-200')}>
           {/* Header — hidden when collapsed */}
           {!railCollapsed && (
             <div className="border-b border-surface-muted/35 px-5 py-5">
@@ -51,9 +51,16 @@ export default function EncounterSectionRail({
                   {completedOrNACount}/{sections.length}
                 </span>
               </div>
-              <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-surface-muted/50">
+              <div
+                className="mt-3 h-1 w-full overflow-hidden rounded-full bg-surface-muted/50"
+                role="progressbar"
+                aria-label="Progreso de secciones completadas"
+                aria-valuemin={0}
+                aria-valuemax={sections.length}
+                aria-valuenow={completedOrNACount}
+              >
                 <div
-                  className="h-full rounded-full bg-status-green transition-all duration-300"
+                  className="h-full rounded-full bg-frame transition-[width] duration-200"
                   style={{ width: `${(completedOrNACount / sections.length) * 100}%` }}
                 />
               </div>
@@ -62,9 +69,16 @@ export default function EncounterSectionRail({
           {/* Collapsed mini-progress */}
           {railCollapsed && (
             <div className="px-2 pt-3 pb-1">
-              <div className="mx-auto h-1 w-full overflow-hidden rounded-full bg-surface-muted/50">
+              <div
+                className="mx-auto h-1 w-full overflow-hidden rounded-full bg-surface-muted/50"
+                role="progressbar"
+                aria-label="Progreso de secciones completadas"
+                aria-valuemin={0}
+                aria-valuemax={sections.length}
+                aria-valuenow={completedOrNACount}
+              >
                 <div
-                  className="h-full rounded-full bg-status-green transition-all duration-300"
+                  className="h-full rounded-full bg-frame transition-[width] duration-200"
                   style={{ width: `${(completedOrNACount / sections.length) * 100}%` }}
                 />
               </div>
@@ -245,9 +259,9 @@ function SectionDot({
       onClick={onClick}
       title={section.label}
       className={clsx(
-        'flex size-9 items-center justify-center rounded-input border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20',
+        'flex size-9 items-center justify-center rounded-input border transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20',
         isActive
-          ? 'border-frame/15 bg-surface-base shadow-soft'
+          ? 'border-frame/30 bg-surface-base'
           : 'border-transparent shadow-none hover:border-surface-muted/40 hover:bg-surface-base/45',
       )}
       aria-current={isActive ? 'step' : undefined}
@@ -295,9 +309,9 @@ function SectionRow({
       type="button"
       onClick={onClick}
       className={clsx(
-        'group grid w-full grid-cols-[28px_minmax(0,1fr)] items-start gap-2.5 rounded-card border px-3 py-2.5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20',
+        'group grid w-full grid-cols-[28px_minmax(0,1fr)] items-start gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20',
         isActive
-          ? 'border-frame/15 bg-surface-base shadow-soft'
+          ? 'border-frame/30 bg-surface-base'
           : 'border-transparent shadow-none hover:border-surface-muted/40 hover:bg-surface-base/45',
       )}
       aria-current={isActive ? 'step' : undefined}

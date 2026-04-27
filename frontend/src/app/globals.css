@@ -41,7 +41,7 @@ body {
   /* ── Forms ────────────────────── */
   .form-input,
   .input {
-    @apply w-full rounded-pill border border-surface-muted bg-surface-inset px-5 py-3
+    @apply w-full rounded-lg border border-surface-muted bg-surface-inset px-4 py-3
            text-ink placeholder:text-ink-muted shadow-soft
            transition-[border-color,box-shadow,background-color] duration-200
            focus:border-frame focus:outline-none focus:ring-2 focus:ring-frame/30;
@@ -49,8 +49,16 @@ body {
 
   .form-textarea,
   textarea.form-input {
-    @apply min-h-[104px] rounded-xl px-5 py-4 leading-6;
+    @apply min-h-[104px] rounded-lg px-4 py-3 leading-6;
     resize: vertical;
+  }
+
+  .clinical-textarea {
+    @apply max-h-[18rem] overflow-y-auto;
+  }
+
+  .clinical-textarea-compact {
+    @apply min-h-[84px] max-h-[12rem];
   }
 
   .form-input:disabled,
@@ -218,15 +226,15 @@ body {
 
   /* ── Sections ─────────────────── */
   .section-intro {
-    @apply rounded-card border border-surface-muted/35 bg-surface-inset/70 px-5 py-4 text-body text-ink-secondary;
+    @apply rounded-lg border border-surface-muted/35 bg-surface-inset/70 px-4 py-3 text-sm leading-6 text-ink-secondary;
   }
 
   .section-block {
-    @apply rounded-card border border-surface-muted/35 bg-surface-elevated p-5;
+    @apply rounded-lg border border-surface-muted/35 bg-surface-elevated p-4 sm:p-5;
   }
 
   .section-block-muted {
-    @apply rounded-card border border-surface-muted/30 bg-surface-inset/50 p-5;
+    @apply rounded-lg border border-surface-muted/30 bg-surface-inset/50 p-4 sm:p-5;
   }
 
   .section-block-title {
@@ -739,7 +747,7 @@ body {
   }
 
   .smart-header-bar {
-    @apply mx-3 mt-4 mb-2 flex items-center gap-3 rounded-card px-4 py-2 lg:mx-6 lg:px-5 lg:py-2.5;
+    @apply mx-3 mt-4 mb-2 flex items-center gap-3 rounded-card px-4 py-1.5 lg:mx-6 lg:px-5 lg:py-1.5;
     background: color-mix(in srgb, var(--surface-elevated) 90%, transparent);
     border: 1px solid rgba(0,0,0,0.05);
     box-shadow: 0 1px 2px rgba(43,43,43,0.03), 0 8px 24px rgba(43,43,43,0.04);
@@ -748,7 +756,7 @@ body {
   }
 
   .smart-header-chip {
-    @apply inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5
+    @apply inline-flex items-center gap-1.5 rounded-pill px-3 py-1
            text-xs font-bold text-ink transition-all duration-150
            hover:bg-surface-inset;
   }
@@ -780,7 +788,7 @@ body {
   }
 
   .smart-header-action-btn {
-    @apply inline-flex items-center gap-1.5 rounded-pill px-2.5 py-2
+    @apply inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1.5
            text-ink-secondary transition-colors duration-150
            hover:bg-surface-inset hover:text-ink;
   }
@@ -825,8 +833,23 @@ body {
 
   /* ── Ficha Clínica ─────── */
   .ficha-section-heading {
-    @apply text-base font-bold text-ink-primary pl-3 mb-4
-           border-l-[3px] border-accent;
+    @apply mb-3 text-[15px] font-semibold leading-6 text-ink-primary;
+  }
+
+  .ficha-empty {
+    @apply text-sm text-ink-muted;
+  }
+
+  .ficha-empty-section {
+    @apply mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1;
+  }
+
+  .ficha-empty-section .ficha-section-heading {
+    @apply mb-0;
+  }
+
+  .ficha-readable-block {
+    @apply border-l border-surface-muted/70 pl-4 text-sm leading-6 text-ink-primary;
   }
 
   /* ── Mobile Header ─────────────── */

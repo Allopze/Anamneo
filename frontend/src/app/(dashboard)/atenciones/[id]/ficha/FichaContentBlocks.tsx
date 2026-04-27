@@ -19,13 +19,13 @@ export function FichaClinicalAlerts({
   return (
     <>
       {patientOutputBlockReason ? (
-        <div className="no-print mx-auto mt-4 max-w-4xl px-4">
-          <div className="rounded-2xl border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
+        <div className="no-print mx-auto mb-4 mt-4 max-w-5xl px-4 sm:px-0">
+          <div className="rounded-lg border border-status-yellow/70 bg-status-yellow/30 px-4 py-3 text-sm text-accent-text">
             <p className="font-medium">Salidas clinicas bloqueadas</p>
             <p className="mt-1">{patientOutputBlockReason}</p>
             <Link
               href={`/pacientes/${patientId}`}
-              className="mt-3 inline-flex items-center gap-2 rounded-full border border-status-yellow/70 px-3 py-1.5 text-xs font-semibold text-accent-text transition-colors hover:bg-status-yellow/55"
+              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-status-yellow/70 px-3 py-1.5 text-xs font-semibold text-accent-text transition-colors hover:bg-status-yellow/45"
             >
               Revisar ficha administrativa
             </Link>
@@ -34,8 +34,8 @@ export function FichaClinicalAlerts({
       ) : null}
 
       {fullRecordBlockedReason && !patientOutputBlockReason ? (
-        <div className="no-print mx-auto mt-4 max-w-4xl px-4">
-          <div className="rounded-2xl border border-surface-muted/40 bg-surface-elevated p-3 text-sm text-ink-secondary">
+        <div className="no-print mx-auto mb-4 mt-4 max-w-5xl px-4 sm:px-0">
+          <div className="rounded-lg border border-surface-muted/40 bg-surface-inset px-4 py-3 text-sm text-ink-secondary">
             <p className="font-medium text-ink">PDF clínico completo e impresión aún no disponibles</p>
             <p className="mt-1">{fullRecordBlockedReason}</p>
             <p className="mt-2 text-xs text-ink-muted">

@@ -171,7 +171,7 @@ export default function DashboardLayoutShell({
                     <button
                       type="button"
                       onClick={() => onCollapsedChange(!sidebarCollapsed)}
-                      className="hidden min-h-[56px] aspect-square shrink-0 items-center justify-center self-stretch rounded-full border border-surface-muted/35 bg-surface-elevated text-ink-secondary shadow-soft transition-colors hover:border-frame/18 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20 lg:flex"
+                      className="hidden h-14 w-14 flex-none items-center justify-center rounded-full border border-surface-muted/35 bg-surface-elevated p-0 text-ink-secondary shadow-soft transition-colors hover:border-frame/18 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20 lg:flex"
                       aria-label={sidebarCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'}
                       aria-expanded={!sidebarCollapsed}
                     >

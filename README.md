@@ -66,6 +66,8 @@ Servicios esperados:
 
 La primera cuenta creada desde `/register` obtiene bootstrap de administrador. Despues de eso el sistema deja de repartir coronas gratis.
 
+El `.env.example` raiz es la base compartida del proyecto. Si ejecutas `backend/` o `frontend/` por separado, revisa tambien sus `.env` locales como overlays de desarrollo.
+
 ### Con Docker
 
 ```bash

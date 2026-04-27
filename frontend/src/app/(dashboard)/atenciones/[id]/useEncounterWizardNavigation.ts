@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { setEncounterDrawerOpen, setEncounterDrawerTab, getInitialEncounterDrawerOpen, getInitialEncounterDrawerTab } from './encounter-drawer-state';
-import type { SidebarTabKey } from '@/components/EncounterDrawer';
+import type { WorkspacePanelKey } from '@/components/encounter-workspace.constants';
 import type { Encounter, SectionKey } from '@/types';
 
 type PersistSectionResult = 'noop' | 'saved' | 'queued';
@@ -32,8 +31,7 @@ export function useEncounterWizardNavigation(params: UseEncounterWizardNavigatio
     startSectionTransition,
   } = params;
 
-  const [sidebarTab, setSidebarTab] = useState<SidebarTabKey>(getInitialEncounterDrawerTab);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(getInitialEncounterDrawerOpen);
+  const [activeWorkspacePanel, setActiveWorkspacePanel] = useState<WorkspacePanelKey | null>(null);
   const [railCompletedCollapsed, setRailCompletedCollapsed] = useState(false);
   const [railCollapsed, setRailCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -81,11 +79,8 @@ export function useEncounterWizardNavigation(params: UseEncounterWizardNavigatio
     [canEdit, currentSection, currentSectionIndex, isSaving, moveToSection, persistSection, saveCurrentSection, sections.length, setCurrentSectionIndex, startSectionTransition],
   );
 
-  const openDrawerTab = useCallback((tab: SidebarTabKey) => {
-    setSidebarTab(tab);
-    setEncounterDrawerTab(tab);
-    setIsDrawerOpen(true);
-    setEncounterDrawerOpen(true);
+  const openWorkspacePanel = useCallback((tab: WorkspacePanelKey) => {
+    setActiveWorkspacePanel((current) => (current === tab ? null : tab));
   }, []);
 
   useEffect(() => {
@@ -108,13 +103,6 @@ export function useEncounterWizardNavigation(params: UseEncounterWizardNavigatio
       if (event.key === 's') {
         event.preventDefault();
         void saveCurrentSection();
-      } else if (event.key === '.') {
-        event.preventDefault();
-        setIsDrawerOpen((previous) => {
-          const next = !previous;
-          setEncounterDrawerOpen(next);
-          return next;
-        });
       } else if (event.key === 'ArrowLeft' && currentSectionIndex > 0) {
         event.preventDefault();
         void moveToSection(currentSectionIndex - 1);
@@ -129,16 +117,14 @@ export function useEncounterWizardNavigation(params: UseEncounterWizardNavigatio
   }, [currentSectionIndex, handleNavigate, moveToSection, saveCurrentSection, sections.length]);
 
   return {
-    sidebarTab,
-    setSidebarTab,
-    isDrawerOpen,
-    setIsDrawerOpen,
+    activeWorkspacePanel,
+    setActiveWorkspacePanel,
     railCompletedCollapsed,
     setRailCompletedCollapsed,
     railCollapsed,
     setRailCollapsed,
     moveToSection,
     handleNavigate,
-    openDrawerTab,
+    openWorkspacePanel,
   };
 }

@@ -63,34 +63,32 @@ export function FichaClinicalRecord({
     identificationMissingFields,
   } = sectionData;
 
+  const statusLabel = STATUS_LABELS[encounter.status];
+
   return (
-    <div className={clsx('max-w-4xl mx-auto p-8 bg-surface-elevated print:p-0', clinicalOutputBlock && 'print:hidden')}>
-      <header className="mb-8 border-b-2 border-ink-primary pb-5">
+    <div
+      className={clsx(
+        'mx-auto max-w-5xl border border-surface-muted/50 bg-surface-elevated p-8 print:border-0 print:p-0',
+        clinicalOutputBlock && 'print:hidden',
+      )}
+    >
+      <header className="mb-8 border-b border-ink-primary pb-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-ink-primary">Ficha Clínica</h1>
-            <p className="mt-1 text-sm text-ink-secondary">
-              {format(new Date(encounter.createdAt), "d 'de' MMMM 'de' yyyy, HH:mm", { locale: es })}
+            <h1 className="text-2xl font-semibold text-ink-primary">Ficha Clínica</h1>
+            <p className="mt-2 text-sm text-ink-secondary">
+              {statusLabel} · {format(new Date(encounter.createdAt), "d 'de' MMMM 'de' yyyy, HH:mm", { locale: es })}
             </p>
             {encounter.createdBy?.nombre ? (
               <p className="mt-0.5 text-sm text-ink-muted">{encounter.createdBy.nombre}</p>
             ) : null}
           </div>
-          <span
-            className={clsx(
-              'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold',
-              encounter.status === 'FIRMADO'
-                ? 'border-status-green/50 bg-status-green/15 text-status-green-text'
-                : encounter.status === 'COMPLETADO'
-                  ? 'border-accent/40 bg-accent/10 text-accent-text'
-                  : encounter.status === 'CANCELADO'
-                    ? 'border-status-red/40 bg-status-red/10 text-status-red-text'
-                    : 'border-surface-muted/50 bg-surface-muted/30 text-ink-secondary',
-            )}
-          >
-            {encounter.status === 'FIRMADO' ? <FiShield className="h-3 w-3" /> : null}
-            {STATUS_LABELS[encounter.status]}
-          </span>
+          {encounter.status === 'FIRMADO' ? (
+            <div className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-status-green-text">
+              <FiShield className="h-4 w-4" />
+              Firmada
+            </div>
+          ) : null}
         </div>
       </header>
 

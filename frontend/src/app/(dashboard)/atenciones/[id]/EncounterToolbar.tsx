@@ -8,15 +8,15 @@ import {
   FiEye,
   FiShield,
   FiWifiOff,
-  FiLayout,
   FiMoreHorizontal,
   FiCopy,
   FiActivity,
+  FiClipboard,
+  FiClock,
 } from 'react-icons/fi';
 import { REVIEW_STATUS_LABELS } from '@/types';
 import { useHeaderBarSlot } from '@/components/layout/HeaderBarSlotContext';
 import { FichaToolbarMenu, type ToolbarMenuItem } from './ficha/FichaToolbarMenu';
-import { setEncounterDrawerOpen } from './encounter-drawer-state';
 import type { EncounterWizardHook } from './useEncounterWizard';
 import {
   DUPLICATE_ENCOUNTER_ACTION_TITLE,
@@ -33,15 +33,13 @@ type Props = Pick<
   | 'hasUnsavedChanges'
   | 'saveStatus'
   | 'saveStateLabel'
-  | 'drawerShortcutHint'
-  | 'isDrawerOpen'
-  | 'setIsDrawerOpen'
+  | 'canViewAudit'
   | 'completionBlockedReason'
   | 'saveCurrentSection'
   | 'handleDuplicateEncounter'
   | 'handleComplete'
   | 'handleViewFicha'
-  | 'openDrawerTab'
+  | 'openWorkspacePanel'
   | 'saveSectionMutation'
   | 'duplicateEncounterMutation'
   | 'completeMutation'
@@ -69,15 +67,13 @@ export default function EncounterToolbar({
   hasUnsavedChanges,
   saveStatus,
   saveStateLabel,
-  drawerShortcutHint,
-  isDrawerOpen,
-  setIsDrawerOpen,
+  canViewAudit,
   completionBlockedReason,
   saveCurrentSection,
   handleDuplicateEncounter,
   handleComplete,
   handleViewFicha,
-  openDrawerTab,
+  openWorkspacePanel,
   saveSectionMutation,
   duplicateEncounterMutation,
   completeMutation,
@@ -102,11 +98,31 @@ export default function EncounterToolbar({
       });
     }
 
+    items.push({
+      key: 'support',
+      label: 'Apoyo clínico',
+      icon: FiClipboard,
+      onSelect: () => openWorkspacePanel('apoyo'),
+      title: 'Abrir notas, adjuntos y seguimiento',
+    });
+
+    if (canViewAudit) {
+      items.push({
+        key: 'history',
+        label: 'Historial',
+        icon: FiClock,
+        onSelect: () => openWorkspacePanel('historial'),
+        title: 'Ver historial de cambios de la atención',
+      });
+    }
+
     return items;
   }, [
     canDuplicateEncounter,
+    canViewAudit,
     duplicateEncounterMutation.isPending,
     handleDuplicateEncounter,
+    openWorkspacePanel,
   ]);
 
   const toolbarActions = useMemo(() => {
@@ -175,36 +191,13 @@ export default function EncounterToolbar({
 
         <button
           type="button"
-          onClick={() => openDrawerTab('revision')}
+          onClick={() => openWorkspacePanel('revision')}
           className={clsx(COMPACT_BTN, reviewButtonClass)}
           aria-label={`Estado de revisión: ${reviewStatusLabel}`}
           title={`Estado de revisión: ${reviewStatusLabel}`}
         >
           <FiActivity className="h-3.5 w-3.5" />
           <span className="hidden xl:inline">{reviewStatusLabel}</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() =>
-            setIsDrawerOpen((prev: boolean) => {
-              const next = !prev;
-              setEncounterDrawerOpen(next);
-              return next;
-            })
-          }
-          className={clsx(COMPACT_BTN, 'relative')}
-          aria-label="Abrir panel lateral con revisión, apoyo, cierre e historial"
-          title={`${drawerShortcutHint} para alternar`}
-        >
-          <FiLayout className="h-3.5 w-3.5" />
-          <span className="hidden lg:inline">Panel lateral</span>
-          {encounter.reviewStatus === 'LISTA_PARA_REVISION' && !isDrawerOpen && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-status-yellow opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-status-yellow" />
-            </span>
-          )}
         </button>
 
         {/* ── More menu ────────── */}
@@ -250,10 +243,7 @@ export default function EncounterToolbar({
     saveSectionMutation.isPending,
     saveCurrentSection,
     handleViewFicha,
-    drawerShortcutHint,
-    isDrawerOpen,
-    setIsDrawerOpen,
-    openDrawerTab,
+    openWorkspacePanel,
     reviewStatusLabel,
     moreMenuItems,
     canComplete,

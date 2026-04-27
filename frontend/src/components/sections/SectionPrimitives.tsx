@@ -45,13 +45,25 @@ export function SectionBlock({
 interface SectionFieldHeaderProps {
   label: ReactNode;
   action?: ReactNode;
+  htmlFor?: string;
+  hint?: ReactNode;
 }
 
-export function SectionFieldHeader({ label, action }: SectionFieldHeaderProps) {
+export function SectionFieldHeader({
+  label,
+  action,
+  htmlFor,
+  hint,
+}: SectionFieldHeaderProps) {
   return (
-    <div className="mb-1 flex items-center justify-between gap-3">
-      <label className="form-label mb-0">{label}</label>
-      {action}
+    <div className="mb-1.5 flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <label htmlFor={htmlFor} className="form-label mb-0">
+          {label}
+        </label>
+        {hint && <p className="mt-1 text-xs leading-5 text-ink-muted">{hint}</p>}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }

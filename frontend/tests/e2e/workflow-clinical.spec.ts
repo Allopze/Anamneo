@@ -131,12 +131,22 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     await expect(page.getByRole('heading', { name: sectionName, exact: true })).toBeVisible({ timeout: 5000 });
   }
 
-  async function openDrawerTab(page: Page, tabName: string) {
-    await page.getByRole('button', { name: /abrir panel lateral/i }).click();
-    const drawer = page.getByRole('dialog', { name: 'Panel lateral de la atención' });
-    await expect(drawer).toBeVisible({ timeout: 5000 });
-    await drawer.getByRole('button', { name: tabName }).click();
-    return drawer;
+  async function openWorkspaceTool(page: Page, tabName: 'Apoyo' | 'Cierre' | 'Revisión') {
+    if (tabName === 'Cierre') {
+      await expect(page.getByRole('heading', { name: 'Cierre' })).toBeVisible({ timeout: 5000 });
+      return page.locator('section').filter({ has: page.getByRole('heading', { name: 'Cierre' }) }).first();
+    }
+
+    if (tabName === 'Revisión') {
+      await page.getByRole('button', { name: /estado de revisión/i }).click();
+      await expect(page.getByRole('heading', { name: 'Revisión' })).toBeVisible({ timeout: 5000 });
+      return page.locator('section').filter({ has: page.getByRole('heading', { name: 'Revisión' }) }).first();
+    }
+
+    await page.getByRole('button', { name: 'Más acciones de atención' }).click();
+    await page.getByText('Apoyo clínico').click();
+    await expect(page.getByRole('heading', { name: 'Apoyo clínico' })).toBeVisible({ timeout: 5000 });
+    return page.locator('section').filter({ has: page.getByRole('heading', { name: 'Apoyo clínico' }) }).first();
   }
 
   async function completeVisibleSection(page: Page, nextSectionName?: string) {
@@ -270,8 +280,8 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     await loginAsMedico(page);
     await openEncounter(page);
 
-    const drawer = await openDrawerTab(page, 'Apoyo');
-    await drawer.getByRole('button', { name: 'Adjuntos de la Atención' }).click();
+    const supportTool = await openWorkspaceTool(page, 'Apoyo');
+    await supportTool.getByRole('button', { name: 'Adjuntos de la Atención' }).click();
 
     const attachmentsDialog = page.getByRole('dialog', { name: 'Adjuntos de la atención' });
     await expect(attachmentsDialog).toBeVisible({ timeout: 5000 });
@@ -342,9 +352,8 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     await loginAsMedico(page);
     await openEncounter(page);
 
-    const drawer = await openDrawerTab(page, 'Apoyo');
-    await drawer.getByRole('button', { name: 'Adjuntos de la Atención' }).click();
-    await drawer.getByRole('button', { name: 'Cerrar panel' }).click();
+    const supportTool = await openWorkspaceTool(page, 'Apoyo');
+    await supportTool.getByRole('button', { name: 'Adjuntos de la Atención' }).click();
 
     const attachmentsDialog = page.getByRole('dialog', { name: 'Adjuntos de la atención' });
     await expect(attachmentsDialog).toBeVisible({ timeout: 5000 });
@@ -431,11 +440,10 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
       await page.getByTestId('medication-manual-name').fill('Paracetamol');
       await completeVisibleSection(page, 'Respuesta al tratamiento');
 
-      const drawer = await openDrawerTab(page, 'Cierre');
-      await drawer.locator('#drawer-closure-note').fill(
+      const closureTool = await openWorkspaceTool(page, 'Cierre');
+      await closureTool.locator('#workspace-closure-note').fill(
         'Paciente estable al cierre. Se indican analgésicos, control y reevaluación precoz ante signos de alarma.',
       );
-      await drawer.getByRole('button', { name: 'Cerrar panel' }).click();
 
       await page.getByRole('button', { name: 'Finalizar Atención' }).click();
       const completionDialog = page.getByRole('alertdialog', { name: 'Finalizar atención' });

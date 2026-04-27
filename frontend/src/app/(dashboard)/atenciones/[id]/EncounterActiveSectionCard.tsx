@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import { FiCheck, FiChevronLeft, FiChevronRight, FiSlash } from 'react-icons/fi';
 import type {
@@ -37,9 +38,15 @@ export default function EncounterActiveSectionCard({
   formData,
 }: Props) {
   const activeSection = currentSection ?? sections[currentSectionIndex];
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const progressValue = sections.length > 0 ? ((currentSectionIndex + 1) / sections.length) * 100 : 0;
+
+  useEffect(() => {
+    headingRef.current?.focus({ preventScroll: true });
+  }, [activeSection?.sectionKey]);
 
   return (
-    <section className={SURFACE_PANEL_CLASS}>
+    <section className={SURFACE_PANEL_CLASS} aria-labelledby="active-encounter-section-heading">
       <div className="border-b border-surface-muted/40 px-5 py-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
@@ -55,7 +62,12 @@ export default function EncounterActiveSectionCard({
               )}
               {wiz.isSectionSwitchPending ? <span>Cambiando sección…</span> : null}
             </div>
-            <h2 className="mt-2 text-[1.7rem] font-extrabold tracking-tight text-ink">
+            <h2
+              id="active-encounter-section-heading"
+              ref={headingRef}
+              tabIndex={-1}
+              className="mt-2 text-2xl font-semibold tracking-tight text-ink outline-none"
+            >
               {currentSection?.label}
             </h2>
           </div>
@@ -67,9 +79,22 @@ export default function EncounterActiveSectionCard({
             />
           ) : null}
         </div>
+        <div
+          className="mt-4 h-1 w-full overflow-hidden rounded-full bg-surface-muted/55"
+          role="progressbar"
+          aria-label="Progreso de navegación por secciones"
+          aria-valuemin={1}
+          aria-valuemax={sections.length}
+          aria-valuenow={currentSectionIndex + 1}
+        >
+          <div
+            className="h-full rounded-full bg-frame transition-[width] duration-200"
+            style={{ width: `${progressValue}%` }}
+          />
+        </div>
       </div>
 
-      <div className="px-5 py-5 sm:px-6">
+      <div className="px-4 py-4 sm:px-6 sm:py-5">
         <div className="mx-auto max-w-4xl">
           {SectionComponent && activeSection ? (
             <SectionComponent

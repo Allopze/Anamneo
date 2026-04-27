@@ -16,9 +16,10 @@ type SpeechRecognitionCtor = new () => {
 
 interface Props {
   onTranscript: (text: string) => void;
+  label?: string;
 }
 
-export default function VoiceDictationButton({ onTranscript }: Props) {
+export default function VoiceDictationButton({ onTranscript, label = 'Dictar' }: Props) {
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<InstanceType<SpeechRecognitionCtor> | null>(null);
@@ -77,15 +78,17 @@ export default function VoiceDictationButton({ onTranscript }: Props) {
     <button
       type="button"
       onClick={handleToggle}
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+      aria-pressed={listening}
+      aria-label={listening ? 'Detener dictado por voz' : 'Iniciar dictado por voz'}
+      className={`inline-flex min-h-10 touch-manipulation items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/25 ${
         listening
-          ? 'border-status-red/30 bg-status-red/10 text-status-red hover:bg-status-red/20'
-          : 'border-status-yellow/60 bg-status-yellow/30 text-accent-text hover:bg-status-yellow/40'
+          ? 'border-status-red/40 bg-status-red/10 text-status-red-text hover:bg-status-red/15'
+          : 'border-frame/15 bg-surface-elevated text-ink hover:border-frame/30 hover:bg-surface-base'
       }`}
       title={listening ? 'Detener dictado' : 'Dictado por voz'}
     >
-      {listening ? <FiMicOff className="h-3.5 w-3.5" /> : <FiMic className="h-3.5 w-3.5" />}
-      {listening ? 'Escuchando…' : 'Dictado'}
+      {listening ? <FiMicOff className="h-4 w-4" /> : <FiMic className="h-4 w-4" />}
+      {listening ? 'Escuchando…' : label}
     </button>
   );
 }

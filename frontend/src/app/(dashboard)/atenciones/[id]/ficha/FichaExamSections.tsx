@@ -1,6 +1,38 @@
 import { ESTADO_GENERAL_LABELS } from './ficha.constants';
 
+function hasAnyExamValue(values: unknown[]): boolean {
+  return values.some((value) => {
+    if (typeof value === 'string') {
+      return value.trim().length > 0;
+    }
+    if (value && typeof value === 'object') {
+      return hasAnyExamValue(Object.values(value));
+    }
+    return Boolean(value);
+  });
+}
+
 export function PhysicalExamSection({ examenFisico }: { examenFisico: any }) {
+  const hasPhysicalExam = hasAnyExamValue([
+    examenFisico.estadoGeneral,
+    examenFisico.estadoGeneralNotas,
+    examenFisico.signosVitales,
+    examenFisico.cabeza,
+    examenFisico.cuello,
+    examenFisico.torax,
+    examenFisico.abdomen,
+    examenFisico.extremidades,
+  ]);
+
+  if (!hasPhysicalExam) {
+    return (
+      <section className="ficha-empty-section">
+        <h2 className="ficha-section-heading">6. Examen físico</h2>
+        <p className="ficha-empty">Sin registro.</p>
+      </section>
+    );
+  }
+
   return (
     <section className="mb-8">
       <h2 className="ficha-section-heading">6. Examen físico</h2>
@@ -13,7 +45,7 @@ export function PhysicalExamSection({ examenFisico }: { examenFisico: any }) {
             </span>
           </div>
         ) : null}
-        {examenFisico.signosVitales ? (
+        {hasAnyExamValue(Object.values(examenFisico.signosVitales ?? {})) ? (
           <div className="mb-3">
             <strong>Signos vitales:</strong>
             <span className="ml-2">
@@ -41,21 +73,28 @@ export function PhysicalExamSection({ examenFisico }: { examenFisico: any }) {
 }
 
 export function DiagnosticAssessmentSection({ sospechaDiagnostica }: { sospechaDiagnostica: any }) {
+  if (!sospechaDiagnostica.sospechas?.length) {
+    return (
+      <section className="ficha-empty-section">
+        <h2 className="ficha-section-heading">7. Sospecha diagnóstica</h2>
+        <p className="ficha-empty">Sin registro.</p>
+      </section>
+    );
+  }
+
   return (
     <section className="mb-8">
       <h2 className="ficha-section-heading">7. Sospecha diagnóstica</h2>
-      {sospechaDiagnostica.sospechas?.length > 0 ? (
-        <ol className="list-decimal list-inside text-sm space-y-1">
-          {sospechaDiagnostica.sospechas.map((item: any, index: number) => (
-            <li key={index}>
-              <strong>{item.diagnostico}</strong>
-              {item.codigoCie10 ? <span className="text-ink-secondary"> ({item.codigoCie10})</span> : null}
-              {item.descripcionCie10 ? <span className="text-ink-secondary"> · {item.descripcionCie10}</span> : null}
-              {item.notas ? <span className="text-ink-secondary"> - {item.notas}</span> : null}
-            </li>
-          ))}
-        </ol>
-      ) : <p className="text-sm">-</p>}
+      <ol className="list-decimal list-inside text-sm space-y-1">
+        {sospechaDiagnostica.sospechas.map((item: any, index: number) => (
+          <li key={index}>
+            <strong>{item.diagnostico}</strong>
+            {item.codigoCie10 ? <span className="text-ink-secondary"> ({item.codigoCie10})</span> : null}
+            {item.descripcionCie10 ? <span className="text-ink-secondary"> · {item.descripcionCie10}</span> : null}
+            {item.notas ? <span className="text-ink-secondary"> - {item.notas}</span> : null}
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }

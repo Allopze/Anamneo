@@ -131,10 +131,21 @@ function createWrapper() {
   };
 }
 
-async function openDrawerTab(user: ReturnType<typeof userEvent.setup>, tabName: 'Cierre' | 'Apoyo' | 'Revisión') {
-  await user.click(screen.getByRole('button', { name: /Abrir panel lateral con revisión, apoyo, cierre e historial/i }));
-  const drawer = await screen.findByRole('dialog', { name: 'Panel lateral de la atención' });
-  await user.click(within(drawer).getByRole('button', { name: new RegExp(tabName, 'i') }));
+async function openWorkspaceTool(user: ReturnType<typeof userEvent.setup>, tabName: 'Cierre' | 'Apoyo' | 'Revisión') {
+  if (tabName === 'Cierre') {
+    await screen.findByRole('heading', { name: 'Cierre' });
+    return;
+  }
+
+  if (tabName === 'Revisión') {
+    await user.click(screen.getByRole('button', { name: /Estado de revisión/i }));
+    await screen.findByRole('heading', { name: 'Revisión' });
+    return;
+  }
+
+  await user.click(screen.getByRole('button', { name: 'Más acciones de atención' }));
+  await user.click(screen.getByText('Apoyo clínico'));
+  await screen.findByRole('heading', { name: 'Apoyo clínico' });
 }
 
 describe('EncounterWizardPage closing workflow', () => {
@@ -198,7 +209,7 @@ describe('EncounterWizardPage closing workflow', () => {
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
 
-    await openDrawerTab(user, 'Cierre');
+    await openWorkspaceTool(user, 'Cierre');
     await user.click(screen.getByRole('button', { name: /Finalizar/i }));
 
     expect(toast.error).toHaveBeenCalledWith('La nota de cierre debe tener al menos 10 caracteres');
@@ -250,7 +261,7 @@ describe('EncounterWizardPage closing workflow', () => {
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
 
-    await openDrawerTab(user, 'Cierre');
+    await openWorkspaceTool(user, 'Cierre');
     const closureNoteField = screen.getByLabelText('Nota de cierre');
     fireEvent.change(closureNoteField, {
       target: { value: '  Paciente estable al cierre, con control y signos de alarma informados.  ' },
@@ -273,14 +284,14 @@ describe('EncounterWizardPage closing workflow', () => {
     });
   });
 
-  it('shows an explicit pre-close checklist inside the cierre drawer tab', async () => {
+  it('shows an explicit pre-close checklist in the cierre workspace section', async () => {
     const user = userEvent.setup();
 
     render(<EncounterWizardPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
 
-    await openDrawerTab(user, 'Cierre');
+    await openWorkspaceTool(user, 'Cierre');
 
     expect(screen.getByText('Checklist de pre-cierre')).toBeInTheDocument();
     expect(screen.getByText('Secciones obligatorias completas')).toBeInTheDocument();
@@ -412,7 +423,7 @@ describe('EncounterWizardPage closing workflow', () => {
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
 
-    await openDrawerTab(user, 'Revisión');
+    await openWorkspaceTool(user, 'Revisión');
     expect(screen.getByLabelText('Nota de revisión')).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Marcar Revisada' })).toBeInTheDocument();
   });
@@ -434,7 +445,7 @@ describe('EncounterWizardPage closing workflow', () => {
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
 
-    await openDrawerTab(user, 'Apoyo');
+    await openWorkspaceTool(user, 'Apoyo');
     expect(screen.queryByText('Seguimiento Rápido')).not.toBeInTheDocument();
   });
 
@@ -455,7 +466,7 @@ describe('EncounterWizardPage closing workflow', () => {
 
     expect(await screen.findByText('Paciente Demo')).toBeInTheDocument();
 
-    await openDrawerTab(user, 'Apoyo');
+    await openWorkspaceTool(user, 'Apoyo');
     await user.click(screen.getByRole('button', { name: 'Notas rápidas internas' }));
     await user.type(screen.getByPlaceholderText('Notas internas rápidas...'), 'Observación interna');
     await user.click(screen.getByTitle('Guardar y cerrar'));

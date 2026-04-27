@@ -7,11 +7,9 @@ import { FiAlertCircle } from 'react-icons/fi';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SignEncounterModal from '@/components/common/SignEncounterModal';
 import AttachmentPreviewModal from '@/components/common/AttachmentPreviewModal';
-import EncounterDrawer from '@/components/EncounterDrawer';
 import { getErrorMessage } from '@/lib/api';
 
 import { useEncounterWizard } from './useEncounterWizard';
-import { setEncounterDrawerOpen, setEncounterDrawerTab } from './encounter-drawer-state';
 import EncounterHeader from './EncounterHeader';
 import EncounterToolbar from './EncounterToolbar';
 import EncounterSectionRail from './EncounterSectionRail';
@@ -23,6 +21,7 @@ import EncounterClinicalWarnings from './EncounterClinicalWarnings';
 import EncounterMobileSectionNav from './EncounterMobileSectionNav';
 import EncounterActiveSectionCard from './EncounterActiveSectionCard';
 import EncounterClinicalSummaryCard from './EncounterClinicalSummaryCard';
+import { EncounterClosureWorkspace, EncounterWorkspacePanel } from './EncounterWorkspaceTools';
 
 export default function EncounterWizardPage() {
   const wiz = useEncounterWizard();
@@ -79,15 +78,13 @@ export default function EncounterWizardPage() {
         hasUnsavedChanges={wiz.hasUnsavedChanges}
         saveStatus={wiz.saveStatus}
         saveStateLabel={wiz.saveStateLabel}
-        drawerShortcutHint={wiz.drawerShortcutHint}
-        isDrawerOpen={wiz.isDrawerOpen}
-        setIsDrawerOpen={wiz.setIsDrawerOpen}
+        canViewAudit={wiz.canViewAudit}
         completionBlockedReason={wiz.completionBlockedReason}
         saveCurrentSection={wiz.saveCurrentSection}
         handleDuplicateEncounter={wiz.handleDuplicateEncounter}
         handleComplete={wiz.handleComplete}
         handleViewFicha={wiz.handleViewFicha}
-        openDrawerTab={wiz.openDrawerTab}
+        openWorkspacePanel={wiz.openWorkspacePanel}
         saveSectionMutation={wiz.saveSectionMutation}
         duplicateEncounterMutation={wiz.duplicateEncounterMutation}
         completeMutation={wiz.completeMutation}
@@ -135,6 +132,8 @@ export default function EncounterWizardPage() {
             <EncounterMobileSectionNav
               sections={sections}
               currentSectionIndex={currentSectionIndex}
+              completedCount={wiz.completedCount}
+              saveStateLabel={wiz.saveStateLabel}
               getSectionUiState={wiz.getSectionUiState}
               moveToSection={wiz.moveToSection}
             />
@@ -142,6 +141,12 @@ export default function EncounterWizardPage() {
             {encounter.patientId ? (
               <EncounterClinicalSummaryCard patientId={encounter.patientId} patient={encounter.patient} />
             ) : null}
+
+            <EncounterWorkspacePanel
+              activePanel={wiz.activeWorkspacePanel}
+              onClose={() => wiz.setActiveWorkspacePanel(null)}
+              wiz={wiz}
+            />
 
             {wiz.localDraft || wiz.recoverableConflicts.length > 0 ? (
               <EncounterRecoveryPanel
@@ -173,7 +178,7 @@ export default function EncounterWizardPage() {
                       <button
                         type="button"
                         onClick={() => wiz.handleRestoreRecoverableConflict(wiz.recoverableConflict?.sectionKey)}
-                        className="rounded-full bg-amber-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-950"
+                        className="rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-950"
                       >
                         Restaurar mi copia local
                       </button>
@@ -185,7 +190,7 @@ export default function EncounterWizardPage() {
                             wiz.moveToSection(conflictSectionIndex);
                           }
                         }}
-                        className="rounded-full border border-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-950 transition-colors hover:bg-amber-100"
+                        className="rounded-lg border border-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-950 transition-colors hover:bg-amber-100"
                       >
                         Ir a la sección en conflicto
                       </button>
@@ -204,6 +209,8 @@ export default function EncounterWizardPage() {
               SectionComponent={SectionComponent}
               formData={formData}
             />
+
+            <EncounterClosureWorkspace wiz={wiz} />
           </div>
         </main>
       </div>
@@ -260,50 +267,6 @@ export default function EncounterWizardPage() {
         onReasonChange={wiz.setNotApplicableReason}
         onClose={() => wiz.setShowNotApplicableModal(false)}
         onConfirm={wiz.handleConfirmNotApplicable}
-      />
-
-      <EncounterDrawer
-        open={wiz.isDrawerOpen}
-        onClose={() => {
-          wiz.setIsDrawerOpen(false);
-          setEncounterDrawerOpen(false);
-        }}
-        tab={wiz.sidebarTab}
-        onTabChange={(t) => {
-          wiz.setSidebarTab(t);
-          setEncounterDrawerTab(t);
-        }}
-        encounter={encounter}
-        canEdit={wiz.canEdit}
-        canComplete={wiz.canComplete}
-        canRequestMedicalReview={wiz.canRequestMedicalReview}
-        canMarkReviewedByDoctor={wiz.canMarkReviewedByDoctor}
-        canWriteReviewNote={wiz.canWriteReviewNote}
-        canViewAudit={wiz.canViewAudit}
-        canCreateFollowupTask={wiz.canCreateFollowupTask}
-        reviewActionNote={wiz.reviewActionNote}
-        onReviewActionNoteChange={wiz.setReviewActionNote}
-        onReviewStatusChange={wiz.handleReviewStatusChange}
-        reviewStatusPending={wiz.reviewStatusMutation.isPending}
-        generatedSummary={wiz.generatedSummary}
-        onSaveGeneratedSummary={wiz.handleSaveGeneratedSummary}
-        quickNotesValue={
-          typeof wiz.formData.OBSERVACIONES === 'object' && wiz.formData.OBSERVACIONES !== null
-            ? ((wiz.formData.OBSERVACIONES as { notasInternas?: string }).notasInternas ?? '')
-            : ''
-        }
-        quickNotesDisabled={!wiz.canEdit}
-        quickNotesSaving={wiz.saveSectionMutation.isPending}
-        onQuickNotesSave={wiz.handleQuickNotesSave}
-        onOpenAttachments={() => wiz.setIsAttachmentsOpen(true)}
-        canEditAntecedentes={wiz.canEditAntecedentes()}
-        quickTask={wiz.quickTask}
-        onQuickTaskChange={(t) => wiz.setQuickTask(t)}
-        onCreateTask={wiz.handleCreateTask}
-        createTaskPending={wiz.createTaskMutation.isPending}
-        closureNote={wiz.closureNote}
-        onClosureNoteChange={wiz.setClosureNote}
-        completionChecklist={wiz.completionChecklist}
       />
     </div>
   );

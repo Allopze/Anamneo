@@ -1,6 +1,6 @@
 # Variables de Entorno
 
-La fuente base para estas variables es `.env.example`, complementada por `docker-compose.yml` y las validaciones de `backend/src/main.ts`.
+La fuente base para estas variables es `.env.example` en la raiz. `backend/.env` y `frontend/.env` funcionan como overlays locales cuando trabajas cada servicio por separado, pero el contrato compartido vive en el archivo raiz y en esta guia.
 
 ## Reglas Que Si Importan
 
@@ -19,6 +19,7 @@ La fuente base para estas variables es `.env.example`, complementada por `docker
 |---|---|---|---|
 | `NODE_ENV` | No | `development` | Entorno general |
 | `DATABASE_URL` | Si | `file:./dev.db` en ejemplo | Conexion Prisma |
+| `TEST_DATABASE_URL` | No | vacio | Base de datos opcional para e2e |
 | `JWT_SECRET` | Si | Ninguno valido | Firma de access token |
 | `JWT_EXPIRES_IN` | No | `15m` | TTL access token |
 | `JWT_REFRESH_SECRET` | Si | Ninguno valido | Firma de refresh token |
@@ -26,11 +27,17 @@ La fuente base para estas variables es `.env.example`, complementada por `docker
 | `BOOTSTRAP_TOKEN` | Si en produccion | Ninguno valido | Token requerido para crear la primera cuenta administradora |
 | `CORS_ORIGIN` | Si | `http://localhost:5555,https://anamneo.cloudbox.lat` en ejemplo | Allowlist CORS backend |
 | `PORT` | No | `5678` backend / `5555` frontend | Puertos HTTP |
+| `BACKEND_PORT` | No | `5678` | Puerto externo del backend en Docker Compose |
+| `FRONTEND_PORT` | No | `5555` | Puerto externo del frontend en Docker Compose |
 | `BACKEND_BIND_HOST` | No | `127.0.0.1` | Host de bind del puerto backend en Docker Compose |
 | `FRONTEND_BIND_HOST` | No | `127.0.0.1` | Host de bind del puerto frontend en Docker Compose |
 | `APP_TIME_ZONE` | No | `America/Santiago` | Zona horaria clinica usada para comparaciones `date-only` (edad, vencimientos, seguimientos) |
 | `NEXT_PUBLIC_API_URL` | Si en despliegue frontend | `/api` en desarrollo recomendado | URL consumida por browser |
+| `API_PROXY_TARGET` | No | `http://localhost:5678/api` | Destino server-side del proxy de Next.js |
+| `NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE` | No | `false` | Fuerza modo compartido en el frontend |
+| `NEXT_ALLOWED_DEV_ORIGINS` | No | vacio | Origenes extra permitidos por Next.js en desarrollo |
 | `APP_PUBLIC_URL` | No | `http://localhost:5555` en ejemplo | Links publicos en correos |
+| `FRONTEND_PUBLIC_URL` | No | vacio | URL alternativa del frontend para enlaces y correos |
 | `TRUST_PROXY` | No | `false` | Ajuste de proxy para Nest |
 
 ## SQLite Operativo
@@ -46,6 +53,7 @@ La fuente base para estas variables es `.env.example`, complementada por `docker
 | `SQLITE_BACKUP_MAX_AGE_HOURS` | `24` | Antiguedad maxima aceptable del ultimo backup |
 | `SQLITE_WAL_WARN_SIZE_MB` | `128` | Umbral de alerta de WAL |
 | `SQLITE_RESTORE_DRILL_FREQUENCY_DAYS` | `7` | Cadencia esperada de restore drills |
+| `SQLITE_FORCE_RESTORE_DRILL` | `false` | Fuerza un restore drill en la siguiente ejecucion |
 | `BACKUP_CRON_SCHEDULE` | `0 */6 * * *` | Cron del contenedor `backup-cron` |
 | `SQLITE_NOTIFY_POLICY` | `on-failure` | Politica de notificacion del runner |
 | `SQLITE_ALERT_SERVICE_NAME` | `anamneo-backend` | Nombre del servicio en alertas |

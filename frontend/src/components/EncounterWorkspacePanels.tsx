@@ -7,11 +7,11 @@ import clsx from 'clsx';
 import FloatingQuickNotes from '@/components/FloatingQuickNotes';
 import { REVIEW_STATUS_LABELS, TASK_STATUS_LABELS, TASK_TYPE_LABELS } from '@/types';
 import { WORKFLOW_NOTE_MIN_LENGTH } from '@/lib/encounter-completion';
-import { INNER_PANEL_CLASS, formatCompactDate, formatDateTime } from './encounter-drawer.constants';
-import type { EncounterDrawerProps } from './encounter-drawer.constants';
+import { INNER_PANEL_CLASS, formatCompactDate, formatDateTime } from './encounter-workspace.constants';
+import type { EncounterWorkspaceProps } from './encounter-workspace.constants';
 
 type ReviewTabPanelProps = Pick<
-  EncounterDrawerProps,
+  EncounterWorkspaceProps,
   | 'encounter'
   | 'canEdit'
   | 'canRequestMedicalReview'
@@ -26,7 +26,7 @@ type ReviewTabPanelProps = Pick<
 >;
 
 type SupportTabPanelProps = Pick<
-  EncounterDrawerProps,
+  EncounterWorkspaceProps,
   | 'encounter'
   | 'quickNotesValue'
   | 'quickNotesDisabled'
@@ -42,7 +42,7 @@ type SupportTabPanelProps = Pick<
 >;
 
 type CloseTabPanelProps = Pick<
-  EncounterDrawerProps,
+  EncounterWorkspaceProps,
   | 'encounter'
   | 'canComplete'
   | 'closureNote'
@@ -84,11 +84,11 @@ export function ReviewTabPanel({
         </div>
       </div>
 
-      <label className="mt-5 block text-sm font-medium text-ink" htmlFor="drawer-review-note">
+      <label className="mt-5 block text-sm font-medium text-ink" htmlFor="workspace-review-note">
         Nota de revisión
       </label>
       <textarea
-        id="drawer-review-note"
+        id="workspace-review-note"
         name="review_note"
         className="form-input form-textarea mt-2 min-h-[132px]"
         value={reviewActionNote}
@@ -316,7 +316,7 @@ export function CloseTabPanel({
       </dl>
 
       <div className="mt-5 flex items-center justify-between gap-3">
-        <label className="block text-sm font-medium text-ink" htmlFor="drawer-closure-note">
+        <label className="block text-sm font-medium text-ink" htmlFor="workspace-closure-note">
           Nota de cierre
         </label>
         {canComplete && generatedSummary && !closureNote.trim() ? (
@@ -330,7 +330,7 @@ export function CloseTabPanel({
         ) : null}
       </div>
       <textarea
-        id="drawer-closure-note"
+        id="workspace-closure-note"
         name="closure_note"
         className="form-input form-textarea mt-2 min-h-[132px]"
         value={closureNote}

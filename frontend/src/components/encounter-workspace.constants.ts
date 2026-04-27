@@ -6,15 +6,15 @@ import type { EncounterWorkflowChecklistItem } from '@/lib/encounter-completion'
 export const SURFACE_PANEL_CLASS = 'overflow-hidden rounded-card border border-frame/10 bg-surface-elevated shadow-soft';
 export const INNER_PANEL_CLASS = 'rounded-card border border-surface-muted/45 bg-surface-base/55';
 
-/* ─── tab definition ─── */
-export const SIDEBAR_TABS = [
+/* ─── workspace tool definition ─── */
+export const WORKSPACE_TOOLS = [
   { key: 'revision' as const, label: 'Revisión', shortLabel: 'Rev.', icon: FiActivity },
   { key: 'apoyo' as const, label: 'Apoyo', shortLabel: 'Apoyo', icon: FiClipboard },
   { key: 'cierre' as const, label: 'Cierre', shortLabel: 'Cierre', icon: FiFileText },
   { key: 'historial' as const, label: 'Historial', shortLabel: 'Hist.', icon: FiClock },
 ] as const;
 
-export type SidebarTabKey = (typeof SIDEBAR_TABS)[number]['key'];
+export type WorkspacePanelKey = (typeof WORKSPACE_TOOLS)[number]['key'];
 
 /* ─── date formatters ─── */
 const headerDateFormatter = new Intl.DateTimeFormat('es-CL', {
@@ -34,12 +34,7 @@ export function formatCompactDate(d: string | Date) {
 }
 
 /* ─── props ─── */
-export interface EncounterDrawerProps {
-  open: boolean;
-  onClose: () => void;
-  tab: SidebarTabKey;
-  onTabChange: (tab: SidebarTabKey) => void;
-
+export interface EncounterWorkspaceProps {
   encounter: Encounter;
   canEdit: boolean;
   canComplete: boolean;

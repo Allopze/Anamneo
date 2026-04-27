@@ -20,7 +20,6 @@ import {
   canViewEncounterSection,
   canUploadAttachments as canUploadAttachmentsPermission,
 } from '@/lib/permissions';
-import { buildEncounterDrawerShortcutHint } from '@/lib/encounter-drawer-shortcut';
 import type { SectionUiState } from './encounter-wizard.constants';
 import {
   SECTION_COMPONENTS,
@@ -89,7 +88,6 @@ export interface UseEncounterWizardDerivedState {
   clinicalOutputBlockReason: string | null;
   completionBlockedReason: string | null;
   supportsTemplates: boolean;
-  drawerShortcutHint: string;
   lastSavedTimeStr: string | null;
   saveStateLabel: string | null;
   saveStateToneClass: string;
@@ -116,7 +114,6 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
     pendingSaveCount,
   } = input;
 
-  const drawerShortcutHint = useMemo(() => buildEncounterDrawerShortcutHint(), []);
 
   const isDoctor = user?.role === 'MEDICO';
   const canEdit = canEditEncounter(user ?? null, encounter);
@@ -309,7 +306,6 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
     clinicalOutputBlockReason,
     completionBlockedReason,
     supportsTemplates,
-    drawerShortcutHint,
     lastSavedTimeStr,
     saveStateLabel,
     saveStateToneClass,

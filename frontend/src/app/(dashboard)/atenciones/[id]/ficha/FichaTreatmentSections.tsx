@@ -45,6 +45,25 @@ export function TreatmentSection({
   onPreviewAttachment: (attachment: Attachment | null) => void;
   onDownloadAttachment: (attachment: Attachment) => void;
 }) {
+  const hasTreatment = Boolean(
+    treatmentPlan ||
+    tratamiento.receta ||
+    tratamiento.examenes ||
+    tratamiento.derivaciones ||
+    tratamiento.medicamentosEstructurados?.length ||
+    tratamiento.examenesEstructurados?.length ||
+    tratamiento.derivacionesEstructuradas?.length,
+  );
+
+  if (!hasTreatment) {
+    return (
+      <section className="ficha-empty-section">
+        <h2 className="ficha-section-heading">8. Tratamiento</h2>
+        <p className="ficha-empty">Sin registro.</p>
+      </section>
+    );
+  }
+
   return (
     <section className="mb-8">
       <h2 className="ficha-section-heading">8. Tratamiento</h2>
@@ -91,6 +110,23 @@ export function TreatmentSection({
 }
 
 export function TreatmentResponseSection({ respuestaTratamiento }: { respuestaTratamiento: any }) {
+  const hasTreatmentResponse = Boolean(
+    respuestaTratamiento.evolucion ||
+    respuestaTratamiento.resultadosExamenes ||
+    respuestaTratamiento.ajustesTratamiento ||
+    respuestaTratamiento.planSeguimiento ||
+    respuestaTratamiento.respuestaEstructurada,
+  );
+
+  if (!hasTreatmentResponse) {
+    return (
+      <section className="ficha-empty-section">
+        <h2 className="ficha-section-heading">9. Respuesta al tratamiento</h2>
+        <p className="ficha-empty">Sin registro.</p>
+      </section>
+    );
+  }
+
   return (
     <section className="mb-8">
       <h2 className="ficha-section-heading">9. Respuesta al tratamiento</h2>
@@ -118,9 +154,6 @@ export function TreatmentResponseSection({ respuestaTratamiento }: { respuestaTr
               <p className="mt-1"><strong>Notas:</strong> {respuestaTratamiento.respuestaEstructurada.notas}</p>
             ) : null}
           </div>
-        ) : null}
-        {!respuestaTratamiento.evolucion && !respuestaTratamiento.resultadosExamenes && !respuestaTratamiento.ajustesTratamiento && !respuestaTratamiento.planSeguimiento ? (
-          <p>-</p>
         ) : null}
       </div>
     </section>

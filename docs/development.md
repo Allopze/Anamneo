@@ -21,7 +21,7 @@ npm run dev
 Que hace cada paso:
 
 - `npm install` instala dependencias del root y, via `postinstall`, tambien las de `backend/` y `frontend/`.
-- `cp .env.example .env` parte desde un set de variables documentado y razonable.
+- `cp .env.example .env` parte desde el set compartido del proyecto. Si ejecutas backend o frontend por separado, revisa tambien sus `.env` locales como overlays de desarrollo.
 - `npm run db:migrate` ejecuta `prisma migrate dev` en backend.
 - `npm run db:seed` carga datos iniciales.
 - `npm run dev` arranca backend y frontend con un supervisor bash.

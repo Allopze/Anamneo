@@ -90,19 +90,16 @@ xl:grid-cols-[64px_minmax(0,1fr)]    // colapsado
 
 La barra de progreso del header usa `h-2` con `transition-all duration-300` para animar cambios suavemente. El rail lateral tiene una barra separada (`h-1`, `bg-status-green`).
 
-### Acciones secundarias (Drawer)
+### Herramientas de atencion
 
-Las acciones secundarias (Revision, Apoyo, Cierre, Historial) se muestran en un **drawer lateral** (`EncounterDrawer.tsx`) que se abre a demanda desde tres puntos:
+Las acciones transversales ya no viven en un drawer lateral. Se integran en el flujo principal para evitar un contenedor generico y reducir interrupciones durante la edicion:
 
-1. **Chip de estado de revision** en el toolbar del header — chip compacto (`rounded-pill`, `text-xs`) que al hacer clic abre el drawer en la pestaña Revision. Incluye `aria-label` dinamico con el estado actual de revision.
-2. **Boton "Panel lateral"** en el toolbar — toggle general del drawer. Muestra un dot animado (`animate-ping`) cuando el estado es `LISTA_PARA_REVISION` y el drawer esta cerrado. El tooltip muestra el atajo platform-aware (`⌘.` en Mac, `Ctrl+.` en otros).
-3. **Atajo de teclado** `Ctrl+.` / `⌘.` — toggle del drawer (platform-aware via `navigator.platform`).
+1. **Revision** — el chip de estado del toolbar abre una seccion inline de revision con nota, cambio de estado y resumen generado.
+2. **Apoyo clinico** — vive en `Mas > Apoyo clinico` y se muestra inline sobre la seccion activa; contiene notas internas, adjuntos, antecedentes y seguimiento rapido segun permisos.
+3. **Cierre** — se renderiza como bloque fijo despues de la seccion activa cuando la atencion puede completarse; contiene checklist, nota de cierre y seguimientos vinculados.
+4. **Historial** — vive en `Mas > Historial` para usuarios con permiso de auditoria y se muestra inline sin overlay.
 
-El estado abierto/cerrado del drawer se persiste en `localStorage` (key: `anamneo:encounter-drawer-open`) para mantenerlo entre recargas. La pestaña activa tambien se persiste (key: `anamneo:encounter-drawer-tab`).
-
-El drawer usa `createPortal` para renderizar fuera del arbol del componente, con overlay + transicion CSS (250ms slide-in desde la derecha). En movil, las pestanas del drawer muestran `shortLabel` (ej: "Hist." en vez de "Historial") para evitar overflow.
-
-**Focus trap**: cuando el drawer esta visible, Tab/Shift+Tab ciclan entre los elementos focusables internos sin escapar al contenido de fondo.
+La herramienta inline activa se mantiene como estado local del wizard (`activeWorkspacePanel`) y no se persiste en `localStorage`, porque es una preferencia momentanea de trabajo y no parte del estado clinico.
 
 ### Footer de seccion
 
@@ -112,9 +109,9 @@ El footer de navegacion (Anterior / Siguiente / Completar) usa un borde superior
 
 | Componente | Ubicacion | Funcion |
 |---|---|---|
-| `EncounterDrawer` | `components/EncounterDrawer.tsx` | Drawer lateral con 4 tabs: Revision, Apoyo, Cierre, Historial |
-| `FloatingQuickNotes` | `components/FloatingQuickNotes.tsx` | Editor expandible de notas internas (tab Apoyo) |
-| `EncounterAuditTimeline` | `components/EncounterAuditTimeline.tsx` | Timeline de auditoria (tab Historial) |
+| `EncounterWorkspaceTools` | `atenciones/[id]/EncounterWorkspaceTools.tsx` | Herramientas inline de Revision, Apoyo, Cierre e Historial |
+| `FloatingQuickNotes` | `components/FloatingQuickNotes.tsx` | Editor expandible de notas internas en Apoyo clinico |
+| `EncounterAuditTimeline` | `components/EncounterAuditTimeline.tsx` | Timeline de auditoria en Historial |
 
 Anteriormente (pre-2026-04-14) el layout usaba 3 columnas (`264px 1fr 356px`) con el panel secundario fijo a la derecha. Se migro a drawer para maximizar el espacio del formulario en pantallas medianas.
 

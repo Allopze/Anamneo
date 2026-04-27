@@ -126,6 +126,7 @@ mkdir -p runtime/data runtime/uploads
 cp .env.example .env
 # Completa al menos JWT_SECRET, JWT_REFRESH_SECRET, BOOTSTRAP_TOKEN,
 # CORS_ORIGIN, APP_PUBLIC_URL y SETTINGS_ENCRYPTION_KEY antes de seguir.
+# Si trabajas backend o frontend por separado, revisa tambien sus .env locales como overlays de desarrollo.
 docker compose build
 docker compose run --rm --no-deps backend npx prisma migrate deploy
 docker compose up -d
@@ -140,6 +141,7 @@ mkdir -p runtime/data runtime/uploads
 cp .env.example .env
 # Completa al menos JWT_SECRET, JWT_REFRESH_SECRET, BOOTSTRAP_TOKEN,
 # CORS_ORIGIN, APP_PUBLIC_URL y SETTINGS_ENCRYPTION_KEY antes de seguir.
+# Si trabajas backend o frontend por separado, revisa tambien sus .env locales como overlays de desarrollo.
 docker compose build
 npm run deploy
 ```
