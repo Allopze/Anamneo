@@ -1,17 +1,10 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
-import { STATUS_LABELS } from '@/types';
+import { fetchClinicalSearchResults, type SearchResult } from '@/lib/clinical-search';
 
-export type SearchResult = {
-  id: string;
-  type: 'patient' | 'encounter';
-  title: string;
-  subtitle: string;
-  href: string;
-};
+export type { SearchResult } from '@/lib/clinical-search';
 
 export function useDashboardSearch(isOperationalAdmin: boolean) {
   const router = useRouter();
@@ -21,38 +14,41 @@ export function useDashboardSearch(isOperationalAdmin: boolean) {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchActiveIndex, setSearchActiveIndex] = useState(-1);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const requestSeqRef = useRef(0);
 
   const performSearch = useCallback(async (q: string) => {
+    const trimmedQuery = q.trim();
+
+    abortRef.current?.abort();
+    const requestSeq = requestSeqRef.current + 1;
+    requestSeqRef.current = requestSeq;
+
     if (isOperationalAdmin) {
       setSearchResults([]);
+      setSearchLoading(false);
       return;
     }
-    if (!q.trim()) {
+    if (!trimmedQuery) {
       setSearchResults([]);
+      setSearchLoading(false);
       return;
     }
+
+    const controller = new AbortController();
+    abortRef.current = controller;
     setSearchLoading(true);
     try {
-      const [patientsRes, encountersRes] = await Promise.allSettled([
-        api.get(`/patients?search=${encodeURIComponent(q)}&limit=5`),
-        api.get(`/encounters?search=${encodeURIComponent(q)}&limit=5`),
-      ]);
-      const items: SearchResult[] = [];
-      if (patientsRes.status === 'fulfilled' && patientsRes.value.data?.data) {
-        for (const p of patientsRes.value.data.data) {
-          items.push({ id: p.id, type: 'patient', title: p.nombre, subtitle: p.rut || 'Sin RUT', href: `/pacientes/${p.id}` });
-        }
-      }
-      if (encountersRes.status === 'fulfilled' && encountersRes.value.data?.data) {
-        for (const enc of encountersRes.value.data.data) {
-          items.push({ id: enc.id, type: 'encounter', title: enc.patient?.nombre || 'Atención', subtitle: `${STATUS_LABELS[enc.status] || enc.status} — ${new Date(enc.createdAt).toLocaleDateString('es-CL')}`, href: `/atenciones/${enc.id}` });
-        }
-      }
+      const items = await fetchClinicalSearchResults(trimmedQuery, { signal: controller.signal });
+      if (controller.signal.aborted || requestSeq !== requestSeqRef.current) return;
       setSearchResults(items);
     } catch {
+      if (controller.signal.aborted || requestSeq !== requestSeqRef.current) return;
       setSearchResults([]);
     } finally {
-      setSearchLoading(false);
+      if (!controller.signal.aborted && requestSeq === requestSeqRef.current) {
+        setSearchLoading(false);
+      }
     }
   }, [isOperationalAdmin]);
 
@@ -71,10 +67,20 @@ export function useDashboardSearch(isOperationalAdmin: boolean) {
   }, [router]);
 
   const closeSearch = useCallback(() => {
+    abortRef.current?.abort();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     setSearchOpen(false);
     setSearchQuery('');
     setSearchResults([]);
+    setSearchLoading(false);
     setSearchActiveIndex(-1);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, []);
 
   return {

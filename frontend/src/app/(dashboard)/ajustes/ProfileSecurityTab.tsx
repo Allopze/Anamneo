@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
 import { clearEncounterLocalStateForUser } from '@/lib/encounter-draft';
 import { clearPendingSavesForUser } from '@/lib/offline-queue';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthSetUser, useAuthUser } from '@/stores/auth-store';
 import { isSharedDeviceModeForced, usePrivacySettingsStore } from '@/stores/privacy-settings-store';
 import type { AjustesHook } from './useAjustes';
 import SessionManagementSection from './SessionManagementSection';
@@ -26,7 +26,7 @@ export default function ProfileSecurityTab({
   passwordMutation,
   userRole,
 }: Props) {
-  const { user } = useAuthStore();
+  const user = useAuthUser();
   const { sharedDeviceMode, setSharedDeviceMode } = usePrivacySettingsStore();
   const sharedDeviceModeForced = isSharedDeviceModeForced();
   const [updatingPrivacyMode, setUpdatingPrivacyMode] = useState(false);
@@ -247,7 +247,8 @@ function getTwoFactorErrorMessage(error: unknown, fallback: string) {
 }
 
 function TwoFactorSection() {
-  const { user, setUser } = useAuthStore();
+  const user = useAuthUser();
+  const setUser = useAuthSetUser();
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [totpCode, setTotpCode] = useState('');
   const [disablePassword, setDisablePassword] = useState('');

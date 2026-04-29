@@ -115,3 +115,17 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+export const useAuthUser = () => useAuthStore((state) => state.user);
+export const useAuthIsAuthenticated = () => useAuthStore((state) => state.isAuthenticated);
+export const useAuthHasHydrated = () => useAuthStore((state) => state.hasHydrated);
+export const useAuthLogin = () => useAuthStore((state) => state.login);
+export const useAuthLogout = () => useAuthStore((state) => state.logout);
+export const useAuthSetUser = () => useAuthStore((state) => state.setUser);
+
+export const useAuthIsMedico = () => useAuthStore((state) => isMedicoUser(state.user));
+export const useAuthIsAdmin = () => useAuthStore((state) => Boolean(state.user?.isAdmin));
+export const useAuthCanCreatePatient = () => useAuthStore((state) => canCreatePatientPermission(state.user));
+export const useAuthCanCreateEncounter = () => useAuthStore((state) => canCreateEncounterPermission(state.user));
+export const useAuthCanEditPatientAdmin = () => useAuthStore((state) => canEditPatientAdminPermission(state.user));
+export const useAuthCanEditAntecedentes = () => useAuthStore((state) => canEditAntecedentesPermission(state.user));

@@ -15,7 +15,7 @@ import {
 import { FiAlertTriangle, FiCalendar, FiChevronRight, FiClipboard, FiSave, FiSearch } from 'react-icons/fi';
 import clsx from 'clsx';
 import { extractDateOnly, formatDateOnly } from '@/lib/date';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthUser } from '@/stores/auth-store';
 import { invalidateDashboardOverviewQueries, invalidateTaskOverviewQueries } from '@/lib/query-invalidation';
 import toast from 'react-hot-toast';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
@@ -39,7 +39,7 @@ export default function SeguimientosPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const { user } = useAuthStore();
+  const user = useAuthUser();
   const isOperationalAdmin = !!user?.isAdmin;
 
   // Initialise from URL search params so SmartHeaderBar chip links work

@@ -7,7 +7,13 @@ import type { AxiosError } from 'axios';
 import { api, getErrorMessage } from '@/lib/api';
 import { DUPLICATE_ENCOUNTER_CREATED_MESSAGE } from '@/lib/encounter-duplicate';
 import type { Patient } from '@/types';
-import { useAuthStore } from '@/stores/auth-store';
+import {
+  useAuthCanCreateEncounter,
+  useAuthCanEditAntecedentes,
+  useAuthCanEditPatientAdmin,
+  useAuthIsMedico,
+  useAuthUser,
+} from '@/stores/auth-store';
 import { useHeaderBarSlot } from '@/components/layout/HeaderBarSlotContext';
 import PatientContextBar from '@/components/PatientContextBar';
 import type { InProgressEncounterSummary } from '@/components/common/InProgressEncounterConflictModal';
@@ -31,7 +37,11 @@ export function usePatientDetail() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, isMedico, canEditAntecedentes, canEditPatientAdmin, canCreateEncounter } = useAuthStore();
+  const user = useAuthUser();
+  const isDoctor = useAuthIsMedico();
+  const canEditAntecedentes = useAuthCanEditAntecedentes();
+  const canEditAdminFields = useAuthCanEditPatientAdmin();
+  const canCreateEncounterAllowed = useAuthCanCreateEncounter();
 
   const [conflictEncounters, setConflictEncounters] = useState<InProgressEncounterSummary[] | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -61,9 +71,6 @@ export function usePatientDetail() {
     },
   });
 
-  const canEditAdminFields = canEditPatientAdmin();
-  const canCreateEncounterAllowed = canCreateEncounter();
-  const isDoctor = isMedico();
   const isRedirectingAdmin = Boolean(user?.isAdmin);
   const adminRedirectPath = '/pacientes';
   const {

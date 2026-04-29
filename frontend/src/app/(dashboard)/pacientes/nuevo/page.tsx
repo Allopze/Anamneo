@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { api, getErrorMessage } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthCanCreatePatient, useAuthIsMedico, useAuthUser } from '@/stores/auth-store';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -18,12 +18,11 @@ import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 
 export default function NuevoPacientePage() {
   const router = useRouter();
-  const { user, isMedico, canCreatePatient } = useAuthStore();
+  const user = useAuthUser();
+  const isDoctor = useAuthIsMedico();
+  const canCreate = useAuthCanCreatePatient();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isDoctor = isMedico();
-  const canCreate = canCreatePatient();
-
   const {
     register,
     handleSubmit,

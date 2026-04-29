@@ -48,7 +48,7 @@ export default function AdminUsuariosPage() {
     prefillAssistantForMedico,
   } = useUsuarios();
 
-  if (!isAdmin()) {
+  if (!isAdmin) {
     return null;
   }
 

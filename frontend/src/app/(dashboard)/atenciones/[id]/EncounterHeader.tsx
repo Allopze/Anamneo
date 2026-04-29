@@ -107,7 +107,7 @@ export default function EncounterHeader({
             >
               <div
                 className={clsx(
-                  'h-full rounded-full bg-accent transition-all duration-300',
+                  'h-full rounded-full bg-accent transition-[width] duration-300',
                   progressPercentage > 0 && 'min-w-[0.5rem]',
                 )}
                 style={{ width: `${progressPercentage}%` }}

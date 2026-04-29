@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthUser } from '@/stores/auth-store';
+import { isMedicoUser } from '@/lib/permissions';
 import { FiFileText, FiPlus, FiXCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -15,6 +16,8 @@ const CONSENT_TYPES = [
   { value: 'PROCEDIMIENTO', label: 'Procedimiento' },
   { value: 'INVESTIGACION', label: 'Investigación' },
 ] as const;
+
+const REVOKED_PAGE_SIZE = 20;
 
 interface Consent {
   id: string;
@@ -36,16 +39,18 @@ interface PatientConsentsProps {
 
 export default function PatientConsents({ patientId, encounterId }: PatientConsentsProps) {
   const queryClient = useQueryClient();
-  const { isMedico } = useAuthStore();
+  const user = useAuthUser();
+  const isMedico = isMedicoUser(user);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ type: 'TRATAMIENTO', description: '' });
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [revokeReason, setRevokeReason] = useState('');
+  const [revokedLimit, setRevokedLimit] = useState(REVOKED_PAGE_SIZE);
 
-  const { data: consents = [], isLoading } = useQuery({
-    queryKey: ['consents', patientId],
+  const { data: consents = [], isLoading, isFetching } = useQuery({
+    queryKey: ['consents', patientId, revokedLimit],
     queryFn: async () => {
-      const res = await api.get(`/consents/patient/${patientId}`);
+      const res = await api.get(`/consents/patient/${patientId}?revokedLimit=${revokedLimit}`);
       return res.data as Consent[];
     },
   });
@@ -180,7 +185,7 @@ export default function PatientConsents({ patientId, encounterId }: PatientConse
                     <p className="mt-1 text-xs text-ink-muted">Registrado por {consent.grantedBy.nombre}</p>
                   )}
                 </div>
-                {isMedico() && (
+                {isMedico && (
                   revokeId === consent.id ? (
                     <div className="flex flex-col gap-2">
                       <input
@@ -219,7 +224,7 @@ export default function PatientConsents({ patientId, encounterId }: PatientConse
           {revokedConsents.length > 0 && (
             <details className="mt-4">
               <summary className="cursor-pointer text-sm font-medium text-ink-muted">
-                Consentimientos revocados ({revokedConsents.length})
+                Últimos consentimientos revocados ({revokedConsents.length})
               </summary>
               <div className="mt-2 space-y-2">
                 {revokedConsents.map((consent) => (
@@ -238,6 +243,16 @@ export default function PatientConsents({ patientId, encounterId }: PatientConse
                     )}
                   </div>
                 ))}
+                {revokedConsents.length >= revokedLimit ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary mt-2 w-full text-sm"
+                    onClick={() => setRevokedLimit((current) => current + REVOKED_PAGE_SIZE)}
+                    disabled={isFetching}
+                  >
+                    {isFetching ? 'Cargando...' : 'Ver más consentimientos revocados'}
+                  </button>
+                ) : null}
               </div>
             </details>
           )}

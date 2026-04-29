@@ -3,7 +3,7 @@ import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthIsAdmin, useAuthUser } from '@/stores/auth-store';
 import {
   type Role,
   type InvitationStatus,
@@ -18,7 +18,8 @@ import {
 export function useUsuarios() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { isAdmin, user } = useAuthStore();
+  const isAdmin = useAuthIsAdmin();
+  const user = useAuthUser();
 
   const [createForm, setCreateForm] = useState({
     email: '',
@@ -68,7 +69,7 @@ export function useUsuarios() {
   }, []);
 
   useEffect(() => {
-    if (!isAdmin()) {
+    if (!isAdmin) {
       router.push('/pacientes');
     }
   }, [isAdmin, router]);
@@ -79,7 +80,7 @@ export function useUsuarios() {
       const response = await api.get('/users');
       return response.data as AdminUserRow[];
     },
-    enabled: isAdmin(),
+    enabled: isAdmin,
   });
 
   const {
@@ -92,7 +93,7 @@ export function useUsuarios() {
       const response = await api.get('/users/invitations');
       return response.data as AdminInvitationRow[];
     },
-    enabled: isAdmin(),
+    enabled: isAdmin,
   });
 
   const medicos = useMemo(() => {

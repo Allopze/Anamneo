@@ -42,7 +42,7 @@ export default function DashboardAdminView({ user }: DashboardAdminViewProps) {
           <Link
             key={card.href}
             href={card.href}
-            className="group flex items-start gap-4 rounded-card bg-surface-elevated p-5 shadow-soft transition-all hover:bg-surface-inset/50 hover:shadow-md"
+            className="group flex items-start gap-4 rounded-card bg-surface-elevated p-5 shadow-soft transition-[background-color,box-shadow] hover:bg-surface-inset/50 hover:shadow-md"
           >
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-inset text-ink-secondary transition-colors group-hover:bg-accent/20 group-hover:text-accent-text">
               <card.icon className="h-5 w-5" />

@@ -82,43 +82,22 @@ export default function EncounterSectionRail({
     };
   }, []);
 
-  useEffect(() => {
-    const panel = railPanelRef.current;
-    if (!panel || railCollapsed) {
-      return;
-    }
-
-    const updateExpandedHeight = () => {
-      panel.style.setProperty('--section-rail-expanded-height', `${panel.scrollHeight}px`);
-    };
-
-    updateExpandedHeight();
-
-    if (typeof ResizeObserver === 'undefined') {
-      return;
-    }
-
-    const observer = new ResizeObserver(updateExpandedHeight);
-    observer.observe(panel);
-
-    return () => observer.disconnect();
-  }, [railCollapsed, sections.length, completedOrNACount]);
-
   return (
     <aside
-      className={clsx('hidden xl:block xl:self-start xl:justify-self-start xl:sticky', WORKSPACE_STICKY_OFFSET_CLASS)}
+      className={clsx(
+        'hidden xl:block xl:w-full xl:self-start xl:justify-self-start xl:sticky',
+        WORKSPACE_STICKY_OFFSET_CLASS,
+      )}
     >
       <div
         ref={railPanelRef}
         className={clsx(
           RAIL_PANEL_CLASS,
-          'motion-safe:transition-[width,min-height,border-color,background-color] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none will-change-transform',
+          railCollapsed ? 'rounded-xl' : 'rounded-card',
+          'motion-safe:transition-[width,border-radius,border-color,background-color] motion-safe:duration-200 motion-safe:ease-out motion-reduce:transition-none will-change-transform',
         )}
         style={{
           transform: 'translateY(var(--section-rail-inertia-y, 0px))',
-          minHeight: railCollapsed
-            ? 'var(--section-rail-expanded-height, min(760px, calc(100dvh - 112px)))'
-            : undefined,
         }}
       >
         {/* Header — hidden when collapsed */}
@@ -145,27 +124,8 @@ export default function EncounterSectionRail({
             </div>
           </div>
         )}
-        {/* Collapsed mini-progress */}
-        {railCollapsed && (
-          <div className="px-2 pt-3 pb-1">
-            <div
-              className="mx-auto h-1 w-full overflow-hidden rounded-full bg-surface-muted/50"
-              role="progressbar"
-              aria-label="Progreso de secciones completadas"
-              aria-valuemin={0}
-              aria-valuemax={sections.length}
-              aria-valuenow={completedOrNACount}
-            >
-              <div
-                className="h-full rounded-full bg-frame transition-[width] duration-200"
-                style={{ width: `${(completedOrNACount / sections.length) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
-
         <nav
-          className={clsx('flex flex-col gap-1 py-2', railCollapsed ? 'items-center px-1.5' : 'px-3')}
+          className={clsx('flex flex-col gap-1 py-2', railCollapsed ? 'items-center px-2' : 'px-3')}
           aria-label="Secciones de la atención"
         >
           {renderSectionItems({
@@ -180,7 +140,7 @@ export default function EncounterSectionRail({
         </nav>
 
         {/* Rail collapse toggle */}
-        <div className={clsx('border-t border-surface-muted/35', railCollapsed ? 'px-1.5 py-2' : 'px-3 py-2')}>
+        <div className={clsx('border-t border-surface-muted/35', railCollapsed ? 'px-2 py-2' : 'px-3 py-2')}>
           <button
             type="button"
             onClick={() =>
@@ -192,7 +152,6 @@ export default function EncounterSectionRail({
             }
             className="flex w-full items-center justify-center gap-2 rounded-card border border-transparent px-2 py-2 text-xs font-medium text-ink-secondary transition-colors hover:border-surface-muted/40 hover:bg-surface-base/45"
             aria-label={railCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
-            title={railCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
           >
             {railCollapsed ? (
               <FiChevronsRight className="h-4 w-4" />
@@ -333,7 +292,6 @@ function SectionDot({
     <button
       type="button"
       onClick={onClick}
-      title={section.label}
       className={clsx(
         'flex size-9 items-center justify-center rounded-input border transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20',
         isActive

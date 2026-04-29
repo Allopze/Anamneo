@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 
@@ -12,9 +13,13 @@ type AuditIntegrityResponse = {
 };
 
 export default function AuditIntegrityCard() {
+  const [verificationMode, setVerificationMode] = useState<'recent' | 'full'>('recent');
   const integrityQuery = useQuery({
-    queryKey: ['audit-integrity'],
-    queryFn: async () => (await api.get('/audit/integrity/verify?full=true')).data as AuditIntegrityResponse,
+    queryKey: ['audit-integrity', verificationMode],
+    queryFn: async () => {
+      const queryString = verificationMode === 'full' ? 'full=true' : 'limit=1000';
+      return (await api.get(`/audit/integrity/verify?${queryString}`)).data as AuditIntegrityResponse;
+    },
     staleTime: 60_000,
   });
 
@@ -35,6 +40,7 @@ export default function AuditIntegrityCard() {
   }
 
   const { valid, checked, total, brokenAt, warning } = integrityQuery.data;
+  const isFullVerification = verificationMode === 'full';
 
   return (
     <div className="rounded-card border border-surface-muted/40 bg-surface-elevated p-4 shadow-soft">
@@ -45,12 +51,24 @@ export default function AuditIntegrityCard() {
             {valid ? 'Cadena íntegra' : 'Cadena con quiebre detectado'}
           </h2>
           <p className="mt-1 text-sm text-ink-secondary">
-            Verificación operativa del hash chain sobre los registros auditables más recientes.
+            {isFullVerification
+              ? 'Verificación completa del hash chain auditado.'
+              : 'Verificación operativa del hash chain sobre los registros auditables más recientes.'}
           </p>
         </div>
 
-        <div className={`rounded-full px-3 py-1 text-xs font-semibold ${valid ? 'bg-status-green/20 text-status-green-text' : 'bg-status-red/15 text-status-red-text'}`}>
-          {valid ? 'Íntegra' : 'Atención requerida'}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setVerificationMode(isFullVerification ? 'recent' : 'full')}
+            disabled={integrityQuery.isFetching}
+          >
+            {isFullVerification ? 'Verificación reciente' : 'Verificar cadena completa'}
+          </button>
+          <div className={`rounded-full px-3 py-1 text-xs font-semibold ${valid ? 'bg-status-green/20 text-status-green-text' : 'bg-status-red/15 text-status-red-text'}`}>
+            {valid ? 'Íntegra' : 'Atención requerida'}
+          </div>
         </div>
       </div>
 

@@ -11,7 +11,7 @@ import {
   canSignEncounter,
 } from '@/lib/permissions';
 import { Attachment, Encounter, SignEncounterResponse } from '@/types';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthUser } from '@/stores/auth-store';
 import {
   getEncounterActionBlockReason,
   getFocusedEncounterDocumentBlockReason,
@@ -36,16 +36,18 @@ export function useFichaClinica() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user } = useAuthStore();
+  const user = useAuthUser();
   const isOperationalAdmin = !!user?.isAdmin;
   const [showSignModal, setShowSignModal] = useState(false);
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
 
   const { data: encounter, isLoading } = useQuery({
-    queryKey: ['encounter', id],
+    queryKey: ['encounter', id, 'ficha'],
     queryFn: async () => {
-      const response = await api.get(`/encounters/${id}`);
+      const response = await api.get(
+        `/encounters/${id}?includeSignatureBaseline=true&includeAttachments=true&includeConsents=true&includeTasks=true&includeSignatures=true&includeSuggestions=true`,
+      );
       return response.data as Encounter;
     },
     enabled: !isOperationalAdmin,

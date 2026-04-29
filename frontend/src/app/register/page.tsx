@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { api, getErrorMessage } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthLogin } from '@/stores/auth-store';
 import { stashAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
 import { AuthFrame } from '@/components/auth/AuthFrame';
 import { FiArrowRight, FiEye, FiEyeOff, FiLock, FiMail, FiShield, FiUser, FiUserPlus } from 'react-icons/fi';
@@ -41,7 +41,7 @@ export default function RegisterPage() {
 function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuthStore();
+  const login = useAuthLogin();
   const invitationTokenFromQuery = searchParams.get('token')?.trim() || null;
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);

@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { api, getErrorMessage } from '@/lib/api';
 import { Patient } from '@/types';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthCanEditPatientAdmin, useAuthIsMedico, useAuthUser } from '@/stores/auth-store';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { FiArrowLeft } from 'react-icons/fi';
 import toast from 'react-hot-toast';
@@ -24,10 +24,10 @@ export default function EditarPacientePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, isMedico, canEditPatientAdmin } = useAuthStore();
+  const user = useAuthUser();
+  const isDoctor = useAuthIsMedico();
+  const canEditAdminFields = useAuthCanEditPatientAdmin();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const isDoctor = isMedico();
-  const canEditAdminFields = canEditPatientAdmin();
 
   const editSchema = useMemo(() => buildEditSchema(isDoctor), [isDoctor]);
 

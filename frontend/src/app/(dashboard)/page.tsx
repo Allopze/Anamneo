@@ -2,24 +2,22 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { DASHBOARD_STATS_QUERY_KEY, fetchDashboardStats } from '@/lib/dashboard-stats';
 import { useAuthStore } from '@/stores/auth-store';
+import { canCreateEncounter as canCreateEncounterPermission, canCreatePatient as canCreatePatientPermission } from '@/lib/permissions';
 import { type DashboardData } from './dashboard.constants';
 import DashboardAdminView from './DashboardAdminView';
 import DashboardClinicalView from './DashboardClinicalView';
 
 export default function DashboardPage() {
-  const { user, canCreateEncounter, canCreatePatient } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const isOperationalAdmin = !!user?.isAdmin;
-  const canNewEncounter = canCreateEncounter();
-  const canNewPatient = canCreatePatient();
+  const canNewEncounter = canCreateEncounterPermission(user);
+  const canNewPatient = canCreatePatientPermission(user);
 
   const { data, isLoading } = useQuery<DashboardData>({
-    queryKey: ['dashboard'],
-    queryFn: async () => {
-      const res = await api.get('/encounters/stats/dashboard');
-      return res.data;
-    },
+    queryKey: DASHBOARD_STATS_QUERY_KEY,
+    queryFn: fetchDashboardStats<DashboardData>,
     enabled: !isOperationalAdmin,
   });
 

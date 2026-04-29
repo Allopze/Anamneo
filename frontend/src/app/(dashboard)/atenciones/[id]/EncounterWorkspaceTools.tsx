@@ -70,7 +70,7 @@ export function EncounterWorkspacePanel({ activePanel, onClose, wiz }: Workspace
           quickNotesSaving={wiz.saveSectionMutation.isPending}
           onQuickNotesSave={wiz.handleQuickNotesSave}
           onOpenAttachments={() => wiz.setIsAttachmentsOpen(true)}
-          canEditAntecedentes={wiz.canEditAntecedentes()}
+          canEditAntecedentes={wiz.canEditAntecedentes}
           quickTask={wiz.quickTask}
           onQuickTaskChange={(task) => wiz.setQuickTask(task)}
           onCreateTask={wiz.handleCreateTask}

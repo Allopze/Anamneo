@@ -287,7 +287,7 @@ body {
 
   /* ── Stepper ──────────────────── */
   .stepper-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-card transition-all duration-200;
+    @apply flex items-center gap-3 px-4 py-3 rounded-card transition-colors duration-200;
   }
 
   .stepper-item-active {
@@ -712,7 +712,7 @@ body {
   /* ── Nav Items ──────────────────── */
   .header-nav-item {
     @apply inline-flex items-center justify-center rounded-pill
-           transition-all duration-200 outline-none
+           transition-colors duration-200 outline-none
            focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-frame;
   }
 
@@ -757,7 +757,7 @@ body {
 
   .smart-header-chip {
     @apply inline-flex items-center gap-1.5 rounded-pill px-3 py-1
-           text-xs font-bold text-ink transition-all duration-150
+           text-xs font-bold text-ink transition-colors duration-150
            hover:bg-surface-inset;
   }
 
@@ -775,7 +775,7 @@ body {
 
   .smart-header-chip-mobile {
     @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1
-           text-xs font-bold text-ink transition-all duration-150
+           text-xs font-bold text-ink transition-colors duration-150
            hover:bg-surface-inset whitespace-nowrap;
   }
 
@@ -861,7 +861,7 @@ body {
 
   .header-mobile-item {
     @apply flex items-center gap-3 px-3.5 py-2.5 rounded-pill text-sm font-medium
-           transition-all duration-200;
+           transition-colors duration-200;
   }
 
   .header-mobile-item-active {

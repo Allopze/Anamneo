@@ -8,7 +8,12 @@ import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
 import { Patient, PATIENT_COMPLETENESS_STATUS_LABELS, PatientCompletenessStatus } from '@/types';
-import { useAuthStore } from '@/stores/auth-store';
+import {
+  useAuthCanCreateEncounter,
+  useAuthCanCreatePatient,
+  useAuthIsMedico,
+  useAuthUser,
+} from '@/stores/auth-store';
 import {
   FiPlus,
   FiSearch,
@@ -64,10 +69,10 @@ function PacientesContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const { canCreatePatient, canCreateEncounter, isMedico, user } = useAuthStore();
-  const canCreate = canCreatePatient();
-  const canCreateEncounterAllowed = canCreateEncounter();
-  const canRestoreArchived = isMedico();
+  const user = useAuthUser();
+  const canCreate = useAuthCanCreatePatient();
+  const canCreateEncounterAllowed = useAuthCanCreateEncounter();
+  const canRestoreArchived = useAuthIsMedico();
   const search = searchParams.get('search') || '';
   const [searchInput, setSearchInput] = useState(search);
   const page = Number(searchParams.get('page') || '1');
@@ -307,7 +312,7 @@ function PacientesContent() {
         </div>
       )}
 
-      <div className="card transition-all duration-300">
+      <div className="card">
         {isLoading ? (
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (

@@ -81,6 +81,12 @@ export class ConditionsController {
     return this.conditionsService.findAll(search, user);
   }
 
+  @Get('count')
+  @Roles('ADMIN', 'MEDICO', 'ASISTENTE')
+  count(@CurrentUser() user: CurrentUserData) {
+    return this.conditionsService.count(user);
+  }
+
   @Get(':id')
   @Roles('ADMIN', 'MEDICO', 'ASISTENTE')
   findOne(@Param('id', ParseUUIDPipe) id: string) {

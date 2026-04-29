@@ -6,7 +6,13 @@ const { spawn } = require('node:child_process');
 process.env.NODE_ENV = 'production';
 
 const nextBin = require.resolve('next/dist/bin/next');
-const child = spawn(process.execPath, [nextBin, 'build'], {
+const buildArgs = [nextBin, 'build'];
+
+if (process.env.ANALYZE === 'true') {
+  buildArgs.push('--webpack');
+}
+
+const child = spawn(process.execPath, buildArgs, {
   stdio: 'inherit',
   env: process.env,
 });

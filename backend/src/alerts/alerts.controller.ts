@@ -46,8 +46,16 @@ export class AlertsController {
     @Param('patientId', ParseUUIDPipe) patientId: string,
     @CurrentUser() user: CurrentUserData,
     @Query('includeAcknowledged') includeAcknowledged?: string,
+    @Query('acknowledgedLimit') acknowledgedLimit?: string,
   ) {
-    return this.alertsService.findByPatient(patientId, user, includeAcknowledged === 'true');
+    return this.alertsService.findByPatient(
+      patientId,
+      user,
+      {
+        includeAcknowledged: includeAcknowledged === 'true',
+        acknowledgedLimit: acknowledgedLimit ? parseInt(acknowledgedLimit, 10) : undefined,
+      },
+    );
   }
 
   @Post(':id/acknowledge')

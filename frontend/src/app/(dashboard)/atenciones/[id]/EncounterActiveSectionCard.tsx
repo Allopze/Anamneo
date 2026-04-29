@@ -111,7 +111,7 @@ export default function EncounterActiveSectionCard({
                   : undefined
               }
               patientId={encounter.patientId}
-              canEditPatientHistory={wiz.canEditAntecedentes()}
+              canEditPatientHistory={wiz.canEditAntecedentes}
               linkedAttachmentsByOrderId={wiz.linkedAttachmentsByOrderId}
               onRequestAttachToOrder={wiz.handleStartLinkedAttachment}
               onPreviewAttachment={wiz.setPreviewAttachment}

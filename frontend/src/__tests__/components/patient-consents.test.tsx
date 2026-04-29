@@ -14,9 +14,17 @@ jest.mock('@/lib/api', () => ({
 }));
 
 jest.mock('@/stores/auth-store', () => ({
-  useAuthStore: () => ({
-    isMedico: () => true,
-  }),
+  useAuthStore: Object.assign(
+    jest.fn((selector?: (state: any) => unknown) => {
+      const state = { user: { id: 'doctor-1', role: 'MEDICO' } };
+      return selector ? selector(state) : state;
+    }),
+    {
+      persist: { clearStorage: jest.fn() },
+      setState: jest.fn(),
+    },
+  ),
+  useAuthUser: () => ({ id: 'doctor-1', role: 'MEDICO' }),
 }));
 
 jest.mock('react-hot-toast', () => ({

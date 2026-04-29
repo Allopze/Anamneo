@@ -7,18 +7,18 @@ import toast from 'react-hot-toast';
 import { FiEdit2, FiPlus, FiSearch, FiTag, FiUpload } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
 import { canImportConditionsCsv } from '@/lib/permissions';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthIsAdmin, useAuthUser } from '@/stores/auth-store';
 import { Condition } from '@/types';
 import CatalogImportPanel from './CatalogImportPanel';
 
 export default function ConditionsCatalogSection() {
-  const { isAdmin, user } = useAuthStore();
+  const user = useAuthUser();
+  const isAdminUser = useAuthIsAdmin();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [formMode, setFormMode] = useState<'create' | 'edit' | 'override' | null>(null);
   const [editingCondition, setEditingCondition] = useState<Condition | null>(null);
   const [localForm, setLocalForm] = useState({ name: '', synonyms: '', tags: '' });
-  const isAdminUser = isAdmin();
   const canImportCsv = canImportConditionsCsv(user);
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -256,7 +256,7 @@ export default function ConditionsCatalogSection() {
                   <div className="flex items-center gap-2">
                     <Link
                       href={`/catalogo/${condition.id}`}
-                      className="rounded-lg p-2 text-ink-muted opacity-0 transition-all hover:bg-accent/10 hover:text-accent group-hover:opacity-100"
+                      className="rounded-lg p-2 text-ink-muted opacity-0 transition-[background-color,color,opacity] hover:bg-accent/10 hover:text-accent group-hover:opacity-100"
                     >
                       <FiEdit2 className="h-4 w-4" />
                     </Link>

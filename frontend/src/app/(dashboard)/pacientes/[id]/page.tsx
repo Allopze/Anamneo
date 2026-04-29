@@ -322,7 +322,7 @@ export default function PatientDetailPage() {
             <div className="card">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-ink">Antecedentes</h2>
-                {pd.canEditAntecedentes() && (
+                {pd.canEditAntecedentes && (
                   <Link href={`/pacientes/${pd.id}/historial`} className="text-sm text-accent-text hover:text-ink">
                     Editar
                   </Link>

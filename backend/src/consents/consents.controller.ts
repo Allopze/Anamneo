@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Param,
+  Query,
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
@@ -30,8 +31,13 @@ export class ConsentsController {
   findByPatient(
     @Param('patientId', ParseUUIDPipe) patientId: string,
     @CurrentUser() user: CurrentUserData,
+    @Query('revokedLimit') revokedLimit?: string,
   ) {
-    return this.consentsService.findByPatient(patientId, user);
+    return this.consentsService.findByPatient(
+      patientId,
+      user,
+      { revokedLimit: revokedLimit ? parseInt(revokedLimit, 10) : undefined },
+    );
   }
 
   @Post(':id/revoke')

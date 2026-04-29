@@ -62,26 +62,51 @@ export class AlertsService {
     return alert;
   }
 
-  async findByPatient(patientId: string, user: RequestUser, includeAcknowledged = false) {
+  async findByPatient(
+    patientId: string,
+    user: RequestUser,
+    options: { includeAcknowledged?: boolean; acknowledgedLimit?: number } = {},
+  ) {
     await assertPatientAccess(this.prisma, user, patientId);
 
     const effectiveMedicoId = user.isAdmin ? null : getEffectiveMedicoId(user);
-    const alerts = await this.prisma.clinicalAlert.findMany({
+    const scopeWhere = {
+      patientId,
+      ...(effectiveMedicoId
+        ? {
+            OR: [
+              buildPatientLevelOwnershipWhere(effectiveMedicoId),
+              { encounter: { medicoId: effectiveMedicoId } },
+            ],
+          }
+        : {}),
+    };
+
+    const activeAlerts = await this.prisma.clinicalAlert.findMany({
       where: {
-        patientId,
-        ...(includeAcknowledged ? {} : { acknowledgedAt: null }),
-        ...(effectiveMedicoId
-          ? {
-              OR: [
-                buildPatientLevelOwnershipWhere(effectiveMedicoId),
-                { encounter: { medicoId: effectiveMedicoId } },
-              ],
-            }
-          : {}),
+        ...scopeWhere,
+        acknowledgedAt: null,
       },
     });
 
-    const sortedAlerts = sortAlertsByPriority(alerts);
+    const acknowledgedLimit = Number.isFinite(options.acknowledgedLimit)
+      ? Math.max(0, Math.min(options.acknowledgedLimit ?? 0, 100))
+      : undefined;
+    const acknowledgedAlerts = options.includeAcknowledged
+      ? await this.prisma.clinicalAlert.findMany({
+          where: {
+            ...scopeWhere,
+            acknowledgedAt: { not: null },
+          },
+          orderBy: { acknowledgedAt: 'desc' },
+          ...(acknowledgedLimit === undefined ? {} : { take: acknowledgedLimit }),
+        })
+      : [];
+
+    const sortedAlerts = [
+      ...sortAlertsByPriority(activeAlerts),
+      ...acknowledgedAlerts,
+    ];
     return attachUserNames(this.prisma, sortedAlerts);
   }
 

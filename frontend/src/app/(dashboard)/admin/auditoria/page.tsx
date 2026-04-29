@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api, getErrorMessage, PaginatedResponse } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthIsAdmin } from '@/stores/auth-store';
 import { FiChevronLeft, FiChevronRight, FiFilter, FiShield } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { format } from 'date-fns';
@@ -22,7 +22,7 @@ import AuditIntegrityCard from './AuditIntegrityCard';
 
 export default function AuditoriaPage() {
   const router = useRouter();
-  const { isAdmin } = useAuthStore();
+  const isAdmin = useAuthIsAdmin();
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
     action: '',
@@ -37,7 +37,7 @@ export default function AuditoriaPage() {
   const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null);
 
   useEffect(() => {
-    if (!isAdmin()) {
+    if (!isAdmin) {
       router.push('/pacientes');
     }
   }, [isAdmin, router]);
@@ -48,7 +48,7 @@ export default function AuditoriaPage() {
       const response = await api.get('/users');
       return response.data as AdminUserRow[];
     },
-    enabled: isAdmin(),
+    enabled: isAdmin,
   });
 
   const usersMap = new Map((users || []).map((u) => [u.id, u]));
@@ -68,13 +68,13 @@ export default function AuditoriaPage() {
       const response = await api.get(`/audit?${params.toString()}`);
       return response.data as PaginatedResponse<AuditLogEntry>;
     },
-    enabled: isAdmin(),
+    enabled: isAdmin,
   });
 
   const logs = data?.data ?? [];
   const pagination = data?.pagination;
 
-  if (!isAdmin()) return null;
+  if (!isAdmin) return null;
 
   return (
     <div className="animate-fade-in">

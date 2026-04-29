@@ -76,13 +76,30 @@ export class EncountersService {
     });
   }
 
-  async findById(id: string, user: RequestUser) {
+  async findById(
+    id: string,
+    user: RequestUser,
+    options: {
+      includeSignatureBaseline?: boolean;
+      includeAttachments?: boolean;
+      includeConsents?: boolean;
+      includeTasks?: boolean;
+      includeSignatures?: boolean;
+      includeSuggestions?: boolean;
+    } = {},
+  ) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
     return findEncounterByIdReadModel({
       prisma: this.prisma,
       id,
       effectiveMedicoId,
       user,
+      includeSignatureBaseline: options.includeSignatureBaseline,
+      includeAttachments: options.includeAttachments,
+      includeConsents: options.includeConsents,
+      includeTasks: options.includeTasks,
+      includeSignatures: options.includeSignatures,
+      includeSuggestions: options.includeSuggestions,
     });
   }
 

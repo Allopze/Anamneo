@@ -92,6 +92,9 @@ model Patient {
   alerts     ClinicalAlert[]
 
   @@index([archivedAt])
+  @@index([createdById, archivedAt, createdAt])
+  @@index([completenessStatus, archivedAt])
+  @@index([updatedAt])
   @@map("patients")
 }
 
@@ -153,6 +156,10 @@ model Encounter {
   treatments EncounterTreatment[]
 
   @@index([medicoId])
+  @@index([medicoId, status, createdAt])
+  @@index([medicoId, reviewStatus, createdAt])
+  @@index([patientId, medicoId, createdAt])
+  @@index([updatedAt])
   @@map("encounters")
 }
 
@@ -445,6 +452,7 @@ model EncounterTask {
   @@index([patientId, status, dueDate])
   @@index([encounterId])
   @@index([medicoId])
+  @@index([medicoId, status, dueDate])
   @@index([recurrenceSourceTaskId])
   @@map("encounter_tasks")
 }
@@ -530,6 +538,7 @@ model InformedConsent {
   revokedBy User?      @relation("ConsentRevokedBy", fields: [revokedById], references: [id])
 
   @@index([patientId, revokedAt])
+  @@index([patientId, revokedAt, grantedAt])
   @@map("informed_consents")
 }
 
@@ -553,6 +562,8 @@ model ClinicalAlert {
   acknowledgedBy  User?      @relation("ClinicalAlertAcknowledgedBy", fields: [acknowledgedById], references: [id])
 
   @@index([patientId, acknowledgedAt])
+  @@index([patientId, acknowledgedAt, createdAt])
+  @@index([encounterId, acknowledgedAt])
   @@map("clinical_alerts")
 }
 

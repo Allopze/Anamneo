@@ -10,7 +10,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import ConditionSelector from '@/components/common/ConditionSelector';
 import { parseHistoryField } from '@/lib/utils';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthCanEditAntecedentes, useAuthUser } from '@/stores/auth-store';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import PatientMedicationHistoryField, { type PatientMedicationHistoryValue } from '../PatientMedicationHistoryField';
 
@@ -42,8 +42,8 @@ export default function HistorialPacientePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, canEditAntecedentes } = useAuthStore();
-  const canEditHistory = canEditAntecedentes();
+  const user = useAuthUser();
+  const canEditHistory = useAuthCanEditAntecedentes();
   const [formData, setFormData] = useState<Record<string, HistoryFormValue>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 

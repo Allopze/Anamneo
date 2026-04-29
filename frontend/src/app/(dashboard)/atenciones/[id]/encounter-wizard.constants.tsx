@@ -138,7 +138,7 @@ export const SURFACE_PANEL_CLASS = 'overflow-hidden rounded-lg border border-fra
 
 export const INNER_PANEL_CLASS = 'rounded-lg border border-surface-muted/45 bg-surface-base/55';
 
-export const RAIL_PANEL_CLASS = 'w-full overflow-hidden rounded-card border border-frame/10 bg-surface-elevated/90';
+export const RAIL_PANEL_CLASS = 'w-full overflow-hidden border border-frame/10 bg-surface-elevated/90';
 
 export const WORKSPACE_STICKY_OFFSET_CLASS = 'top-[170px]';
 

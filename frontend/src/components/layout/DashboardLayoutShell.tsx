@@ -141,7 +141,7 @@ export default function DashboardLayoutShell({
                       href={item.href}
                       onClick={() => onMobileMenuToggle(false)}
                       className={clsx(
-                        'flex items-center gap-3 rounded-pill px-3.5 py-2.5 text-sm font-bold transition-all duration-200',
+                        'flex items-center gap-3 rounded-pill px-3.5 py-2.5 text-sm font-bold transition-colors duration-200',
                         isActive
                           ? 'bg-accent text-accent-text'
                           : 'text-white/60 hover:bg-white/[0.08] hover:text-white',

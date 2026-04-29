@@ -1,5 +1,8 @@
 const path = require('path');
 const { loadEnvConfig } = require('@next/env');
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
 const { withSentryConfig } = require('@sentry/nextjs');
 
 loadEnvConfig(path.join(__dirname, '..'));
@@ -50,8 +53,8 @@ const nextConfig = {
   },
 }
 
-module.exports = withSentryConfig(nextConfig, {
+module.exports = withBundleAnalyzer(withSentryConfig(nextConfig, {
   silent: true,
   disableServerWebpackPlugin: !process.env.NEXT_PUBLIC_SENTRY_DSN,
   disableClientWebpackPlugin: !process.env.NEXT_PUBLIC_SENTRY_DSN,
-})
+}))

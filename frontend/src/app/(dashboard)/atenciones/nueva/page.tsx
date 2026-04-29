@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import { invalidateDashboardOverviewQueries } from '@/lib/query-invalidation';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthCanCreateEncounter, useAuthIsMedico, useAuthUser } from '@/stores/auth-store';
 import { Patient } from '@/types';
 import { InProgressEncounterConflictModal, InProgressEncounterSummary } from '@/components/common/InProgressEncounterConflictModal';
 import { FiArrowLeft, FiSearch, FiUser, FiPlus } from 'react-icons/fi';
@@ -16,12 +16,12 @@ import { formatPatientAge, getPatientCompletenessMeta } from '@/lib/patient';
 export default function NuevaAtencionPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, canCreateEncounter, isMedico } = useAuthStore();
+  const user = useAuthUser();
+  const canCreate = useAuthCanCreateEncounter();
+  const isMedico = useAuthIsMedico();
   const [search, setSearch] = useState('');
   const normalizedSearch = search.trim();
   const hasSearchTerm = normalizedSearch.length >= 2;
-  const canCreate = canCreateEncounter();
-
   useEffect(() => {
     if (!user) return;
     if (canCreate) return;
@@ -84,7 +84,7 @@ export default function NuevaAtencionPage() {
             setConflictEncounters(null);
             router.push(`/atenciones/${encounterId}`);
           }}
-          allowCancel={isMedico()}
+          allowCancel={isMedico}
           onCancelled={(encounterId) => {
             setConflictEncounters((prev) => {
               if (!prev) return prev;

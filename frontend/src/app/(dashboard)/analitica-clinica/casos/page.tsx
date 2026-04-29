@@ -9,7 +9,7 @@ import { FiArrowLeft, FiDownload, FiFileText, FiUsers } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 import { api, getErrorMessage } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthUser } from '@/stores/auth-store';
 import {
   buildClinicalAnalyticsCasesUrl,
   buildClinicalAnalyticsSummaryUrl,
@@ -58,7 +58,7 @@ function describeFocus(response: ClinicalAnalyticsCasesResponse) {
 
 export default function ClinicalAnalyticsCasesPage() {
   const searchParams = useSearchParams();
-  const { user } = useAuthStore();
+  const user = useAuthUser();
   const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
   const canAccess = user?.role === 'MEDICO' && !user?.isAdmin;
   const defaults = useMemo(() => resolveDefaultClinicalAnalyticsFilters(), []);

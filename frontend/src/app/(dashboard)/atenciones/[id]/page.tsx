@@ -113,7 +113,7 @@ export default function EncounterWizardPage() {
       <div
         className={clsx(
           'grid w-full gap-5 px-4 py-5 xl:items-start xl:py-6 xl:pl-3 xl:pr-6 2xl:pl-4 2xl:pr-10 motion-safe:transition-[grid-template-columns] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none',
-          wiz.railCollapsed ? 'xl:grid-cols-[64px_minmax(0,1fr)]' : 'xl:grid-cols-[264px_minmax(0,1fr)]',
+          wiz.railCollapsed ? 'xl:grid-cols-[72px_minmax(0,1fr)]' : 'xl:grid-cols-[264px_minmax(0,1fr)]',
         )}
       >
         <EncounterSectionRail

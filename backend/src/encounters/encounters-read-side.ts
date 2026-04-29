@@ -61,7 +61,7 @@ export async function findEncountersReadModel(params: FindEncountersReadModelPar
             startDate: true,
             endDate: true,
             isActive: true,
-          },
+          }
         },
         reviewRequestedBy: {
           select: { id: true, nombre: true },
@@ -96,10 +96,27 @@ interface FindEncounterByIdReadModelParams {
   id: string;
   effectiveMedicoId: string;
   user: RequestUser;
+  includeSignatureBaseline?: boolean;
+  includeAttachments?: boolean;
+  includeConsents?: boolean;
+  includeTasks?: boolean;
+  includeSignatures?: boolean;
+  includeSuggestions?: boolean;
 }
 
 export async function findEncounterByIdReadModel(params: FindEncounterByIdReadModelParams) {
-  const { prisma, id, effectiveMedicoId, user } = params;
+  const {
+    prisma,
+    id,
+    effectiveMedicoId,
+    user,
+    includeSignatureBaseline = true,
+    includeAttachments = true,
+    includeConsents = true,
+    includeTasks = true,
+    includeSignatures = true,
+    includeSuggestions = true,
+  } = params;
 
   const encounter = await prisma.encounter.findFirst({
     where: {
@@ -117,13 +134,17 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
             where: buildPatientProblemScopeWhere(effectiveMedicoId),
             orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
           },
-          tasks: {
-            where: buildEncounterTaskScopeWhere(effectiveMedicoId),
-            orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
-            include: {
-              createdBy: { select: { id: true, nombre: true } },
-            },
-          },
+          ...(includeTasks
+            ? {
+                tasks: {
+                  where: buildEncounterTaskScopeWhere(effectiveMedicoId),
+                  orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
+                  include: {
+                    createdBy: { select: { id: true, nombre: true } },
+                  },
+                },
+              }
+            : {}),
         },
       },
       createdBy: {
@@ -148,26 +169,46 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
           isActive: true,
         },
       },
-      suggestions: {
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-      },
-      attachments: {
-        where: { deletedAt: null },
-        orderBy: [{ uploadedAt: 'asc' }, { id: 'asc' }],
-      },
-      signatures: {
-        orderBy: [{ signedAt: 'asc' }, { id: 'asc' }],
-      },
-      consents: {
-        orderBy: [{ grantedAt: 'asc' }, { id: 'asc' }],
-      },
-      tasks: {
-        orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
-        include: {
-          createdBy: { select: { id: true, nombre: true } },
-        },
-      },
+      ...(includeSuggestions
+        ? {
+            suggestions: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          }
+        : {}),
+      ...(includeAttachments
+        ? {
+            attachments: {
+              where: { deletedAt: null },
+              orderBy: [{ uploadedAt: 'asc' }, { id: 'asc' }],
+            },
+          }
+        : {}),
+      ...(includeSignatures
+        ? {
+            signatures: {
+              orderBy: [{ signedAt: 'asc' }, { id: 'asc' }],
+            },
+          }
+        : {}),
+      ...(includeConsents
+        ? {
+            consents: {
+              orderBy: [{ grantedAt: 'asc' }, { id: 'asc' }],
+            },
+          }
+        : {}),
+      ...(includeTasks
+        ? {
+            tasks: {
+              orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
+              include: {
+                createdBy: { select: { id: true, nombre: true } },
+              },
+            },
+          }
+        : {}),
     },
   });
 
@@ -179,25 +220,27 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
     throw new NotFoundException('Atención no encontrada');
   }
 
-  const signatureBaseline = await prisma.encounter.findFirst({
-    where: {
-      patientId: encounter.patientId,
-      medicoId: effectiveMedicoId,
-      id: { not: encounter.id },
-      status: { in: ['COMPLETADO', 'FIRMADO'] },
-      createdAt: { lt: encounter.createdAt },
-    },
-    orderBy: { createdAt: 'desc' },
-    include: {
-      sections: {
-        orderBy: { sectionKey: 'asc' },
-      },
-      attachments: {
-        where: { deletedAt: null },
-        orderBy: [{ uploadedAt: 'asc' }, { id: 'asc' }],
-      },
-    },
-  });
+  const signatureBaseline = includeSignatureBaseline
+    ? await prisma.encounter.findFirst({
+        where: {
+          patientId: encounter.patientId,
+          medicoId: effectiveMedicoId,
+          id: { not: encounter.id },
+          status: { in: ['COMPLETADO', 'FIRMADO'] },
+          createdAt: { lt: encounter.createdAt },
+        },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          sections: {
+            orderBy: { sectionKey: 'asc' },
+          },
+          attachments: {
+            where: { deletedAt: null },
+            orderBy: [{ uploadedAt: 'asc' }, { id: 'asc' }],
+          },
+        },
+      })
+    : null;
 
   return formatEncounterResponse(
     {

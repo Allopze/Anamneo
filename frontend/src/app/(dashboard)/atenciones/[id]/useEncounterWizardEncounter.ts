@@ -16,9 +16,11 @@ export function useEncounterWizardEncounter({ id, isOperationalAdmin }: UseEncou
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['encounter', id],
+    queryKey: ['encounter', id, 'editor'],
     queryFn: async () => {
-      const response = await api.get(`/encounters/${id}`);
+      const response = await api.get(
+        `/encounters/${id}?includeSignatureBaseline=false&includeAttachments=false&includeConsents=false&includeTasks=false&includeSignatures=false&includeSuggestions=false`,
+      );
       return response.data as Encounter;
     },
     enabled: !isOperationalAdmin,

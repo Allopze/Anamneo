@@ -8,7 +8,7 @@ import { FiAlertTriangle, FiBarChart2, FiFileText, FiFilter, FiRefreshCw, FiUser
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 import { api, getErrorMessage } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthUser } from '@/stores/auth-store';
 import { AnalyticsOutcomeTable } from './AnalyticsOutcomeTable';
 import { AnalyticsRankedTable } from './AnalyticsRankedTable';
 import {
@@ -117,7 +117,7 @@ function formatPercent(value: number) {
 export default function AnaliticaClinicaPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuthStore();
+  const user = useAuthUser();
   const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
   const [isDownloadingMarkdown, setIsDownloadingMarkdown] = useState(false);
   const canAccess = user?.role === 'MEDICO' && !user?.isAdmin;

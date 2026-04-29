@@ -2,17 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
-import { STATUS_LABELS } from '@/types';
+import { fetchClinicalSearchResults, type SearchResult } from '@/lib/clinical-search';
 import { FiSearch, FiUser, FiFileText, FiArrowRight } from 'react-icons/fi';
-
-interface SearchResult {
-  id: string;
-  type: 'patient' | 'encounter';
-  title: string;
-  subtitle: string;
-  href: string;
-}
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -27,14 +18,19 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const requestSeqRef = useRef(0);
   const patientResults = results.filter((result) => result.type === 'patient');
   const encounterResults = results.filter((result) => result.type === 'encounter');
 
   // Focus input when opened
   useEffect(() => {
     if (isOpen) {
+      abortRef.current?.abort();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       setQuery('');
       setResults([]);
+      setLoading(false);
       setSelectedIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
@@ -74,50 +70,33 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
   }, [isOpen, results, selectedIndex, onClose, navigateTo]);
 
   const search = useCallback(async (q: string) => {
-    if (!q.trim()) {
+    const trimmedQuery = q.trim();
+
+    abortRef.current?.abort();
+    const requestSeq = requestSeqRef.current + 1;
+    requestSeqRef.current = requestSeq;
+
+    if (!trimmedQuery) {
       setResults([]);
+      setLoading(false);
       return;
     }
 
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
     try {
-      const [patientsRes, encountersRes] = await Promise.allSettled([
-        api.get(`/patients?search=${encodeURIComponent(q)}&limit=5`),
-        api.get(`/encounters?search=${encodeURIComponent(q)}&limit=5`),
-      ]);
-
-      const items: SearchResult[] = [];
-
-      if (patientsRes.status === 'fulfilled' && patientsRes.value.data?.data) {
-        for (const p of patientsRes.value.data.data) {
-          items.push({
-            id: p.id,
-            type: 'patient',
-            title: p.nombre,
-            subtitle: p.rut || 'Sin RUT',
-            href: `/pacientes/${p.id}`,
-          });
-        }
-      }
-
-      if (encountersRes.status === 'fulfilled' && encountersRes.value.data?.data) {
-        for (const e of encountersRes.value.data.data) {
-          items.push({
-            id: e.id,
-            type: 'encounter',
-            title: e.patient?.nombre || 'Atención',
-            subtitle: `${STATUS_LABELS[e.status] || e.status} — ${new Date(e.createdAt).toLocaleDateString('es-CL')}`,
-            href: `/atenciones/${e.id}`,
-          });
-        }
-      }
-
+      const items = await fetchClinicalSearchResults(trimmedQuery, { signal: controller.signal });
+      if (controller.signal.aborted || requestSeq !== requestSeqRef.current) return;
       setResults(items);
       setSelectedIndex(0);
     } catch {
+      if (controller.signal.aborted || requestSeq !== requestSeqRef.current) return;
       setResults([]);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted && requestSeq === requestSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -126,6 +105,22 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => search(value), 300);
   };
+
+  useEffect(() => {
+    if (isOpen) return undefined;
+
+    abortRef.current?.abort();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setLoading(false);
+    return undefined;
+  }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   if (!isOpen) return null;
 

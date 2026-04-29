@@ -57,3 +57,29 @@ export async function getMergedConditions(prisma: PrismaService, user: CurrentUs
 
   return filtered.sort((a, b) => a.name.localeCompare(b.name));
 }
+
+export async function countMergedConditions(prisma: PrismaService, user: CurrentUserData) {
+  const instanceId = getInstanceId(user);
+
+  const [globalActiveCount, excludedGlobalOverrides, localOnlyCount] = await Promise.all([
+    prisma.conditionCatalog.count({ where: { active: true } }),
+    prisma.conditionCatalogLocal.count({
+      where: {
+        medicoId: instanceId,
+        baseConditionId: { not: null },
+        OR: [{ hidden: true }, { active: false }],
+        baseCondition: { is: { active: true } },
+      },
+    }),
+    prisma.conditionCatalogLocal.count({
+      where: {
+        medicoId: instanceId,
+        baseConditionId: null,
+        active: true,
+        hidden: false,
+      },
+    }),
+  ]);
+
+  return globalActiveCount - excludedGlobalOverrides + localOnlyCount;
+}

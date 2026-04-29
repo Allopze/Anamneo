@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { DASHBOARD_STATS_QUERY_KEY, fetchDashboardStats } from '@/lib/dashboard-stats';
+import { canCreateEncounter as canCreateEncounterPermission, canCreatePatient as canCreatePatientPermission } from '@/lib/permissions';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   FiSearch,
@@ -35,7 +37,7 @@ interface SmartHeaderBarProps {
 export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }: SmartHeaderBarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { canCreateEncounter, canCreatePatient } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const isCatalogRoute = pathname.startsWith('/catalogo');
   const isNonClinical = NON_CLINICAL_PREFIXES.some((p) => pathname.startsWith(p));
   const shouldHideHeader = isNonClinical && !isCatalogRoute;
@@ -91,22 +93,19 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
 
   // ── Data queries ──────────────────────────────────────
   const { data, isLoading, isError } = useQuery<{ counts: DashboardCounts }>({
-    queryKey: ['dashboard-header-kpis'],
-    queryFn: async () => {
-      const res = await api.get('/encounters/stats/dashboard');
-      return res.data;
-    },
+    queryKey: DASHBOARD_STATS_QUERY_KEY,
+    queryFn: fetchDashboardStats<{ counts: DashboardCounts }>,
     staleTime: 60_000,
     refetchInterval: 120_000,
     retry: 2,
     enabled: !shouldHideHeader && !isCatalogRoute,
   });
 
-  const { data: catalogConditions, isLoading: isCatalogCountLoading } = useQuery<Array<{ id: string }>>({
-    queryKey: ['conditions', ''],
+  const { data: catalogCount, isLoading: isCatalogCountLoading } = useQuery<{ count: number }>({
+    queryKey: ['conditions', 'count'],
     queryFn: async () => {
-      const response = await api.get('/conditions');
-      return response.data as Array<{ id: string }>;
+      const response = await api.get('/conditions/count');
+      return response.data as { count: number };
     },
     staleTime: 60_000,
     enabled: isCatalogRoute,
@@ -120,15 +119,17 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
         {
           key: 'afecciones',
           label: 'Afecciones',
-          value: catalogConditions?.length,
+          value: catalogCount?.count,
           href: '/catalogo',
           icon: FiTag,
           tone: 'text-accent-text',
         },
       ]
     : getChipsForRoute(pathname, counts);
-  const showSkeleton = isCatalogRoute ? isCatalogCountLoading && !catalogConditions : isLoading && !counts;
-  const showCreate = canCreateEncounter() || canCreatePatient();
+  const showSkeleton = isCatalogRoute ? isCatalogCountLoading && !catalogCount : isLoading && !counts;
+  const canCreateEncounter = canCreateEncounterPermission(user);
+  const canCreatePatient = canCreatePatientPermission(user);
+  const showCreate = canCreateEncounter || canCreatePatient;
 
   return (
     <div className={clsx('smart-header-bar', className)} role="region" aria-label="Indicadores y acciones rápidas">
@@ -248,7 +249,7 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
                 aria-label="Crear nuevo"
                 onKeyDown={(e) => handleMenuKeyDown(e, createItemsRef)}
               >
-                {canCreateEncounter() && (
+                {canCreateEncounter && (
                   <Link
                     ref={(el) => { createItemsRef.current[0] = el; }}
                     href="/atenciones/nueva"
@@ -261,7 +262,7 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
                     Nueva atención
                   </Link>
                 )}
-                {canCreatePatient() && (
+                {canCreatePatient && (
                   <Link
                     ref={(el) => { createItemsRef.current[1] = el; }}
                     href="/pacientes/nuevo"

@@ -3,13 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, getErrorMessage } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthHasHydrated, useAuthLogout, useAuthUser } from '@/stores/auth-store';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import toast from 'react-hot-toast';
 
 export default function CambiarContrasenaPage() {
   const router = useRouter();
-  const { user, logout, hasHydrated } = useAuthStore();
+  const user = useAuthUser();
+  const logout = useAuthLogout();
+  const hasHydrated = useAuthHasHydrated();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

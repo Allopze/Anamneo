@@ -6,20 +6,20 @@ import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthIsAdmin } from '@/stores/auth-store';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
 
 export default function NuevaAfeccionPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { isAdmin } = useAuthStore();
+  const isAdmin = useAuthIsAdmin();
 
   const [name, setName] = useState('');
   const [synonyms, setSynonyms] = useState('');
   const [tags, setTags] = useState('');
 
   useEffect(() => {
-    if (!isAdmin()) {
+    if (!isAdmin) {
       router.push('/catalogo?categoria=afecciones');
     }
   }, [isAdmin, router]);
@@ -48,7 +48,7 @@ export default function NuevaAfeccionPage() {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
-  if (!isAdmin()) return null;
+  if (!isAdmin) return null;
 
   return (
     <div className="animate-fade-in max-w-2xl">

@@ -9,7 +9,7 @@ import { z } from 'zod';
 import axios from 'axios';
 import { api, getErrorMessage } from '@/lib/api';
 import { sanitizeRedirectPath } from '@/lib/login-redirect';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthLogin } from '@/stores/auth-store';
 import { stashAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
 import {
   FiArrowRight,
@@ -80,7 +80,7 @@ export default function LoginPage() {
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuthStore();
+  const login = useAuthLogin();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<'credentials' | '2fa'>('credentials');

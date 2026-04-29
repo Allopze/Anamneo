@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useTransition } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthCanEditAntecedentes, useAuthIsMedico, useAuthUser } from '@/stores/auth-store';
 import {
   canEditEncounter,
   canViewEncounterSection,
@@ -22,7 +22,9 @@ export function useEncounterWizard() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, isMedico, canEditAntecedentes } = useAuthStore();
+  const user = useAuthUser();
+  const isDoctor = useAuthIsMedico();
+  const canEditAntecedentes = useAuthCanEditAntecedentes();
   const isOperationalAdmin = !!user?.isAdmin;
   const [isSectionSwitchPending, startSectionTransition] = useTransition();
 
@@ -33,7 +35,6 @@ export function useEncounterWizard() {
     isOperationalAdmin,
   });
 
-  const isDoctor = isMedico();
   const canEdit = canEditEncounter(user ?? null, encounter);
   const canUpload = canUploadAttachmentsPermission(user ?? null, encounter);
   const duplicateAction = useDuplicateEncounterAction(encounter);
@@ -75,6 +76,7 @@ export function useEncounterWizard() {
     lastSaveOrigin: persistence.lastSaveOrigin,
     saveStatus: persistence.saveStatus,
     hasUnsavedChanges: persistence.hasUnsavedChanges,
+    dirtySectionKeys: persistence.dirtySectionKeys,
     savingSectionKey: persistence.savingSectionKey,
     errorSectionKey: persistence.errorSectionKey,
     savedSectionKey: persistence.savedSectionKey,

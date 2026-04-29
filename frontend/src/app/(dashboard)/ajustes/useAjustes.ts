@@ -12,7 +12,7 @@ import {
   renderInvitationTextTemplate,
   renderInvitationTemplatePreview,
 } from '@/lib/invitation-email-templates';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthLogout, useAuthSetUser, useAuthUser } from '@/stores/auth-store';
 import {
   profileSchema,
   passwordSchema,
@@ -24,7 +24,9 @@ import {
 export function useAjustes() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, setUser, logout } = useAuthStore();
+  const user = useAuthUser();
+  const setUser = useAuthSetUser();
+  const logout = useAuthLogout();
   const queryClient = useQueryClient();
   const isAdmin = !!user?.isAdmin;
 

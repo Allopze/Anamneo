@@ -7,16 +7,16 @@ import {
   DUPLICATE_ENCOUNTER_CREATED_MESSAGE,
 } from '@/lib/encounter-duplicate';
 import { invalidateDashboardOverviewQueries } from '@/lib/query-invalidation';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthCanCreateEncounter } from '@/stores/auth-store';
 import type { Encounter } from '@/types';
 
 export function useDuplicateEncounterAction(encounter: Pick<Encounter, 'id' | 'patientId' | 'status'> | undefined) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { canCreateEncounter } = useAuthStore();
+  const canCreateEncounter = useAuthCanCreateEncounter();
   const patientId = encounter?.patientId;
   const canDuplicateEncounter = Boolean(
-    encounter?.id && patientId && canUseEncounterAsDuplicateSource(encounter.status) && canCreateEncounter(),
+    encounter?.id && patientId && canUseEncounterAsDuplicateSource(encounter.status) && canCreateEncounter,
   );
 
   const duplicateEncounterMutation = useMutation({

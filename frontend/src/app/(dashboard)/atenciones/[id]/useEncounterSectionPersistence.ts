@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import {
@@ -56,12 +56,14 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
   const [savedSectionKey, setSavedSectionKey] = useState<SectionKey | null>(null);
   const [errorSectionKey, setErrorSectionKey] = useState<SectionKey | null>(null);
   const [savedSnapshotJson, setSavedSnapshotJson] = useState('');
+  const [dirtySectionKeys, setDirtySectionKeys] = useState<Set<SectionKey>>(() => new Set());
   const [isDraftHydrated, setIsDraftHydrated] = useState(false);
   const [localDraft, setLocalDraft] = useState<EncounterDraft | null>(null);
   const [recoverableConflicts, setRecoverableConflicts] = useState<EncounterSectionConflictBackup[]>([]);
   const [recoverableConflict, setRecoverableConflict] = useState<EncounterSectionConflictBackup | null>(null);
 
   const lastSavedRef = useRef<string>('');
+  const savedSnapshotDataRef = useRef<Record<string, any>>({});
   const formDataRef = useRef<Record<string, any>>({});
   const activeSectionKeyRef = useRef<SectionKey | null>(null);
   const initializedEncounterIdRef = useRef<string | null>(null);
@@ -69,6 +71,14 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
   useEffect(() => {
     formDataRef.current = formData;
   }, [formData]);
+
+  useEffect(() => {
+    try {
+      savedSnapshotDataRef.current = JSON.parse(savedSnapshotJson || '{}') as Record<string, any>;
+    } catch {
+      savedSnapshotDataRef.current = {};
+    }
+  }, [savedSnapshotJson]);
 
   useEffect(() => {
     activeSectionKeyRef.current = currentSection?.sectionKey ?? null;
@@ -194,6 +204,20 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     (sectionKey: SectionKey, data: any) => {
       if (!canEdit) return;
       setFormData((previous) => ({ ...previous, [sectionKey]: data }));
+      const savedData = savedSnapshotDataRef.current[sectionKey] ?? {};
+      const sectionIsDirty = JSON.stringify(data ?? {}) !== JSON.stringify(savedData);
+      setDirtySectionKeys((current) => {
+        const alreadyDirty = current.has(sectionKey);
+        if (alreadyDirty === sectionIsDirty) return current;
+
+        const next = new Set(current);
+        if (sectionIsDirty) {
+          next.add(sectionKey);
+        } else {
+          next.delete(sectionKey);
+        }
+        return next;
+      });
       setErrorSectionKey((current) => (current === sectionKey ? null : current));
       setSaveStatus('idle');
     },
@@ -216,6 +240,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
       [targetConflict.sectionKey]: targetConflict.localData,
     }));
     setErrorSectionKey(targetConflict.sectionKey as SectionKey);
+    setDirtySectionKeys((current) => new Set(current).add(targetConflict.sectionKey as SectionKey));
     setHasUnsavedChanges(true);
     setSaveStatus('idle');
     toast.success('Se restauró tu copia local para que puedas revisarla antes de guardar.');
@@ -254,6 +279,12 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
       snapshot.IDENTIFICACION = reconciledData;
       lastSavedRef.current = JSON.stringify(snapshot);
       setSavedSnapshotJson(lastSavedRef.current);
+      setDirtySectionKeys((current) => {
+        if (!current.has('IDENTIFICACION')) return current;
+        const next = new Set(current);
+        next.delete('IDENTIFICACION');
+        return next;
+      });
       queryClient.invalidateQueries({ queryKey: ['encounter', id] });
       toast.success('Se actualizó la identificación con datos de la ficha del paciente');
     } catch (error) {
@@ -290,17 +321,33 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
       return;
     }
 
-    let savedSnapshot: Record<string, any> = {};
-    try {
-      savedSnapshot = JSON.parse(lastSavedRef.current || '{}');
-    } catch {
-      savedSnapshot = {};
+    setHasUnsavedChanges(dirtySectionKeys.has(currentSection.sectionKey));
+  }, [currentSection, dirtySectionKeys, isDraftHydrated]);
+
+  useEffect(() => {
+    if (!isDraftHydrated) {
+      setDirtySectionKeys(new Set());
+      return;
     }
 
-    const currentData = JSON.stringify(formData[currentSection.sectionKey] ?? {});
-    const savedData = JSON.stringify(savedSnapshot[currentSection.sectionKey] ?? {});
-    setHasUnsavedChanges(currentData !== savedData);
-  }, [currentSection, formData, isDraftHydrated]);
+    const savedSnapshot = savedSnapshotDataRef.current;
+    const next = new Set<SectionKey>();
+
+    for (const section of sections) {
+      const currentData = JSON.stringify(formDataRef.current[section.sectionKey] ?? {});
+      const savedData = JSON.stringify(savedSnapshot[section.sectionKey] ?? {});
+      if (currentData !== savedData) {
+        next.add(section.sectionKey);
+      }
+    }
+
+    setDirtySectionKeys((current) => {
+      if (current.size === next.size && [...current].every((sectionKey) => next.has(sectionKey))) {
+        return current;
+      }
+      return next;
+    });
+  }, [isDraftHydrated, savedSnapshotJson, sections]);
 
   useEffect(() => {
     if (!encounter?.sections || !isDraftHydrated) return;
@@ -338,6 +385,8 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     setSavedSnapshotJson(lastSavedRef.current);
   }, [encounter?.sections, isDraftHydrated, setSavedSnapshotJson]);
 
+  const dirtySectionKeyList = useMemo(() => [...dirtySectionKeys], [dirtySectionKeys]);
+
   return {
     formData,
     hasUnsavedChanges,
@@ -351,6 +400,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     recoverableConflicts,
     recoverableConflict,
     savedSnapshotJson,
+    dirtySectionKeys: dirtySectionKeyList,
     pendingSaveCount: offlineQueue.pendingSaveCount,
     isDraftHydrated,
     saveSection,

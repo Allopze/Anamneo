@@ -23,7 +23,7 @@ export function SidebarNavItem({
       aria-label={item.name}
       title={collapsed ? item.name : undefined}
       className={clsx(
-        'transition-all',
+        'transition-[background-color,color,box-shadow]',
         collapsed
           ? isActive
             ? 'flex h-11 w-11 items-center justify-center rounded-card bg-accent text-accent-text shadow-soft'

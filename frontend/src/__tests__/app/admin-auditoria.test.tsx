@@ -52,7 +52,7 @@ beforeEach(() => {
       });
     }
 
-    if (url === '/audit/integrity/verify?full=true') {
+    if (url === '/audit/integrity/verify?limit=1000' || url === '/audit/integrity/verify?full=true') {
       return Promise.resolve({
         data: {
           valid: true,

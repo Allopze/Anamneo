@@ -8,14 +8,14 @@ import toast from 'react-hot-toast';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
 import { MEDICATION_ROUTE_OPTIONS } from '@/lib/medication-catalog';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthIsAdmin } from '@/stores/auth-store';
 import { MedicationCatalogItem } from '@/types';
 
 export default function EditarMedicamentoPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { isAdmin } = useAuthStore();
+  const isAdmin = useAuthIsAdmin();
   const [name, setName] = useState('');
   const [activeIngredient, setActiveIngredient] = useState('');
   const [defaultDose, setDefaultDose] = useState('');
@@ -29,11 +29,11 @@ export default function EditarMedicamentoPage() {
       const response = await api.get(`/medications/${id}`);
       return response.data as MedicationCatalogItem;
     },
-    enabled: isAdmin(),
+    enabled: isAdmin,
   });
 
   useEffect(() => {
-    if (!isAdmin()) {
+    if (!isAdmin) {
       router.push('/catalogo?categoria=medicamentos');
       return;
     }
@@ -69,7 +69,7 @@ export default function EditarMedicamentoPage() {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
-  if (!isAdmin()) {
+  if (!isAdmin) {
     return null;
   }
 

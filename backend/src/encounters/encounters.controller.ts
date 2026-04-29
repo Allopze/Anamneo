@@ -111,8 +111,25 @@ export class EncountersController {
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserData,
+    @Query('includeSignatureBaseline') includeSignatureBaseline?: string,
+    @Query('includeAttachments') includeAttachments?: string,
+    @Query('includeConsents') includeConsents?: string,
+    @Query('includeTasks') includeTasks?: string,
+    @Query('includeSignatures') includeSignatures?: string,
+    @Query('includeSuggestions') includeSuggestions?: string,
   ) {
-    return this.encountersService.findById(id, user);
+    return this.encountersService.findById(
+      id,
+      user,
+      {
+        includeSignatureBaseline: includeSignatureBaseline !== 'false',
+        includeAttachments: includeAttachments !== 'false',
+        includeConsents: includeConsents !== 'false',
+        includeTasks: includeTasks !== 'false',
+        includeSignatures: includeSignatures !== 'false',
+        includeSuggestions: includeSuggestions !== 'false',
+      },
+    );
   }
 
   @Post(':id/duplicate')

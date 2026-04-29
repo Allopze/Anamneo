@@ -13,7 +13,7 @@ import {
   CONDITION_SUGGESTION_RANKING_VERSION,
 } from './conditions-suggestion-log';
 import { validateSuggestionChoicePayload } from './conditions-suggestion-choice';
-import { getMergedConditions } from './conditions-local-queries';
+import { countMergedConditions, getMergedConditions } from './conditions-local-queries';
 import { createLocalCondition, updateLocalCondition, removeLocalCondition, hideBaseCondition } from './conditions-local-operations';
 import { getInstanceId, normalizeConditionName, toConditionResponse } from './conditions-helpers';
 
@@ -60,6 +60,16 @@ export class ConditionsService {
     }
 
     return getMergedConditions(this.prisma, user, search);
+  }
+
+  async count(user: CurrentUserData) {
+    if (user?.isAdmin) {
+      const count = await this.prisma.conditionCatalog.count();
+      return { count };
+    }
+
+    const count = await countMergedConditions(this.prisma, user);
+    return { count };
   }
 
   async findById(id: string) {

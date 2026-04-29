@@ -19,8 +19,10 @@ import {
   FiUser,
 } from 'react-icons/fi';
 import { api } from '@/lib/api';
+import { DASHBOARD_STATS_QUERY_KEY, fetchDashboardStats } from '@/lib/dashboard-stats';
 import { Encounter, REVIEW_STATUS_LABELS, STATUS_LABELS } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
+import { canCreateEncounter as canCreateEncounterPermission, canCreatePatient as canCreatePatientPermission } from '@/lib/permissions';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 import {
   STATUS_OPTIONS,
@@ -55,10 +57,10 @@ export default function AtencionesListPage() {
 function AtencionesListContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, canCreateEncounter, canCreatePatient } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const isOperationalAdmin = !!user?.isAdmin;
-  const canCreate = canCreateEncounter();
-  const canCreatePatientAllowed = canCreatePatient();
+  const canCreate = canCreateEncounterPermission(user);
+  const canCreatePatientAllowed = canCreatePatientPermission(user);
   const search = searchParams.get('search') || '';
   const [searchInput, setSearchInput] = useState(search);
   const page = Number(searchParams.get('page') || '1');
@@ -135,11 +137,8 @@ function AtencionesListContent() {
   });
 
   const { data: operationalData } = useQuery<OperationalDashboardData>({
-    queryKey: ['encounters-operational-summary'],
-    queryFn: async () => {
-      const response = await api.get('/encounters/stats/dashboard');
-      return response.data;
-    },
+    queryKey: DASHBOARD_STATS_QUERY_KEY,
+    queryFn: fetchDashboardStats<OperationalDashboardData>,
     enabled: !isOperationalAdmin,
     staleTime: 60_000,
   });
@@ -319,7 +318,7 @@ function AtencionesListContent() {
         </div>
       ) : null}
 
-      <div className="card transition-all duration-300">
+      <div className="card">
         {isLoading ? (
           <div className="space-y-4">
             {[...Array(5)].map((_, index) => (

@@ -131,24 +131,44 @@ export class ConsentsService {
     return this.formatConsent(consent);
   }
 
-  async findByPatient(patientId: string, user: RequestUser) {
+  async findByPatient(
+    patientId: string,
+    user: RequestUser,
+    options: { revokedLimit?: number } = {},
+  ) {
     await assertPatientAccess(this.prisma, user, patientId);
 
     const effectiveMedicoId = user.isAdmin ? null : getEffectiveMedicoId(user);
-    const consents = await this.prisma.informedConsent.findMany({
+    const scopeWhere = {
+      patientId,
+      ...(effectiveMedicoId
+        ? {
+            OR: [
+              this.buildPatientLevelOwnershipWhere(effectiveMedicoId),
+              { encounter: { medicoId: effectiveMedicoId } },
+            ],
+          }
+        : {}),
+    };
+    const activeConsents = await this.prisma.informedConsent.findMany({
       where: {
-        patientId,
-        ...(effectiveMedicoId
-          ? {
-              OR: [
-                this.buildPatientLevelOwnershipWhere(effectiveMedicoId),
-                { encounter: { medicoId: effectiveMedicoId } },
-              ],
-            }
-          : {}),
+        ...scopeWhere,
+        revokedAt: null,
       },
       orderBy: { grantedAt: 'desc' },
     });
+    const revokedLimit = Number.isFinite(options.revokedLimit)
+      ? Math.max(0, Math.min(options.revokedLimit ?? 0, 100))
+      : undefined;
+    const revokedConsents = await this.prisma.informedConsent.findMany({
+      where: {
+        ...scopeWhere,
+        revokedAt: { not: null },
+      },
+      orderBy: { revokedAt: 'desc' },
+      ...(revokedLimit === undefined ? {} : { take: revokedLimit }),
+    });
+    const consents = [...activeConsents, ...revokedConsents];
 
     const userNames = await this.resolveUserNames(Array.from(new Set(consents.map((consent) => consent.grantedById))));
 

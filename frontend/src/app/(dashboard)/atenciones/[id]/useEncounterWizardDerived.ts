@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useDeferredValue, useMemo } from 'react';
 import type { ComponentType } from 'react';
 import type { Attachment, Encounter, IdentificacionData, SectionKey, StructuredOrder, TratamientoData } from '@/types';
 import type { User } from '@/stores/auth-store';
@@ -48,6 +48,7 @@ export interface UseEncounterWizardDerivedInput {
   lastSaveOrigin: 'direct' | 'offline-sync' | null;
   saveStatus: 'idle' | 'saving' | 'saved' | 'queued' | 'error';
   hasUnsavedChanges: boolean;
+  dirtySectionKeys?: readonly SectionKey[];
   savingSectionKey: SectionKey | null;
   errorSectionKey: SectionKey | null;
   savedSectionKey: SectionKey | null;
@@ -106,6 +107,7 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
     lastSaveOrigin,
     saveStatus,
     hasUnsavedChanges,
+    dirtySectionKeys,
     savingSectionKey,
     errorSectionKey,
     savedSectionKey,
@@ -149,6 +151,7 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
   }, [encounter?.sections, providedSections, user]);
 
   const currentSection = providedCurrentSection ?? sections[currentSectionIndex];
+  const deferredFormData = useDeferredValue(formData);
 
   const savedSnapshot = useMemo(() => {
     try {
@@ -158,19 +161,19 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
     }
   }, [savedSnapshotJson]);
 
+  const dirtySectionKeySet = useMemo(() => new Set(dirtySectionKeys ?? []), [dirtySectionKeys]);
+
   const getSectionUiState = useCallback(
     (section: SectionType): SectionUiState => {
       if (section.sectionKey === savingSectionKey) return 'saving';
       if (section.sectionKey === errorSectionKey) return 'error';
-      const currentData = JSON.stringify(formData[section.sectionKey] ?? {});
-      const savedData = JSON.stringify(savedSnapshot[section.sectionKey] ?? {});
-      if (currentData !== savedData) return 'dirty';
+      if (dirtySectionKeySet.has(section.sectionKey)) return 'dirty';
       if (section.notApplicable) return 'notApplicable';
       if (section.completed) return 'completed';
       if (section.sectionKey === savedSectionKey) return 'saved';
       return 'idle';
     },
-    [errorSectionKey, formData, savedSectionKey, savedSnapshot, savingSectionKey],
+    [dirtySectionKeySet, errorSectionKey, savedSectionKey, savingSectionKey],
   );
 
   const currentSectionState = currentSection ? getSectionUiState(currentSection) : 'idle';
@@ -187,10 +190,10 @@ export function useEncounterWizardDerived(input: UseEncounterWizardDerivedInput)
       ...encounter,
       sections: sections.map((section) => ({
         ...section,
-        data: formData[section.sectionKey] ?? section.data,
+        data: deferredFormData[section.sectionKey] ?? section.data,
       })),
     } as Encounter);
-  }, [encounter, formData, sections]);
+  }, [deferredFormData, encounter, sections]);
 
   const currentLinkedOrderType =
     uploadMeta.category === 'EXAMEN' ? 'EXAMEN' : uploadMeta.category === 'DERIVACION' ? 'DERIVACION' : '';

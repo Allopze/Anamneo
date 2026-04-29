@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import { PatientAdminSummary } from '@/types';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthUser } from '@/stores/auth-store';
 import {
   FiArrowLeft,
   FiCalendar,
@@ -43,7 +43,7 @@ function DetailField({ label, value }: { label: string; value: string }) {
 
 export default function PatientAdministrativeDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuthStore();
+  const user = useAuthUser();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['patient-admin-summary', id],

@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import { invalidateAlertOverviewQueries } from '@/lib/query-invalidation';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthUser } from '@/stores/auth-store';
+import { isMedicoUser } from '@/lib/permissions';
 import { FiAlertTriangle, FiCheck, FiBell } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -24,6 +26,8 @@ const TYPE_LABELS: Record<string, string> = {
   GENERAL: 'General',
 };
 
+const ACKNOWLEDGED_PAGE_SIZE = 20;
+
 interface Alert {
   id: string;
   type: string;
@@ -42,12 +46,16 @@ interface PatientAlertsProps {
 
 export default function PatientAlerts({ patientId }: PatientAlertsProps) {
   const queryClient = useQueryClient();
-  const { isMedico } = useAuthStore();
+  const user = useAuthUser();
+  const isMedico = isMedicoUser(user);
+  const [acknowledgedLimit, setAcknowledgedLimit] = useState(ACKNOWLEDGED_PAGE_SIZE);
 
-  const { data: alerts = [], isLoading } = useQuery({
-    queryKey: ['alerts', patientId],
+  const { data: alerts = [], isLoading, isFetching } = useQuery({
+    queryKey: ['alerts', patientId, acknowledgedLimit],
     queryFn: async () => {
-      const res = await api.get(`/alerts/patient/${patientId}?includeAcknowledged=true`);
+      const res = await api.get(
+        `/alerts/patient/${patientId}?includeAcknowledged=true&acknowledgedLimit=${acknowledgedLimit}`,
+      );
       return res.data as Alert[];
     },
   });
@@ -113,7 +121,7 @@ export default function PatientAlerts({ patientId }: PatientAlertsProps) {
                     <p className="mt-1 text-sm font-medium text-ink">{alert.title}</p>
                     <p className="mt-0.5 text-sm text-ink-secondary">{alert.message}</p>
                   </div>
-                  {isMedico() && (
+                  {isMedico && (
                     <button
                       onClick={() => acknowledgeMutation.mutate(alert.id)}
                       disabled={acknowledgeMutation.isPending}
@@ -131,7 +139,7 @@ export default function PatientAlerts({ patientId }: PatientAlertsProps) {
           {acknowledgedAlerts.length > 0 && (
             <details className="mt-4">
               <summary className="cursor-pointer text-sm font-medium text-ink-muted">
-                Alertas reconocidas ({acknowledgedAlerts.length})
+                Últimas alertas reconocidas ({acknowledgedAlerts.length})
               </summary>
               <div className="mt-2 space-y-2">
                 {acknowledgedAlerts.map((alert) => {
@@ -151,6 +159,16 @@ export default function PatientAlerts({ patientId }: PatientAlertsProps) {
                     </div>
                   );
                 })}
+                {acknowledgedAlerts.length >= acknowledgedLimit ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary mt-2 w-full text-sm"
+                    onClick={() => setAcknowledgedLimit((current) => current + ACKNOWLEDGED_PAGE_SIZE)}
+                    disabled={isFetching}
+                  >
+                    {isFetching ? 'Cargando...' : 'Ver más alertas reconocidas'}
+                  </button>
+                ) : null}
               </div>
             </details>
           )}

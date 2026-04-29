@@ -8,12 +8,12 @@ import toast from 'react-hot-toast';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
 import { MEDICATION_ROUTE_OPTIONS } from '@/lib/medication-catalog';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthIsAdmin } from '@/stores/auth-store';
 
 export default function NuevoMedicamentoPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { isAdmin } = useAuthStore();
+  const isAdmin = useAuthIsAdmin();
   const [name, setName] = useState('');
   const [activeIngredient, setActiveIngredient] = useState('');
   const [defaultDose, setDefaultDose] = useState('');
@@ -21,7 +21,7 @@ export default function NuevoMedicamentoPage() {
   const [defaultFrequency, setDefaultFrequency] = useState('');
 
   useEffect(() => {
-    if (!isAdmin()) {
+    if (!isAdmin) {
       router.push('/catalogo?categoria=medicamentos');
     }
   }, [isAdmin, router]);
@@ -45,7 +45,7 @@ export default function NuevoMedicamentoPage() {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
-  if (!isAdmin()) {
+  if (!isAdmin) {
     return null;
   }
 
