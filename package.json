@@ -32,6 +32,6 @@
     "concurrently": "^9.2.1"
   },
   "dependencies": {
-    "@sentry/cli": "^2.58.5"
+    "@sentry/cli": "^3.4.1"
   }
 }
