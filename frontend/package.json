@@ -6,7 +6,7 @@
     "dev": "node scripts/dev-watch.js --webpack",
     "dev:turbo": "node scripts/dev-watch.js",
     "build": "node ./scripts/next-build.js",
-    "start": "next start -H 0.0.0.0 -p 5555",
+    "start": "next start -H 0.0.0.0 -p 5556",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "audit:prod": "npm audit --omit=dev --audit-level=high",

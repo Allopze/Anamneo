@@ -61,8 +61,8 @@ npm run dev
 
 Servicios esperados:
 
-- Frontend en `http://localhost:5555`
-- API en `http://localhost:5678/api`
+- Frontend en `http://localhost:5556`
+- API en `http://localhost:5679/api`
 
 La primera cuenta creada desde `/register` obtiene bootstrap de administrador. Despues de eso el sistema deja de repartir coronas gratis.
 
@@ -90,7 +90,7 @@ Los comandos que realmente vas a usar estan aqui. El resto existe, pero eso no s
 |---|---|
 | `npm run dev` | Levanta backend y frontend con supervisor |
 | `npm run dev:backend` | Backend en watch con `prisma migrate deploy` previo |
-| `npm run dev:frontend` | Frontend Next.js en `:5555` |
+| `npm run dev:frontend` | Frontend Next.js en `:5556` |
 | `npm run build` | Compila backend y frontend |
 | `npm run db:migrate` | Corre migraciones Prisma en desarrollo |
 | `npm run db:seed` | Carga datos iniciales |
@@ -121,14 +121,14 @@ Si quieres el mapa tecnico de verdad, no el resumen para humanos cansados, ve a:
 ## Notas operativas honestas
 
 - El frontend habla con `/api` same-origin y Next.js reescribe al backend. Forzar llamadas directas desde el navegador suele romper cookies y luego aparecen teorias conspirativas sobre la autenticacion.
-- En produccion, el despliegue esperado es `Docker Compose + cloudflared`; no exponer `:5678` a internet y no abrir `:5555` directo salvo que realmente sepas por que estas rompiendo el modelo soportado.
+- En produccion, el despliegue esperado es `Docker Compose + cloudflared`; no exponer `:5679` a internet y no abrir `:5556` directo salvo que realmente sepas por que estas rompiendo el modelo soportado.
 - SQLite en produccion esta soportado solo con habilitacion explicita. Funciona, pero exige disciplina operativa; no es un amuleto.
 - El script de release empaqueta una entrega reproducible en `releases/`, pero hoy no genera tags ni changelog aunque el optimismo corporativo a veces sugiera lo contrario.
 - La rotacion de secretos SMTP esta documentada en [docs/settings-key-rotation-runbook.md](docs/settings-key-rotation-runbook.md).
 
 ## Primeros pasos despues de levantar la app
 
-1. Abrir `http://localhost:5555/register`.
+1. Abrir `http://localhost:5556/register`.
 2. Crear la primera cuenta.
 3. Iniciar sesion.
 4. Configurar usuarios, SMTP y catalogos si corresponde.

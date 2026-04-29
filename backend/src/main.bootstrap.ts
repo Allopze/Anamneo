@@ -130,7 +130,7 @@ export async function bootstrapApp() {
   app.use(cookieParser());
   app.use(requestTracingMiddleware);
 
-  const corsOriginEnv = configService.get<string>('CORS_ORIGIN', 'http://localhost:5555');
+  const corsOriginEnv = configService.get<string>('CORS_ORIGIN', 'http://localhost:5556');
   const corsOrigins = corsOriginEnv.split(',').map((origin) => origin.trim());
 
   console.log(JSON.stringify({
@@ -159,7 +159,7 @@ export async function bootstrapApp() {
 
   app.setGlobalPrefix('api');
 
-  const port = configService.get<number>('PORT', 5678);
+  const port = configService.get<number>('PORT', 5679);
   await app.listen(port, '0.0.0.0');
 
   console.log(JSON.stringify({

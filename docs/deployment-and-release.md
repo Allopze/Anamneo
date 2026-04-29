@@ -33,8 +33,8 @@ Eso orquesta:
 
 | Servicio | Puerto | Funcion |
 |---|---|---|
-| `backend` | `5678` | API NestJS |
-| `frontend` | `5555` | App Next.js |
+| `backend` | `5679` | API NestJS |
+| `frontend` | `5556` | App Next.js |
 | `backup-cron` | n/a | Backup automatico SQLite |
 
 Tambien persiste datos en carpetas locales bajo `./runtime/`:
@@ -42,7 +42,7 @@ Tambien persiste datos en carpetas locales bajo `./runtime/`:
 - `./runtime/data`
 - `./runtime/uploads`
 
-Los puertos publicados por Compose quedan atados a loopback por defecto (`127.0.0.1`). Eso es intencional. Este producto esta pensado para publicarse detras de `cloudflared`, no para exponer `:5555` o `:5678` directo a internet y despues preguntarse por que las cookies `Secure` no cooperan.
+Los puertos publicados por Compose quedan atados a loopback por defecto (`127.0.0.1`). Eso es intencional. Este producto esta pensado para publicarse detras de `cloudflared`, no para exponer `:5556` o `:5679` directo a internet y despues preguntarse por que las cookies `Secure` no cooperan.
 
 ## Modelo Soportado De Publicacion
 
@@ -64,11 +64,11 @@ credentials-file: /etc/cloudflared/<uuid-del-tunnel>.json
 
 ingress:
 	- hostname: anamneo.example.com
-		service: http://localhost:5555
+		service: http://localhost:5556
 	- service: http_status:404
 ```
 
-No expongas `:5678` al publico. El backend debe quedar detras del frontend same-origin o dentro de la red local del host.
+No expongas `:5679` al publico. El backend debe quedar detras del frontend same-origin o dentro de la red local del host.
 
 ## Empaquetado de Release
 
@@ -196,7 +196,7 @@ Si la migración ya se aplicó y necesitas volver atrás:
 2. Detén los servicios: `docker compose down`.
 3. Restaura la DB: `cp runtime/data/backups/anamneo-<timestamp>.db runtime/data/anamneo.db`.
 4. Levanta: `docker compose up -d`.
-5. Verifica: `curl http://127.0.0.1:5678/api/health`.
+5. Verifica: `curl http://127.0.0.1:5679/api/health`.
 
 El cron de backup (`backup-cron`) ahora ejecuta `sqlite-ops-runner.js --mode=all`, que incluye backup + restore drill periódico + monitor + alertas. Los restore drills se ejecutan automáticamente según `SQLITE_RESTORE_DRILL_FREQUENCY_DAYS` (default: 7 días).
 

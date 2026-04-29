@@ -134,14 +134,11 @@ export type SectionUiState = keyof typeof SECTION_STATUS_META;
 
 // ─── CSS class tokens ───────────────────────────────────────────
 
-export const SURFACE_PANEL_CLASS =
-  'overflow-hidden rounded-lg border border-frame/10 bg-surface-elevated';
+export const SURFACE_PANEL_CLASS = 'overflow-hidden rounded-lg border border-frame/10 bg-surface-elevated';
 
-export const INNER_PANEL_CLASS =
-  'rounded-lg border border-surface-muted/45 bg-surface-base/55';
+export const INNER_PANEL_CLASS = 'rounded-lg border border-surface-muted/45 bg-surface-base/55';
 
-export const RAIL_PANEL_CLASS =
-  'overflow-hidden rounded-lg border border-frame/10 bg-surface-elevated/90';
+export const RAIL_PANEL_CLASS = 'w-full overflow-hidden rounded-card border border-frame/10 bg-surface-elevated/90';
 
 export const WORKSPACE_STICKY_OFFSET_CLASS = 'top-[170px]';
 
@@ -158,8 +155,7 @@ const compactDateFormatter = new Intl.DateTimeFormat('es-CL', {
   year: 'numeric',
 });
 
-export const formatDateTime = (value?: string | null) =>
-  value ? headerDateFormatter.format(new Date(value)) : '—';
+export const formatDateTime = (value?: string | null) => (value ? headerDateFormatter.format(new Date(value)) : '—');
 
 export const formatCompactDate = (value?: string | null) =>
   value ? compactDateFormatter.format(new Date(value)) : '—';

@@ -112,7 +112,7 @@ export default function EncounterWizardPage() {
 
       <div
         className={clsx(
-          'grid w-full gap-5 px-4 py-5 xl:items-start xl:px-6 xl:py-6 2xl:px-10',
+          'grid w-full gap-5 px-4 py-5 xl:items-start xl:py-6 xl:pl-3 xl:pr-6 2xl:pl-4 2xl:pr-10 motion-safe:transition-[grid-template-columns] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none',
           wiz.railCollapsed ? 'xl:grid-cols-[64px_minmax(0,1fr)]' : 'xl:grid-cols-[264px_minmax(0,1fr)]',
         )}
       >
@@ -168,8 +168,9 @@ export default function EncounterWizardPage() {
                   <div className="space-y-1">
                     <p className="font-semibold">La copia local quedó protegida y lista para comparar.</p>
                     <p>
-                      La sección <strong>{sections[conflictSectionIndex]?.label ?? wiz.recoverableConflict.sectionKey}</strong>{' '}
-                      ya fue recargada con la versión del servidor. Puedes restaurar tu texto desde el panel de
+                      La sección{' '}
+                      <strong>{sections[conflictSectionIndex]?.label ?? wiz.recoverableConflict.sectionKey}</strong> ya
+                      fue recargada con la versión del servidor. Puedes restaurar tu texto desde el panel de
                       recuperación o seguir revisando la versión vigente.
                     </p>
                   </div>

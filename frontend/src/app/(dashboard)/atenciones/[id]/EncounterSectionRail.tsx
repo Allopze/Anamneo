@@ -1,18 +1,9 @@
+import { useEffect, useRef } from 'react';
 import clsx from 'clsx';
-import {
-  FiCheck,
-  FiSlash,
-  FiChevronDown,
-  FiChevronsLeft,
-  FiChevronsRight,
-} from 'react-icons/fi';
+import { FiCheck, FiSlash, FiChevronDown, FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';
 import type { Encounter, SectionKey } from '@/types';
 import type { EncounterWizardHook } from './useEncounterWizard';
-import {
-  RAIL_PANEL_CLASS,
-  SECTION_STATUS_META,
-  WORKSPACE_STICKY_OFFSET_CLASS,
-} from './encounter-wizard.constants';
+import { RAIL_PANEL_CLASS, SECTION_STATUS_META, WORKSPACE_STICKY_OFFSET_CLASS } from './encounter-wizard.constants';
 
 type Props = Pick<
   EncounterWizardHook,
@@ -37,94 +28,181 @@ export default function EncounterSectionRail({
   moveToSection,
 }: Props) {
   const completedOrNACount = sections.filter((s) => s.completed || s.notApplicable).length;
+  const railPanelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const panel = railPanelRef.current;
+    if (!panel || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+
+    let scrollParent: HTMLElement | Window = window;
+    let parent = panel.parentElement;
+    while (parent && parent !== document.body) {
+      const overflowY = window.getComputedStyle(parent).overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') {
+        scrollParent = parent;
+        break;
+      }
+      parent = parent.parentElement;
+    }
+
+    let animationFrame = 0;
+    let currentOffset = 0;
+    let targetOffset = 0;
+    const readScrollTop = () => (scrollParent === window ? window.scrollY : (scrollParent as HTMLElement).scrollTop);
+
+    const settle = () => {
+      currentOffset += (targetOffset - currentOffset) * 0.16;
+
+      if (Math.abs(targetOffset - currentOffset) < 0.1) {
+        currentOffset = targetOffset;
+      }
+
+      panel.style.setProperty('--section-rail-inertia-y', `${currentOffset.toFixed(2)}px`);
+      animationFrame = currentOffset === targetOffset ? 0 : window.requestAnimationFrame(settle);
+    };
+
+    const handleScroll = () => {
+      targetOffset = Math.min(28, Math.max(0, readScrollTop() * 0.05));
+
+      if (!animationFrame) {
+        animationFrame = window.requestAnimationFrame(settle);
+      }
+    };
+
+    handleScroll();
+    scrollParent.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      scrollParent.removeEventListener('scroll', handleScroll);
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const panel = railPanelRef.current;
+    if (!panel || railCollapsed) {
+      return;
+    }
+
+    const updateExpandedHeight = () => {
+      panel.style.setProperty('--section-rail-expanded-height', `${panel.scrollHeight}px`);
+    };
+
+    updateExpandedHeight();
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(updateExpandedHeight);
+    observer.observe(panel);
+
+    return () => observer.disconnect();
+  }, [railCollapsed, sections.length, completedOrNACount]);
 
   return (
-    <aside className="hidden xl:block">
-      <div className={clsx('sticky', WORKSPACE_STICKY_OFFSET_CLASS)}>
-        <div className={clsx(RAIL_PANEL_CLASS, 'transition-[width] duration-200')}>
-          {/* Header — hidden when collapsed */}
-          {!railCollapsed && (
-            <div className="border-b border-surface-muted/35 px-5 py-5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-ink">Secciones</h2>
-                <span className="text-xs font-medium text-ink-secondary">
-                  {completedOrNACount}/{sections.length}
-                </span>
-              </div>
-              <div
-                className="mt-3 h-1 w-full overflow-hidden rounded-full bg-surface-muted/50"
-                role="progressbar"
-                aria-label="Progreso de secciones completadas"
-                aria-valuemin={0}
-                aria-valuemax={sections.length}
-                aria-valuenow={completedOrNACount}
-              >
-                <div
-                  className="h-full rounded-full bg-frame transition-[width] duration-200"
-                  style={{ width: `${(completedOrNACount / sections.length) * 100}%` }}
-                />
-              </div>
+    <aside
+      className={clsx('hidden xl:block xl:self-start xl:justify-self-start xl:sticky', WORKSPACE_STICKY_OFFSET_CLASS)}
+    >
+      <div
+        ref={railPanelRef}
+        className={clsx(
+          RAIL_PANEL_CLASS,
+          'motion-safe:transition-[width,min-height,border-color,background-color] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none will-change-transform',
+        )}
+        style={{
+          transform: 'translateY(var(--section-rail-inertia-y, 0px))',
+          minHeight: railCollapsed
+            ? 'var(--section-rail-expanded-height, min(760px, calc(100dvh - 112px)))'
+            : undefined,
+        }}
+      >
+        {/* Header — hidden when collapsed */}
+        {!railCollapsed && (
+          <div className="border-b border-surface-muted/35 px-5 py-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-ink">Secciones</h2>
+              <span className="text-xs font-medium text-ink-secondary">
+                {completedOrNACount}/{sections.length}
+              </span>
             </div>
-          )}
-          {/* Collapsed mini-progress */}
-          {railCollapsed && (
-            <div className="px-2 pt-3 pb-1">
-              <div
-                className="mx-auto h-1 w-full overflow-hidden rounded-full bg-surface-muted/50"
-                role="progressbar"
-                aria-label="Progreso de secciones completadas"
-                aria-valuemin={0}
-                aria-valuemax={sections.length}
-                aria-valuenow={completedOrNACount}
-              >
-                <div
-                  className="h-full rounded-full bg-frame transition-[width] duration-200"
-                  style={{ width: `${(completedOrNACount / sections.length) * 100}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          <nav
-            className={clsx('flex flex-col gap-1 py-2', railCollapsed ? 'items-center px-1.5' : 'px-3')}
-            aria-label="Secciones de la atención"
-          >
-            {renderSectionItems({
-              sections,
-              currentSectionIndex,
-              railCollapsed,
-              railCompletedCollapsed,
-              setRailCompletedCollapsed,
-              getSectionUiState,
-              moveToSection,
-            })}
-          </nav>
-
-          {/* Rail collapse toggle */}
-          <div className={clsx('border-t border-surface-muted/35', railCollapsed ? 'px-1.5 py-2' : 'px-3 py-2')}>
-            <button
-              type="button"
-              onClick={() =>
-                setRailCollapsed((prev: boolean) => {
-                  const next = !prev;
-                  localStorage.setItem('anamneo:encounter-rail-collapsed', next ? '1' : '0');
-                  return next;
-                })
-              }
-              className="flex w-full items-center justify-center gap-2 rounded-card border border-transparent px-2 py-2 text-xs font-medium text-ink-secondary transition-colors hover:border-surface-muted/40 hover:bg-surface-base/45"
-              aria-label={railCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
-              title={railCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
+            <div
+              className="mt-3 h-1 w-full overflow-hidden rounded-full bg-surface-muted/50"
+              role="progressbar"
+              aria-label="Progreso de secciones completadas"
+              aria-valuemin={0}
+              aria-valuemax={sections.length}
+              aria-valuenow={completedOrNACount}
             >
-              {railCollapsed ? (
-                <FiChevronsRight className="h-4 w-4" />
-              ) : (
-                <>
-                  <FiChevronsLeft className="h-4 w-4" />
-                  <span>Colapsar</span>
-                </>
-              )}
-            </button>
+              <div
+                className="h-full rounded-full bg-frame transition-[width] duration-200"
+                style={{ width: `${(completedOrNACount / sections.length) * 100}%` }}
+              />
+            </div>
           </div>
+        )}
+        {/* Collapsed mini-progress */}
+        {railCollapsed && (
+          <div className="px-2 pt-3 pb-1">
+            <div
+              className="mx-auto h-1 w-full overflow-hidden rounded-full bg-surface-muted/50"
+              role="progressbar"
+              aria-label="Progreso de secciones completadas"
+              aria-valuemin={0}
+              aria-valuemax={sections.length}
+              aria-valuenow={completedOrNACount}
+            >
+              <div
+                className="h-full rounded-full bg-frame transition-[width] duration-200"
+                style={{ width: `${(completedOrNACount / sections.length) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        <nav
+          className={clsx('flex flex-col gap-1 py-2', railCollapsed ? 'items-center px-1.5' : 'px-3')}
+          aria-label="Secciones de la atención"
+        >
+          {renderSectionItems({
+            sections,
+            currentSectionIndex,
+            railCollapsed,
+            railCompletedCollapsed,
+            setRailCompletedCollapsed,
+            getSectionUiState,
+            moveToSection,
+          })}
+        </nav>
+
+        {/* Rail collapse toggle */}
+        <div className={clsx('border-t border-surface-muted/35', railCollapsed ? 'px-1.5 py-2' : 'px-3 py-2')}>
+          <button
+            type="button"
+            onClick={() =>
+              setRailCollapsed((prev: boolean) => {
+                const next = !prev;
+                localStorage.setItem('anamneo:encounter-rail-collapsed', next ? '1' : '0');
+                return next;
+              })
+            }
+            className="flex w-full items-center justify-center gap-2 rounded-card border border-transparent px-2 py-2 text-xs font-medium text-ink-secondary transition-colors hover:border-surface-muted/40 hover:bg-surface-base/45"
+            aria-label={railCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
+            title={railCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
+          >
+            {railCollapsed ? (
+              <FiChevronsRight className="h-4 w-4" />
+            ) : (
+              <>
+                <FiChevronsLeft className="h-4 w-4" />
+                <span>Colapsar</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </aside>
@@ -152,9 +230,7 @@ function renderSectionItems({
   getSectionUiState: (s: SectionType) => keyof typeof SECTION_STATUS_META;
   moveToSection: (i: number) => void;
 }) {
-  const doneCount = sections.filter(
-    (s, i) => (s.completed || s.notApplicable) && i !== currentSectionIndex,
-  ).length;
+  const doneCount = sections.filter((s, i) => (s.completed || s.notApplicable) && i !== currentSectionIndex).length;
   const shouldOfferCollapse = doneCount >= 3;
   const collapsibleItems: React.ReactNode[] = [];
   const fixedItems: (React.ReactNode | 'SLOT')[] = [];
@@ -346,10 +422,7 @@ function SectionRow({
           </span>
         )}
         {section.notApplicable && section.notApplicableReason && (
-          <span
-            className="mt-0.5 block truncate text-[11px] text-ink-muted"
-            title={section.notApplicableReason}
-          >
+          <span className="mt-0.5 block truncate text-[11px] text-ink-muted" title={section.notApplicableReason}>
             {section.notApplicableReason}
           </span>
         )}

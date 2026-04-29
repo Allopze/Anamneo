@@ -25,7 +25,7 @@ services:
       BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?BOOTSTRAP_TOKEN is required}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
-      PORT: 5678
+      PORT: 5679
       CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN is required}
       TRUST_PROXY: ${TRUST_PROXY:-1}
       UPLOAD_DEST: /app/uploads
@@ -44,13 +44,13 @@ services:
       INVITATION_EMAIL_SUBJECT: ${INVITATION_EMAIL_SUBJECT:-Invitacion a {{clinicName}}}
       SENTRY_DSN: ${SENTRY_DSN:-}
     ports:
-      - "${BACKEND_BIND_HOST:-127.0.0.1}:${BACKEND_PORT:-5678}:5678"
+      - "${BACKEND_BIND_HOST:-127.0.0.1}:${BACKEND_PORT:-5679}:5679"
     volumes:
       - ./runtime/data:/app/data
       - ./runtime/uploads:/app/uploads
     healthcheck:
       test:
-        ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:5678/api/health"]
+        ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:5679/api/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -62,7 +62,7 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: /api
-        API_PROXY_TARGET: http://backend:5678/api
+        API_PROXY_TARGET: http://backend:5679/api
         NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE: ${NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE:-false}
     container_name: anamneo-frontend
     restart: unless-stopped
@@ -72,15 +72,15 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: /api
-      API_PROXY_TARGET: http://backend:5678/api
+      API_PROXY_TARGET: http://backend:5679/api
       NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE: ${NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE:-false}
       NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
-      PORT: 5555
+      PORT: 5556
       HOSTNAME: "0.0.0.0"
     ports:
-      - "${FRONTEND_BIND_HOST:-127.0.0.1}:${FRONTEND_PORT:-5555}:5555"
+      - "${FRONTEND_BIND_HOST:-127.0.0.1}:${FRONTEND_PORT:-5556}:5556"
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:5555"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:5556"]
       interval: 10s
       timeout: 5s
       retries: 5

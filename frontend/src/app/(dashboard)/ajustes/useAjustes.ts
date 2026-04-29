@@ -167,7 +167,7 @@ export function useAjustes() {
     const configured = clinic.appPublicUrl.trim().replace(/\/+$/, '');
     if (configured) return configured;
     if (typeof window !== 'undefined') return window.location.origin;
-    return 'http://localhost:5555';
+    return 'http://localhost:5556';
   }, [clinic.appPublicUrl]);
 
   const currentPresetId = useMemo(

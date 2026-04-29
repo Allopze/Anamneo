@@ -7,7 +7,7 @@ const { installProcessGuard } = require('../../scripts/dev-process-guard');
 const frontendRoot = path.resolve(__dirname, '..');
 const nextBin = path.join(frontendRoot, 'node_modules', 'next', 'dist', 'bin', 'next');
 const host = process.env.HOST || '0.0.0.0';
-const port = process.env.PORT || '5555';
+const port = process.env.PORT || '5556';
 
 let serverProcess = null;
 let isStopping = false;
