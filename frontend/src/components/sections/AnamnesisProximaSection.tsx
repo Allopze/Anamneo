@@ -85,7 +85,7 @@ export default function AnamnesisProximaSection({ data, onChange, readOnly }: Pr
       <SectionBlock title="Cronología y moduladores">
         <div className="space-y-3 lg:space-y-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:gap-4">
-            <div>
+            <div className="min-w-0">
               <label htmlFor={inicioId} className="form-label">Inicio</label>
               <input
                 id={inicioId}
@@ -98,7 +98,7 @@ export default function AnamnesisProximaSection({ data, onChange, readOnly }: Pr
               />
               <p className="mt-1 text-xs text-ink-muted">Momento de comienzo, gatillante o forma de instalación.</p>
             </div>
-            <div>
+            <div className="min-w-0">
               <label htmlFor={evolucionId} className="form-label">Evolución</label>
               <input
                 id={evolucionId}
@@ -177,7 +177,7 @@ export default function AnamnesisProximaSection({ data, onChange, readOnly }: Pr
           placeholder=""
         />
 
-        <fieldset className="mt-4 rounded-lg border border-surface-muted/40 bg-surface-base/45 p-4">
+        <fieldset className="mt-4 min-w-0 rounded-lg border border-surface-muted/40 bg-surface-base/45 p-4">
           <legend className="px-1 text-sm font-semibold text-ink">Perfil estructurado de dolor abdominal</legend>
           <p className="mt-1 text-sm text-ink-secondary">
             Úsalo cuando quieras registrar el cuadro gastrointestinal en campos comparables para analítica.
@@ -208,7 +208,7 @@ export default function AnamnesisProximaSection({ data, onChange, readOnly }: Pr
           </div>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div>
+            <div className="min-w-0">
               <label htmlFor={comidaId} className="form-label">¿Asociado a comida?</label>
               <select
                 id={comidaId}
@@ -224,7 +224,7 @@ export default function AnamnesisProximaSection({ data, onChange, readOnly }: Pr
               </select>
               <p className="mt-1 text-xs text-ink-muted">Ayuda a ordenar el patrón posprandial o funcional.</p>
             </div>
-            <div>
+            <div className="min-w-0">
               <SectionFieldHeader
                 label="Notas estructuradas del cuadro"
                 htmlFor={notasId}

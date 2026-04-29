@@ -28,6 +28,7 @@
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org alejandro-lopez-zelaya --project node-nestjs .next && sentry-cli sourcemaps upload --org alejandro-lopez-zelaya --project node-nestjs .next"
   },
   "devDependencies": {
+    "axios-mock-adapter": "^2.1.0",
     "concurrently": "^9.2.1"
   },
   "dependencies": {
