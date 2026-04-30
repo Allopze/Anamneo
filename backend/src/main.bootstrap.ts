@@ -159,8 +159,9 @@ export async function bootstrapApp() {
 
   app.setGlobalPrefix('api');
 
-  const port = configService.get<number>('PORT', 5678);
-  await app.listen(port, '0.0.0.0');
+  const port = configService.get<number>('BACKEND_PORT') ?? configService.get<number>('PORT', 5678);
+  const host = configService.get<string>('BACKEND_BIND_HOST', '0.0.0.0');
+  await app.listen(port, host);
 
   console.log(JSON.stringify({
     level: 'info',

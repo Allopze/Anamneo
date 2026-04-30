@@ -20,7 +20,7 @@ interface RecentPatientsSectionProps {
 
 export default function RecentPatientsSection({ patients, isLoading }: RecentPatientsSectionProps) {
   return (
-    <section className="animate-fade-in overflow-hidden rounded-[14px] border border-surface-muted/45 bg-surface-elevated shadow-soft">
+    <section className="animate-fade-in overflow-hidden rounded-card border border-surface-muted/45 bg-surface-elevated shadow-soft">
       <div className="flex items-center justify-between gap-4 border-b border-surface-muted/35 px-5 py-4 sm:px-6">
         <div>
           <h2 className="text-lg font-bold tracking-tight text-ink">Pacientes recientes</h2>
@@ -34,7 +34,7 @@ export default function RecentPatientsSection({ patients, isLoading }: RecentPat
       {isLoading ? (
         <div className="space-y-3 px-5 py-5 sm:px-6">
           {[...Array(4)].map((_, index) => (
-            <div key={index} className="h-14 rounded-[10px] skeleton" />
+            <div key={index} className="h-14 rounded-card skeleton" />
           ))}
         </div>
       ) : patients.length > 0 ? (
@@ -47,7 +47,7 @@ export default function RecentPatientsSection({ patients, isLoading }: RecentPat
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-surface-muted/40 bg-surface-inset text-ink-secondary">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-card border border-surface-muted/40 bg-surface-inset text-ink-secondary">
                     <FiUsers className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">

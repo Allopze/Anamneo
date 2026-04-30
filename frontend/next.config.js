@@ -8,7 +8,10 @@ const { withSentryConfig } = require('@sentry/nextjs');
 loadEnvConfig(path.join(__dirname, '..'));
 
 /** @type {import('next').NextConfig} */
-const backendApiUrl = (process.env.API_PROXY_TARGET || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5679/api').replace(/\/$/, '');
+const backendHost = process.env.BACKEND_BIND_HOST || 'localhost';
+const backendPort = process.env.BACKEND_PORT || process.env.PORT || '5678';
+const defaultBackendApiUrl = `http://${backendHost}:${backendPort}/api`;
+const backendApiUrl = (process.env.API_PROXY_TARGET || defaultBackendApiUrl).replace(/\/$/, '');
 const defaultAllowedDevOrigins = [
   'localhost',
   '127.0.0.1',

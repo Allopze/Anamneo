@@ -6,6 +6,21 @@ import { formatDashboardRecentEncounter, formatDashboardUpcomingTask } from './e
 
 const ACTIVE_TASK_STATUSES = ['PENDIENTE', 'EN_PROCESO'] as const;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const DASHBOARD_ENCOUNTER_INCLUDE = {
+  patient: { select: { id: true, nombre: true, rut: true } },
+  createdBy: { select: { id: true, nombre: true } },
+  episode: {
+    select: {
+      id: true,
+      label: true,
+      normalizedLabel: true,
+      startDate: true,
+      endDate: true,
+      isActive: true,
+    },
+  },
+  sections: { select: { sectionKey: true, completed: true } },
+};
 
 interface EncounterDashboardReadModelParams {
   prisma: PrismaService;
@@ -32,6 +47,7 @@ export async function getEncounterDashboardReadModel(params: EncounterDashboardR
     cancelado,
     pendingReview,
     recent,
+    activeEncounters,
     upcomingTasks,
     patientIncomplete,
     patientPendingVerification,
@@ -49,21 +65,13 @@ export async function getEncounterDashboardReadModel(params: EncounterDashboardR
       where,
       take: 5,
       orderBy: { updatedAt: 'desc' },
-      include: {
-        patient: { select: { id: true, nombre: true, rut: true } },
-        createdBy: { select: { id: true, nombre: true } },
-        episode: {
-          select: {
-            id: true,
-            label: true,
-            normalizedLabel: true,
-            startDate: true,
-            endDate: true,
-            isActive: true,
-          },
-        },
-        sections: { select: { sectionKey: true, completed: true } },
-      },
+      include: DASHBOARD_ENCOUNTER_INCLUDE,
+    }),
+    prisma.encounter.findMany({
+      where: { ...where, status: 'EN_PROGRESO' },
+      take: 8,
+      orderBy: { updatedAt: 'desc' },
+      include: DASHBOARD_ENCOUNTER_INCLUDE,
     }),
     prisma.encounterTask.findMany({
       where: {
@@ -141,6 +149,7 @@ export async function getEncounterDashboardReadModel(params: EncounterDashboardR
       upcomingAdministrativeTasks,
       total: enProgreso + completado + cancelado,
     },
+    activeEncounters: activeEncounters.map((encounter) => formatDashboardRecentEncounter(encounter)),
     recent: recent.map((encounter) => formatDashboardRecentEncounter(encounter)),
     upcomingTasks: upcomingTasks.map((task) => formatDashboardUpcomingTask(task)),
   };

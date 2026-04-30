@@ -16,7 +16,7 @@ interface RecentActivitySectionProps {
 export default function RecentActivitySection({ encounters, isLoading }: RecentActivitySectionProps) {
   return (
     <section
-      className="animate-fade-in overflow-hidden rounded-[14px] border border-surface-muted/45 bg-surface-elevated shadow-soft xl:col-span-2"
+      className="animate-fade-in overflow-hidden rounded-card border border-surface-muted/45 bg-surface-elevated shadow-soft xl:col-span-2"
       style={sectionAnimation(220)}
     >
       <div className="flex flex-col gap-3 border-b border-surface-muted/35 px-5 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-6">
@@ -32,7 +32,7 @@ export default function RecentActivitySection({ encounters, isLoading }: RecentA
       {isLoading ? (
         <div className="space-y-3 px-5 py-5 sm:px-6">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-14 rounded-[10px] skeleton" />
+            <div key={i} className="h-14 rounded-card skeleton" />
           ))}
         </div>
       ) : encounters.length > 0 ? (
@@ -47,7 +47,7 @@ export default function RecentActivitySection({ encounters, isLoading }: RecentA
                 <div className="flex items-center gap-3">
                   <div
                     className={clsx(
-                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-surface-muted/40',
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-card border border-surface-muted/40',
                       encounter.status === 'COMPLETADO'
                         ? 'bg-status-green/18 text-status-green-text'
                         : encounter.status === 'EN_PROGRESO'

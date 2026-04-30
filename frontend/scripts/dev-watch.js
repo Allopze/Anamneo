@@ -1,13 +1,36 @@
 #!/usr/bin/env node
 
 const path = require('node:path');
+const { readFileSync } = require('node:fs');
 const { spawn } = require('node:child_process');
 const { installProcessGuard } = require('../../scripts/dev-process-guard');
 
 const frontendRoot = path.resolve(__dirname, '..');
+const repoRoot = path.resolve(frontendRoot, '..');
 const nextBin = path.join(frontendRoot, 'node_modules', 'next', 'dist', 'bin', 'next');
-const host = process.env.HOST || '0.0.0.0';
-const port = process.env.PORT || '5555';
+
+function readRootEnvValue(key) {
+  try {
+    const envText = readFileSync(path.join(repoRoot, '.env'), 'utf8');
+    const line = envText
+      .split(/\r?\n/)
+      .find((entry) => entry.startsWith(`${key}=`));
+
+    if (!line) {
+      return undefined;
+    }
+
+    return line
+      .slice(key.length + 1)
+      .trim()
+      .replace(/^['"]|['"]$/g, '');
+  } catch {
+    return undefined;
+  }
+}
+
+const host = process.env.FRONTEND_BIND_HOST || readRootEnvValue('FRONTEND_BIND_HOST') || process.env.HOST || '0.0.0.0';
+const port = process.env.FRONTEND_PORT || readRootEnvValue('FRONTEND_PORT') || '5555';
 
 let serverProcess = null;
 let isStopping = false;

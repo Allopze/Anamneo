@@ -7,6 +7,18 @@ import {
 } from 'react-icons/fi';
 import { PatientTask } from '@/types';
 
+export type DashboardEncounterSummary = {
+  id: string;
+  patientId: string;
+  patientName: string;
+  patientRut: string | null;
+  createdByName: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  progress: { completed: number; total: number };
+};
+
 export interface DashboardData {
   counts: {
     enProgreso: number;
@@ -24,17 +36,8 @@ export interface DashboardData {
     patientVerified: number;
     patientNonVerified: number;
   };
-  recent: Array<{
-    id: string;
-    patientId: string;
-    patientName: string;
-    patientRut: string | null;
-    createdByName: string;
-    status: string;
-    createdAt: string;
-    updatedAt: string;
-    progress: { completed: number; total: number };
-  }>;
+  recent: DashboardEncounterSummary[];
+  activeEncounters: DashboardEncounterSummary[];
   upcomingTasks: PatientTask[];
 }
 

@@ -181,6 +181,9 @@ export function registerEncounterFollowupTasks() {
     expect(res.body.counts.dueTodayTasks).toBeGreaterThanOrEqual(1);
     expect(res.body.counts.dueThisWeekTasks).toBeGreaterThanOrEqual(1);
     expect(res.body.counts.upcomingAdministrativeTasks).toBeGreaterThanOrEqual(1);
+    expect(Array.isArray(res.body.activeEncounters)).toBe(true);
+    expect(res.body.activeEncounters.length).toBeLessThanOrEqual(8);
+    expect(res.body.activeEncounters.every((encounter: any) => encounter.status === 'EN_PROGRESO')).toBe(true);
   });
 
   it('PUT /api/patients/tasks/:taskId → update patient task', async () => {

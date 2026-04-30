@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import clsx from 'clsx';
-import { FiCalendar, FiChevronRight, FiClipboard, FiClock, FiFolder } from 'react-icons/fi';
+import { FiCalendar, FiChevronRight, FiClipboard, FiClock, FiFolder, FiPlus } from 'react-icons/fi';
 import { formatDateOnly } from '@/lib/date';
 import { STATUS_LABELS, TASK_TYPE_LABELS } from '@/types';
 import { type DashboardData, sectionAnimation } from './dashboard.constants';
@@ -38,11 +38,7 @@ export default function DashboardClinicalView({
   onDismissOverdueAlert,
 }: DashboardClinicalViewProps) {
   const recentEncounters = useMemo(() => data?.recent ?? [], [data?.recent]);
-
-  const pendingEncounters = useMemo(
-    () => recentEncounters.filter((e) => e.status === 'EN_PROGRESO'),
-    [recentEncounters],
-  );
+  const activeEncounters = useMemo(() => data?.activeEncounters ?? [], [data?.activeEncounters]);
 
   const patientMap = useMemo(() => {
     const map = new Map<
@@ -81,7 +77,6 @@ export default function DashboardClinicalView({
 
   const recentPatients = Array.from(patientMap.values()).slice(0, 5);
   const upcomingTasks = data?.upcomingTasks ?? [];
-  const totalForBreakdown = Math.max(data?.counts.total ?? 0, 1);
 
   const reminderCards = useMemo(
     () =>
@@ -127,7 +122,7 @@ export default function DashboardClinicalView({
   );
 
   const panelClass =
-    'animate-fade-in overflow-hidden rounded-[14px] border border-surface-muted/45 bg-surface-elevated shadow-soft';
+    'animate-fade-in overflow-hidden rounded-card border border-surface-muted/45 bg-surface-elevated shadow-soft';
 
   return (
     <div className="space-y-4 pb-2">
@@ -137,10 +132,7 @@ export default function DashboardClinicalView({
         isLoading={isLoading}
         canNewEncounter={canNewEncounter}
         canNewPatient={canNewPatient}
-        pendingEncounters={pendingEncounters}
         recentPatientsCount={recentPatients.length}
-        upcomingTasks={upcomingTasks}
-        totalForBreakdown={totalForBreakdown}
       />
 
       {showOverdueAlert && (
@@ -172,27 +164,35 @@ export default function DashboardClinicalView({
           {isLoading ? (
             <div className="space-y-3 px-5 py-5 sm:px-6">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-16 rounded-[10px] skeleton" />
+                <div key={i} className="h-16 rounded-card skeleton" />
               ))}
             </div>
-          ) : pendingEncounters.length > 0 ? (
+          ) : activeEncounters.length > 0 ? (
             <div className="divide-y divide-surface-muted/35">
-              {pendingEncounters.map((encounter) => {
+              {activeEncounters.map((encounter, index) => {
                 const pct =
                   encounter.progress.total > 0 ? (encounter.progress.completed / encounter.progress.total) * 100 : 0;
                 return (
                   <Link
                     key={encounter.id}
                     href={`/atenciones/${encounter.id}`}
-                    className="group grid gap-4 px-5 py-4 transition-colors hover:bg-surface-inset/45 sm:px-6 lg:grid-cols-[minmax(0,1fr)_190px]"
+                    className={clsx(
+                      'group grid gap-4 px-5 py-4 transition-colors hover:bg-surface-inset/45 sm:px-6 lg:grid-cols-[minmax(0,1fr)_190px]',
+                      index === 0 && 'bg-surface-inset/55',
+                    )}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-surface-muted/40 bg-surface-inset text-ink-secondary">
+                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-card border border-surface-muted/40 bg-surface-inset text-ink-secondary">
                         <FiClock className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <p className="truncate text-sm font-bold text-ink">{encounter.patientName}</p>
+                          {index === 0 && (
+                            <span className="rounded-pill bg-accent px-2.5 py-0.5 text-xs font-bold text-accent-text">
+                              Retomar
+                            </span>
+                          )}
                           {encounter.patientRut && (
                             <span className="text-sm text-ink-muted">{encounter.patientRut}</span>
                           )}
@@ -221,8 +221,17 @@ export default function DashboardClinicalView({
               })}
             </div>
           ) : (
-            <div className="px-5 py-8 sm:px-6">
+            <div className="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <p className="text-sm text-ink-secondary">No hay atenciones en progreso en este momento.</p>
+              {canNewEncounter && (
+                <Link
+                  href="/atenciones/nueva"
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-pill border border-frame-dark bg-frame-dark px-3.5 text-sm font-semibold text-white transition-colors hover:bg-ink"
+                >
+                  <FiPlus className="h-4 w-4" />
+                  Nueva atención
+                </Link>
+              )}
             </div>
           )}
         </section>
@@ -245,7 +254,7 @@ export default function DashboardClinicalView({
             {isLoading ? (
               <div className="space-y-3 px-5 py-5">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="h-16 rounded-[10px] skeleton" />
+                  <div key={i} className="h-16 rounded-card skeleton" />
                 ))}
               </div>
             ) : upcomingTasks.length > 0 ? (
@@ -256,14 +265,14 @@ export default function DashboardClinicalView({
                     href={`/pacientes/${task.patient?.id ?? task.patientId}`}
                     className="group flex items-start gap-3 px-5 py-4 transition-colors hover:bg-surface-inset/45"
                   >
-                    <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-surface-muted/40 bg-surface-inset text-ink-secondary">
+                    <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-card border border-surface-muted/40 bg-surface-inset text-ink-secondary">
                       <FiClipboard className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
                         <p className="truncate text-sm font-bold text-ink">{task.title}</p>
                         {task.isOverdue && (
-                          <span className="rounded-[6px] bg-status-red/16 px-2 py-0.5 text-xs font-bold text-status-red-text">
+                          <span className="rounded-pill bg-status-red/16 px-2.5 py-0.5 text-xs font-bold text-status-red-text">
                             Atrasado
                           </span>
                         )}
@@ -281,11 +290,13 @@ export default function DashboardClinicalView({
                 ))}
               </div>
             ) : (
-              <div className="px-5 py-6">
+              <div className="px-5 py-4">
                 <p className="text-sm text-ink-secondary">No hay seguimientos próximos cargados en el tablero.</p>
               </div>
             )}
           </section>
+
+          <RecentPatientsSection patients={recentPatients} isLoading={isLoading} />
 
           <section className={panelClass} style={sectionAnimation(120)}>
             <div className="flex items-center justify-between gap-4 border-b border-surface-muted/35 px-5 py-4">
@@ -301,7 +312,20 @@ export default function DashboardClinicalView({
             {isLoading ? (
               <div className="space-y-2 px-5 py-4">
                 {[...Array(4)].map((_, index) => (
-                  <div key={index} className="h-11 rounded-[10px] skeleton" />
+                  <div key={index} className="h-11 rounded-card skeleton" />
+                ))}
+              </div>
+            ) : reminderCards.every((card) => card.value === 0) ? (
+              <div className="grid gap-2 px-4 py-3 sm:grid-cols-2">
+                {reminderCards.map((card) => (
+                  <Link
+                    key={card.label}
+                    href={card.href}
+                    className="flex items-center justify-between gap-3 rounded-card border border-surface-muted/35 bg-surface-inset/45 px-3 py-2 text-sm transition-colors hover:bg-surface-inset"
+                  >
+                    <span className="min-w-0 truncate font-medium text-ink-secondary">{card.label}</span>
+                    <span className="font-extrabold text-ink">0</span>
+                  </Link>
                 ))}
               </div>
             ) : (
@@ -315,7 +339,7 @@ export default function DashboardClinicalView({
                       card.value > 0 ? card.tone : 'text-ink',
                     )}
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-surface-muted/40 bg-surface-inset text-current">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-card border border-surface-muted/40 bg-surface-inset text-current">
                       <card.icon className="h-4 w-4" />
                     </div>
                     <span className="min-w-0 flex-1 truncate text-sm font-bold">{card.label}</span>
@@ -325,8 +349,6 @@ export default function DashboardClinicalView({
               </div>
             )}
           </section>
-
-          <RecentPatientsSection patients={recentPatients} isLoading={isLoading} />
         </div>
 
         <RecentActivitySection encounters={recentEncounters} isLoading={isLoading} />

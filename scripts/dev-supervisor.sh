@@ -42,9 +42,39 @@ find_pids_on_port() {
   echo "$pids"
 }
 
+read_env_value() {
+  local key="$1"
+  local env_file="${repo_root}/.env"
+  local value
+
+  value="${!key:-}"
+  if [[ -n "$value" ]]; then
+    echo "$value"
+    return
+  fi
+
+  if [[ ! -f "$env_file" ]]; then
+    return
+  fi
+
+  awk -F= -v key="$key" '
+    $1 == key {
+      value = substr($0, index($0, "=") + 1)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      gsub(/^["'\'']|["'\'']$/, "", value)
+      print value
+      exit
+    }
+  ' "$env_file"
+}
+
 kill_existing_port() {
   local port="$1"
   local pids
+
+  if [[ -z "$port" ]]; then
+    return
+  fi
 
   pids="$(find_pids_on_port "$port")"
   if [[ -n "$pids" ]]; then
@@ -95,9 +125,19 @@ kill_processes() {
 }
 
 cleanup_port_conflicts() {
-  for port in 5555 5678; do
-    kill_existing_port "$port"
-  done
+  local backend_port frontend_port
+
+  backend_port="$(read_env_value BACKEND_PORT)"
+  if [[ -z "$backend_port" ]]; then
+    backend_port="$(read_env_value PORT)"
+  fi
+  frontend_port="$(read_env_value FRONTEND_PORT)"
+
+  printf '%s\n' 5555 5678 "${backend_port:-5678}" "${frontend_port:-5555}" \
+    | sort -u \
+    | while read -r port; do
+      kill_existing_port "$port"
+    done
 }
 
 cleanup_previous_dev_processes() {
