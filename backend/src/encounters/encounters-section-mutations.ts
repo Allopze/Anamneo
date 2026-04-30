@@ -19,6 +19,10 @@ import {
   shouldSyncEncounterClinicalStructures,
   syncEncounterClinicalStructures,
 } from './encounters-clinical-structures';
+import {
+  rebuildPatientClinicalSearchProjection,
+  shouldSyncPatientClinicalSearch,
+} from '../patients/patient-clinical-search-projection';
 import { assertEncounterAccess, canEditEncounterCreatedBy } from './encounter-policy';
 import {
   IDENTIFICATION_SNAPSHOT_FIELD_META,
@@ -218,6 +222,13 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
 
     if (shouldSyncEncounterClinicalStructures(sectionKey)) {
       await syncEncounterClinicalStructures({ prisma: tx, encounterId });
+    }
+
+    if (shouldSyncPatientClinicalSearch(sectionKey)) {
+      await rebuildPatientClinicalSearchProjection(tx, {
+        patientId: encounter.patientId,
+        medicoId: encounter.medicoId,
+      });
     }
 
     return sectionUpdate;

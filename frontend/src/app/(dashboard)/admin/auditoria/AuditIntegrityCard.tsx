@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 
 type AuditIntegrityResponse = {
@@ -10,24 +9,35 @@ type AuditIntegrityResponse = {
   total: number;
   brokenAt?: string;
   warning?: string;
+  verifiedAt: string;
+  verificationScope: string;
 };
 
 export default function AuditIntegrityCard() {
-  const [verificationMode, setVerificationMode] = useState<'recent' | 'full'>('recent');
+  const queryClient = useQueryClient();
   const integrityQuery = useQuery({
-    queryKey: ['audit-integrity', verificationMode],
+    queryKey: ['audit-integrity-latest'],
     queryFn: async () => {
-      const queryString = verificationMode === 'full' ? 'full=true' : 'limit=1000';
-      return (await api.get(`/audit/integrity/verify?${queryString}`)).data as AuditIntegrityResponse;
+      return (await api.get('/audit/integrity/latest')).data as AuditIntegrityResponse | null;
     },
     staleTime: 60_000,
+  });
+
+  const verifyMutation = useMutation({
+    mutationFn: async (mode: 'recent' | 'full') => {
+      const queryString = mode === 'full' ? 'full=true' : 'limit=1000';
+      return (await api.get(`/audit/integrity/verify?${queryString}`)).data as AuditIntegrityResponse;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['audit-integrity-latest'], data);
+    },
   });
 
   if (integrityQuery.isLoading) {
     return <div className="h-32 skeleton rounded-card" aria-hidden="true" />;
   }
 
-  if (integrityQuery.isError || !integrityQuery.data) {
+  if (integrityQuery.isError) {
     return (
       <div className="rounded-card border border-status-red/30 bg-status-red/10 p-4 text-sm text-status-red-text">
         <p className="font-semibold text-ink-primary">Integridad de auditoría</p>
@@ -39,8 +49,21 @@ export default function AuditIntegrityCard() {
     );
   }
 
-  const { valid, checked, total, brokenAt, warning } = integrityQuery.data;
-  const isFullVerification = verificationMode === 'full';
+  const snapshot = verifyMutation.data ?? integrityQuery.data;
+  const hasSnapshot = Boolean(snapshot);
+  const valid = snapshot?.valid ?? false;
+  const checked = snapshot?.checked ?? 0;
+  const total = snapshot?.total ?? 0;
+  const brokenAt = snapshot?.brokenAt;
+  const warning = snapshot?.warning;
+  const isFullVerification = snapshot?.verificationScope === 'FULL';
+  const verifiedAt = snapshot?.verifiedAt
+    ? new Intl.DateTimeFormat('es-CL', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(snapshot.verifiedAt))
+    : 'Sin verificación registrada';
+  const isVerifying = verifyMutation.isPending;
 
   return (
     <div className="rounded-card border border-surface-muted/40 bg-surface-elevated p-4 shadow-soft">
@@ -48,12 +71,15 @@ export default function AuditIntegrityCard() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Integridad de auditoría</p>
           <h2 className="mt-2 text-lg font-bold text-ink-primary">
-            {valid ? 'Cadena íntegra' : 'Cadena con quiebre detectado'}
+            {!hasSnapshot ? 'Integridad pendiente' : valid ? 'Cadena íntegra' : 'Cadena con quiebre detectado'}
           </h2>
           <p className="mt-1 text-sm text-ink-secondary">
-            {isFullVerification
-              ? 'Verificación completa del hash chain auditado.'
-              : 'Verificación operativa del hash chain sobre los registros auditables más recientes.'}
+            Última verificación: {verifiedAt}.{' '}
+            {hasSnapshot
+              ? isFullVerification
+                ? 'Resultado completo del hash chain auditado.'
+                : 'Resultado operativo sobre los registros auditables más recientes.'
+              : 'Ejecuta una verificación para crear el primer estado persistido.'}
           </p>
         </div>
 
@@ -61,13 +87,21 @@ export default function AuditIntegrityCard() {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => setVerificationMode(isFullVerification ? 'recent' : 'full')}
-            disabled={integrityQuery.isFetching}
+            onClick={() => verifyMutation.mutate('recent')}
+            disabled={isVerifying}
           >
-            {isFullVerification ? 'Verificación reciente' : 'Verificar cadena completa'}
+            Verificar reciente
           </button>
-          <div className={`rounded-full px-3 py-1 text-xs font-semibold ${valid ? 'bg-status-green/20 text-status-green-text' : 'bg-status-red/15 text-status-red-text'}`}>
-            {valid ? 'Íntegra' : 'Atención requerida'}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => verifyMutation.mutate('full')}
+            disabled={isVerifying}
+          >
+            Verificar completa
+          </button>
+          <div className={`rounded-full px-3 py-1 text-xs font-semibold ${hasSnapshot && valid ? 'bg-status-green/20 text-status-green-text' : 'bg-status-red/15 text-status-red-text'}`}>
+            {!hasSnapshot ? 'Pendiente' : valid ? 'Íntegra' : 'Atención requerida'}
           </div>
         </div>
       </div>
@@ -92,6 +126,12 @@ export default function AuditIntegrityCard() {
       {warning ? (
         <p className="mt-4 rounded-2xl border border-status-yellow/40 bg-status-yellow/10 px-3 py-2 text-sm text-accent-text">
           {warning}
+        </p>
+      ) : null}
+
+      {verifyMutation.isError ? (
+        <p className="mt-4 rounded-2xl border border-status-red/30 bg-status-red/10 px-3 py-2 text-sm text-status-red-text">
+          No se pudo completar la verificación: {getErrorMessage(verifyMutation.error)}
         </p>
       ) : null}
 

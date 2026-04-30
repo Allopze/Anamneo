@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -52,6 +52,8 @@ function RegisterContent() {
   const [invitationError, setInvitationError] = useState<string | null>(null);
   const [isInvitationMode, setIsInvitationMode] = useState(false);
   const [requiresBootstrapToken, setRequiresBootstrapToken] = useState(false);
+  const registerDraftWriteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRegisterDraftRef = useRef<string | null>(null);
 
   const {
     register,
@@ -105,10 +107,26 @@ function RegisterContent() {
         email: value.email,
         role: value.role,
       };
-      window.sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify(safeDraft));
+      pendingRegisterDraftRef.current = JSON.stringify(safeDraft);
+
+      if (registerDraftWriteTimerRef.current) {
+        clearTimeout(registerDraftWriteTimerRef.current);
+      }
+
+      registerDraftWriteTimerRef.current = setTimeout(() => {
+        if (pendingRegisterDraftRef.current) {
+          window.sessionStorage.setItem(REGISTER_DRAFT_KEY, pendingRegisterDraftRef.current);
+        }
+      }, 300);
     });
 
     return () => {
+      if (registerDraftWriteTimerRef.current) {
+        clearTimeout(registerDraftWriteTimerRef.current);
+      }
+      if (pendingRegisterDraftRef.current) {
+        window.sessionStorage.setItem(REGISTER_DRAFT_KEY, pendingRegisterDraftRef.current);
+      }
       subscription.unsubscribe();
     };
   }, [watch]);
@@ -213,6 +231,11 @@ function RegisterContent() {
       stashAuthSessionPrefill(sessionUser);
 
       if (typeof window !== 'undefined') {
+        if (registerDraftWriteTimerRef.current) {
+          clearTimeout(registerDraftWriteTimerRef.current);
+          registerDraftWriteTimerRef.current = null;
+        }
+        pendingRegisterDraftRef.current = null;
         window.sessionStorage.removeItem(REGISTER_DRAFT_KEY);
       }
 

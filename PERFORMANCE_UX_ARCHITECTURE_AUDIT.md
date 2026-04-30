@@ -503,6 +503,503 @@ Siguientes pasos naturales:
 2. Agregar tests para `/conditions/count` a nivel service/controller si se quiere cubrir contrato HTTP.
 3. Sumar estas suites focalizadas a una tarea CI de performance-regression.
 
+### Pasada 21 - 2026-04-29
+
+Objetivo: sacar `clinicalSearch` del filtrado en memoria sobre JSON clinico y eliminar el cap de 500 pacientes.
+
+Cambios aplicados:
+
+- Se agrego modelo Prisma `PatientClinicalSearch` con tabla `patient_clinical_search`.
+- Se creo migracion `20260429203000_add_patient_clinical_search_projection` con tabla, indices y backfill desde secciones existentes:
+  - `MOTIVO_CONSULTA`
+  - `ANAMNESIS_PROXIMA`
+  - `REVISION_SISTEMAS`
+- Se agrego `patient-clinical-search-projection.ts` para reconstruir la proyeccion por `patientId + medicoId`.
+- `updateEncounterSectionMutation` reconstruye la proyeccion cuando se guarda una seccion clinica buscable.
+- `findPatientsReadModel` reemplaza el flujo anterior:
+  - ya no carga encuentros/secciones JSON para busqueda clinica;
+  - ya no filtra en JavaScript;
+  - ya no usa `CLINICAL_SEARCH_CAP`;
+  - usa `clinicalSearches.some({ text contains, medicoId })` respetando scope por medico/asistente.
+- Para admin, la busqueda clinica consulta cualquier proyeccion visible por paciente, manteniendo filtros administrativos.
+- Se agregaron tests:
+  - `patient-clinical-search-projection.spec.ts`
+  - `patients-list-read-model.spec.ts`
+
+Validacion de la pasada:
+
+- `npx --prefix backend prisma generate --schema backend/prisma/schema.prisma`: OK.
+- `npx --prefix backend prisma validate --schema backend/prisma/schema.prisma`: OK.
+- `npm --prefix backend run typecheck`: OK.
+- `npm --prefix backend run test -- --runInBand patient-clinical-search-projection.spec.ts patients-list-read-model.spec.ts encounters-section-mutations.spec.ts`: OK, 3 suites / 11 tests.
+- `npx --prefix backend prisma migrate deploy --schema backend/prisma/schema.prisma`: OK; aplico `20260429203000_add_patient_clinical_search_projection`.
+- `npx --prefix backend prisma migrate status --schema backend/prisma/schema.prisma`: OK, base local al dia.
+- `EXPLAIN QUERY PLAN` en SQLite confirma uso de `patient_clinical_search_patient_id_medico_id_key` en la subconsulta de proyeccion.
+
+Siguientes pasos naturales:
+
+1. Medir p95 de `/patients?clinicalSearch=...` con dataset grande antes/despues.
+2. Si el texto proyectado crece mucho, migrar la tabla de proyeccion a FTS5 o agregar tabla virtual FTS sincronizada.
+3. Agregar job/script operativo para reconstruir toda la proyeccion si se sospecha drift o despues de imports masivos.
+4. Revisar si conviene normalizar acentos en busqueda y proyeccion para mejorar recall clinico.
+
+### Pasada 22 - 2026-04-29
+
+Objetivo: dejar una herramienta operativa para reparar/reconstruir la proyeccion de busqueda clinica.
+
+Cambios aplicados:
+
+- Se agrego `backend/scripts/rebuild-patient-clinical-search.js`.
+- Se agrego script npm `npm --prefix backend run clinical-search:rebuild`.
+- El script:
+  - resuelve `DATABASE_URL` con las mismas utilidades SQLite existentes;
+  - borra la proyeccion actual;
+  - reconstruye `patient_clinical_search` desde `encounter_sections` y `encounters`;
+  - reporta conteo `before`/`after` en JSON para logs operativos.
+
+Validacion de la pasada:
+
+- `npm --prefix backend run clinical-search:rebuild`: OK, `{"event":"patient_clinical_search_rebuilt","before":1,"after":1}`.
+- `npm --prefix backend run typecheck`: OK.
+
+Siguientes pasos naturales:
+
+1. Ejecutar `clinical-search:rebuild` despues de imports masivos o restauraciones de backup antiguas.
+2. Agregar este script al bundle de operaciones SQLite si se quiere incluirlo en `db:sqlite:ops`.
+3. Agregar modo `--dry-run` si se necesita inspeccion previa en entornos productivos.
+
+### Pasada 23 - 2026-04-29
+
+Objetivo: reemplazar la heuristica `length >= limit` en historiales por metadata `hasMore` del backend.
+
+Cambios aplicados:
+
+- `AlertsService.findByPatient` acepta `withMeta` y usa `acknowledgedLimit + 1` para calcular `acknowledgedHasMore`.
+- `ConsentsService.findByPatient` acepta `withMeta` y usa `revokedLimit + 1` para calcular `revokedHasMore`.
+- Los controladores mantienen compatibilidad:
+  - sin `withMeta=true`, responden el array historico;
+  - con `withMeta=true`, responden `{ data, meta }`.
+- `PatientAlerts` pide `withMeta=true` y muestra "Ver mas alertas reconocidas" solo si `meta.acknowledgedHasMore`.
+- `PatientConsents` pide `withMeta=true` y muestra "Ver mas consentimientos revocados" solo si `meta.revokedHasMore`.
+- Se actualizaron tests de componentes para la nueva respuesta con metadata.
+
+Validacion de la pasada:
+
+- `npm --prefix backend run typecheck`: OK.
+- `npm --prefix frontend run typecheck`: OK.
+- `npm --prefix backend run test -- --runInBand alerts.service.spec.ts consents.service.spec.ts`: OK, 2 suites / 10 tests.
+- `npm --prefix frontend run test -- --runInBand patient-alerts.test.tsx patient-consents.test.tsx`: OK, 2 suites / 2 tests.
+
+Siguientes pasos naturales:
+
+1. Pasar de limites crecientes a cursor real si historiales superan cientos de filas por paciente.
+2. Agregar tests backend especificos para `withMeta=true` en alertas y consentimientos. Estado: aplicado en pasada 27.
+3. Mostrar un contador total solo si el usuario realmente necesita dimensionar el historial completo.
+
+### Pasada 24 - 2026-04-29
+
+Objetivo: evitar verificacion de integridad en la carga inicial de auditoria y dejar un estado persistido de la ultima verificacion.
+
+Cambios aplicados:
+
+- Se agrego `AuditIntegritySnapshot` en Prisma y la migracion `20260429210000_add_audit_integrity_snapshots`.
+- `AuditService.verifyChain` ahora persiste el resultado de cada verificacion en `audit_integrity_snapshots` con:
+  - `valid`, `checked`, `total`, `brokenAt`, `warning`;
+  - `verificationScope` (`LIMIT_1000`, `FULL`, etc.);
+  - `verifiedAt`.
+- Cuando se usa `limit`, `verifyChain` verifica la ventana mas reciente y toma como borde el hash del registro inmediatamente anterior.
+- Se agrego `GET /audit/integrity/latest` para leer el ultimo resultado sin recorrer `audit_logs`.
+- `AuditIntegrityCard` ahora carga `/audit/integrity/latest` por defecto y deja `Verificar reciente` / `Verificar completa` como acciones explicitas.
+- La verificacion manual actualiza el cache de TanStack Query con el nuevo snapshot.
+- Se actualizaron tests de auditoria admin y concurrencia para cubrir el nuevo contrato.
+
+Validacion de la pasada:
+
+- `npx --prefix backend prisma generate --schema backend/prisma/schema.prisma`: OK.
+- `npx --prefix backend prisma validate --schema backend/prisma/schema.prisma`: OK.
+- `npx --prefix backend prisma migrate deploy --schema backend/prisma/schema.prisma`: OK.
+- `npx --prefix backend prisma migrate status --schema backend/prisma/schema.prisma`: OK.
+- `npm --prefix backend run typecheck`: OK.
+- `npm --prefix frontend run typecheck`: OK.
+- `npm --prefix backend run test -- --runInBand audit.service.spec.ts audit.service.concurrency.spec.ts`: OK, 2 suites / 13 tests.
+- `npm --prefix frontend run test -- --runInBand admin-auditoria.test.tsx`: OK, 1 suite / 2 tests.
+
+Siguientes pasos naturales:
+
+1. Agregar una tarea programada o comando operativo para ejecutar `verifyChain` reciente/completo fuera del render de la UI. Estado: comando operativo aplicado en pasada 25.
+2. Agregar checkpoints de hash cada N logs si la verificacion completa sobre historiales grandes supera el presupuesto operativo.
+3. Medir `/audit/integrity/latest` y `/audit/integrity/verify?full=true` con 10k/100k logs para fijar limites recomendados.
+
+### Pasada 25 - 2026-04-29
+
+Objetivo: dejar la verificacion de integridad ejecutable fuera de la UI para cron/operaciones.
+
+Cambios aplicados:
+
+- Se agrego `backend/scripts/verify-audit-integrity.js`.
+- Se agrego script npm `npm --prefix backend run audit:integrity:verify`.
+- El comando por defecto verifica la ventana reciente `LIMIT_1000`.
+- El comando acepta `--full` para recorrer toda la cadena.
+- El comando acepta `--limit=N` para ajustar la ventana reciente.
+- La salida es JSON con `event`, `valid`, `checked`, `total`, `verifiedAt` y `verificationScope`.
+- Si encuentra un quiebre, persiste el snapshot y termina con exit code distinto de cero para integrarlo en jobs.
+
+Validacion de la pasada:
+
+- `npm --prefix backend run audit:integrity:verify`: OK, `valid=true`, `checked=55`, `total=55`, `verificationScope=LIMIT_1000`.
+- `npm --prefix backend run audit:integrity:verify -- --full`: OK, `valid=true`, `checked=55`, `total=55`, `verificationScope=FULL`.
+- `npm --prefix backend run typecheck`: OK.
+
+Siguientes pasos naturales:
+
+1. Conectar `audit:integrity:verify` a un cron/job operativo y alertar si el exit code es distinto de cero.
+2. Agregar el comando al runner `db:sqlite:ops` si se quiere incluirlo en la rutina operacional diaria. Estado: aplicado en pasada 26.
+3. Medir costo de `--full` con dataset grande antes de programarlo frecuentemente.
+4. Implementar checkpoints de hash si `--full` supera el presupuesto de tiempo.
+
+### Pasada 26 - 2026-04-29
+
+Objetivo: integrar la verificacion de integridad al runner operativo SQLite.
+
+Cambios aplicados:
+
+- `sqlite-ops-runner.js` ahora soporta `--mode=integrity`.
+- El modo `all` incluye `verify-audit-integrity.js` despues de backup, restore drill cuando corresponda y monitor.
+- Se agregaron parametros operativos:
+  - `--audit-integrity=recent|full`;
+  - `--audit-integrity-limit=N`;
+  - variables `SQLITE_AUDIT_INTEGRITY_SCOPE` y `SQLITE_AUDIT_INTEGRITY_LIMIT`.
+- Se agrego script npm `npm --prefix backend run db:sqlite:ops:integrity`.
+- El runner guarda `lastAuditIntegrityAt` en `.sqlite-ops-state.json` cuando la verificacion pasa.
+
+Validacion de la pasada:
+
+- `npm --prefix backend run db:sqlite:ops:integrity`: OK, ejecuta `verify-audit-integrity.js --limit=1000`.
+- `npm --prefix backend run db:sqlite:ops:integrity -- --audit-integrity=full`: OK, ejecuta `verify-audit-integrity.js --full`.
+- `npm --prefix backend run db:sqlite:ops -- --mode=integrity` no sirve para cambiar el modo porque el script npm ya fija `--mode=all`; por eso se agrego el alias dedicado `db:sqlite:ops:integrity`.
+
+Siguientes pasos naturales:
+
+1. Programar `db:sqlite:ops:integrity` en el entorno real con `--audit-integrity=recent` diario y `--audit-integrity=full` con menor frecuencia.
+2. Configurar `SQLITE_ALERT_WEBHOOK_URL` para notificar fallos del runner.
+3. Medir `db:sqlite:ops` completo con base grande, porque ahora el modo `all` tambien incluye integridad.
+4. Implementar checkpoints si el modo full crece por encima del presupuesto operativo.
+
+### Pasada 27 - 2026-04-29
+
+Objetivo: cubrir en backend el contrato `withMeta=true` de historiales de alertas y consentimientos.
+
+Cambios aplicados:
+
+- `alerts.service.spec.ts` valida que `findByPatient(..., { withMeta: true })`:
+  - pide `acknowledgedLimit + 1`;
+  - calcula `acknowledgedHasMore`;
+  - no devuelve la fila extra usada solo para detectar paginacion.
+- `consents.service.spec.ts` valida que `findByPatient(..., { withMeta: true })`:
+  - pide `revokedLimit + 1`;
+  - calcula `revokedHasMore`;
+  - no devuelve la fila extra usada solo para detectar paginacion.
+
+Validacion de la pasada:
+
+- `npm --prefix backend run typecheck`: OK.
+- `npm --prefix backend run test -- --runInBand alerts.service.spec.ts consents.service.spec.ts`: OK, 2 suites / 12 tests.
+
+Siguientes pasos naturales:
+
+1. Migrar a cursor real si los historiales pasan de limites crecientes a navegacion larga.
+2. Agregar tests controller para verificar compatibilidad entre respuesta legacy array y respuesta `{ data, meta }`. Estado: aplicado en pasada 28.
+3. Evaluar contador total solo si producto lo necesita para auditoria o navegacion clinica.
+
+### Pasada 28 - 2026-04-29
+
+Objetivo: proteger en controller la compatibilidad entre respuestas legacy y respuestas con metadata.
+
+Cambios aplicados:
+
+- Se agrego `alerts.controller.spec.ts`.
+- Se agrego `consents.controller.spec.ts`.
+- Los tests de alertas validan:
+  - sin `withMeta`, el controller llama al service sin `withMeta` y mantiene respuesta array;
+  - con `withMeta=true`, el controller pasa `{ withMeta: true }` y mantiene respuesta `{ data, meta }`.
+- Los tests de consentimientos validan el mismo contrato para `revokedLimit` y `revokedHasMore`.
+
+Validacion de la pasada:
+
+- `npm --prefix backend run typecheck`: OK.
+- `npm --prefix backend run test -- --runInBand alerts.controller.spec.ts consents.controller.spec.ts alerts.service.spec.ts consents.service.spec.ts`: OK, 4 suites / 16 tests.
+
+Siguientes pasos naturales:
+
+1. Migrar alertas/consentimientos a cursor real si los historiales crecen mas alla de una navegacion corta.
+2. Medir payload y p95 de la ficha paciente con muchos historiales revocados/reconocidos.
+3. Agregar contador total solo con una necesidad concreta de producto.
+
+### Pasada 29 - 2026-04-29
+
+Objetivo: integrar el presupuesto de bundle al pipeline para detectar regresiones de JS en rutas criticas.
+
+Cambios aplicados:
+
+- `.github/workflows/ci.yml` ahora ejecuta `npm run bundle:budget` en el job frontend inmediatamente despues de `npm run build`.
+- La validacion usa el artefacto `.next` recien construido y falla el CI si una ruta medida supera su presupuesto gzip.
+
+Validacion de la pasada:
+
+- Cambio revisado estaticamente; no se ejecuto CI local completo.
+
+Siguientes pasos naturales:
+
+1. Correr el job frontend completo en CI para confirmar que `bundle:budget` encuentra los HTML generados en entorno limpio.
+2. Registrar deltas de bundle en PRs cuando falle el presupuesto, distinguiendo shared chunks de chunks especificos de ruta.
+3. Agregar presupuestos para ficha paciente y editor de atencion cuando se pueda medir esas rutas dinamicas de forma estable.
+
+### Pasada 30 - 2026-04-29
+
+Objetivo: reforzar con tests la optimizacion de dirty flags por seccion del wizard de atenciones.
+
+Cambios aplicados:
+
+- Se agrego `frontend/src/__tests__/app/use-encounter-section-persistence.test.tsx`.
+- El test cubre que al editar `MOTIVO_CONSULTA` solo esa seccion queda marcada como dirty, y que cambiar a otra seccion no hereda `hasUnsavedChanges`.
+- El test cubre que un guardado exitoso actualiza el snapshot y limpia el dirty flag de la seccion guardada.
+- El test cubre que restaurar un conflicto recuperable marca como dirty solo la seccion restaurada y conserva la copia local visible.
+- Los efectos de autosave, draft sync, cola offline y save-flow se aislaron con mocks para verificar la logica propia de `useEncounterSectionPersistence` sin depender de red ni timers.
+
+Validacion de la pasada:
+
+- `npm --prefix frontend run test -- --runInBand use-encounter-section-persistence.test.tsx`: OK, 1 suite / 3 tests.
+
+Siguientes pasos naturales:
+
+1. Agregar un caso para reconciliacion de identificacion que confirme que `IDENTIFICACION` queda limpia despues de actualizar snapshot.
+2. Incluir esta suite en una tarea focalizada de performance-regression junto con los tests de busqueda clinica, alertas y bundle budget.
+3. Medir con React Profiler commits/duracion por tecla en anamnesis y tratamiento para validar el impacto real de los dirty flags.
+
+### Pasada 31 - 2026-04-29
+
+Objetivo: agrupar las pruebas focalizadas de regresion de performance para que sean faciles de ejecutar.
+
+Cambios aplicados:
+
+- Se agrego script root `npm run test:performance-regression`.
+- Se agrego `npm --prefix backend run test:performance-regression` con suites de busqueda clinica, read models de atencion, alertas/consentimientos con metadata, conteo de catalogo y auditoria.
+- Se agrego `npm --prefix frontend run test:performance-regression` con suites de busqueda clinica, historiales de paciente, wizard dirty flags, dashboard/auditoria y derivaciones del wizard.
+- El script root ejecuta backend, frontend, `npm --prefix frontend run build` y luego `npm --prefix frontend run bundle:budget`, para que el presupuesto se mida sobre un build fresco.
+
+Validacion de la pasada:
+
+- `npm --prefix frontend run test:performance-regression`: OK, 6 suites / 11 tests.
+- `npm --prefix backend run test:performance-regression`: OK, 10 suites / 36 tests.
+- `npm run test:performance-regression`: OK; backend/frontend focalizados, build frontend y `bundle:budget`.
+  - `/login`: 286 KiB gzip / 320 KiB.
+  - `/pacientes`: 288 KiB gzip / 330 KiB.
+  - `/atenciones`: 285 KiB gzip / 330 KiB.
+  - `/atenciones/nueva`: 279 KiB gzip / 320 KiB.
+
+Siguientes pasos naturales:
+
+1. Decidir si esta tarea corre siempre en CI o solo como job/manual check de PRs con cambios clinicos/performance.
+2. Mantener la lista de suites focalizadas actualizada cuando se agreguen endpoints compactos, cursores reales o checkpoints de auditoria.
+3. Agregar presupuestos para rutas dinamicas cuando el script pueda medir manifiestos/chunks de `/pacientes/[id]` y `/atenciones/[id]`.
+
+### Pasada 32 - 2026-04-29
+
+Objetivo: extender el presupuesto de bundle a rutas dinamicas clinicas.
+
+Cambios aplicados:
+
+- `frontend/scripts/check-bundle-budget.js` ahora soporta dos fuentes de medicion:
+  - HTML prerenderizado para rutas estaticas;
+  - `page_client-reference-manifest.js` para rutas dinamicas App Router.
+- Se agregaron presupuestos iniciales para:
+  - `/pacientes/[id]`: 190 KiB gzip via manifest.
+  - `/atenciones/[id]`: 180 KiB gzip via manifest.
+  - `/atenciones/[id]/ficha`: 170 KiB gzip via manifest.
+- La salida del script ahora indica la fuente usada (`html` o `manifest`) para evitar comparar mediciones de distinta naturaleza sin contexto.
+
+Validacion de la pasada:
+
+- `npm --prefix frontend run bundle:budget`: OK.
+  - `/login`: 286 KiB gzip / 320 KiB.
+  - `/pacientes`: 288 KiB gzip / 330 KiB.
+  - `/atenciones`: 285 KiB gzip / 330 KiB.
+  - `/atenciones/nueva`: 279 KiB gzip / 320 KiB.
+  - `/pacientes/[id]`: 142 KiB gzip / 190 KiB.
+  - `/atenciones/[id]`: 130 KiB gzip / 180 KiB.
+  - `/atenciones/[id]/ficha`: 118 KiB gzip / 170 KiB.
+
+Siguientes pasos naturales:
+
+1. Revisar los reportes de analyzer para atribuir los chunks grandes de las rutas dinamicas antes de bajar presupuestos.
+2. Registrar en PRs si una regresion viene de chunks compartidos o de codigo especifico de ficha/editor.
+3. Considerar presupuestos separados para rutas admin/analitica si empiezan a crecer por dependencias de tablas/exportacion.
+
+### Pasada 33 - 2026-04-29
+
+Objetivo: permitir inspeccionar la reconstruccion de busqueda clinica sin modificar datos.
+
+Cambios aplicados:
+
+- `backend/scripts/rebuild-patient-clinical-search.js` acepta `--dry-run`.
+- El modo dry-run calcula cuantas filas proyectadas se generarian desde `encounter_sections` + `encounters` sin borrar ni insertar en `patient_clinical_search`.
+- La salida JSON incluye `before`, `projected`, `drift` y `dryRun`.
+- El modo normal conserva el rebuild destructivo controlado, pero ahora tambien reporta `projected` y `dryRun: false`.
+
+Validacion de la pasada:
+
+- `npm --prefix backend run clinical-search:rebuild -- --dry-run`: OK, `before=1`, `projected=1`, `drift=0`.
+- `npm --prefix backend run clinical-search:rebuild`: OK, `before=1`, `after=1`, `projected=1`.
+
+Siguientes pasos naturales:
+
+1. Documentar en `docs/` o en el runner operativo cuando usar `clinical-search:rebuild -- --dry-run` antes de imports/restores.
+2. Agregar el rebuild de busqueda clinica al runner SQLite si se quiere una rutina operacional unica.
+3. Si aparece drift frecuente, registrar eventos/alertas operativas antes de reconstruir automaticamente.
+
+### Pasada 34 - 2026-04-29
+
+Objetivo: integrar la inspeccion/reconstruccion de busqueda clinica al runner operativo SQLite.
+
+Cambios aplicados:
+
+- `backend/scripts/sqlite-ops-runner.js` ahora soporta `--mode=clinical-search`.
+- El modo `clinical-search` ejecuta `rebuild-patient-clinical-search.js --dry-run` por defecto.
+- Se agrego parametro `--clinical-search=dry-run|rebuild` y variable `SQLITE_CLINICAL_SEARCH_ACTION`.
+- El runner guarda estado separado:
+  - `lastClinicalSearchProjectionCheckAt` para dry-run;
+  - `lastClinicalSearchProjectionRebuildAt` para rebuild.
+- Se agrego script npm `npm --prefix backend run db:sqlite:ops:clinical-search`.
+
+Validacion de la pasada:
+
+- `npm --prefix backend run db:sqlite:ops:clinical-search`: OK, ejecuta dry-run con `drift=0`.
+- `npm --prefix backend run db:sqlite:ops:clinical-search -- --clinical-search=rebuild`: OK, reconstruye y reporta `after=1`.
+
+Siguientes pasos naturales:
+
+1. Programar `db:sqlite:ops:clinical-search` en modo dry-run despues de imports/restores para detectar drift.
+2. Usar `--clinical-search=rebuild` solo como accion operativa explicita cuando el drift sea esperado o confirmado.
+3. Evaluar alertas si `drift !== 0` se vuelve senal operacional importante.
+
+### Pasada 35 - 2026-04-29
+
+Objetivo: cubrir el contrato barato de `/conditions/count` y sumarlo a regresion de performance.
+
+Cambios aplicados:
+
+- Se agrego `backend/src/conditions/conditions.controller.spec.ts` para verificar que el controller mantiene `/conditions/count` como passthrough a `ConditionsService.count(user)`.
+- Se agrego `backend/src/conditions/conditions.service.count.spec.ts` para cubrir:
+  - admin: count directo del catalogo global;
+  - no admin: uso de `countMergedConditions`.
+- `npm --prefix backend run test:performance-regression` incluye ahora los specs de count de condiciones.
+
+Validacion de la pasada:
+
+- `npm --prefix backend run test -- --runInBand conditions.controller.spec.ts conditions.service.count.spec.ts conditions-local-queries.spec.ts`: OK, 3 suites / 4 tests.
+- `npm --prefix backend run test:performance-regression`: OK, 12 suites / 39 tests.
+
+Siguientes pasos naturales:
+
+1. Medir `/conditions/count` con catalogo grande y usuarios medico/asistente para confirmar el delta contra `/conditions`.
+2. Agregar indices adicionales en `condition_catalog_local` solo si la medicion muestra scans costosos.
+3. Mantener el header consumiendo exclusivamente `/conditions/count` para evitar regresiones de payload.
+
+### Pasada 36 - 2026-04-29
+
+Objetivo: separar los KPIs livianos del header del read model completo del dashboard.
+
+Cambios aplicados:
+
+- Se agrego `getEncounterHeaderCountsReadModel` en `encounters-dashboard-read-model.ts`.
+- El nuevo read model solo ejecuta counts y no carga listas de atenciones recientes ni tareas proximas.
+- `EncountersService.getHeaderCounts` y `GET /encounters/stats/header` exponen el contrato liviano.
+- `SmartHeaderBar` usa `DASHBOARD_HEADER_COUNTS_QUERY_KEY` y `fetchDashboardHeaderCounts` contra `/encounters/stats/header`.
+- `query-invalidation.ts` invalida tanto dashboard completo como header counts cuando hay mutaciones operativas.
+- Las suites focalizadas de performance incluyen ahora `encounters-dashboard-read-model.spec.ts` y `header-kpi-bar.test.tsx`.
+
+Validacion de la pasada:
+
+- `npm --prefix backend run test -- --runInBand encounters-dashboard-read-model.spec.ts`: OK, 1 suite / 1 test.
+- `npm --prefix frontend run test -- --runInBand header-kpi-bar.test.tsx dashboard-page.test.tsx`: OK, 2 suites / 5 tests.
+- `npm --prefix backend run test:performance-regression`: OK, 13 suites / 40 tests.
+- `npm --prefix frontend run test:performance-regression`: OK, 7 suites / 15 tests.
+- `npm --prefix frontend run bundle:budget`: OK, incluyendo rutas dinamicas por manifest.
+
+Siguientes pasos naturales:
+
+1. Medir `/encounters/stats/header` vs `/encounters/stats/dashboard` con dataset grande para confirmar reduccion de tiempo DB y payload.
+2. Revisar si `upcomingTasks` del header debe mostrarse como total de tareas activas o conservar un contador capado segun decision de producto.
+3. Si el header sigue siendo frecuente, considerar cache corto server-side por medico efectivo para estos counts.
+
+### Pasada 37 - 2026-04-29
+
+Objetivo: reducir escrituras por keystroke en el borrador no clinico de registro.
+
+Cambios aplicados:
+
+- `frontend/src/app/register/page.tsx` debounced el guardado de `REGISTER_DRAFT_KEY` en `sessionStorage` a 300 ms.
+- El ultimo borrador pendiente se flushea al desmontar para no perder nombre/email/rol si el usuario navega rapidamente.
+- Al registrar exitosamente, se limpia el timer pendiente y el draft en memoria antes de remover `REGISTER_DRAFT_KEY`, evitando que un timeout reescriba datos viejos.
+
+Validacion de la pasada:
+
+- `npm --prefix frontend run typecheck`: OK.
+
+Siguientes pasos naturales:
+
+1. Agregar test de registro con fake timers si se quiere verificar explicitamente debounce y flush de `REGISTER_DRAFT_KEY`.
+2. Revisar otros formularios no clinicos con persistencia por keystroke antes de tocar flujos clinicos sensibles.
+3. Mantener el autosave clinico separado: este cambio no reemplaza la logica de borradores/cola del wizard de atenciones.
+
+### Pasada 38 - 2026-04-29
+
+Objetivo: validar de punta a punta la tanda de regresion de performance tras los cambios de header, bundle y scripts.
+
+Acciones realizadas:
+
+- Se ejecuto el comando root `npm run test:performance-regression`.
+- La tarea corrio suites focalizadas backend, suites focalizadas frontend, build frontend con Turbopack y presupuesto de bundle.
+
+Validacion de la pasada:
+
+- Backend focalizado: OK, 13 suites / 40 tests.
+- Frontend focalizado: OK, 7 suites / 15 tests.
+- `npm --prefix frontend run build`: OK.
+- `npm --prefix frontend run bundle:budget`: OK.
+  - `/login`: 286 KiB gzip / 320 KiB.
+  - `/pacientes`: 288 KiB gzip / 330 KiB.
+  - `/atenciones`: 285 KiB gzip / 330 KiB.
+  - `/atenciones/nueva`: 279 KiB gzip / 320 KiB.
+  - `/pacientes/[id]`: 142 KiB gzip / 190 KiB.
+  - `/atenciones/[id]`: 130 KiB gzip / 180 KiB.
+  - `/atenciones/[id]/ficha`: 118 KiB gzip / 170 KiB.
+
+Siguientes pasos naturales:
+
+1. Ejecutar E2E de auth/logout/session timeout para validar el skeleton privado y redirects reales.
+2. Medir endpoints con dataset grande: `/encounters/stats/header`, `/encounters/stats/dashboard`, `/patients?clinicalSearch=...` y `/encounters/:id`.
+3. Revisar analyzer para decidir si conviene atacar `react-icons`, `date-fns` o componentes especificos de rutas clinicas.
+
+### Pasada 39 - 2026-04-29
+
+Objetivo: validar en navegador real el flujo smoke de auth y redirects privados despues del cambio de skeleton/bootstrap.
+
+Acciones realizadas:
+
+- Se ejecuto Playwright smoke en Chromium.
+- La prueba cubre flujo de acceso bootstrap-aware y redirect de ruta privada no autenticada hacia login.
+
+Validacion de la pasada:
+
+- `npm --prefix frontend run test:e2e:smoke`: OK, 2 tests.
+
+Siguientes pasos naturales:
+
+1. Ejecutar E2E especifico de logout/session timeout si se necesita cubrir expiracion y refresco de sesion mas alla del smoke.
+2. Medir LCP y tiempo hasta shell visible en `/`, `/pacientes` y `/atenciones` con Playwright trace o Web Vitals.
+3. Mantener el skeleton sin PHI mientras se explora bootstrap server-assisted o revalidacion menos bloqueante.
+
 ## Stack y organizacion
 
 | Area | Stack observado | Archivos guia |
@@ -990,9 +1487,10 @@ Severidad: Alta
 
 Archivos y lineas:
 
-- `frontend/src/app/(dashboard)/admin/auditoria/AuditIntegrityCard.tsx:14-19`
+- `frontend/src/app/(dashboard)/admin/auditoria/AuditIntegrityCard.tsx`
 - `backend/src/audit/audit.controller.ts:35-44`
 - `backend/src/audit/audit.service.ts:178-229`
+- `backend/prisma/schema.prisma:386-396`
 
 Impacto esperado:
 
@@ -1018,10 +1516,11 @@ Recomendacion concreta:
 - A mediano plazo, checkpoints de hash cada N logs para acelerar verificacion parcial.
 - Mantener verificacion completa disponible para auditoria formal.
 
-Estado tras pasada 1:
+Estado tras pasadas 1 y 24:
 
-- Resuelto el comportamiento de carga inicial. `AuditIntegrityCard.tsx:16-23` consulta `limit=1000` por defecto.
-- `AuditIntegrityCard.tsx:60-68` agrega accion explicita para alternar a verificacion completa.
+- Resuelto el comportamiento de carga inicial: la UI consulta `GET /audit/integrity/latest` por defecto y no recorre `audit_logs` al montar.
+- `AuditService.verifyChain` persiste el ultimo resultado en `audit_integrity_snapshots` con alcance y fecha de verificacion.
+- La UI conserva acciones explicitas para verificacion reciente y completa, y actualiza el snapshot en cache al terminar.
 - Pendiente de mediano plazo: checkpoints o job programado para acelerar verificaciones completas sobre historiales grandes.
 
 Riesgos:
@@ -1499,7 +1998,7 @@ La separacion dominio/backend es buena. La principal deuda de arquitectura front
 - Remover dependencias frontend no usadas tras build/test. Estado: aplicado en pasada 3.
 - Reemplazar `transition-all` mas visibles por propiedades concretas.
 - Agregar `AbortController` o request sequence a busqueda global. Estado: aplicado parcialmente en pasada 1; falta unificar hook.
-- Cambiar `AuditIntegrityCard` para verificar ultimos N registros por defecto. Estado: aplicado en pasada 1.
+- Cambiar `AuditIntegrityCard` para no verificar cadena al montar y leer ultimo snapshot persistido. Estado: aplicado en pasadas 1 y 24.
 - Debouncear escrituras de borrador no clinico en registro.
 - Crear selectors atomicos para `useAuthStore` en header/layout/componentes frecuentes.
 
@@ -1515,7 +2014,7 @@ La separacion dominio/backend es buena. La principal deuda de arquitectura front
 ## Cambios estructurales de largo plazo
 
 - FTS/proyeccion de busqueda clinica con permisos y backfill.
-- Checkpoints de audit log para verificacion eficiente de cadena.
+- Checkpoints de audit log para verificacion eficiente de cadena; estado persistido aplicado en pasada 24 y comando operativo en pasada 25.
 - Migracion a PostgreSQL si la concurrencia o volumen superan los limites operativos de SQLite.
 - Observabilidad real de frontend y backend: Web Vitals, spans por endpoint, slow queries y profiling de renders.
 - Reorganizacion de vistas clinicas grandes en modulos por responsabilidad: presentacion, persistencia, validacion, derivaciones y autosave.

@@ -18,6 +18,7 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",
+    "test:performance-regression": "jest --runInBand conditions-local-queries.spec.ts conditions.service.count.spec.ts conditions.controller.spec.ts patient-clinical-search-projection.spec.ts patients-list-read-model.spec.ts encounters-dashboard-read-model.spec.ts encounters-read-side.spec.ts alerts.service.spec.ts consents.service.spec.ts alerts.controller.spec.ts consents.controller.spec.ts audit.service.spec.ts audit.service.concurrency.spec.ts",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
@@ -36,6 +37,10 @@
     "db:sqlite:monitor": "node scripts/sqlite-monitor.js --strict",
     "db:sqlite:ops": "node scripts/sqlite-ops-runner.js --mode=all --notify=on-failure",
     "db:sqlite:ops:monitor": "node scripts/sqlite-ops-runner.js --mode=monitor --notify=on-failure",
+    "db:sqlite:ops:integrity": "node scripts/sqlite-ops-runner.js --mode=integrity --notify=on-failure",
+    "db:sqlite:ops:clinical-search": "node scripts/sqlite-ops-runner.js --mode=clinical-search --notify=on-failure",
+    "clinical-search:rebuild": "node scripts/rebuild-patient-clinical-search.js",
+    "audit:integrity:verify": "node scripts/verify-audit-integrity.js",
     "audit:redact:clinical-logs": "node scripts/audit-redact-clinical-logs.js"
   },
   "dependencies": {

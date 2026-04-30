@@ -40,6 +40,13 @@ interface Alert {
   createdBy?: { nombre: string } | null;
 }
 
+interface AlertsResponse {
+  data: Alert[];
+  meta?: {
+    acknowledgedHasMore?: boolean;
+  };
+}
+
 interface PatientAlertsProps {
   patientId: string;
 }
@@ -50,13 +57,13 @@ export default function PatientAlerts({ patientId }: PatientAlertsProps) {
   const isMedico = isMedicoUser(user);
   const [acknowledgedLimit, setAcknowledgedLimit] = useState(ACKNOWLEDGED_PAGE_SIZE);
 
-  const { data: alerts = [], isLoading, isFetching } = useQuery({
+  const { data: alertsResponse, isLoading, isFetching } = useQuery({
     queryKey: ['alerts', patientId, acknowledgedLimit],
     queryFn: async () => {
       const res = await api.get(
-        `/alerts/patient/${patientId}?includeAcknowledged=true&acknowledgedLimit=${acknowledgedLimit}`,
+        `/alerts/patient/${patientId}?includeAcknowledged=true&acknowledgedLimit=${acknowledgedLimit}&withMeta=true`,
       );
-      return res.data as Alert[];
+      return res.data as AlertsResponse;
     },
   });
 
@@ -74,8 +81,10 @@ export default function PatientAlerts({ patientId }: PatientAlertsProps) {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
+  const alerts = alertsResponse?.data ?? [];
   const activeAlerts = alerts.filter((a) => !a.acknowledgedAt);
   const acknowledgedAlerts = alerts.filter((a) => !!a.acknowledgedAt);
+  const acknowledgedHasMore = Boolean(alertsResponse?.meta?.acknowledgedHasMore);
 
   return (
     <div>
@@ -159,7 +168,7 @@ export default function PatientAlerts({ patientId }: PatientAlertsProps) {
                     </div>
                   );
                 })}
-                {acknowledgedAlerts.length >= acknowledgedLimit ? (
+                {acknowledgedHasMore ? (
                   <button
                     type="button"
                     className="btn btn-secondary mt-2 w-full text-sm"

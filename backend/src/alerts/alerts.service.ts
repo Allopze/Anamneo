@@ -65,8 +65,18 @@ export class AlertsService {
   async findByPatient(
     patientId: string,
     user: RequestUser,
-    options: { includeAcknowledged?: boolean; acknowledgedLimit?: number } = {},
-  ) {
+    options: { includeAcknowledged?: boolean; acknowledgedLimit?: number; withMeta: true },
+  ): Promise<{ data: any[]; meta: { acknowledgedHasMore: boolean } }>;
+  async findByPatient(
+    patientId: string,
+    user: RequestUser,
+    options?: { includeAcknowledged?: boolean; acknowledgedLimit?: number; withMeta?: false },
+  ): Promise<any[]>;
+  async findByPatient(
+    patientId: string,
+    user: RequestUser,
+    options: { includeAcknowledged?: boolean; acknowledgedLimit?: number; withMeta?: boolean } = {},
+  ): Promise<any[] | { data: any[]; meta: { acknowledgedHasMore: boolean } }> {
     await assertPatientAccess(this.prisma, user, patientId);
 
     const effectiveMedicoId = user.isAdmin ? null : getEffectiveMedicoId(user);
@@ -92,22 +102,37 @@ export class AlertsService {
     const acknowledgedLimit = Number.isFinite(options.acknowledgedLimit)
       ? Math.max(0, Math.min(options.acknowledgedLimit ?? 0, 100))
       : undefined;
-    const acknowledgedAlerts = options.includeAcknowledged
+    const acknowledgedTake =
+      options.withMeta && acknowledgedLimit !== undefined ? acknowledgedLimit + 1 : acknowledgedLimit;
+    const rawAcknowledgedAlerts = options.includeAcknowledged
       ? await this.prisma.clinicalAlert.findMany({
           where: {
             ...scopeWhere,
             acknowledgedAt: { not: null },
           },
           orderBy: { acknowledgedAt: 'desc' },
-          ...(acknowledgedLimit === undefined ? {} : { take: acknowledgedLimit }),
+          ...(acknowledgedTake === undefined ? {} : { take: acknowledgedTake }),
         })
       : [];
+    const acknowledgedHasMore = acknowledgedLimit !== undefined && rawAcknowledgedAlerts.length > acknowledgedLimit;
+    const acknowledgedAlerts = acknowledgedHasMore
+      ? rawAcknowledgedAlerts.slice(0, acknowledgedLimit)
+      : rawAcknowledgedAlerts;
 
     const sortedAlerts = [
       ...sortAlertsByPriority(activeAlerts),
       ...acknowledgedAlerts,
     ];
-    return attachUserNames(this.prisma, sortedAlerts);
+    const alerts = await attachUserNames(this.prisma, sortedAlerts);
+    if (options.withMeta) {
+      return {
+        data: alerts,
+        meta: {
+          acknowledgedHasMore,
+        },
+      };
+    }
+    return alerts;
   }
 
   async acknowledge(id: string, user: RequestUser) {

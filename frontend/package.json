@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "test": "jest",
+    "test:performance-regression": "jest --runInBand clinical-search.test.ts header-kpi-bar.test.tsx patient-alerts.test.tsx patient-consents.test.tsx use-encounter-wizard-derived.test.tsx use-encounter-section-persistence.test.tsx admin-auditoria.test.tsx",
     "test:watch": "jest --watch --maxWorkers=2",
     "test:e2e": "playwright test",
     "test:e2e:workflow-clinical": "playwright test --workers=1 tests/e2e/workflow-clinical.spec.ts",

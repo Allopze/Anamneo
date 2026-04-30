@@ -69,18 +69,32 @@ describe('PatientAlerts', () => {
 
   it('loads more acknowledged alerts in increments', async () => {
     apiGetMock
-      .mockResolvedValueOnce({ data: Array.from({ length: 20 }, (_, index) => acknowledgedAlert(index + 1)) })
-      .mockResolvedValueOnce({ data: Array.from({ length: 40 }, (_, index) => acknowledgedAlert(index + 1)) });
+      .mockResolvedValueOnce({
+        data: {
+          data: Array.from({ length: 20 }, (_, index) => acknowledgedAlert(index + 1)),
+          meta: { acknowledgedHasMore: true },
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: Array.from({ length: 40 }, (_, index) => acknowledgedAlert(index + 1)),
+          meta: { acknowledgedHasMore: false },
+        },
+      });
 
     render(<PatientAlerts patientId="patient-1" />, { wrapper: createWrapper() });
 
     const button = await screen.findByRole('button', { name: 'Ver más alertas reconocidas' });
-    expect(apiGetMock).toHaveBeenCalledWith('/alerts/patient/patient-1?includeAcknowledged=true&acknowledgedLimit=20');
+    expect(apiGetMock).toHaveBeenCalledWith(
+      '/alerts/patient/patient-1?includeAcknowledged=true&acknowledgedLimit=20&withMeta=true',
+    );
 
     await userEvent.click(button);
 
     await waitFor(() => {
-      expect(apiGetMock).toHaveBeenCalledWith('/alerts/patient/patient-1?includeAcknowledged=true&acknowledgedLimit=40');
+      expect(apiGetMock).toHaveBeenCalledWith(
+        '/alerts/patient/patient-1?includeAcknowledged=true&acknowledgedLimit=40&withMeta=true',
+      );
     });
   });
 });

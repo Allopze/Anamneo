@@ -134,8 +134,18 @@ export class ConsentsService {
   async findByPatient(
     patientId: string,
     user: RequestUser,
-    options: { revokedLimit?: number } = {},
-  ) {
+    options: { revokedLimit?: number; withMeta: true },
+  ): Promise<{ data: any[]; meta: { revokedHasMore: boolean } }>;
+  async findByPatient(
+    patientId: string,
+    user: RequestUser,
+    options?: { revokedLimit?: number; withMeta?: false },
+  ): Promise<any[]>;
+  async findByPatient(
+    patientId: string,
+    user: RequestUser,
+    options: { revokedLimit?: number; withMeta?: boolean } = {},
+  ): Promise<any[] | { data: any[]; meta: { revokedHasMore: boolean } }> {
     await assertPatientAccess(this.prisma, user, patientId);
 
     const effectiveMedicoId = user.isAdmin ? null : getEffectiveMedicoId(user);
@@ -160,19 +170,31 @@ export class ConsentsService {
     const revokedLimit = Number.isFinite(options.revokedLimit)
       ? Math.max(0, Math.min(options.revokedLimit ?? 0, 100))
       : undefined;
-    const revokedConsents = await this.prisma.informedConsent.findMany({
+    const revokedTake = options.withMeta && revokedLimit !== undefined ? revokedLimit + 1 : revokedLimit;
+    const rawRevokedConsents = await this.prisma.informedConsent.findMany({
       where: {
         ...scopeWhere,
         revokedAt: { not: null },
       },
       orderBy: { revokedAt: 'desc' },
-      ...(revokedLimit === undefined ? {} : { take: revokedLimit }),
+      ...(revokedTake === undefined ? {} : { take: revokedTake }),
     });
+    const revokedHasMore = revokedLimit !== undefined && rawRevokedConsents.length > revokedLimit;
+    const revokedConsents = revokedHasMore ? rawRevokedConsents.slice(0, revokedLimit) : rawRevokedConsents;
     const consents = [...activeConsents, ...revokedConsents];
 
     const userNames = await this.resolveUserNames(Array.from(new Set(consents.map((consent) => consent.grantedById))));
 
-    return consents.map((consent) => this.formatConsent(consent, userNames));
+    const data = consents.map((consent) => this.formatConsent(consent, userNames));
+    if (options.withMeta) {
+      return {
+        data,
+        meta: {
+          revokedHasMore,
+        },
+      };
+    }
+    return data;
   }
 
   async revoke(id: string, dto: RevokeConsentDto, user: RequestUser) {

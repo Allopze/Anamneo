@@ -65,6 +65,12 @@ export class EncountersController {
     return this.encountersService.getDashboard(user);
   }
 
+  @Get('stats/header')
+  @Roles('MEDICO', 'ASISTENTE')
+  headerCounts(@CurrentUser() user: CurrentUserData) {
+    return this.encountersService.getHeaderCounts(user);
+  }
+
   @Get(':id/export/pdf')
   @Roles('MEDICO', 'ASISTENTE')
   async exportPdf(

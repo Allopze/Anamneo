@@ -47,13 +47,23 @@ export class AlertsController {
     @CurrentUser() user: CurrentUserData,
     @Query('includeAcknowledged') includeAcknowledged?: string,
     @Query('acknowledgedLimit') acknowledgedLimit?: string,
+    @Query('withMeta') withMeta?: string,
   ) {
+    const parsedAcknowledgedLimit = acknowledgedLimit ? parseInt(acknowledgedLimit, 10) : undefined;
+    if (withMeta === 'true') {
+      return this.alertsService.findByPatient(patientId, user, {
+        includeAcknowledged: includeAcknowledged === 'true',
+        acknowledgedLimit: parsedAcknowledgedLimit,
+        withMeta: true,
+      });
+    }
+
     return this.alertsService.findByPatient(
       patientId,
       user,
       {
         includeAcknowledged: includeAcknowledged === 'true',
-        acknowledgedLimit: acknowledgedLimit ? parseInt(acknowledgedLimit, 10) : undefined,
+        acknowledgedLimit: parsedAcknowledgedLimit,
       },
     );
   }

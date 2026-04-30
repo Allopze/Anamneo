@@ -29,7 +29,7 @@ import {
   findEncountersByPatientReadModel,
   findEncountersReadModel,
 } from './encounters-read-side';
-import { getEncounterDashboardReadModel } from './encounters-dashboard-read-model';
+import { getEncounterDashboardReadModel, getEncounterHeaderCountsReadModel } from './encounters-dashboard-read-model';
 import { getEncounterAuditHistoryReadModel } from './encounters-audit-history';
 
 @Injectable()
@@ -217,6 +217,15 @@ export class EncountersService {
   async getDashboard(user: RequestUser) {
     const medicoId = getEffectiveMedicoId(user);
     return getEncounterDashboardReadModel({
+      prisma: this.prisma,
+      user,
+      medicoId,
+    });
+  }
+
+  async getHeaderCounts(user: RequestUser) {
+    const medicoId = getEffectiveMedicoId(user);
+    return getEncounterHeaderCountsReadModel({
       prisma: this.prisma,
       user,
       medicoId,

@@ -90,12 +90,28 @@ model Patient {
   tasks      EncounterTask[]
   consents   InformedConsent[]
   alerts     ClinicalAlert[]
+  clinicalSearches PatientClinicalSearch[]
 
   @@index([archivedAt])
   @@index([createdById, archivedAt, createdAt])
   @@index([completenessStatus, archivedAt])
   @@index([updatedAt])
   @@map("patients")
+}
+
+model PatientClinicalSearch {
+  id        String   @id @default(uuid())
+  patientId String   @map("patient_id")
+  medicoId  String   @map("medico_id")
+  text      String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([patientId, medicoId])
+  @@index([medicoId])
+  @@index([patientId])
+  @@map("patient_clinical_search")
 }
 
 model PatientHistory {
@@ -372,6 +388,19 @@ model AuditLog {
   @@index([result])
   @@index([timestamp])
   @@map("audit_logs")
+}
+
+model AuditIntegritySnapshot {
+  id                String   @id @default("latest")
+  valid             Boolean
+  checked           Int
+  total             Int
+  brokenAt          String?  @map("broken_at")
+  warning           String?
+  verificationScope String   @map("verification_scope")
+  verifiedAt        DateTime @default(now()) @map("verified_at")
+
+  @@map("audit_integrity_snapshots")
 }
 
 model Attachment {

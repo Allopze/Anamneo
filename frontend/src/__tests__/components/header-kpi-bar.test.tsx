@@ -40,7 +40,7 @@ function createWrapper() {
 beforeEach(() => {
   jest.clearAllMocks();
   apiGetMock.mockImplementation((url: string) => {
-    if (url === '/encounters/stats/dashboard') {
+    if (url === '/encounters/stats/header') {
       return Promise.resolve({
         data: {
           counts: {
@@ -127,7 +127,7 @@ describe('SmartHeaderBar', () => {
     let listAttempts = 0;
 
     apiGetMock.mockImplementation((url: string) => {
-      if (url === '/encounters/stats/dashboard') {
+      if (url === '/encounters/stats/header') {
         return Promise.resolve({
           data: {
             counts: {

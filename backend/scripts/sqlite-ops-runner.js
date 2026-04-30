@@ -86,7 +86,36 @@ function isRestoreDrillDue(lastRestoreDrillAt, frequencyDays) {
   return Date.now() - lastTime >= frequencyDays * DAY_IN_MS;
 }
 
-function getScriptsByMode(mode, shouldRunDrill) {
+function buildAuditIntegrityArgs() {
+  const scope = (readArg('audit-integrity', process.env.SQLITE_AUDIT_INTEGRITY_SCOPE || 'recent') || 'recent').toLowerCase();
+  if (scope === 'full') {
+    return ['--full'];
+  }
+
+  const limit = readPositiveInteger(
+    readArg('audit-integrity-limit', process.env.SQLITE_AUDIT_INTEGRITY_LIMIT),
+    1000,
+  );
+  return [`--limit=${limit}`];
+}
+
+function buildClinicalSearchArgs() {
+  const action = (
+    readArg('clinical-search', process.env.SQLITE_CLINICAL_SEARCH_ACTION || 'dry-run') || 'dry-run'
+  ).toLowerCase();
+
+  if (action === 'rebuild') {
+    return [];
+  }
+
+  if (action === 'dry-run') {
+    return ['--dry-run'];
+  }
+
+  throw new Error('Clinical search invalido. Usa --clinical-search=dry-run|rebuild');
+}
+
+function getScriptsByMode(mode, shouldRunDrill, auditIntegrityArgs, clinicalSearchArgs) {
   if (mode === 'backup') {
     return [
       { script: 'sqlite-backup.js', stateField: 'lastBackupAt' },
@@ -105,10 +134,29 @@ function getScriptsByMode(mode, shouldRunDrill) {
     ];
   }
 
+  if (mode === 'integrity') {
+    return [
+      { script: 'verify-audit-integrity.js', args: auditIntegrityArgs, stateField: 'lastAuditIntegrityAt' },
+    ];
+  }
+
+  if (mode === 'clinical-search') {
+    return [
+      {
+        script: 'rebuild-patient-clinical-search.js',
+        args: clinicalSearchArgs,
+        stateField: clinicalSearchArgs.includes('--dry-run')
+          ? 'lastClinicalSearchProjectionCheckAt'
+          : 'lastClinicalSearchProjectionRebuildAt',
+      },
+    ];
+  }
+
   const tasks = [
     { script: 'sqlite-backup.js', stateField: 'lastBackupAt' },
     ...(shouldRunDrill ? [{ script: 'sqlite-restore-drill.js', stateField: 'lastRestoreDrillAt' }] : []),
     { script: 'sqlite-monitor.js', args: ['--strict'], stateField: 'lastMonitorAt' },
+    { script: 'verify-audit-integrity.js', args: auditIntegrityArgs, stateField: 'lastAuditIntegrityAt' },
   ];
 
   return tasks;
@@ -196,8 +244,8 @@ async function main() {
   const notifyPolicy = (readArg('notify', process.env.SQLITE_NOTIFY_POLICY || 'on-failure') || 'on-failure').toLowerCase();
   const forceRestoreDrill = toBoolean(readArg('force-restore-drill', process.env.SQLITE_FORCE_RESTORE_DRILL));
 
-  if (!['all', 'backup', 'restore-drill', 'monitor'].includes(mode)) {
-    throw new Error('Modo invalido. Usa --mode=all|backup|restore-drill|monitor');
+  if (!['all', 'backup', 'restore-drill', 'monitor', 'integrity', 'clinical-search'].includes(mode)) {
+    throw new Error('Modo invalido. Usa --mode=all|backup|restore-drill|monitor|integrity|clinical-search');
   }
   if (!['on-failure', 'always', 'never'].includes(notifyPolicy)) {
     throw new Error('Notify invalido. Usa --notify=on-failure|always|never');
@@ -215,7 +263,9 @@ async function main() {
     || mode === 'restore-drill'
     || isRestoreDrillDue(state.lastRestoreDrillAt, restoreDrillFrequencyDays);
 
-  const tasks = getScriptsByMode(mode, shouldRunDrill);
+  const auditIntegrityArgs = buildAuditIntegrityArgs();
+  const clinicalSearchArgs = buildClinicalSearchArgs();
+  const tasks = getScriptsByMode(mode, shouldRunDrill, auditIntegrityArgs, clinicalSearchArgs);
   const taskResults = [];
 
   for (const task of tasks) {

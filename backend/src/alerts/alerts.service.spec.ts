@@ -116,6 +116,60 @@ describe('AlertsService', () => {
     expect(result.acknowledgedById).toBe('med-1');
   });
 
+  it('returns withMeta and acknowledgedHasMore without leaking the extra fetched row', async () => {
+    const activeAlert = {
+      id: 'alert-active',
+      patientId: 'pat-1',
+      encounterId: null,
+      type: 'GENERAL',
+      severity: 'BAJA',
+      title: 'Activa',
+      message: 'Mensaje activo',
+      acknowledgedAt: null,
+      acknowledgedById: null,
+      createdAt: new Date('2026-04-16T08:00:00.000Z'),
+      createdById: 'med-1',
+    };
+    const acknowledgedAlerts = [
+      {
+        ...activeAlert,
+        id: 'alert-ack-1',
+        title: 'Reconocida 1',
+        acknowledgedAt: new Date('2026-04-16T09:00:00.000Z'),
+      },
+      {
+        ...activeAlert,
+        id: 'alert-ack-2',
+        title: 'Reconocida 2',
+        acknowledgedAt: new Date('2026-04-16T08:30:00.000Z'),
+      },
+    ];
+    const prisma = {
+      patient: { findUnique: jest.fn().mockResolvedValue({ id: 'pat-1', createdById: 'med-1', archivedAt: null, createdBy: null }) },
+      clinicalAlert: {
+        findMany: jest.fn()
+          .mockResolvedValueOnce([activeAlert])
+          .mockResolvedValueOnce(acknowledgedAlerts),
+      },
+      user: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    const audit = { log: jest.fn().mockResolvedValue(undefined) };
+    const service = new AlertsService(prisma as never, audit as never);
+
+    const result = await service.findByPatient(
+      'pat-1',
+      { id: 'med-1', role: 'MEDICO' },
+      { includeAcknowledged: true, acknowledgedLimit: 1, withMeta: true },
+    );
+
+    expect(result.meta.acknowledgedHasMore).toBe(true);
+    expect(result.data.map((alert) => alert.id)).toEqual(['alert-active', 'alert-ack-1']);
+    expect(prisma.clinicalAlert.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ take: 2 }),
+    );
+  });
+
   it('allows acknowledging a patient-level alert created by an assistant assigned to the same medico', async () => {
     const acknowledgedAt = new Date('2026-04-16T09:30:00.000Z');
     const prisma = {

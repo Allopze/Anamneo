@@ -32,11 +32,22 @@ export class ConsentsController {
     @Param('patientId', ParseUUIDPipe) patientId: string,
     @CurrentUser() user: CurrentUserData,
     @Query('revokedLimit') revokedLimit?: string,
+    @Query('withMeta') withMeta?: string,
   ) {
+    const parsedRevokedLimit = revokedLimit ? parseInt(revokedLimit, 10) : undefined;
+    if (withMeta === 'true') {
+      return this.consentsService.findByPatient(patientId, user, {
+        revokedLimit: parsedRevokedLimit,
+        withMeta: true,
+      });
+    }
+
     return this.consentsService.findByPatient(
       patientId,
       user,
-      { revokedLimit: revokedLimit ? parseInt(revokedLimit, 10) : undefined },
+      {
+        revokedLimit: parsedRevokedLimit,
+      },
     );
   }
 

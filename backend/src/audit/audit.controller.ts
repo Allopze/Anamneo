@@ -44,6 +44,12 @@ export class AuditController {
     );
   }
 
+  @Get('integrity/latest')
+  @UseGuards(AdminGuard)
+  getLatestIntegritySnapshot() {
+    return this.auditService.getLatestIntegritySnapshot();
+  }
+
   @Get(':entityType/:entityId')
   @UseGuards(AdminGuard)
   findByEntity(

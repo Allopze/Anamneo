@@ -22,6 +22,17 @@ const CREATE_AUDIT_LOG_TABLE_SQL = `
   );
 
   CREATE INDEX idx_audit_logs_timestamp ON audit_logs(timestamp);
+
+  CREATE TABLE audit_integrity_snapshots (
+    id TEXT PRIMARY KEY NOT NULL,
+    valid BOOLEAN NOT NULL,
+    checked INTEGER NOT NULL,
+    total INTEGER NOT NULL,
+    broken_at TEXT,
+    warning TEXT,
+    verification_scope TEXT NOT NULL,
+    verified_at DATETIME NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'))
+  );
 `;
 
 describe('AuditService concurrency', () => {
@@ -46,7 +57,12 @@ describe('AuditService concurrency', () => {
 
     prisma = new PrismaService();
     await prisma.onModuleInit();
-    await prisma.$executeRawUnsafe(CREATE_AUDIT_LOG_TABLE_SQL);
+    for (const statement of CREATE_AUDIT_LOG_TABLE_SQL.split(';')) {
+      const trimmedStatement = statement.trim();
+      if (trimmedStatement) {
+        await prisma.$executeRawUnsafe(trimmedStatement);
+      }
+    }
     service = new AuditService(prisma);
   });
 

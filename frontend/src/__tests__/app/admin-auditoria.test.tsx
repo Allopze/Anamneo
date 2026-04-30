@@ -13,6 +13,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/stores/auth-store', () => ({
+  useAuthIsAdmin: () => isAdminValue,
   useAuthStore: () => ({
     isAdmin: () => isAdminValue,
   }),
@@ -52,12 +53,26 @@ beforeEach(() => {
       });
     }
 
+    if (url === '/audit/integrity/latest') {
+      return Promise.resolve({
+        data: {
+          valid: true,
+          checked: 1,
+          total: 1,
+          verifiedAt: '2026-03-31T12:00:00.000Z',
+          verificationScope: 'LIMIT_1000',
+        },
+      });
+    }
+
     if (url === '/audit/integrity/verify?limit=1000' || url === '/audit/integrity/verify?full=true') {
       return Promise.resolve({
         data: {
           valid: true,
           checked: 1,
           total: 1,
+          verifiedAt: '2026-03-31T12:05:00.000Z',
+          verificationScope: url.endsWith('full=true') ? 'FULL' : 'LIMIT_1000',
         },
       });
     }

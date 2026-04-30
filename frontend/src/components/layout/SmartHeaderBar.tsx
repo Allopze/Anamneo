@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { DASHBOARD_STATS_QUERY_KEY, fetchDashboardStats } from '@/lib/dashboard-stats';
+import { DASHBOARD_HEADER_COUNTS_QUERY_KEY, fetchDashboardHeaderCounts } from '@/lib/dashboard-stats';
 import { canCreateEncounter as canCreateEncounterPermission, canCreatePatient as canCreatePatientPermission } from '@/lib/permissions';
 import { useAuthStore } from '@/stores/auth-store';
 import {
@@ -93,8 +93,8 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
 
   // ── Data queries ──────────────────────────────────────
   const { data, isLoading, isError } = useQuery<{ counts: DashboardCounts }>({
-    queryKey: DASHBOARD_STATS_QUERY_KEY,
-    queryFn: fetchDashboardStats<{ counts: DashboardCounts }>,
+    queryKey: DASHBOARD_HEADER_COUNTS_QUERY_KEY,
+    queryFn: fetchDashboardHeaderCounts<{ counts: DashboardCounts }>,
     staleTime: 60_000,
     refetchInterval: 120_000,
     retry: 2,

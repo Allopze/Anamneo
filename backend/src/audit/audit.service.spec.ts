@@ -97,6 +97,9 @@ describe('AuditService', () => {
         count: jest.fn().mockResolvedValue(0),
         findMany: jest.fn().mockResolvedValue([]),
       },
+      auditIntegritySnapshot: {
+        upsert: jest.fn(),
+      },
     };
 
     const service = new AuditService(prisma as any);
@@ -142,6 +145,9 @@ describe('AuditService', () => {
         count: jest.fn().mockResolvedValue(0),
         findMany: jest.fn().mockResolvedValue([]),
       },
+      auditIntegritySnapshot: {
+        upsert: jest.fn(),
+      },
     };
 
     const service = new AuditService(prisma as any);
@@ -176,6 +182,62 @@ describe('AuditService', () => {
       total: tamperedEntries.length,
       brokenAt: tamperedEntries[1].id,
     });
+  });
+
+  it('verifies the latest bounded window when a limit is provided', async () => {
+    const createdEntries: any[] = [];
+    const prisma = {
+      auditLog: {
+        create: jest.fn().mockImplementation(async ({ data }) => {
+          const entry = { id: `audit-${createdEntries.length + 1}`, ...data };
+          createdEntries.push(entry);
+          return entry;
+        }),
+        findFirst: jest.fn().mockImplementation(async () => {
+          const last = createdEntries.at(-1);
+          return last ? { integrityHash: last.integrityHash } : null;
+        }),
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      auditIntegritySnapshot: {
+        upsert: jest.fn(),
+      },
+    };
+
+    const service = new AuditService(prisma as any);
+
+    await service.log({
+      entityType: 'Encounter',
+      entityId: 'enc-1',
+      userId: 'user-1',
+      action: 'UPDATE',
+      diff: { status: 'EN_PROGRESO' },
+    });
+    await service.log({
+      entityType: 'Encounter',
+      entityId: 'enc-1',
+      userId: 'user-1',
+      action: 'UPDATE',
+      diff: { status: 'COMPLETADO' },
+    });
+
+    prisma.auditLog.count.mockResolvedValue(createdEntries.length);
+    prisma.auditLog.findMany.mockResolvedValue([createdEntries[1], createdEntries[0]]);
+
+    await expect(service.verifyChain(1)).resolves.toMatchObject({
+      valid: true,
+      checked: 1,
+      total: createdEntries.length,
+      verificationScope: 'LIMIT_1',
+    });
+
+    expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: { timestamp: 'desc' },
+        take: 2,
+      }),
+    );
   });
 
   // ── QW-1: PHI redaction regression tests ────────────────────────────

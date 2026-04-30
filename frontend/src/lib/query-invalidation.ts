@@ -1,8 +1,9 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { DASHBOARD_STATS_QUERY_KEY } from '@/lib/dashboard-stats';
+import { DASHBOARD_HEADER_COUNTS_QUERY_KEY, DASHBOARD_STATS_QUERY_KEY } from '@/lib/dashboard-stats';
 
 const DASHBOARD_QUERY_KEYS = [
   DASHBOARD_STATS_QUERY_KEY,
+  DASHBOARD_HEADER_COUNTS_QUERY_KEY,
   ['patients'],
 ] as const;
 

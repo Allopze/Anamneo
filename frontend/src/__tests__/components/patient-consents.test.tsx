@@ -55,18 +55,21 @@ describe('PatientConsents', () => {
 
   it('shows granted date, encounter provenance, and recorder information', async () => {
     apiGetMock.mockResolvedValue({
-      data: [
-        {
-          id: 'consent-1',
-          type: 'TRATAMIENTO',
-          description: 'Acepta tratamiento indicado.',
-          status: 'ACTIVO',
-          encounterId: 'enc-123',
-          grantedAt: '2026-04-19T10:00:00.000Z',
-          createdAt: '2026-04-19T10:05:00.000Z',
-          grantedBy: { nombre: 'Dra. Rivera' },
-        },
-      ],
+      data: {
+        data: [
+          {
+            id: 'consent-1',
+            type: 'TRATAMIENTO',
+            description: 'Acepta tratamiento indicado.',
+            status: 'ACTIVO',
+            encounterId: 'enc-123',
+            grantedAt: '2026-04-19T10:00:00.000Z',
+            createdAt: '2026-04-19T10:05:00.000Z',
+            grantedBy: { nombre: 'Dra. Rivera' },
+          },
+        ],
+        meta: { revokedHasMore: false },
+      },
     });
 
     render(<PatientConsents patientId="patient-1" />, { wrapper: createWrapper() });

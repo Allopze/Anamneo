@@ -6,7 +6,6 @@ import { PatientCompletenessStatus } from '../common/types';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   decoratePatient,
-  matchesClinicalSearch,
 } from './patients-format';
 
 export interface FindPatientsFilters {
@@ -127,50 +126,42 @@ export async function findPatientsReadModel(params: FindPatientsReadModelParams)
   const orderBy = filters?.sortBy ? { [filters.sortBy]: filters.sortOrder || 'asc' } : { createdAt: 'desc' as const };
 
   if (normalizedClinicalSearch) {
-    const CLINICAL_SEARCH_CAP = 500;
-    const patients = await prisma.patient.findMany({
-      where,
-      orderBy,
-      take: CLINICAL_SEARCH_CAP,
-      include: {
-        _count: {
-          select: { encounters: true },
-        },
-        encounters: {
-          where: user.isAdmin ? undefined : { medicoId: effectiveMedicoId },
-          select: {
-            sections: {
-              where: {
-                sectionKey: {
-                  in: ['MOTIVO_CONSULTA', 'ANAMNESIS_PROXIMA', 'REVISION_SISTEMAS'],
-                },
-              },
-              select: { data: true },
-            },
-          },
+    const clinicalSearchFilter: Prisma.PatientWhereInput = {
+      clinicalSearches: {
+        some: {
+          text: { contains: normalizedClinicalSearch },
+          ...(user.isAdmin ? {} : { medicoId: effectiveMedicoId }),
         },
       },
-    });
+    };
+    const clinicalWhere: Prisma.PatientWhereInput = {
+      AND: [where, clinicalSearchFilter],
+    };
 
-    const filteredPatients = patients
-      .filter((patient) =>
-        patient.encounters.some((encounter) =>
-          encounter.sections.some((section) => matchesClinicalSearch(section.data, normalizedClinicalSearch)),
-        ),
-      )
-      .map(({ encounters: _encounters, ...patient }) => patient);
-
-    const paginatedPatients = filteredPatients.slice(skip, skip + limit);
-    const incompleteCount = filteredPatients.filter((patient) => patient.completenessStatus === 'INCOMPLETA').length;
-    const pendingVerificationCount = filteredPatients.filter(
-      (patient) => patient.completenessStatus === 'PENDIENTE_VERIFICACION',
-    ).length;
-    const verifiedCount = filteredPatients.filter((patient) => patient.completenessStatus === 'VERIFICADA').length;
+    const [patients, total, incompleteCount, pendingVerificationCount, verifiedCount] = await Promise.all([
+      prisma.patient.findMany({
+        where: clinicalWhere,
+        skip,
+        take: limit,
+        orderBy,
+        include: {
+          _count: {
+            select: { encounters: true },
+          },
+        },
+      }),
+      prisma.patient.count({ where: clinicalWhere }),
+      prisma.patient.count({ where: { AND: [baseWhere, clinicalSearchFilter, { completenessStatus: 'INCOMPLETA' }] } }),
+      prisma.patient.count({
+        where: { AND: [baseWhere, clinicalSearchFilter, { completenessStatus: 'PENDIENTE_VERIFICACION' }] },
+      }),
+      prisma.patient.count({ where: { AND: [baseWhere, clinicalSearchFilter, { completenessStatus: 'VERIFICADA' }] } }),
+    ]);
 
     return {
-      data: paginatedPatients.map((patient) => decoratePatient(patient)),
+      data: patients.map((patient) => decoratePatient(patient)),
       summary: {
-        totalPatients: filteredPatients.length,
+        totalPatients: incompleteCount + pendingVerificationCount + verifiedCount,
         incomplete: incompleteCount,
         pendingVerification: pendingVerificationCount,
         verified: verifiedCount,
@@ -179,9 +170,8 @@ export async function findPatientsReadModel(params: FindPatientsReadModelParams)
       pagination: {
         page,
         limit,
-        total: filteredPatients.length,
-        totalPages: Math.ceil(filteredPatients.length / limit),
-        clinicalSearchCapped: patients.length >= CLINICAL_SEARCH_CAP,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }

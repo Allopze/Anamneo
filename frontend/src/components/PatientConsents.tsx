@@ -32,6 +32,13 @@ interface Consent {
   grantedBy?: { nombre: string } | null;
 }
 
+interface ConsentsResponse {
+  data: Consent[];
+  meta?: {
+    revokedHasMore?: boolean;
+  };
+}
+
 interface PatientConsentsProps {
   patientId: string;
   encounterId?: string;
@@ -47,11 +54,11 @@ export default function PatientConsents({ patientId, encounterId }: PatientConse
   const [revokeReason, setRevokeReason] = useState('');
   const [revokedLimit, setRevokedLimit] = useState(REVOKED_PAGE_SIZE);
 
-  const { data: consents = [], isLoading, isFetching } = useQuery({
+  const { data: consentsResponse, isLoading, isFetching } = useQuery({
     queryKey: ['consents', patientId, revokedLimit],
     queryFn: async () => {
-      const res = await api.get(`/consents/patient/${patientId}?revokedLimit=${revokedLimit}`);
-      return res.data as Consent[];
+      const res = await api.get(`/consents/patient/${patientId}?revokedLimit=${revokedLimit}&withMeta=true`);
+      return res.data as ConsentsResponse;
     },
   });
 
@@ -86,8 +93,10 @@ export default function PatientConsents({ patientId, encounterId }: PatientConse
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
+  const consents = consentsResponse?.data ?? [];
   const activeConsents = consents.filter((c) => c.status === 'ACTIVO');
   const revokedConsents = consents.filter((c) => c.status === 'REVOCADO');
+  const revokedHasMore = Boolean(consentsResponse?.meta?.revokedHasMore);
 
   return (
     <div>
@@ -243,7 +252,7 @@ export default function PatientConsents({ patientId, encounterId }: PatientConse
                     )}
                   </div>
                 ))}
-                {revokedConsents.length >= revokedLimit ? (
+                {revokedHasMore ? (
                   <button
                     type="button"
                     className="btn btn-secondary mt-2 w-full text-sm"

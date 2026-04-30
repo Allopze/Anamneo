@@ -145,3 +145,90 @@ export async function getEncounterDashboardReadModel(params: EncounterDashboardR
     upcomingTasks: upcomingTasks.map((task) => formatDashboardUpcomingTask(task)),
   };
 }
+
+export async function getEncounterHeaderCountsReadModel(params: EncounterDashboardReadModelParams) {
+  const { prisma, user, medicoId } = params;
+  const patientWhere = buildAccessiblePatientsWhere(user);
+  const todayStart = startOfAppDayUtc(new Date());
+  const tomorrowStart = endOfAppDayUtcExclusive(new Date());
+  const weekWindowEnd = new Date(todayStart.getTime() + 8 * DAY_IN_MS);
+  const encounterWhere = {
+    medicoId,
+    patient: {
+      archivedAt: null,
+    },
+  };
+  const activeTaskWhere = {
+    patient: { archivedAt: null },
+    ...buildEncounterTaskScopeWhere(medicoId),
+    status: { in: [...ACTIVE_TASK_STATUSES] },
+  };
+
+  const [
+    enProgreso,
+    completado,
+    cancelado,
+    pendingReview,
+    upcomingTasks,
+    patientIncomplete,
+    patientPendingVerification,
+    patientVerified,
+    overdueTasks,
+    dueTodayTasks,
+    dueThisWeekTasks,
+    upcomingAdministrativeTasks,
+  ] = await Promise.all([
+    prisma.encounter.count({ where: { ...encounterWhere, status: 'EN_PROGRESO' } }),
+    prisma.encounter.count({ where: { ...encounterWhere, status: 'COMPLETADO' } }),
+    prisma.encounter.count({ where: { ...encounterWhere, status: 'CANCELADO' } }),
+    prisma.encounter.count({ where: { ...encounterWhere, reviewStatus: 'LISTA_PARA_REVISION' } }),
+    prisma.encounterTask.count({ where: activeTaskWhere }),
+    prisma.patient.count({ where: { ...patientWhere, completenessStatus: 'INCOMPLETA' } }),
+    prisma.patient.count({ where: { ...patientWhere, completenessStatus: 'PENDIENTE_VERIFICACION' } }),
+    prisma.patient.count({ where: { ...patientWhere, completenessStatus: 'VERIFICADA' } }),
+    prisma.encounterTask.count({
+      where: {
+        ...activeTaskWhere,
+        dueDate: { lt: todayStart },
+      },
+    }),
+    prisma.encounterTask.count({
+      where: {
+        ...activeTaskWhere,
+        dueDate: { gte: todayStart, lt: tomorrowStart },
+      },
+    }),
+    prisma.encounterTask.count({
+      where: {
+        ...activeTaskWhere,
+        dueDate: { gte: tomorrowStart, lt: weekWindowEnd },
+      },
+    }),
+    prisma.encounterTask.count({
+      where: {
+        ...activeTaskWhere,
+        type: 'TRAMITE',
+        dueDate: { gte: todayStart, lt: weekWindowEnd },
+      },
+    }),
+  ]);
+
+  return {
+    counts: {
+      enProgreso,
+      completado,
+      cancelado,
+      pendingReview,
+      upcomingTasks,
+      patientIncomplete,
+      patientPendingVerification,
+      patientVerified,
+      patientNonVerified: patientIncomplete + patientPendingVerification,
+      overdueTasks,
+      dueTodayTasks,
+      dueThisWeekTasks,
+      upcomingAdministrativeTasks,
+      total: enProgreso + completado + cancelado,
+    },
+  };
+}

@@ -20,6 +20,16 @@ type IntegrityPayload = {
   diff: string | null;
 };
 
+type AuditIntegrityResult = {
+  valid: boolean;
+  checked: number;
+  total: number;
+  brokenAt?: string;
+  warning?: string;
+  verifiedAt: Date;
+  verificationScope: string;
+};
+
 function buildIntegrityPayload(input: {
   entityType: string;
   entityId: string;
@@ -175,35 +185,51 @@ export class AuditService {
     });
   }
 
-  async verifyChain(limit?: number): Promise<{ valid: boolean; checked: number; total: number; brokenAt?: string; warning?: string }> {
+  async getLatestIntegritySnapshot() {
+    return this.prisma.auditIntegritySnapshot.findUnique({
+      where: { id: 'latest' },
+    });
+  }
+
+  async verifyChain(limit?: number): Promise<AuditIntegrityResult> {
     const total = await this.prisma.auditLog.count();
     const normalizedLimit = typeof limit === 'number' && Number.isFinite(limit) && limit > 0
       ? Math.trunc(limit)
       : undefined;
-    const entries = await this.prisma.auditLog.findMany({
-      orderBy: { timestamp: 'asc' },
-      take: normalizedLimit,
-      select: {
-        id: true,
-        entityType: true,
-        entityId: true,
-        userId: true,
-        requestId: true,
-        action: true,
-        reason: true,
-        result: true,
-        diff: true,
-        integrityHash: true,
-        previousHash: true,
-      },
+    const select = {
+      id: true,
+      entityType: true,
+      entityId: true,
+      userId: true,
+      requestId: true,
+      action: true,
+      reason: true,
+      result: true,
+      diff: true,
+      integrityHash: true,
+      previousHash: true,
+    } satisfies Prisma.AuditLogSelect;
+    const rawEntries = await this.prisma.auditLog.findMany({
+      orderBy: { timestamp: normalizedLimit ? 'desc' : 'asc' },
+      take: normalizedLimit ? normalizedLimit + 1 : undefined,
+      select,
     });
+    const boundaryEntry = normalizedLimit && rawEntries.length > normalizedLimit
+      ? rawEntries[normalizedLimit]
+      : undefined;
+    const entries = normalizedLimit
+      ? rawEntries.slice(0, normalizedLimit).reverse()
+      : rawEntries;
 
-    let expectedPreviousHash = 'GENESIS';
+    let expectedPreviousHash = boundaryEntry?.integrityHash ?? 'GENESIS';
     for (let index = 0; index < entries.length; index += 1) {
       const entry = entries[index];
       if (!entry.integrityHash) continue; // skip legacy entries without hash
       if (entry.previousHash !== expectedPreviousHash) {
-        return { valid: false, checked: index, total, brokenAt: entry.id };
+        return this.saveIntegritySnapshot(
+          { valid: false, checked: index, total, brokenAt: entry.id },
+          normalizedLimit,
+        );
       }
       const expectedHash = computeIntegrityHash(expectedPreviousHash, {
         entityType: entry.entityType,
@@ -216,15 +242,53 @@ export class AuditService {
         diff: entry.diff,
       });
       if (entry.integrityHash !== expectedHash) {
-        return { valid: false, checked: index, total, brokenAt: entry.id };
+        return this.saveIntegritySnapshot(
+          { valid: false, checked: index, total, brokenAt: entry.id },
+          normalizedLimit,
+        );
       }
       expectedPreviousHash = entry.integrityHash;
     }
 
     const warning = normalizedLimit && total > entries.length
-      ? `Solo se verificaron ${entries.length} de ${total} entradas. Aumente el parámetro limit para una verificación completa.`
+      ? `Solo se verificaron las ${entries.length} entradas mas recientes de ${total}. Use full=true para una verificacion completa.`
       : undefined;
 
-    return { valid: true, checked: entries.length, total, warning };
+    return this.saveIntegritySnapshot(
+      { valid: true, checked: entries.length, total, warning },
+      normalizedLimit,
+    );
+  }
+
+  private async saveIntegritySnapshot(
+    result: Omit<AuditIntegrityResult, 'verifiedAt' | 'verificationScope'>,
+    limit?: number,
+  ): Promise<AuditIntegrityResult> {
+    const verifiedAt = new Date();
+    const verificationScope = limit ? `LIMIT_${limit}` : 'FULL';
+    const payload = {
+      valid: result.valid,
+      checked: result.checked,
+      total: result.total,
+      brokenAt: result.brokenAt ?? null,
+      warning: result.warning ?? null,
+      verificationScope,
+      verifiedAt,
+    };
+
+    await this.prisma.auditIntegritySnapshot.upsert({
+      where: { id: 'latest' },
+      create: {
+        id: 'latest',
+        ...payload,
+      },
+      update: payload,
+    });
+
+    return {
+      ...result,
+      verifiedAt,
+      verificationScope,
+    };
   }
 }
