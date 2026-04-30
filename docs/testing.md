@@ -48,8 +48,8 @@ Consecuencia importante:
 ### Playwright
 
 - La configuracion vive en `frontend/playwright.config.ts`.
-- Por defecto `baseURL` es `http://127.0.0.1:5556`, pero puedes mover el frontend con `PLAYWRIGHT_FRONTEND_PORT`.
-- El backend e2e usa `5679` por defecto, pero puedes moverlo con `PLAYWRIGHT_BACKEND_PORT`.
+- Por defecto `baseURL` es `http://127.0.0.1:5555`, pero puedes mover el frontend con `PLAYWRIGHT_FRONTEND_PORT`.
+- El backend e2e usa `5678` por defecto, pero puedes moverlo con `PLAYWRIGHT_BACKEND_PORT`.
 - El `webServer` construye una build de pruebas y levanta el frontend/backend con `scripts/e2e-webserver.js`.
 - `fullyParallel` esta desactivado.
 

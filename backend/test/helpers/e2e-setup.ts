@@ -140,7 +140,7 @@ export async function bootstrapApp() {
   process.env.SETTINGS_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
   process.env.NODE_ENV = 'test';
   process.env.UPLOAD_DEST = testUploadsDirectory;
-  process.env.APP_PUBLIC_URL = 'http://localhost:5556';
+  process.env.APP_PUBLIC_URL = 'http://localhost:5555';
   process.env.SMTP_HOST = '';
   process.env.SMTP_PORT = '';
   process.env.SMTP_SECURE = 'false';

@@ -8,7 +8,7 @@
     "build": "node ./scripts/next-build.js",
     "build:analyze": "ANALYZE=true node ./scripts/next-build.js",
     "bundle:budget": "node ./scripts/check-bundle-budget.js",
-    "start": "next start -H 0.0.0.0 -p 5556",
+    "start": "next start -H 0.0.0.0 -p 5555",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "audit:prod": "npm audit --omit=dev --audit-level=high",

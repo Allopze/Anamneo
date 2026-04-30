@@ -25,18 +25,18 @@ La fuente base para estas variables es `.env.example` en la raiz. `backend/.env`
 | `JWT_REFRESH_SECRET` | Si | Ninguno valido | Firma de refresh token |
 | `JWT_REFRESH_EXPIRES_IN` | No | `7d` | TTL refresh token |
 | `BOOTSTRAP_TOKEN` | Si en produccion | Ninguno valido | Token requerido para crear la primera cuenta administradora |
-| `CORS_ORIGIN` | Si | `http://localhost:5556,https://anamneo.cloudbox.lat` en ejemplo | Allowlist CORS backend |
-| `PORT` | No | `5679` backend / `5556` frontend | Puertos HTTP |
-| `BACKEND_PORT` | No | `5679` | Puerto externo del backend en Docker Compose |
-| `FRONTEND_PORT` | No | `5556` | Puerto externo del frontend en Docker Compose |
+| `CORS_ORIGIN` | Si | `http://localhost:5555,https://anamneo.cloudbox.lat` en ejemplo | Allowlist CORS backend |
+| `PORT` | No | `5678` backend / `5555` frontend | Puertos HTTP |
+| `BACKEND_PORT` | No | `5678` | Puerto externo del backend en Docker Compose |
+| `FRONTEND_PORT` | No | `5555` | Puerto externo del frontend en Docker Compose |
 | `BACKEND_BIND_HOST` | No | `127.0.0.1` | Host de bind del puerto backend en Docker Compose |
 | `FRONTEND_BIND_HOST` | No | `127.0.0.1` | Host de bind del puerto frontend en Docker Compose |
 | `APP_TIME_ZONE` | No | `America/Santiago` | Zona horaria clinica usada para comparaciones `date-only` (edad, vencimientos, seguimientos) |
 | `NEXT_PUBLIC_API_URL` | Si en despliegue frontend | `/api` en desarrollo recomendado | URL consumida por browser |
-| `API_PROXY_TARGET` | No | `http://localhost:5679/api` | Destino server-side del proxy de Next.js |
+| `API_PROXY_TARGET` | No | `http://localhost:5678/api` | Destino server-side del proxy de Next.js |
 | `NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE` | No | `false` | Fuerza modo compartido en el frontend |
 | `NEXT_ALLOWED_DEV_ORIGINS` | No | vacio | Origenes extra permitidos por Next.js en desarrollo |
-| `APP_PUBLIC_URL` | No | `http://localhost:5556` en ejemplo | Links publicos en correos |
+| `APP_PUBLIC_URL` | No | `http://localhost:5555` en ejemplo | Links publicos en correos |
 | `FRONTEND_PUBLIC_URL` | No | vacio | URL alternativa del frontend para enlaces y correos |
 | `TRUST_PROXY` | No | `false` | Ajuste de proxy para Nest |
 
@@ -102,7 +102,7 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 - `BACKEND_BIND_HOST` y `FRONTEND_BIND_HOST` deberian quedarse en `127.0.0.1` salvo que tengas un motivo muy claro para abrirlos.
 - `APP_PUBLIC_URL` y `CORS_ORIGIN` deben apuntar al hostname HTTPS publico que entrega Cloudflare Tunnel.
 - `NEXT_PUBLIC_API_URL` debe mantenerse en `/api` para preservar cookies `HttpOnly` y same-origin.
-- `cloudflared` debe publicar el frontend local, por ejemplo `http://localhost:5556`; el backend no necesita quedar expuesto publicamente.
+- `cloudflared` debe publicar el frontend local, por ejemplo `http://localhost:5555`; el backend no necesita quedar expuesto publicamente.
 - El primer registro administrador requerira `BOOTSTRAP_TOKEN`; el deploy no deberia considerarse listo hasta validar ese flujo en una ventana controlada.
 
 ## Consejo Practico

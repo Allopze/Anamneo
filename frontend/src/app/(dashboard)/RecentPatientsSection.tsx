@@ -20,8 +20,8 @@ interface RecentPatientsSectionProps {
 
 export default function RecentPatientsSection({ patients, isLoading }: RecentPatientsSectionProps) {
   return (
-    <section className="animate-fade-in overflow-hidden rounded-card bg-surface-elevated shadow-soft">
-      <div className="flex items-center justify-between gap-4 border-b border-surface-muted/30 px-5 py-4 sm:px-6">
+    <section className="animate-fade-in overflow-hidden rounded-[14px] border border-surface-muted/45 bg-surface-elevated shadow-soft">
+      <div className="flex items-center justify-between gap-4 border-b border-surface-muted/35 px-5 py-4 sm:px-6">
         <div>
           <h2 className="text-lg font-bold tracking-tight text-ink">Pacientes recientes</h2>
           <p className="mt-1 text-sm text-ink-secondary">Acceso directo a los últimos pacientes tocados por el equipo.</p>
@@ -34,20 +34,20 @@ export default function RecentPatientsSection({ patients, isLoading }: RecentPat
       {isLoading ? (
         <div className="space-y-3 px-5 py-5 sm:px-6">
           {[...Array(4)].map((_, index) => (
-            <div key={index} className="h-16 rounded-2xl skeleton" />
+            <div key={index} className="h-14 rounded-[10px] skeleton" />
           ))}
         </div>
       ) : patients.length > 0 ? (
-        <div className="divide-y divide-surface-muted/30">
+        <div className="divide-y divide-surface-muted/35">
           {patients.map((patient) => (
             <Link
               key={patient.patientId}
               href={`/pacientes/${patient.patientId}`}
-              className="group grid gap-3 px-5 py-4 transition-colors hover:bg-surface-inset/40 sm:px-6 lg:grid-cols-[minmax(0,1fr)_170px_32px]"
+              className="group grid gap-3 px-5 py-4 transition-colors hover:bg-surface-inset/45 sm:px-6 lg:grid-cols-[minmax(0,1fr)_150px_20px]"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-inset text-ink-secondary">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-surface-muted/40 bg-surface-inset text-ink-secondary">
                     <FiUsers className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">

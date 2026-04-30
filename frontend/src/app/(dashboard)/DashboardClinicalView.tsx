@@ -126,8 +126,11 @@ export default function DashboardClinicalView({
     [data],
   );
 
+  const panelClass =
+    'animate-fade-in overflow-hidden rounded-[14px] border border-surface-muted/45 bg-surface-elevated shadow-soft';
+
   return (
-    <div className="space-y-6 pb-2">
+    <div className="space-y-4 pb-2">
       <DashboardClinicalHero
         user={user}
         data={data}
@@ -148,55 +151,12 @@ export default function DashboardClinicalView({
         />
       )}
 
-      <section
-        className="animate-fade-in rounded-card bg-surface-elevated px-5 py-5 shadow-soft sm:px-6"
-        style={sectionAnimation(40)}
-      >
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold tracking-tight text-ink">Recordatorios operativos</h2>
-            <p className="mt-1 text-sm text-ink-secondary">Atajos para seguimientos que requieren movimiento hoy.</p>
-          </div>
-          <Link href="/seguimientos" className="text-sm font-bold text-ink-secondary transition-colors hover:text-ink">
-            Ver bandeja
-          </Link>
-        </div>
-
-        {isLoading ? (
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {[...Array(4)].map((_, index) => (
-              <div key={index} className="h-24 rounded-2xl skeleton" />
-            ))}
-          </div>
-        ) : (
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {reminderCards.map((card) => (
-              <Link
-                key={card.label}
-                href={card.href}
-                className={clsx('rounded-2xl border px-4 py-4 transition-colors hover:bg-surface-inset/35', card.tone)}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-bold">{card.label}</p>
-                    <p className="mt-2 text-3xl font-extrabold tracking-tight">{card.value}</p>
-                  </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-current">
-                    <card.icon className="h-[18px] w-[18px]" />
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.85fr)]">
         <section
-          className="animate-fade-in overflow-hidden rounded-card bg-surface-elevated shadow-soft"
-          style={sectionAnimation(80)}
+          className={panelClass}
+          style={sectionAnimation(40)}
         >
-          <div className="flex items-center justify-between gap-4 border-b border-surface-muted/30 px-5 py-4 sm:px-6">
+          <div className="flex items-center justify-between gap-4 border-b border-surface-muted/35 px-5 py-4 sm:px-6">
             <div>
               <h2 className="text-lg font-bold tracking-tight text-ink">Atenciones en curso</h2>
               <p className="mt-1 text-sm text-ink-secondary">Casos abiertos dentro del circuito activo.</p>
@@ -212,11 +172,11 @@ export default function DashboardClinicalView({
           {isLoading ? (
             <div className="space-y-3 px-5 py-5 sm:px-6">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-20 rounded-2xl skeleton" />
+                <div key={i} className="h-16 rounded-[10px] skeleton" />
               ))}
             </div>
           ) : pendingEncounters.length > 0 ? (
-            <div className="divide-y divide-surface-muted/30">
+            <div className="divide-y divide-surface-muted/35">
               {pendingEncounters.map((encounter) => {
                 const pct =
                   encounter.progress.total > 0 ? (encounter.progress.completed / encounter.progress.total) * 100 : 0;
@@ -224,10 +184,10 @@ export default function DashboardClinicalView({
                   <Link
                     key={encounter.id}
                     href={`/atenciones/${encounter.id}`}
-                    className="group grid gap-4 px-5 py-4 transition-colors hover:bg-surface-inset/40 sm:px-6 lg:grid-cols-[minmax(0,1fr)_200px]"
+                    className="group grid gap-4 px-5 py-4 transition-colors hover:bg-surface-inset/45 sm:px-6 lg:grid-cols-[minmax(0,1fr)_190px]"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent-text">
+                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-surface-muted/40 bg-surface-inset text-ink-secondary">
                         <FiClock className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -250,8 +210,8 @@ export default function DashboardClinicalView({
                             {encounter.progress.completed}/{encounter.progress.total}
                           </span>
                         </div>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-muted/40">
-                          <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-muted/45">
+                          <div className="h-full rounded-full bg-clinical-500" style={{ width: `${pct}%` }} />
                         </div>
                       </div>
                       <FiChevronRight className="h-4 w-4 shrink-0 text-ink-muted transition-colors group-hover:text-ink" />
@@ -267,69 +227,108 @@ export default function DashboardClinicalView({
           )}
         </section>
 
-        <section
-          className="animate-fade-in overflow-hidden rounded-card bg-surface-elevated shadow-soft"
-          style={sectionAnimation(140)}
-        >
-          <div className="flex items-center justify-between gap-4 border-b border-surface-muted/30 px-5 py-4 sm:px-6">
-            <div>
-              <h2 className="text-lg font-bold tracking-tight text-ink">Seguimientos próximos</h2>
-              <p className="mt-1 text-sm text-ink-secondary">Tareas con fecha, prioridad y atraso visible.</p>
+        <div className="space-y-4">
+          <section className={panelClass} style={sectionAnimation(80)}>
+            <div className="flex items-center justify-between gap-4 border-b border-surface-muted/35 px-5 py-4">
+              <div>
+                <h2 className="text-lg font-bold tracking-tight text-ink">Seguimientos próximos</h2>
+                <p className="mt-1 text-sm text-ink-secondary">Tareas con fecha, prioridad y atraso visible.</p>
+              </div>
+              <Link
+                href="/seguimientos"
+                className="shrink-0 text-sm font-bold text-ink-secondary transition-colors hover:text-ink"
+              >
+                Abrir bandeja
+              </Link>
             </div>
-            <Link
-              href="/seguimientos"
-              className="text-sm font-bold text-ink-secondary transition-colors hover:text-ink"
-            >
-              Abrir bandeja
-            </Link>
-          </div>
 
-          {isLoading ? (
-            <div className="space-y-3 px-5 py-5 sm:px-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-20 rounded-2xl skeleton" />
-              ))}
-            </div>
-          ) : upcomingTasks.length > 0 ? (
-            <div className="divide-y divide-surface-muted/30">
-              {upcomingTasks.map((task) => (
-                <Link
-                  key={task.id}
-                  href={`/pacientes/${task.patient?.id ?? task.patientId}`}
-                  className="group flex items-start gap-3 px-5 py-4 transition-colors hover:bg-surface-inset/40 sm:px-6"
-                >
-                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-inset text-ink-secondary">
-                    <FiClipboard className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="truncate text-sm font-bold text-ink">{task.title}</p>
-                      {task.isOverdue && (
-                        <span className="rounded-full bg-status-red/16 px-2.5 py-0.5 text-xs font-bold text-status-red-text">
-                          Atrasado
-                        </span>
-                      )}
+            {isLoading ? (
+              <div className="space-y-3 px-5 py-5">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-16 rounded-[10px] skeleton" />
+                ))}
+              </div>
+            ) : upcomingTasks.length > 0 ? (
+              <div className="divide-y divide-surface-muted/35">
+                {upcomingTasks.map((task) => (
+                  <Link
+                    key={task.id}
+                    href={`/pacientes/${task.patient?.id ?? task.patientId}`}
+                    className="group flex items-start gap-3 px-5 py-4 transition-colors hover:bg-surface-inset/45"
+                  >
+                    <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-surface-muted/40 bg-surface-inset text-ink-secondary">
+                      <FiClipboard className="h-4 w-4" />
                     </div>
-                    <p className="mt-1 text-sm text-ink-secondary">
-                      {task.patient?.nombre ?? 'Paciente sin nombre'} · {TASK_TYPE_LABELS[task.type]}
-                    </p>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-muted">
-                      <span>{task.dueDate ? formatDateOnly(task.dueDate, 'd MMM') : 'Sin fecha'}</span>
-                      <span>{task.priority.toLowerCase()}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="truncate text-sm font-bold text-ink">{task.title}</p>
+                        {task.isOverdue && (
+                          <span className="rounded-[6px] bg-status-red/16 px-2 py-0.5 text-xs font-bold text-status-red-text">
+                            Atrasado
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm text-ink-secondary">
+                        {task.patient?.nombre ?? 'Paciente sin nombre'} · {TASK_TYPE_LABELS[task.type]}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-muted">
+                        <span>{task.dueDate ? formatDateOnly(task.dueDate, 'd MMM') : 'Sin fecha'}</span>
+                        <span>{task.priority.toLowerCase()}</span>
+                      </div>
                     </div>
-                  </div>
-                  <FiChevronRight className="mt-1 h-4 w-4 shrink-0 text-ink-muted transition-colors group-hover:text-ink" />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="px-5 py-8 sm:px-6">
-              <p className="text-sm text-ink-secondary">No hay seguimientos próximos cargados en el tablero.</p>
-            </div>
-          )}
-        </section>
+                    <FiChevronRight className="mt-1 h-4 w-4 shrink-0 text-ink-muted transition-colors group-hover:text-ink" />
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="px-5 py-6">
+                <p className="text-sm text-ink-secondary">No hay seguimientos próximos cargados en el tablero.</p>
+              </div>
+            )}
+          </section>
 
-        <RecentPatientsSection patients={recentPatients} isLoading={isLoading} />
+          <section className={panelClass} style={sectionAnimation(120)}>
+            <div className="flex items-center justify-between gap-4 border-b border-surface-muted/35 px-5 py-4">
+              <div>
+                <h2 className="text-lg font-bold tracking-tight text-ink">Recordatorios operativos</h2>
+                <p className="mt-1 text-sm text-ink-secondary">Atajos para seguimientos que requieren movimiento hoy.</p>
+              </div>
+              <Link href="/seguimientos" className="shrink-0 text-sm font-bold text-ink-secondary transition-colors hover:text-ink">
+                Ver bandeja
+              </Link>
+            </div>
+
+            {isLoading ? (
+              <div className="space-y-2 px-5 py-4">
+                {[...Array(4)].map((_, index) => (
+                  <div key={index} className="h-11 rounded-[10px] skeleton" />
+                ))}
+              </div>
+            ) : (
+              <div className="divide-y divide-surface-muted/35">
+                {reminderCards.map((card) => (
+                  <Link
+                    key={card.label}
+                    href={card.href}
+                    className={clsx(
+                      'flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-surface-inset/45',
+                      card.value > 0 ? card.tone : 'text-ink',
+                    )}
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-surface-muted/40 bg-surface-inset text-current">
+                      <card.icon className="h-4 w-4" />
+                    </div>
+                    <span className="min-w-0 flex-1 truncate text-sm font-bold">{card.label}</span>
+                    <span className="text-lg font-extrabold tracking-tight">{card.value}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <RecentPatientsSection patients={recentPatients} isLoading={isLoading} />
+        </div>
+
         <RecentActivitySection encounters={recentEncounters} isLoading={isLoading} />
       </div>
     </div>

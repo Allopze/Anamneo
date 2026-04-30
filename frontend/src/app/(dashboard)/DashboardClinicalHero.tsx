@@ -110,115 +110,99 @@ export default function DashboardClinicalHero({
         { label: 'Pacientes recientes', value: recentPatientsCount, href: '/pacientes' },
       ]
     : [];
+  const firstName = getFirstName(user?.nombre);
 
   return (
-    <section
-      className="animate-fade-in overflow-hidden rounded-card bg-surface-elevated shadow-soft"
-      style={sectionAnimation(0)}
-    >
-      <div className="grid xl:grid-cols-[minmax(0,1.65fr)_380px]">
-        <div className="px-6 py-7 lg:px-10 lg:py-8">
-          <h1 className="text-[1.85rem] font-extrabold tracking-tight text-ink sm:text-[2.2rem]">
-            {getGreeting()}, {getFirstName(user?.nombre)}
+    <section className="animate-fade-in space-y-4" style={sectionAnimation(0)}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-[1.9rem]">
+            {getGreeting()}
+            {firstName ? `, ${firstName}` : ''}
           </h1>
-          <p className="mt-2 max-w-2xl text-base text-ink-secondary">
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-secondary">
             Tablero clínico — carga activa, seguimientos y actividad reciente en un vistazo.
           </p>
-
-          {isLoading ? (
-            <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.85fr)]">
-              <div className="h-28 rounded-2xl skeleton" />
-              <div className="h-28 rounded-2xl skeleton" />
-            </div>
-          ) : (
-            <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-              <Link
-                href={nextAction.href}
-                className="group flex min-h-[112px] items-start gap-4 rounded-2xl border border-surface-muted/45 bg-surface-inset/55 px-5 py-4 transition-colors hover:bg-surface-inset"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-elevated text-ink-secondary">
-                  <nextAction.icon className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-ink">Siguiente acción</p>
-                  <p className="mt-2 text-lg font-extrabold tracking-tight text-ink">{nextAction.title}</p>
-                  <p className="mt-1 line-clamp-2 text-sm leading-6 text-ink-secondary">{nextAction.detail}</p>
-                </div>
-                <FiChevronRight className="mt-1 h-4 w-4 shrink-0 text-ink-muted transition-colors group-hover:text-ink" />
-              </Link>
-
-              <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-surface-muted/45 bg-white">
-                {todaySignals.map((signal) => (
-                  <Link
-                    key={signal.label}
-                    href={signal.href}
-                    className="min-h-[62px] border-surface-muted/35 px-4 py-3 transition-colors hover:bg-surface-inset/55 odd:border-r [&:nth-child(-n+2)]:border-b"
-                  >
-                    <p className="text-[0.8rem] font-medium text-ink-secondary">{signal.label}</p>
-                    <p className="mt-1 text-2xl font-extrabold tracking-tight text-ink">{signal.value}</p>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
-        <aside className="border-t border-surface-muted/40 bg-surface-inset/40 px-6 py-5 lg:px-8 xl:border-l xl:border-t-0">
-          <div className="space-y-5">
-            <div>
-              <h2 className="text-sm font-bold text-ink-secondary">Accesos rápidos</h2>
-              <div className="mt-3 space-y-1">
-                {quickActions.map((action) => (
-                  <Link
-                    key={action.href}
-                    href={action.href}
-                    className="group flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-surface-elevated"
-                  >
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-elevated text-ink-secondary transition-colors group-hover:bg-accent/20 group-hover:text-accent-text">
-                      <action.icon className="h-4 w-4" />
-                    </div>
-                    <span className="min-w-0 truncate text-sm font-bold text-ink">{action.label}</span>
-                    <FiChevronRight className="ml-auto h-3.5 w-3.5 text-ink-muted transition-colors group-hover:text-ink" />
-                  </Link>
-                ))}
-              </div>
+        <div className="flex flex-wrap items-center gap-2 lg:grid lg:w-[560px] lg:grid-cols-2">
+          {quickActions.map((action, index) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className={clsx(
+                'inline-flex h-10 items-center gap-2 rounded-[10px] border px-3 text-sm font-semibold transition-colors lg:w-full',
+                index === 0
+                  ? 'border-frame-dark bg-frame-dark text-white hover:bg-ink'
+                  : 'border-surface-muted/60 bg-surface-elevated text-ink-secondary hover:border-frame/25 hover:text-ink',
+              )}
+            >
+              <action.icon className="h-4 w-4" />
+              <span className="truncate">{action.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.75fr)]">
+          <div className="h-32 rounded-[14px] skeleton" />
+          <div className="h-32 rounded-[14px] skeleton" />
+        </div>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.75fr)]">
+          <Link
+            href={nextAction.href}
+            className="group flex min-h-[132px] items-start gap-4 rounded-[14px] border border-surface-muted/55 bg-surface-elevated px-5 py-4 shadow-soft transition-colors hover:bg-surface-inset/55"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-surface-muted/45 bg-surface-inset text-ink-secondary">
+              <nextAction.icon className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-ink">Siguiente acción</p>
+              <p className="mt-2 text-xl font-extrabold tracking-tight text-ink">{nextAction.title}</p>
+              <p className="mt-1 line-clamp-2 text-sm leading-6 text-ink-secondary">{nextAction.detail}</p>
+            </div>
+            <FiChevronRight className="mt-1 h-4 w-4 shrink-0 text-ink-muted transition-colors group-hover:text-ink" />
+          </Link>
+
+          <div className="overflow-hidden rounded-[14px] border border-surface-muted/55 bg-surface-elevated shadow-soft">
+            <div className="grid grid-cols-2 border-b border-surface-muted/35 sm:grid-cols-4">
+              {todaySignals.map((signal) => (
+                <Link
+                  key={signal.label}
+                  href={signal.href}
+                  className="border-surface-muted/35 px-3 py-3 transition-colors hover:bg-surface-inset/55 odd:border-r [&:nth-child(-n+2)]:border-b sm:border-b-0 sm:border-r sm:last:border-r-0"
+                >
+                  <p className="truncate text-xs font-medium text-ink-secondary">{signal.label}</p>
+                  <p className="mt-1 text-2xl font-extrabold tracking-tight text-ink">{signal.value}</p>
+                </Link>
+              ))}
             </div>
 
-            {isLoading ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-10 rounded-full skeleton" />
-                ))}
-              </div>
-            ) : data ? (
-              <div>
-                <h2 className="text-sm font-bold text-ink-secondary">Estado del flujo</h2>
-                <div className="mt-3 space-y-3">
-                  {workflowBreakdown.map((item) => (
-                    <div key={item.label} className="space-y-1.5">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <span className={clsx('h-2 w-2 rounded-full', item.tone)} />
-                          <span className="text-sm font-medium text-ink">{item.label}</span>
-                        </div>
-                        <span className={clsx('text-base font-bold tracking-tight', item.textTone)}>{item.value}</span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-surface-muted/40">
-                        <div
-                          className={clsx('h-full rounded-full', item.tone)}
-                          style={{
-                            width: `${Math.max((item.value / totalForBreakdown) * 100, item.value > 0 ? 6 : 0)}%`,
-                          }}
-                        />
-                      </div>
+            {data ? (
+              <div className="grid gap-3 px-4 py-3 sm:grid-cols-3">
+                {workflowBreakdown.map((item) => (
+                  <div key={item.label}>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="truncate text-xs font-medium text-ink-secondary">{item.label}</span>
+                      <span className={clsx('text-sm font-bold', item.textTone)}>{item.value}</span>
                     </div>
-                  ))}
-                </div>
+                    <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-muted/45">
+                      <div
+                        className={clsx('h-full rounded-full', item.tone === 'bg-accent' ? 'bg-clinical-500' : item.tone)}
+                        style={{
+                          width: `${Math.max((item.value / totalForBreakdown) * 100, item.value > 0 ? 6 : 0)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : null}
           </div>
-        </aside>
-      </div>
+        </div>
+      )}
     </section>
   );
 }

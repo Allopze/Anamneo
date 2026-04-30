@@ -14,7 +14,7 @@ const publicDir = path.join(frontendRoot, 'public');
 
 process.env.NODE_ENV = 'production';
 process.env.HOSTNAME = process.env.HOSTNAME || '127.0.0.1';
-process.env.PORT = process.env.PORT || '5556';
+process.env.PORT = process.env.PORT || '5555';
 
 function runOrThrow(command, args) {
   const result = spawnSync(command, args, {
