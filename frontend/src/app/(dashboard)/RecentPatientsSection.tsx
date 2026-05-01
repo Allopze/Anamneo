@@ -24,7 +24,6 @@ export default function RecentPatientsSection({ patients, isLoading }: RecentPat
       <div className="flex items-center justify-between gap-4 border-b border-surface-muted/35 px-5 py-4 sm:px-6">
         <div>
           <h2 className="text-lg font-bold tracking-tight text-ink">Pacientes recientes</h2>
-          <p className="mt-1 text-sm text-ink-secondary">Acceso directo a los últimos pacientes tocados por el equipo.</p>
         </div>
         <Link href="/pacientes" className="text-sm font-bold text-ink-secondary transition-colors hover:text-ink">
           Ver padrón
@@ -43,24 +42,28 @@ export default function RecentPatientsSection({ patients, isLoading }: RecentPat
             <Link
               key={patient.patientId}
               href={`/pacientes/${patient.patientId}`}
-              className="group grid gap-3 px-5 py-4 transition-colors hover:bg-surface-inset/45 sm:px-6 lg:grid-cols-[minmax(0,1fr)_150px_20px]"
+              className="group grid gap-3 px-5 py-3.5 transition-colors hover:bg-surface-inset/45 sm:px-6 lg:grid-cols-[minmax(0,1fr)_150px_20px] lg:items-center"
             >
               <div className="min-w-0">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-card border border-surface-muted/40 bg-surface-inset text-ink-secondary">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full border border-surface-muted/40 bg-surface-inset text-ink-secondary">
                     <FiUsers className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-ink">{patient.patientName}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-bold text-ink">{patient.patientName}</p>
+                      <span className="rounded-pill border border-surface-muted/45 bg-surface-elevated px-2.5 py-0.5 text-xs font-bold text-ink-secondary">
+                        {patient.latestEncounterStatus}
+                      </span>
+                    </div>
                     <p className="mt-1 truncate text-sm text-ink-secondary">
                       {patient.patientRut || 'Sin RUT'} · {patient.encounterCount} atención{patient.encounterCount === 1 ? '' : 'es'}
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="text-sm">
-                <p className="font-medium text-ink">{patient.latestEncounterStatus}</p>
-                <p className="mt-1 text-ink-secondary">
+              <div className="text-sm lg:text-right">
+                <p className="text-ink-secondary">
                   {format(new Date(patient.updatedAt), 'd MMM, HH:mm', { locale: es })}
                 </p>
               </div>

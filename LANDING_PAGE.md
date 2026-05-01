@@ -1,263 +1,328 @@
-# Anamneo: análisis funcional, visual y narrativa para landing page
+# Anamneo: brief autosuficiente para construir la landing page
 
-Este documento resume lo que Anamneo hace hoy, cómo se ve la aplicación y qué conviene contar en una landing page sin exagerar capacidades que todavía son backlog o dependen de infraestructura externa.
+Este documento debe ser suficiente para construir una landing page de Anamneo en otro repositorio sin consultar otros `.md` ni el codigo de la app. Resume producto, narrativa, claims permitidos, limites, estructura de pagina, sistema visual y referencias de UI.
 
-## 1. Qué es Anamneo
+## 1. Objetivo de la landing
 
-Anamneo es una plataforma de gestión de fichas clínicas para consultas médicas en Chile. Su centro no es la agenda ni la facturación: es la documentación clínica completa, desde el alta del paciente hasta el cierre, firma, seguimiento, adjuntos, auditoría y exportación de la historia.
+La landing debe presentar Anamneo como una ficha clinica moderna para consultas medicas en Chile: sobria, confiable, rapida de operar y pensada para continuidad clinica. No debe parecer una landing SaaS generica, una plataforma hospitalaria enterprise, ni una app de IA medica.
 
-La promesa más honesta:
+Promesa central:
 
-> Anamneo ordena el trabajo clínico diario en una ficha longitudinal segura, rápida de completar y preparada para continuidad médica.
+> Anamneo ordena el trabajo clinico diario en una ficha longitudinal segura, rapida de completar y preparada para continuidad medica.
 
-El producto está diseñado para médicos y equipos pequeños o medianos que necesitan menos papel, menos Excel heredado y más trazabilidad sobre lo que ocurrió en cada atención.
+Tesis narrativa:
 
-## 2. Qué hace la app
+> La ficha clinica no deberia sentirse como papeleo digital. Deberia acompanar el razonamiento medico, proteger la continuidad del paciente y dejar trazabilidad sin friccion.
+
+Posicionamiento:
+
+> Anamneo es una ficha clinica moderna para consultas medicas que necesitan documentacion ordenada, flujos por rol, seguimiento y auditoria, sin cargar al equipo con un sistema corporativo enorme.
+
+## 2. Que es Anamneo
+
+Anamneo es una plataforma de gestion de fichas clinicas para consultas medicas en Chile. Su centro no es la agenda ni la facturacion: es la documentacion clinica completa, desde el alta del paciente hasta el cierre, firma, seguimiento, adjuntos, auditoria y exportacion de la historia.
+
+Esta disenado para medicos y equipos pequenos o medianos que necesitan menos papel, menos planillas heredadas y mas trazabilidad sobre lo que ocurrio en cada atencion.
+
+La landing debe vender principalmente:
+
+- orden clinico,
+- continuidad de informacion,
+- atenciones por secciones,
+- roles y permisos claros,
+- seguimiento operativo,
+- adjuntos, consentimientos y alertas en contexto,
+- auditoria,
+- seguridad practica,
+- y una interfaz calida, seria y de baja friccion.
+
+## 3. Producto actual que se puede comunicar
 
 ### Pacientes
 
-- Registro de pacientes con validación de RUT y soporte para pacientes exentos de RUT.
-- Alta rápida o completa mediante `registrationMode`.
-- Estado de completitud de ficha: incompleta, pendiente de verificación o verificada.
-- Validación demográfica con responsable y fecha.
-- Detección de posibles duplicados y flujo de consolidación.
-- Archivado/restauración con soft delete.
-- Vista de ficha longitudinal con información personal, antecedentes, problemas, alertas, consentimientos, tareas, signos vitales, adjuntos y timeline de atenciones.
-- Exportación de historial PDF y paquete clínico cuando la ficha cumple requisitos de verificación.
+- Registro de pacientes con validacion de RUT y soporte para pacientes exentos de RUT.
+- Alta rapida o completa mediante modo de registro.
+- Estado de completitud de ficha: incompleta, pendiente de verificacion o verificada.
+- Validacion demografica con responsable y fecha.
+- Deteccion de posibles duplicados y flujo de consolidacion.
+- Archivado/restauracion mediante soft delete.
+- Vista longitudinal con informacion personal, antecedentes, problemas, alertas, consentimientos, tareas, signos vitales, adjuntos y timeline de atenciones.
+- Exportacion de historial PDF y paquete clinico cuando la ficha cumple requisitos de verificacion.
 
-### Atenciones clínicas
+### Atenciones clinicas
 
-- Creación de atenciones asociadas a un paciente.
-- Flujo por secciones clínicas, con navegación lateral, progreso y estados por sección.
-- Secciones visibles en el código: identificación, motivo de consulta, anamnesis próxima, anamnesis remota, revisión por sistemas, examen físico, sospecha diagnóstica, tratamiento, respuesta al tratamiento y observaciones.
-- Guardado por sección, manejo de cambios sin guardar y recuperación de borradores locales.
-- Detección de conflictos entre copia local y versión de servidor.
-- Bloqueos de salida clínica cuando falta verificar información crítica del paciente.
-- Cierre de atención con checklist, nota de cierre y seguimiento vinculado.
-- Firma de atención mediante modal específico.
-- Reapertura, cancelación, impresión/exportación e historial de auditoría según permisos y estado.
+- Creacion de atenciones asociadas a un paciente.
+- Flujo por secciones clinicas con navegacion lateral, progreso y estados por seccion.
+- Secciones principales: identificacion, motivo de consulta, anamnesis proxima, anamnesis remota, revision por sistemas, examen fisico, sospecha diagnostica, tratamiento, respuesta al tratamiento y observaciones.
+- Guardado por seccion, manejo de cambios sin guardar y recuperacion de borradores locales.
+- Deteccion de conflictos entre copia local y version de servidor.
+- Bloqueos de salida clinica cuando falta verificar informacion critica del paciente.
+- Cierre de atencion con checklist, nota de cierre y seguimiento vinculado.
+- Firma de atencion mediante modal especifico.
+- Reapertura, cancelacion, impresion/exportacion e historial de auditoria segun permisos y estado.
 
 ### Seguimientos y tareas
 
 - Bandeja de seguimientos.
-- Tareas clínicas u operativas con prioridad, estado y fecha límite.
-- Alertas visibles para tareas vencidas, tareas que vencen hoy, tareas de la semana y trámites próximos.
-- Acceso desde dashboard, paciente y flujo de atención.
+- Tareas clinicas u operativas con prioridad, estado y fecha limite.
+- Alertas visibles para tareas vencidas, tareas que vencen hoy, tareas de la semana y tramites proximos.
+- Acceso desde dashboard, paciente y flujo de atencion.
 
-### Catálogos clínicos
+### Catalogos clinicos
 
-- Catálogo global de afecciones.
-- Catálogo local por médico o instancia.
-- Sugerencias de afección basadas en texto de motivo de consulta.
-- Registro de la decisión tomada por el médico: automática, manual o confirmada.
-- Importación CSV de afecciones por administrador, con preview server-side y consolidación de duplicados.
-- Catálogo global de medicamentos con nombre, principio activo, estado activo e importación CSV.
+- Catalogo global de afecciones.
+- Catalogo local por medico o instancia.
+- Sugerencias de afeccion basadas en texto de motivo de consulta.
+- Registro de la decision tomada por el medico: automatica, manual o confirmada.
+- Importacion CSV de afecciones por administrador, con preview server-side y consolidacion de duplicados.
+- Catalogo global de medicamentos con nombre, principio activo, estado activo e importacion CSV.
 
-### Analítica clínica
+### Analitica clinica
 
-- Vista restringida a médicos no administradores.
-- Cohortes por afección, síntoma o fuente diagnóstica.
-- Filtros por fecha, ventana de seguimiento y límite de resultados.
-- Métricas sobre pacientes, atenciones, cobertura de tratamiento estructurado, reconsulta, ajustes terapéuticos, problemas resueltos, alertas posteriores, adherencia documentada y eventos adversos.
-- Rankings de afecciones, síntomas, medicamentos, exámenes y derivaciones.
-- Drill-down hacia casos.
-- Exportación de resumen en CSV y reporte Markdown.
+- Vista restringida a medicos no administradores.
+- Analitica descriptiva y observacional, no causal.
+- Cohortes por afeccion, sintoma o fuente diagnostica.
+- Filtros por fecha, ventana de seguimiento y limite de resultados.
+- Metricas sobre pacientes, atenciones, cobertura de tratamiento estructurado, reconsulta, ajustes terapeuticos, problemas resueltos, alertas posteriores, adherencia documentada y eventos adversos.
+- Rankings de afecciones, sintomas, medicamentos, examenes y derivaciones, con mayor profundidad actual en medicamentos y sintomas.
+- Drill-down hacia casos para cohortes, medicamentos y sintomas.
+- Exportacion de resumen CSV y reporte Markdown.
 
 ### Consentimientos, alertas y adjuntos
 
-- Consentimientos informados con otorgamiento, revocación y motivo.
-- Alertas clínicas con severidad, origen y acuse.
-- Adjuntos vinculados a paciente, atención u órdenes.
-- Previsualización de adjuntos mediante modal.
-- Acceso protegido por permisos y relación efectiva con paciente/atención.
+- Consentimientos informados con otorgamiento, revocacion y motivo.
+- Alertas clinicas con severidad, origen y acuse.
+- Adjuntos vinculados a paciente, atencion u ordenes.
+- Previsualizacion de adjuntos mediante modal.
+- Acceso protegido por permisos y relacion efectiva con paciente/atencion.
 
-### Administración
+### Administracion
 
 - Primer registro con bootstrap de administrador.
-- Luego, acceso por invitación.
-- Gestión de usuarios, roles y relaciones médico-asistente.
-- Auditoría central filtrable.
-- Ajustes de plataforma, política de sesión, SMTP y configuración operativa.
-- Catálogos globales administrables.
+- Luego, acceso por invitacion.
+- Gestion de usuarios, roles y relaciones medico-asistente.
+- Auditoria central filtrable.
+- Ajustes de plataforma, politica de sesion, SMTP y configuracion operativa.
+- Catalogos globales administrables.
 
-### Seguridad y operación
+### Seguridad y operacion
 
-- Autenticación por cookies `HttpOnly` con access token y refresh token.
+- Autenticacion por cookies `HttpOnly` con access token y refresh token.
 - Sesiones persistidas por dispositivo y revocables.
-- Soporte 2FA/TOTP y códigos de recuperación.
-- Protección contra intentos de login repetidos.
+- Soporte 2FA/TOTP y codigos de recuperacion.
+- Proteccion contra intentos de login repetidos.
 - Permisos compartidos entre frontend y backend para acciones sensibles de atenciones.
-- Auditoría persistente con entidad, usuario, acción, diff, request id, timestamps y hashes de integridad.
-- Settings sensibles cifrados a nivel aplicación.
-- En producción, la app exige confirmación de cifrado del filesystem para base de datos, uploads y backups.
-- Operación simple con Docker Compose, SQLite WAL, backups y restore drills documentados.
+- Auditoria persistente con entidad, usuario, accion, resultado, diff, request id, timestamps y hashes de integridad.
+- Settings sensibles cifrados a nivel aplicacion.
+- En produccion, la app exige confirmacion de cifrado del filesystem para base de datos, uploads y backups.
+- Operacion simple con Docker Compose, SQLite WAL, backups y restore drills documentados.
 
-## 3. Quién usa Anamneo
+## 4. Usuarios y mensajes por rol
 
-### Médico
+### Medico
 
-Es el usuario principal del producto. Crea y completa atenciones, valida fichas, registra decisiones clínicas, revisa historia longitudinal, firma encuentros, exporta información clínica y consulta analítica.
+Usuario principal. Crea y completa atenciones, valida fichas, registra decisiones clinicas, revisa historia longitudinal, firma encuentros, exporta informacion clinica y consulta analitica.
 
-Mensaje para landing:
+Mensaje:
 
-> Un espacio de trabajo clínico para atender, documentar y cerrar con trazabilidad.
+> Un espacio de trabajo clinico para atender, documentar y cerrar con trazabilidad.
 
 ### Asistente
 
-Apoya el flujo operativo: registro de pacientes, datos administrativos, preparación de atenciones, adjuntos y seguimiento. Sus permisos son más restringidos en contenido clínico sensible.
+Apoya el flujo operativo: registro de pacientes, datos administrativos, preparacion de atenciones, adjuntos y seguimiento. Sus permisos son mas restringidos en contenido clinico sensible.
 
-Mensaje para landing:
+Mensaje:
 
-> Recepción puede avanzar trabajo sin invadir decisiones médicas.
+> Recepcion puede avanzar trabajo sin invadir decisiones medicas.
 
 ### Administrador
 
-Gestiona usuarios, catálogos, settings y auditoría. No debe presentarse como “dueño clínico” del dato. La narrativa correcta es gobierno operativo con límites.
+Gestiona usuarios, catalogos, settings y auditoria. No debe presentarse como dueno clinico del dato.
 
-Mensaje para landing:
+Mensaje:
 
-> Administración clara, trazabilidad visible y menor riesgo de permisos ambiguos.
+> Administracion clara, trazabilidad visible y menor riesgo de permisos ambiguos.
 
-## 4. Cómo se ve la app
+## 5. Claims permitidos y limites
 
-Anamneo no se ve como software hospitalario clásico. La interfaz actual se siente como un cockpit clínico cálido: ordenado, sobrio y pensado para trabajar rápido sin cargar visualmente al equipo. Evita el blanco quirúrgico, el azul corporativo y los paneles duros; en su lugar usa superficies crema, marcos oscuros, acentos lima y una jerarquía compacta que prioriza lectura y acción.
+### Se puede decir
 
-### Identidad visual
+- Ficha clinica longitudinal.
+- Atenciones por secciones.
+- Seguimiento, tareas, consentimientos, alertas y adjuntos en contexto.
+- Roles y permisos claros para medico, asistente y administrador.
+- Catalogos clinicos globales y locales.
+- Sugerencias diagnosticas registradas basadas en catalogos.
+- Analitica descriptiva exportable desde atenciones completadas o firmadas.
+- Auditoria persistente para cambios sensibles.
+- Sesiones revocables, 2FA y cookies `HttpOnly`.
+- Operacion documentada con backups y restore drills.
+- Disenado para consultas medicas en Chile.
 
-- Base visual cálida en crema, con superficies elevadas casi blancas y marcos charcoal que delimitan la navegación y los paneles.
-- Acento lima reservado para foco, progreso y estados activos; no se usa como color decorativo constante.
-- Texto principal en negro suave, con estados semánticos apagados para error, alerta y éxito.
-- Tipografía Inter como base única, con pesos semibold y bold para construir jerarquía.
-- Cards, shells y controles con radios amplios, sombras suaves y bordes sutiles.
-- Acciones principales en formato pill o botón compacto, con iconografía lineal de `react-icons/fi`.
-- La sensación general es de una herramienta clínica seria, no de una landing SaaS brillante.
+### No prometer
 
-### Sensación de producto
+- No vender "NLP clinico avanzado" ni "IA medica" como motor general.
+- No decir "SQLite cifrado por la app": la app cifra settings sensibles; base, uploads y backups dependen del cifrado del filesystem.
+- No prometer "admin-blind absoluto" como garantia legal cerrada. Usar "limites de acceso y trazabilidad".
+- No describir la firma como "firma electronica avanzada" o "firma digital legal avanzada".
+- No usar "gratis", "comienza ahora" o "abre tu cuenta" si el acceso real es bootstrap inicial e invitaciones.
+- No usar logos de instituciones, testimonios ficticios ni metricas inventadas.
+- No presentar la analitica como causal, predictiva o estadistica avanzada.
+- No afirmar que todos los drill-downs analiticos cubren examenes y derivaciones; hoy la profundidad mas fuerte esta en cohortes, medicamentos y sintomas.
 
-La app se siente como un cockpit clínico: sidebar oscura, contenido en superficies crema y cards modulares para revisar y completar información sin ruido. No intenta parecer una landing SaaS con brillo decorativo; parece una herramienta diaria, calmada y seria, donde cada pantalla tiene una función clara.
+## 6. Tono editorial
 
-El valor visual está en:
+- Profesional, calido y directo.
+- Preciso, sin grandilocuencia.
+- Hablar de orden, continuidad, seguridad practica y menos friccion.
+- Evitar frases de SaaS generico como "potencia tu consulta con tecnologia de punta".
+- Evitar tono hospital enterprise.
+- Evitar medicalizar de mas con iconografia obvia o fotografias genericas.
+- El producto debe sentirse serio, humano y cotidiano.
 
-- jerarquía clara,
-- poco ruido,
-- acciones visibles,
-- estados clínicos fáciles de leer,
-- formularios amplios y con buen espacio táctil,
-- navegación persistente,
-- señales de progreso,
-- y una separación fuerte entre dashboard, ficha de paciente y workspace de atención.
-
-### Pantallas principales observadas
-
-- **Login:** pantalla de acceso con marco de autenticación, chips de confianza, 2FA y mensaje de acceso por invitación cuando ya existe administrador.
-- **Dashboard clínico:** saludo, acciones rápidas, estado del flujo, actividad reciente, pacientes recientes y alertas de tareas vencidas.
-- **Pacientes:** listado con búsqueda, filtros, resumen de completitud y acciones para nuevo paciente o nueva atención.
-- **Ficha de paciente:** vista longitudinal con cabecera clínica, validación de ficha, exportaciones, problemas, tareas, signos vitales, alertas, consentimientos e historial.
-- **Atenciones:** bandeja con filtros por estado y revisión, métricas rápidas y búsqueda por paciente.
-- **Workspace de atención:** experiencia central del producto; rail lateral de secciones, toolbar superior, progreso, warnings clínicos, resumen del paciente, recuperación de borradores, formulario activo y bloque de cierre visible.
-- **Analítica clínica:** tablero médico con filtros, métricas, tablas rankeadas, desenlaces proxy y exportaciones.
-- **Catálogo:** gobierno de afecciones y medicamentos.
-- **Plantillas:** reutilización de texto para acelerar documentación.
-- **Admin:** usuarios y auditoría.
-- **Ajustes:** configuración operativa.
-
-## 5. Diferenciadores reales para comunicar
-
-### Ficha longitudinal, no notas sueltas
-
-Anamneo no guarda solamente textos aislados. Conecta paciente, historia, problemas, tareas, consentimientos, alertas, adjuntos y atenciones en una vista longitudinal que se lee más como expediente clínico que como formulario suelto.
-
-### Atención por secciones
-
-El encuentro clínico se trabaja por bloques. Esto reduce carga cognitiva y permite guardar, revisar y cerrar con más orden, usando una secuencia clínica visible en lugar de una pantalla monolítica.
-
-### Continuidad y recuperación
-
-El workspace contempla autoguardado, estado de cambios, recuperación de borradores locales y manejo de conflictos. Es una ventaja potente para uso real, donde la red, el navegador o el tiempo del médico fallan, y además refuerza la sensación de producto diseñado para trabajo largo.
-
-### Permisos pensados para equipos
-
-Médico, asistente y administrador no ven ni editan lo mismo. Esto permite delegar trabajo sin entregar control total de la ficha.
-
-### Salida clínica con condiciones
-
-El producto contempla bloquear exportaciones o cierres cuando falta verificación relevante. Eso transmite seriedad: no todo dato está listo para transformarse en documento oficial, y la UI lo comunica con estados y avisos claros.
-
-### Catálogos y sugerencias
-
-El sistema acompaña el diagnóstico con catálogos globales/locales y sugerencias registradas. No reemplaza criterio médico; ordena la selección y deja trazabilidad.
-
-### Analítica desde documentación real
-
-La analítica clínica se apoya en atenciones completadas o firmadas para construir cohortes, patrones y reportes exportables.
-
-### Auditoría y operación sobria
-
-El producto registra acciones, diffs y hashes, y además incluye una estrategia operativa simple basada en Docker Compose, SQLite, backups y restore drills. Visualmente esto se traduce en una UI que prefiere trazabilidad legible antes que adornos.
-
-## 6. Cosas que no conviene prometer de más
-
-Evitar en la landing, salvo que se implemente explícitamente:
-
-- “NLP clínico avanzado” como motor general. Hoy hay sugerencias y analítica basada en estructuras/campos, pero no conviene venderlo como IA médica amplia.
-- “SQLite cifrado por la app”. La app cifra settings sensibles; base, uploads y backups dependen del cifrado del filesystem.
-- “Admin-blind absoluto” como promesa legal cerrada. Hay controles por rol y permisos; formularlo como límites de acceso y trazabilidad.
-- “Firma digital legal avanzada”. Existe firma/cierre con re-verificación y trazabilidad, pero no describirlo como firma electrónica avanzada sin soporte legal explícito.
-- “Gratis” o “comenzar ahora” si el acceso real es bootstrap inicial e invitaciones.
-- Logos de instituciones o testimonios ficticios.
-
-## 7. Narrativa recomendada para la landing
-
-### Tesis
-
-> La ficha clínica no debería sentirse como papeleo digital. Debería acompañar el razonamiento médico, proteger la continuidad del paciente y dejar trazabilidad sin fricción.
-
-### Posicionamiento
-
-Anamneo es una ficha clínica moderna para consultas médicas que necesitan documentación ordenada, flujos por rol, seguimiento y auditoría, sin cargar al equipo con un sistema corporativo enorme.
-
-### Tono
-
-- Profesional, cálido y directo.
-- Evitar claims grandilocuentes de IA.
-- Hablar de orden, continuidad, seguridad práctica y menos fricción.
-- No sonar como hospital enterprise ni como app genérica de productividad.
+## 7. Headlines y copy base
 
 ### Headlines posibles
 
-1. `Ficha clínica moderna para consultas que necesitan orden, continuidad y trazabilidad.`
-2. `Documenta la atención completa sin perder el hilo clínico.`
-3. `Del primer registro al seguimiento: una ficha clínica que acompaña el flujo real de consulta.`
-4. `Menos papeleo. Más continuidad clínica.`
+1. `Ficha clinica moderna para consultas que necesitan orden, continuidad y trazabilidad.`
+2. `Documenta la atencion completa sin perder el hilo clinico.`
+3. `Del primer registro al seguimiento: una ficha clinica que acompana el flujo real de consulta.`
+4. `Menos papeleo. Mas continuidad clinica.`
 
-### Subheadline sugerido
+### Headline recomendado para hero
 
-`Anamneo reúne pacientes, atenciones por secciones, adjuntos, consentimientos, tareas, catálogos y auditoría en un workspace clínico diseñado para equipos médicos en Chile.`
+`Ficha clinica moderna para consultas que necesitan orden, continuidad y trazabilidad.`
+
+### Subheadline recomendado
+
+`Anamneo reune pacientes, atenciones por secciones, seguimiento, adjuntos, catalogos y auditoria en una experiencia clinica calida y precisa, disenada para equipos medicos en Chile.`
 
 ### CTA recomendado
 
-Como el acceso puede ser por invitación, evitar “Empieza gratis”. Usar:
+Como el acceso puede ser por invitacion, evitar "Empieza gratis". Usar:
 
 - `Solicitar acceso`
 - `Ver demo`
 - `Conocer el flujo`
 - `Hablar con el equipo`
 
-## 8. Estructura propuesta de landing
+Recomendacion para el hero:
 
-### Hero
+- CTA primario: `Solicitar acceso`
+- CTA secundario: `Conocer el flujo`
 
-Objetivo: comunicar producto y estética en menos de 10 segundos.
+## 8. Sistema visual obligatorio
+
+La landing debe usar el sistema visual real de Anamneo. Estos valores vienen de la app actual y son la fuente de verdad para construir fuera del repo principal.
+
+### Paleta
+
+```css
+/* Superficies */
+--surface-base: #ebe9e4;      /* fondo general calido */
+--surface-elevated: #fdfcfb;  /* cards y paneles */
+--surface-muted: #e5e4e0;     /* separadores suaves */
+--surface-inset: #f5f4f0;     /* campos, bloques internos */
+
+/* Frame y texto */
+--frame: #404040;
+--frame-dark: #2b2b2b;
+--ink: #2b2b2b;
+--ink-secondary: #555555;
+--ink-muted: #767676;
+--ink-on-dark: #ffffff;
+
+/* Acento */
+--accent: #eaf832;
+--accent-bright: #f3fe48;
+--accent-text: #2b2b2b;
+
+/* Estado */
+--status-red: #D08C84;
+--status-red-text: #7f1d1d;
+--status-yellow: #E5D86A;
+--status-green: #96B38A;
+--status-green-text: #1a5d38;
+```
+
+### Tipografia
+
+- Familia: `Inter`, `system-ui`, `sans-serif`.
+- Texto base: 15px aproximado, line-height 1.6.
+- Microcopy/labels: 12-13px.
+- Titulos internos: 20px, bold.
+- Titular de landing: puede crecer mas que la app, pero debe mantener una sensacion sobria. Rango sugerido: 44-64px desktop, 36-42px mobile.
+- No usar letter spacing negativo.
+- Pesos principales: 600, 700, 800.
+
+### Radios y sombras
+
+```css
+--radius-shell: 2.5rem;
+--radius-card: 2rem;
+--radius-input: 999px;
+--radius-pill: 999px;
+--radius-small: 1rem;
+
+--shadow-soft: 0 1px 4px rgba(43, 43, 43, 0.04);
+--shadow-card: 0 8px 24px rgba(43, 43, 43, 0.06);
+--shadow-elevated: 0 12px 30px rgba(43, 43, 43, 0.08);
+--shadow-dropdown: 0 18px 40px rgba(43, 43, 43, 0.12);
+```
+
+### Iconografia y controles
+
+- Usar iconos lineales tipo `react-icons/fi` o una familia equivalente de trazo simple.
+- Botones principales tipo pill.
+- Boton oscuro para CTA principal: fondo `--frame-dark`, texto blanco.
+- Boton secundario claro: fondo `--surface-elevated`, borde `--surface-muted`, texto `--ink-secondary`.
+- El lima se usa para foco, progreso, estados activos o pequenos highlights, no como fondo decorativo dominante.
+- Cards con fondo `--surface-elevated`, borde sutil y sombra suave.
+- Evitar gradientes brillantes, blobs, orbes, fondos azules medicos, ilustraciones SaaS genericas y mockups imposibles de leer.
+
+## 9. Sensacion visual de producto
+
+Anamneo se siente como un cockpit clinico calido: sidebar oscura, contenido en superficies crema y cards modulares para revisar y completar informacion sin ruido. No intenta parecer una landing brillante; parece una herramienta diaria, calmada y seria, donde cada pantalla tiene una funcion clara.
+
+Valores visuales:
+
+- jerarquia clara,
+- poco ruido,
+- acciones visibles,
+- estados clinicos faciles de leer,
+- formularios amplios y tactiles,
+- navegacion persistente,
+- senales de progreso,
+- separacion fuerte entre dashboard, ficha de paciente y workspace de atencion.
+
+Pantallas que la landing puede recrear:
+
+- Login con marco oscuro, chips de confianza, 2FA y mensaje de acceso por invitacion.
+- Dashboard clinico con saludo, acciones rapidas, pacientes recientes y alertas de tareas.
+- Pacientes con busqueda, filtros, completitud y acciones.
+- Ficha longitudinal con cabecera clinica, validacion, exportaciones, problemas, tareas, signos vitales, alertas, consentimientos e historial.
+- Atenciones con filtros por estado, metricas rapidas y busqueda.
+- Workspace de atencion con rail lateral de secciones, toolbar superior, progreso, warnings, resumen del paciente, recuperacion de borradores, formulario activo y cierre.
+- Analitica clinica con filtros, metricas, tablas rankeadas y exportaciones.
+- Catalogo de afecciones/medicamentos.
+- Plantillas de texto clinico.
+- Admin, auditoria y ajustes.
+
+## 10. Estructura recomendada de la landing
+
+### 1. Hero
+
+Objetivo: comunicar producto y estetica en menos de 10 segundos.
 
 Contenido:
 
-- H1: `Ficha clínica moderna para consultas que necesitan orden, continuidad y trazabilidad.`
-- Bajada: `Anamneo reúne pacientes, atenciones por secciones, seguimiento, adjuntos, catálogos y auditoría en una experiencia clínica cálida y precisa.`
-- CTA primario: `Ver demo`
-- CTA secundario: `Explorar funciones`
-- Visual: composición realista de UI con dashboard, ficha de paciente y workspace de atención. Usar crema, frame oscuro y acento lima, con cards redondeadas y densidad clínica moderada.
+- H1: `Ficha clinica moderna para consultas que necesitan orden, continuidad y trazabilidad.`
+- Bajada: `Anamneo reune pacientes, atenciones por secciones, seguimiento, adjuntos, catalogos y auditoria en una experiencia clinica calida y precisa, disenada para equipos medicos en Chile.`
+- CTA primario: `Solicitar acceso`
+- CTA secundario: `Conocer el flujo`
+- Visual: composicion realista de UI con dashboard, ficha de paciente y workspace de atencion. Usar crema, frame oscuro y acento lima, con cards redondeadas y densidad clinica moderada.
 
-### Sección: flujo clínico completo
+### 2. Flujo clinico completo
 
 Tres pasos:
 
@@ -265,26 +330,26 @@ Tres pasos:
 2. `Documenta atenciones por secciones`
 3. `Cierra, firma y da seguimiento`
 
-Mensaje:
+Copy:
 
-`Anamneo acompaña el flujo completo de la consulta, no solo la nota final.`
+`Anamneo acompana el flujo completo de la consulta, no solo la nota final.`
 
-### Sección: workspace de atención
+### 3. Workspace de atencion
 
 Destacar:
 
 - rail de secciones,
 - progreso,
-- guardado por sección,
-- recuperación de borradores,
-- warnings clínicos,
+- guardado por seccion,
+- recuperacion de borradores,
+- warnings clinicos,
 - cierre y firma.
 
 Copy:
 
-`El encuentro se trabaja como una secuencia clínica clara: motivo, anamnesis, examen, sospecha, tratamiento, respuesta y observaciones. Cada sección tiene estado, permisos y contexto.`
+`El encuentro se trabaja como una secuencia clinica clara: motivo, anamnesis, examen, sospecha, tratamiento, respuesta y observaciones. Cada seccion tiene estado, permisos y contexto.`
 
-### Sección: ficha longitudinal
+### 4. Ficha longitudinal
 
 Destacar:
 
@@ -295,27 +360,27 @@ Destacar:
 - consentimientos,
 - alertas,
 - adjuntos,
-- exportación.
+- exportacion.
 
 Copy:
 
-`La historia del paciente vive en una línea continua: datos verificados, documentos, evolución, pendientes y decisiones clínicas disponibles desde una misma ficha.`
+`La historia del paciente vive en una linea continua: datos verificados, documentos, evolucion, pendientes y decisiones clinicas disponibles desde una misma ficha.`
 
-### Sección: equipo y permisos
+### 5. Equipo y permisos
 
 Destacar:
 
-- médico,
+- medico,
 - asistente,
 - administrador,
-- permisos por acción,
-- relaciones médico-asistente.
+- permisos por accion,
+- relaciones medico-asistente.
 
 Copy:
 
-`Recepción puede preparar. El médico decide y firma. Administración gobierna usuarios y auditoría. Cada rol trabaja con límites claros.`
+`Recepcion puede preparar. El medico decide y firma. Administracion gobierna usuarios y auditoria. Cada rol trabaja con limites claros.`
 
-### Sección: catálogos y analítica
+### 6. Catalogos y analitica
 
 Destacar:
 
@@ -328,66 +393,85 @@ Destacar:
 
 Copy:
 
-`Los datos clínicos estructurados no se quedan enterrados: Anamneo permite explorar cohortes, tratamientos y desenlaces proxy desde atenciones completadas o firmadas.`
+`Los datos clinicos estructurados no se quedan enterrados: Anamneo permite explorar cohortes, tratamientos y desenlaces proxy desde atenciones completadas o firmadas.`
 
-### Sección: seguridad práctica
+Nota de precision: esta analitica es descriptiva y observacional; no debe presentarse como predictiva ni causal.
+
+### 7. Seguridad practica
 
 Destacar:
 
 - cookies `HttpOnly`,
 - 2FA,
 - sesiones por dispositivo,
-- auditoría,
+- auditoria,
 - permisos compartidos,
 - backups/restore drills,
-- cifrado de settings y recomendación de filesystem cifrado.
+- cifrado de settings y recomendacion de filesystem cifrado.
 
 Copy:
 
-`Seguridad sin teatro: sesiones revocables, 2FA, auditoría persistente, permisos por rol y operación documentada para reducir riesgos reales.`
+`Seguridad sin teatro: sesiones revocables, 2FA, auditoria persistente, permisos por rol y operacion documentada para reducir riesgos reales.`
 
-### Cierre
+### 8. Cierre
 
-H1 corto o frase final:
+Frase final:
 
-`Una ficha clínica diseñada para que el equipo vuelva a pensar en pacientes, no en dónde quedó la información.`
+`Una ficha clinica disenada para que el equipo vuelva a pensar en pacientes, no en donde quedo la informacion.`
 
 CTA:
 
 `Solicitar acceso`
 
-## 9. Recursos visuales recomendados
+## 11. Recursos visuales recomendados
 
-Usar capturas o recreaciones fieles de:
+Usar capturas reales o recreaciones fieles de:
 
-- dashboard clínico,
-- lista de pacientes con cards de completitud,
-- ficha longitudinal de paciente,
-- workspace de atención con rail de secciones,
-- analítica clínica con métricas y tablas,
-- pantallas con estados vacíos, progreso y avisos de verificación para mostrar el carácter operativo de la interfaz.
+- dashboard clinico,
+- lista de pacientes con completitud,
+- ficha longitudinal,
+- workspace de atencion con rail de secciones,
+- analitica clinica con metricas y tablas,
+- estados vacios, progreso y avisos de verificacion.
 
 Evitar:
 
-- fotos genéricas de médicos sonriendo,
+- fotos genericas de medicos sonriendo,
 - mockups de laptop con pantallas ilegibles,
-- ilustraciones médicas azules genéricas,
-- claims visuales de IA si la página no explica límites,
-- exceso de gradientes o recursos visuales que parezcan genéricos de SaaS.
+- ilustraciones medicas azules genericas,
+- claims visuales de IA,
+- exceso de gradientes,
+- iconografia de cruz medica usada como decoracion principal,
+- testimonios, logos o numeros inventados.
 
-## 10. Copy corto reutilizable
+## 12. Copy corto reutilizable
 
 - `Atenciones por secciones, no notas perdidas.`
-- `Ficha longitudinal con contexto clínico y operativo.`
+- `Ficha longitudinal con contexto clinico y operativo.`
 - `Seguimientos, consentimientos y adjuntos en el mismo flujo.`
-- `Permisos claros para médico, asistente y administrador.`
-- `Catálogos clínicos globales y locales.`
-- `Analítica exportable desde atenciones completadas.`
-- `Auditoría persistente para cambios sensibles.`
-- `Diseñado para consultas médicas en Chile.`
+- `Permisos claros para medico, asistente y administrador.`
+- `Catalogos clinicos globales y locales.`
+- `Analitica descriptiva y exportable desde atenciones completadas.`
+- `Auditoria persistente para cambios sensibles.`
+- `Disenado para consultas medicas en Chile.`
+- `Recepcion prepara. El medico decide. Administracion audita.`
+- `Menos papeleo. Mas continuidad clinica.`
 
-## 11. Resumen ejecutivo
+## 13. Checklist para quien implemente
 
-Anamneo debe presentarse como una ficha clínica moderna, sobria y confiable. Su mayor fortaleza no es una feature aislada: es la combinación de flujo clínico por secciones, ficha longitudinal, roles claros, seguimiento, adjuntos, catálogos, analítica y auditoría en una interfaz cálida que no parece software médico heredado.
+- La landing debe ser publica y vivir en un repo separado; no asumir dependencias del frontend principal.
+- Implementar la paleta exacta de este documento.
+- Usar Inter o fallback equivalente.
+- Mantener el primer viewport con producto visible: no solo texto.
+- Construir una recreacion legible de UI, no una imagen decorativa borrosa.
+- Mantener CTA de acceso/invitacion, no registro libre.
+- Usar copy en espanol chileno neutro, profesional y directo.
+- No prometer agenda, facturacion, IA medica, firma legal avanzada ni cifrado propio de SQLite.
+- Verificar responsive mobile: el hero debe mostrar marca, mensaje, CTA y al menos una senal visual del producto sin solapamientos.
+- Revisar contraste: texto principal sobre crema debe usar `--ink`; texto sobre frame oscuro debe usar blanco o lima con moderacion.
 
-La landing debería vender orden clínico, continuidad y trazabilidad. Eso es más fuerte, más cierto y más diferenciador que prometer inteligencia artificial o seguridad absoluta.
+## 14. Resumen ejecutivo
+
+Anamneo debe presentarse como una ficha clinica moderna, sobria y confiable. Su mayor fortaleza no es una feature aislada: es la combinacion de flujo clinico por secciones, ficha longitudinal, roles claros, seguimiento, adjuntos, catalogos, analitica y auditoria en una interfaz calida que no parece software medico heredado.
+
+La landing debe vender orden clinico, continuidad y trazabilidad. Eso es mas fuerte, mas cierto y mas diferenciador que prometer inteligencia artificial o seguridad absoluta.

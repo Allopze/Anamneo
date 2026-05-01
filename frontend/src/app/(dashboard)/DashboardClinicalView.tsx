@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import clsx from 'clsx';
-import { FiCalendar, FiChevronRight, FiClipboard, FiClock, FiFolder, FiPlus } from 'react-icons/fi';
+import { FiCalendar, FiChevronRight, FiClipboard, FiClock, FiFolder, FiPlus, FiUsers } from 'react-icons/fi';
 import { formatDateOnly } from '@/lib/date';
 import { STATUS_LABELS, TASK_TYPE_LABELS } from '@/types';
 import { type DashboardData, sectionAnimation } from './dashboard.constants';
@@ -168,31 +168,31 @@ export default function DashboardClinicalView({
               ))}
             </div>
           ) : activeEncounters.length > 0 ? (
-            <div className="divide-y divide-surface-muted/35">
+            <div className="divide-y divide-surface-muted/30">
               {activeEncounters.map((encounter, index) => {
                 const pct =
                   encounter.progress.total > 0 ? (encounter.progress.completed / encounter.progress.total) * 100 : 0;
+                const progressText = `${encounter.progress.completed} de ${encounter.progress.total} secciones`;
+                const statusLabel = STATUS_LABELS[encounter.status as keyof typeof STATUS_LABELS] ?? encounter.status;
                 return (
                   <Link
                     key={encounter.id}
                     href={`/atenciones/${encounter.id}`}
                     className={clsx(
-                      'group grid gap-4 px-5 py-4 transition-colors hover:bg-surface-inset/45 sm:px-6 lg:grid-cols-[minmax(0,1fr)_190px]',
-                      index === 0 && 'bg-surface-inset/55',
+                      'group grid gap-4 px-5 py-4 transition-colors hover:bg-surface-inset/50 sm:px-6 xl:grid-cols-[minmax(0,1fr)_max-content_240px_16px] xl:items-center',
+                      index === 0 && 'bg-surface-inset/45',
                     )}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-card border border-surface-muted/40 bg-surface-inset text-ink-secondary">
-                        <FiClock className="h-4 w-4" />
+                      <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-surface-muted/45 bg-surface-elevated text-ink-secondary">
+                        <FiUsers className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="truncate text-sm font-bold text-ink">{encounter.patientName}</p>
-                          {index === 0 && (
-                            <span className="rounded-pill bg-accent px-2.5 py-0.5 text-xs font-bold text-accent-text">
-                              Retomar
-                            </span>
-                          )}
+                          <span className="rounded-pill border border-surface-muted/45 bg-surface-elevated px-2.5 py-0.5 text-xs font-bold text-ink-secondary">
+                            {statusLabel}
+                          </span>
                           {encounter.patientRut && (
                             <span className="text-sm text-ink-muted">{encounter.patientRut}</span>
                           )}
@@ -202,20 +202,20 @@ export default function DashboardClinicalView({
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 lg:justify-end">
-                      <div className="min-w-0 flex-1 lg:max-w-[150px]">
-                        <div className="flex items-center justify-between gap-2 text-sm">
-                          <span className="text-ink-secondary">Progreso</span>
-                          <span className="font-medium text-ink">
-                            {encounter.progress.completed}/{encounter.progress.total}
-                          </span>
-                        </div>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-muted/45">
-                          <div className="h-full rounded-full bg-clinical-500" style={{ width: `${pct}%` }} />
-                        </div>
+                    <span className="inline-flex h-10 items-center justify-center rounded-pill border border-frame-dark bg-frame-dark px-4 text-sm font-semibold text-white transition-colors group-hover:bg-ink">
+                      Retomar atención
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="font-medium text-ink-secondary">Progreso</span>
+                        <span className="font-semibold text-ink">{progressText}</span>
                       </div>
-                      <FiChevronRight className="h-4 w-4 shrink-0 text-ink-muted transition-colors group-hover:text-ink" />
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-muted/45">
+                        <div className="h-full rounded-full bg-clinical-500" style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="mt-2 text-xs font-medium text-ink-muted">Siguiente: Antecedentes</p>
                     </div>
+                    <FiChevronRight className="hidden h-4 w-4 shrink-0 text-ink-muted transition-colors group-hover:text-ink xl:block" />
                   </Link>
                 );
               })}
@@ -290,8 +290,24 @@ export default function DashboardClinicalView({
                 ))}
               </div>
             ) : (
-              <div className="px-5 py-4">
-                <p className="text-sm text-ink-secondary">No hay seguimientos próximos cargados en el tablero.</p>
+              <div className="px-5 py-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-surface-muted/45 bg-surface-inset text-ink-secondary">
+                    <FiCalendar className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-ink">No hay seguimientos próximos.</p>
+                    <p className="mt-1 text-sm leading-5 text-ink-secondary">
+                      Cuando agregues tareas con fecha, aparecerán aquí.
+                    </p>
+                    <Link
+                      href="/seguimientos"
+                      className="mt-3 inline-flex h-9 items-center justify-center rounded-pill border border-surface-muted/60 bg-surface-elevated px-3.5 text-sm font-semibold text-ink-secondary transition-colors hover:border-frame/25 hover:text-ink"
+                    >
+                      Crear seguimiento
+                    </Link>
+                  </div>
+                </div>
               </div>
             )}
           </section>
@@ -301,7 +317,7 @@ export default function DashboardClinicalView({
           <section className={panelClass} style={sectionAnimation(120)}>
             <div className="flex items-center justify-between gap-4 border-b border-surface-muted/35 px-5 py-4">
               <div>
-                <h2 className="text-lg font-bold tracking-tight text-ink">Recordatorios operativos</h2>
+                <h2 className="text-lg font-bold tracking-tight text-ink">Alertas operativas</h2>
                 <p className="mt-1 text-sm text-ink-secondary">Atajos para seguimientos que requieren movimiento hoy.</p>
               </div>
               <Link href="/seguimientos" className="shrink-0 text-sm font-bold text-ink-secondary transition-colors hover:text-ink">
@@ -315,35 +331,22 @@ export default function DashboardClinicalView({
                   <div key={index} className="h-11 rounded-card skeleton" />
                 ))}
               </div>
-            ) : reminderCards.every((card) => card.value === 0) ? (
+            ) : (
               <div className="grid gap-2 px-4 py-3 sm:grid-cols-2">
                 {reminderCards.map((card) => (
                   <Link
                     key={card.label}
                     href={card.href}
-                    className="flex items-center justify-between gap-3 rounded-card border border-surface-muted/35 bg-surface-inset/45 px-3 py-2 text-sm transition-colors hover:bg-surface-inset"
-                  >
-                    <span className="min-w-0 truncate font-medium text-ink-secondary">{card.label}</span>
-                    <span className="font-extrabold text-ink">0</span>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="divide-y divide-surface-muted/35">
-                {reminderCards.map((card) => (
-                  <Link
-                    key={card.label}
-                    href={card.href}
                     className={clsx(
-                      'flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-surface-inset/45',
-                      card.value > 0 ? card.tone : 'text-ink',
+                      'flex items-center gap-2.5 rounded-card border px-3 py-2.5 text-sm transition-colors hover:bg-surface-inset',
+                      card.value > 0 ? card.tone : 'border-surface-muted/35 bg-surface-inset/45 text-ink',
                     )}
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-card border border-surface-muted/40 bg-surface-inset text-current">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-surface-muted/40 bg-surface-elevated text-current">
                       <card.icon className="h-4 w-4" />
                     </div>
-                    <span className="min-w-0 flex-1 truncate text-sm font-bold">{card.label}</span>
-                    <span className="text-lg font-extrabold tracking-tight">{card.value}</span>
+                    <span className="min-w-0 flex-1 truncate font-semibold">{card.label}</span>
+                    <span className="text-base font-extrabold tracking-tight">{card.value}</span>
                   </Link>
                 ))}
               </div>

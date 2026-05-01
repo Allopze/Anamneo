@@ -102,8 +102,8 @@ describe('DashboardPage', () => {
     render(<DashboardPage />, { wrapper: createWrapper() });
 
     expect(await screen.findByText('Paciente Activo')).toBeInTheDocument();
-    expect(screen.getByText('Recordatorios operativos')).toBeInTheDocument();
-    expect(screen.getByText('Retomar')).toBeInTheDocument();
+    expect(screen.getByText('Alertas operativas')).toBeInTheDocument();
+    expect(screen.getByText('Retomar atención')).toBeInTheDocument();
     expect(screen.queryByText('Siguiente acción')).not.toBeInTheDocument();
 
     const overdueCard = (await screen.findByText('Vencidos')).closest('a');
@@ -152,6 +152,8 @@ describe('DashboardPage', () => {
     expect(activeSection).toBeTruthy();
     expect(within(activeSection as HTMLElement).getByText('No hay atenciones en progreso en este momento.')).toBeInTheDocument();
     expect(screen.queryByText('Siguiente acción')).not.toBeInTheDocument();
-    expect(screen.getByText('No hay seguimientos próximos cargados en el tablero.')).toBeInTheDocument();
+    expect(screen.getByText('No hay seguimientos próximos.')).toBeInTheDocument();
+    expect(screen.getByText('Cuando agregues tareas con fecha, aparecerán aquí.')).toBeInTheDocument();
+    expect(screen.getByText('Crear seguimiento')).toBeInTheDocument();
   });
 });

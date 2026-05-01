@@ -41,7 +41,7 @@ export default function RecentActivitySection({ encounters, isLoading }: RecentA
             <Link
               key={encounter.id}
               href={`/atenciones/${encounter.id}`}
-              className="group grid gap-3 px-5 py-4 transition-colors hover:bg-surface-inset/45 sm:px-6 lg:grid-cols-[minmax(0,1.2fr)_180px_140px_32px] lg:items-center"
+              className="group grid gap-3 px-5 py-3.5 transition-colors hover:bg-surface-inset/45 sm:px-6 lg:grid-cols-[minmax(0,1.2fr)_150px_170px_32px] lg:items-center"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
@@ -66,16 +66,17 @@ export default function RecentActivitySection({ encounters, isLoading }: RecentA
                 </div>
               </div>
               <div className="text-sm">
-                <p className="font-bold text-ink">{STATUS_LABELS[encounter.status]}</p>
-                <p className="mt-1 text-ink-secondary">
+                <span className="inline-flex rounded-pill border border-surface-muted/45 bg-surface-elevated px-2.5 py-0.5 text-xs font-bold text-ink-secondary">
+                  {STATUS_LABELS[encounter.status]}
+                </span>
+                <p className="mt-2 text-ink-secondary">
                   {format(new Date(encounter.updatedAt), 'd MMM, HH:mm', { locale: es })}
                 </p>
               </div>
               <div className="text-sm">
                 <p className="font-medium text-ink">
-                  {encounter.progress.completed}/{encounter.progress.total}
+                  {encounter.progress.completed} de {encounter.progress.total} secciones
                 </p>
-                <p className="mt-1 text-ink-secondary">secciones</p>
               </div>
               <FiChevronRight className="hidden h-4 w-4 shrink-0 text-ink-muted transition-colors group-hover:text-ink lg:block" />
             </Link>

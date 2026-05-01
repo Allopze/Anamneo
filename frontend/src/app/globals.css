@@ -438,7 +438,7 @@ body {
   }
 
   .auth-kicker {
-    @apply mb-4 inline-flex rounded-md border border-white/10 px-2.5 py-1 text-micro font-semibold uppercase tracking-[0.08em];
+    @apply mb-4 inline-flex rounded-pill border border-white/10 px-3 py-1.5 text-micro font-semibold uppercase tracking-[0.08em];
     background: rgba(214, 221, 72, 0.18);
     color: #d6dd48;
   }
@@ -511,8 +511,7 @@ body {
   }
 
   .auth-card {
-    @apply w-full max-w-md border border-surface-muted/55 bg-surface-elevated p-6 shadow-card sm:p-8;
-    border-radius: 14px;
+    @apply w-full max-w-md rounded-card border border-surface-muted/55 bg-surface-elevated p-6 shadow-card sm:p-8;
   }
 
   .auth-card-header {
@@ -536,8 +535,7 @@ body {
   }
 
   .auth-card .form-input {
-    @apply bg-white px-4 py-3 shadow-none;
-    border-radius: 8px;
+    @apply rounded-input bg-white px-4 py-3 shadow-none;
   }
 
   .auth-card .form-input.pl-10 {
@@ -545,8 +543,7 @@ body {
   }
 
   .auth-card .btn {
-    @apply shadow-none active:scale-100;
-    border-radius: 8px;
+    @apply rounded-pill shadow-none active:scale-100;
   }
 
   .auth-card .btn-accent {
@@ -559,8 +556,7 @@ body {
   }
 
   .auth-password-toggle {
-    @apply absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center text-ink-muted transition-colors hover:bg-surface-muted/45 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20;
-    border-radius: 6px;
+    @apply absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-muted/45 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20;
   }
 
   .auth-forgot-password {
