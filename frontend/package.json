@@ -21,7 +21,7 @@
     "test:e2e:smoke": "playwright test --workers=1 tests/e2e/smoke.spec.ts"
   },
   "dependencies": {
-    "@hookform/resolvers": "^3.3.4",
+    "@hookform/resolvers": "^5.2.2",
     "@sentry/nextjs": "^10.50.0",
     "@tanstack/react-query": "^5.17.9",
     "axios": "^1.15.2",
