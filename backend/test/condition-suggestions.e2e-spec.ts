@@ -5,6 +5,7 @@ import {
   extractCookies,
   cookieHeader,
   prisma,
+  TEST_LEGAL_ACCEPTANCE,
 } from './helpers/e2e-setup';
 import { CONDITION_SUGGESTION_RANKING_VERSION } from '../src/conditions/conditions-suggestion-log';
 
@@ -23,6 +24,7 @@ describe('Condition Suggestions Isolated E2E', () => {
         password: 'Admin123',
         nombre: 'Admin Suggestions',
         role: 'ADMIN',
+        ...TEST_LEGAL_ACCEPTANCE,
       })
       .expect(201);
 
@@ -45,6 +47,7 @@ describe('Condition Suggestions Isolated E2E', () => {
         nombre: 'Dr. Suggestions',
         role: 'MEDICO',
         invitationToken: invitationRes.body.token,
+        ...TEST_LEGAL_ACCEPTANCE,
       })
       .expect(201);
 

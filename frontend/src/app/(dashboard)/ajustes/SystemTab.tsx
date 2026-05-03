@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { Dispatch, SetStateAction } from 'react';
 import type { AjustesHook } from './useAjustes';
+import LegalAdminSection from './LegalAdminSection';
 
 type SystemHealthResponse = {
   status: 'ok' | 'degraded';
@@ -230,6 +231,8 @@ export default function SystemTab({
           <strong>API:</strong> {process.env.NEXT_PUBLIC_API_URL || 'No configurada'}
         </p>
       </div>
+
+      <LegalAdminSection />
 
       <div className="rounded-2xl border border-surface-muted/40 bg-surface-elevated p-4 text-sm text-ink-secondary">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">

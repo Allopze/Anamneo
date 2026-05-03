@@ -1,12 +1,11 @@
 import type { Metadata } from 'next';
-import LegalDocumentPage from '@/components/legal/LegalDocumentPage';
-import { PRIVACY_CONTENT } from '@/lib/legal-content';
+import LegalDocumentLoader from '@/components/legal/LegalDocumentLoader';
 
 export const metadata: Metadata = {
-  title: PRIVACY_CONTENT.title,
-  description: PRIVACY_CONTENT.description,
+  title: 'Política de Privacidad',
+  description: 'Tratamiento vigente de datos del personal de salud y pacientes en Anamneo.',
 };
 
 export default function PrivacyPage() {
-  return <LegalDocumentPage document={PRIVACY_CONTENT} />;
+  return <LegalDocumentLoader type="PRIVACY" />;
 }

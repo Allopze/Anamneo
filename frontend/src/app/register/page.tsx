@@ -4,12 +4,17 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthLogin } from '@/stores/auth-store';
 import { stashAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
 import { AuthFrame } from '@/components/auth/AuthFrame';
 import { FiEye, FiEyeOff, FiLock, FiMail, FiShield, FiUser, FiUserPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import {
+  getLegalDocumentByType,
+  type CurrentLegalDocumentsResponse,
+} from '@/lib/legal-content';
 import {
   REGISTER_DRAFT_KEY,
   REGISTER_BOOTSTRAP_CHIPS,
@@ -18,7 +23,6 @@ import {
   type RegisterForm,
   type RegisterRole,
 } from './register.constants';
-import { LEGAL_DOCUMENT_VERSION } from '../../../../shared/legal-contract';
 import RegisterFooter from './RegisterFooter';
 import RegisterLegalAcceptance from './RegisterLegalAcceptance';
 import RegisterRoleField from './RegisterRoleField';
@@ -56,6 +60,15 @@ function RegisterContent() {
   const [requiresBootstrapToken, setRequiresBootstrapToken] = useState(false);
   const registerDraftWriteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRegisterDraftRef = useRef<string | null>(null);
+  const legalDocumentsQuery = useQuery({
+    queryKey: ['legal-documents', 'current'],
+    queryFn: async () => {
+      const response = await api.get('/legal/documents/current');
+      return response.data as CurrentLegalDocumentsResponse;
+    },
+    retry: false,
+    staleTime: 5 * 60_000,
+  });
 
   const {
     register,
@@ -204,10 +217,18 @@ function RegisterContent() {
     };
   }, [invitationTokenFromQuery, setValue]);
 
-  const isFormBusy = isSubmitting || isLoadingRoles;
+  const termsDocument = getLegalDocumentByType(legalDocumentsQuery.data, 'TERMS');
+  const privacyDocument = getLegalDocumentByType(legalDocumentsQuery.data, 'PRIVACY');
+  const legalDocumentsReady = Boolean(termsDocument?.version && privacyDocument?.version);
+  const isFormBusy = isSubmitting || isLoadingRoles || legalDocumentsQuery.isLoading;
   const registerChips = isInvitationMode ? REGISTER_INVITATION_CHIPS : REGISTER_BOOTSTRAP_CHIPS;
 
   const onSubmit = async (data: RegisterForm) => {
+    if (!termsDocument || !privacyDocument) {
+      toast.error('No hay documentos legales vigentes publicados para completar el registro.');
+      return;
+    }
+
     const bootstrapToken = data.bootstrapToken?.trim();
 
     if (requiresBootstrapToken && !bootstrapToken) {
@@ -227,8 +248,8 @@ function RegisterContent() {
         role: data.role,
         invitationToken: invitationToken || undefined,
         bootstrapToken: requiresBootstrapToken ? bootstrapToken : undefined,
-        acceptedTermsVersion: LEGAL_DOCUMENT_VERSION,
-        acceptedPrivacyVersion: LEGAL_DOCUMENT_VERSION,
+        acceptedTermsVersion: termsDocument.version,
+        acceptedPrivacyVersion: privacyDocument.version,
       });
 
       const sessionUser = registerResponse.data.user;
@@ -282,6 +303,18 @@ function RegisterContent() {
         {isLoadingRoles ? (
           <div className="auth-banner auth-banner-muted" aria-live="polite">
             Validando si este registro requiere invitación…
+          </div>
+        ) : null}
+
+        {legalDocumentsQuery.isLoading ? (
+          <div className="auth-banner auth-banner-muted" aria-live="polite">
+            Cargando documentos legales vigentes…
+          </div>
+        ) : null}
+
+        {legalDocumentsQuery.isError || !legalDocumentsReady ? (
+          <div className="auth-banner auth-banner-warning" aria-live="polite">
+            No hay documentos legales vigentes disponibles. Un administrador debe publicar términos y privacidad.
           </div>
         ) : null}
 
@@ -461,11 +494,13 @@ function RegisterContent() {
           register={register}
           error={errors.acceptedLegal}
           disabled={isFormBusy}
+          termsVersion={termsDocument?.version ?? null}
+          privacyVersion={privacyDocument?.version ?? null}
         />
 
         <button
           type="submit"
-          disabled={isFormBusy || !!invitationError}
+          disabled={isFormBusy || !!invitationError || !legalDocumentsReady}
           className="btn btn-accent w-full gap-2 py-3"
         >
           {isSubmitting ? (

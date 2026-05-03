@@ -1,14 +1,12 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { LEGAL_DOCUMENT_VERSION } from '../../../../../shared/legal-contract';
 
 type LegalAcceptancesResponse = {
-  currentVersion: string;
   documents: Array<{
     type: 'TERMS' | 'PRIVACY';
     label: string;
-    currentVersion: string;
+    currentVersion: string | null;
     latestAccepted: {
       documentType: string;
       version: string;
@@ -35,13 +33,13 @@ export default function LegalDocumentsSection() {
     {
       type: 'TERMS' as const,
       label: 'Términos y Condiciones de Servicio',
-      currentVersion: LEGAL_DOCUMENT_VERSION,
+      currentVersion: null,
       latestAccepted: null,
     },
     {
       type: 'PRIVACY' as const,
       label: 'Política de Privacidad',
-      currentVersion: LEGAL_DOCUMENT_VERSION,
+      currentVersion: null,
       latestAccepted: null,
     },
   ];
@@ -69,7 +67,9 @@ export default function LegalDocumentsSection() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-ink">{document.label}</p>
-                  <p className="mt-1 text-xs text-ink-muted">Versión vigente {document.currentVersion}</p>
+                  <p className="mt-1 text-xs text-ink-muted">
+                    Versión vigente {document.currentVersion ?? 'sin publicación'}
+                  </p>
                 </div>
                 <Link href={LEGAL_DOCUMENT_LINKS[document.type]} className="panel-link">
                   Ver documento

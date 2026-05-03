@@ -1,19 +1,26 @@
 import Link from 'next/link';
 import type { FieldError, UseFormRegister } from 'react-hook-form';
-import { LEGAL_DOCUMENT_VERSION } from '../../../../shared/legal-contract';
 import type { RegisterForm } from './register.constants';
 
 interface RegisterLegalAcceptanceProps {
   register: UseFormRegister<RegisterForm>;
   error?: FieldError;
   disabled: boolean;
+  termsVersion: string | null;
+  privacyVersion: string | null;
 }
 
 export default function RegisterLegalAcceptance({
   register,
   error,
   disabled,
+  termsVersion,
+  privacyVersion,
 }: RegisterLegalAcceptanceProps) {
+  const versionLabel = termsVersion && privacyVersion
+    ? `Términos ${termsVersion} · Privacidad ${privacyVersion}`
+    : 'Cargando versiones legales vigentes.';
+
   return (
     <label className="flex items-start gap-3 rounded-card border border-surface-muted/40 bg-surface-base/45 p-4 text-sm text-ink-secondary">
       <input
@@ -34,7 +41,7 @@ export default function RegisterLegalAcceptance({
         </Link>{' '}
         vigentes de Anamneo.
         <span id="accepted-legal-help" className="mt-1 block text-micro text-ink-muted">
-          Versión legal {LEGAL_DOCUMENT_VERSION}.
+          {versionLabel}
         </span>
         {error ? (
           <span id="accepted-legal-error" className="form-error block" role="alert">

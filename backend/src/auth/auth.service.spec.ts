@@ -82,9 +82,9 @@ describe('AuthService register', () => {
   });
 
   it('should reject registration when legal acceptance is missing', async () => {
-    (legalService.assertCurrentAcceptance as jest.Mock).mockImplementation(() => {
-      throw new ForbiddenException('Debes aceptar los documentos legales vigentes');
-    });
+    (legalService.assertCurrentAcceptance as jest.Mock).mockRejectedValue(
+      new ForbiddenException('Debes aceptar los documentos legales vigentes'),
+    );
 
     await expect(
       service.register({

@@ -84,6 +84,23 @@ export const state = {
   revokedInvitationToken: '',
 };
 
+export const TEST_LEGAL_ACCEPTANCE = {
+  acceptedTermsVersion: '2026-05-02',
+  acceptedPrivacyVersion: '2026-05-02',
+} as const;
+
+const TEST_LEGAL_CONTENT = JSON.stringify({
+  summary: ['Documento legal vigente para pruebas e2e.'],
+  sections: [
+    {
+      id: 'alcance',
+      title: 'Alcance',
+      body: ['Contenido mínimo requerido para validar aceptación legal en registro.'],
+    },
+  ],
+  contactEmail: 'soporte@anamneo.cl',
+});
+
 // ── App references ──────────────────────────────────────────────────
 
 let app: INestApplication;
@@ -149,14 +166,14 @@ export async function bootstrapApp() {
   process.env.SMTP_FROM_EMAIL = '';
   process.env.SMTP_FROM_NAME = '';
 
-  execSync('npx prisma generate', {
+  execSync('node ./node_modules/prisma/build/index.js generate', {
     cwd: path.join(__dirname, '..', '..'),
     env: { ...process.env, DATABASE_URL: testDatabaseUrl },
     stdio: 'pipe',
   });
 
   const schemaSql = execSync(
-    'npx prisma migrate diff --from-empty --to-schema-datamodel ./prisma/schema.prisma --script',
+    'node ./node_modules/prisma/build/index.js migrate diff --from-empty --to-schema-datamodel ./prisma/schema.prisma --script',
     {
       cwd: path.join(__dirname, '..', '..'),
       env: { ...process.env, DATABASE_URL: testDatabaseUrl },
@@ -166,7 +183,7 @@ export async function bootstrapApp() {
 
   fs.writeFileSync(testSchemaSqlPath!, schemaSql, 'utf8');
 
-  execSync(`npx prisma db execute --file "${testSchemaSqlPath}" --schema ./prisma/schema.prisma`, {
+  execSync(`node ./node_modules/prisma/build/index.js db execute --file "${testSchemaSqlPath}" --schema ./prisma/schema.prisma`, {
     cwd: path.join(__dirname, '..', '..'),
     env: { ...process.env, DATABASE_URL: testDatabaseUrl },
     stdio: 'pipe',
@@ -192,6 +209,33 @@ export async function bootstrapApp() {
 
   prisma = moduleFixture.get(PrismaService);
   alertsService = moduleFixture.get(AlertsService);
+
+  await prisma.legalDocument.createMany({
+    data: [
+      {
+        id: 'e2e-terms-2026-05-02',
+        type: 'TERMS',
+        version: TEST_LEGAL_ACCEPTANCE.acceptedTermsVersion,
+        status: 'PUBLISHED',
+        title: 'Términos y Condiciones de Servicio',
+        description: 'Documento de términos vigente para pruebas.',
+        contentJson: TEST_LEGAL_CONTENT,
+        effectiveAt: new Date('2026-05-02T00:00:00.000Z'),
+        publishedAt: new Date('2026-05-02T00:00:00.000Z'),
+      },
+      {
+        id: 'e2e-privacy-2026-05-02',
+        type: 'PRIVACY',
+        version: TEST_LEGAL_ACCEPTANCE.acceptedPrivacyVersion,
+        status: 'PUBLISHED',
+        title: 'Política de Privacidad',
+        description: 'Documento de privacidad vigente para pruebas.',
+        contentJson: TEST_LEGAL_CONTENT,
+        effectiveAt: new Date('2026-05-02T00:00:00.000Z'),
+        publishedAt: new Date('2026-05-02T00:00:00.000Z'),
+      },
+    ],
+  });
 
   app = moduleFixture.createNestApplication();
   app.setGlobalPrefix('api');

@@ -1,12 +1,11 @@
 import type { Metadata } from 'next';
-import LegalDocumentPage from '@/components/legal/LegalDocumentPage';
-import { TERMS_CONTENT } from '@/lib/legal-content';
+import LegalDocumentLoader from '@/components/legal/LegalDocumentLoader';
 
 export const metadata: Metadata = {
-  title: TERMS_CONTENT.title,
-  description: TERMS_CONTENT.description,
+  title: 'Términos y Condiciones de Servicio',
+  description: 'Condiciones vigentes de uso de Anamneo.',
 };
 
 export default function TermsPage() {
-  return <LegalDocumentPage document={TERMS_CONTENT} />;
+  return <LegalDocumentLoader type="TERMS" />;
 }

@@ -85,7 +85,7 @@ export function createMockServices() {
   };
 
   const legalService = {
-    assertCurrentAcceptance: jest.fn(),
+    assertCurrentAcceptance: jest.fn().mockResolvedValue(undefined),
     recordCurrentAcceptance: jest.fn().mockResolvedValue(undefined),
   };
 

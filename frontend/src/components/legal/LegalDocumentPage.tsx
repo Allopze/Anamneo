@@ -2,32 +2,20 @@ import Link from 'next/link';
 import { FiArrowLeft, FiCheckCircle, FiExternalLink, FiShield } from 'react-icons/fi';
 import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
 import {
-  LEGAL_CONTACT_EMAIL,
-  LEGAL_EFFECTIVE_DATE,
-  LEGAL_DOCUMENT_VERSION,
-  type LegalDocumentContent,
+  DEFAULT_LEGAL_REFERENCES,
+  formatLegalEffectiveDate,
+  type LegalDocumentPublic,
 } from '@/lib/legal-content';
 
 interface LegalDocumentPageProps {
-  document: LegalDocumentContent;
+  document: LegalDocumentPublic;
 }
 
-const LEGAL_REFERENCES = [
-  {
-    label: 'Ley 19.628',
-    href: 'https://www.bcn.cl/leychile/navegar?idLey=19628',
-  },
-  {
-    label: 'Ley 20.584',
-    href: 'https://www.bcn.cl/leychile/navegar?idNorma=1039348',
-  },
-  {
-    label: 'Ley 21.719',
-    href: 'https://www.bcn.cl/leychile/navegar?idNorma=1209272',
-  },
-];
-
 export default function LegalDocumentPage({ document }: LegalDocumentPageProps) {
+  const content = document.contentJson;
+  const contactEmail = content.contactEmail ?? 'soporte@anamneo.cl';
+  const references = content.references?.length ? content.references : DEFAULT_LEGAL_REFERENCES;
+
   return (
     <main className="legal-shell">
       <header className="legal-topbar">
@@ -55,21 +43,21 @@ export default function LegalDocumentPage({ document }: LegalDocumentPageProps) 
             <dl className="legal-meta-list">
               <div>
                 <dt>Versión</dt>
-                <dd>{LEGAL_DOCUMENT_VERSION}</dd>
+                <dd>{document.version}</dd>
               </div>
               <div>
                 <dt>Vigencia</dt>
-                <dd>{LEGAL_EFFECTIVE_DATE}</dd>
+                <dd>{formatLegalEffectiveDate(document.effectiveAt)}</dd>
               </div>
               <div>
                 <dt>Contacto</dt>
-                <dd>{LEGAL_CONTACT_EMAIL}</dd>
+                <dd>{contactEmail}</dd>
               </div>
             </dl>
           </div>
 
           <nav className="legal-index" aria-label="Índice">
-            {document.sections.map((section) => (
+            {content.sections.map((section) => (
               <a key={section.id} href={`#${section.id}`}>
                 {section.title}
               </a>
@@ -79,13 +67,13 @@ export default function LegalDocumentPage({ document }: LegalDocumentPageProps) 
 
         <article className="legal-document">
           <section className="legal-hero" aria-labelledby="legal-title">
-            <p className="legal-version">Versión {LEGAL_DOCUMENT_VERSION}</p>
+            <p className="legal-version">Versión {document.version}</p>
             <h1 id="legal-title">{document.title}</h1>
             <p className="legal-description">{document.description}</p>
           </section>
 
           <section className="legal-summary" aria-label="Resumen">
-            {document.summary.map((item) => (
+            {content.summary.map((item) => (
               <div key={item} className="legal-summary-item">
                 <FiCheckCircle className="h-4 w-4" aria-hidden="true" />
                 <p>{item}</p>
@@ -93,9 +81,9 @@ export default function LegalDocumentPage({ document }: LegalDocumentPageProps) 
             ))}
           </section>
 
-          {document.dataCategories ? (
+          {content.dataCategories ? (
             <section className="legal-data-table" aria-label="Categorías de datos">
-              {document.dataCategories.map((category) => (
+              {content.dataCategories.map((category) => (
                 <div key={category.label} className="legal-data-row">
                   <h2>{category.label}</h2>
                   <p>{category.examples}</p>
@@ -106,7 +94,7 @@ export default function LegalDocumentPage({ document }: LegalDocumentPageProps) 
           ) : null}
 
           <div className="legal-section-stack">
-            {document.sections.map((section) => (
+            {content.sections.map((section) => (
               <section key={section.id} id={section.id} className="legal-section">
                 <h2>{section.title}</h2>
                 {section.body.map((paragraph) => (
@@ -124,12 +112,9 @@ export default function LegalDocumentPage({ document }: LegalDocumentPageProps) 
           </div>
 
           <footer className="legal-footer-note">
-            <p>
-              Este documento es una base operativa y debe revisarse con asesoría legal antes de usarlo como texto
-              contractual definitivo.
-            </p>
+            <p>{content.footerNote ?? 'Documento vigente publicado por el administrador del espacio clínico.'}</p>
             <div className="legal-reference-list">
-              {LEGAL_REFERENCES.map((reference) => (
+              {references.map((reference) => (
                 <a key={reference.href} href={reference.href} target="_blank" rel="noreferrer">
                   {reference.label}
                   <FiExternalLink className="h-3.5 w-3.5" aria-hidden="true" />

@@ -1,5 +1,4 @@
 import { registerSchema } from '@/app/register/register.constants';
-import { LEGAL_DOCUMENT_VERSION } from '../../../../shared/legal-contract';
 
 const validRegisterPayload = {
   nombre: 'Dra. Camila Soto',
@@ -21,7 +20,11 @@ describe('register legal acceptance', () => {
     expect(result.error?.issues[0]?.path).toEqual(['acceptedLegal']);
   });
 
-  it('exposes the current legal version to registration payloads', () => {
-    expect(LEGAL_DOCUMENT_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  it('keeps legal acceptance as the user-facing consent gate only', () => {
+    const result = registerSchema.safeParse(validRegisterPayload);
+
+    expect(result.success).toBe(true);
+    expect(result.data).not.toHaveProperty('acceptedTermsVersion');
+    expect(result.data).not.toHaveProperty('acceptedPrivacyVersion');
   });
 });

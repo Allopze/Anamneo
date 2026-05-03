@@ -1,4 +1,11 @@
-import { state, prisma, req, extractCookies, cookieHeader } from '../helpers/e2e-setup';
+import {
+  state,
+  prisma,
+  req,
+  extractCookies,
+  cookieHeader,
+  TEST_LEGAL_ACCEPTANCE,
+} from '../helpers/e2e-setup';
 
 export function validationPatientIsolationSuite() {
   describe('Patient Data Isolation', () => {
@@ -37,6 +44,7 @@ export function validationPatientIsolationSuite() {
           nombre: 'Dr. Segundo',
           role: 'MEDICO',
           invitationToken: medico2InvitationToken,
+          ...TEST_LEGAL_ACCEPTANCE,
         })
         .expect(201);
 

@@ -1,4 +1,4 @@
-import { state, req, cookieHeader } from '../helpers/e2e-setup';
+import { state, req, cookieHeader, TEST_LEGAL_ACCEPTANCE } from '../helpers/e2e-setup';
 
 export function validationRegistrationSuite() {
   describe('Validation', () => {
@@ -23,7 +23,13 @@ export function validationRegistrationSuite() {
     it('POST /api/auth/register → rejects public registration with valid password but no invitation', async () => {
       const res = await req()
         .post('/api/auth/register')
-        .send({ email: 'dotpass@test.com', password: 'Dot.Pass123', nombre: 'Dot Test', role: 'MEDICO' })
+        .send({
+          email: 'dotpass@test.com',
+          password: 'Dot.Pass123',
+          nombre: 'Dot Test',
+          role: 'MEDICO',
+          ...TEST_LEGAL_ACCEPTANCE,
+        })
         .expect(403);
 
       expect(String(res.body.message)).toContain('invitación');

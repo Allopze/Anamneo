@@ -520,6 +520,27 @@ model UserLegalAcceptance {
   @@map("user_legal_acceptances")
 }
 
+model LegalDocument {
+  id          String    @id @default(uuid())
+  type        String
+  version     String
+  status      String    @default("DRAFT")
+  title       String
+  description String
+  contentJson String    @map("content_json")
+  effectiveAt DateTime  @map("effective_at")
+  publishedAt DateTime? @map("published_at")
+  createdById String?   @map("created_by_id")
+  updatedById String?   @map("updated_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@unique([type, version])
+  @@index([type, status])
+  @@index([status, publishedAt])
+  @@map("legal_documents")
+}
+
 model LoginAttempt {
   email          String    @id
   failedAttempts Int       @default(0) @map("failed_attempts")

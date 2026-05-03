@@ -1,4 +1,4 @@
-import { state, req, extractCookies, cookieHeader } from '../helpers/e2e-setup';
+import { state, req, extractCookies, cookieHeader, TEST_LEGAL_ACCEPTANCE } from '../helpers/e2e-setup';
 
 const TEST_BOOTSTRAP_TOKEN = 'bootstrap-token-e2e-0123456789abcdef';
 
@@ -12,6 +12,7 @@ export function authRegistrationSuite() {
           password: 'Admin123',
           nombre: 'Admin Test',
           role: 'ADMIN',
+          ...TEST_LEGAL_ACCEPTANCE,
         })
         .expect(403);
     });
@@ -25,6 +26,7 @@ export function authRegistrationSuite() {
           nombre: 'Admin Test',
           role: 'ADMIN',
           bootstrapToken: 'bootstrap-token-e2e-invalid-secret',
+          ...TEST_LEGAL_ACCEPTANCE,
         })
         .expect(403);
     });
@@ -38,6 +40,7 @@ export function authRegistrationSuite() {
           nombre: 'Admin Test',
           role: 'ADMIN',
           bootstrapToken: TEST_BOOTSTRAP_TOKEN,
+          ...TEST_LEGAL_ACCEPTANCE,
         })
         .expect(201);
 
@@ -80,6 +83,7 @@ export function authRegistrationSuite() {
           password: 'Medico123',
           nombre: 'Dr. Test',
           role: 'MEDICO',
+          ...TEST_LEGAL_ACCEPTANCE,
         })
         .expect(403);
     });
@@ -154,6 +158,7 @@ export function authRegistrationSuite() {
           nombre: 'Dr. Test',
           role: 'MEDICO',
           invitationToken: state.medicoInvitationToken,
+          ...TEST_LEGAL_ACCEPTANCE,
         })
         .expect(201);
 

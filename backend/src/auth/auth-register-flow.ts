@@ -25,7 +25,7 @@ type HasValidBootstrapTokenFn = (candidateToken: string | undefined, expectedTok
 type AssertLegalAcceptanceFn = (input: {
   acceptedTermsVersion?: string;
   acceptedPrivacyVersion?: string;
-}) => void;
+}) => Promise<void>;
 type RecordLegalAcceptanceFn = (
   userId: string,
   input: { acceptedTermsVersion?: string; acceptedPrivacyVersion?: string },
@@ -89,7 +89,7 @@ export async function registerWithInvitationFlow(
   } = params;
 
   const normalizedEmail = normalizeEmail(registerDto.email);
-  assertLegalAcceptance(registerDto);
+  await assertLegalAcceptance(registerDto);
 
   const existingUser = await usersService.findByEmail(normalizedEmail);
   if (existingUser) {
