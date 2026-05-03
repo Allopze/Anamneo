@@ -8,9 +8,10 @@ import { PatientsManagementController } from './patients-management.controller';
 import { PatientsAuxController } from './patients-aux.controller';
 import { AuditModule } from '../audit/audit.module';
 import { ConsentsModule } from '../consents/consents.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [AuditModule, ConfigModule, ConsentsModule],
+  imports: [AuditModule, ConfigModule, ConsentsModule, SettingsModule],
   controllers: [PatientsController, PatientsManagementController, PatientsAuxController],
   providers: [PatientsService, PatientsPdfService, PatientsExportBundleService],
   exports: [PatientsService],

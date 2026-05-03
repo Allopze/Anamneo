@@ -9,11 +9,13 @@ import { AuthTotpService } from './auth-totp.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
 import { SettingsModule } from '../settings/settings.module';
+import { LegalModule } from '../legal/legal.module';
 
 @Module({
   imports: [
     UsersModule,
     SettingsModule,
+    LegalModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

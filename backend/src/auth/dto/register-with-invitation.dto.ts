@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { RegisterDto } from './register.dto';
 
 export class RegisterWithInvitationDto extends RegisterDto {
@@ -11,4 +11,14 @@ export class RegisterWithInvitationDto extends RegisterDto {
   @IsString({ message: 'El token de instalación es inválido' })
   @MinLength(16, { message: 'El token de instalación es inválido' })
   bootstrapToken?: string;
+
+  @IsOptional()
+  @IsString({ message: 'La versión de términos aceptada es inválida' })
+  @MaxLength(32, { message: 'La versión de términos aceptada es inválida' })
+  acceptedTermsVersion?: string;
+
+  @IsOptional()
+  @IsString({ message: 'La versión de privacidad aceptada es inválida' })
+  @MaxLength(32, { message: 'La versión de privacidad aceptada es inválida' })
+  acceptedPrivacyVersion?: string;
 }

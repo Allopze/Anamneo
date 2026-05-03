@@ -4,8 +4,16 @@ import {
   formatRutDisplay,
   getRutDisplayData,
   getTreatmentPlanText,
-  formatStructuredMedicationLine,
 } from './encounters-pdf.helpers';
+import {
+  buildMedicationDetail,
+  buildOrderDetail,
+  type PdfClinicSettings,
+  renderPdfDetailList,
+  renderPdfHeader,
+  renderPdfSectionHeading,
+  renderPdfSignature,
+} from '../common/utils/pdf-document-layout';
 
 export function renderFocusedEncounterPdf(
   doc: any,
@@ -13,6 +21,7 @@ export function renderFocusedEncounterPdf(
   encounter: any,
   sectionsMap: Record<string, any>,
   kind: 'receta' | 'ordenes' | 'derivacion',
+  clinic?: PdfClinicSettings,
 ) {
   const ident = sectionsMap['IDENTIFICACION'] || {};
   const trat = sectionsMap['TRATAMIENTO'] || {};
@@ -29,11 +38,13 @@ export function renderFocusedEncounterPdf(
     doc.font('Helvetica').text(value);
   };
 
-  doc.fontSize(18).font('Helvetica-Bold').text(titleMap[kind], { align: 'center' });
-  doc.fontSize(10).font('Helvetica').text(`Fecha: ${formatEncounterDateTime(encounter.createdAt)}`, {
-    align: 'center',
+  renderPdfHeader(doc, pageWidth, {
+    title: titleMap[kind],
+    subtitle: `Fecha: ${formatEncounterDateTime(encounter.createdAt)}`,
+    professionalName: encounter.createdBy?.nombre || null,
+    clinic,
   });
-  doc.moveDown(1);
+
   field('Paciente', ident.nombre || encounter.patient.nombre);
   field('RUT', formatRutDisplay(getRutDisplayData(ident, encounter.patient)));
   field('Fecha de nacimiento', ident.fechaNacimiento ? formatEncounterDateOnly(ident.fechaNacimiento) : undefined);
@@ -44,49 +55,47 @@ export function renderFocusedEncounterPdf(
   doc.moveDown(1);
 
   if (kind === 'receta') {
-    doc.font('Helvetica-Bold').text('Indicaciones generales');
+    renderPdfSectionHeading(doc, pageWidth, 'Indicaciones generales');
     doc.font('Helvetica').text(treatmentPlan || '-');
-    doc.moveDown(0.5);
-    doc.font('Helvetica-Bold').text('Medicacion');
+    renderPdfSectionHeading(doc, pageWidth, 'Medicación');
     if (Array.isArray(trat.medicamentosEstructurados) && trat.medicamentosEstructurados.length > 0) {
-      trat.medicamentosEstructurados.forEach((item: any) => {
-        doc.text(`• ${formatStructuredMedicationLine(item)}`);
-      });
+      renderPdfDetailList(
+        doc,
+        pageWidth,
+        trat.medicamentosEstructurados.map((item: any) => buildMedicationDetail(item)),
+      );
     } else {
       doc.text(trat.receta || '-');
     }
   }
 
   if (kind === 'ordenes') {
-    doc.font('Helvetica-Bold').text('Examenes solicitados');
+    renderPdfSectionHeading(doc, pageWidth, 'Exámenes solicitados');
     if (Array.isArray(trat.examenesEstructurados) && trat.examenesEstructurados.length > 0) {
-      trat.examenesEstructurados.forEach((item: any) => {
-        doc.text(`• ${[item.nombre, item.indicacion, item.estado].filter(Boolean).join(' · ')}`);
-      });
+      renderPdfDetailList(
+        doc,
+        pageWidth,
+        trat.examenesEstructurados.map((item: any) => buildOrderDetail(item)),
+      );
     } else {
       doc.font('Helvetica').text(trat.examenes || '-');
     }
   }
 
   if (kind === 'derivacion') {
-    doc.font('Helvetica-Bold').text('Motivo de derivacion');
+    renderPdfSectionHeading(doc, pageWidth, 'Motivo de derivación');
     if (Array.isArray(trat.derivacionesEstructuradas) && trat.derivacionesEstructuradas.length > 0) {
-      trat.derivacionesEstructuradas.forEach((item: any) => {
-        doc.text(`• ${[item.nombre, item.indicacion, item.estado].filter(Boolean).join(' · ')}`);
-      });
+      renderPdfDetailList(
+        doc,
+        pageWidth,
+        trat.derivacionesEstructuradas.map((item: any) => buildOrderDetail(item)),
+      );
     } else {
       doc.font('Helvetica').text(trat.derivaciones || '-');
     }
-    doc.moveDown(0.5);
-    doc.font('Helvetica-Bold').text('Contexto clinico');
+    renderPdfSectionHeading(doc, pageWidth, 'Contexto clínico');
     doc.font('Helvetica').text((sectionsMap['MOTIVO_CONSULTA'] || {}).texto || '-');
   }
 
-  doc.moveDown(3);
-  const signX = doc.x + pageWidth - 200;
-  doc.moveTo(signX, doc.y).lineTo(signX + 180, doc.y).lineWidth(1).stroke();
-  doc.fontSize(9).text('Firma y Timbre', signX, doc.y + 3, {
-    width: 180,
-    align: 'center',
-  });
+  renderPdfSignature(doc, pageWidth);
 }

@@ -12,10 +12,12 @@ export function resolveProxyDecision(input: {
   hasValidatedSession: boolean;
 }): ProxyDecision {
   const { pathname, search, hasSessionCookie, hasRefreshToken, hasValidatedSession } = input;
-  const isPublicRoute = pathname === '/login' || pathname === '/register';
+  const isLegalRoute = pathname === '/terminos-y-condiciones' || pathname === '/politica-de-privacidad';
+  const isAuthRoute = pathname === '/login' || pathname === '/register';
+  const isPublicRoute = isAuthRoute || isLegalRoute;
 
   if (isPublicRoute) {
-    if (hasValidatedSession) {
+    if (isAuthRoute && hasValidatedSession) {
       return { action: 'redirect', target: '/' };
     }
 

@@ -80,10 +80,11 @@ export class PatientsAuxController {
     @CurrentUser() user: CurrentUserData,
     @Res() res: Response,
   ) {
+    const filename = await this.patientsPdfService.getLongitudinalPdfFilename(id, user);
     const buffer = await this.patientsPdfService.generateLongitudinalPdf(id, user);
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="historial-${id}.pdf"`,
+      'Content-Disposition': `attachment; filename="${filename}"`,
       'Content-Length': buffer.length.toString(),
     });
     res.end(buffer);

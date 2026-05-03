@@ -41,6 +41,41 @@ log()  { echo -e "${GREEN}[deploy]${NC} $*"; }
 warn() { echo -e "${YELLOW}[deploy]${NC} $*"; }
 fail() { echo -e "${RED}[deploy]${NC} $*" >&2; exit 1; }
 
+compose_run_no_build=()
+if docker compose run --help 2>&1 | grep -q -- '--no-build'; then
+  compose_run_no_build+=(--no-build)
+fi
+
+compose_image_id() {
+  local service="$1"
+  docker compose images --quiet "$service" 2>/dev/null | head -n 1 || true
+}
+
+ensure_images_built() {
+  # Docker Compose puede intentar buildear al hacer `compose run`. Ese build
+  # puede contaminar stdout y romper el JSON que parseamos luego.
+  local needs_build=0
+
+  local backend_image_id=""
+  local frontend_image_id=""
+  local backup_cron_image_id=""
+
+  backend_image_id="$(compose_image_id backend)"
+  frontend_image_id="$(compose_image_id frontend)"
+  backup_cron_image_id="$(compose_image_id backup-cron)"
+
+  if [[ -z "$backend_image_id" || -z "$frontend_image_id" || -z "$backup_cron_image_id" ]]; then
+    needs_build=1
+  fi
+
+  if [[ "$needs_build" -eq 1 ]]; then
+    log "Imágenes no detectadas — ejecutando docker compose build..."
+    docker compose build
+  else
+    log "Imágenes detectadas."
+  fi
+}
+
 # ── 0. Preconditions ─────────────────────────────────────────
 
 if [[ ! -f "$ROOT_DIR/docker-compose.yml" ]]; then
@@ -51,6 +86,10 @@ if ! docker compose config --quiet 2>/dev/null; then
   fail "docker compose config falla. Revisa .env y docker-compose.yml"
 fi
 
+# ── 0. Build images (if missing) ────────────────────────────
+
+ensure_images_built
+
 # ── 1. Pre-migration backup ──────────────────────────────────
 
 mkdir -p "$RUNTIME_DATA" "$RUNTIME_UPLOADS"
@@ -58,13 +97,13 @@ mkdir -p "$BACKUP_DIR"
 
 if [[ -f "$DB_PATH" ]]; then
   log "Tomando backup pre-migración con sqlite-backup.js..."
-  BACKUP_RESULT="$(docker compose run --rm --no-deps \
+  BACKUP_RESULT="$(docker compose run --rm --no-deps "${compose_run_no_build[@]}" \
     -e DATABASE_URL="file:/app/data/anamneo.db" \
     -e SQLITE_BACKUP_DIR="/app/data/backups" \
     -e UPLOAD_DEST="/app/uploads" \
     backend node scripts/sqlite-backup.js)"
 
-  ROLLBACK_FILE="$(printf '%s' "$BACKUP_RESULT" | node -e "let data='';process.stdin.on('data',(chunk)=>data+=chunk);process.stdin.on('end',()=>{const parsed=JSON.parse(data);if(!parsed.backupFile){process.exit(1)}process.stdout.write(parsed.backupFile)})")"
+  ROLLBACK_FILE="$(printf '%s' "$BACKUP_RESULT" | node -e "let data='';process.stdin.on('data',(chunk)=>data+=chunk);process.stdin.on('end',()=>{const lines=data.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);const jsonLine=[...lines].reverse().find(l=>l.startsWith('{')&&l.endsWith('}'));if(!jsonLine){process.exit(1)}const parsed=JSON.parse(jsonLine);if(!parsed.backupFile){process.exit(1)}process.stdout.write(parsed.backupFile)})")"
   ROLLBACK_DB="$BACKUP_DIR/$ROLLBACK_FILE"
 
   if [[ ! -f "$ROLLBACK_DB" ]]; then
@@ -95,7 +134,7 @@ fi
 
 if [[ -f "$ROLLBACK_DB" ]]; then
   log "Ejecutando restore drill sobre el backup pre-migración..."
-  if docker compose run --rm --no-deps \
+  if docker compose run --rm --no-deps "${compose_run_no_build[@]}" \
     -e DATABASE_URL="file:/app/data/anamneo.db" \
     -e SQLITE_BACKUP_DIR="/app/data/backups" \
     -e UPLOAD_DEST="/app/uploads" \
@@ -109,7 +148,7 @@ fi
 # ── 3. Run migrations ────────────────────────────────────────
 
 log "Ejecutando prisma migrate deploy..."
-if docker compose run --rm --no-deps backend npx prisma migrate deploy; then
+if docker compose run --rm --no-deps "${compose_run_no_build[@]}" backend npx prisma migrate deploy; then
   log "Migraciones aplicadas correctamente."
 else
   echo ""
@@ -162,7 +201,7 @@ log "Esperando health check del backend..."
 TRIES=0
 MAX_TRIES=30
 while [[ $TRIES -lt $MAX_TRIES ]]; do
-  if docker compose exec -T backend wget -q --spider http://127.0.0.1:5678/api/health 2>/dev/null; then
+  if docker compose exec -T backend wget -q --spider http://127.0.0.1:5679/api/health 2>/dev/null; then
     break
   fi
   TRIES=$((TRIES + 1))
@@ -181,7 +220,7 @@ log "Esperando health check del frontend..."
 TRIES=0
 MAX_TRIES=30
 while [[ $TRIES -lt $MAX_TRIES ]]; do
-  if docker compose exec -T frontend wget -q --spider http://127.0.0.1:5555 2>/dev/null; then
+  if docker compose exec -T frontend wget -q --spider http://127.0.0.1:5556 2>/dev/null; then
     break
   fi
   TRIES=$((TRIES + 1))
@@ -206,8 +245,8 @@ echo ""
 echo "  Backup pre-migración: $ROLLBACK_DB"
 echo "  Servicios:            docker compose ps"
 echo "  Logs:                 docker compose logs -f"
-echo "  Health backend:       curl http://127.0.0.1:5678/api/health"
-echo "  Health frontend:      curl -I http://127.0.0.1:5555"
+echo "  Health backend:       curl http://127.0.0.1:${BACKEND_PORT:-5679}/api/health"
+echo "  Health frontend:      curl -I http://127.0.0.1:${FRONTEND_PORT:-5556}"
 echo ""
 
 if [[ -f "$ROLLBACK_DB" ]]; then

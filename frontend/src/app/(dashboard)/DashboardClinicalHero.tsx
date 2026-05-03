@@ -63,7 +63,7 @@ export default function DashboardClinicalHero({
   return (
     <section className="animate-fade-in space-y-3" style={sectionAnimation(0)}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0 flex-1 text-right lg:text-right">
+        <div className="min-w-0 flex-1 text-left">
           <h1 className="text-xl font-extrabold tracking-tight text-ink sm:text-2xl">
             {getGreeting()}
             {firstName ? `, ${firstName}.` : ''}

@@ -8,6 +8,7 @@ import { UsersInvitationService } from '../users/users-invitation.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { SettingsService } from '../settings/settings.service';
+import { LegalService } from '../legal/legal.service';
 import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { createMockServices, mockUser } from './auth.service.spec.fixtures';
@@ -24,6 +25,7 @@ describe('AuthService login', () => {
   let configService: ReturnType<typeof createMockServices>['configService'];
   let auditService: ReturnType<typeof createMockServices>['auditService'];
   let settingsService: ReturnType<typeof createMockServices>['settingsService'];
+  let legalService: ReturnType<typeof createMockServices>['legalService'];
 
   beforeEach(async () => {
     const mocks = createMockServices();
@@ -35,6 +37,7 @@ describe('AuthService login', () => {
     configService = mocks.configService;
     auditService = mocks.auditService;
     settingsService = mocks.settingsService;
+    legalService = mocks.legalService;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -47,6 +50,7 @@ describe('AuthService login', () => {
         { provide: ConfigService, useValue: configService },
         { provide: AuditService, useValue: auditService },
         { provide: SettingsService, useValue: settingsService },
+        { provide: LegalService, useValue: legalService },
       ],
     }).compile();
 

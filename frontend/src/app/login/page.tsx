@@ -234,7 +234,20 @@ function LoginContent() {
           </span>
         </div>
       }
-      footer={registrationFooter}
+      footer={
+        <div className="space-y-3">
+          {registrationFooter}
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-ink-muted">
+            <Link href="/terminos-y-condiciones" className="auth-inline-link">
+              Términos
+            </Link>
+            <span aria-hidden="true">·</span>
+            <Link href="/politica-de-privacidad" className="auth-inline-link">
+              Privacidad
+            </Link>
+          </div>
+        </div>
+      }
     >
       {step === '2fa' && (
         <>

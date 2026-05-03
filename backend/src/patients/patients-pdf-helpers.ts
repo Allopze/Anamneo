@@ -118,3 +118,21 @@ export function formatDateTime(value: string | Date) {
     timeZone: PDF_TIME_ZONE,
   }).format(new Date(value));
 }
+
+export function formatDateOnlyForFilename(value: string | Date) {
+  return new Intl.DateTimeFormat(PDF_LOCALE, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: PDF_TIME_ZONE,
+  }).format(new Date(value)).replace(/\//g, '-');
+}
+
+export function sanitizeFilenameSegment(value: string | undefined | null) {
+  return (value || 'Paciente')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim() || 'Paciente';
+}

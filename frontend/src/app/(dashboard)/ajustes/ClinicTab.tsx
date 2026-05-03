@@ -28,6 +28,32 @@ export default function ClinicTab({ clinic, setClinic, clinicMutation }: Props) 
             />
           </div>
           <div>
+            <label htmlFor="clinic-identifier" className="block text-sm font-medium text-ink-secondary mb-1">
+              RUT o identificador institucional
+            </label>
+            <input
+              id="clinic-identifier"
+              type="text"
+              className="input w-full"
+              value={clinic.clinicIdentifier}
+              onChange={(e) => setClinic((c) => ({ ...c, clinicIdentifier: e.target.value }))}
+              placeholder="Ej: 76.123.456-7"
+            />
+          </div>
+          <div>
+            <label htmlFor="clinic-logo-url" className="block text-sm font-medium text-ink-secondary mb-1">
+              URL pública del logo
+            </label>
+            <input
+              id="clinic-logo-url"
+              type="url"
+              className="input w-full"
+              value={clinic.clinicLogoUrl}
+              onChange={(e) => setClinic((c) => ({ ...c, clinicLogoUrl: e.target.value }))}
+              placeholder="https://centro.cl/logo.png"
+            />
+          </div>
+          <div>
             <label htmlFor="clinic-address" className="block text-sm font-medium text-ink-secondary mb-1">
               Dirección
             </label>

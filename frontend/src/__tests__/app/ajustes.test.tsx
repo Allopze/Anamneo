@@ -39,6 +39,9 @@ const authStoreState: {
 jest.mock('@/stores/auth-store', () => ({
   useAuthStore: (selector?: (state: typeof authStoreState) => unknown) =>
     selector ? selector(authStoreState) : authStoreState,
+  useAuthUser: () => authStoreState.user,
+  useAuthSetUser: () => authStoreState.setUser,
+  useAuthLogout: () => authStoreState.logout,
 }));
 
 jest.mock('@/lib/encounter-draft', () => ({
@@ -113,6 +116,8 @@ describe('AjustesPage', () => {
         return Promise.resolve({
           data: {
             'clinic.name': 'Centro Demo',
+            'clinic.identifier': '76.123.456-7',
+            'clinic.logoUrl': 'https://cdn.demo.cl/logo.png',
             'session.inactivityTimeoutMinutes': '30',
             'smtp.host': 'smtp.demo.cl',
             'smtp.user': 'mailer@demo.cl',
@@ -233,6 +238,52 @@ describe('AjustesPage', () => {
       expect(apiPutMock).toHaveBeenCalledWith(
         '/settings',
         expect.objectContaining({ sessionInactivityTimeoutMinutes: 45 }),
+      );
+    });
+  });
+
+  it('lets admin persist the institutional identifier from the clinic tab', async () => {
+    searchParamsValue = 'tab=centro';
+    render(<AjustesPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Datos del centro médico')).toBeInTheDocument();
+
+    const identifierInput = screen.getByLabelText('RUT o identificador institucional') as HTMLInputElement;
+    await waitFor(() => {
+      expect(identifierInput.value).toBe('76.123.456-7');
+    });
+
+    await userEvent.clear(identifierInput);
+    await userEvent.type(identifierInput, '99.999.999-9');
+    await userEvent.click(screen.getByRole('button', { name: /Guardar datos del centro/i }));
+
+    await waitFor(() => {
+      expect(apiPutMock).toHaveBeenCalledWith(
+        '/settings',
+        expect.objectContaining({ clinicIdentifier: '99.999.999-9' }),
+      );
+    });
+  });
+
+  it('lets admin persist the public logo URL from the clinic tab', async () => {
+    searchParamsValue = 'tab=centro';
+    render(<AjustesPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Datos del centro médico')).toBeInTheDocument();
+
+    const logoInput = screen.getByLabelText('URL pública del logo') as HTMLInputElement;
+    await waitFor(() => {
+      expect(logoInput.value).toBe('https://cdn.demo.cl/logo.png');
+    });
+
+    await userEvent.clear(logoInput);
+    await userEvent.type(logoInput, 'https://cdn.demo.cl/nuevo-logo.png');
+    await userEvent.click(screen.getByRole('button', { name: /Guardar datos del centro/i }));
+
+    await waitFor(() => {
+      expect(apiPutMock).toHaveBeenCalledWith(
+        '/settings',
+        expect.objectContaining({ clinicLogoUrl: 'https://cdn.demo.cl/nuevo-logo.png' }),
       );
     });
   });

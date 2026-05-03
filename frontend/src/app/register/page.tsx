@@ -2,24 +2,26 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthLogin } from '@/stores/auth-store';
 import { stashAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
 import { AuthFrame } from '@/components/auth/AuthFrame';
-import { FiArrowRight, FiEye, FiEyeOff, FiLock, FiMail, FiShield, FiUser, FiUserPlus } from 'react-icons/fi';
+import { FiEye, FiEyeOff, FiLock, FiMail, FiShield, FiUser, FiUserPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import {
   REGISTER_DRAFT_KEY,
-  ROLE_OPTIONS,
   REGISTER_BOOTSTRAP_CHIPS,
   REGISTER_INVITATION_CHIPS,
   registerSchema,
   type RegisterForm,
   type RegisterRole,
 } from './register.constants';
+import { LEGAL_DOCUMENT_VERSION } from '../../../../shared/legal-contract';
+import RegisterFooter from './RegisterFooter';
+import RegisterLegalAcceptance from './RegisterLegalAcceptance';
+import RegisterRoleField from './RegisterRoleField';
 
 export default function RegisterPage() {
   return (
@@ -67,6 +69,7 @@ function RegisterContent() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       role: 'MEDICO',
+      acceptedLegal: false,
     },
   });
 
@@ -224,6 +227,8 @@ function RegisterContent() {
         role: data.role,
         invitationToken: invitationToken || undefined,
         bootstrapToken: requiresBootstrapToken ? bootstrapToken : undefined,
+        acceptedTermsVersion: LEGAL_DOCUMENT_VERSION,
+        acceptedPrivacyVersion: LEGAL_DOCUMENT_VERSION,
       });
 
       const sessionUser = registerResponse.data.user;
@@ -258,14 +263,7 @@ function RegisterContent() {
       cardEyebrow="Registro"
       cardTitle="Crear cuenta"
       cardDescription="Completa los datos para habilitar el acceso."
-      footer={
-        <p className="text-center text-ink-secondary">
-          ¿Ya tienes cuenta?{' '}
-          <Link href="/login" className="auth-inline-link">
-            Iniciar sesión <FiArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </p>
-      }
+      footer={<RegisterFooter />}
     >
       {isInvitationMode && (
         <div className="auth-note">
@@ -347,50 +345,13 @@ function RegisterContent() {
           ) : null}
         </div>
 
-        <div>
-          <label className="form-label">Rol</label>
-          {isLoadingRoles ? (
-            <p className="text-micro text-ink-muted">Cargando opciones disponibles…</p>
-          ) : isInvitationMode && availableRoles.length === 1 ? (
-            <>
-              <input type="hidden" value={availableRoles[0]} {...register('role')} />
-              <div className="auth-role-pill">
-                <FiLock className="auth-role-pill-icon" aria-hidden="true" />
-                {ROLE_OPTIONS[availableRoles[0]].label}
-              </div>
-              <p className="mt-2 text-micro text-ink-muted">Rol fijado por invitación.</p>
-            </>
-          ) : (
-            <>
-              <div className="grid gap-3 grid-cols-1">
-                {availableRoles.map((role) => (
-                  <label key={role} className="relative">
-                    <input
-                      type="radio"
-                      value={role}
-                      {...register('role')}
-                      disabled={isFormBusy}
-                      className="peer sr-only"
-                    />
-                    <div className="auth-role-card peer-checked:border-accent peer-checked:bg-accent/10">
-                      <div
-                        className="auth-role-indicator peer-checked:border-accent peer-checked:bg-accent"
-                        aria-hidden="true"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-ink-primary">{ROLE_OPTIONS[role].label}</p>
-                        <p className="mt-1 text-xs text-ink-secondary">{ROLE_OPTIONS[role].description}</p>
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              <p className="mt-2 text-micro text-ink-muted">
-                Solo esta alta inicial habilita la cuenta administradora base.
-              </p>
-            </>
-          )}
-        </div>
+        <RegisterRoleField
+          register={register}
+          availableRoles={availableRoles}
+          isInvitationMode={isInvitationMode}
+          isLoadingRoles={isLoadingRoles}
+          disabled={isFormBusy}
+        />
 
         <div className="grid gap-5 md:grid-cols-2">
           <div>
@@ -495,6 +456,12 @@ function RegisterContent() {
             </p>
           </div>
         ) : null}
+
+        <RegisterLegalAcceptance
+          register={register}
+          error={errors.acceptedLegal}
+          disabled={isFormBusy}
+        />
 
         <button
           type="submit"

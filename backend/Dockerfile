@@ -35,6 +35,7 @@ RUN npm ci --omit=dev
 # Copy built artifacts with correct ownership (use built-in node user, uid 1000)
 COPY --from=builder --chown=node:node /app/backend/dist ./dist
 COPY --from=builder --chown=node:node /app/backend/scripts ./scripts
+COPY --from=builder --chown=node:node /app/backend/src/common/assets ./dist/backend/src/common/assets
 
 # Create writable data directories
 RUN mkdir -p uploads data data/backups && \

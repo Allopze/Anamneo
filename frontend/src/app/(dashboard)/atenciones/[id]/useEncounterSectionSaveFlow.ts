@@ -65,6 +65,12 @@ function getPersistedSectionUpdatedAt(
   return sections.find((section) => section.sectionKey === sectionKey)?.updatedAt;
 }
 
+function buildSectionUpdatedAtSnapshot(sections: NonNullable<Encounter['sections']>) {
+  return Object.fromEntries(
+    sections.map((section) => [section.sectionKey, section.updatedAt]),
+  ) as Partial<Record<SectionKey, string>>;
+}
+
 function buildIdentificationSnapshot(encounter?: Encounter): Record<string, unknown> {
   return {
     nombre: encounter?.patient?.nombre ?? '',
@@ -128,6 +134,14 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
   } = params;
 
   const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestSectionUpdatedAtRef = useRef<Partial<Record<SectionKey, string>>>(buildSectionUpdatedAtSnapshot(sections));
+
+  useEffect(() => {
+    latestSectionUpdatedAtRef.current = {
+      ...latestSectionUpdatedAtRef.current,
+      ...buildSectionUpdatedAtSnapshot(sections),
+    };
+  }, [sections]);
 
   const refreshSectionFromServer = useCallback(
     async (sectionKey: SectionKey, localDataForConflict?: Record<string, unknown>) => {
@@ -144,6 +158,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       }
 
       const normalizedServerData = (latestSection.data ?? {}) as Record<string, unknown>;
+      latestSectionUpdatedAtRef.current[sectionKey] = latestSection.updatedAt;
       if (localDataForConflict && userId) {
         const savedAt = new Date().toISOString();
         const conflictBackup: EncounterSectionConflictBackup = {
@@ -211,6 +226,9 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
     onSuccess: async (response, variables) => {
       const savedSnapshot = readSavedSnapshot(lastSavedRef);
       const normalizedSectionData = response.data.data;
+      if (response.data.updatedAt) {
+        latestSectionUpdatedAtRef.current[variables.sectionKey] = response.data.updatedAt;
+      }
       savedSnapshot[variables.sectionKey] = normalizedSectionData;
       lastSavedRef.current = JSON.stringify(savedSnapshot);
       setSavedSnapshotJson(lastSavedRef.current);
@@ -361,7 +379,8 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
         await saveSectionMutation.mutateAsync({
           sectionKey,
           data: currentData,
-          baseUpdatedAt: getPersistedSectionUpdatedAt(sections, sectionKey),
+          baseUpdatedAt:
+            latestSectionUpdatedAtRef.current[sectionKey] ?? getPersistedSectionUpdatedAt(sections, sectionKey),
           ...(completed !== undefined ? { completed } : {}),
           ...(notApplicable !== undefined ? { notApplicable } : {}),
           ...(normalizedReason ? { notApplicableReason: normalizedReason } : {}),

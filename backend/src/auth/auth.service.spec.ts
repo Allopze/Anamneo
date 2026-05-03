@@ -8,6 +8,7 @@ import { UsersInvitationService } from '../users/users-invitation.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { SettingsService } from '../settings/settings.service';
+import { LegalService } from '../legal/legal.service';
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { createMockServices, mockUser } from './auth.service.spec.fixtures';
 
@@ -21,6 +22,7 @@ describe('AuthService register', () => {
   let configService: ReturnType<typeof createMockServices>['configService'];
   let auditService: ReturnType<typeof createMockServices>['auditService'];
   let settingsService: ReturnType<typeof createMockServices>['settingsService'];
+  let legalService: ReturnType<typeof createMockServices>['legalService'];
 
   beforeEach(async () => {
     const mocks = createMockServices();
@@ -32,6 +34,7 @@ describe('AuthService register', () => {
     configService = mocks.configService;
     auditService = mocks.auditService;
     settingsService = mocks.settingsService;
+    legalService = mocks.legalService;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -44,6 +47,7 @@ describe('AuthService register', () => {
         { provide: ConfigService, useValue: configService },
         { provide: AuditService, useValue: auditService },
         { provide: SettingsService, useValue: settingsService },
+        { provide: LegalService, useValue: legalService },
       ],
     }).compile();
 
@@ -70,6 +74,30 @@ describe('AuthService register', () => {
     );
     expect(result).toHaveProperty('accessToken');
     expect(result).toHaveProperty('refreshToken');
+    expect(legalService.recordCurrentAcceptance).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ email: 'test@example.com' }),
+      undefined,
+    );
+  });
+
+  it('should reject registration when legal acceptance is missing', async () => {
+    (legalService.assertCurrentAcceptance as jest.Mock).mockImplementation(() => {
+      throw new ForbiddenException('Debes aceptar los documentos legales vigentes');
+    });
+
+    await expect(
+      service.register({
+        email: 'test@example.com',
+        password: 'Password1',
+        nombre: 'Test User',
+        role: 'ADMIN',
+        bootstrapToken: 'test-secret',
+      }),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(usersService.findByEmail).not.toHaveBeenCalled();
+    expect(usersService.create).not.toHaveBeenCalled();
   });
 
   it('should register subsequent users with requested role', async () => {

@@ -12,12 +12,16 @@ import {
 } from './encounters-pdf.helpers';
 import { renderEncounterClinicalPdf } from './encounters-pdf.renderers';
 import { renderFocusedEncounterPdf } from './encounters-pdf.focused.renderers';
+import { addPageNumbers } from '../common/utils/pdf-page-footer';
+import { SettingsService } from '../settings/settings.service';
+import { buildPdfClinicSettings, loadPdfClinicLogo } from '../common/utils/pdf-document-layout';
 
 @Injectable()
 export class EncountersPdfService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   private async loadEncounterForPdf(encounterId: string, user: RequestUser, requireCompletedStatus = true) {
@@ -102,23 +106,7 @@ export class EncountersPdfService {
 
       render(doc, pageWidth);
 
-      const totalPages = doc.bufferedPageRange().count;
-      for (let i = 0; i < totalPages; i++) {
-        doc.switchToPage(i);
-        doc
-          .fontSize(8)
-          .font('Helvetica')
-          .text(
-            `Página ${i + 1} de ${totalPages}`,
-            doc.page.margins.left,
-            doc.page.height - 35,
-            {
-              width: pageWidth,
-              align: 'center',
-              lineBreak: false,
-            },
-          );
-      }
+      addPageNumbers(doc, pageWidth);
 
       doc.end();
     });
@@ -127,11 +115,12 @@ export class EncountersPdfService {
   async generatePdf(encounterId: string, user: RequestUser): Promise<Buffer> {
     const encounter = await this.loadEncounterForPdf(encounterId, user);
     const sectionsMap = this.buildSectionsMap(encounter.sections);
+    const clinic = await loadPdfClinicLogo(buildPdfClinicSettings(await this.settingsService.getAll()));
     const pdfBuffer = await this.buildDocumentBuffer(
       `Ficha Clínica - ${encounter.patient.nombre}`,
       encounter.createdBy?.nombre || 'Sistema',
       (doc, pageWidth) => {
-        renderEncounterClinicalPdf(doc, pageWidth, encounter, sectionsMap);
+        renderEncounterClinicalPdf(doc, pageWidth, encounter, sectionsMap, clinic);
       },
     );
 
@@ -160,6 +149,7 @@ export class EncountersPdfService {
   ): Promise<Buffer> {
     const encounter = await this.loadEncounterForPdf(encounterId, user, false);
     const sectionsMap = this.buildSectionsMap(encounter.sections);
+    const clinic = await loadPdfClinicLogo(buildPdfClinicSettings(await this.settingsService.getAll()));
     const titleMap = {
       receta: 'RECETA / INDICACIONES',
       ordenes: 'ORDEN DE EXAMENES',
@@ -170,7 +160,7 @@ export class EncountersPdfService {
       `${titleMap[kind]} - ${encounter.patient.nombre}`,
       encounter.createdBy?.nombre || 'Sistema',
       (doc, pageWidth) => {
-        renderFocusedEncounterPdf(doc, pageWidth, encounter, sectionsMap, kind);
+        renderFocusedEncounterPdf(doc, pageWidth, encounter, sectionsMap, kind, clinic);
       },
     );
 

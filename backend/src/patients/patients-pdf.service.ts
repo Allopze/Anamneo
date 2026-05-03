@@ -12,35 +12,55 @@ import {
   formatSospechaDiagnosticaLabel,
   buildSectionsMap,
   getTreatmentPlanText,
-  formatStructuredMedicationLine,
   formatHistoryFieldText,
   formatDateTime,
+  formatDateOnlyForFilename,
+  sanitizeFilenameSegment,
 } from './patients-pdf-helpers';
+import { addPageNumbers } from '../common/utils/pdf-page-footer';
+import { SettingsService } from '../settings/settings.service';
+import {
+  buildMedicationDetail,
+  buildOrderDetail,
+  buildPdfClinicSettings,
+  loadPdfClinicLogo,
+  renderPdfDetailList,
+  renderPdfHeader,
+  renderPdfSectionHeading,
+} from '../common/utils/pdf-document-layout';
 
 @Injectable()
 export class PatientsPdfService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly settingsService: SettingsService,
   ) {}
 
-  async generateLongitudinalPdf(patientId: string, user: RequestUser): Promise<Buffer> {
+  async getLongitudinalPdfFilename(patientId: string, user: RequestUser) {
+    const patient = await this.loadPatientForLongitudinalPdf(patientId, user, { includeHistory: false });
+    const safeName = sanitizeFilenameSegment(patient.nombre);
+    const exportDate = formatDateOnlyForFilename(new Date());
+    return `${safeName} - Historial clinico - ${exportDate}.pdf`;
+  }
+
+  private async loadPatientForLongitudinalPdf(
+    patientId: string,
+    user: RequestUser,
+    options: { includeHistory: boolean },
+  ) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
 
     const patient = await this.prisma.patient.findUnique({
       where: { id: patientId },
       include: {
-        history: true,
-        problems: {
+        history: options.includeHistory,
+        problems: options.includeHistory ? {
           where: user.isAdmin ? undefined : buildPatientProblemScopeWhere(effectiveMedicoId),
           orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
-          include: {
-            createdBy: { select: { id: true, nombre: true } },
-          },
-        },
-        createdBy: {
-          select: { medicoId: true },
-        },
+          include: { createdBy: { select: { id: true, nombre: true } } },
+        } : false,
+        createdBy: { select: { medicoId: true } },
       },
     });
 
@@ -48,7 +68,6 @@ export class PatientsPdfService {
       throw new NotFoundException('Paciente no encontrado');
     }
 
-    // Verify access
     if (!user.isAdmin && !isPatientOwnedByMedico(patient, effectiveMedicoId)) {
       const hasEncounter = await this.prisma.encounter.findFirst({
         where: { patientId, medicoId: effectiveMedicoId },
@@ -60,7 +79,12 @@ export class PatientsPdfService {
     }
 
     assertEncounterClinicalOutputAllowed(patient, 'EXPORT_OFFICIAL_DOCUMENTS');
+    return patient;
+  }
 
+  async generateLongitudinalPdf(patientId: string, user: RequestUser): Promise<Buffer> {
+    const effectiveMedicoId = getEffectiveMedicoId(user);
+    const patient = await this.loadPatientForLongitudinalPdf(patientId, user, { includeHistory: true });
     const encounters = await this.prisma.encounter.findMany({
       where: {
         patientId,
@@ -73,6 +97,7 @@ export class PatientsPdfService {
         createdBy: { select: { nombre: true } },
       },
     });
+    const clinic = await loadPdfClinicLogo(buildPdfClinicSettings(await this.settingsService.getAll()));
 
     const pdfBuffer = await this.buildDocumentBuffer(
       `Historial Clínico Longitudinal - ${patient.nombre}`,
@@ -96,21 +121,13 @@ export class PatientsPdfService {
           doc.font('Helvetica').text(String(value));
         };
 
-        // ── Header ──
-        doc.fontSize(18).font('Helvetica-Bold').text('HISTORIAL CLÍNICO LONGITUDINAL', { align: 'center' });
-        doc
-          .fontSize(10)
-          .font('Helvetica')
-          .text(`Generado: ${formatDateTime(new Date())}`, { align: 'center' });
-        doc.moveDown(0.5);
-        doc
-          .moveTo(doc.x, doc.y)
-          .lineTo(doc.x + pageWidth, doc.y)
-          .lineWidth(2)
-          .stroke();
-        doc.moveDown(1);
+        renderPdfHeader(doc, pageWidth, {
+          title: 'HISTORIAL CLÍNICO LONGITUDINAL',
+          subtitle: `Generado: ${formatDateTime(new Date())}`,
+          professionalName: user.nombre || null,
+          clinic,
+        });
 
-        // ── Demographics ──
         sectionTitle('IDENTIFICACIÓN DEL PACIENTE');
         field('Nombre', patient.nombre);
         field('RUT', formatRutDisplay(patient));
@@ -125,7 +142,6 @@ export class PatientsPdfService {
         field('Centro médico', patient.centroMedico);
         doc.moveDown(0.5);
 
-        // ── History ──
         const history = patient.history as any;
         if (history) {
           sectionTitle('ANTECEDENTES');
@@ -153,9 +169,8 @@ export class PatientsPdfService {
           doc.moveDown(0.5);
         }
 
-        // ── Active problems ──
         if (patient.problems.length > 0) {
-          sectionTitle('PROBLEMAS CLÍNICOS');
+          renderPdfSectionHeading(doc, pageWidth, 'PROBLEMAS CLÍNICOS');
           for (const problem of patient.problems) {
             const statusLabel = problem.status === 'ACTIVO' ? '●' : '○';
             doc.font('Helvetica-Bold').text(`${statusLabel} ${problem.label}`, { continued: true });
@@ -168,7 +183,6 @@ export class PatientsPdfService {
           doc.moveDown(0.5);
         }
 
-        // ── Encounters ──
         if (encounters.length === 0) {
           sectionTitle('ATENCIONES');
           doc.text('Sin atenciones completadas.');
@@ -195,13 +209,11 @@ export class PatientsPdfService {
             doc.moveDown(0.5);
             doc.fontSize(10).font('Helvetica');
 
-            // Motivo
             const motivo = sectionsMap['MOTIVO_CONSULTA'] || {};
             if (motivo.texto) {
               field('Motivo de consulta', motivo.texto);
             }
 
-            // Sospecha
             const sosp = sectionsMap['SOSPECHA_DIAGNOSTICA'] || {};
             if (sosp.sospechas?.length > 0) {
               doc.font('Helvetica-Bold').text('Sospecha diagnóstica: ', { continued: true });
@@ -210,22 +222,22 @@ export class PatientsPdfService {
                 .text(sosp.sospechas.map((s: any) => formatSospechaDiagnosticaLabel(s)).join(', '));
             }
 
-            // Treatment summary
             const trat = sectionsMap['TRATAMIENTO'] || {};
             const plan = getTreatmentPlanText(trat);
             if (plan) {
               field('Plan', plan);
             }
             if (Array.isArray(trat.medicamentosEstructurados) && trat.medicamentosEstructurados.length > 0) {
-              field(
-                'Medicamentos',
-                trat.medicamentosEstructurados
-                  .map((m: any) => formatStructuredMedicationLine(m))
-                  .join('; '),
-              );
+              renderPdfSectionHeading(doc, pageWidth, 'Medicamentos');
+              const medications = trat.medicamentosEstructurados.map((m: any) => buildMedicationDetail(m));
+              renderPdfDetailList(doc, pageWidth, medications);
+            }
+            if (Array.isArray(trat.examenesEstructurados) && trat.examenesEstructurados.length > 0) {
+              renderPdfSectionHeading(doc, pageWidth, 'Exámenes');
+              const exams = trat.examenesEstructurados.map((item: any) => buildOrderDetail(item));
+              renderPdfDetailList(doc, pageWidth, exams);
             }
 
-            // Observaciones
             const obs = sectionsMap['OBSERVACIONES'] || {};
             if (obs.resumenClinico) {
               field('Resumen clínico', obs.resumenClinico);
@@ -279,19 +291,7 @@ export class PatientsPdfService {
       const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
       render(doc, pageWidth);
 
-      const totalPages = doc.bufferedPageRange().count;
-      for (let i = 0; i < totalPages; i++) {
-        doc.switchToPage(i);
-        doc
-          .fontSize(8)
-          .font('Helvetica')
-          .text(`Página ${i + 1} de ${totalPages}`, doc.page.margins.left, doc.page.height - 35, {
-            width: pageWidth,
-            align: 'center',
-            lineBreak: false,
-          });
-      }
-
+      addPageNumbers(doc, pageWidth);
       doc.end();
     });
   }

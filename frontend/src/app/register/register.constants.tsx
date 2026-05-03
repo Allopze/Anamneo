@@ -33,6 +33,9 @@ export const registerSchema = z.object({
   confirmPassword: z.string(),
   bootstrapToken: z.string().trim().max(255, 'El token de instalación es demasiado largo').optional(),
   role: z.enum(['ADMIN', 'MEDICO', 'ASISTENTE']),
+  acceptedLegal: z.boolean().refine((value) => value, {
+    message: 'Debes aceptar los términos y la política de privacidad para crear la cuenta',
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Las contraseñas no coinciden',
   path: ['confirmPassword'],

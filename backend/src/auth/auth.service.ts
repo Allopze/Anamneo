@@ -8,6 +8,7 @@ import { UsersSessionService } from '../users/users-session.service';
 import { UsersInvitationService } from '../users/users-invitation.service';
 import { AuditService } from '../audit/audit.service';
 import { SettingsService } from '../settings/settings.service';
+import { LegalService } from '../legal/legal.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterWithInvitationDto } from './dto/register-with-invitation.dto';
 import { loginWithLockout } from './auth-login-flow';
@@ -64,6 +65,7 @@ export class AuthService {
     private configService: ConfigService,
     private auditService: AuditService,
     private settingsService: SettingsService,
+    private legalService: LegalService,
   ) {}
 
   async getSessionUserByEmail(email: string): Promise<SessionUser> {
@@ -103,6 +105,9 @@ export class AuthService {
       normalizeEmail,
       getConfiguredBootstrapToken: () => getConfiguredBootstrapToken(this.configService),
       hasValidBootstrapToken,
+      assertLegalAcceptance: (input) => this.legalService.assertCurrentAcceptance(input),
+      recordLegalAcceptance: (userId, input, context) =>
+        this.legalService.recordCurrentAcceptance(userId, input, context),
     });
   }
 

@@ -22,6 +22,15 @@ type IssueTokensFn = (
 type NormalizeEmailFn = (email: string) => string;
 type GetConfiguredBootstrapTokenFn = () => string | null;
 type HasValidBootstrapTokenFn = (candidateToken: string | undefined, expectedToken: string | null) => boolean;
+type AssertLegalAcceptanceFn = (input: {
+  acceptedTermsVersion?: string;
+  acceptedPrivacyVersion?: string;
+}) => void;
+type RecordLegalAcceptanceFn = (
+  userId: string,
+  input: { acceptedTermsVersion?: string; acceptedPrivacyVersion?: string },
+  sessionContext?: SessionContext,
+) => Promise<void>;
 
 interface RegisterWithInvitationFlowParams {
   usersService: UsersService;
@@ -32,6 +41,8 @@ interface RegisterWithInvitationFlowParams {
   normalizeEmail: NormalizeEmailFn;
   getConfiguredBootstrapToken: GetConfiguredBootstrapTokenFn;
   hasValidBootstrapToken: HasValidBootstrapTokenFn;
+  assertLegalAcceptance: AssertLegalAcceptanceFn;
+  recordLegalAcceptance: RecordLegalAcceptanceFn;
 }
 
 interface InvitationPreviewFlowParams {
@@ -73,9 +84,12 @@ export async function registerWithInvitationFlow(
     normalizeEmail,
     getConfiguredBootstrapToken,
     hasValidBootstrapToken,
+    assertLegalAcceptance,
+    recordLegalAcceptance,
   } = params;
 
   const normalizedEmail = normalizeEmail(registerDto.email);
+  assertLegalAcceptance(registerDto);
 
   const existingUser = await usersService.findByEmail(normalizedEmail);
   if (existingUser) {
@@ -146,6 +160,8 @@ export async function registerWithInvitationFlow(
   if (invitation) {
     await invitationService.acceptInvitation(invitation.id);
   }
+
+  await recordLegalAcceptance(user.id, registerDto, sessionContext);
 
   return issueTokens(user, sessionContext);
 }

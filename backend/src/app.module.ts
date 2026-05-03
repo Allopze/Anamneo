@@ -19,6 +19,7 @@ import { ConsentsModule } from './consents/consents.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { Cie10Module } from './cie10/cie10.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { LegalModule } from './legal/legal.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -76,6 +77,7 @@ import { HealthController } from './health.controller';
     AlertsModule,
     Cie10Module,
     AnalyticsModule,
+    LegalModule,
   ],
   controllers: [HealthController],
   providers: [

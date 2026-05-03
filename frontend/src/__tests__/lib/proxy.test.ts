@@ -49,6 +49,28 @@ describe('resolveProxyDecision', () => {
     ).toEqual({ action: 'redirect', target: '/' });
   });
 
+  it('keeps legal routes public even when a valid session exists', () => {
+    expect(
+      resolveProxyDecision({
+        pathname: '/politica-de-privacidad',
+        search: '',
+        hasSessionCookie: true,
+        hasRefreshToken: true,
+        hasValidatedSession: true,
+      }),
+    ).toEqual({ action: 'next' });
+
+    expect(
+      resolveProxyDecision({
+        pathname: '/terminos-y-condiciones',
+        search: '',
+        hasSessionCookie: false,
+        hasRefreshToken: false,
+        hasValidatedSession: false,
+      }),
+    ).toEqual({ action: 'next' });
+  });
+
   it('allows protected routes with only a refresh token so the shell can recover the session', () => {
     expect(
       resolveProxyDecision({

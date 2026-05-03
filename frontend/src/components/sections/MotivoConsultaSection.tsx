@@ -182,38 +182,48 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
 
         {suggestions.length > 0 ? (
           <div className="space-y-2">
-            {suggestions.map((suggestion) => (
+            {suggestions.map((suggestion) => {
+              const isSelected = data.afeccionSeleccionada?.id === suggestion.id;
+
+              return (
               <button
                 key={suggestion.id}
                 onClick={() => handleSelectCondition(suggestion)}
                 disabled={readOnly}
+                aria-pressed={isSelected}
                 className={clsx(
-                  'section-item-card w-full flex items-center justify-between text-left',
-                  data.afeccionSeleccionada?.id === suggestion.id
-                    ? 'section-item-card-selected'
-                    : 'hover:border-accent/60',
+                  'section-item-card w-full flex items-center justify-between text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+                  isSelected ? 'section-item-card-selected ring-1' : 'hover:border-accent/60',
                 )}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 items-center gap-3">
                   <div
                     className={clsx(
-                      'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
-                      data.afeccionSeleccionada?.id === suggestion.id
-                        ? 'bg-accent/100 text-white'
-                        : 'bg-surface-muted text-ink-secondary',
+                      'w-8 h-8 shrink-0 overflow-hidden rounded-full flex items-center justify-center text-xs font-medium tabular-nums leading-none',
+                      isSelected ? 'bg-accent text-accent-text' : 'bg-surface-muted text-ink-secondary',
                     )}
                   >
-                    {data.afeccionSeleccionada?.id === suggestion.id ? (
-                      <FiCheck className="w-4 h-4" />
-                    ) : (
-                      `${suggestion.confidence}%`
-                    )}
+                    {`${suggestion.confidence}%`}
                   </div>
-                  <span className="font-medium text-ink-primary">{suggestion.name}</span>
+                  <span className="min-w-0 truncate font-medium text-ink-primary" title={suggestion.name}>
+                    {suggestion.name}
+                  </span>
                 </div>
-                {!readOnly && <span className="text-sm text-accent-text">Usar esta</span>}
+                {!readOnly && (
+                  <span className={clsx('shrink-0 text-sm', isSelected ? 'text-ink-muted' : 'text-accent-text')}>
+                    {isSelected ? (
+                      <span className="inline-flex items-center gap-1">
+                        <FiCheck className="h-4 w-4" />
+                        Seleccionada
+                      </span>
+                    ) : (
+                      'Seleccionar'
+                    )}
+                  </span>
+                )}
               </button>
-            ))}
+              );
+            })}
           </div>
         ) : data.texto && data.texto.length >= 3 ? (
           <p className="text-sm text-ink-muted">No se encontraron sugerencias para el texto ingresado.</p>
@@ -225,11 +235,17 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
           <div className="mt-3 flex flex-col gap-2">
             {suggestions.map((suggestion) => (
               suggestion.reasons && suggestion.reasons.length > 0 ? (
-                <div key={`${suggestion.id}-reasons`} className="rounded-input border border-surface-muted/30 bg-surface-base/45 px-3 py-2 text-xs text-ink-secondary">
+                <div
+                  key={`${suggestion.id}-reasons`}
+                  className="w-full min-w-0 rounded-input border border-surface-muted/30 bg-surface-base/35 px-3 py-2 text-xs text-ink-secondary"
+                >
                   <p className="font-medium text-ink">Por qué aparece {suggestion.name}</p>
-                  <div className="mt-1 flex flex-col gap-1">
+                  <div className="mt-1 flex min-w-0 flex-col gap-1">
                     {suggestion.reasons.map((reason) => (
-                      <p key={`${suggestion.id}-${reason.kind}-${reason.matchedValue}`}>
+                      <p
+                        key={`${suggestion.id}-${reason.kind}-${reason.matchedValue}`}
+                        className="min-w-0 whitespace-normal break-words"
+                      >
                         <span className="font-medium text-ink">{reason.label}:</span> {reason.matchedValue}
                         {reason.matches.length > 0 ? ` · coincide con ${reason.matches.join(', ')}` : ''}
                       </p>
@@ -246,13 +262,15 @@ export default function MotivoConsultaSection({ data, onChange, encounter, readO
           <button
             onClick={handleManualSelection}
             className={clsx(
-              'mt-3 w-full rounded-xl border border-dashed p-3 text-left transition-colors',
+              'mt-3 w-full rounded-xl border border-dashed p-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent',
               data.modoSeleccion === 'MANUAL'
                 ? 'border-status-yellow bg-status-yellow/10'
                 : 'border-dashed border-surface-muted/30 hover:border-surface-muted/40',
             )}
           >
-            <span className="text-sm text-ink-secondary">Ninguna coincide exactamente. Mantener selección manual.</span>
+            <span className="text-sm text-ink-secondary break-words">
+              Ninguna coincide exactamente. Mantener selección manual.
+            </span>
           </button>
         )}
 

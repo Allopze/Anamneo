@@ -19,6 +19,9 @@ import {
 
 class UpdateSettingsDto {
   @IsString() @MaxLength(200) @IsOptional() clinicName?: string;
+  @IsString() @MaxLength(80) @IsOptional() clinicIdentifier?: string;
+  @ValidateIf((_, value) => value !== '')
+  @IsUrl({ require_tld: false }, { message: 'Debe ingresar una URL pública válida para el logo' }) @MaxLength(500) @IsOptional() clinicLogoUrl?: string;
   @IsString() @MaxLength(500) @IsOptional() clinicAddress?: string;
   @IsString() @MaxLength(50) @IsOptional() clinicPhone?: string;
   @IsString() @MaxLength(200) @IsOptional() clinicEmail?: string;
@@ -67,6 +70,8 @@ export class SettingsController {
   async update(@Body() dto: UpdateSettingsDto, @CurrentUser() user: CurrentUserData) {
     const data: Record<string, string> = {};
     if (dto.clinicName !== undefined) data['clinic.name'] = dto.clinicName;
+    if (dto.clinicIdentifier !== undefined) data['clinic.identifier'] = dto.clinicIdentifier;
+    if (dto.clinicLogoUrl !== undefined) data['clinic.logoUrl'] = dto.clinicLogoUrl;
     if (dto.clinicAddress !== undefined) data['clinic.address'] = dto.clinicAddress;
     if (dto.clinicPhone !== undefined) data['clinic.phone'] = dto.clinicPhone;
     if (dto.clinicEmail !== undefined) data['clinic.email'] = dto.clinicEmail;

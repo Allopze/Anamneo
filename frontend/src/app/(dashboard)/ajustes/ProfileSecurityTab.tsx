@@ -7,6 +7,7 @@ import { clearPendingSavesForUser } from '@/lib/offline-queue';
 import { useAuthSetUser, useAuthUser } from '@/stores/auth-store';
 import { isSharedDeviceModeForced, usePrivacySettingsStore } from '@/stores/privacy-settings-store';
 import type { AjustesHook } from './useAjustes';
+import LegalDocumentsSection from './LegalDocumentsSection';
 import SessionManagementSection from './SessionManagementSection';
 import TwoFactorRecoveryCodesPanel from './TwoFactorRecoveryCodesPanel';
 
@@ -191,6 +192,8 @@ export default function ProfileSecurityTab({
           </form>
         </div>
       </div>
+
+      <LegalDocumentsSection />
 
       <div className="card mb-6">
         <div className="panel-header">

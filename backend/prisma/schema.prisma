@@ -50,6 +50,7 @@ model User {
   revokedConsents       InformedConsent[] @relation("ConsentRevokedBy")
   createdClinicalAlerts ClinicalAlert[]   @relation("ClinicalAlertCreatedBy")
   acknowledgedAlerts    ClinicalAlert[]   @relation("ClinicalAlertAcknowledgedBy")
+  legalAcceptances       UserLegalAcceptance[]
 
   @@map("users")
 }
@@ -500,6 +501,23 @@ model UserSession {
 
   @@index([userId, revokedAt])
   @@map("user_sessions")
+}
+
+model UserLegalAcceptance {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  documentType String   @map("document_type")
+  version      String
+  acceptedAt   DateTime @default(now()) @map("accepted_at")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentType, version])
+  @@index([userId, documentType])
+  @@index([acceptedAt])
+  @@map("user_legal_acceptances")
 }
 
 model LoginAttempt {

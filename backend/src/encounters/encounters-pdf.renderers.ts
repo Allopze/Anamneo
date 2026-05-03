@@ -12,25 +12,30 @@ import {
   getEncounterIdentificationMissingFields,
   getIdentificationDifferenceLabels,
   getTreatmentPlanText,
-  formatStructuredMedicationLine,
   formatHistoryFieldText,
   formatRevisionSystemEntries,
   getRutDisplayData,
 } from './encounters-pdf.helpers';
+import {
+  buildMedicationDetail,
+  buildOrderDetail,
+  hasPdfContent,
+  type PdfClinicSettings,
+  renderPdfDetailList,
+  renderPdfHeader,
+  renderPdfSectionHeading,
+  renderPdfSignature,
+} from '../common/utils/pdf-document-layout';
 
-export function renderEncounterClinicalPdf(doc: any, pageWidth: number, encounter: any, sectionsMap: Record<string, any>) {
+export function renderEncounterClinicalPdf(
+  doc: any,
+  pageWidth: number,
+  encounter: any,
+  sectionsMap: Record<string, any>,
+  clinic?: PdfClinicSettings,
+) {
   const sectionTitle = (num: number, title: string) => {
-    if (doc.y > doc.page.height - 100) {
-      doc.addPage();
-    }
-    doc.fontSize(12).font('Helvetica-Bold').text(`${num}. ${title}`);
-    doc
-      .moveTo(doc.x, doc.y)
-      .lineTo(doc.x + pageWidth, doc.y)
-      .lineWidth(0.5)
-      .stroke();
-    doc.moveDown(0.3);
-    doc.fontSize(10).font('Helvetica');
+    renderPdfSectionHeading(doc, pageWidth, `${num}. ${title}`);
   };
 
   const field = (label: string, value: string | number | undefined) => {
@@ -47,17 +52,12 @@ export function renderEncounterClinicalPdf(doc: any, pageWidth: number, encounte
     doc.text(text);
   };
 
-  doc
-    .fontSize(18)
-    .font('Helvetica-Bold')
-    .text('FICHA CLÍNICA', { align: 'center' });
-  doc
-    .fontSize(10)
-    .font('Helvetica')
-    .text(`Fecha: ${formatEncounterDateTime(encounter.createdAt)}`, { align: 'center' });
-  doc.moveDown(0.5);
-  doc.moveTo(doc.x, doc.y).lineTo(doc.x + pageWidth, doc.y).lineWidth(2).stroke();
-  doc.moveDown(1);
+  renderPdfHeader(doc, pageWidth, {
+    title: 'FICHA CLÍNICA',
+    subtitle: `Fecha: ${formatEncounterDateTime(encounter.createdAt)}`,
+    professionalName: encounter.createdBy?.nombre || null,
+    clinic,
+  });
 
   const ident = sectionsMap['IDENTIFICACION'] || {};
   const identificationDifferences = getIdentificationDifferenceLabels(encounter, ident);
@@ -101,106 +101,108 @@ export function renderEncounterClinicalPdf(doc: any, pageWidth: number, encounte
   doc.moveDown(0.5);
 
   const motivo = sectionsMap['MOTIVO_CONSULTA'] || {};
-  sectionTitle(2, 'MOTIVO DE CONSULTA');
-  textBlock(motivo.texto);
-  if (motivo.afeccionSeleccionada?.name) {
-    doc.moveDown(0.3);
-    field('Afección probable', motivo.afeccionSeleccionada.name);
+  if (hasPdfContent([motivo.texto, motivo.afeccionSeleccionada?.name])) {
+    sectionTitle(2, 'MOTIVO DE CONSULTA');
+    textBlock(motivo.texto);
+    if (motivo.afeccionSeleccionada?.name) {
+      doc.moveDown(0.3);
+      field('Afección probable', motivo.afeccionSeleccionada.name);
+    }
+    doc.moveDown(0.5);
   }
-  doc.moveDown(0.5);
 
   const anProx = sectionsMap['ANAMNESIS_PROXIMA'] || {};
-  sectionTitle(3, 'ANAMNESIS PRÓXIMA');
-  if (anProx.relatoAmpliado) {
-    field('Relato', anProx.relatoAmpliado);
+  if (hasPdfContent(anProx)) {
+    sectionTitle(3, 'ANAMNESIS PRÓXIMA');
+    if (anProx.relatoAmpliado) field('Relato', anProx.relatoAmpliado);
+    field('Inicio', anProx.inicio);
+    field('Evolución', anProx.evolucion);
+    field('Factores agravantes', anProx.factoresAgravantes);
+    field('Factores atenuantes', anProx.factoresAtenuantes);
+    field('Síntomas asociados', anProx.sintomasAsociados);
+    if (hasPdfContent(anProx.perfilDolorAbdominal)) {
+      field(
+        'Perfil dolor abdominal',
+        [
+          anProx.perfilDolorAbdominal.presente ? 'Dolor abdominal' : null,
+          anProx.perfilDolorAbdominal.vomitos ? 'Vómitos' : null,
+          anProx.perfilDolorAbdominal.diarrea ? 'Diarrea' : null,
+          anProx.perfilDolorAbdominal.nauseas ? 'Náuseas' : null,
+          anProx.perfilDolorAbdominal.estrenimiento ? 'Estreñimiento' : null,
+        ].filter(Boolean).join(' · '),
+      );
+      field(
+        'Asociado a comida',
+        anProx.perfilDolorAbdominal.asociadoComida === 'SI'
+          ? 'Sí'
+          : anProx.perfilDolorAbdominal.asociadoComida === 'NO'
+            ? 'No'
+            : anProx.perfilDolorAbdominal.asociadoComida === 'NO_CLARO'
+              ? 'No claro'
+              : undefined,
+      );
+      field('Notas estructuradas', anProx.perfilDolorAbdominal.notas);
+    }
+    doc.moveDown(0.5);
   }
-  field('Inicio', anProx.inicio);
-  field('Evolución', anProx.evolucion);
-  field('Factores agravantes', anProx.factoresAgravantes);
-  field('Factores atenuantes', anProx.factoresAtenuantes);
-  field('Síntomas asociados', anProx.sintomasAsociados);
-  if (anProx.perfilDolorAbdominal) {
-    field(
-      'Perfil dolor abdominal',
-      [
-        anProx.perfilDolorAbdominal.presente ? 'Dolor abdominal' : null,
-        anProx.perfilDolorAbdominal.vomitos ? 'Vómitos' : null,
-        anProx.perfilDolorAbdominal.diarrea ? 'Diarrea' : null,
-        anProx.perfilDolorAbdominal.nauseas ? 'Náuseas' : null,
-        anProx.perfilDolorAbdominal.estrenimiento ? 'Estreñimiento' : null,
-      ].filter(Boolean).join(' · '),
-    );
-    field(
-      'Asociado a comida',
-      anProx.perfilDolorAbdominal.asociadoComida === 'SI'
-        ? 'Sí'
-        : anProx.perfilDolorAbdominal.asociadoComida === 'NO'
-          ? 'No'
-          : anProx.perfilDolorAbdominal.asociadoComida === 'NO_CLARO'
-            ? 'No claro'
-            : undefined,
-    );
-    field('Notas estructuradas', anProx.perfilDolorAbdominal.notas);
-  }
-  doc.moveDown(0.5);
 
   const anRem = sectionsMap['ANAMNESIS_REMOTA'] || {};
-  sectionTitle(4, 'ANAMNESIS REMOTA');
-  for (const [label, key] of ANAMNESIS_REMOTA_FIELD_LABELS) {
-    const text = formatHistoryFieldText(anRem[key]);
-    if (text) field(label, text);
+  const remoteEntries = ANAMNESIS_REMOTA_FIELD_LABELS
+    .map(([label, key]) => [label, formatHistoryFieldText(anRem[key])] as const)
+    .filter(([, text]) => text);
+  if (remoteEntries.length > 0) {
+    sectionTitle(4, 'ANAMNESIS REMOTA');
+    for (const [label, text] of remoteEntries) field(label, text);
+    doc.moveDown(0.5);
   }
-  doc.moveDown(0.5);
 
   const revSis = sectionsMap['REVISION_SISTEMAS'] || {};
-  sectionTitle(5, 'REVISIÓN POR SISTEMAS');
   const revEntries = formatRevisionSystemEntries(revSis);
   if (revEntries.length > 0) {
+    sectionTitle(5, 'REVISIÓN POR SISTEMAS');
     for (const entry of revEntries) {
       field(entry.label, entry.text);
     }
-  } else {
-    doc.text('-');
+    doc.moveDown(0.5);
   }
-  doc.moveDown(0.5);
 
   const exFis = sectionsMap['EXAMEN_FISICO'] || {};
-  sectionTitle(6, 'EXAMEN FÍSICO');
-  field(
-    'Estado general',
-    [ESTADO_GENERAL_MAP[exFis.estadoGeneral] || exFis.estadoGeneral, exFis.estadoGeneralNotas]
-      .filter(Boolean)
-      .join(' · '),
-  );
-  if (exFis.signosVitales) {
-    const sv = exFis.signosVitales;
-    doc.font('Helvetica-Bold').text('Signos vitales:');
-    doc.font('Helvetica');
-    const vitalParts = [
-      sv.presionArterial && `PA: ${sv.presionArterial}`,
-      sv.frecuenciaCardiaca && `FC: ${sv.frecuenciaCardiaca} lpm`,
-      sv.frecuenciaRespiratoria && `FR: ${sv.frecuenciaRespiratoria} rpm`,
-      sv.temperatura && `T°: ${sv.temperatura}°C`,
-      sv.saturacionOxigeno && `SatO2: ${sv.saturacionOxigeno}%`,
-      sv.peso && `Peso: ${sv.peso} kg`,
-      sv.talla && `Talla: ${sv.talla} cm`,
-      sv.imc && `IMC: ${sv.imc}`,
-    ]
-      .filter(Boolean)
-      .join(' | ');
-    doc.text(vitalParts);
-    doc.moveDown(0.3);
+  if (hasPdfContent(exFis)) {
+    sectionTitle(6, 'EXAMEN FÍSICO');
+    field(
+      'Estado general',
+      [ESTADO_GENERAL_MAP[exFis.estadoGeneral] || exFis.estadoGeneral, exFis.estadoGeneralNotas]
+        .filter(Boolean)
+        .join(' · '),
+    );
+    if (hasPdfContent(exFis.signosVitales)) {
+      const sv = exFis.signosVitales;
+      doc.font('Helvetica-Bold').text('Signos vitales:');
+      doc.font('Helvetica');
+      const vitalParts = [
+        sv.presionArterial && `PA: ${sv.presionArterial}`,
+        sv.frecuenciaCardiaca && `FC: ${sv.frecuenciaCardiaca} lpm`,
+        sv.frecuenciaRespiratoria && `FR: ${sv.frecuenciaRespiratoria} rpm`,
+        sv.temperatura && `T°: ${sv.temperatura}°C`,
+        sv.saturacionOxigeno && `SatO2: ${sv.saturacionOxigeno}%`,
+        sv.peso && `Peso: ${sv.peso} kg`,
+        sv.talla && `Talla: ${sv.talla} cm`,
+        sv.imc && `IMC: ${sv.imc}`,
+      ].filter(Boolean).join(' | ');
+      if (vitalParts) doc.text(vitalParts);
+      doc.moveDown(0.3);
+    }
+    field('Cabeza', exFis.cabeza);
+    field('Cuello', exFis.cuello);
+    field('Tórax', exFis.torax);
+    field('Abdomen', exFis.abdomen);
+    field('Extremidades', exFis.extremidades);
+    doc.moveDown(0.5);
   }
-  field('Cabeza', exFis.cabeza);
-  field('Cuello', exFis.cuello);
-  field('Tórax', exFis.torax);
-  field('Abdomen', exFis.abdomen);
-  field('Extremidades', exFis.extremidades);
-  doc.moveDown(0.5);
 
   const sosp = sectionsMap['SOSPECHA_DIAGNOSTICA'] || {};
-  sectionTitle(7, 'SOSPECHA DIAGNÓSTICA');
   if (sosp.sospechas?.length > 0) {
+    sectionTitle(7, 'SOSPECHA DIAGNÓSTICA');
     sosp.sospechas.forEach((s: any, index: number) => {
       doc.font('Helvetica-Bold').text(`${index + 1}. ${formatSospechaDiagnosticaLabel(s)}`, { continued: !!s.notas });
       if (s.notas) {
@@ -209,68 +211,54 @@ export function renderEncounterClinicalPdf(doc: any, pageWidth: number, encounte
         doc.text('');
       }
     });
-  } else {
-    doc.text('-');
+    doc.moveDown(0.5);
   }
-  doc.moveDown(0.5);
 
   const trat = sectionsMap['TRATAMIENTO'] || {};
   const treatmentPlan = getTreatmentPlanText(trat);
-  sectionTitle(8, 'TRATAMIENTO');
-  field('Plan de tratamiento e indicaciones', treatmentPlan);
-  field('Receta', trat.receta);
-  field('Exámenes', trat.examenes);
-  field('Derivaciones', trat.derivaciones);
-  if (Array.isArray(trat.medicamentosEstructurados) && trat.medicamentosEstructurados.length > 0) {
-    field(
-      'Medicamentos estructurados',
-      trat.medicamentosEstructurados
-        .map((item: any) => formatStructuredMedicationLine(item))
-        .join(' | '),
-    );
+  if (hasPdfContent([treatmentPlan, trat.receta, trat.examenes, trat.derivaciones, trat.medicamentosEstructurados, trat.examenesEstructurados, trat.derivacionesEstructuradas])) {
+    sectionTitle(8, 'TRATAMIENTO');
+    field('Plan de tratamiento e indicaciones', treatmentPlan);
+    field('Receta', trat.receta);
+    field('Exámenes', trat.examenes);
+    field('Derivaciones', trat.derivaciones);
+    if (Array.isArray(trat.medicamentosEstructurados) && trat.medicamentosEstructurados.length > 0) {
+      doc.font('Helvetica-Bold').text('Medicamentos estructurados');
+      renderPdfDetailList(doc, pageWidth, trat.medicamentosEstructurados.map((item: any) => buildMedicationDetail(item)));
+    }
+    if (Array.isArray(trat.examenesEstructurados) && trat.examenesEstructurados.length > 0) {
+      doc.font('Helvetica-Bold').text('Exámenes estructurados');
+      renderPdfDetailList(doc, pageWidth, trat.examenesEstructurados.map((item: any) => buildOrderDetail(item)));
+    }
+    if (Array.isArray(trat.derivacionesEstructuradas) && trat.derivacionesEstructuradas.length > 0) {
+      doc.font('Helvetica-Bold').text('Derivaciones estructuradas');
+      renderPdfDetailList(doc, pageWidth, trat.derivacionesEstructuradas.map((item: any) => buildOrderDetail(item)));
+    }
+    doc.moveDown(0.5);
   }
-  if (Array.isArray(trat.examenesEstructurados) && trat.examenesEstructurados.length > 0) {
-    field(
-      'Exámenes estructurados',
-      trat.examenesEstructurados
-        .map((item: any) => [item.nombre, item.indicacion, item.estado].filter(Boolean).join(' · '))
-        .join(' | '),
-    );
-  }
-  if (Array.isArray(trat.derivacionesEstructuradas) && trat.derivacionesEstructuradas.length > 0) {
-    field(
-      'Derivaciones estructuradas',
-      trat.derivacionesEstructuradas
-        .map((item: any) => [item.nombre, item.indicacion, item.estado].filter(Boolean).join(' · '))
-        .join(' | '),
-    );
-  }
-  if (!treatmentPlan && !trat.receta && !trat.examenes && !trat.derivaciones) doc.text('-');
-  doc.moveDown(0.5);
 
   const resp = sectionsMap['RESPUESTA_TRATAMIENTO'] || {};
-  sectionTitle(9, 'RESPUESTA AL TRATAMIENTO');
-  field('Evolución', resp.evolucion);
-  field('Resultados de exámenes', resp.resultadosExamenes);
-  field('Ajustes al tratamiento', resp.ajustesTratamiento);
-  field('Plan de seguimiento', resp.planSeguimiento);
-  field(
-    'Desenlace estructurado',
-    resp.respuestaEstructurada?.estado === 'FAVORABLE'
-      ? 'Favorable'
-      : resp.respuestaEstructurada?.estado === 'PARCIAL'
-        ? 'Parcial'
-        : resp.respuestaEstructurada?.estado === 'SIN_RESPUESTA'
-          ? 'Sin respuesta'
-          : resp.respuestaEstructurada?.estado === 'EMPEORA'
-            ? 'Empeora'
-            : undefined,
-  );
-  field('Notas del desenlace', resp.respuestaEstructurada?.notas);
-  if (!resp.evolucion && !resp.resultadosExamenes && !resp.ajustesTratamiento && !resp.planSeguimiento && !resp.respuestaEstructurada) {
-    doc.text('-');
+  if (hasPdfContent(resp)) {
+    sectionTitle(9, 'RESPUESTA AL TRATAMIENTO');
+    field('Evolución', resp.evolucion);
+    field('Resultados de exámenes', resp.resultadosExamenes);
+    field('Ajustes al tratamiento', resp.ajustesTratamiento);
+    field('Plan de seguimiento', resp.planSeguimiento);
+    field(
+      'Desenlace estructurado',
+      resp.respuestaEstructurada?.estado === 'FAVORABLE'
+        ? 'Favorable'
+        : resp.respuestaEstructurada?.estado === 'PARCIAL'
+          ? 'Parcial'
+          : resp.respuestaEstructurada?.estado === 'SIN_RESPUESTA'
+            ? 'Sin respuesta'
+            : resp.respuestaEstructurada?.estado === 'EMPEORA'
+              ? 'Empeora'
+              : undefined,
+    );
+    field('Notas del desenlace', resp.respuestaEstructurada?.notas);
+    doc.moveDown(0.5);
   }
-  doc.moveDown(0.5);
 
   const obs = sectionsMap['OBSERVACIONES'] || {};
   if (obs.resumenClinico || obs.observaciones) {
@@ -293,12 +281,5 @@ export function renderEncounterClinicalPdf(doc: any, pageWidth: number, encounte
   field('Estado', STATUS_MAP[encounter.status] || encounter.status);
   field('Revision', REVIEW_STATUS_MAP[encounter.reviewStatus] || encounter.reviewStatus);
 
-  doc.moveDown(3);
-  const signX = doc.x + pageWidth - 200;
-  doc.moveTo(signX, doc.y).lineTo(signX + 180, doc.y).lineWidth(1).stroke();
-  doc.fontSize(9).text('Firma y Timbre', signX, doc.y + 3, {
-    width: 180,
-    align: 'center',
-  });
+  renderPdfSignature(doc, pageWidth);
 }
-

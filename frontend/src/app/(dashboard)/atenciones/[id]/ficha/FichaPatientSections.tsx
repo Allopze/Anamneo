@@ -184,7 +184,7 @@ export function RemoteHistorySection({ anamnesisRemota }: { anamnesisRemota: any
 
   if (entries.length === 0) {
     return (
-      <section className="ficha-empty-section print-break-before">
+      <section className="ficha-empty-section">
         <h2 className="ficha-section-heading">4. Anamnesis remota</h2>
         <p className="ficha-empty">Sin registro.</p>
       </section>
@@ -192,7 +192,7 @@ export function RemoteHistorySection({ anamnesisRemota }: { anamnesisRemota: any
   }
 
   return (
-    <section className="mb-8 print-break-before">
+    <section className="mb-8">
       <h2 className="ficha-section-heading">4. Anamnesis remota</h2>
       <div className="space-y-1 text-sm">
         {entries.map((entry) => (
