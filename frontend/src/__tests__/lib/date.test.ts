@@ -9,8 +9,13 @@ describe('date-only helpers', () => {
     expect(extractDateOnly('2026-03-31')).toBe('2026-03-31');
   });
 
-  it('creates a stable midday UTC display date', () => {
-    expect(toDateOnlyDisplayDate('2026-03-31')?.toISOString()).toBe('2026-03-31T12:00:00.000Z');
+  it('creates a stable local midday display date', () => {
+    const displayDate = toDateOnlyDisplayDate('2026-03-31');
+
+    expect(displayDate?.getFullYear()).toBe(2026);
+    expect(displayDate?.getMonth()).toBe(2);
+    expect(displayDate?.getDate()).toBe(31);
+    expect(displayDate?.getHours()).toBe(12);
   });
 
   it('formats date-only values without shifting the calendar day', () => {

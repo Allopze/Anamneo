@@ -18,10 +18,14 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   PATIENT_TASK_UPDATED: 'Actualización de seguimiento',
   PATIENT_ARCHIVED: 'Archivo de paciente',
   PATIENT_RESTORED: 'Restauración de paciente',
+  PATIENT_RECORD_VIEWED: 'Consulta de ficha de paciente',
+  PATIENT_CLINICAL_SUMMARY_VIEWED: 'Consulta de resumen clínico de paciente',
   PATIENT_EXPORT_CSV: 'Exportación CSV de pacientes',
   PATIENT_LONGITUDINAL_EXPORTED: 'Exportación de historial clínico longitudinal',
   PATIENT_BUNDLE_EXPORTED: 'Exportación de paquete clínico de paciente',
   CLINICAL_ANALYTICS_CSV_EXPORTED: 'Exportación CSV de casos clínicos analíticos',
+  CLINICAL_ANALYTICS_SUMMARY_VIEWED: 'Consulta de resumen analítico clínico',
+  CLINICAL_ANALYTICS_CASES_VIEWED: 'Consulta de casos analíticos clínicos',
   CLINICAL_ANALYTICS_SUMMARY_CSV_EXPORTED: 'Exportación CSV del resumen clínico analítico',
   CLINICAL_ANALYTICS_SUMMARY_REPORT_EXPORTED: 'Exportación de reporte Markdown del resumen clínico analítico',
   ENCOUNTER_CREATED: 'Creación de atención',
@@ -31,13 +35,18 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   ENCOUNTER_REOPENED: 'Reapertura de atención',
   ENCOUNTER_CANCELLED: 'Cancelación de atención',
   ENCOUNTER_REVIEW_STATUS_UPDATED: 'Cambio de estado de revisión',
+  ENCOUNTER_RECORD_VIEWED: 'Consulta de atención clínica',
+  ENCOUNTER_TIMELINE_VIEWED: 'Consulta de línea de tiempo de atenciones',
   ENCOUNTER_DOCUMENT_EXPORTED: 'Exportación documental de atención',
   ATTACHMENT_UPLOADED: 'Carga de adjunto',
+  ATTACHMENT_LIST_VIEWED: 'Consulta de listado de adjuntos',
   ATTACHMENT_DOWNLOADED: 'Descarga de adjunto',
   ATTACHMENT_DELETED: 'Eliminación de adjunto',
   ATTACHMENT_SOFT_DELETED: 'Adjunto movido a papelera',
   ALERT_CREATED: 'Creación de alerta clínica',
+  ALERT_LIST_VIEWED: 'Consulta de alertas clínicas',
   ALERT_ACKNOWLEDGED: 'Reconocimiento de alerta clínica',
+  CONSENT_LIST_VIEWED: 'Consulta de consentimientos informados',
   CONSENT_GRANTED: 'Otorgamiento de consentimiento informado',
   CONSENT_REVOKED: 'Revocación de consentimiento informado',
   USER_INVITATION_CREATED: 'Creación de invitación',
@@ -65,6 +74,8 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'Patient' && action === 'UPDATE' && hasDiffScope(diff, 'ADMIN_FIELDS')) return 'PATIENT_ADMIN_UPDATED';
   if (entityType === 'Patient' && action === 'UPDATE' && hasDiffKey(diff, 'adminFields')) return 'PATIENT_ADMIN_UPDATED';
   if (entityType === 'Patient' && action === 'UPDATE') return 'PATIENT_UPDATED';
+  if (entityType === 'Patient' && action === 'READ' && hasDiffScope(diff, 'CLINICAL_SUMMARY')) return 'PATIENT_CLINICAL_SUMMARY_VIEWED';
+  if (entityType === 'Patient' && action === 'READ') return 'PATIENT_RECORD_VIEWED';
   if (entityType === 'PatientHistory' && action === 'CREATE') return 'PATIENT_HISTORY_CREATED';
   if (entityType === 'PatientHistory' && action === 'UPDATE') return 'PATIENT_HISTORY_UPDATED';
   if (entityType === 'PatientProblem' && action === 'CREATE') return 'PATIENT_PROBLEM_CREATED';
@@ -75,9 +86,13 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'PatientRestore' && action === 'CREATE') return 'PATIENT_RESTORED';
   if (entityType === 'PatientExport' && action === 'EXPORT') return 'PATIENT_EXPORT_CSV';
   if (entityType === 'ClinicalAnalyticsCasesExport' && action === 'EXPORT') return 'CLINICAL_ANALYTICS_CSV_EXPORTED';
+  if (entityType === 'ClinicalAnalyticsSummary' && action === 'READ') return 'CLINICAL_ANALYTICS_SUMMARY_VIEWED';
+  if (entityType === 'ClinicalAnalyticsCases' && action === 'READ') return 'CLINICAL_ANALYTICS_CASES_VIEWED';
   if (entityType === 'ClinicalAnalyticsSummaryExport' && action === 'EXPORT') return 'CLINICAL_ANALYTICS_SUMMARY_CSV_EXPORTED';
   if (entityType === 'ClinicalAnalyticsSummaryReportExport' && action === 'EXPORT') return 'CLINICAL_ANALYTICS_SUMMARY_REPORT_EXPORTED';
   if (entityType === 'Encounter' && action === 'CREATE') return 'ENCOUNTER_CREATED';
+  if (entityType === 'Encounter' && action === 'READ' && hasDiffScope(diff, 'TIMELINE')) return 'ENCOUNTER_TIMELINE_VIEWED';
+  if (entityType === 'Encounter' && action === 'READ') return 'ENCOUNTER_RECORD_VIEWED';
   if (entityType === 'Encounter' && action === 'EXPORT') return 'ENCOUNTER_DOCUMENT_EXPORTED';
   if (entityType === 'Encounter' && action === 'UPDATE' && hasDiffKey(diff, 'reviewStatus')) return 'ENCOUNTER_REVIEW_STATUS_UPDATED';
   if (entityType === 'Encounter' && action === 'UPDATE' && hasDiffKey(diff, 'status') && hasDiffValue(diff, 'status', 'COMPLETADO')) return 'ENCOUNTER_COMPLETED';
@@ -87,11 +102,14 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'EncounterSection' && action === 'UPDATE') return 'ENCOUNTER_SECTION_UPDATED';
   if (entityType === 'EncounterDocument' && action === 'EXPORT') return 'ENCOUNTER_DOCUMENT_EXPORTED';
   if (entityType === 'Attachment' && action === 'CREATE') return 'ATTACHMENT_UPLOADED';
+  if (entityType === 'Attachment' && action === 'READ') return 'ATTACHMENT_LIST_VIEWED';
   if (entityType === 'Attachment' && action === 'DOWNLOAD') return 'ATTACHMENT_DOWNLOADED';
   if (entityType === 'Attachment' && action === 'DELETE') return 'ATTACHMENT_DELETED';
   if (entityType === 'Attachment' && action === 'SOFT_DELETE') return 'ATTACHMENT_SOFT_DELETED';
   if (entityType === 'ClinicalAlert' && action === 'CREATE') return 'ALERT_CREATED';
+  if (entityType === 'ClinicalAlert' && action === 'READ') return 'ALERT_LIST_VIEWED';
   if (entityType === 'ClinicalAlert' && action === 'UPDATE') return 'ALERT_ACKNOWLEDGED';
+  if (entityType === 'InformedConsent' && action === 'READ') return 'CONSENT_LIST_VIEWED';
   if (entityType === 'InformedConsent' && action === 'CREATE') return 'CONSENT_GRANTED';
   if (entityType === 'InformedConsent' && action === 'UPDATE') return 'CONSENT_REVOKED';
   if (entityType === 'UserInvitation' && action === 'CREATE') return 'USER_INVITATION_CREATED';

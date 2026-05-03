@@ -134,7 +134,7 @@ export class AttachmentsService {
       throw new NotFoundException('Atención no encontrada');
     }
 
-    return this.prisma.attachment.findMany({
+    const attachments = await this.prisma.attachment.findMany({
       where: { encounterId, deletedAt: null },
       select: {
         id: true,
@@ -153,6 +153,15 @@ export class AttachmentsService {
       },
       orderBy: { uploadedAt: 'desc' },
     });
+    await this.auditService.log({
+      entityType: 'Attachment',
+      entityId: encounterId,
+      userId: user.id,
+      action: 'READ',
+      reason: 'ATTACHMENT_LIST_VIEWED',
+      diff: { scope: 'ATTACHMENT_LIST', encounterId, count: attachments.length },
+    });
+    return attachments;
   }
 
   async getFile(id: string, user: RequestUser) {

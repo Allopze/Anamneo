@@ -20,6 +20,11 @@ type IntegrityPayload = {
   diff: string | null;
 };
 
+type AuditChainHead = {
+  previousHash: string;
+  nextSequence?: number;
+};
+
 type AuditIntegrityResult = {
   valid: boolean;
   checked: number;
@@ -69,11 +74,30 @@ function supportsRawUnsafe(client: unknown): client is {
   return !!client && typeof (client as { $executeRawUnsafe?: unknown }).$executeRawUnsafe === 'function';
 }
 
+function supportsAuditChainState(client: unknown): boolean {
+  return !!client && typeof (client as { auditChainState?: unknown }).auditChainState === 'object';
+}
+
 @Injectable()
 export class AuditService {
+  private auditWriteQueue: Promise<void> = Promise.resolve();
+
   constructor(private prisma: PrismaService) {}
 
   async log(input: LogInput, client: AuditLogClient = this.prisma) {
+    return this.enqueueAuditWrite(async () => this.writeLog(input, client));
+  }
+
+  private enqueueAuditWrite<T>(operation: () => Promise<T>): Promise<T> {
+    const queuedOperation = this.auditWriteQueue.then(operation, operation);
+    this.auditWriteQueue = queuedOperation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return queuedOperation;
+  }
+
+  private async writeLog(input: LogInput, client: AuditLogClient) {
     if (supportsRootTransactions(client)) {
       return client.$transaction(async (tx) => this.appendLog(input, tx));
     }
@@ -91,17 +115,8 @@ export class AuditService {
       );
     }
 
-    // Force SQLite to upgrade the surrounding transaction to a write lock
-    // before reading the chain head, so concurrent appends cannot fork it.
-    if (supportsRawUnsafe(client)) {
-      await client.$executeRawUnsafe('DELETE FROM audit_logs WHERE 1 = 0');
-    }
-
-    const lastEntry = await client.auditLog.findFirst({
-      orderBy: { timestamp: 'desc' },
-      select: { integrityHash: true },
-    });
-    const previousHash = lastEntry?.integrityHash ?? 'GENESIS';
+    const chainHead = await this.acquireAuditChainHead(client);
+    const previousHash = chainHead.previousHash;
 
     const data = buildIntegrityPayload({
       entityType: input.entityType,
@@ -116,13 +131,86 @@ export class AuditService {
 
     const integrityHash = computeIntegrityHash(previousHash, data);
 
-    return client.auditLog.create({
+    const entry = await client.auditLog.create({
       data: {
         ...data,
         integrityHash,
         previousHash,
+        chainSequence: chainHead.nextSequence,
       } as Prisma.AuditLogUncheckedCreateInput,
     });
+
+    if (supportsAuditChainState(client) && chainHead.nextSequence) {
+      await (client as Prisma.TransactionClient).auditChainState.update({
+        where: { id: 'default' },
+        data: {
+          latestHash: integrityHash,
+          sequence: chainHead.nextSequence,
+        },
+      });
+    }
+
+    return entry;
+  }
+
+  private async acquireAuditChainHead(client: Prisma.TransactionClient): Promise<AuditChainHead> {
+    if (!supportsAuditChainState(client)) {
+      const lastEntry = await client.auditLog.findFirst({
+        orderBy: { timestamp: 'desc' },
+        select: { integrityHash: true },
+      });
+      return { previousHash: lastEntry?.integrityHash ?? 'GENESIS' };
+    }
+
+    const chainClient = client as Prisma.TransactionClient;
+
+    await chainClient.auditChainState.upsert({
+      where: { id: 'default' },
+      create: { id: 'default', latestHash: 'GENESIS', sequence: 0 },
+      update: {},
+    });
+
+    if (supportsRawUnsafe(client)) {
+      await client.$executeRawUnsafe(
+        "UPDATE audit_chain_state SET sequence = sequence WHERE id = 'default'",
+      );
+    }
+
+    let state = await chainClient.auditChainState.findUnique({
+      where: { id: 'default' },
+      select: { latestHash: true, sequence: true },
+    });
+
+    if (!state) {
+      throw new Error('Audit chain state could not be initialized');
+    }
+
+    if (state.sequence === 0) {
+      const [existingEntries, lastEntry] = await Promise.all([
+        chainClient.auditLog.count(),
+        chainClient.auditLog.findFirst({
+          where: { integrityHash: { not: null } },
+          orderBy: { timestamp: 'desc' },
+          select: { integrityHash: true },
+        }),
+      ]);
+
+      if (existingEntries > 0 || lastEntry?.integrityHash) {
+        state = await chainClient.auditChainState.update({
+          where: { id: 'default' },
+          data: {
+            latestHash: lastEntry?.integrityHash ?? 'GENESIS',
+            sequence: existingEntries,
+          },
+          select: { latestHash: true, sequence: true },
+        });
+      }
+    }
+
+    return {
+      previousHash: state.latestHash,
+      nextSequence: state.sequence + 1,
+    };
   }
 
   async findAll(
@@ -208,9 +296,12 @@ export class AuditService {
       diff: true,
       integrityHash: true,
       previousHash: true,
+      chainSequence: true,
     } satisfies Prisma.AuditLogSelect;
     const rawEntries = await this.prisma.auditLog.findMany({
-      orderBy: { timestamp: normalizedLimit ? 'desc' : 'asc' },
+      orderBy: normalizedLimit
+        ? [{ chainSequence: 'desc' }, { timestamp: 'desc' }]
+        : [{ chainSequence: 'asc' }, { timestamp: 'asc' }],
       take: normalizedLimit ? normalizedLimit + 1 : undefined,
       select,
     });

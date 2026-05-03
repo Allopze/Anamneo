@@ -4,6 +4,7 @@ import { Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { JwtPayload } from '../auth.service';
 import { UsersService } from '../../users/users.service';
+import { UsersSessionService } from '../../users/users-session.service';
 import { Request } from 'express';
 
 // Extract JWT strictly from HttpOnly cookie — no Bearer fallback
@@ -16,6 +17,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     configService: ConfigService,
     private usersService: UsersService,
+    private sessionService: UsersSessionService,
   ) {
     super({
       jwtFromRequest: extractJwtFromCookie,
@@ -25,9 +27,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
+    if (typeof payload.sid !== 'string' || typeof payload.sv !== 'number') {
+      throw new UnauthorizedException('Sesión inválida');
+    }
+
     const user = await this.usersService.findById(payload.sub);
     if (!user || !user.active) {
       throw new UnauthorizedException('Usuario no autorizado');
+    }
+
+    const session = await this.sessionService.findActiveSessionById(payload.sid);
+    if (!session || session.userId !== user.id || session.tokenVersion !== payload.sv) {
+      throw new UnauthorizedException('Sesión inválida');
     }
 
     return {
@@ -39,7 +50,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       medicoId: user.medicoId ?? null,
       mustChangePassword: user.mustChangePassword ?? false,
       totpEnabled: user.totpEnabled ?? false,
-      sessionId: typeof payload.sid === 'string' ? payload.sid : undefined,
+      sessionId: payload.sid,
     };
   }
 }

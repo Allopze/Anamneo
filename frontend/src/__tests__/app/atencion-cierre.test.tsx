@@ -46,6 +46,10 @@ jest.mock('next/dynamic', () => {
 });
 
 jest.mock('@/stores/auth-store', () => ({
+  useAuthUser: () => authStoreState.user,
+  useAuthIsMedico: () => authStoreState.isMedico(),
+  useAuthCanEditAntecedentes: () => authStoreState.canEditAntecedentes(),
+  useAuthCanCreateEncounter: () => authStoreState.canCreateEncounter(),
   useAuthStore: () => authStoreState,
 }));
 
@@ -177,7 +181,7 @@ describe('EncounterWizardPage closing workflow', () => {
     hasEncounterDraftUnsavedChangesMock.mockReturnValue(false);
 
     apiGetMock.mockImplementation((url: string) => {
-      if (url === '/encounters/enc-1') {
+      if (url.startsWith('/encounters/enc-1')) {
         return Promise.resolve({ data: encounterResponse });
       }
 
@@ -218,7 +222,7 @@ describe('EncounterWizardPage closing workflow', () => {
 
   it('disables encounter completion when the patient record is pending medical verification', async () => {
     apiGetMock.mockImplementation((url: string) => {
-      if (url === '/encounters/enc-1') {
+      if (url.startsWith('/encounters/enc-1')) {
         return Promise.resolve({
           data: {
             ...encounterResponse,
@@ -379,7 +383,7 @@ describe('EncounterWizardPage closing workflow', () => {
 
   it('keeps the completion action available for the treating doctor even when the encounter was created by an assistant', async () => {
     apiGetMock.mockImplementation((url: string) => {
-      if (url === '/encounters/enc-1') {
+      if (url.startsWith('/encounters/enc-1')) {
         return Promise.resolve({
           data: {
             ...encounterResponse,
@@ -405,7 +409,7 @@ describe('EncounterWizardPage closing workflow', () => {
     const user = userEvent.setup();
 
     apiGetMock.mockImplementation((url: string) => {
-      if (url === '/encounters/enc-1') {
+      if (url.startsWith('/encounters/enc-1')) {
         return Promise.resolve({
           data: {
             ...encounterResponse,

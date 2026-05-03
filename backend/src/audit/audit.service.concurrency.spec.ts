@@ -5,6 +5,8 @@ import * as path from 'path';
 import { AuditService } from './audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 
+jest.setTimeout(30000);
+
 const CREATE_AUDIT_LOG_TABLE_SQL = `
   CREATE TABLE audit_logs (
     id TEXT PRIMARY KEY NOT NULL,
@@ -18,10 +20,19 @@ const CREATE_AUDIT_LOG_TABLE_SQL = `
     diff TEXT,
     integrity_hash TEXT,
     previous_hash TEXT,
+    chain_sequence INTEGER,
     timestamp DATETIME NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'))
   );
 
   CREATE INDEX idx_audit_logs_timestamp ON audit_logs(timestamp);
+  CREATE UNIQUE INDEX audit_logs_chain_sequence_key ON audit_logs(chain_sequence);
+
+  CREATE TABLE audit_chain_state (
+    id TEXT PRIMARY KEY NOT NULL DEFAULT 'default',
+    latest_hash TEXT NOT NULL DEFAULT 'GENESIS',
+    sequence INTEGER NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'))
+  );
 
   CREATE TABLE audit_integrity_snapshots (
     id TEXT PRIMARY KEY NOT NULL,
@@ -44,8 +55,6 @@ describe('AuditService concurrency', () => {
   let tempDbPath: string;
 
   beforeEach(async () => {
-    jest.setTimeout(30000);
-
     tempDbPath = path.join(
       os.tmpdir(),
       `anamneo-audit-service-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.db`,
@@ -83,23 +92,30 @@ describe('AuditService concurrency', () => {
     }
   });
 
-  it('keeps verifyChain valid under concurrent transactional writes', async () => {
+  it('keeps verifyChain valid under concurrent service writes', async () => {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       await prisma.auditLog.deleteMany();
+      await prisma.auditChainState.upsert({
+        where: { id: 'default' },
+        create: { id: 'default', latestHash: 'GENESIS', sequence: 0 },
+        update: { latestHash: 'GENESIS', sequence: 0 },
+      });
 
       await Promise.all(
-        Array.from({ length: 25 }, (_, index) => prisma.$transaction((tx) => service.log({
-          entityType: 'Attachment',
-          entityId: `attachment-${attempt}-${index}`,
-          userId: `user-${index}`,
-          requestId: `request-${attempt}-${index}`,
-          action: 'CREATE',
-          diff: {
-            created: {
-              filename: `file-${index}.pdf`,
+        Array.from({ length: 25 }, (_, index) =>
+          service.log({
+            entityType: 'Attachment',
+            entityId: `attachment-${attempt}-${index}`,
+            userId: `user-${index}`,
+            requestId: `request-${attempt}-${index}`,
+            action: 'CREATE',
+            diff: {
+              created: {
+                filename: `file-${index}.pdf`,
+              },
             },
-          },
-        }, tx))),
+          }),
+        ),
       );
 
       await expect(service.verifyChain()).resolves.toMatchObject({
@@ -107,6 +123,49 @@ describe('AuditService concurrency', () => {
         checked: 25,
         total: 25,
       });
+    }
+  });
+
+  it('keeps a single chain across separate service instances sharing the database', async () => {
+    const otherPrisma = new PrismaService();
+    await otherPrisma.onModuleInit();
+    const otherService = new AuditService(otherPrisma);
+
+    try {
+      await Promise.all(
+        Array.from({ length: 30 }, (_, index) => {
+          const targetService = index % 2 === 0 ? service : otherService;
+          return targetService.log({
+            entityType: 'Attachment',
+            entityId: `distributed-attachment-${index}`,
+            userId: `distributed-user-${index}`,
+            requestId: `distributed-request-${index}`,
+            action: 'CREATE',
+            diff: {
+              created: {
+                filename: `distributed-file-${index}.pdf`,
+              },
+            },
+          });
+        }),
+      );
+
+      await expect(service.verifyChain()).resolves.toMatchObject({
+        valid: true,
+        checked: 30,
+        total: 30,
+      });
+
+      const sequences = await prisma.auditLog.findMany({
+        orderBy: { chainSequence: 'asc' },
+        select: { chainSequence: true },
+      });
+
+      expect(sequences.map((entry) => entry.chainSequence)).toEqual(
+        Array.from({ length: 30 }, (_, index) => index + 1),
+      );
+    } finally {
+      await otherPrisma.$disconnect();
     }
   });
 });

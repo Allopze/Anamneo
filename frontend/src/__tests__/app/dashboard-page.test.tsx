@@ -12,6 +12,13 @@ jest.mock('@/lib/api', () => ({
 }));
 
 jest.mock('@/stores/auth-store', () => ({
+  useAuthUser: () => ({
+    id: 'med-1',
+    nombre: 'Medico Demo',
+    isAdmin: false,
+  }),
+  useAuthCanCreateEncounter: () => true,
+  useAuthCanCreatePatient: () => true,
   useAuthStore: () => ({
     user: {
       id: 'med-1',

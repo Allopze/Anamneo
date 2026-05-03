@@ -33,6 +33,18 @@ export function adminSuite() {
       expect(res.body.message).toBe('Contraseña restablecida correctamente');
     });
 
+    it('POST /api/auth/login → medico can reauthenticate after admin password reset', async () => {
+      const res = await req()
+        .post('/api/auth/login')
+        .send({ email: 'medico@test.com', password: 'Nueva.Clave123' })
+        .expect(200);
+
+      expect(res.body.user.email).toBe('medico@test.com');
+      expect(res.body.user.mustChangePassword).toBe(true);
+      state.medicoCookies = extractCookies(res);
+      expect(state.medicoCookies.length).toBeGreaterThanOrEqual(2);
+    });
+
     it('GET /api/users → non-admin gets 403', async () => {
       await req().get('/api/users').set('Cookie', cookieHeader(state.medicoCookies)).expect(403);
     });

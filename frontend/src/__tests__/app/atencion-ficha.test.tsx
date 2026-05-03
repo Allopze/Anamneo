@@ -155,6 +155,8 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/stores/auth-store', () => ({
+  useAuthUser: () => authStoreState.user,
+  useAuthCanCreateEncounter: () => true,
   useAuthStore: () => ({
     ...authStoreState,
     canCreateEncounter: () => true,
@@ -196,7 +198,7 @@ describe('FichaClinicaPage clinical-output block', () => {
     apiPostMock.mockResolvedValue({ data: {} });
 
     apiGetMock.mockImplementation((url: string) => {
-      if (url === '/encounters/enc-1') {
+      if (url.startsWith('/encounters/enc-1')) {
         return Promise.resolve({ data: encounterResponse });
       }
 
@@ -227,7 +229,7 @@ describe('FichaClinicaPage clinical-output block', () => {
     const user = userEvent.setup();
 
     apiGetMock.mockImplementation((url: string) => {
-      if (url === '/encounters/enc-1') {
+      if (url.startsWith('/encounters/enc-1')) {
         return Promise.resolve({
           data: {
             ...encounterResponse,
@@ -264,7 +266,7 @@ describe('FichaClinicaPage clinical-output block', () => {
     const user = userEvent.setup();
 
     apiGetMock.mockImplementation((url: string) => {
-      if (url === '/encounters/enc-1') {
+      if (url.startsWith('/encounters/enc-1')) {
         return Promise.resolve({
           data: {
             ...encounterResponse,
@@ -305,7 +307,7 @@ describe('FichaClinicaPage clinical-output block', () => {
 
   it('shows the pre-sign summary and guided reopen action for completed encounters', async () => {
     apiGetMock.mockImplementation((url: string) => {
-      if (url === '/encounters/enc-1') {
+      if (url.startsWith('/encounters/enc-1')) {
         return Promise.resolve({
           data: {
             ...encounterResponse,
@@ -340,7 +342,7 @@ describe('FichaClinicaPage clinical-output block', () => {
 
     apiPostMock.mockResolvedValue({ data: { id: 'enc-duplicated', reused: false } });
     apiGetMock.mockImplementation((url: string) => {
-      if (url === '/encounters/enc-1') {
+      if (url.startsWith('/encounters/enc-1')) {
         return Promise.resolve({
           data: {
             ...encounterResponse,

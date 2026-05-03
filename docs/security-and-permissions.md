@@ -22,7 +22,7 @@ La seguridad de Anamneo mezcla controles de arranque, autenticacion por cookies,
 | Refresh token | TTL mas largo, por defecto `7d` |
 | Transporte | Cookies `HttpOnly` |
 | Sesiones | Persistidas en `UserSession` |
-| Revocacion | `refreshTokenVersion` + revocacion de sesion |
+| Revocacion | `refreshTokenVersion` + `UserSession.tokenVersion` validado en access y refresh |
 | Bloqueo de intentos | `LoginAttempt` registra fallos y ventana de bloqueo |
 
 `frontend/src/proxy.ts` usa un chequeo optimista por cookie para redirigir rutas publicas o protegidas sin hacer `fetch` remoto en esa capa. La validacion real de sesion sigue ocurriendo en el bootstrap normal del dashboard y en el data layer cuando corresponde.
@@ -79,6 +79,94 @@ La operacion detallada de rotacion vive en `settings-key-rotation-runbook.md`.
 - timestamp.
 
 Esto da trazabilidad tecnica y operativa. Tambien implica que los cambios sensibles deben pasar por servicios y no por atajos laterales que despues nadie puede explicar.
+
+### Pasada de hardening 2026-05-03
+
+Cambios aplicados en la primera pasada post-auditoria:
+
+- Las lecturas principales de PHI ahora generan eventos `READ` en `AuditLog`: ficha de paciente, resumen clinico, detalle de atencion, timeline de atenciones, listas de consentimientos, alertas, adjuntos y vistas de analitica clinica.
+- Los eventos nuevos usan motivos catalogados (`PATIENT_RECORD_VIEWED`, `PATIENT_CLINICAL_SUMMARY_VIEWED`, `ENCOUNTER_RECORD_VIEWED`, `ENCOUNTER_TIMELINE_VIEWED`, `CONSENT_LIST_VIEWED`, `ALERT_LIST_VIEWED`, `ATTACHMENT_LIST_VIEWED`, `CLINICAL_ANALYTICS_SUMMARY_VIEWED`, `CLINICAL_ANALYTICS_CASES_VIEWED`) para que la auditoria no acepte lecturas sensibles como eventos genericos.
+- La auditoria de analitica clinica registra solo metadatos minimos de filtros (`source`, fechas y ventana de seguimiento), no filtros clinicos crudos como condicion o foco de busqueda.
+- La configuracion de despliegues nuevos fuerza `NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE=true` por defecto en `.env.example` y `docker-compose.yml`; esto desactiva guardados locales/offline pensados para equipos personales y reduce exposicion de PHI en navegadores compartidos.
+- Verificacion ejecutada: `node backend/node_modules/typescript/bin/tsc --noEmit -p backend/tsconfig.json` y tests focalizados de auditoria, consentimientos, alertas y analitica clinica (`61` tests).
+
+Pendiente despues de esta pasada:
+
+- Completar tests de regresion para lecturas auditadas fuera de analitica y catalogo.
+- Decidir si listas amplias como inbox de tareas, dashboard y busquedas deben auditarse por cada apertura o con eventos agregados para no saturar `AuditLog`.
+- Revisar el modo offline personal: si se quiere permitir en produccion, debe tener cifrado local con clave de sesion y borrado verificable.
+
+### Pasada de hardening 2026-05-03, revocacion de sesiones
+
+Cambios aplicados:
+
+- Los access tokens emitidos por `backend/src/auth/auth-token-issuance.ts` incluyen `sv` (`UserSession.tokenVersion`) ademas de `sid`.
+- `backend/src/auth/strategies/jwt.strategy.ts` rechaza access tokens sin `sid/sv`, con sesion revocada, de otro usuario o con version distinta. Esto hace efectiva la revocacion de sesion en el siguiente request autenticado, no solo durante refresh.
+- Se agregaron tests unitarios para emision de tokens con version de sesion y validacion/rechazo de access tokens rotados o sin version.
+- Verificacion ejecutada: `node backend/node_modules/typescript/bin/tsc --noEmit -p backend/tsconfig.json` y tests focalizados de auth/session (`20` tests).
+
+Pendiente despues de esta pasada:
+
+- Definir estrategia de migracion operacional: al desplegar este cambio, access tokens antiguos sin `sv` quedan invalidados y el usuario debera reautenticarse.
+
+### Pasada de hardening 2026-05-03, e2e de revocacion de access token
+
+Cambios aplicados:
+
+- `backend/test/suites/auth-session.e2e-suite.ts` valida el flujo completo: una sesion remota se autentica, otra sesion la revoca, y la sesion remota ya no puede usar su access token contra `GET /api/auth/me`.
+- `backend/test/suites/auth-2fa.e2e-suite.ts` reautentica explicitamente al medico al final del bloque 2FA para que las suites secuenciales posteriores no dependan de una cookie mutable potencialmente vieja.
+- `backend/test/suites/admin.e2e-suite.ts` reautentica explicitamente al medico despues de un reset administrativo de password, ya que ese flujo revoca sesiones y deshabilita 2FA como control de seguridad.
+- Verificacion ejecutada: `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` (`225` tests e2e).
+
+Pendiente despues de esta pasada:
+
+- Agregar una variante e2e para revocacion masiva por cambio de password o reset administrativo.
+- Definir estrategia de migracion operacional: al desplegar tokens con `sv` obligatorio, access tokens antiguos sin version quedan invalidados y el usuario debera reautenticarse.
+
+### Pasada de hardening 2026-05-03, validacion frontend
+
+Cambios aplicados:
+
+- Se instalo `frontend/node_modules` desde `frontend/package-lock.json` para poder ejecutar validaciones locales de UI.
+- `npm --prefix frontend run typecheck` queda verde.
+- Se actualizaron mocks unitarios de `frontend/src/__tests__` para exponer los hooks selectores actuales de `auth-store` (`useAuthUser`, `useAuthCan...`, etc.) y evitar falsos negativos cuando componentes clinicos usan el contrato nuevo.
+- `frontend/src/__tests__/lib/date.test.ts` valida mediodia local en vez de fijar un ISO UTC que depende de la zona horaria de ejecucion.
+- Verificacion ejecutada: `npm --prefix frontend run typecheck` y `npm --prefix frontend run test -- --runInBand --silent` (`68` suites, `316` tests).
+
+Pendiente despues de esta pasada:
+
+- Ejecutar Playwright (`npm --prefix frontend run test:e2e`) con backend disponible para cubrir la experiencia real post-revocacion.
+
+### Pasada de hardening 2026-05-03, integridad de auditoria concurrente
+
+Cambios aplicados:
+
+- `backend/src/audit/audit.service.ts` serializa las escrituras de `AuditLog` dentro del proceso antes de leer la cabeza de la cadena de hashes. Esto reduce el riesgo de bifurcacion de cadena o errores de transaccion cuando varias acciones clinicas auditables llegan al mismo tiempo.
+- `backend/src/audit/audit.service.concurrency.spec.ts` cubre llamadas concurrentes a `AuditService.log`, que usan la transaccion interna del servicio y verifican que la cadena de hashes queda valida.
+- Verificacion ejecutada: `node backend/node_modules/typescript/bin/tsc --noEmit -p backend/tsconfig.json`, prueba focalizada de concurrencia de auditoria y suite backend completa (`75` suites, `378` tests).
+
+Pendiente despues de esta pasada:
+
+- Repetir la prueba contra el motor de base de datos real de produccion si se migra desde SQLite a Postgres u otro proveedor.
+- Si se despliegan multiples instancias backend o muchas transacciones clinicas externas concurrentes, reemplazar o complementar la cola en memoria con bloqueo distribuido/DB-level locking para que la cadena de auditoria siga siendo unica entre procesos.
+
+### Pasada de hardening 2026-05-03, proteccion distribuida de cadena de auditoria
+
+Cambios aplicados:
+
+- `backend/prisma/schema.prisma` agrega `AuditChainState` y `AuditLog.chainSequence`. La cadena de auditoria deja de depender solo de `timestamp` para ordenar entradas y pasa a tener una secuencia monotona persistida en base de datos.
+- `backend/prisma/migrations/20260503120000_add_audit_chain_state/migration.sql` crea `audit_chain_state`, agrega `audit_logs.chain_sequence` y deja inicializada la cabeza de cadena con el ultimo `integrity_hash` existente cuando hay datos previos.
+- `backend/src/audit/audit.service.ts` toma un bloqueo de escritura sobre `audit_chain_state` dentro de la misma transaccion antes de leer la cabeza de cadena, asigna `chainSequence` al nuevo log y actualiza la cabeza solo despues de crear el evento. Esto protege la cadena cuando dos instancias backend comparten la misma base SQLite.
+- `backend/src/audit/audit.service.concurrency.spec.ts` agrega cobertura con dos instancias separadas de `AuditService` y dos clientes Prisma apuntando al mismo archivo SQLite, verificando que la cadena queda valida y que las secuencias son contiguas.
+- Se regenero Prisma Client con el CLI local del backend (`node backend/node_modules/prisma/build/index.js generate --schema backend/prisma/schema.prisma`). No usar `npx prisma` sin version fijada: intenta resolver Prisma 7 y no es compatible con el schema actual.
+- Verificacion ejecutada: `node backend/node_modules/typescript/bin/tsc --noEmit -p backend/tsconfig.json`, `npm --prefix backend run test -- --runInBand audit.service.concurrency.spec.ts audit.service.spec.ts` (`14` tests) y suite backend completa (`75` suites, `379` tests).
+- Verificacion parcial de migracion: todas las migraciones, incluida `20260503120000_add_audit_chain_state`, aplican correctamente con `sqlite3` sobre una base temporal limpia. `node backend/node_modules/prisma/build/index.js validate --schema backend/prisma/schema.prisma` y `migrate diff --from-empty --to-schema-datamodel` tambien quedan verdes.
+
+Pendiente despues de esta pasada:
+
+- No verificado: `node backend/node_modules/prisma/build/index.js migrate deploy --schema backend/prisma/schema.prisma` contra una SQLite temporal devuelve `Schema engine error` sin detalle en este entorno, aunque el SQL aplica con `sqlite3` y el schema valida. Antes de produccion hay que resolver o documentar este comportamiento del CLI de Prisma usado en deploy.
+- Ejecutar migracion contra una copia de una base con auditoria historica y luego `npm --prefix backend run audit:integrity:verify`, porque la inicializacion de `audit_chain_state` toma el ultimo hash historico por timestamp para encadenar entradas nuevas.
+- Si se migra a Postgres u otro motor, reemplazar el bloqueo SQLite por bloqueo nativo equivalente (`SELECT ... FOR UPDATE`, advisory lock o transaccion serializable probada).
 
 ## Riesgos Conocidos a Vigilar
 

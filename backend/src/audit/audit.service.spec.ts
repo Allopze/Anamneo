@@ -234,7 +234,7 @@ describe('AuditService', () => {
 
     expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        orderBy: { timestamp: 'desc' },
+        orderBy: [{ chainSequence: 'desc' }, { timestamp: 'desc' }],
         take: 2,
       }),
     );

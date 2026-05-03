@@ -124,6 +124,19 @@ export class AlertsService {
       ...acknowledgedAlerts,
     ];
     const alerts = await attachUserNames(this.prisma, sortedAlerts);
+    await this.audit.log({
+      entityType: 'ClinicalAlert',
+      entityId: patientId,
+      userId: user.id,
+      action: 'READ',
+      reason: 'ALERT_LIST_VIEWED',
+      diff: {
+        scope: 'ALERT_LIST',
+        patientId,
+        includeAcknowledged: options.includeAcknowledged === true,
+        count: alerts.length,
+      },
+    });
     if (options.withMeta) {
       return {
         data: alerts,

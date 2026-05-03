@@ -27,6 +27,23 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/stores/auth-store', () => ({
+  useAuthUser: () => currentUser,
+  useAuthIsMedico: () => {
+    const permissions = jest.requireActual('@/lib/permissions');
+    return permissions.isMedicoUser(currentUser);
+  },
+  useAuthCanEditAntecedentes: () => {
+    const permissions = jest.requireActual('@/lib/permissions');
+    return permissions.canEditAntecedentes(currentUser);
+  },
+  useAuthCanEditPatientAdmin: () => {
+    const permissions = jest.requireActual('@/lib/permissions');
+    return permissions.canEditPatientAdmin(currentUser);
+  },
+  useAuthCanCreateEncounter: () => {
+    const permissions = jest.requireActual('@/lib/permissions');
+    return permissions.canCreateEncounter(currentUser);
+  },
   useAuthStore: () => {
     const permissions = jest.requireActual('@/lib/permissions');
     return {

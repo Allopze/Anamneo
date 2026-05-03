@@ -116,5 +116,24 @@ export function authTwoFactorSuite() {
         .send({ tempToken: state.medicoTempToken, code })
         .expect(401);
     });
+
+    it('re-authenticates medico after 2FA tests for downstream suites', async () => {
+      const loginRes = await req()
+        .post('/api/auth/login')
+        .send({ email: 'medico@test.com', password: 'New.Pass123' })
+        .expect(200);
+
+      expect(loginRes.body.requires2FA).toBe(true);
+      expect(typeof loginRes.body.tempToken).toBe('string');
+
+      const code = authenticator.generate(state.medicoTotpSecret);
+      const verifyRes = await req()
+        .post('/api/auth/2fa/verify')
+        .send({ tempToken: loginRes.body.tempToken, code })
+        .expect(200);
+
+      state.medicoCookies = extractCookies(verifyRes);
+      expect(state.medicoCookies.length).toBeGreaterThanOrEqual(2);
+    });
   });
 }

@@ -132,6 +132,11 @@ export function authSessionManagementSuite() {
       expect(revokeRes.body.id).toBe(remoteSession.id);
 
       await req()
+        .get('/api/auth/me')
+        .set('Cookie', cookieHeader(remoteAssistantCookies))
+        .expect(401);
+
+      await req()
         .post('/api/auth/refresh')
         .set('Cookie', cookieHeader(remoteAssistantCookies))
         .expect(401);

@@ -30,6 +30,11 @@ jest.mock('axios', () => ({
 }));
 
 jest.mock('@/stores/auth-store', () => ({
+  useAuthUser: () => mockUser,
+  useAuthIsAuthenticated: () => true,
+  useAuthHasHydrated: () => true,
+  useAuthLogin: () => loginMock,
+  useAuthLogout: () => logoutMock,
   useAuthStore: () => ({
     user: mockUser,
     isAuthenticated: true,

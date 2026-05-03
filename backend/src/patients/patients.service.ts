@@ -93,7 +93,16 @@ export class PatientsService {
   }
 
   async findById(user: RequestUser, id: string) {
-    return findPatientById(this.prisma, user, id);
+    const patient = await findPatientById(this.prisma, user, id);
+    await this.auditService.log({
+      entityType: 'Patient',
+      entityId: id,
+      userId: user.id,
+      action: 'READ',
+      reason: 'PATIENT_RECORD_VIEWED',
+      diff: { scope: 'PATIENT_RECORD' },
+    });
+    return patient;
   }
 
   async findEncounterTimeline(user: RequestUser, patientId: string, page = 1, limit = 10) {
@@ -112,7 +121,16 @@ export class PatientsService {
     options?: { fullVitalHistory?: boolean },
   ) {
     await this.assertPatientAccess(user, patientId);
-    return getClinicalSummary(this.prisma, user, patientId, options);
+    const summary = await getClinicalSummary(this.prisma, user, patientId, options);
+    await this.auditService.log({
+      entityType: 'Patient',
+      entityId: patientId,
+      userId: user.id,
+      action: 'READ',
+      reason: 'PATIENT_CLINICAL_SUMMARY_VIEWED',
+      diff: { scope: 'CLINICAL_SUMMARY', fullVitalHistory: options?.fullVitalHistory === true },
+    });
+    return summary;
   }
 
   async findTasks(

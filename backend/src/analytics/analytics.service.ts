@@ -23,24 +23,55 @@ export class AnalyticsService {
     }
   }
 
-  getClinicalSummary(user: CurrentUserData, query: ClinicalAnalyticsQueryDto) {
-    this.assertClinicalAnalyticsAccess(user);
-
-    return getClinicalAnalyticsSummaryReadModel({
-      prisma: this.prisma,
-      user,
-      query,
-    });
+  private buildAuditFilterSummary(query: ClinicalAnalyticsQueryDto | ClinicalAnalyticsCasesQueryDto) {
+    return {
+      source: query.source,
+      fromDate: query.fromDate,
+      toDate: query.toDate,
+      followUpDays: query.followUpDays,
+    };
   }
 
-  getClinicalCases(user: CurrentUserData, query: ClinicalAnalyticsCasesQueryDto) {
+  async getClinicalSummary(user: CurrentUserData, query: ClinicalAnalyticsQueryDto) {
     this.assertClinicalAnalyticsAccess(user);
 
-    return getClinicalAnalyticsCasesReadModel({
+    const summary = await getClinicalAnalyticsSummaryReadModel({
       prisma: this.prisma,
       user,
       query,
     });
+    await this.auditService.log({
+      entityType: 'ClinicalAnalyticsSummary',
+      entityId: user.id,
+      userId: user.id,
+      action: 'READ',
+      reason: 'CLINICAL_ANALYTICS_SUMMARY_VIEWED',
+      diff: { scope: 'CLINICAL_ANALYTICS_SUMMARY', filters: this.buildAuditFilterSummary(query) },
+    });
+    return summary;
+  }
+
+  async getClinicalCases(user: CurrentUserData, query: ClinicalAnalyticsCasesQueryDto) {
+    this.assertClinicalAnalyticsAccess(user);
+
+    const cases = await getClinicalAnalyticsCasesReadModel({
+      prisma: this.prisma,
+      user,
+      query,
+    });
+    await this.auditService.log({
+      entityType: 'ClinicalAnalyticsCases',
+      entityId: user.id,
+      userId: user.id,
+      action: 'READ',
+      reason: 'CLINICAL_ANALYTICS_CASES_VIEWED',
+      diff: {
+        scope: 'CLINICAL_ANALYTICS_CASES',
+        filters: this.buildAuditFilterSummary(query),
+        count: cases.pagination.total,
+      },
+    });
+    return cases;
   }
 
   exportClinicalCasesCsv(user: CurrentUserData, query: ClinicalAnalyticsCasesQueryDto) {

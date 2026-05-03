@@ -379,6 +379,7 @@ model AuditLog {
   diff          String?
   integrityHash String?  @map("integrity_hash")
   previousHash  String?  @map("previous_hash")
+  chainSequence Int?     @unique @map("chain_sequence")
   timestamp     DateTime @default(now())
 
   @@index([entityType, entityId])
@@ -389,6 +390,15 @@ model AuditLog {
   @@index([result])
   @@index([timestamp])
   @@map("audit_logs")
+}
+
+model AuditChainState {
+  id         String   @id @default("default")
+  latestHash String   @default("GENESIS") @map("latest_hash")
+  sequence   Int      @default(0)
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("audit_chain_state")
 }
 
 model AuditIntegritySnapshot {

@@ -25,6 +25,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/stores/auth-store', () => ({
+  useAuthUser: () => currentUser,
   useAuthStore: () => ({ user: currentUser }),
 }));
 

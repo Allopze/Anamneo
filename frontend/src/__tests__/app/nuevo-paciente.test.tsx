@@ -14,6 +14,16 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/stores/auth-store', () => ({
+  useAuthUser: () => ({
+    id: 'med-1',
+    email: 'medico@anamneo.cl',
+    nombre: 'Dra. Rivera',
+    role: 'MEDICO',
+    isAdmin: false,
+    medicoId: null,
+  }),
+  useAuthIsMedico: () => true,
+  useAuthCanCreatePatient: () => true,
   useAuthStore: () => ({
     user: {
       id: 'med-1',

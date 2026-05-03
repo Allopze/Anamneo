@@ -26,6 +26,9 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/stores/auth-store', () => ({
+  useAuthUser: () => authStoreState.user,
+  useAuthIsMedico: () => authStoreState.isMedico(),
+  useAuthCanEditPatientAdmin: () => authStoreState.canEditPatientAdmin(),
   useAuthStore: () => authStoreState,
 }));
 

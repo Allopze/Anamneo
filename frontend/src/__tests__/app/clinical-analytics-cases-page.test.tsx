@@ -36,6 +36,7 @@ jest.mock('react-hot-toast', () => ({
 }));
 
 jest.mock('@/stores/auth-store', () => ({
+  useAuthUser: () => mockUser,
   useAuthStore: () => ({
     user: mockUser,
   }),

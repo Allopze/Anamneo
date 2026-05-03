@@ -67,6 +67,7 @@ describe('issueTokensWithSession', () => {
       email: user.email,
       role: user.role,
       sid: 'session-1',
+      sv: 7,
     });
     expect(jwtService.sign).toHaveBeenNthCalledWith(
       2,

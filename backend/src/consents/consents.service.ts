@@ -186,6 +186,14 @@ export class ConsentsService {
     const userNames = await this.resolveUserNames(Array.from(new Set(consents.map((consent) => consent.grantedById))));
 
     const data = consents.map((consent) => this.formatConsent(consent, userNames));
+    await this.audit.log({
+      entityType: 'InformedConsent',
+      entityId: patientId,
+      userId: user.id,
+      action: 'READ',
+      reason: 'CONSENT_LIST_VIEWED',
+      diff: { scope: 'CONSENT_LIST', patientId, count: data.length },
+    });
     if (options.withMeta) {
       return {
         data,

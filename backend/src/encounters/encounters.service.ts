@@ -89,7 +89,7 @@ export class EncountersService {
     } = {},
   ) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
-    return findEncounterByIdReadModel({
+    const encounter = await findEncounterByIdReadModel({
       prisma: this.prisma,
       id,
       effectiveMedicoId,
@@ -101,15 +101,38 @@ export class EncountersService {
       includeSignatures: options.includeSignatures,
       includeSuggestions: options.includeSuggestions,
     });
+    await this.auditService.log({
+      entityType: 'Encounter',
+      entityId: id,
+      userId: user.id,
+      action: 'READ',
+      reason: 'ENCOUNTER_RECORD_VIEWED',
+      diff: {
+        scope: 'ENCOUNTER_RECORD',
+        includeAttachments: options.includeAttachments !== false,
+        includeConsents: options.includeConsents !== false,
+        includeTasks: options.includeTasks !== false,
+      },
+    });
+    return encounter;
   }
 
   async findByPatient(patientId: string, user: RequestUser) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
-    return findEncountersByPatientReadModel({
+    const timeline = await findEncountersByPatientReadModel({
       prisma: this.prisma,
       patientId,
       effectiveMedicoId,
     });
+    await this.auditService.log({
+      entityType: 'Encounter',
+      entityId: patientId,
+      userId: user.id,
+      action: 'READ',
+      reason: 'ENCOUNTER_TIMELINE_VIEWED',
+      diff: { scope: 'TIMELINE', patientId },
+    });
+    return timeline;
   }
 
   async duplicate(sourceEncounterId: string, user: RequestUser) {

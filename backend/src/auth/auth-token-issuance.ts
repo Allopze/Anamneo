@@ -61,6 +61,7 @@ export async function issueTokensWithSession(
     email: user.email,
     role: user.role,
     sid: session.id,
+    sv: session.tokenVersion,
   };
 
   const refreshPayload: JwtPayload = {

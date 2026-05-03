@@ -13,6 +13,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/stores/auth-store', () => ({
+  useAuthUser: () => ({ id: 'admin-1', role: 'ADMIN', isAdmin: isAdminValue }),
   useAuthIsAdmin: () => isAdminValue,
   useAuthStore: () => ({
     isAdmin: () => isAdminValue,
