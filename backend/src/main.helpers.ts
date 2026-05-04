@@ -14,6 +14,7 @@ export function assertSafeConfig(configService: ConfigService) {
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
   const isProduction = nodeEnv === 'production';
   const allowSqliteInProduction = configService.get<string>('ALLOW_SQLITE_IN_PRODUCTION', 'false') === 'true';
+  const deploymentScope = configService.get<string>('ANAMNEO_DEPLOYMENT_SCOPE', isProduction ? '' : 'single-clinic')?.trim();
   const placeholderValues = new Set([
     'replace-with-a-secure-random-secret',
     'replace-with-a-different-secure-random-secret',
@@ -34,6 +35,18 @@ export function assertSafeConfig(configService: ConfigService) {
   const isSqlite = databaseUrl.startsWith('file:');
   if (isProduction && isSqlite && !allowSqliteInProduction) {
     throw new Error('SQLite in production requires ALLOW_SQLITE_IN_PRODUCTION=true. Prefer PostgreSQL for production.');
+  }
+
+  if (isProduction) {
+    if (!deploymentScope) {
+      throw new Error('ANAMNEO_DEPLOYMENT_SCOPE=single-clinic is required in production');
+    }
+
+    if (deploymentScope !== 'single-clinic') {
+      throw new Error(
+        'Only ANAMNEO_DEPLOYMENT_SCOPE=single-clinic is supported in this release. Multi-tenant deployments require a Clinic/Tenant data model first.',
+      );
+    }
   }
 
   if (!jwtSecret || placeholderValues.has(jwtSecret)) {

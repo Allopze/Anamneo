@@ -44,6 +44,15 @@ Tambien persiste datos en carpetas locales bajo `./runtime/`:
 
 Los puertos publicados por Compose quedan atados a loopback por defecto (`127.0.0.1`). Eso es intencional. Este producto esta pensado para publicarse detras de `cloudflared`, no para exponer `:5555` o `:5678` directo a internet y despues preguntarse por que las cookies `Secure` no cooperan.
 
+## Alcance De La Beta Productiva
+
+La beta soportada por este release es **single-clinic**:
+
+- `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic` debe estar configurado en produccion.
+- Una clinica equivale a una instancia de Compose, una base SQLite, un directorio de uploads y una carpeta de backups.
+- No mezcles clinicas distintas en la misma instancia. El schema aun no tiene `Clinic`, `Tenant` ni `clinicId` obligatorio.
+- El backend rechaza otros alcances productivos, incluido `multi-tenant`, hasta que exista un modelo de tenant/clinic con migraciones, guards, filtros y tests de aislamiento.
+
 ## Modelo Soportado De Publicacion
 
 El despliegue internet-facing soportado para este proyecto es:
@@ -110,12 +119,31 @@ Si quieres un release serio, corre primero build, typecheck y tests relevantes. 
 
 ## Checklist Pre-Release
 
-1. `npm run build`
-2. `npm --prefix backend run typecheck`
-3. `npm --prefix frontend run typecheck`
-4. Tests relevantes del area tocada
-5. Confirmar variables de entorno del entorno destino
-6. Confirmar backup reciente si hay cambios de datos o migraciones
+1. `npm --prefix backend run lint:check`
+2. `npm --prefix frontend run lint`
+3. `npm --prefix backend run typecheck`
+4. `npm --prefix frontend run typecheck`
+5. `npm --prefix backend run test`
+6. `npm --prefix frontend run test`
+7. `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts`
+8. `npm --prefix frontend run test:e2e`
+9. `npm run build`
+10. `DATABASE_URL=file:<tmp>/migrate.db npm --prefix backend run prisma:migrate:prod`
+11. `git ls-files 'backend/.env' 'frontend/.env' '*.db' '*.db.*' '*.db-journal' '*.db-shm' '*.db-wal' '*.bak' 'backend/.playwright-e2e/**' 'backend/uploads-e2e/**' 'runtime/**' 'backend/tmp*.pdf'` no debe listar nada.
+12. `npm run release`
+
+Para cerrar la evidencia local/Docker de una beta single-clinic, ademas corre:
+
+```bash
+docker compose build
+docker compose up -d
+curl -s http://127.0.0.1:${BACKEND_PORT:-5678}/api/health
+npm run db:backup
+npm run db:restore:drill
+npm --prefix backend run audit:integrity:verify
+```
+
+Si necesitas probar rollback sin datos reales, usa una base sintetica, toma backup, fuerza una falla controlada de migracion en una copia de trabajo y documenta que el backup vuelve a dejar `/api/health` en OK.
 
 ## Despliegue Manual
 
@@ -125,7 +153,8 @@ cd anamneo
 mkdir -p runtime/data runtime/uploads
 cp .env.example .env
 # Completa al menos JWT_SECRET, JWT_REFRESH_SECRET, BOOTSTRAP_TOKEN,
-# CORS_ORIGIN, APP_PUBLIC_URL y SETTINGS_ENCRYPTION_KEY antes de seguir.
+# CORS_ORIGIN, APP_PUBLIC_URL, SETTINGS_ENCRYPTION_KEY,
+# ENCRYPTION_AT_REST_CONFIRMED y ANAMNEO_DEPLOYMENT_SCOPE=single-clinic antes de seguir.
 # Si trabajas backend o frontend por separado, revisa tambien sus .env locales como overlays de desarrollo.
 docker compose build
 docker compose run --rm --no-deps backend npx prisma migrate deploy
@@ -140,7 +169,8 @@ cd anamneo
 mkdir -p runtime/data runtime/uploads
 cp .env.example .env
 # Completa al menos JWT_SECRET, JWT_REFRESH_SECRET, BOOTSTRAP_TOKEN,
-# CORS_ORIGIN, APP_PUBLIC_URL y SETTINGS_ENCRYPTION_KEY antes de seguir.
+# CORS_ORIGIN, APP_PUBLIC_URL, SETTINGS_ENCRYPTION_KEY,
+# ENCRYPTION_AT_REST_CONFIRMED y ANAMNEO_DEPLOYMENT_SCOPE=single-clinic antes de seguir.
 # Si trabajas backend o frontend por separado, revisa tambien sus .env locales como overlays de desarrollo.
 docker compose build
 npm run deploy

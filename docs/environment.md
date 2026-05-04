@@ -5,6 +5,7 @@ La fuente base para estas variables es `.env.example` en la raiz. `backend/.env`
 ## Reglas Que Si Importan
 
 - `JWT_SECRET` y `JWT_REFRESH_SECRET` son obligatorias y deben ser distintas.
+- `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic` es obligatorio en produccion. Esta beta soporta una clinica por instancia; `multi-tenant` queda bloqueado hasta implementar `Clinic/Tenant`.
 - `BOOTSTRAP_TOKEN` debe existir en produccion para proteger el primer registro administrador.
 - En produccion, ambas deben tener al menos 32 caracteres.
 - En produccion, `BOOTSTRAP_TOKEN` tambien debe tener al menos 32 caracteres.
@@ -18,6 +19,7 @@ La fuente base para estas variables es `.env.example` en la raiz. `backend/.env`
 | Variable | Requerida | Default | Uso |
 |---|---|---|---|
 | `NODE_ENV` | No | `development` | Entorno general |
+| `ANAMNEO_DEPLOYMENT_SCOPE` | Si en produccion | `single-clinic` | Alcance de despliegue soportado. La beta actual es una clinica por instancia/base/volumen |
 | `DATABASE_URL` | Si | `file:./dev.db` en ejemplo | Conexion Prisma |
 | `TEST_DATABASE_URL` | No | vacio | Base de datos opcional para e2e |
 | `JWT_SECRET` | Si | Ninguno valido | Firma de access token |
@@ -34,7 +36,7 @@ La fuente base para estas variables es `.env.example` en la raiz. `backend/.env`
 | `APP_TIME_ZONE` | No | `America/Santiago` | Zona horaria clinica usada para comparaciones `date-only` (edad, vencimientos, seguimientos) |
 | `NEXT_PUBLIC_API_URL` | Si en despliegue frontend | `/api` en desarrollo recomendado | URL consumida por browser |
 | `API_PROXY_TARGET` | No | `http://localhost:5678/api` | Destino server-side del proxy de Next.js |
-| `NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE` | No | `false` | Fuerza modo compartido en el frontend |
+| `NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE` | No | `true` en ejemplos productivos | Fuerza modo compartido en el frontend y desactiva borradores/offline locales con PHI |
 | `NEXT_ALLOWED_DEV_ORIGINS` | No | vacio | Origenes extra permitidos por Next.js en desarrollo |
 | `APP_PUBLIC_URL` | No | `http://localhost:5555` en ejemplo | Links publicos en correos |
 | `FRONTEND_PUBLIC_URL` | No | vacio | URL alternativa del frontend para enlaces y correos |
@@ -97,6 +99,7 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 ### Produccion con Docker Compose + cloudflared
 
 - `docker-compose.yml` exige `JWT_SECRET`, `JWT_REFRESH_SECRET`, `BOOTSTRAP_TOKEN`, `CORS_ORIGIN`, `APP_PUBLIC_URL`, `SETTINGS_ENCRYPTION_KEY` y `ENCRYPTION_AT_REST_CONFIRMED`.
+- `docker-compose.yml` exige `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic`. Cada clinica productiva debe tener su propia instancia, base SQLite, uploads y backups aislados.
 - El frontend recibe `NEXT_PUBLIC_API_URL` como argumento de build y tambien como variable de runtime.
 - El backend aplica chequeos de seguridad al arrancar y falla rapido si encuentra placeholders o si falta la confirmacion de cifrado en reposo.
 - `BACKEND_BIND_HOST` y `FRONTEND_BIND_HOST` deberian quedarse en `127.0.0.1` salvo que tengas un motivo muy claro para abrirlos.

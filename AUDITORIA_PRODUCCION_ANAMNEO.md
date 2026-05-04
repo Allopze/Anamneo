@@ -5,15 +5,17 @@ Alcance: código fuente, configuración, documentación, Docker, CI, Prisma, bac
 
 ## Veredicto ejecutivo
 
-**No listo para producción.**
+**No listo para SaaS multi-clínica. Candidato a beta productiva single-clinic tras completar la evidencia local/Docker.**
 
-Anamneo tiene una base técnica seria: cookies `HttpOnly`, validación global, controles de arranque, permisos por rol, auditoría con cadena de integridad, backups SQLite, CI, tests frontend y suite backend/e2e backend ahora verdes. En las pasadas de remediación se corrigieron compilación/build backend, migración SQLite desde base limpia, redacción de auditoría, Sentry frontend, artefactos runtime trackeados, lint/backend, e2e backend y e2e frontend operativo. Sigue sin estar listo para producción con datos reales porque no hay modelo tenant/clinic explícito, el release todavía no es reproducible desde un árbol limpio, queda un e2e frontend omitido, faltan staging/Docker/restore/rollback y quedan riesgos operativos/observabilidad propios de SaaS médico.
+Anamneo tiene una base técnica seria: cookies `HttpOnly`, validación global, controles de arranque, permisos por rol, auditoría con cadena de integridad, backups SQLite, CI, tests frontend y suite backend/e2e backend ahora verdes. En las pasadas de remediación se corrigieron compilación/build backend, migración SQLite desde base limpia, redacción de auditoría, Sentry frontend, artefactos runtime trackeados, lint/backend, e2e backend y e2e frontend operativo. En la pasada de cierre beta se formalizó `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic`, se bloqueó cualquier despliegue productivo multi-tenant sin modelo `Clinic/Tenant`, se reactivó el e2e de recuperación de borrador y se documentó la evidencia local/Docker requerida.
+
+La conclusión cambia por alcance: para **SaaS médico multi-clínica**, sigue sin estar listo porque no existe modelo tenant/clinic. Para **beta controlada single-clinic**, puede avanzar si la matriz local/Docker pasa, el release queda limpio y se mantienen explícitas las deudas aceptadas: proxy real en Playwright, Sentry externo con PHI falsa y tenant/clinic antes de expansión.
 
 ## Nivel de riesgo general
 
-**Crítico.**
+**Alto para beta single-clinic; crítico para SaaS multi-clínica.**
 
-La criticidad ya no viene de build/migración básica ni de e2e backend/frontend principales, sino de lo que queda: arquitectura de datos todavía más cercana a instalación clínica single-host que a SaaS médico multi-tenant, release no reproducible, un e2e de recuperación de borrador omitido, staging/Docker no verificado y operación productiva real no probada.
+La criticidad ya no viene de build/migración básica ni de e2e backend/frontend principales. Para beta single-clinic, el riesgo está en cerrar evidencia operativa local/Docker, release reproducible y runbooks. Para SaaS multi-clínica, el riesgo sigue siendo crítico porque la arquitectura de datos todavía es de instalación clínica aislada.
 
 ## Correcciones realizadas
 
@@ -42,7 +44,16 @@ La criticidad ya no viene de build/migración básica ni de e2e backend/frontend
 - **Seed legal para e2e/frontend:** `backend/prisma/seed.ts` crea documentos legales publicados sintéticos para entornos de prueba que usan `prisma migrate diff` y no ejecutan inserts de migraciones.
 - **E2E frontend actualizado al flujo legal real:** `frontend/tests/e2e/smoke.spec.ts` y `frontend/tests/e2e/workflow-clinical.spec.ts` aceptan el checkbox legal requerido antes del registro.
 - **E2E frontend actualizado al toolbar actual:** `workflow-clinical.spec.ts` valida `Receta`, `Órdenes`, `Derivación`, `Descargar PDF` e `Imprimir` como `menuitem` dentro de `Exportar documentos`.
-- **E2E frontend operativo:** `npm --prefix frontend run test:e2e` pasa con 12 tests y 1 omitido. El omitido es `encounter-draft-recovery.spec.ts`, pendiente de rediseño para cubrir recuperación de borrador con sesión real/proxy standalone sin introducir bypass de auth.
+- **E2E frontend operativo en ese momento:** `npm --prefix frontend run test:e2e` pasaba con 12 tests y 1 omitido. Ese omitido fue abordado en la pasada 5.
+
+### Pasada 5 - 2026-05-04
+
+- **Alcance beta single-clinic formalizado:** se agregó `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic` en `.env.example`, `backend/.env.example` y `docker-compose.yml`; `backend/src/main.helpers.ts` ahora falla en producción si falta esa variable o si se intenta `multi-tenant` antes de implementar un modelo `Clinic/Tenant`.
+- **Cobertura de arranque productivo:** `backend/src/main.helpers.spec.ts` cubre aceptación de `single-clinic`, rechazo de variable ausente y rechazo de `multi-tenant`.
+- **Drift frontend corregido:** `frontend/next-env.d.ts` volvió a apuntar a `.next/types/routes.d.ts` y `frontend/.env.example` quedó alineado con `NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE=true`.
+- **E2E de draft reactivado con deuda aceptada:** `frontend/tests/e2e/encounter-draft-recovery.spec.ts` existe y Playwright lo lista. El flujo usa sesión/cookies reales de backend, pero el webServer frontend mantiene `E2E_DISABLE_PROXY_AUTH=true`; para esta beta se documenta como deuda aceptada.
+- **Docs de operación actualizadas:** `docs/environment.md`, `docs/deployment-and-release.md` y `docs/docker-staging-validation.md` describen una clínica por instancia/base/volúmenes, la matriz local/Docker y el bloqueo de SaaS multi-clínica hasta implementar tenant/clinic.
+- **Verificación focalizada ejecutada:** pasan `npm --prefix backend run test -- --runInBand main.helpers.spec.ts`, `npm --prefix backend run typecheck`, `npm --prefix backend run lint:check`, `npm --prefix frontend run typecheck`, `npm --prefix frontend run lint`, `npm --prefix frontend exec -- playwright test --list`, `git diff --check`, artifact guard y migración SQLite limpia con `prisma:migrate:prod`. `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic docker compose config --quiet` pasa; sin esa variable falla como control de seguridad esperado.
 
 ### Aclaración del punto 5: alcance single-clinic vs SaaS multi-tenant
 
@@ -52,28 +63,28 @@ Si el lanzamiento es una beta controlada de una sola clínica en una instalació
 
 ## Bloqueadores para producción
 
-### Estado de release no reproducible
+### Evidencia local/Docker y release reproducible pendientes
 
 - **Severidad:** Alta.
-- **Evidencia en workspace:** `git status --short` muestra cambios no confirmados previos y nuevos en backend, frontend, CI, `.gitignore`, `scripts/deploy.sh`, `AUDITORIA_PRODUCCION_ANAMNEO.md`, `backend/scripts/ensure-sqlite-db-file.js`, además de la migración nueva sin trackear `backend/prisma/migrations/20260504020648_legal/`.
-- **Riesgo real:** No se puede saber qué versión exacta se está auditando o desplegando. En sistemas clínicos esto rompe trazabilidad de cambios y rollback.
-- **Recomendación concreta:** Cerrar el diff, revisar la migración, confirmar que CI pasa desde un clone limpio, generar tag/release y guardar el hash desplegado.
+- **Evidencia en workspace:** la pasada de cierre agrega cambios intencionales en código/config/docs. Antes de release debe quedar un commit trazable, `git status --short` sin artefactos accidentales, `npm run release` validado y zip revisado.
+- **Riesgo real:** Sin hash/zip reproducible y matriz local/Docker no se puede demostrar qué versión se desplegó ni recuperar con confianza.
+- **Recomendación concreta:** Cerrar el diff, ejecutar la matriz local/Docker documentada, generar tag/release y guardar hash, zip y logs de validación.
 - **Esfuerzo estimado:** Bajo.
 
-### Validación staging/Docker y e2e omitido pendiente tras los fixes
+### Validación local/Docker pendiente tras los fixes
 
 - **Severidad:** Alta.
-- **Evidencia en código/proceso:** El e2e backend completo ya pasó (`225` tests, `1` snapshot) y el e2e frontend pasa con `12` tests y `1` omitido. El omitido está en `frontend/tests/e2e/encounter-draft-recovery.spec.ts`. No se probó despliegue Docker completo con dominio, cookies, CORS, backups, restore y rollback.
-- **Riesgo real:** Los flujos clínicos críticos pueden fallar en integración aunque las suites unitarias pasen. Para SaaS médico, auth, permisos, encounters, consentimientos, adjuntos y auditoría deben validarse de punta a punta antes de datos reales.
-- **Recomendación concreta:** Rediseñar o reactivar el e2e de recuperación de borrador con sesión real; levantar stack local/staging, repetir smoke backend/frontend contra el entorno desplegado, ejecutar restore drill, rollback y health checks; bloquear release si falla.
+- **Evidencia en código/proceso:** El e2e de recuperación de borrador está reactivado y Playwright lista 13 tests en 3 archivos, pero la evidencia requerida para esta beta es local/Docker: build, health, migración limpia, backup, restore drill, integridad de auditoría y rollback simulado con datos sintéticos.
+- **Riesgo real:** Sin esa prueba, una instalación clínica single-host puede fallar en operación aunque las suites de código pasen.
+- **Recomendación concreta:** Ejecutar la matriz de `docs/deployment-and-release.md`, guardar resultados y bloquear beta si falla health, backup, restore drill, migración limpia o integridad de auditoría.
 - **Esfuerzo estimado:** Medio.
 
 ### Arquitectura de datos no demuestra aislamiento SaaS multi-tenant
 
 - **Severidad:** Alta.
 - **Evidencia en código:** `backend/prisma/schema.prisma` no define `Tenant`, `Clinic`, `Organization` ni scopes multi-tenant. El aislamiento operativo se basa en `medicoId`, `createdById` y asistentes (`backend/src/common/utils/patient-access.ts:63-78`, `backend/src/encounters/encounter-policy.ts:10-23`). Docker productivo usa `DATABASE_URL=file:/app/data/anamneo.db` (`docker-compose.yml:9-11`).
-- **Riesgo real:** Para SaaS médico con múltiples clínicas, no hay frontera de tenant auditable a nivel de modelo, índices, constraints ni middleware. Un bug de scope médico puede convertirse en exposición inter-clínica.
-- **Recomendación concreta:** Definir modelo de tenant/clinic, agregar FK obligatorias en entidades clínicas y administrativas, middleware/guards de tenant, migraciones, fixtures de aislamiento y tests e2e de no exposición entre tenants.
+- **Riesgo real:** Para SaaS médico con múltiples clínicas, no hay frontera de tenant auditable a nivel de modelo, índices, constraints ni middleware. Un bug de scope médico puede convertirse en exposición inter-clínica. Para beta single-clinic, el riesgo se contiene operativamente con una clínica por instancia/base/volúmenes.
+- **Recomendación concreta:** Mantener `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic` en producción beta. Antes de SaaS multi-clínica, definir modelo tenant/clinic, agregar FK obligatorias en entidades clínicas y administrativas, middleware/guards de tenant, migraciones, fixtures de aislamiento y tests e2e de no exposición entre tenants.
 - **Esfuerzo estimado:** Alto.
 
 ## Riesgos importantes no bloqueantes
@@ -131,7 +142,7 @@ Si el lanzamiento es una beta controlada de una sola clínica en una instalació
 
 - PHI principal se almacena en SQLite, adjuntos y backups; la app exige confirmación de cifrado de filesystem en producción (`backend/src/main.helpers.ts:89-96`), pero no cifra todo a nivel aplicación.
 - `EncounterSection.data` puede cifrarse si `ENCRYPTION_KEY` existe (`backend/src/encounters/encounters-sanitize.ts`), pero esa variable no es obligatoria en producción y `.env.example` la deja vacía.
-- La auditoría de lecturas existe para fichas, resumen clínico, encounters, adjuntos, consentimientos, alertas y analytics, pero no para todos los listados con PHI.
+- La auditoría de lecturas existe para fichas, resumen clínico, encounters, adjuntos, consentimientos, alertas y analytics. Queda como política pendiente decidir si listados amplios como inbox, dashboards y búsquedas deben generar eventos agregados.
 - La redacción de `audit_logs.diff` se amplió a `Attachment`, `ClinicalAlert`, `InformedConsent` y `TextTemplate`; quedan por revisar exports analíticos, Sentry frontend y una política completa de listados/dashboards.
 - Textos legales base existen, pero la propia migración indica que requieren revisión legal antes de producción.
 
@@ -141,15 +152,15 @@ Si el lanzamiento es una beta controlada de una sola clínica en una instalació
 - Validación global con whitelist y `forbidNonWhitelisted` (`backend/src/main.bootstrap.ts:148-158`).
 - Controllers en general delgados y servicios con reglas de negocio.
 - Backend `typecheck`, `build`, lint y suite unitaria completa pasan tras las correcciones.
-- Riesgo de operaciones no atómicas si auditoría falla después de persistir fuera de transacción; `TextTemplate` ya está catalogado, pero conviene revisar el patrón en otros servicios.
-- Auditoría usa cadena de hash y estado persistido; los raw upserts de `audit_chain_state` ya inicializan `updated_at`. Sigue necesitando revisión multi-proceso/motor real y e2e de integridad en staging.
+- Riesgo de operaciones no atómicas si auditoría falla después de persistir fuera de transacción; conviene revisar el patrón en servicios nuevos antes de ampliar la superficie clínica.
+- Auditoría usa cadena de hash y estado persistido; los raw upserts de `audit_chain_state` ya inicializan `updated_at`. Para beta single-clinic falta ejecutar verificación de integridad en Docker local; para despliegues con múltiples instancias backend se requiere bloqueo distribuido o DB-level locking.
 
 ### Frontend
 
 - API same-origin por `/api` (`frontend/next.config.js:45-49`), proxy de sesión (`frontend/src/proxy.ts`), store en `sessionStorage` para auth (`frontend/src/stores/auth-store.ts`).
 - Flujos clínicos tienen loading/error/empty states, confirmaciones para finalizar, firmar, archivar, fusionar y eliminar adjuntos.
 - Permisos UI existen, pero dependen correctamente del backend como enforcement real.
-- Riesgo: drafts/offline/conflicts guardan PHI local si se desactiva modo compartido.
+- Riesgo: drafts/offline/conflicts guardan PHI local si se desactiva modo compartido. Docker, `.env.example` raíz y `frontend/.env.example` quedan alineados en `NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE=true`.
 - Sentry frontend ahora desactiva replay en producción y limpia contexto sensible; falta prueba real contra staging/Sentry.
 
 ### Base de datos
@@ -176,8 +187,8 @@ Si el lanzamiento es una beta controlada de una sola clínica en una instalació
 - Backend e2e completo pasó: 225 tests, 1 snapshot.
 - Backend typecheck, lint y build pasan.
 - Frontend typecheck, lint y build pasan.
-- Frontend e2e pasa con 12 tests y 1 omitido.
-- No ejecuté prueba Docker/staging; sigue bloqueando producción con datos reales.
+- Frontend e2e ahora lista 13 tests en 3 archivos, incluyendo recuperación de borrador. La deuda aceptada para beta es que Playwright mantiene `E2E_DISABLE_PROXY_AUTH=true`.
+- No ejecuté todavía la matriz local/Docker completa; sigue bloqueando declarar lista la beta con datos reales.
 
 ### Dependencias
 
@@ -203,23 +214,23 @@ Si el lanzamiento es una beta controlada de una sola clínica en una instalació
 
 | Ítem | Estado | Evidencia | Acción requerida |
 |---|---|---|---|
-| Autenticación segura | Parcial | Cookies `HttpOnly/Secure/SameSite`, JWT cookie-only, sesiones `sid/sv`; backend unitario y e2e backend pasan | Revalidar en e2e frontend/staging |
-| Autorización por rol | Parcial | `RolesGuard`, `AdminGuard`, contratos compartidos; test de metadata pasa y lint queda verde | Cubrir rutas nuevas y e2e permisos frontend/staging |
-| Aislamiento de datos entre usuarios/tenants | Parcial | Scope por `medicoId`/`createdById`; sin `Tenant` | Diseñar tenant/clinic model para SaaS |
+| Autenticación segura | Parcial | Cookies `HttpOnly/Secure/SameSite`, JWT cookie-only, sesiones `sid/sv`; backend unitario/e2e backend pasan; e2e draft reactivado | Revalidar en matriz local/Docker; proxy real Playwright queda deuda aceptada |
+| Autorización por rol | Parcial | `RolesGuard`, `AdminGuard`, contratos compartidos; test de metadata pasa y lint queda verde | Cubrir rutas nuevas y mantener e2e permisos |
+| Aislamiento de datos entre usuarios/tenants | Parcial por alcance | Scope por `medicoId`/`createdById`; `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic`; sin `Tenant` | Una clínica por instancia en beta; diseñar tenant/clinic antes de SaaS |
 | Cifrado en tránsito | No verificado | App asume cloudflared/HTTPS | Verificar TLS real y HSTS externo |
 | Manejo de secretos | Parcial | `assertSafeConfig`, Gitleaks | Validar secret management real y rotación |
 | Logs sin datos sensibles | Parcial | Redacción ampliada para `Attachment`, `ClinicalAlert`, `InformedConsent`, `TextTemplate`; Sentry frontend limpia contexto y no usa replay en producción | Revisar exports, logs reales y evento Sentry sintético |
 | Backups | Parcial | `backup-cron`, `sqlite-backup.js`, docs | Probar en entorno real con alertas |
 | Restauración probada | Parcial | Script restore drill existe; migración limpia ya aplica | Probar restore completo con copia real |
 | Auditoría de acciones clínicas | Parcial | `AuditLog`, hash chain, eventos de lectura críticos | Cubrir listados/dashboards y limpiar PHI en diff |
-| Tests críticos | Parcial | Backend typecheck/lint/build/test/e2e pasan; frontend typecheck/lint/test/build/e2e pasan con 1 omitido | Reactivar e2e omitido y correr smoke staging |
+| Tests críticos | Parcial | E2E draft reactivado; matriz completa debe ejecutarse en esta rama | Correr lint/typecheck/unit/e2e/build y matriz Docker local |
 | CI/CD | Parcial | GitHub Actions con lint/typecheck/test/e2e/audit y artifact guard ampliado | Exigir migración deploy y validar CI limpio |
 | Monitoreo | Parcial | Sentry backend/frontend con redacción básica, health checks | Configurar dashboards, alertas y prueba sintética |
 | Alertas | Parcial | SQLite webhook configurable | Verificar alertas reales y on-call |
 | Manejo de errores | Parcial | Global exception filter, Sentry backend | Validar frontend/backend en producción |
 | Rollback | Parcial | `scripts/deploy.sh` ofrece rollback DB/uploads y prepara primera DB SQLite | Probar con copia real y documentar RTO |
 | Documentación operativa | Parcial | `docs/deployment-and-release.md`, `docs/sqlite-operations.md` | Añadir runbook incidentes y checklist release |
-| Hardening de producción | Fallido | Buenas bases, pero tenant/e2e omitido/operación real siguen pendientes | Cerrar bloqueadores antes de datos reales |
+| Hardening de producción | Parcial para beta | Alcance single-clinic formalizado; SaaS multi-clínica bloqueado por diseño | Cerrar evidencia local/Docker antes de datos reales |
 
 ## Pruebas que debes ejecutar o sugerir
 
@@ -298,6 +309,15 @@ npm --prefix backend run build
 npm --prefix frontend run test:e2e
 # Pasó tras la pasada 4: 12 tests, 1 omitido
 
+npm --prefix frontend exec -- playwright test --list
+# Pasó tras la pasada 5: 13 tests listados en 3 archivos, incluyendo encounter-draft-recovery.spec.ts
+
+npm --prefix backend run test -- --runInBand main.helpers.spec.ts
+# Pasó tras la pasada 5: 1 suite, 3 tests
+
+ANAMNEO_DEPLOYMENT_SCOPE=single-clinic docker compose config --quiet
+# Pasó tras la pasada 5
+
 npm --prefix frontend run lint
 # Pasó tras la pasada 4
 
@@ -326,28 +346,35 @@ npm --prefix backend run test
 npm --prefix frontend run test
 npm --prefix frontend run test:e2e
 npm run build
+npm --prefix frontend exec -- playwright test --list
 npm run db:restore:drill
 npm --prefix backend run audit:integrity:verify
 DATABASE_URL=file:<tmp>/migrate.db npm --prefix backend run prisma:migrate:prod
+git ls-files 'backend/.env' 'frontend/.env' '*.db' '*.db.*' '*.db-journal' '*.db-shm' '*.db-wal' '*.bak' 'backend/.playwright-e2e/**' 'backend/uploads-e2e/**' 'runtime/**' 'backend/tmp*.pdf'
+npm run release
+docker compose build
+docker compose up -d
+curl -s http://127.0.0.1:${BACKEND_PORT:-5678}/api/health
+npm run db:backup
 ```
 
 ## Recomendaciones prioritarias
 
 ### 1. Antes de producción
 
-1. Cerrar o revertir cambios no committeados, trackear la migración nueva y obtener CI verde desde clone limpio.
-2. Reactivar el e2e omitido de recuperación de borrador y repetir smoke backend/frontend en staging.
-3. Probar `prisma:migrate:prod`, backup, restore drill y rollback con copia sintética representativa.
-4. Definir explícitamente si el alcance de producción será single-clinic controlado o SaaS multi-tenant; si es SaaS, diseñar tenant/clinic model antes de datos reales.
-5. Validar en CI limpio que los artefactos runtime eliminados del índice no vuelven a aparecer.
-6. Probar redacción Sentry frontend con evento sintético y PHI falsa en staging.
+1. Cerrar cambios intencionales en un commit/tag y obtener matriz local/Docker verde.
+2. Mantener `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic` y documentar una clínica por instancia/base/volúmenes.
+3. Probar `prisma:migrate:prod`, backup, restore drill, integridad de auditoría y rollback con copia sintética representativa.
+4. Validar que los artefactos runtime eliminados del índice no vuelven a aparecer.
+5. Probar redacción Sentry frontend con evento sintético y PHI falsa antes de producción amplia o staging externo.
+6. Bloquear cualquier despliegue SaaS multi-clínica hasta implementar tenant/clinic.
 
 ### 2. Antes de beta con usuarios reales
 
-1. Mantener `NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE=true` y prohibir modo offline local con PHI.
-2. Ejecutar e2e auth/permissions/encounters/consents/alerts en entorno staging, incluyendo el caso de recuperación de borrador.
+1. Mantener `NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE=true` y prohibir modo offline local con PHI salvo cifrado local futuro.
+2. Ejecutar e2e auth/permissions/encounters/consents/alerts y recuperación de borrador en la matriz local.
 3. Probar backup, restore, rollback y verificación de integridad de auditoría con datos sintéticos.
-4. Configurar HTTPS real, dominio, CORS exacto, firewall y Cloudflare Tunnel.
+4. Configurar HTTPS real, dominio, CORS exacto, firewall y Cloudflare Tunnel antes de exponer la beta.
 5. Definir política operativa de acceso admin, retención, exportación y respuesta a incidentes.
 
 ### 3. Primeros 30 días post-lanzamiento
@@ -358,24 +385,26 @@ DATABASE_URL=file:<tmp>/migrate.db npm --prefix backend run prisma:migrate:prod
 4. Revisar logs/auditoría/Sentry semanalmente con muestreo de privacidad.
 5. Hacer prueba de restauración y simulacro de incidente documentado.
 
-## Faltante tras la pasada 4
+## Faltante tras la pasada 5
 
-1. Reactivar `frontend/tests/e2e/encounter-draft-recovery.spec.ts` con sesión real o fixture de auth que no requiera bypass de proxy.
-2. Probar deploy Docker completo, health checks, backup, restore drill y rollback con copia sintética.
-3. Probar Sentry frontend con evento sintético y revisar retención/sample rates.
-4. Validar CI artifact guard en pull request limpio o clone limpio.
-5. Resolver decisión de arquitectura tenant/clinic antes de producción SaaS multi-clínica.
-6. Revisar y confirmar la migración nueva `backend/prisma/migrations/20260504020648_legal/` dentro del release.
+1. Ejecutar y guardar evidencia de la matriz local/Docker completa.
+2. Probar backup, restore drill, integridad de auditoría y rollback con copia sintética.
+3. Probar Sentry frontend con evento sintético y revisar retención/sample rates antes de producción amplia.
+4. Validar artifact guard en pull request limpio o clone limpio.
+5. Implementar tenant/clinic antes de producción SaaS multi-clínica.
+6. Documentar explícitamente que `E2E_DISABLE_PROXY_AUTH=true` es deuda aceptada en Playwright para esta beta.
 
 ## Siguientes pasos naturales
 
-1. Rediseñar el e2e omitido para recuperación de borrador usando una sesión real del stack Playwright.
-2. Hacer prueba operativa Docker con backup/restore/rollback.
-3. Abrir diseño técnico de tenant/clinic model o limitar formalmente el lanzamiento a beta single-clinic.
-4. Preparar PR con los artefactos runtime eliminados del índice y comprobar CI.
+1. Hacer prueba operativa Docker local con backup/restore/rollback.
+2. Preparar PR/release con cambios intencionales y comprobar CI.
+3. Probar Sentry con PHI falsa en entorno externo antes de ampliar exposición.
+4. Abrir implementación de tenant/clinic antes de cualquier oferta SaaS multi-clínica.
 
 ## Decisión final
 
-**Anamneo está listo para producción: No.**
+**Anamneo está listo para producción SaaS multi-clínica: No.**
 
-Condiciones mínimas para cambiar el veredicto: e2e frontend sin omitidos críticos, release reproducible desde CI limpio, configuración HTTPS/CORS/cookies validada en staging, backups/restauración/rollback probados con copia representativa, Sentry/logs revisados para PHI, y una decisión explícita sobre si el producto será beta single-clinic con SQLite o SaaS multi-tenant con modelo de tenant y base más robusta.
+**Anamneo puede avanzar a beta single-clinic: Solo si pasa la matriz local/Docker y el release queda trazable.**
+
+Condiciones mínimas para cambiar el veredicto beta a listo: e2e frontend sin omitidos críticos, release reproducible, matriz local/Docker verde, backups/restauración/rollback probados con copia representativa, integridad de auditoría verificada y `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic` configurado. Para SaaS multi-clínica, la condición mínima sigue siendo implementar modelo tenant/clinic con aislamiento probado.

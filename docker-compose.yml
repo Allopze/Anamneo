@@ -7,6 +7,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      ANAMNEO_DEPLOYMENT_SCOPE: ${ANAMNEO_DEPLOYMENT_SCOPE:?ANAMNEO_DEPLOYMENT_SCOPE=single-clinic is required}
       DATABASE_URL: file:/app/data/anamneo.db
       ALLOW_SQLITE_IN_PRODUCTION: "true"
       SQLITE_SYNCHRONOUS: ${SQLITE_SYNCHRONOUS:-NORMAL}
@@ -98,6 +99,7 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
+      ANAMNEO_DEPLOYMENT_SCOPE: ${ANAMNEO_DEPLOYMENT_SCOPE:?ANAMNEO_DEPLOYMENT_SCOPE=single-clinic is required}
       DATABASE_URL: file:/app/data/anamneo.db
       ALLOW_SQLITE_IN_PRODUCTION: "true"
       SQLITE_BACKUP_DIR: /app/data/backups

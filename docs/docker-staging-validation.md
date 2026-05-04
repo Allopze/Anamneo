@@ -349,19 +349,21 @@ echo "=== Validación CI Completada Exitosamente ==="
 | Health Checks | ⏳ Pendiente | Verificar backend y frontend |
 | Backup/Restore | ⏳ Pendiente | Ejecutar drill con datos sintéticos |
 | Sentry/PHI | ⏳ Pendiente | Configurar y probar redacción |
-| Tenant/Clinic | ⏳ Pendiente | Decidir arquitectura multi-tenant |
+| Alcance single-clinic | ⏳ Pendiente | Confirmar `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic` y una clinica por instancia |
+| Tenant/Clinic SaaS | ⏳ Pendiente | Implementar antes de produccion multi-clinica |
 | CI Limpio | ⏳ Pendiente | Validar desde clone limpio |
 
 ## 8. Próximos Pasos
 
 1. **Prioridad Alta**:
-   - Resolver decisión de tenant/clinic antes de producción SaaS
+   - Confirmar alcance beta single-clinic y no mezclar clinicas en una instancia
    - Ejecutar backup/restore drill con datos sintéticos
    - Validar CI completo desde clone limpio
 
 2. **Prioridad Media**:
    - Probar Sentry con PHI falsa y verificar redacción
    - Validar dominio, HTTPS, CORS/cookies en staging
+   - Resolver tenant/clinic antes de produccion SaaS multi-clinica
 
 3. **Prioridad Baja**:
    - Documentar procedimientos de operación
