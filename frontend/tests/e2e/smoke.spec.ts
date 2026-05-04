@@ -30,6 +30,7 @@ test('full smoke: bootstrap-aware access flow', async ({ page, request }) => {
   await page.getByLabel('Contraseña', { exact: true }).fill(ADMIN_PASSWORD);
   await page.getByLabel('Confirmar contraseña').fill(ADMIN_PASSWORD);
   await page.getByLabel('Token de instalación').fill(BOOTSTRAP_TOKEN);
+  await page.getByRole('checkbox', { name: /Acepto los/i }).check();
   await page.getByRole('button', { name: /Crear cuenta/i }).click();
 
   // Should land on dashboard with sidebar

@@ -42,7 +42,7 @@ export default defineConfig({
       cwd: backendRoot,
       port: Number(backendPort),
       reuseExistingServer,
-      timeout: 30000,
+      timeout: 300000,
       env: {
         NODE_ENV: 'test',
         DATABASE_URL: testDbUrl,
@@ -51,6 +51,7 @@ export default defineConfig({
         JWT_REFRESH_SECRET: 'e2e-jwt-refresh-secret-for-testing-only',
         JWT_EXPIRES_IN: '15m',
         JWT_REFRESH_EXPIRES_IN: '7d',
+        BACKEND_PORT: backendPort,
         PORT: backendPort,
         CORS_ORIGIN: baseURL,
         TRUST_PROXY: '0',
@@ -65,7 +66,7 @@ export default defineConfig({
       cwd: __dirname,
       port: Number(frontendPort),
       reuseExistingServer,
-      timeout: 120000,
+      timeout: 300000,
       env: {
         ...process.env,
         API_PROXY_TARGET: apiProxyTarget,

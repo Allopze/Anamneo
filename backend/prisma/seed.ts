@@ -16,6 +16,66 @@ function normalizeConditionName(name: string) {
     .toLowerCase();
 }
 
+const legalDocuments = [
+  {
+    id: 'legal-terms-2026-05-02',
+    type: 'TERMS',
+    version: '2026-05-02',
+    title: 'Términos y Condiciones de Servicio',
+    description: 'Condiciones de uso para el personal de salud y administradores que operan Anamneo.',
+    contentJson: {
+      summary: [
+        'Anamneo es una herramienta de apoyo para registrar y organizar información clínica.',
+        'El acceso es personal, se administra por roles y exige resguardar credenciales, dispositivos y sesiones.',
+      ],
+      sections: [
+        {
+          id: 'uso',
+          title: 'Uso del servicio',
+          body: [
+            'Anamneo permite gestionar pacientes, atenciones, consentimientos, adjuntos, alertas y reportes operativos dentro de un espacio clínico.',
+            'Las decisiones clínicas siguen siendo responsabilidad del equipo tratante y del prestador que usa la plataforma.',
+          ],
+        },
+      ],
+      contactEmail: 'soporte@anamneo.cl',
+      footerNote: 'Documento base para entornos de desarrollo y pruebas; requiere revisión legal antes de producción.',
+    },
+  },
+  {
+    id: 'legal-privacy-2026-05-02',
+    type: 'PRIVACY',
+    version: '2026-05-02',
+    title: 'Política de Privacidad',
+    description: 'Cómo Anamneo trata datos del personal de salud y datos sensibles de pacientes.',
+    contentJson: {
+      summary: [
+        'El personal de salud usa cuentas personales con trazabilidad de sesiones y actividad.',
+        'Los datos de pacientes se tratan como información sensible vinculada a la atención clínica.',
+      ],
+      sections: [
+        {
+          id: 'datos',
+          title: 'Datos tratados',
+          body: [
+            'Anamneo puede tratar identificación, contacto, antecedentes, atenciones, diagnósticos, consentimientos, alertas, tareas y adjuntos.',
+            'La retención, eliminación y respuesta a solicitudes debe definirse por el prestador responsable.',
+          ],
+        },
+      ],
+      dataCategories: [
+        {
+          label: 'Pacientes',
+          examples: 'Identificación, contacto, previsión, antecedentes, atenciones, alertas, consentimientos y adjuntos.',
+          purpose: 'Registro asistencial, continuidad de atención, documentación, auditoría y administración clínica.',
+        },
+      ],
+      contactEmail: 'soporte@anamneo.cl',
+      footerNote: 'Documento base para entornos de desarrollo y pruebas; requiere revisión legal antes de producción.',
+    },
+  },
+];
+
 // 30+ medical conditions in Spanish with synonyms
 const conditions = [
   { name: 'Dolor de cabeza', synonyms: ['cefalea', 'jaqueca', 'dolor cabeza', 'migraña'], tags: ['neurológico', 'dolor'] },
@@ -61,6 +121,33 @@ const conditions = [
 
 async function main() {
   console.log('🌱 Starting database seed...');
+
+  console.log('Creating published legal documents...');
+  for (const document of legalDocuments) {
+    await prisma.legalDocument.upsert({
+      where: { type_version: { type: document.type, version: document.version } },
+      update: {
+        status: 'PUBLISHED',
+        title: document.title,
+        description: document.description,
+        contentJson: JSON.stringify(document.contentJson),
+        effectiveAt: new Date('2026-05-02T00:00:00.000Z'),
+        publishedAt: new Date('2026-05-02T00:00:00.000Z'),
+      },
+      create: {
+        id: document.id,
+        type: document.type,
+        version: document.version,
+        status: 'PUBLISHED',
+        title: document.title,
+        description: document.description,
+        contentJson: JSON.stringify(document.contentJson),
+        effectiveAt: new Date('2026-05-02T00:00:00.000Z'),
+        publishedAt: new Date('2026-05-02T00:00:00.000Z'),
+      },
+    });
+  }
+  console.log(`  ✓ Created ${legalDocuments.length} legal documents`);
 
   // Create conditions catalog only (no demo users)
   console.log('Creating condition catalog...');

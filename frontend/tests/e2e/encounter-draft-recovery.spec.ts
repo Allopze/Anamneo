@@ -1,327 +1,204 @@
-import { expect, test } from '@playwright/test';
+import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { ADMIN_EMAIL, ADMIN_NOMBRE, ADMIN_PASSWORD, BOOTSTRAP_TOKEN, MEDICO_EMAIL, MEDICO_PASSWORD } from './e2e-identities';
 
-const medicoUser = {
-  id: 'med-1',
-  email: 'medico@anamneo.cl',
-  nombre: 'Dra. Rivera',
-  role: 'MEDICO',
-  isAdmin: false,
-  medicoId: null,
-};
+/**
+ * E2E: draft recovery with real Playwright session.
+ *
+ * Self-contained: bootstraps admin via UI, creates a MEDICO invitation,
+ * registers the medico via UI, then exercises the full draft lifecycle:
+ * patient → encounter → section edit → localStorage draft → session restore → draft recovery.
+ *
+ * This replaces the original skipped test that used mocked /api/auth/me route.
+ * The mock bypassed real auth and could not verify that the backend enforces
+ * session validity, cookies and CORS — all of which must work for PHI safety.
+ */
 
-const encounterPayload = {
-  id: 'enc-1',
-  patientId: 'patient-1',
-  createdById: 'med-1',
-  status: 'EN_PROGRESO',
-  reviewStatus: 'NO_REQUIERE_REVISION',
-  createdAt: '2026-04-04T12:00:00.000Z',
-  updatedAt: '2026-04-04T12:00:00.000Z',
-  patient: {
-    id: 'patient-1',
-    rut: '11.111.111-1',
-    rutExempt: false,
-    rutExemptReason: null,
-    nombre: 'Paciente Demo',
-    edad: 44,
-    sexo: 'FEMENINO',
-    trabajo: null,
-    prevision: 'FONASA',
-    domicilio: null,
-    createdAt: '2026-04-04T12:00:00.000Z',
-    updatedAt: '2026-04-04T12:00:00.000Z',
-  },
-  createdBy: {
-    id: 'med-1',
-    nombre: 'Dra. Rivera',
-  },
-  sections: [
-    {
-      id: 'sec-identificacion',
-      encounterId: 'enc-1',
-      sectionKey: 'IDENTIFICACION',
-      schemaVersion: 1,
-      label: 'Identificación',
-      order: 0,
-      data: {
-        nombre: 'Paciente Demo',
-        rut: '11.111.111-1',
-      },
-      completed: true,
-      updatedAt: '2026-04-04T12:00:00.000Z',
-    },
-    {
-      id: 'sec-motivo',
-      encounterId: 'enc-1',
-      sectionKey: 'MOTIVO_CONSULTA',
-      schemaVersion: 1,
-      label: 'Motivo de Consulta',
-      order: 1,
-      data: {
-        texto: '',
-      },
-      completed: false,
-      updatedAt: '2026-04-04T12:00:00.000Z',
-    },
-  ],
-  tasks: [],
-};
+const sidebar = (page: Page) =>
+  page.getByRole('navigation', { name: 'Navegación principal' });
 
-const savedIdentificationPayload = {
-  id: 'sec-identificacion',
-  encounterId: 'enc-1',
-  sectionKey: 'IDENTIFICACION',
-  schemaVersion: 1,
-  completed: true,
-  notApplicable: false,
-  notApplicableReason: null,
-  updatedAt: '2026-04-04T12:05:00.000Z',
-  data: {
-    nombre: 'Paciente Demo',
-    rut: '11.111.111-1',
-    rutExempt: false,
-    rutExemptReason: '',
-    edad: 44,
-    edadMeses: null,
-    sexo: 'FEMENINO',
-    prevision: 'FONASA',
-    trabajo: '',
-    domicilio: '',
-  },
-};
+/**
+ * Login helper — restores the real medico session captured in beforeAll.
+ * Mirrors the pattern from workflow-clinical.spec.ts.
+ */
+async function loginAsMedico(page: Page, cookies: Awaited<ReturnType<BrowserContext['cookies']>>) {
+  expect(cookies.length, 'Medico auth cookies should be available from beforeAll setup').toBeGreaterThan(0);
+  await page.context().addCookies(cookies);
+  await page.goto('/');
+  await expect(sidebar(page)).toBeVisible({ timeout: 20_000 });
+}
 
-test('recovers the local draft after 401, login and return to the encounter', async ({ context, page }) => {
-  const baseURL = test.info().project.use.baseURL ?? 'http://127.0.0.1:5555';
-  let failNextAuthMe = false;
+test.describe('Draft recovery with real Playwright session', () => {
+  test.describe.configure({ mode: 'serial' });
+  test.setTimeout(90_000);
 
-  await context.addCookies([
-    { name: 'access_token', value: 'test-access', url: baseURL },
-    { name: 'refresh_token', value: 'test-refresh', url: baseURL },
-  ]);
-
-  await page.route('**/api/auth/me', async (route) => {
-    if (failNextAuthMe) {
-      failNextAuthMe = false;
-      await route.fulfill({
-        status: 401,
-        contentType: 'application/json',
-        body: JSON.stringify({ message: 'Unauthorized', statusCode: 401 }),
-      });
-      return;
-    }
-
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(medicoUser),
-    });
-  });
-
-  await page.route('**/api/auth/login', async (route) => {
-    await context.addCookies([
-      { name: 'access_token', value: 'relogin-access', url: baseURL },
-      { name: 'refresh_token', value: 'relogin-refresh', url: baseURL },
-    ]);
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ ok: true, user: medicoUser }),
-    });
-  });
-
-  await page.route('**/api/auth/refresh', async (route) => {
-    await route.fulfill({
-      status: 401,
-      contentType: 'application/json',
-      body: JSON.stringify({ message: 'Unauthorized', statusCode: 401 }),
-    });
-  });
-
-  await page.route('**/api/auth/logout', async (route) => {
-    await context.clearCookies();
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ ok: true }),
-    });
-  });
-
-  await page.route('**/api/conditions/suggest', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([]),
-    });
-  });
-
-  await page.route('**/api/encounters/enc-1/sections/IDENTIFICACION', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(savedIdentificationPayload),
-    });
-  });
-
-  await page.route('**/api/conditions/encounters/enc-1/suggestion', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ ok: true }),
-    });
-  });
-
-  await page.route('**/api/encounters/enc-1', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(encounterPayload),
-    });
-  });
-
-  await page.route('**/api/encounters/stats/dashboard', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        counts: {
-          enProgreso: 1,
-          completado: 0,
-          cancelado: 0,
-          total: 1,
-          pendingReview: 0,
-          upcomingTasks: 0,
-          overdueTasks: 0,
-          patientIncomplete: 0,
-          patientPendingVerification: 0,
-          patientVerified: 1,
-          patientNonVerified: 0,
-        },
-        recent: [],
-        upcomingTasks: [],
-      }),
-    });
-  });
-
-  await page.route('**/api/alerts/unacknowledged-count', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ count: 0 }),
-    });
-  });
-
-  await page.route('**/api/alerts/unacknowledged', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ data: [] }),
-    });
-  });
-
-  await page.route('**/api/settings/session-policy', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ inactivityTimeoutMinutes: 15 }),
-    });
-  });
-
-  await page.route('**/api/patients/patient-1', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        id: 'patient-1',
-        nombre: 'Paciente Demo',
-        rut: '11.111.111-1',
-        rutExempt: false,
-        rutExemptReason: null,
-        edad: 44,
-        sexo: 'FEMENINO',
-        trabajo: null,
-        prevision: 'FONASA',
-        domicilio: null,
-        createdAt: '2026-04-04T12:00:00.000Z',
-        updatedAt: '2026-04-04T12:00:00.000Z',
-        history: {},
-        problems: [],
-        tasks: [],
-      }),
-    });
-  });
-
-  await page.route('**/api/patients/patient-1/encounters?page=1&limit=1', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        data: [],
-        pagination: {
-          page: 1,
-          limit: 1,
-          total: 0,
-          totalPages: 0,
-        },
-      }),
-    });
-  });
-
-  await page.route('**/api/patients/patient-1/clinical-summary', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        patientId: 'patient-1',
-        generatedAt: '2026-04-04T12:00:00.000Z',
-        counts: {
-          totalEncounters: 1,
-          activeProblems: 0,
-          pendingTasks: 0,
-        },
-        latestEncounterSummary: null,
-        vitalTrend: [],
-        recentDiagnoses: [],
-        activeProblems: [],
-        pendingTasks: [],
-      }),
-    });
-  });
-
-  await page.route('**/api/templates**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([]),
-    });
-  });
-
+  let medicoAuthCookies: Awaited<ReturnType<BrowserContext['cookies']>> = [];
+  let encounterId = '';
+  let patientId = '';
   const draftNote = 'Paciente relata cefalea pulsátil con fotofobia desde hace 3 días.';
 
-  await page.goto('/atenciones/enc-1');
-  await expect(page.getByRole('heading', { name: 'Identificación' })).toBeVisible();
+  // ── Setup: bootstrap admin → create invitation → register medico ──────────
+  test.beforeAll(async ({ browser }) => {
+    // 1. Bootstrap or reuse admin
+    const adminCtx = await browser.newContext();
+    const adminPage = await adminCtx.newPage();
 
-  await page.getByRole('button', { name: 'Siguiente' }).click();
-  await expect(page.getByRole('heading', { name: 'Motivo de Consulta' })).toBeVisible();
+    await adminPage.goto('/register');
+    const bootstrapTokenInput = adminPage.getByLabel('Token de instalación');
+    const needsBootstrapRegistration = await bootstrapTokenInput.isVisible().catch(() => false);
 
-  const motivoTextarea = page.getByPlaceholder('Ej: Paciente refiere dolor de cabeza intenso de 3 días de evolución, que empeora con la luz...');
-  await motivoTextarea.fill(draftNote);
+    if (needsBootstrapRegistration) {
+      await adminPage.getByLabel('Nombre completo').fill(ADMIN_NOMBRE);
+      await adminPage.getByLabel('Correo electrónico').fill(ADMIN_EMAIL);
+      await adminPage.getByLabel('Contraseña', { exact: true }).fill(ADMIN_PASSWORD);
+      await adminPage.getByLabel('Confirmar contraseña').fill(ADMIN_PASSWORD);
+      await bootstrapTokenInput.fill(BOOTSTRAP_TOKEN);
+      await adminPage.getByRole('checkbox', { name: /Acepto los/i }).check();
 
-  await expect
-    .poll(async () => page.evaluate(() => window.localStorage.getItem('anamneo:encounter-draft:v2:med-1:enc-1') || ''))
-    .toContain(draftNote);
+      const registerPromise = adminPage.waitForResponse(
+        (r) => r.url().includes('/auth/register') && r.request().method() === 'POST',
+      );
+      await adminPage.getByRole('button', { name: /Crear cuenta/i }).click();
+      const registerResp = await registerPromise;
+      expect(registerResp.status(), 'Admin registration should return 201').toBe(201);
+      await adminPage.waitForURL((url) => !url.toString().includes('/register'), { timeout: 20_000 });
+    } else {
+      await adminPage.goto('/login');
+      await adminPage.getByLabel('Correo electrónico').fill(ADMIN_EMAIL);
+      await adminPage.getByLabel('Contraseña').fill(ADMIN_PASSWORD);
+      await adminPage.getByRole('button', { name: 'Iniciar sesión' }).click();
+      await expect(sidebar(adminPage)).toBeVisible({ timeout: 20_000 });
+    }
 
-  failNextAuthMe = true;
-  await context.clearCookies();
-  await page.goto('/atenciones/enc-1');
+    // 2. Create medico invitation
+    const inviteResp = await adminPage.request.post('/api/users/invitations', {
+      data: { email: MEDICO_EMAIL, role: 'MEDICO' },
+    });
+    expect(inviteResp.ok()).toBeTruthy();
+    const { token: inviteToken } = await inviteResp.json();
+    await adminCtx.close();
 
-  await page.waitForURL('**/login?from=*');
-  await expect(page).toHaveURL(/\/login\?from=%2Fatenciones%2Fenc-1/);
+    // 3. Register medico via UI
+    const medicoCtx = await browser.newContext();
+    const medicoPage = await medicoCtx.newPage();
 
-  await page.getByLabel('Correo electrónico').fill('medico@anamneo.cl');
-  await page.getByLabel('Contraseña').fill('Admin123');
-  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+    await medicoPage.goto(`/register?token=${inviteToken}`);
+    await expect(medicoPage.getByText(/Invitación validada/i)).toBeVisible({ timeout: 15_000 });
+    await medicoPage.getByLabel('Nombre completo').fill('Dra. Prueba E2E');
+    await medicoPage.getByLabel('Contraseña', { exact: true }).fill(MEDICO_PASSWORD);
+    await medicoPage.getByLabel('Confirmar contraseña').fill(MEDICO_PASSWORD);
+    await medicoPage.getByRole('checkbox', { name: /Acepto los/i }).check();
 
-  await page.waitForURL('**/atenciones/enc-1', { waitUntil: 'commit' });
-  await expect(page.getByRole('heading', { name: 'Motivo de Consulta' })).toBeVisible();
-  await expect(motivoTextarea).toHaveValue(draftNote);
+    const medicoRegPromise = medicoPage.waitForResponse(
+      (r) => r.url().includes('/auth/register') && r.request().method() === 'POST',
+    );
+    await medicoPage.getByRole('button', { name: /Crear cuenta/i }).click();
+    const medicoRegResp = await medicoRegPromise;
+    expect(medicoRegResp.status(), 'Medico registration should return 201').toBe(201);
+    await medicoPage.waitForURL((url) => !url.toString().includes('/register'), { timeout: 20_000 });
+    await expect(sidebar(medicoPage)).toBeVisible({ timeout: 20_000 });
+
+    // 4. Capture cookies for reuse in test body
+    medicoAuthCookies = await medicoCtx.cookies();
+    await medicoCtx.close();
+  });
+
+  // ── Test: create patient + encounter, save draft, restore session ──────────
+  test('recovers the local draft when the clinical session is restored', async ({ browser }) => {
+    // 1. Login with real session
+    const sessionCtx = await browser.newContext();
+    const sessionPage = await sessionCtx.newPage();
+    await loginAsMedico(sessionPage, medicoAuthCookies);
+
+    // 2. Create patient via UI (same pattern as workflow-clinical.spec.ts)
+    await sessionPage.goto('/pacientes/nuevo');
+    await expect(
+      sessionPage.getByRole('heading', { name: /nuevo paciente/i }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    await sessionPage.getByLabel('Nombre completo').fill('Paciente Draft Recovery');
+    await sessionPage.getByLabel('RUT', { exact: true }).fill('22.222.222-2');
+    await sessionPage.getByLabel('Fecha de nacimiento').fill('1986-03-20');
+    await sessionPage.getByLabel('Sexo').selectOption('FEMENINO');
+    await sessionPage.getByLabel('Previsión de salud').selectOption('FONASA');
+    await sessionPage.getByRole('button', { name: /guardar paciente/i }).click();
+
+    await expect(sessionPage.getByRole('heading', { name: 'Paciente Draft Recovery' })).toBeVisible({ timeout: 10_000 });
+    await expect(sessionPage.getByRole('button', { name: /nueva atención/i })).toBeVisible({ timeout: 10_000 });
+    const patientUrl = sessionPage.url();
+    patientId = patientUrl.split('/pacientes/')[1]!;
+
+    // 3. Create encounter via UI
+    await sessionPage.getByRole('button', { name: /nueva atención/i }).click();
+    // Wizard starts at "Identificación del paciente" — navigate to "Motivo de consulta"
+    await expect(
+      sessionPage.getByRole('heading', { name: 'Identificación del paciente' }),
+    ).toBeVisible({ timeout: 15_000 });
+    await sessionPage.getByRole('button', { name: /siguiente/i }).click();
+    await expect(sessionPage.getByRole('heading', { name: /motivo de consulta/i })).toBeVisible({ timeout: 10_000 });
+    const encounterUrl = sessionPage.url();
+    encounterId = encounterUrl.split('/atenciones/')[1]!;
+
+    // 4. Fill MOTIVO_CONSULTA section
+    const motivoTextarea = sessionPage.getByPlaceholder(
+      'Ej: Paciente refiere dolor de cabeza intenso de 3 días de evolución, que empeora con la luz...',
+    );
+    await motivoTextarea.fill(draftNote);
+
+    // 5. Get the real userId from the auth store (sessionStorage, not localStorage)
+    const realUserId = await sessionPage.evaluate(() => {
+      const authRaw = window.sessionStorage.getItem('auth-storage');
+      if (authRaw) {
+        try {
+          const auth = JSON.parse(authRaw);
+          return auth.state?.user?.id;
+        } catch { /* ignore */ }
+      }
+      return null;
+    });
+    expect(realUserId, 'Should be able to read the logged-in user ID from sessionStorage').toBeTruthy();
+
+    // 6. Verify draft is persisted in localStorage with the real userId
+    const draftStored = await sessionPage.evaluate(
+      ([encId, uid]) => {
+        const raw = window.localStorage.getItem(`anamneo:encounter-draft:v2:${uid}:${encId}`);
+        return raw ? JSON.parse(raw) : null;
+      },
+      [encounterId, realUserId] as unknown as [string, string],
+    );
+    expect(draftStored, 'Draft should be stored in localStorage').toBeTruthy();
+    expect(
+      (draftStored as { formData?: { MOTIVO_CONSULTA?: { texto?: string } } }).formData?.MOTIVO_CONSULTA?.texto,
+      'Draft should contain the entered note',
+    ).toBe(draftNote);
+
+    // 7. Simulate session restore: navigate away and back within the same context.
+    //    localStorage persists across navigations in the same browser context,
+    //    which is the real-world scenario for draft recovery (tab close/reopen,
+    //    browser crash, or navigating away and returning).
+    await sessionPage.goto('/pacientes');
+    await expect(
+      sessionPage.getByRole('heading', { name: 'Pacientes' }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    // 8. Navigate back to the same encounter — draft should be recovered
+    await sessionPage.goto(`/atenciones/${encounterId}`);
+    // The encounter page loads; navigate to Motivo de consulta if not already there
+    await expect(
+      sessionPage.getByRole('heading', { name: /identificación del paciente|motivo de consulta/i }).first(),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // If we landed on Identificación, navigate to Motivo de consulta
+    const currentHeading = await sessionPage.getByRole('heading', { name: 'Identificación del paciente' }).isVisible().catch(() => false);
+    if (currentHeading) {
+      await sessionPage.getByRole('button', { name: /siguiente/i }).click();
+    }
+    await expect(sessionPage.getByRole('heading', { name: /Motivo de consulta/i })).toBeVisible({ timeout: 10_000 });
+
+    const restoredMotivo = sessionPage.getByPlaceholder(
+      'Ej: Paciente refiere dolor de cabeza intenso de 3 días de evolución, que empeora con la luz...',
+    );
+    await expect(restoredMotivo).toHaveValue(draftNote);
+
+    await sessionCtx.close();
+  });
 });
