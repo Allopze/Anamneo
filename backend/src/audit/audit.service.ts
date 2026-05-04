@@ -9,6 +9,11 @@ import { LogInput, sanitizeDiff, parseDateFilter } from './audit-helpers';
 
 type AuditLogClient = Prisma.TransactionClient | PrismaService;
 
+type RawAuditClient = {
+  $executeRawUnsafe: <T = unknown>(query: string, ...values: unknown[]) => Promise<T>;
+  $queryRawUnsafe: <T = unknown>(query: string, ...values: unknown[]) => Promise<T>;
+};
+
 type IntegrityPayload = {
   entityType: string;
   entityId: string;
@@ -74,6 +79,41 @@ function supportsRawUnsafe(client: unknown): client is {
   return !!client && typeof (client as { $executeRawUnsafe?: unknown }).$executeRawUnsafe === 'function';
 }
 
+function supportsRawQueries(client: unknown): client is RawAuditClient {
+  return !!client
+    && typeof (client as { $executeRawUnsafe?: unknown }).$executeRawUnsafe === 'function'
+    && typeof (client as { $queryRawUnsafe?: unknown }).$queryRawUnsafe === 'function';
+}
+
+type AuditLogRow = {
+  id: string;
+  entityType: string;
+  entityId: string;
+  userId: string;
+  requestId: string | null;
+  action: string;
+  reason: string | null;
+  result: string;
+  diff: string | null;
+  integrityHash: string | null;
+  previousHash: string | null;
+  chainSequence: number | null;
+  timestamp: Date;
+};
+
+type AuditChainStateRow = {
+  latestHash: string;
+  sequence: number;
+};
+
+type AuditCountRow = {
+  total: number | string;
+};
+
+type AuditHashRow = {
+  integrityHash: string | null;
+};
+
 function supportsAuditChainState(client: unknown): boolean {
   return !!client && typeof (client as { auditChainState?: unknown }).auditChainState === 'object';
 }
@@ -131,6 +171,45 @@ export class AuditService {
 
     const integrityHash = computeIntegrityHash(previousHash, data);
 
+    if (supportsRawQueries(client)) {
+      const entryId = crypto.randomUUID();
+      await client.$executeRawUnsafe(
+        'INSERT INTO audit_logs (id, entity_type, entity_id, user_id, request_id, action, reason, result, diff, integrity_hash, previous_hash, chain_sequence, timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)',
+        entryId,
+        data.entityType,
+        data.entityId,
+        data.userId,
+        data.requestId,
+        data.action,
+        data.reason,
+        data.result,
+        data.diff,
+        integrityHash,
+        previousHash,
+        chainHead.nextSequence ?? null,
+        new Date(),
+      );
+
+      if (chainHead.nextSequence) {
+        await client.$executeRawUnsafe(
+          'INSERT INTO audit_chain_state (id, latest_hash, sequence, updated_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET latest_hash = excluded.latest_hash, sequence = excluded.sequence, updated_at = CURRENT_TIMESTAMP',
+          'default',
+          integrityHash,
+          chainHead.nextSequence,
+        );
+      }
+
+      const [entry] = await client.$queryRawUnsafe<AuditLogRow[]>(
+        'SELECT id, entity_type AS entityType, entity_id AS entityId, user_id AS userId, request_id AS requestId, action, reason, result, diff, integrity_hash AS integrityHash, previous_hash AS previousHash, chain_sequence AS chainSequence, timestamp FROM audit_logs WHERE id = $1 LIMIT 1',
+        entryId,
+      );
+
+      return {
+        ...entry,
+        timestamp: new Date(entry.timestamp),
+      };
+    }
+
     const entry = await client.auditLog.create({
       data: {
         ...data,
@@ -141,7 +220,7 @@ export class AuditService {
     });
 
     if (supportsAuditChainState(client) && chainHead.nextSequence) {
-      await (client as Prisma.TransactionClient).auditChainState.update({
+      await (client as any).auditChainState.update({
         where: { id: 'default' },
         data: {
           latestHash: integrityHash,
@@ -154,6 +233,51 @@ export class AuditService {
   }
 
   private async acquireAuditChainHead(client: Prisma.TransactionClient): Promise<AuditChainHead> {
+    if (supportsRawQueries(client)) {
+      let state = (await client.$queryRawUnsafe<AuditChainStateRow[]>(
+        'SELECT latest_hash AS latestHash, sequence FROM audit_chain_state WHERE id = $1 LIMIT 1',
+        'default',
+      ))[0];
+
+      if (!state) {
+        await client.$executeRawUnsafe(
+          'INSERT INTO audit_chain_state (id, latest_hash, sequence, updated_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET latest_hash = excluded.latest_hash, sequence = excluded.sequence, updated_at = CURRENT_TIMESTAMP',
+          'default',
+          'GENESIS',
+          0,
+        );
+        state = { latestHash: 'GENESIS', sequence: 0 };
+      }
+
+      if (state.sequence === 0) {
+        const [{ total: totalRows } = { total: 0 }] = await client.$queryRawUnsafe<AuditCountRow[]>(
+          'SELECT COUNT(*) AS total FROM audit_logs',
+        );
+        const [lastEntry] = await client.$queryRawUnsafe<AuditHashRow[]>(
+          'SELECT integrity_hash AS integrityHash FROM audit_logs WHERE integrity_hash IS NOT NULL ORDER BY timestamp DESC LIMIT 1',
+        );
+        const existingEntries = Number(totalRows);
+
+        if (existingEntries > 0 || lastEntry?.integrityHash) {
+          state = {
+            latestHash: lastEntry?.integrityHash ?? 'GENESIS',
+            sequence: existingEntries,
+          };
+          await client.$executeRawUnsafe(
+            'INSERT INTO audit_chain_state (id, latest_hash, sequence, updated_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET latest_hash = excluded.latest_hash, sequence = excluded.sequence, updated_at = CURRENT_TIMESTAMP',
+            'default',
+            state.latestHash,
+            state.sequence,
+          );
+        }
+      }
+
+      return {
+        previousHash: state.latestHash,
+        nextSequence: state.sequence + 1,
+      };
+    }
+
     if (!supportsAuditChainState(client)) {
       const lastEntry = await client.auditLog.findFirst({
         orderBy: { timestamp: 'desc' },
@@ -162,7 +286,7 @@ export class AuditService {
       return { previousHash: lastEntry?.integrityHash ?? 'GENESIS' };
     }
 
-    const chainClient = client as Prisma.TransactionClient;
+    const chainClient = client as any;
 
     await chainClient.auditChainState.upsert({
       where: { id: 'default' },
@@ -284,6 +408,60 @@ export class AuditService {
     const normalizedLimit = typeof limit === 'number' && Number.isFinite(limit) && limit > 0
       ? Math.trunc(limit)
       : undefined;
+    if (supportsRawQueries(this.prisma)) {
+      const rawEntries = await this.prisma.$queryRawUnsafe<AuditLogRow[]>(
+        normalizedLimit
+          ? 'SELECT id, entity_type AS entityType, entity_id AS entityId, user_id AS userId, request_id AS requestId, action, reason, result, diff, integrity_hash AS integrityHash, previous_hash AS previousHash, chain_sequence AS chainSequence, timestamp FROM audit_logs ORDER BY chain_sequence DESC, timestamp DESC LIMIT $1'
+          : 'SELECT id, entity_type AS entityType, entity_id AS entityId, user_id AS userId, request_id AS requestId, action, reason, result, diff, integrity_hash AS integrityHash, previous_hash AS previousHash, chain_sequence AS chainSequence, timestamp FROM audit_logs ORDER BY chain_sequence ASC, timestamp ASC',
+        ...(normalizedLimit ? [normalizedLimit + 1] : []),
+      );
+
+      const boundaryEntry = normalizedLimit && rawEntries.length > normalizedLimit
+        ? rawEntries[normalizedLimit]
+        : undefined;
+      const entries = normalizedLimit
+        ? rawEntries.slice(0, normalizedLimit).reverse()
+        : rawEntries;
+
+      let expectedPreviousHash = boundaryEntry?.integrityHash ?? 'GENESIS';
+      for (let index = 0; index < entries.length; index += 1) {
+        const entry = entries[index];
+        if (!entry.integrityHash) continue;
+        if (entry.previousHash !== expectedPreviousHash) {
+          return this.saveIntegritySnapshot(
+            { valid: false, checked: index, total, brokenAt: entry.id },
+            normalizedLimit,
+          );
+        }
+        const expectedHash = computeIntegrityHash(expectedPreviousHash, {
+          entityType: entry.entityType,
+          entityId: entry.entityId,
+          userId: entry.userId,
+          requestId: entry.requestId,
+          action: entry.action as AuditAction,
+          reason: entry.reason,
+          result: entry.result as AuditResult,
+          diff: entry.diff,
+        });
+        if (entry.integrityHash !== expectedHash) {
+          return this.saveIntegritySnapshot(
+            { valid: false, checked: index, total, brokenAt: entry.id },
+            normalizedLimit,
+          );
+        }
+        expectedPreviousHash = entry.integrityHash;
+      }
+
+      const warning = normalizedLimit && total > entries.length
+        ? `Solo se verificaron las ${entries.length} entradas mas recientes de ${total}. Use full=true para una verificacion completa.`
+        : undefined;
+
+      return this.saveIntegritySnapshot(
+        { valid: true, checked: entries.length, total, warning },
+        normalizedLimit,
+      );
+    }
+
     const select = {
       id: true,
       entityType: true,
@@ -297,11 +475,11 @@ export class AuditService {
       integrityHash: true,
       previousHash: true,
       chainSequence: true,
-    } satisfies Prisma.AuditLogSelect;
+    } as any;
     const rawEntries = await this.prisma.auditLog.findMany({
       orderBy: normalizedLimit
-        ? [{ chainSequence: 'desc' }, { timestamp: 'desc' }]
-        : [{ chainSequence: 'asc' }, { timestamp: 'asc' }],
+        ? ([{ chainSequence: 'desc' }, { timestamp: 'desc' }] as any)
+        : ([{ chainSequence: 'asc' }, { timestamp: 'asc' }] as any),
       take: normalizedLimit ? normalizedLimit + 1 : undefined,
       select,
     });
@@ -367,14 +545,28 @@ export class AuditService {
       verifiedAt,
     };
 
-    await this.prisma.auditIntegritySnapshot.upsert({
-      where: { id: 'latest' },
-      create: {
-        id: 'latest',
-        ...payload,
-      },
-      update: payload,
-    });
+    if (supportsRawQueries(this.prisma)) {
+      await this.prisma.$executeRawUnsafe(
+        'INSERT INTO audit_integrity_snapshots (id, valid, checked, total, broken_at, warning, verification_scope, verified_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT(id) DO UPDATE SET valid = excluded.valid, checked = excluded.checked, total = excluded.total, broken_at = excluded.broken_at, warning = excluded.warning, verification_scope = excluded.verification_scope, verified_at = excluded.verified_at',
+        'latest',
+        payload.valid,
+        payload.checked,
+        payload.total,
+        payload.brokenAt,
+        payload.warning,
+        payload.verificationScope,
+        verifiedAt,
+      );
+    } else {
+      await this.prisma.auditIntegritySnapshot.upsert({
+        where: { id: 'latest' },
+        create: {
+          id: 'latest',
+          ...payload,
+        },
+        update: payload,
+      });
+    }
 
     return {
       ...result,

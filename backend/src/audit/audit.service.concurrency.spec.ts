@@ -94,12 +94,13 @@ describe('AuditService concurrency', () => {
 
   it('keeps verifyChain valid under concurrent service writes', async () => {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
-      await prisma.auditLog.deleteMany();
-      await prisma.auditChainState.upsert({
-        where: { id: 'default' },
-        create: { id: 'default', latestHash: 'GENESIS', sequence: 0 },
-        update: { latestHash: 'GENESIS', sequence: 0 },
-      });
+      await prisma.$executeRawUnsafe('DELETE FROM audit_logs;');
+      await prisma.$executeRawUnsafe(
+        'INSERT INTO audit_chain_state (id, latest_hash, sequence, updated_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET latest_hash = excluded.latest_hash, sequence = excluded.sequence, updated_at = CURRENT_TIMESTAMP',
+        'default',
+        'GENESIS',
+        0,
+      );
 
       await Promise.all(
         Array.from({ length: 25 }, (_, index) =>
@@ -156,10 +157,9 @@ describe('AuditService concurrency', () => {
         total: 30,
       });
 
-      const sequences = await prisma.auditLog.findMany({
-        orderBy: { chainSequence: 'asc' },
-        select: { chainSequence: true },
-      });
+      const sequences = await prisma.$queryRawUnsafe<Array<{ chainSequence: number | null }>>(
+        'SELECT chain_sequence AS chainSequence FROM audit_logs ORDER BY chain_sequence ASC',
+      );
 
       expect(sequences.map((entry) => entry.chainSequence)).toEqual(
         Array.from({ length: 30 }, (_, index) => index + 1),

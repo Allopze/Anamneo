@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, type LegalDocument } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   LEGAL_DOCUMENT_LABELS,
@@ -24,11 +25,87 @@ export interface LegalAcceptanceContext {
 type CurrentDocumentsByType = Record<LegalDocumentType, LegalDocumentPublic | null>;
 type LegalAdminUser = { id: string };
 
+type RawLegalClient = {
+  $executeRawUnsafe: <T = unknown>(query: string, ...values: unknown[]) => Promise<T>;
+  $queryRawUnsafe: <T = unknown>(query: string, ...values: unknown[]) => Promise<T>;
+};
+
+type LegalDocumentRecord = {
+  id: string;
+  type: LegalDocumentType;
+  version: string;
+  status: string;
+  title: string;
+  description: string;
+  contentJson: string;
+  effectiveAt: Date;
+  publishedAt: Date | null;
+  createdById: string | null;
+  updatedById: string | null;
+};
+
+type LegalDocumentRow = Omit<LegalDocumentRecord, 'type' | 'effectiveAt' | 'publishedAt'> & {
+  type: string;
+  effectiveAt: Date | string;
+  publishedAt: Date | string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+};
+
+type UserLegalAcceptanceRecord = {
+  documentType: LegalDocumentType;
+  version: string;
+  acceptedAt: Date;
+};
+
+type UserLegalAcceptanceRow = Omit<UserLegalAcceptanceRecord, 'documentType' | 'acceptedAt'> & {
+  documentType: string;
+  acceptedAt: Date | string;
+};
+
+function supportsRawQueries(client: unknown): client is RawLegalClient {
+  return !!client
+    && typeof (client as { $executeRawUnsafe?: unknown }).$executeRawUnsafe === 'function'
+    && typeof (client as { $queryRawUnsafe?: unknown }).$queryRawUnsafe === 'function';
+}
+
+const LEGAL_DOCUMENT_SELECT_SQL = `
+  SELECT
+    id,
+    type,
+    version,
+    status,
+    title,
+    description,
+    content_json AS contentJson,
+    effective_at AS effectiveAt,
+    published_at AS publishedAt,
+    created_by_id AS createdById,
+    updated_by_id AS updatedById
+  FROM legal_documents
+`;
+
+const USER_LEGAL_ACCEPTANCE_SELECT_SQL = `
+  SELECT
+    document_type AS documentType,
+    version,
+    accepted_at AS acceptedAt
+  FROM user_legal_acceptances
+`;
+
 @Injectable()
 export class LegalService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getCurrentPublishedDocuments() {
+    if (supportsRawQueries(this.prisma)) {
+      const documents = await Promise.all(
+        LEGAL_DOCUMENT_TYPES.map((type) => this.findCurrentPublishedDocumentRaw(type)),
+      );
+
+      return { documents: documents.filter((document): document is LegalDocumentPublic => Boolean(document)) };
+    }
+
     const documents = await Promise.all(
       LEGAL_DOCUMENT_TYPES.map((type) => this.findCurrentPublishedDocument(type)),
     );
@@ -38,7 +115,9 @@ export class LegalService {
 
   async getCurrentPublishedDocument(type: string) {
     const documentType = this.normalizeDocumentType(type);
-    const document = await this.findCurrentPublishedDocument(documentType);
+    const document = supportsRawQueries(this.prisma)
+      ? await this.findCurrentPublishedDocumentRaw(documentType)
+      : await this.findCurrentPublishedDocument(documentType);
 
     if (!document) {
       throw new NotFoundException(`No hay una versión publicada para ${LEGAL_DOCUMENT_LABELS[documentType]}`);
@@ -60,6 +139,26 @@ export class LegalService {
     const currentDocuments = await this.getCurrentDocumentsByType();
     this.assertAcceptanceAgainst(input, currentDocuments);
 
+    if (supportsRawQueries(this.prisma)) {
+      await Promise.all(
+        LEGAL_DOCUMENT_TYPES.map(async (documentType) => {
+          const document = currentDocuments[documentType];
+          if (!document) {
+            throw new BadRequestException(`No hay una versión vigente de ${LEGAL_DOCUMENT_LABELS[documentType]}`);
+          }
+
+          await this.upsertUserLegalAcceptanceRaw(
+            userId,
+            documentType,
+            document.version,
+            context,
+          );
+        }),
+      );
+
+      return;
+    }
+
     await Promise.all(
       LEGAL_DOCUMENT_TYPES.map((documentType) => {
         const document = currentDocuments[documentType];
@@ -69,7 +168,9 @@ export class LegalService {
 
         const data = this.buildAcceptanceRecord(userId, documentType, document.version, context);
 
-        return this.prisma.userLegalAcceptance.upsert({
+        const prisma = this.prisma as any;
+
+        return prisma.userLegalAcceptance.upsert({
           where: {
             userId_documentType_version: {
               userId,
@@ -88,8 +189,28 @@ export class LegalService {
   }
 
   async listUserAcceptances(userId: string) {
+    if (supportsRawQueries(this.prisma)) {
+      const [acceptances, currentDocuments] = await Promise.all([
+        this.prisma.$queryRawUnsafe<UserLegalAcceptanceRecord[]>(
+          `${USER_LEGAL_ACCEPTANCE_SELECT_SQL} WHERE user_id = $1 ORDER BY accepted_at DESC`,
+          userId,
+        ),
+        this.getCurrentDocumentsByType(),
+      ]);
+
+      return {
+        documents: LEGAL_DOCUMENT_TYPES.map((type) => ({
+          type,
+          label: LEGAL_DOCUMENT_LABELS[type],
+          currentVersion: currentDocuments[type]?.version ?? null,
+          latestAccepted: acceptances.find((acceptance) => acceptance.documentType === type) ?? null,
+        })),
+      };
+    }
+
+    const prisma = this.prisma as any;
     const [acceptances, currentDocuments] = await Promise.all([
-      this.prisma.userLegalAcceptance.findMany({
+      prisma.userLegalAcceptance.findMany({
         where: { userId },
         orderBy: { acceptedAt: 'desc' },
         select: {
@@ -97,32 +218,86 @@ export class LegalService {
           version: true,
           acceptedAt: true,
         },
-      }),
+      }) as Promise<UserLegalAcceptanceRow[]>,
       this.getCurrentDocumentsByType(),
     ]);
+    const normalizedAcceptances = acceptances.map((acceptance) => this.normalizeUserLegalAcceptanceRow(acceptance));
 
     return {
       documents: LEGAL_DOCUMENT_TYPES.map((type) => ({
         type,
         label: LEGAL_DOCUMENT_LABELS[type],
         currentVersion: currentDocuments[type]?.version ?? null,
-        latestAccepted: acceptances.find((acceptance) => acceptance.documentType === type) ?? null,
+        latestAccepted: normalizedAcceptances.find((acceptance) => acceptance.documentType === type) ?? null,
       })),
     };
   }
 
   async listAdminDocuments() {
-    const documents = await this.prisma.legalDocument.findMany({
-      orderBy: [{ type: 'asc' }, { status: 'asc' }, { updatedAt: 'desc' }],
-    });
+    if (supportsRawQueries(this.prisma)) {
+      const documents = await this.prisma.$queryRawUnsafe<LegalDocumentRecord[]>(
+        `${LEGAL_DOCUMENT_SELECT_SQL} ORDER BY type ASC, status ASC, updated_at DESC`,
+      );
 
-    return { documents: documents.map((document) => this.formatDocument(document)) };
+          return { documents: documents.map((document) => this.formatDocument(this.normalizeLegalDocumentRow(document))) };
+    }
+
+    const prisma = this.prisma as any;
+    const documents = await prisma.legalDocument.findMany({
+      orderBy: [{ type: 'asc' }, { status: 'asc' }, { updatedAt: 'desc' }],
+    }) as LegalDocumentRow[];
+
+    return { documents: documents.map((document) => this.formatDocument(this.normalizeLegalDocumentRow(document))) };
   }
 
   async createDraft(user: LegalAdminUser, dto: CreateLegalDocumentDraftDto) {
     const type = this.normalizeDocumentType(dto.type);
+
+    if (supportsRawQueries(this.prisma)) {
+      const source = dto.sourceDocumentId
+        ? await this.findLegalDocumentByIdRaw(dto.sourceDocumentId)
+        : await this.findCurrentPublishedDocumentRecordRaw(type);
+
+      if (dto.sourceDocumentId && (!source || source.type !== type)) {
+        throw new NotFoundException('No se encontró el documento base para crear el borrador');
+      }
+
+      const contentJson = this.resolveCreateContent(dto, source);
+      const version = dto.version?.trim() || await this.buildDraftVersion(type);
+      const effectiveAt = this.parseEffectiveAt(dto.effectiveAt) ?? source?.effectiveAt ?? new Date();
+      const id = crypto.randomUUID();
+
+      try {
+        await this.prisma.$executeRawUnsafe(
+          'INSERT INTO legal_documents (id, type, version, status, title, description, content_json, effective_at, published_at, created_by_id, updated_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
+          id,
+          type,
+          version,
+          'DRAFT',
+          dto.title?.trim() || source?.title || LEGAL_DOCUMENT_LABELS[type],
+          dto.description?.trim() || source?.description || '',
+          JSON.stringify(contentJson),
+          effectiveAt,
+          null,
+          user.id,
+          user.id,
+        );
+
+        const created = await this.findLegalDocumentByIdRaw(id);
+        if (!created) {
+          throw new Error('No se pudo crear el borrador legal');
+        }
+
+        return this.formatDocument(created);
+      } catch (error) {
+        this.rethrowUniqueVersionError(error);
+        throw error;
+      }
+    }
+
+    const prisma = this.prisma as any;
     const source = dto.sourceDocumentId
-      ? await this.prisma.legalDocument.findUnique({ where: { id: dto.sourceDocumentId } })
+      ? await prisma.legalDocument.findUnique({ where: { id: dto.sourceDocumentId } })
       : await this.findCurrentPublishedDocumentRecord(type);
 
     if (dto.sourceDocumentId && (!source || source.type !== type)) {
@@ -146,9 +321,9 @@ export class LegalService {
           createdById: user.id,
           updatedById: user.id,
         },
-      });
+      }) as LegalDocumentRow;
 
-      return this.formatDocument(created);
+      return this.formatDocument(this.normalizeLegalDocumentRow(created));
     } catch (error) {
       this.rethrowUniqueVersionError(error);
       throw error;
@@ -156,7 +331,50 @@ export class LegalService {
   }
 
   async updateDraft(user: LegalAdminUser, id: string, dto: UpdateLegalDocumentDraftDto) {
-    const document = await this.prisma.legalDocument.findUnique({ where: { id } });
+    if (supportsRawQueries(this.prisma)) {
+      const document = await this.findLegalDocumentByIdRaw(id);
+
+      if (!document) {
+        throw new NotFoundException('No se encontró el documento legal');
+      }
+      if (document.status !== 'DRAFT') {
+        throw new BadRequestException('Solo los borradores pueden editarse');
+      }
+
+      const nextVersion = dto.version !== undefined ? this.requireNonEmpty(dto.version, 'La versión no puede quedar vacía') : document.version;
+      const nextTitle = dto.title !== undefined ? this.requireNonEmpty(dto.title, 'El título no puede quedar vacío') : document.title;
+      const nextDescription = dto.description !== undefined ? dto.description.trim() : document.description;
+      const nextEffectiveAt = dto.effectiveAt !== undefined ? this.requireDate(dto.effectiveAt) : document.effectiveAt;
+      const nextContentJson = dto.contentJson !== undefined
+        ? JSON.stringify(this.validateContentJson(dto.contentJson))
+        : document.contentJson;
+
+      try {
+            await this.prisma.$executeRawUnsafe(
+          'UPDATE legal_documents SET version = $1, title = $2, description = $3, effective_at = $4, content_json = $5, updated_by_id = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7',
+          nextVersion,
+          nextTitle,
+          nextDescription,
+          nextEffectiveAt,
+          nextContentJson,
+          user.id,
+          id,
+        );
+
+        const updated = await this.findLegalDocumentByIdRaw(id);
+        if (!updated) {
+          throw new Error('No se pudo actualizar el borrador legal');
+        }
+
+            return this.formatDocument(this.normalizeLegalDocumentRow(updated));
+      } catch (error) {
+        this.rethrowUniqueVersionError(error);
+        throw error;
+      }
+    }
+
+    const prisma = this.prisma as any;
+    const document = await prisma.legalDocument.findUnique({ where: { id } });
 
     if (!document) {
       throw new NotFoundException('No se encontró el documento legal');
@@ -189,9 +407,9 @@ export class LegalService {
       const updated = await this.prisma.legalDocument.update({
         where: { id },
         data,
-      });
+      }) as LegalDocumentRow;
 
-      return this.formatDocument(updated);
+      return this.formatDocument(this.normalizeLegalDocumentRow(updated));
     } catch (error) {
       this.rethrowUniqueVersionError(error);
       throw error;
@@ -199,7 +417,51 @@ export class LegalService {
   }
 
   async publishDraft(user: LegalAdminUser, id: string) {
-    const document = await this.prisma.legalDocument.findUnique({ where: { id } });
+    if (supportsRawQueries(this.prisma)) {
+      const document = await this.findLegalDocumentByIdRaw(id);
+
+      if (!document) {
+        throw new NotFoundException('No se encontró el documento legal');
+      }
+      if (document.status !== 'DRAFT') {
+        throw new BadRequestException('Solo un borrador puede publicarse');
+      }
+
+      const now = new Date();
+      const updated = await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(
+          'UPDATE legal_documents SET status = $1, updated_by_id = $2, updated_at = CURRENT_TIMESTAMP WHERE type = $3 AND status = $4',
+          'ARCHIVED',
+          user.id,
+          document.type,
+          'PUBLISHED',
+        );
+
+        await tx.$executeRawUnsafe(
+          'UPDATE legal_documents SET status = $1, published_at = $2, updated_by_id = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4',
+          'PUBLISHED',
+          now,
+          user.id,
+          id,
+        );
+
+        const [updatedDocument] = await tx.$queryRawUnsafe<LegalDocumentRecord[]>(
+          `${LEGAL_DOCUMENT_SELECT_SQL} WHERE id = $1 LIMIT 1`,
+          id,
+        );
+
+        return updatedDocument;
+      });
+
+      if (!updated) {
+        throw new Error('No se pudo publicar el borrador legal');
+      }
+
+      return this.formatDocument(updated);
+    }
+
+    const prisma = this.prisma as any;
+    const document = await prisma.legalDocument.findUnique({ where: { id } });
 
     if (!document) {
       throw new NotFoundException('No se encontró el documento legal');
@@ -229,9 +491,9 @@ export class LegalService {
           updatedById: user.id,
         },
       });
-    });
+    }) as LegalDocumentRow;
 
-    return this.formatDocument(updated);
+    return this.formatDocument(this.normalizeLegalDocumentRow(updated));
   }
 
   private async getCurrentDocumentsByType(): Promise<CurrentDocumentsByType> {
@@ -261,14 +523,64 @@ export class LegalService {
     return document ? this.formatDocument(document) : null;
   }
 
-  private findCurrentPublishedDocumentRecord(type: LegalDocumentType) {
-    return this.prisma.legalDocument.findFirst({
+  private async findCurrentPublishedDocumentRecord(type: LegalDocumentType) {
+    const prisma = this.prisma as any;
+    const document = await prisma.legalDocument.findFirst({
       where: {
         type,
         status: 'PUBLISHED',
       },
       orderBy: [{ publishedAt: 'desc' }, { updatedAt: 'desc' }],
-    });
+    }) as LegalDocumentRow | null;
+
+    return document ? this.normalizeLegalDocumentRow(document) : null;
+  }
+
+  private async findCurrentPublishedDocumentRaw(type: LegalDocumentType) {
+    const [document] = await this.prisma.$queryRawUnsafe<LegalDocumentRecord[]>(
+      `${LEGAL_DOCUMENT_SELECT_SQL} WHERE type = $1 AND status = $2 ORDER BY published_at DESC, updated_at DESC LIMIT 1`,
+      type,
+      'PUBLISHED',
+    );
+
+    return document ? this.formatDocument(this.normalizeLegalDocumentRow(document)) : null;
+  }
+
+  private async findCurrentPublishedDocumentRecordRaw(type: LegalDocumentType) {
+    const [document] = await this.prisma.$queryRawUnsafe<LegalDocumentRecord[]>(
+      `${LEGAL_DOCUMENT_SELECT_SQL} WHERE type = $1 AND status = $2 ORDER BY published_at DESC, updated_at DESC LIMIT 1`,
+      type,
+      'PUBLISHED',
+    );
+
+    return document ? this.normalizeLegalDocumentRow(document) : null;
+  }
+
+  private async findLegalDocumentByIdRaw(id: string) {
+    const [document] = await this.prisma.$queryRawUnsafe<LegalDocumentRecord[]>(
+      `${LEGAL_DOCUMENT_SELECT_SQL} WHERE id = $1 LIMIT 1`,
+      id,
+    );
+
+    return document ? this.normalizeLegalDocumentRow(document) : null;
+  }
+
+  private async upsertUserLegalAcceptanceRaw(
+    userId: string,
+    documentType: LegalDocumentType,
+    version: string,
+    context?: LegalAcceptanceContext,
+  ) {
+    await this.prisma.$executeRawUnsafe(
+      'INSERT INTO user_legal_acceptances (id, user_id, document_type, version, accepted_at, ip_address, user_agent) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT(user_id, document_type, version) DO UPDATE SET ip_address = excluded.ip_address, user_agent = excluded.user_agent',
+      crypto.randomUUID(),
+      userId,
+      documentType,
+      version,
+      new Date(),
+      context?.ipAddress ?? null,
+      context?.userAgent ?? null,
+    );
   }
 
   private buildAcceptanceRecord(
@@ -286,7 +598,7 @@ export class LegalService {
     };
   }
 
-  private formatDocument(document: LegalDocument): LegalDocumentPublic {
+  private formatDocument(document: LegalDocumentRecord): LegalDocumentPublic {
     return {
       id: document.id,
       type: this.normalizeDocumentType(document.type),
@@ -297,6 +609,23 @@ export class LegalService {
       effectiveAt: document.effectiveAt.toISOString(),
       publishedAt: document.publishedAt?.toISOString() ?? null,
       contentJson: this.parseContentJson(document.contentJson),
+    };
+  }
+
+  private normalizeLegalDocumentRow(document: LegalDocumentRow): LegalDocumentRecord {
+    return {
+      ...document,
+      type: this.normalizeDocumentType(document.type),
+      effectiveAt: new Date(document.effectiveAt),
+      publishedAt: document.publishedAt ? new Date(document.publishedAt) : null,
+    };
+  }
+
+  private normalizeUserLegalAcceptanceRow(acceptance: UserLegalAcceptanceRow): UserLegalAcceptanceRecord {
+    return {
+      documentType: this.normalizeDocumentType(acceptance.documentType),
+      version: acceptance.version,
+      acceptedAt: new Date(acceptance.acceptedAt),
     };
   }
 
@@ -345,7 +674,7 @@ export class LegalService {
 
   private resolveCreateContent(
     dto: CreateLegalDocumentDraftDto,
-    source: LegalDocument | null,
+    source: LegalDocumentRecord | null,
   ) {
     if (dto.contentJson) {
       return this.validateContentJson(dto.contentJson);
@@ -381,10 +710,16 @@ export class LegalService {
 
   private async buildDraftVersion(type: LegalDocumentType) {
     const base = new Date().toISOString().slice(0, 10);
-    const existing = await this.prisma.legalDocument.findMany({
-      where: { type, version: { startsWith: base } },
-      select: { version: true },
-    });
+    const existing: Array<{ version: string }> = supportsRawQueries(this.prisma)
+      ? await this.prisma.$queryRawUnsafe<Array<{ version: string }>>(
+        'SELECT version FROM legal_documents WHERE type = $1 AND version LIKE $2',
+        type,
+        `${base}%`,
+      )
+      : await (this.prisma as any).legalDocument.findMany({
+        where: { type, version: { startsWith: base } },
+        select: { version: true },
+      }) as Array<{ version: string }>;
     const versions = new Set(existing.map((document) => document.version));
 
     if (!versions.has(base)) {

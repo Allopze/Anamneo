@@ -53,10 +53,24 @@ jobs:
           tracked_sensitive=$(git ls-files \
             'backend/.env' \
             'frontend/.env' \
+            '*.db' \
+            '*.db.*' \
+            '*.db-journal' \
+            '*.db-shm' \
+            '*.db-wal' \
+            '*.bak' \
+            'backend/.playwright-e2e/**' \
+            'backend/*.db' \
+            'backend/*.db.*' \
+            'backend/*.bak' \
             'backend/prisma/*.db*' \
             'backend/prisma/**/*.db*' \
             'backend/prisma/**/*.bak' \
-            'backend/prisma/backups/**')
+            'backend/prisma/backups/**' \
+            'backend/uploads/**' \
+            'backend/uploads-e2e/**' \
+            'runtime/**' \
+            'backend/tmp*.pdf')
           if [ -n "$tracked_sensitive" ]; then
             echo "Tracked sensitive/runtime artifacts detected:"
             echo "$tracked_sensitive"

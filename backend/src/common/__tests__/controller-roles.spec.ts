@@ -10,6 +10,8 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
 import { AdminGuard } from '../guards/admin.guard';
 
+type ControllerConstructor = new (...args: never[]) => object;
+
 function collectControllerFiles(dirPath: string): string[] {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
@@ -28,17 +30,21 @@ function collectControllerFiles(dirPath: string): string[] {
   });
 }
 
-function getControllerClasses() {
+async function getControllerClasses() {
   const srcRoot = path.resolve(__dirname, '../..');
   const controllerFiles = collectControllerFiles(srcRoot);
+  const controllerClasses: ControllerConstructor[] = [];
 
-  return controllerFiles.flatMap((filePath) => {
-    const moduleExports = require(filePath) as Record<string, unknown>;
-
-    return Object.values(moduleExports).filter((value): value is new (...args: unknown[]) => object => {
+  for (const filePath of controllerFiles) {
+    const moduleExports = await import(filePath) as Record<string, unknown>;
+    const exportedControllers = Object.values(moduleExports).filter((value): value is ControllerConstructor => {
       return typeof value === 'function' && Reflect.hasMetadata(PATH_METADATA, value);
     });
-  });
+
+    controllerClasses.push(...exportedControllers);
+  }
+
+  return controllerClasses;
 }
 
 function getGuards(target: object, propertyKey?: string) {
@@ -55,7 +61,7 @@ function getGuards(target: object, propertyKey?: string) {
   return Reflect.getMetadata(GUARDS_METADATA, target) ?? [];
 }
 
-function hasGuard(guards: unknown[], guardType: Function) {
+function hasGuard(guards: unknown[], guardType: ControllerConstructor) {
   return guards.some((guard) => guard === guardType);
 }
 
@@ -88,10 +94,10 @@ describe('controller role metadata', () => {
     ]);
   });
 
-  it('requires explicit authorization metadata on every route protected by RolesGuard', () => {
+  it('requires explicit authorization metadata on every route protected by RolesGuard', async () => {
     const failures: string[] = [];
 
-    for (const controllerClass of getControllerClasses()) {
+    for (const controllerClass of await getControllerClasses()) {
       const classGuards = getGuards(controllerClass);
       const classRoles = Reflect.getMetadata(ROLES_KEY, controllerClass) as string[] | undefined;
       const classIsPublic = Reflect.getMetadata(IS_PUBLIC_KEY, controllerClass) === true;

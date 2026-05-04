@@ -55,6 +55,76 @@ describe('AuditService', () => {
     );
   });
 
+  it('redacts attachment filenames and storage paths before storing audit diffs', async () => {
+    const prisma = {
+      auditLog: {
+        create: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+    };
+
+    const service = new AuditService(prisma as any);
+
+    await service.log({
+      entityType: 'Attachment',
+      entityId: 'attachment-1',
+      userId: 'user-1',
+      action: 'CREATE',
+      diff: {
+        originalName: 'biopsia-paciente-juan-perez.pdf',
+        storagePath: '/app/uploads/patient-1/biopsia.pdf',
+        mime: 'application/pdf',
+        size: 128,
+      },
+    });
+
+    const storedDiff = prisma.auditLog.create.mock.calls[0][0].data.diff;
+
+    expect(storedDiff).not.toContain('biopsia-paciente-juan-perez.pdf');
+    expect(storedDiff).not.toContain('/app/uploads/patient-1/biopsia.pdf');
+    expect(storedDiff).toContain('"mime":"application/pdf"');
+  });
+
+  it('redacts clinical free text from consent and template audit diffs', async () => {
+    const prisma = {
+      auditLog: {
+        create: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+    };
+
+    const service = new AuditService(prisma as any);
+
+    await service.log({
+      entityType: 'InformedConsent',
+      entityId: 'consent-1',
+      userId: 'user-1',
+      action: 'UPDATE',
+      diff: {
+        revokedReason: 'Paciente revoca por evento adverso descrito en detalle',
+      },
+    });
+
+    await service.log({
+      entityType: 'TextTemplate',
+      entityId: 'template-1',
+      userId: 'user-1',
+      action: 'UPDATE',
+      diff: {
+        before: { content: 'Paciente con dolor torácico y disnea' },
+        after: { content: 'Controlar signos de alarma respiratoria' },
+      },
+    });
+
+    const consentDiff = prisma.auditLog.create.mock.calls[0][0].data.diff;
+    const templateDiff = prisma.auditLog.create.mock.calls[1][0].data.diff;
+
+    expect(consentDiff).not.toContain('evento adverso');
+    expect(templateDiff).not.toContain('dolor torácico');
+    expect(templateDiff).not.toContain('alarma respiratoria');
+    expect(templateDiff).toContain('"entityType":"TextTemplate"');
+  });
+
   it('accepts signed encounter updates because they are cataloged explicitly', async () => {
     const prisma = {
       auditLog: {

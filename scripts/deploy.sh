@@ -147,6 +147,11 @@ fi
 
 # ── 3. Run migrations ────────────────────────────────────────
 
+if [[ ! -f "$DB_PATH" ]]; then
+  log "Creando archivo SQLite vacío para primera migración: $DB_PATH"
+  : > "$DB_PATH"
+fi
+
 log "Ejecutando prisma migrate deploy..."
 if docker compose run --rm --no-deps "${compose_run_no_build[@]}" backend npx prisma migrate deploy; then
   log "Migraciones aplicadas correctamente."

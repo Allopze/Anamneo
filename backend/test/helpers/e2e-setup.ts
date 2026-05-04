@@ -210,32 +210,30 @@ export async function bootstrapApp() {
   prisma = moduleFixture.get(PrismaService);
   alertsService = moduleFixture.get(AlertsService);
 
-  await prisma.legalDocument.createMany({
-    data: [
-      {
-        id: 'e2e-terms-2026-05-02',
-        type: 'TERMS',
-        version: TEST_LEGAL_ACCEPTANCE.acceptedTermsVersion,
-        status: 'PUBLISHED',
-        title: 'Términos y Condiciones de Servicio',
-        description: 'Documento de términos vigente para pruebas.',
-        contentJson: TEST_LEGAL_CONTENT,
-        effectiveAt: new Date('2026-05-02T00:00:00.000Z'),
-        publishedAt: new Date('2026-05-02T00:00:00.000Z'),
-      },
-      {
-        id: 'e2e-privacy-2026-05-02',
-        type: 'PRIVACY',
-        version: TEST_LEGAL_ACCEPTANCE.acceptedPrivacyVersion,
-        status: 'PUBLISHED',
-        title: 'Política de Privacidad',
-        description: 'Documento de privacidad vigente para pruebas.',
-        contentJson: TEST_LEGAL_CONTENT,
-        effectiveAt: new Date('2026-05-02T00:00:00.000Z'),
-        publishedAt: new Date('2026-05-02T00:00:00.000Z'),
-      },
-    ],
-  });
+  const legalFixtureTimestamp = new Date('2026-05-02T00:00:00.000Z');
+  await prisma.$executeRawUnsafe(
+    'INSERT INTO legal_documents (id, type, version, status, title, description, content_json, effective_at, published_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10), ($11, $12, $13, $14, $15, $16, $17, $18, $19, $20)',
+    'e2e-terms-2026-05-02',
+    'TERMS',
+    TEST_LEGAL_ACCEPTANCE.acceptedTermsVersion,
+    'PUBLISHED',
+    'Términos y Condiciones de Servicio',
+    'Documento de términos vigente para pruebas.',
+    TEST_LEGAL_CONTENT,
+    legalFixtureTimestamp,
+    legalFixtureTimestamp,
+    legalFixtureTimestamp,
+    'e2e-privacy-2026-05-02',
+    'PRIVACY',
+    TEST_LEGAL_ACCEPTANCE.acceptedPrivacyVersion,
+    'PUBLISHED',
+    'Política de Privacidad',
+    'Documento de privacidad vigente para pruebas.',
+    TEST_LEGAL_CONTENT,
+    legalFixtureTimestamp,
+    legalFixtureTimestamp,
+    legalFixtureTimestamp,
+  );
 
   app = moduleFixture.createNestApplication();
   app.setGlobalPrefix('api');

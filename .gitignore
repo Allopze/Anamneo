@@ -17,6 +17,16 @@ coverage/
 *.tsbuildinfo
 
 # Local databases and runtime files
+*.db
+*.db.*
+*.db-journal
+*.db-shm
+*.db-wal
+*.bak
+backend/.playwright-e2e/
+backend/*.db
+backend/*.db.*
+backend/*.bak
 backend/prisma/*.db
 backend/prisma/*.db.*
 backend/prisma/*.db-journal
@@ -27,7 +37,9 @@ backend/prisma/backups/
 # Uploads / generated runtime data
 uploads/
 backend/uploads/
+backend/uploads-e2e/
 runtime/
+backend/tmp*.pdf
 
 # Logs
 npm-debug.log*
