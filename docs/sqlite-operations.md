@@ -12,6 +12,7 @@ SQLite esta soportado en este proyecto, incluso en produccion, pero no como excu
 | Runner completo | `npm run db:ops` | Backup + restore drill + monitor + alerta |
 | Monitor rapido | `npm run db:ops:monitor` | Solo validacion operativa con notificacion |
 | Docker cron | servicio `backup-cron` | Ejecuta `sqlite-ops-runner.js --mode=all` (backup + restore drill periódico + monitor + alertas) y purga de adjuntos eliminados |
+| Docker cron | servicio `backup-cron` | Ejecuta `sqlite-ops-runner.js --mode=all` (backup + restore-drill periódico + monitor), purga de adjuntos eliminados y vuelve a dejar `runtime/data/backups` y `runtime/uploads` con ownership de `node` para que el backend siga pudiendo escribir backups |
 
 ## Variables Que Gobiernan la Operacion
 
@@ -130,6 +131,7 @@ Checklist minimo:
 - confirma permisos de escritura,
 - verifica el contenedor `backup-cron` o el cron del host,
 - confirma que `backup-cron` vea el mismo volumen de uploads que usa `backend`,
+- si el backup dir queda con ownership de `root`, vuelve a pasarlo a `node:node` antes de reintentar el backup,
 - y configura el webhook de alertas si aun no existe.
 
 ### Base bloqueada

@@ -87,6 +87,7 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 | `ENCRYPTION_AT_REST_CONFIRMED` | `false` | Confirma que el host tiene cifrado de filesystem (LUKS/dm-crypt) en los volumenes de datos clinicos. En produccion debe quedar en `true` despues de verificarlo; si no, el backend falla al arrancar |
 | `SENTRY_DSN` | vacio | Sentry backend |
 | `NEXT_PUBLIC_SENTRY_DSN` | vacio | Sentry frontend |
+| `NEXT_PUBLIC_SENTRY_REPLAY_ENABLED` | `false` | Replay de Sentry solo para depuracion no productiva |
 
 ## Desarrollo vs Produccion
 

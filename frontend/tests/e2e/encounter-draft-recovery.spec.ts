@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
-import { ADMIN_EMAIL, ADMIN_NOMBRE, ADMIN_PASSWORD, BOOTSTRAP_TOKEN, MEDICO_EMAIL, MEDICO_PASSWORD } from './e2e-identities';
+import { ADMIN_EMAIL, ADMIN_NOMBRE, ADMIN_PASSWORD, BOOTSTRAP_TOKEN, MEDICO_PASSWORD, RUN_ID } from './e2e-identities';
 
 /**
  * E2E: draft recovery with real Playwright session.
@@ -15,6 +15,7 @@ import { ADMIN_EMAIL, ADMIN_NOMBRE, ADMIN_PASSWORD, BOOTSTRAP_TOKEN, MEDICO_EMAI
 
 const sidebar = (page: Page) =>
   page.getByRole('navigation', { name: 'Navegación principal' });
+const MEDICO_EMAIL = `medico+draft-recovery+${RUN_ID}@e2e-test.local`;
 
 /**
  * Login helper — restores the real medico session captured in beforeAll.
@@ -42,11 +43,14 @@ test.describe('Draft recovery with real Playwright session', () => {
     const adminCtx = await browser.newContext();
     const adminPage = await adminCtx.newPage();
 
-    await adminPage.goto('/register');
-    const bootstrapTokenInput = adminPage.getByLabel('Token de instalación');
-    const needsBootstrapRegistration = await bootstrapTokenInput.isVisible().catch(() => false);
+    const bootstrapResp = await adminPage.request.get('/api/auth/bootstrap');
+    expect(bootstrapResp.ok(), 'Bootstrap status request should succeed').toBeTruthy();
+    const bootstrapState = (await bootstrapResp.json()) as { hasAdmin?: boolean };
+    const needsBootstrapRegistration = !bootstrapState.hasAdmin;
 
     if (needsBootstrapRegistration) {
+      await adminPage.goto('/register');
+      const bootstrapTokenInput = adminPage.getByLabel('Token de instalación');
       await adminPage.getByLabel('Nombre completo').fill(ADMIN_NOMBRE);
       await adminPage.getByLabel('Correo electrónico').fill(ADMIN_EMAIL);
       await adminPage.getByLabel('Contraseña', { exact: true }).fill(ADMIN_PASSWORD);

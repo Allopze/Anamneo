@@ -70,7 +70,6 @@ export default defineConfig({
       env: {
         ...process.env,
         API_PROXY_TARGET: apiProxyTarget,
-        E2E_DISABLE_PROXY_AUTH: 'true',
         HOSTNAME: host,
         PORT: frontendPort,
       },

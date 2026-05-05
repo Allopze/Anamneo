@@ -113,9 +113,11 @@ services:
     entrypoint: ["sh", "-c"]
     command:
       - |
-        echo "$$BACKUP_CRON_SCHEDULE node /app/scripts/sqlite-ops-runner.js --mode=all --notify=on-failure && node /app/scripts/purge-deleted-attachments.js >> /proc/1/fd/1 2>&1" > /tmp/crontab
+        echo "$$BACKUP_CRON_SCHEDULE node /app/scripts/sqlite-ops-runner.js --mode=all --notify=on-failure && chown -R node:node /app/data/backups /app/uploads && node /app/scripts/purge-deleted-attachments.js && chown -R node:node /app/data/backups /app/uploads >> /proc/1/fd/1 2>&1" > /tmp/crontab
         crontab /tmp/crontab
         echo "Backup cron started: $$BACKUP_CRON_SCHEDULE (ops-runner: backup + restore-drill + monitor)"
         node /app/scripts/sqlite-ops-runner.js --mode=all --notify=on-failure
+        chown -R node:node /app/data/backups /app/uploads
         node /app/scripts/purge-deleted-attachments.js
+        chown -R node:node /app/data/backups /app/uploads
         crond -f -l 2

@@ -20,6 +20,12 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   PATIENT_RESTORED: 'Restauración de paciente',
   PATIENT_RECORD_VIEWED: 'Consulta de ficha de paciente',
   PATIENT_CLINICAL_SUMMARY_VIEWED: 'Consulta de resumen clínico de paciente',
+  PATIENT_LIST_VIEWED: 'Consulta de listado de pacientes',
+  PATIENT_DUPLICATES_SEARCHED: 'Búsqueda de duplicados potenciales de pacientes',
+  PATIENT_ADMIN_SUMMARY_VIEWED: 'Consulta de resumen administrativo de paciente',
+  PATIENT_TIMELINE_VIEWED: 'Consulta de línea de tiempo de paciente',
+  PATIENT_OPERATIONAL_HISTORY_VIEWED: 'Consulta de historial operativo de paciente',
+  PATIENT_TASKS_VIEWED: 'Consulta de bandeja de tareas de paciente',
   PATIENT_EXPORT_CSV: 'Exportación CSV de pacientes',
   PATIENT_LONGITUDINAL_EXPORTED: 'Exportación de historial clínico longitudinal',
   PATIENT_BUNDLE_EXPORTED: 'Exportación de paquete clínico de paciente',
@@ -79,6 +85,12 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'Patient' && action === 'UPDATE') return 'PATIENT_UPDATED';
   if (entityType === 'Patient' && action === 'READ' && hasDiffScope(diff, 'CLINICAL_SUMMARY')) return 'PATIENT_CLINICAL_SUMMARY_VIEWED';
   if (entityType === 'Patient' && action === 'READ') return 'PATIENT_RECORD_VIEWED';
+  if (entityType === 'PatientList' && action === 'READ') return 'PATIENT_LIST_VIEWED';
+  if (entityType === 'PatientDuplicatesSearch' && action === 'READ') return 'PATIENT_DUPLICATES_SEARCHED';
+  if (entityType === 'PatientAdminSummary' && action === 'READ') return 'PATIENT_ADMIN_SUMMARY_VIEWED';
+  if (entityType === 'PatientTimeline' && action === 'READ') return 'PATIENT_TIMELINE_VIEWED';
+  if (entityType === 'PatientOperationalHistory' && action === 'READ') return 'PATIENT_OPERATIONAL_HISTORY_VIEWED';
+  if (entityType === 'PatientTaskInbox' && action === 'READ') return 'PATIENT_TASKS_VIEWED';
   if (entityType === 'PatientHistory' && action === 'CREATE') return 'PATIENT_HISTORY_CREATED';
   if (entityType === 'PatientHistory' && action === 'UPDATE') return 'PATIENT_HISTORY_UPDATED';
   if (entityType === 'PatientProblem' && action === 'CREATE') return 'PATIENT_PROBLEM_CREATED';

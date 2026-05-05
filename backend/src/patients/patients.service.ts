@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import type { AuditReason } from '../common/types';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreatePatientQuickDto } from './dto/create-patient-quick.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
@@ -48,6 +49,25 @@ export class PatientsService {
     private auditService: AuditService,
   ) {}
 
+  private async logPatientReadEvent(params: {
+    user: RequestUser;
+    entityType: string;
+    entityId: string;
+    reason: AuditReason;
+    diff: Record<string, unknown>;
+  }) {
+    const { user, entityType, entityId, reason, diff } = params;
+
+    await this.auditService.log({
+      entityType,
+      entityId,
+      userId: user.id,
+      action: 'READ',
+      reason,
+      diff,
+    });
+  }
+
   private readonly assertPatientAccess = (user: RequestUser, patientId: string) => assertPatientAccessScope({
     prisma: this.prisma,
     user,
@@ -69,7 +89,24 @@ export class PatientsService {
     limit = 20,
     filters?: FindPatientsFilters,
   ) {
-    return findAllPatients(this.prisma, user, search, page, limit, filters);
+    const result = await findAllPatients(this.prisma, user, search, page, limit, filters);
+
+    await this.logPatientReadEvent({
+      user,
+      entityType: 'PatientList',
+      entityId: user.id,
+      reason: 'PATIENT_LIST_VIEWED',
+      diff: {
+        scope: 'PATIENT_LIST',
+        hasSearch: Boolean(search?.trim()),
+        page,
+        limit,
+        total: result.pagination.total,
+        returned: result.data.length,
+      },
+    });
+
+    return result;
   }
 
   async findPossibleDuplicates(
@@ -81,7 +118,26 @@ export class PatientsService {
       excludePatientId?: string;
     },
   ) {
-    return findPossiblePatientDuplicates(this.prisma, user, params);
+    const duplicates = await findPossiblePatientDuplicates(this.prisma, user, params);
+
+    await this.logPatientReadEvent({
+      user,
+      entityType: 'PatientDuplicatesSearch',
+      entityId: user.id,
+      reason: 'PATIENT_DUPLICATES_SEARCHED',
+      diff: {
+        scope: 'PATIENT_DUPLICATES_SEARCH',
+        criteria: {
+          rut: Boolean(params.rut?.trim()),
+          nombre: Boolean(params.nombre?.trim()),
+          fechaNacimiento: Boolean(params.fechaNacimiento),
+          excludePatientId: Boolean(params.excludePatientId),
+        },
+        matchCount: duplicates.length,
+      },
+    });
+
+    return duplicates;
   }
 
   async exportCsv(user: RequestUser) {
@@ -89,7 +145,22 @@ export class PatientsService {
   }
 
   async getAdminSummary(user: RequestUser, id: string) {
-    return getPatientAdminSummary(this.prisma, user, id);
+    const summary = await getPatientAdminSummary(this.prisma, user, id);
+
+    await this.logPatientReadEvent({
+      user,
+      entityType: 'PatientAdminSummary',
+      entityId: id,
+      reason: 'PATIENT_ADMIN_SUMMARY_VIEWED',
+      diff: {
+        scope: 'PATIENT_ADMIN_SUMMARY',
+        encounterCount: summary.metrics.encounterCount,
+        hasRecentEncounter: Boolean(summary.metrics.lastEncounterAt),
+        completenessStatus: summary.completenessStatus,
+      },
+    });
+
+    return summary;
   }
 
   async findById(user: RequestUser, id: string) {
@@ -107,12 +178,42 @@ export class PatientsService {
 
   async findEncounterTimeline(user: RequestUser, patientId: string, page = 1, limit = 10) {
     await this.assertPatientAccess(user, patientId);
-    return findEncounterTimeline(this.prisma, user, patientId, page, limit);
+    const timeline = await findEncounterTimeline(this.prisma, user, patientId, page, limit);
+
+    await this.logPatientReadEvent({
+      user,
+      entityType: 'PatientTimeline',
+      entityId: patientId,
+      reason: 'PATIENT_TIMELINE_VIEWED',
+      diff: {
+        scope: 'PATIENT_TIMELINE',
+        page,
+        limit,
+        total: timeline.pagination.total,
+        returned: timeline.data.length,
+      },
+    });
+
+    return timeline;
   }
 
   async findOperationalHistory(user: RequestUser, patientId: string, limit = 20) {
     await this.assertPatientAccess(user, patientId);
-    return findOperationalHistory(this.prisma, user, patientId, limit);
+    const history = await findOperationalHistory(this.prisma, user, patientId, limit);
+
+    await this.logPatientReadEvent({
+      user,
+      entityType: 'PatientOperationalHistory',
+      entityId: patientId,
+      reason: 'PATIENT_OPERATIONAL_HISTORY_VIEWED',
+      diff: {
+        scope: 'PATIENT_OPERATIONAL_HISTORY',
+        limit,
+        itemCount: history.length,
+      },
+    });
+
+    return history;
   }
 
   async getClinicalSummary(
@@ -137,7 +238,29 @@ export class PatientsService {
     user: RequestUser,
     filters?: PatientTaskInboxFilters,
   ) {
-    return findTasks(this.prisma, user, filters);
+    const taskInbox = await findTasks(this.prisma, user, filters);
+
+    await this.logPatientReadEvent({
+      user,
+      entityType: 'PatientTaskInbox',
+      entityId: user.id,
+      reason: 'PATIENT_TASKS_VIEWED',
+      diff: {
+        scope: 'PATIENT_TASK_INBOX',
+        page: taskInbox.pagination.page,
+        limit: taskInbox.pagination.limit,
+        total: taskInbox.pagination.total,
+        filters: {
+          hasSearch: Boolean(filters?.search?.trim()),
+          hasStatus: Boolean(filters?.status),
+          hasType: Boolean(filters?.type),
+          hasPriority: Boolean(filters?.priority),
+          overdueOnly: Boolean(filters?.overdueOnly),
+        },
+      },
+    });
+
+    return taskInbox;
   }
 
   async update(id: string, updatePatientDto: UpdatePatientDto, user: RequestUser) {
