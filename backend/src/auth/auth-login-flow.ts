@@ -5,6 +5,7 @@ import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
+import { authLoginFailedTotal } from '../metrics/metrics-registry';
 
 export const MAX_FAILED_ATTEMPTS = 5;
 export const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
@@ -141,6 +142,8 @@ export async function loginWithLockout(
   if (!user) {
     const entry = await registerFailedLoginAttempt(prisma, email, now);
     const existingUser = await usersService.findByEmail(email);
+
+    authLoginFailedTotal.inc({ locked: entry.lockedUntil ? 'true' : 'false' });
 
     auditService
       .log({

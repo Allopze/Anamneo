@@ -12,6 +12,10 @@ import {
   readDevWatchProcessIds,
   resolveTrustProxySetting,
 } from './main.helpers';
+import { isEncryptionEnabled } from './common/utils/field-crypto';
+import { PrismaService } from './prisma/prisma.service';
+import { csrfMiddleware } from './common/middleware/csrf.middleware';
+import { metricsMiddleware } from './metrics/metrics.middleware';
 
 async function setupDevWatchHealth() {
   const devWatchProcessIds = readDevWatchProcessIds();
@@ -109,36 +113,69 @@ export async function bootstrapApp() {
 
   httpAdapter.getInstance().set('trust proxy', trustProxy);
   app.use(helmet({
+    // El backend solo sirve /api (JSON). CSP estricta sin 'unsafe-inline' es seguro
+    // porque no se evalua HTML. El frontend Next provee su propia CSP con nonce.
     contentSecurityPolicy: {
       directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'blob:'],
+        defaultSrc: ["'none'"],
         connectSrc: ["'self'"],
-        fontSrc: ["'self'"],
-        objectSrc: ["'none'"],
-        frameSrc: ["'none'"],
         frameAncestors: ["'none'"],
-        formAction: ["'self'"],
-        baseUri: ["'self'"],
-        upgradeInsecureRequests: [],
+        formAction: ["'none'"],
+        baseUri: ["'none'"],
       },
     },
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   }));
   app.use(cookieParser());
   app.use(requestTracingMiddleware);
+  app.use(metricsMiddleware);
+  // CSRF en mutaciones (excepto login/register/refresh/2fa-verify/forgot-password).
+  // Se ejecuta despues de cookieParser porque depende de req.cookies.
+  // En test mode se desactiva para mantener simples las e2e suites existentes;
+  // hay tests dedicados que verifican el comportamiento del middleware.
+  if (process.env.NODE_ENV !== 'test') {
+    app.use(csrfMiddleware);
+  }
 
   const corsOriginEnv = configService.get<string>('CORS_ORIGIN', 'http://localhost:5555');
   const corsOrigins = corsOriginEnv.split(',').map((origin) => origin.trim());
 
+  const phiFieldEncryption = isEncryptionEnabled();
   console.log(JSON.stringify({
     level: 'info',
     event: 'config_loaded',
     corsOrigins,
     trustProxy,
+    phiFieldEncryption,
   }));
+
+  if (!phiFieldEncryption) {
+    console.warn(JSON.stringify({
+      level: 'warn',
+      event: 'phi_field_encryption_disabled',
+      message: 'ENCRYPTION_KEY is not set or invalid; clinical sections will be persisted in cleartext. '
+        + 'In NODE_ENV=production the app refuses to boot without it.',
+    }));
+  }
+
+  // F-10: si hay admin activo y todavia hay BOOTSTRAP_TOKEN configurado, avisar.
+  // El token solo es usable cuando no hay admin, pero rotarlo despues del primer
+  // uso es buena higiene operativa.
+  try {
+    const prisma = app.get(PrismaService);
+    const adminCount = await prisma.user.count({ where: { isAdmin: true, active: true } });
+    const bootstrapToken = configService.get<string>('BOOTSTRAP_TOKEN')?.trim();
+    if (adminCount > 0 && bootstrapToken) {
+      console.warn(JSON.stringify({
+        level: 'warn',
+        event: 'bootstrap_token_still_configured',
+        message: 'BOOTSTRAP_TOKEN remains configured but an active admin already exists. '
+          + 'Rotate or remove the token to reduce blast radius if it leaks.',
+      }));
+    }
+  } catch {
+    // No bloqueamos el arranque por este check.
+  }
 
   app.enableCors({
     origin: corsOrigins,

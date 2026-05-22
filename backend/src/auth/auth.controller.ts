@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { AuthTotpService } from './auth-totp.service';
+import { AuthPasswordResetService } from './auth-password-reset.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterWithInvitationDto } from './dto/register-with-invitation.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -13,6 +14,7 @@ import {
   VerifyTotpLoginDto,
   RegenerateRecoveryCodesDto,
 } from './dto/totp.dto';
+import { ConfirmPasswordResetDto, RequestPasswordResetDto } from './dto/password-reset.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { UsersService } from '../users/users.service';
@@ -38,6 +40,7 @@ export class AuthController {
   constructor(
     private authService: AuthService,
     private authTotpService: AuthTotpService,
+    private authPasswordResetService: AuthPasswordResetService,
     private usersService: UsersService,
     private configService: ConfigService,
   ) {
@@ -169,6 +172,42 @@ export class AuthController {
 
     this.clearAuthCookies(res);
     return { message: 'Sesión cerrada' };
+  }
+
+  // ── Password reset (publico, anti-enumeration) ─────────────────────
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { limit: 2, ttl: 60000 } })
+  async forgotPassword(@Body() dto: RequestPasswordResetDto, @Res({ passthrough: true }) res: Response) {
+    const sessionContext = this.getSessionContext(res.req as Request);
+    await this.authPasswordResetService.requestReset(dto.email, sessionContext);
+    return { message: 'Si el correo está registrado, recibirás un enlace para restablecer la contraseña.' };
+  }
+
+  @Get('forgot-password/:token')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { limit: 10, ttl: 60000 } })
+  async checkForgotPasswordToken(@Param('token') token: string) {
+    return this.authPasswordResetService.validateToken(token);
+  }
+
+  @Post('forgot-password/confirm')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
+  async confirmForgotPassword(
+    @Body() dto: ConfirmPasswordResetDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const sessionContext = this.getSessionContext(res.req as Request);
+    await this.authPasswordResetService.confirmReset(
+      dto.token,
+      dto.newPassword,
+      dto.totpCode,
+      sessionContext,
+    );
+    this.clearAuthCookies(res);
+    return { message: 'Contraseña restablecida correctamente. Inicia sesión con la nueva contraseña.' };
   }
 
   @Get('sessions')

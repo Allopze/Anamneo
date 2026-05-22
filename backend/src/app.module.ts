@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
 import { SentryModule } from '@sentry/nestjs/setup';
 
 import { PrismaModule } from './prisma/prisma.module';
@@ -20,6 +21,7 @@ import { AlertsModule } from './alerts/alerts.module';
 import { Cie10Module } from './cie10/cie10.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { LegalModule } from './legal/legal.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -41,21 +43,13 @@ import { HealthController } from './health.controller';
             { name: 'long', ttl: 60000, limit: 2000 },
           ]
         : [
-            {
-              name: 'short',
-              ttl: 1000,
-              limit: 3,
-            },
-            {
-              name: 'medium',
-              ttl: 10000,
-              limit: 20,
-            },
-            {
-              name: 'long',
-              ttl: 60000,
-              limit: 100,
-            },
+            // Limites globales por sesion/usuario (o por IP si no hay sesion).
+            // Suficientes para uso clinico real con autoguardado y dashboards.
+            // Endpoints sensibles (login, register, 2fa/verify) tienen @Throttle
+            // mas restrictivo en auth.controller.ts.
+            { name: 'short', ttl: 1000, limit: 20 },
+            { name: 'medium', ttl: 10000, limit: 120 },
+            { name: 'long', ttl: 60000, limit: 600 },
           ],
     ),
 
@@ -78,12 +72,13 @@ import { HealthController } from './health.controller';
     Cie10Module,
     AnalyticsModule,
     LegalModule,
+    MetricsModule,
   ],
   controllers: [HealthController],
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: UserThrottlerGuard,
     },
   ],
 })

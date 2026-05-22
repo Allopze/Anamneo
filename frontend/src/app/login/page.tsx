@@ -407,7 +407,7 @@ function LoginContent() {
           <label htmlFor="password" className="form-label">
             Contraseña
           </label>
-          <span className="auth-forgot-password">¿Olvidaste tu contraseña?</span>
+          <Link href="/forgot-password" className="auth-forgot-password auth-inline-link">¿Olvidaste tu contraseña?</Link>
           <div className="relative">
             <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
             <input

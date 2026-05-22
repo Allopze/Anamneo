@@ -60,6 +60,31 @@ export const api = axios.create({
   withCredentials: true, // Send cookies with every request
 });
 
+const CSRF_COOKIE_NAME = 'csrf_token';
+const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
+
+function readCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+}
+
+// Request interceptor - attach CSRF token on mutating requests (double-submit cookie)
+api.interceptors.request.use((config) => {
+  const method = (config.method || 'get').toLowerCase();
+  if (MUTATING_METHODS.has(method)) {
+    const token = readCookie(CSRF_COOKIE_NAME);
+    if (token) {
+      config.headers = config.headers || {};
+      (config.headers as Record<string, string>)['X-CSRF-Token'] = token;
+    }
+  }
+  return config;
+});
+
 // Response interceptor - handle token refresh via cookie
 api.interceptors.response.use(
   (response) => response,

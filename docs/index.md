@@ -13,11 +13,14 @@ Este directorio concentra la documentacion viva del proyecto. Si un tema aparece
 | `frontend-architecture.md` | Desarrollo | App Router, layout privado, proxy y estado cliente |
 | `data-model.md` | Desarrollo / Producto | Entidades Prisma, relaciones y estados persistidos |
 | `security-and-permissions.md` | Desarrollo / Operacion | JWT, sesiones, cifrado, auditoria y permisos |
+| `data-privacy-and-compliance.md` | Operacion / Legal | Marco Ley 19.628 / Ley 21.719, DPA, derechos del titular, retencion |
 | `sqlite-operations.md` | Operacion | Backup, restore drill, monitor y alertas SQLite |
 | `deployment-and-release.md` | Operacion | Build, empaquetado, despliegue y smoke checks |
 | `clinical-workflows.md` | Producto / Desarrollo | Flujos funcionales vigentes y riesgos conocidos |
 | `clinical-analytics.md` | Producto / Desarrollo | Vista de analitica clinica, fuentes de datos, calculos, limites y validacion |
 | `settings-key-rotation-runbook.md` | Operacion | Rotacion de claves de cifrado para settings |
+| `account-recovery-runbook.md` | Operacion / Soporte | Recuperacion de cuentas, reset de admin de emergencia, diseno de password reset self-service |
+| `observability-slos.md` | Operacion | SLOs, metricas Prometheus, busqueda en logs, alertas recomendadas |
 | `design-tokens-anamneo.md` | Frontend | Contrato visual activo del frontend |
 
 ## Regla Simple

@@ -62,6 +62,11 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   USER_PROFILE_UPDATED: 'Actualización de perfil',
   USER_PASSWORD_CHANGED: 'Cambio de contraseña',
   USER_PASSWORD_RESET: 'Reset administrativo de contraseña',
+  USER_PASSWORD_RESET_REQUESTED: 'Solicitud de reset de contraseña por email',
+  USER_PASSWORD_RESET_VIA_EMAIL: 'Reset de contraseña confirmado por email',
+  PATIENT_DATA_EXPORTED_REGULATORY: 'Exportación regulatoria de datos de paciente (Ley 19.628/21.719)',
+  PATIENT_RECORD_PURGED_REGULATORY: 'Borrado regulatorio de ficha clínica',
+  ATTACHMENT_QUARANTINED: 'Adjunto en cuarentena (AV scan)',
   TEXT_TEMPLATE_CREATED: 'Creación de plantilla clínica',
   TEXT_TEMPLATE_UPDATED: 'Actualización de plantilla clínica',
   TEXT_TEMPLATE_DELETED: 'Eliminación de plantilla clínica',
@@ -133,6 +138,8 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'User' && action === 'UPDATE' && hasDiffKey(diff, 'deactivated')) return 'USER_DEACTIVATED';
   if (entityType === 'User' && action === 'UPDATE' && hasDiffKey(diff, 'profile')) return 'USER_PROFILE_UPDATED';
   if (entityType === 'User' && action === 'UPDATE') return 'USER_UPDATED';
+  if (entityType === 'User' && action === 'PASSWORD_CHANGED' && hasDiffScope(diff, 'EMAIL_RESET_REQUEST')) return 'USER_PASSWORD_RESET_REQUESTED';
+  if (entityType === 'User' && action === 'PASSWORD_CHANGED' && hasDiffScope(diff, 'EMAIL_RESET')) return 'USER_PASSWORD_RESET_VIA_EMAIL';
   if (entityType === 'User' && action === 'PASSWORD_CHANGED' && hasDiffKey(diff, 'reset')) return 'USER_PASSWORD_RESET';
   if (entityType === 'User' && action === 'PASSWORD_CHANGED') return 'USER_PASSWORD_CHANGED';
   if (entityType === 'TextTemplate' && action === 'CREATE') return 'TEXT_TEMPLATE_CREATED';

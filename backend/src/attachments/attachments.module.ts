@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { mkdirSync } from 'fs';
 import { AttachmentsService } from './attachments.service';
+import { AttachmentsScanService } from './attachments-scan.service';
 import { AttachmentsController } from './attachments.controller';
 import { resolveUploadsRoot } from '../common/utils/uploads-root';
 
@@ -51,7 +52,7 @@ const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.gif']);
     }),
   ],
   controllers: [AttachmentsController],
-  providers: [AttachmentsService],
+  providers: [AttachmentsService, AttachmentsScanService],
   exports: [AttachmentsService],
 })
 export class AttachmentsModule {}

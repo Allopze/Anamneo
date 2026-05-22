@@ -13,8 +13,9 @@ export function resolveProxyDecision(input: {
 }): ProxyDecision {
   const { pathname, search, hasSessionCookie, hasRefreshToken, hasValidatedSession } = input;
   const isLegalRoute = pathname === '/terminos-y-condiciones' || pathname === '/politica-de-privacidad';
-  const isAuthRoute = pathname === '/login' || pathname === '/register';
-  const isPublicRoute = isAuthRoute || isLegalRoute;
+  const isAuthRoute = pathname === '/login' || pathname === '/register' || pathname === '/forgot-password';
+  const isPasswordResetWithToken = pathname === '/cambiar-contrasena' && /[?&]token=/.test(search);
+  const isPublicRoute = isAuthRoute || isLegalRoute || isPasswordResetWithToken;
 
   if (isPublicRoute) {
     if (isAuthRoute && hasValidatedSession) {

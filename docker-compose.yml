@@ -34,6 +34,7 @@ services:
       ENCRYPTION_AT_REST_CONFIRMED: ${ENCRYPTION_AT_REST_CONFIRMED:?ENCRYPTION_AT_REST_CONFIRMED is required}
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?SETTINGS_ENCRYPTION_KEY is required}
       SETTINGS_ENCRYPTION_KEYS: ${SETTINGS_ENCRYPTION_KEYS:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required (64 hex chars, encrypts clinical sections)}
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:?APP_PUBLIC_URL is required}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -56,6 +57,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
 
   frontend:
     build:
@@ -86,6 +92,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
 
   backup-cron:
     build:
@@ -119,5 +130,37 @@ services:
         node /app/scripts/sqlite-ops-runner.js --mode=all --notify=on-failure
         chown -R node:node /app/data/backups /app/uploads
         node /app/scripts/purge-deleted-attachments.js
+        node /app/scripts/purge-password-reset-tokens.js
         chown -R node:node /app/data/backups /app/uploads
         crond -f -l 2
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
+
+# ─────────────────────────────────────────────────────────────────────
+# OPCIONAL: log shipper persistente
+# Descomentar y configurar para enviar logs a Loki/Vector/Datadog/etc.
+# La retención mínima recomendada en destino es 90 días (ver
+# docs/observability-slos.md).
+#
+# El shipper debe scrubear PHI antes de enviar usando las mismas reglas que
+# backend/src/common/utils/phi-scrub.ts (RUT, email, secuencias largas y
+# campos con credenciales conocidas).
+#
+#  log-shipper:
+#    image: grafana/promtail:3.0.0
+#    container_name: anamneo-promtail
+#    restart: unless-stopped
+#    user: root
+#    volumes:
+#      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+#      - /var/run/docker.sock:/var/run/docker.sock:ro
+#      - ./infra/promtail-config.yml:/etc/promtail/config.yml:ro
+#    command: -config.file=/etc/promtail/config.yml
+#    logging:
+#      driver: "json-file"
+#      options:
+#        max-size: "10m"
+#        max-file: "5"

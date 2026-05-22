@@ -280,6 +280,93 @@ export class MailService {
     return this.deliverInvitationEmail(payload);
   }
 
+  async sendPasswordResetEmail(payload: {
+    email: string;
+    token: string;
+    expiresAt: Date;
+    recipientName?: string | null;
+  }): Promise<{ sent: boolean; reason: string | null; resetUrl: string | null }> {
+    const settings = await this.resolveMailSettings();
+    const resetUrl = settings.appPublicUrl
+      ? `${settings.appPublicUrl}/cambiar-contrasena?token=${encodeURIComponent(payload.token)}`
+      : null;
+
+    if (!settings.canSend || !resetUrl || !settings.host || !settings.port || !settings.fromEmail) {
+      return {
+        sent: false,
+        reason: settings.misconfiguration ?? 'SMTP no configurado',
+        resetUrl,
+      };
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: settings.host,
+      port: settings.port,
+      secure: settings.secure,
+      auth: settings.user ? { user: settings.user, pass: settings.password ?? '' } : undefined,
+    });
+
+    const expirationLabel = payload.expiresAt.toLocaleString('es-CL', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    });
+    const greetingName = payload.recipientName ? `Hola ${payload.recipientName},` : 'Hola,';
+    const subject = `Recuperación de contraseña en ${settings.clinicName}`;
+
+    const textBody = [
+      greetingName,
+      '',
+      `Recibimos una solicitud para restablecer la contraseña de tu cuenta en ${settings.clinicName}.`,
+      '',
+      `Para continuar, abre este enlace antes del ${expirationLabel}:`,
+      resetUrl,
+      '',
+      'Si no fuiste tú, ignora este correo. Tu contraseña actual sigue siendo válida.',
+      '',
+      'Por seguridad, este enlace solo se puede usar una vez y caduca rápido.',
+    ].join('\n');
+
+    const logoUrl = buildLogoUrl(settings.appPublicUrl);
+    const logoMarkup = logoUrl
+      ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(settings.clinicName)}" style="display:block; width:168px; max-width:100%; margin:0 auto 18px;" />`
+      : `<div style="display:inline-block; padding:10px 18px; border-radius:999px; background:#fee2e2; color:#991b1b; font-weight:700;">${escapeHtml(settings.clinicName)}</div>`;
+
+    const htmlBody = `
+      <div style="font-family:Arial,sans-serif; background:#f8fafc; padding:24px; color:#0f172a;">
+        <div style="max-width:560px; margin:0 auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:32px;">
+          <div style="text-align:center; margin-bottom:24px;">
+            ${logoMarkup}
+            <p style="margin:0; color:#991b1b; font-size:13px; text-transform:uppercase; letter-spacing:0.16em;">Recuperación de contraseña</p>
+          </div>
+          <p style="margin:0 0 12px; color:#475569;">${escapeHtml(greetingName)}</p>
+          <p style="margin:0 0 16px; color:#475569;">Recibimos una solicitud para restablecer la contraseña de tu cuenta en <strong>${escapeHtml(settings.clinicName)}</strong>.</p>
+          <p style="margin:0 0 20px; color:#475569;">Para continuar, abre este enlace antes del <strong>${escapeHtml(expirationLabel)}</strong>:</p>
+          <a href="${escapeHtml(resetUrl)}" style="display:inline-block; padding:12px 20px; border-radius:999px; background:#dc2626; color:#ffffff; text-decoration:none; font-weight:600;">Restablecer contraseña</a>
+          <p style="margin:20px 0 0; color:#64748b; font-size:14px;">Si el botón no funciona, copia este enlace:</p>
+          <p style="margin:8px 0 0; color:#0f172a; font-size:14px; word-break:break-all;">${escapeHtml(resetUrl)}</p>
+          <hr style="border:none; border-top:1px solid #e2e8f0; margin:24px 0;" />
+          <p style="margin:0; color:#64748b; font-size:13px;">Si no fuiste tú, ignora este correo. El enlace caduca pronto y solo puede usarse una vez.</p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await transporter.sendMail({
+        from: formatFromAddress(settings.fromEmail, settings.fromName),
+        to: payload.email,
+        subject,
+        text: textBody,
+        html: htmlBody,
+      });
+
+      return { sent: true, reason: null, resetUrl };
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'No se pudo enviar el correo';
+      this.logger.error(`No se pudo enviar el reset de contraseña a ${payload.email}: ${reason}`);
+      return { sent: false, reason, resetUrl };
+    }
+  }
+
   async sendTestInvitationEmail(
     email: string,
     overrides: MailSettingsOverrides = {},

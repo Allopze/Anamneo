@@ -25,6 +25,16 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
+# Modo no-interactivo: --auto-rollback  -> intenta rollback automáticamente si la migración falla
+#                      --no-rollback    -> aborta sin intentar rollback (CI conservador)
+AUTO_ROLLBACK=""
+for arg in "$@"; do
+  case "$arg" in
+    --auto-rollback) AUTO_ROLLBACK="yes" ;;
+    --no-rollback)   AUTO_ROLLBACK="no"  ;;
+  esac
+done
+
 RUNTIME_DATA="$ROOT_DIR/runtime/data"
 RUNTIME_UPLOADS="$ROOT_DIR/runtime/uploads"
 BACKUP_DIR="$RUNTIME_DATA/backups"
@@ -174,8 +184,23 @@ else
     fi
     echo "  docker compose up -d"
     echo ""
-    read -r -p "¿Ejecutar rollback automático ahora? [s/N] " REPLY
-    if [[ "$REPLY" =~ ^[sS]$ ]]; then
+
+    DO_ROLLBACK=""
+    if [[ "$AUTO_ROLLBACK" == "yes" ]]; then
+      log "Modo --auto-rollback: ejecutando rollback automaticamente."
+      DO_ROLLBACK="yes"
+    elif [[ "$AUTO_ROLLBACK" == "no" ]]; then
+      warn "Modo --no-rollback: NO se ejecuta rollback. Restauralo manualmente con los comandos de arriba."
+      DO_ROLLBACK="no"
+    elif [[ ! -t 0 ]]; then
+      warn "stdin no es interactivo y no se especifico --auto-rollback/--no-rollback. Abortando sin rollback."
+      DO_ROLLBACK="no"
+    else
+      read -r -p "¿Ejecutar rollback automático ahora? [s/N] " REPLY
+      [[ "$REPLY" =~ ^[sS]$ ]] && DO_ROLLBACK="yes" || DO_ROLLBACK="no"
+    fi
+
+    if [[ "$DO_ROLLBACK" == "yes" ]]; then
       docker compose down 2>/dev/null || true
       cp "$ROLLBACK_DB" "$DB_PATH"
       log "Base restaurada desde $ROLLBACK_DB"

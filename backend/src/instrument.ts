@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/nestjs';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
+import { scrubPhi } from './common/utils/phi-scrub';
 
 const environment = process.env.NODE_ENV || 'development';
 const isProduction = environment === 'production';
@@ -20,12 +21,24 @@ function sanitizeHeaders(headers: Record<string, string> | undefined) {
   return nextHeaders;
 }
 
+const scrubText = scrubPhi;
+
+function scrubExceptionValues(event: Sentry.ErrorEvent): Sentry.ErrorEvent {
+  if (!event.exception?.values) return event;
+  for (const exception of event.exception.values) {
+    if (exception.value) {
+      exception.value = scrubText(exception.value);
+    }
+  }
+  return event;
+}
+
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   environment,
   integrations: [nodeProfilingIntegration()],
   enableLogs: !isProduction,
-  tracesSampleRate: isProduction ? 0.05 : 0.2,
+  tracesSampleRate: isProduction ? 0.1 : 0.2,
   profileSessionSampleRate: 0,
   profileLifecycle: 'trace',
   sendDefaultPii: false,
@@ -43,6 +56,10 @@ Sentry.init({
       };
     }
 
-    return event;
+    if (event.message) {
+      event.message = scrubText(event.message);
+    }
+
+    return scrubExceptionValues(event);
   },
 });

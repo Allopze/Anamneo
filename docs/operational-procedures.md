@@ -2,6 +2,12 @@
 
 Este documento cubre los procedimientos operativos diarios, semanales y de emergencia para mantener Anamneo en producción.
 
+> Todos los comandos asumen que la variable `ANAMNEO_ROOT` apunta al directorio donde vive el deploy (por ejemplo `/opt/anamneo` o `/home/anamneo/app`). Exportala antes de copiar/pegar:
+>
+> ```bash
+> export ANAMNEO_ROOT=/ruta/a/anamneo
+> ```
+
 ## 1. Procedimientos Diarios
 
 ### 1.1 Verificación de Salud del Sistema
@@ -21,8 +27,8 @@ docker compose logs --since 24h backend | grep -i "error\|fatal\|exception" | ta
 docker compose logs --since 24h frontend | grep -i "error\|fatal" | tail -20
 
 # Verificar espacio en disco
-df -h /home/allopze/dev/Anamneo/runtime
-du -sh /home/allopze/dev/Anamneo/runtime/data/backups/
+df -h ${ANAMNEO_ROOT}/runtime
+du -sh ${ANAMNEO_ROOT}/runtime/data/backups/
 ```
 
 **Checklist:**
@@ -38,10 +44,10 @@ du -sh /home/allopze/dev/Anamneo/runtime/data/backups/
 
 ```bash
 # Verificar últimos backups
-ls -lht /home/allopze/dev/Anamneo/runtime/data/backups/*.db | head -5
+ls -lht ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -5
 
 # Verificar integridad del último backup
-LATEST_BACKUP=$(ls -t /home/allopze/dev/Anamneo/runtime/data/backups/*.db | head -1)
+LATEST_BACKUP=$(ls -t ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -1)
 sqlite3 "$LATEST_BACKUP" "PRAGMA integrity_check;"
 
 # Verificar metadata del backup
@@ -74,7 +80,7 @@ docker compose logs --since 1h backup-cron | grep -i "alert\|warning\|error"
 
 ```bash
 # Ejecutar restore drill manual
-cd /home/allopze/dev/Anamneo
+cd ${ANAMNEO_ROOT}
 docker compose run --rm --no-deps backend node /app/scripts/sqlite-restore-drill.js
 
 # Verificar resultados
@@ -93,7 +99,7 @@ docker compose logs --since 1h backup-cron | grep "restore_drill"
 
 ```bash
 # Verificar backups expirados
-ls -lht /home/allopze/dev/Anamneo/runtime/data/backups/*.db | wc -l
+ls -lht ${ANAMNEO_ROOT}/runtime/data/backups/*.db | wc -l
 
 # Verificar retención configurada
 echo "Retención: ${SQLITE_BACKUP_RETENTION_DAYS:-14} días"
@@ -123,17 +129,17 @@ docker compose logs --since 7d backend | grep -i "settings.*change\|config.*upda
 
 ```bash
 # Verificar actualizaciones disponibles
-cd /home/allopze/dev/Anamneo/backend
+cd ${ANAMNEO_ROOT}/backend
 npm outdated
 
-cd /home/allopze/dev/Anamneo/frontend
+cd ${ANAMNEO_ROOT}/frontend
 npm outdated
 
 # Actualizar dependencias (en entorno de desarrollo primero)
-cd /home/allopze/dev/Anamneo/backend
+cd ${ANAMNEO_ROOT}/backend
 npm update
 
-cd /home/allopze/dev/Anamneo/frontend
+cd ${ANAMNEO_ROOT}/frontend
 npm update
 
 # Ejecutar tests después de actualizar
@@ -172,11 +178,11 @@ docker compose exec backend sqlite3 /app/data/anamneo.db \
 docker compose down
 
 # 2. Restaurar backup pre-migración
-LATEST_BACKUP=$(ls -t /home/allopze/dev/Anamneo/runtime/data/backups/*.db | head -1)
-cp "$LATEST_BACKUP" /home/allopze/dev/Anamneo/runtime/data/anamneo.db
+LATEST_BACKUP=$(ls -t ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -1)
+cp "$LATEST_BACKUP" ${ANAMNEO_ROOT}/runtime/data/anamneo.db
 
 # 3. Verificar integridad
-sqlite3 /home/allopze/dev/Anamneo/runtime/data/anamneo.db "PRAGMA integrity_check;"
+sqlite3 ${ANAMNEO_ROOT}/runtime/data/anamneo.db "PRAGMA integrity_check;"
 
 # 4. Reiniciar servicios
 docker compose up -d
@@ -192,15 +198,15 @@ curl -s http://localhost:5679/api/health | jq .
 docker compose down
 
 # 2. Verificar corrupción
-sqlite3 /home/allopze/dev/Anamneo/runtime/data/anamneo.db "PRAGMA integrity_check;"
+sqlite3 ${ANAMNEO_ROOT}/runtime/data/anamneo.db "PRAGMA integrity_check;"
 
 # 3. Si está corrupta, restaurar desde backup
-LATEST_BACKUP=$(ls -t /home/allopze/dev/Anamneo/runtime/data/backups/*.db | head -1)
+LATEST_BACKUP=$(ls -t ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -1)
 echo "Restaurando desde: $LATEST_BACKUP"
-cp "$LATEST_BACKUP" /home/allopze/dev/Anamneo/runtime/data/anamneo.db
+cp "$LATEST_BACKUP" ${ANAMNEO_ROOT}/runtime/data/anamneo.db
 
 # 4. Verificar restauración
-sqlite3 /home/allopze/dev/Anamneo/runtime/data/anamneo.db "PRAGMA integrity_check;"
+sqlite3 ${ANAMNEO_ROOT}/runtime/data/anamneo.db "PRAGMA integrity_check;"
 
 # 5. Reiniciar servicios
 docker compose up -d
@@ -256,7 +262,7 @@ curl -s http://localhost:5556 | head -5
 docker compose logs --since 7d > /tmp/anamneo-logs-$(date +%Y%m%d).txt
 
 # Limpiar logs antiguos
-find /home/allopze/dev/Anamneo/runtime -name "*.log" -mtime +7 -delete
+find ${ANAMNEO_ROOT}/runtime -name "*.log" -mtime +7 -delete
 ```
 
 ### 5.2 Optimización de Base de Datos
@@ -266,7 +272,7 @@ find /home/allopze/dev/Anamneo/runtime -name "*.log" -mtime +7 -delete
 docker compose exec backend sqlite3 /app/data/anamneo.db "VACUUM;"
 
 # Verificar tamaño después de optimización
-ls -lh /home/allopze/dev/Anamneo/runtime/data/anamneo.db
+ls -lh ${ANAMNEO_ROOT}/runtime/data/anamneo.db
 ```
 
 ### 5.3 Actualización de Cloudflared

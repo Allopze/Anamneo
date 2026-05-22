@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 
 export const BCRYPT_ROUNDS = 12;
 export const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000; // 15 minutos
 
 export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();

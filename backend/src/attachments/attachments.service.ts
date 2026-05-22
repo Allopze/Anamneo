@@ -14,6 +14,7 @@ import {
 } from './attachments.storage';
 import { resolveLinkedOrder } from './attachments.linked-order';
 import { getAttachmentFile } from './attachments.file-operations';
+import { AttachmentsScanService } from './attachments-scan.service';
 
 @Injectable()
 export class AttachmentsService {
@@ -21,6 +22,7 @@ export class AttachmentsService {
     private prisma: PrismaService,
     private configService: ConfigService,
     private auditService: AuditService,
+    private scanService: AttachmentsScanService,
   ) {}
 
   private assertEncounterAllowsAttachmentMutation(status: string) {

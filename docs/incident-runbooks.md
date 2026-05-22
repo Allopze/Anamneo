@@ -2,6 +2,12 @@
 
 Este documento contiene runbooks detallados para los incidentes más comunes en producción.
 
+> Todos los comandos asumen que la variable `ANAMNEO_ROOT` apunta al directorio donde vive el deploy. Exportala antes de copiar/pegar:
+>
+> ```bash
+> export ANAMNEO_ROOT=/ruta/a/anamneo
+> ```
+
 ## Índice de Runbooks
 
 1. [Base de datos corrupta](#1-base-de-datos-corrupta)
@@ -39,10 +45,10 @@ docker compose logs --tail 50 backend | grep -i "sqlite\|database\|malformed"
 docker compose down
 
 # 2. Verificar corrupción confirmada
-sqlite3 /home/allopze/dev/Anamneo/runtime/data/anamneo.db "PRAGMA integrity_check;"
+sqlite3 ${ANAMNEO_ROOT}/runtime/data/anamneo.db "PRAGMA integrity_check;"
 
 # 3. Identificar último backup válido
-LATEST_BACKUP=$(ls -t /home/allopze/dev/Anamneo/runtime/data/backups/*.db | head -1)
+LATEST_BACKUP=$(ls -t ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -1)
 echo "Último backup: $LATEST_BACKUP"
 
 # 4. Verificar integridad del backup
@@ -50,11 +56,11 @@ sqlite3 "$LATEST_BACKUP" "PRAGMA integrity_check;"
 
 # 5. Si el backup es válido, restaurar
 if [ "$(sqlite3 "$LATEST_BACKUP" "PRAGMA integrity_check;")" = "ok" ]; then
-  cp "$LATEST_BACKUP" /home/allopze/dev/Anamneo/runtime/data/anamneo.db
+  cp "$LATEST_BACKUP" ${ANAMNEO_ROOT}/runtime/data/anamneo.db
   echo "Backup restaurado exitosamente"
 else
   echo "ERROR: El backup también está corrupto. Buscar backup anterior."
-  ls -lt /home/allopze/dev/Anamneo/runtime/data/backups/*.db
+  ls -lt ${ANAMNEO_ROOT}/runtime/data/backups/*.db
 fi
 
 # 6. Reiniciar servicios
@@ -165,7 +171,7 @@ curl -s http://localhost:5556 | head -5
 **Diagnóstico:**
 ```bash
 # Verificar últimos backups
-ls -lht /home/allopze/dev/Anamneo/runtime/data/backups/*.db | head -5
+ls -lht ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -5
 
 # Verificar logs de backup
 docker compose logs --since 24h backup-cron | grep -i "backup\|error"
@@ -180,16 +186,16 @@ docker compose run --rm --no-deps backend node /app/scripts/sqlite-backup.js
 docker compose run --rm --no-deps backend node /app/scripts/sqlite-backup.js
 
 # 2. Si falla, verificar espacio en disco
-df -h /home/allopze/dev/Anamneo/runtime
+df -h ${ANAMNEO_ROOT}/runtime
 
 # 3. Si es espacio insuficiente, limpiar backups expirados
-find /home/allopze/dev/Anamneo/runtime/data/backups -name "*.db" -mtime +14 -delete
+find ${ANAMNEO_ROOT}/runtime/data/backups -name "*.db" -mtime +14 -delete
 
 # 4. Reintentar backup
 docker compose run --rm --no-deps backend node /app/scripts/sqlite-backup.js
 
 # 5. Verificar resultado
-ls -lht /home/allopze/dev/Anamneo/runtime/data/backups/*.db | head -3
+ls -lht ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -3
 ```
 
 ---
@@ -215,11 +221,11 @@ docker compose run --rm --no-deps backend node /app/scripts/sqlite-restore-drill
 docker compose run --rm --no-deps backend node /app/scripts/sqlite-restore-drill.js 2>&1
 
 # 2. Si falla por integridad, verificar backup
-LATEST_BACKUP=$(ls -t /home/allopze/dev/Anamneo/runtime/data/backups/*.db | head -1)
+LATEST_BACKUP=$(ls -t ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -1)
 sqlite3 "$LATEST_BACKUP" "PRAGMA integrity_check;"
 
 # 3. Si el backup está corrupto, usar backup anterior
-ls -lt /home/allopze/dev/Anamneo/runtime/data/backups/*.db
+ls -lt ${ANAMNEO_ROOT}/runtime/data/backups/*.db
 
 # 4. Ejecutar restore drill con backup específico
 docker compose run --rm --no-deps backend node /app/scripts/sqlite-restore-drill.js --from=/path/to/backup.db
@@ -276,19 +282,19 @@ docker compose restart backend frontend
 df -h
 
 # Verificar directorios grandes
-du -sh /home/allopze/dev/Anamneo/runtime/*
-du -sh /home/allopze/dev/Anamneo/runtime/data/backups/
-du -sh /home/allopze/dev/Anamneo/runtime/uploads/
+du -sh ${ANAMNEO_ROOT}/runtime/*
+du -sh ${ANAMNEO_ROOT}/runtime/data/backups/
+du -sh ${ANAMNEO_ROOT}/runtime/uploads/
 ```
 
 **Resolución:**
 ```bash
 # 1. Limpiar backups expirados
-find /home/allopze/dev/Anamneo/runtime/data/backups -name "*.db" -mtime +14 -delete
-find /home/allopze/dev/Anamneo/runtime/data/backups -name "*.meta.json" -mtime +14 -delete
+find ${ANAMNEO_ROOT}/runtime/data/backups -name "*.db" -mtime +14 -delete
+find ${ANAMNEO_ROOT}/runtime/data/backups -name "*.meta.json" -mtime +14 -delete
 
 # 2. Limpiar uploads antiguos (si aplica)
-find /home/allopze/dev/Anamneo/runtime/uploads -type f -mtime +30 -delete
+find ${ANAMNEO_ROOT}/runtime/uploads -type f -mtime +30 -delete
 
 # 3. Limpiar logs de Docker
 docker compose logs --since 7d > /tmp/anamneo-logs-$(date +%Y%m%d).txt
@@ -324,11 +330,11 @@ docker compose logs --tail 50 backend | grep -i "migrate\|migration"
 docker compose down
 
 # 2. Restaurar backup pre-migración
-LATEST_BACKUP=$(ls -t /home/allopze/dev/Anamneo/runtime/data/backups/*.db | head -1)
-cp "$LATEST_BACKUP" /home/allopze/dev/Anamneo/runtime/data/anamneo.db
+LATEST_BACKUP=$(ls -t ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -1)
+cp "$LATEST_BACKUP" ${ANAMNEO_ROOT}/runtime/data/anamneo.db
 
 # 3. Verificar integridad
-sqlite3 /home/allopze/dev/Anamneo/runtime/data/anamneo.db "PRAGMA integrity_check;"
+sqlite3 ${ANAMNEO_ROOT}/runtime/data/anamneo.db "PRAGMA integrity_check;"
 
 # 4. Reiniciar servicios
 docker compose up -d

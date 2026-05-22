@@ -106,6 +106,30 @@ export function assertSafeConfig(configService: ConfigService) {
         'ENCRYPTION_AT_REST_CONFIRMED=true is required in production after verifying filesystem-level encryption for the database, uploads, and backups volumes.',
       );
     }
+
+    const fieldEncryptionKey = configService.get<string>('ENCRYPTION_KEY')?.trim();
+    if (!fieldEncryptionKey) {
+      throw new Error(
+        'ENCRYPTION_KEY is required in production to encrypt clinical PHI sections at rest. '
+        + 'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
+      );
+    }
+
+    if (fieldEncryptionKey.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(fieldEncryptionKey)) {
+      throw new Error(
+        'ENCRYPTION_KEY must be a 64-character hex string (256 bits) in production.',
+      );
+    }
+  }
+
+  if (isProduction) {
+    const trustProxyRaw = configService.get<string>('TRUST_PROXY', 'false')?.trim().toLowerCase();
+    if (trustProxyRaw === 'false' || !trustProxyRaw) {
+      throw new Error(
+        'TRUST_PROXY must be configured in production (recommended: TRUST_PROXY=1 when behind cloudflared/reverse-proxy). '
+        + 'Without it, req.ip will be the proxy IP and session/audit IP forensics will be blind.',
+      );
+    }
   }
 }
 

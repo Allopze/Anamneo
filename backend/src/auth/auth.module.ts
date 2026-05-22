@@ -6,16 +6,19 @@ import type { StringValue } from 'ms';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthTotpService } from './auth-totp.service';
+import { AuthPasswordResetService } from './auth-password-reset.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
 import { SettingsModule } from '../settings/settings.module';
 import { LegalModule } from '../legal/legal.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     UsersModule,
     SettingsModule,
     LegalModule,
+    MailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -29,7 +32,7 @@ import { LegalModule } from '../legal/legal.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthTotpService, JwtStrategy],
-  exports: [AuthService],
+  providers: [AuthService, AuthTotpService, AuthPasswordResetService, JwtStrategy],
+  exports: [AuthService, AuthPasswordResetService],
 })
 export class AuthModule {}
