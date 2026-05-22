@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { SentryExceptionCaptured } from '@sentry/nestjs';
+import { scrubPhi } from '../utils/phi-scrub';
+import { sanitizeRequestPath } from '../utils/request-tracing';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -41,21 +43,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
         exception instanceof Error ? exception.message : 'Unknown error';
       const stack =
         exception instanceof Error ? exception.stack : undefined;
+      const sanitizedMessage = scrubPhi(errMsg) ?? 'Unknown error';
+      const sanitizedStack = scrubPhi(stack);
+      const sanitizedPath = sanitizeRequestPath(request.originalUrl);
 
       console.error(
         JSON.stringify({
           level: 'error',
           event: 'unhandled_exception',
           method: request.method,
-          path: request.originalUrl,
-          message: errMsg,
-          ...(this.isProduction ? {} : { stack }),
+          path: sanitizedPath,
+          message: sanitizedMessage,
+          ...(this.isProduction ? {} : { stack: sanitizedStack }),
         }),
       );
 
       // In production, never expose internal details
       if (!this.isProduction) {
-        message = errMsg;
+        message = sanitizedMessage;
       }
     }
 
@@ -64,7 +69,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message,
       error,
       timestamp: new Date().toISOString(),
-      path: request.originalUrl,
+      path: sanitizeRequestPath(request.originalUrl),
     });
   }
 }

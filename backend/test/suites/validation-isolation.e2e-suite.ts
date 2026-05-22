@@ -6,6 +6,12 @@ import {
   cookieHeader,
   TEST_LEGAL_ACCEPTANCE,
 } from '../helpers/e2e-setup';
+import {
+  expectAttachmentIdIsolation,
+  expectEncounterIdIsolation,
+  expectPatientIdIsolation,
+  expectTemplateAndLocalConditionIsolation,
+} from './validation-id-isolation.helpers';
 
 export function validationPatientIsolationSuite() {
   describe('Patient Data Isolation', () => {
@@ -14,6 +20,7 @@ export function validationPatientIsolationSuite() {
     let medico2PatientId: string;
     let medico2InvitationToken: string;
     let leakedEncounterId: string;
+    let leakedOpenEncounterId: string;
     let leakedProblemId: string;
     let leakedTaskId: string;
     let leakedStandaloneProblemId: string;
@@ -98,6 +105,10 @@ export function validationPatientIsolationSuite() {
       await req().get(`/api/patients/${medico2PatientId}`).set('Cookie', cookieHeader(state.medicoCookies)).expect(404);
     });
 
+    it('First medico is denied across sensitive patient :id operations owned by another medico', async () => {
+      await expectPatientIdIsolation({ medico2PatientId, ownPatientId: state.patientId });
+    });
+
     it('Second medico cannot create encounters for a patient outside their scope', async () => {
       await req()
         .post(`/api/encounters/patient/${state.patientId}`)
@@ -125,6 +136,17 @@ export function validationPatientIsolationSuite() {
       });
       leakedEncounterId = leakedEncounter.id;
 
+      const leakedOpenEncounter = await prisma.encounter.create({
+        data: {
+          patientId: state.patientId,
+          medicoId: medico2UserId,
+          createdById: medico2UserId,
+          status: 'EN_PROGRESO',
+          createdAt: new Date('2026-04-02T00:00:00.000Z'),
+        },
+      });
+      leakedOpenEncounterId = leakedOpenEncounter.id;
+
       const timelineRes = await req()
         .get(`/api/patients/${state.patientId}/encounters?page=1&limit=10`)
         .set('Cookie', cookieHeader(state.medicoCookies))
@@ -143,6 +165,18 @@ export function validationPatientIsolationSuite() {
 
     it('First medico still gets 404 when trying to open another medico encounter directly', async () => {
       await req().get(`/api/encounters/${leakedEncounterId}`).set('Cookie', cookieHeader(state.medicoCookies)).expect(404);
+    });
+
+    it('First medico is denied across every encounter :id operation owned by another medico', async () => {
+      await expectEncounterIdIsolation({ leakedEncounterId, leakedOpenEncounterId, medico2PatientId });
+    });
+
+    it('First medico is denied across attachment endpoints for another medico encounter', async () => {
+      await expectAttachmentIdIsolation({ leakedOpenEncounterId, medico2UserId });
+    });
+
+    it('First medico cannot access another medico text templates or local condition catalog entries', async () => {
+      await expectTemplateAndLocalConditionIsolation({ medico2UserId });
     });
 
     it('Patient detail, encounter detail, summary and task inbox do not leak problems or tasks from another medico scope', async () => {

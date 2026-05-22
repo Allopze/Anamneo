@@ -13,6 +13,7 @@ Este directorio concentra la documentacion viva del proyecto. Si un tema aparece
 | `frontend-architecture.md` | Desarrollo | App Router, layout privado, proxy y estado cliente |
 | `data-model.md` | Desarrollo / Producto | Entidades Prisma, relaciones y estados persistidos |
 | `security-and-permissions.md` | Desarrollo / Operacion | JWT, sesiones, cifrado, auditoria y permisos |
+| `idor-isolation-matrix.md` | Desarrollo / Seguridad | Matriz de endpoints con IDs y cobertura de aislamiento/IDOR |
 | `data-privacy-and-compliance.md` | Operacion / Legal | Marco Ley 19.628 / Ley 21.719, DPA, derechos del titular, retencion |
 | `sqlite-operations.md` | Operacion | Backup, restore drill, monitor y alertas SQLite |
 | `deployment-and-release.md` | Operacion | Build, empaquetado, despliegue y smoke checks |

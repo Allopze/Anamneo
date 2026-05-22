@@ -15,6 +15,7 @@ Anamneo tiene tres superficies de pruebas principales: Jest backend, Jest fronte
 | Frontend e2e smoke | `npm --prefix frontend run test:e2e:smoke` | Smoke auth/rutas con 1 worker |
 | Frontend e2e workflow | `npm --prefix frontend run test:e2e:workflow-clinical` | Flujo clinico serial con 1 worker |
 | Frontend e2e workflow repeat | `npm --prefix frontend run test:e2e:workflow-clinical:repeat` | Ejecuta 3 corridas independientes para monitoreo de estabilidad |
+| Frontend e2e a11y | `npm --prefix frontend run test:e2e:a11y` | Axe WCAG sobre rutas publicas y autenticadas; checklist manual en `docs/accessibility-wcag-review.md` |
 
 ## Backend
 

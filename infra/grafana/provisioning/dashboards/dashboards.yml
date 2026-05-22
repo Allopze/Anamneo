@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Anamneo
+    orgId: 1
+    folder: Anamneo
+    type: file
+    disableDeletion: true
+    editable: false
+    options:
+      path: /var/lib/grafana/dashboards

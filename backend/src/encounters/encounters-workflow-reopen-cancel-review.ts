@@ -53,11 +53,11 @@ export async function reopenEncounterWorkflowMutation(params: ReopenEncounterPar
     throw new NotFoundException('Atención no encontrada');
   }
 
+  assertTreatingMedico(userId, encounter.medicoId, 'No tiene permisos para reabrir esta atención');
+
   if (encounter.status !== 'COMPLETADO') {
     throw new BadRequestException('Solo se pueden reabrir atenciones completadas (las firmadas son inmutables)');
   }
-
-  assertTreatingMedico(userId, encounter.medicoId, 'No tiene permisos para reabrir esta atención');
 
   const sanitizedNote = sanitizeRequiredWorkflowNote(
     note,

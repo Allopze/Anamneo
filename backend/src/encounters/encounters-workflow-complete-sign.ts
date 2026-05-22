@@ -108,11 +108,11 @@ export async function completeEncounterWorkflowMutation(params: CompleteEncounte
     throw new NotFoundException('Atención no encontrada');
   }
 
+  assertTreatingMedico(userId, encounter.medicoId, 'No tiene permisos para completar esta atención');
+
   if (encounter.status !== 'EN_PROGRESO') {
     throw new BadRequestException('Solo se pueden completar atenciones en progreso');
   }
-
-  assertTreatingMedico(userId, encounter.medicoId, 'No tiene permisos para completar esta atención');
 
   assertEncounterClinicalOutputAllowed(encounter.patient, 'COMPLETE_ENCOUNTER');
 
@@ -210,16 +210,6 @@ export async function completeEncounterWorkflowMutation(params: CompleteEncounte
 export async function signEncounterWorkflowMutation(params: SignEncounterParams) {
   const { prisma, auditService, id, userId, password, context } = params;
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || !user.active) {
-    throw new ForbiddenException('Usuario no encontrado o inactivo');
-  }
-
-  const validPassword = await bcrypt.compare(password, user.passwordHash);
-  if (!validPassword) {
-    throw new BadRequestException('Contraseña incorrecta. La firma requiere autenticación');
-  }
-
   const encounter = await prisma.encounter.findUnique({
     where: { id },
     include: {
@@ -248,6 +238,16 @@ export async function signEncounterWorkflowMutation(params: SignEncounterParams)
   }
 
   assertTreatingMedico(userId, encounter.medicoId, 'Solo el médico tratante puede firmar esta atención');
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.active) {
+    throw new ForbiddenException('Usuario no encontrado o inactivo');
+  }
+
+  const validPassword = await bcrypt.compare(password, user.passwordHash);
+  if (!validPassword) {
+    throw new BadRequestException('Contraseña incorrecta. La firma requiere autenticación');
+  }
 
   if (encounter.status !== 'COMPLETADO') {
     throw new BadRequestException('Solo se pueden firmar atenciones completadas');

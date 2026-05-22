@@ -1,0 +1,48 @@
+groups:
+  - name: anamneo-slos
+    interval: 30s
+    rules:
+      - alert: AnamneoBackendScrapeDown
+        expr: up{job="anamneo-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Anamneo backend metrics scrape is down"
+          description: "Prometheus cannot scrape /api/metrics from the backend for more than 2 minutes."
+
+      - alert: AnamneoHigh5xxRate
+        expr: sum(rate(anamneo_http_requests_total{status=~"5.."}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: high
+        annotations:
+          summary: "High backend 5xx rate"
+          description: "Backend 5xx rate is above the SLO burn threshold."
+
+      - alert: AnamneoOldSqliteBackup
+        expr: anamneo_sqlite_backup_age_hours > 12
+        for: 10m
+        labels:
+          severity: high
+        annotations:
+          summary: "SQLite backup is older than 12 hours"
+          description: "The latest SQLite backup age gauge is above the operational threshold."
+
+      - alert: AnamneoAuditChainError
+        expr: anamneo_audit_chain_errors_total > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Audit hash chain error detected"
+          description: "Audit chain integrity must remain at zero errors."
+
+      - alert: AnamneoLoginBruteForceBurst
+        expr: rate(anamneo_auth_login_failed_total[1m]) > 10
+        for: 2m
+        labels:
+          severity: medium
+        annotations:
+          summary: "Login failure burst"
+          description: "Login failures exceeded the expected single-clinic threshold."

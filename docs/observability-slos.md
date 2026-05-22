@@ -22,16 +22,39 @@ día 25, congelar releases no-críticos hasta corte de mes.
 
 ---
 
-## 2. Endpoint Prometheus
+## 2. Stack operativo en Docker Compose
+
+`docker-compose.yml` levanta un stack local y persistente:
+
+| Servicio | Puerto local | Persistencia | Uso |
+|---|---:|---|---|
+| `prometheus` | `127.0.0.1:9090` | volumen `prometheus-data` | Scrape de `/api/metrics` y reglas de alerta |
+| `grafana` | `127.0.0.1:3000` | volumen `grafana-data` | Dashboard provisionado `Anamneo Operations` |
+| `loki` | `127.0.0.1:3100` | volumen `loki-data` | Retencion de logs enviados por Promtail |
+| `log-shipper` | interno | volumen `promtail-positions` | Promtail lee logs Docker y scrubbea PHI basica |
+
+Variables recomendadas antes de considerar operativo el stack:
+
+- `METRICS_SCRAPE_TOKEN`: token Bearer usado por Prometheus contra
+  `/api/metrics`.
+- `GRAFANA_ADMIN_PASSWORD`: password inicial del admin local de Grafana.
+
+Los puertos quedan bindados a `127.0.0.1` por defecto. Si se exponen fuera del
+host, ponerlos detras de VPN/reverse proxy con autenticacion.
+
+---
+
+## 3. Endpoint Prometheus
 
 - Path: `GET /api/metrics`
-- Auth: requiere sesión admin (cookie HttpOnly + 2FA si activo).
+- Auth: sesión admin humana o `Authorization: Bearer $METRICS_SCRAPE_TOKEN`
+  para scrape automatizado.
 - Formato: `text/plain; version=0.0.4; charset=utf-8` (Prometheus exposition).
 - **No exponer públicamente por cloudflared.** El sidecar Prometheus debe
   correr en la misma red local del host y autenticarse con basic-auth en la
   capa de proxy si fuese requerido.
 
-### Métricas expuestas
+### Metricas expuestas
 
 | Métrica | Tipo | Labels | Significado |
 |---|---|---|---|
@@ -52,7 +75,7 @@ día 25, congelar releases no-críticos hasta corte de mes.
 
 ---
 
-## 3. Búsqueda en logs
+## 4. Busqueda en logs
 
 Todos los logs HTTP del backend incluyen `requestId` propagado por
 `backend/src/common/utils/request-tracing.ts:75-81`. Los UUIDs en path son
@@ -64,8 +87,11 @@ enmascarados como `:id` para evitar cardinalidad y exposición.
 docker compose logs --since 24h backend | grep '"requestId":"<uuid>"'
 ```
 
-En el shipper persistente (Loki/Datadog/etc.), filtrar por la label/atributo
-`requestId`.
+En Loki, filtrar por `requestId`:
+
+```logql
+{container="anamneo-backend"} |= "<uuid>"
+```
 
 ### Buscar por usuario
 
@@ -84,23 +110,32 @@ declaradas en `backend/src/common/utils/phi-scrub.ts`.
 
 ---
 
-## 4. Alertas recomendadas (operador define)
+## 5. Alertas activas
 
-| Alerta | Condición | Severidad |
+Las reglas estan en `infra/prometheus-alerts.yml` y se cargan en Prometheus al
+arrancar `docker compose up -d prometheus`.
+
+| Alerta | Condicion | Severidad |
 |---|---|---|
-| Backend down | `up{job="anamneo-backend"} == 0` por > 2 min | crítica |
+| `AnamneoBackendScrapeDown` | `up{job="anamneo-backend"} == 0` por > 2 min | critica |
 | 5xx burst | `rate(anamneo_http_requests_total{status=~"5.."}[5m]) > 0.1` | alta |
 | Backup viejo | `anamneo_sqlite_backup_age_hours > 12` | alta |
 | Login brute force | `rate(anamneo_auth_login_failed_total[1m]) > 10` | media |
-| Audit chain rota | `anamneo_audit_chain_errors_total > 0` | crítica |
-| Disco | `node_filesystem_avail_bytes / node_filesystem_size_bytes < 0.2` | alta |
+| Audit chain rota | `anamneo_audit_chain_errors_total > 0` | critica |
 
 ---
 
-## 5. Próximos pasos
+## 6. Operacion del dashboard
 
-- Decidir log shipper (Loki / Vector → S3 / Datadog) — ver `docs/incident-runbooks.md`.
-- Configurar Grafana dashboards con las métricas de §2.
-- Definir alerting a Slack/Discord usando `SQLITE_ALERT_WEBHOOK_URL` como template.
-- Cuando se migre a PostgreSQL (F-07), agregar métricas de pool, latencia de
+1. Levantar stack: `docker compose up -d prometheus loki log-shipper grafana`.
+2. Abrir Grafana en `http://127.0.0.1:3000`.
+3. Entrar con `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD`.
+4. Revisar dashboard `Anamneo / Anamneo Operations`.
+5. Revisar alertas en Prometheus: `http://127.0.0.1:9090/alerts`.
+
+## 7. Pendientes conocidos
+
+- Si se requiere notificacion externa para todas las alertas Prometheus, agregar
+  Alertmanager o Grafana contact points hacia Slack/Discord/email.
+- Cuando se migre a PostgreSQL (F-07), agregar metricas de pool, latencia de
   query y replication lag.

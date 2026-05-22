@@ -19,18 +19,16 @@ function generateNonce(): string {
 }
 
 function buildCsp(nonce: string, isProd: boolean): string {
-  // 'strict-dynamic' permite a scripts con nonce cargar dinamicos sin volver a listar dominios.
-  // Sin nonces para styles porque Next/Tailwind 3 generan <style> inline para hydration sin nonce hook estable.
-  // Mantenemos 'unsafe-inline' SOLO en style-src como compatibilidad hasta migrar a Next 17 con nonces estables;
-  // pero quitamos 'unsafe-inline' de script-src (que es el vector real de XSS).
+  // Next extrae el nonce desde el CSP del request y lo aplica a sus estilos/scripts inline.
+  // Mantenemos 'self' para bundles externos de Next en el standalone de produccion.
   const scriptSrc = isProd
-    ? `'self' 'nonce-${nonce}' 'strict-dynamic'`
+    ? `'self' 'nonce-${nonce}'`
     : `'self' 'nonce-${nonce}' 'unsafe-eval'`; // unsafe-eval solo en dev para Fast Refresh
 
   return [
     `default-src 'self'`,
     `script-src ${scriptSrc}`,
-    `style-src 'self' 'unsafe-inline'`,
+    `style-src 'self' 'nonce-${nonce}'`,
     `img-src 'self' data: blob:`,
     `connect-src 'self'`,
     `font-src 'self'`,
@@ -67,6 +65,7 @@ export async function proxy(request: NextRequest) {
   // Propaga el nonce al server tree y como header de respuesta CSP.
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', csp);
 
   const response = decision.action === 'next'
     ? NextResponse.next({ request: { headers: requestHeaders } })

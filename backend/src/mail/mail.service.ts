@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'crypto';
 import * as nodemailer from 'nodemailer';
+import { scrubPhi } from '../common/utils/phi-scrub';
 import { SettingsService } from '../settings/settings.service';
 import {
   DEFAULT_INVITATION_SUBJECT,
@@ -264,8 +265,9 @@ export class MailService {
         subject,
       };
     } catch (error) {
-      const reason = error instanceof Error ? error.message : 'No se pudo enviar el correo';
-      this.logger.error(`No se pudo enviar la invitacion a ${payload.email}: ${reason}`);
+      const reason = scrubPhi(error instanceof Error ? error.message : 'No se pudo enviar el correo') ?? 'No se pudo enviar el correo';
+      const recipient = scrubPhi(payload.email) ?? '[EMAIL]';
+      this.logger.error(`No se pudo enviar la invitacion a ${recipient}: ${reason}`);
 
       return {
         sent: false,
@@ -361,8 +363,9 @@ export class MailService {
 
       return { sent: true, reason: null, resetUrl };
     } catch (error) {
-      const reason = error instanceof Error ? error.message : 'No se pudo enviar el correo';
-      this.logger.error(`No se pudo enviar el reset de contraseña a ${payload.email}: ${reason}`);
+      const reason = scrubPhi(error instanceof Error ? error.message : 'No se pudo enviar el correo') ?? 'No se pudo enviar el correo';
+      const recipient = scrubPhi(payload.email) ?? '[EMAIL]';
+      this.logger.error(`No se pudo enviar el reset de contraseña a ${recipient}: ${reason}`);
       return { sent: false, reason, resetUrl };
     }
   }

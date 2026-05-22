@@ -25,6 +25,7 @@ import { AlertsService } from '../../src/alerts/alerts.service';
 import { AuditModule } from '../../src/audit/audit.module';
 import { SettingsModule } from '../../src/settings/settings.module';
 import { AnalyticsModule } from '../../src/analytics/analytics.module';
+import { TemplatesModule } from '../../src/templates/templates.module';
 import { HealthController } from '../../src/health.controller';
 import { requestTracingMiddleware } from '../../src/common/utils/request-tracing';
 
@@ -203,6 +204,7 @@ export async function bootstrapApp() {
       AuditModule,
       SettingsModule,
       AnalyticsModule,
+      TemplatesModule,
     ],
     controllers: [HealthController],
   }).compile();

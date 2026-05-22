@@ -16,6 +16,7 @@
     "test:performance-regression": "jest --runInBand clinical-search.test.ts header-kpi-bar.test.tsx patient-alerts.test.tsx patient-consents.test.tsx use-encounter-wizard-derived.test.tsx use-encounter-section-persistence.test.tsx admin-auditoria.test.tsx",
     "test:watch": "jest --watch --maxWorkers=2",
     "test:e2e": "playwright test",
+    "test:e2e:a11y": "playwright test --workers=1 tests/e2e/accessibility.spec.ts",
     "test:e2e:workflow-clinical": "playwright test --workers=1 tests/e2e/workflow-clinical.spec.ts",
     "test:e2e:workflow-clinical:repeat": "sh -c 'for run in 1 2 3; do echo \"[workflow-clinical repeat $run/3]\"; playwright test --workers=1 tests/e2e/workflow-clinical.spec.ts || exit $?; done'",
     "test:e2e:smoke": "playwright test --workers=1 tests/e2e/smoke.spec.ts"
@@ -37,6 +38,7 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@next/bundle-analyzer": "^16.2.4",
     "@playwright/test": "^1.51.1",
     "@testing-library/jest-dom": "^6.2.0",

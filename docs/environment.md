@@ -88,6 +88,11 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 | `SENTRY_DSN` | vacio | Sentry backend |
 | `NEXT_PUBLIC_SENTRY_DSN` | vacio | Sentry frontend |
 | `NEXT_PUBLIC_SENTRY_REPLAY_ENABLED` | `false` | Replay de Sentry solo para depuracion no productiva |
+| `METRICS_SCRAPE_TOKEN` | recomendado para observabilidad | Token Bearer para que Prometheus lea `/api/metrics` sin sesion humana |
+| `GRAFANA_ADMIN_USER` | `admin` | Usuario admin local de Grafana en Docker Compose |
+| `GRAFANA_ADMIN_PASSWORD` | recomendado cambiar | Password admin local de Grafana en Docker Compose |
+| `PROMETHEUS_RETENTION` | `30d` | Retencion TSDB de Prometheus |
+| `PROMETHEUS_PORT` / `GRAFANA_PORT` / `LOKI_PORT` | `9090` / `3000` / `3100` | Puertos locales del stack de observabilidad |
 
 ## Desarrollo vs Produccion
 
@@ -99,7 +104,7 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 
 ### Produccion con Docker Compose + cloudflared
 
-- `docker-compose.yml` exige `JWT_SECRET`, `JWT_REFRESH_SECRET`, `BOOTSTRAP_TOKEN`, `CORS_ORIGIN`, `APP_PUBLIC_URL`, `SETTINGS_ENCRYPTION_KEY` y `ENCRYPTION_AT_REST_CONFIRMED`.
+- `docker-compose.yml` exige `JWT_SECRET`, `JWT_REFRESH_SECRET`, `BOOTSTRAP_TOKEN`, `CORS_ORIGIN`, `APP_PUBLIC_URL`, `SETTINGS_ENCRYPTION_KEY` y `ENCRYPTION_AT_REST_CONFIRMED`. Para observabilidad real, configura tambien `METRICS_SCRAPE_TOKEN` y cambia `GRAFANA_ADMIN_PASSWORD`.
 - `docker-compose.yml` exige `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic`. Cada clinica productiva debe tener su propia instancia, base SQLite, uploads y backups aislados.
 - El frontend recibe `NEXT_PUBLIC_API_URL` como argumento de build y tambien como variable de runtime.
 - El backend aplica chequeos de seguridad al arrancar y falla rapido si encuentra placeholders o si falta la confirmacion de cifrado en reposo.

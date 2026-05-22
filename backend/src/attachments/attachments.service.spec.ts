@@ -2,6 +2,8 @@ import { BadRequestException } from '@nestjs/common';
 import { AttachmentsService } from './attachments.service';
 
 describe('AttachmentsService', () => {
+  const scanService = { scanAttachment: jest.fn() };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -21,6 +23,7 @@ describe('AttachmentsService', () => {
       prisma as never,
       { get: jest.fn() } as never,
       { log: jest.fn() } as never,
+      scanService as never,
     );
 
     await expect(
@@ -66,6 +69,7 @@ describe('AttachmentsService', () => {
       prisma as never,
       { get: jest.fn() } as never,
       { log: jest.fn() } as never,
+      scanService as never,
     );
 
     await expect(service.remove('att-1', { id: 'med-1', role: 'MEDICO' })).rejects.toThrow(

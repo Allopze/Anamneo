@@ -19,7 +19,13 @@ describe('signEncounterWorkflowMutation', () => {
         }),
       },
       encounter: {
-        findUnique: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'enc-1',
+          status: 'COMPLETADO',
+          medicoId: 'med-1',
+          sections: [],
+          attachments: [],
+        }),
       },
       encounterSignature: {
         create: jest.fn(),
@@ -40,7 +46,7 @@ describe('signEncounterWorkflowMutation', () => {
       }),
     ).rejects.toThrow(BadRequestException);
 
-    expect(prisma.encounter.findUnique).not.toHaveBeenCalled();
+    expect(prisma.encounter.findUnique).toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 

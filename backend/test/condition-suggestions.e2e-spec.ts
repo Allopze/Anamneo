@@ -79,6 +79,7 @@ describe('Condition Suggestions Isolated E2E', () => {
       .send({
         rut: '12.345.678-5',
         nombre: 'Paciente Suggestions',
+        fechaNacimiento: '1990-05-10',
         edad: 35,
         sexo: 'MASCULINO',
         prevision: 'FONASA',

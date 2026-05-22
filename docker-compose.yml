@@ -8,8 +8,8 @@ services:
     environment:
       NODE_ENV: production
       ANAMNEO_DEPLOYMENT_SCOPE: ${ANAMNEO_DEPLOYMENT_SCOPE:?ANAMNEO_DEPLOYMENT_SCOPE=single-clinic is required}
-      DATABASE_URL: file:/app/data/anamneo.db
-      ALLOW_SQLITE_IN_PRODUCTION: "true"
+      DATABASE_URL: ${DATABASE_URL:-file:/app/data/anamneo.db}
+      ALLOW_SQLITE_IN_PRODUCTION: ${ALLOW_SQLITE_IN_PRODUCTION:-true}
       SQLITE_SYNCHRONOUS: ${SQLITE_SYNCHRONOUS:-NORMAL}
       SQLITE_BUSY_TIMEOUT_MS: ${SQLITE_BUSY_TIMEOUT_MS:-5000}
       SQLITE_WAL_AUTOCHECKPOINT_PAGES: ${SQLITE_WAL_AUTOCHECKPOINT_PAGES:-1000}
@@ -45,6 +45,7 @@ services:
       SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Anamneo}
       INVITATION_EMAIL_SUBJECT: ${INVITATION_EMAIL_SUBJECT:-Invitacion a {{clinicName}}}
       SENTRY_DSN: ${SENTRY_DSN:-}
+      METRICS_SCRAPE_TOKEN: ${METRICS_SCRAPE_TOKEN:-}
     ports:
       - "${BACKEND_BIND_HOST:-127.0.0.1}:${BACKEND_PORT:-5679}:5679"
     volumes:
@@ -104,15 +105,15 @@ services:
       dockerfile: backend/Dockerfile
     container_name: anamneo-backup-cron
     restart: unless-stopped
-    user: root
+    user: "1000:1000"
     depends_on:
       backend:
         condition: service_healthy
     environment:
       NODE_ENV: production
       ANAMNEO_DEPLOYMENT_SCOPE: ${ANAMNEO_DEPLOYMENT_SCOPE:?ANAMNEO_DEPLOYMENT_SCOPE=single-clinic is required}
-      DATABASE_URL: file:/app/data/anamneo.db
-      ALLOW_SQLITE_IN_PRODUCTION: "true"
+      DATABASE_URL: ${DATABASE_URL:-file:/app/data/anamneo.db}
+      ALLOW_SQLITE_IN_PRODUCTION: ${ALLOW_SQLITE_IN_PRODUCTION:-true}
       SQLITE_BACKUP_DIR: /app/data/backups
       SQLITE_BACKUP_RETENTION_DAYS: ${SQLITE_BACKUP_RETENTION_DAYS:-14}
       UPLOAD_DEST: /app/uploads
@@ -124,43 +125,104 @@ services:
     entrypoint: ["sh", "-c"]
     command:
       - |
-        echo "$$BACKUP_CRON_SCHEDULE node /app/scripts/sqlite-ops-runner.js --mode=all --notify=on-failure && chown -R node:node /app/data/backups /app/uploads && node /app/scripts/purge-deleted-attachments.js && chown -R node:node /app/data/backups /app/uploads >> /proc/1/fd/1 2>&1" > /tmp/crontab
-        crontab /tmp/crontab
+        mkdir -p /tmp/crontabs
+        echo "$$BACKUP_CRON_SCHEDULE node /app/scripts/sqlite-ops-runner.js --mode=all --notify=on-failure && node /app/scripts/purge-deleted-attachments.js && node /app/scripts/purge-password-reset-tokens.js >> /proc/1/fd/1 2>&1" > /tmp/crontabs/node
         echo "Backup cron started: $$BACKUP_CRON_SCHEDULE (ops-runner: backup + restore-drill + monitor)"
         node /app/scripts/sqlite-ops-runner.js --mode=all --notify=on-failure
-        chown -R node:node /app/data/backups /app/uploads
         node /app/scripts/purge-deleted-attachments.js
         node /app/scripts/purge-password-reset-tokens.js
-        chown -R node:node /app/data/backups /app/uploads
-        crond -f -l 2
+        crond -f -l 2 -c /tmp/crontabs
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "10"
 
-# ─────────────────────────────────────────────────────────────────────
-# OPCIONAL: log shipper persistente
-# Descomentar y configurar para enviar logs a Loki/Vector/Datadog/etc.
-# La retención mínima recomendada en destino es 90 días (ver
-# docs/observability-slos.md).
-#
-# El shipper debe scrubear PHI antes de enviar usando las mismas reglas que
-# backend/src/common/utils/phi-scrub.ts (RUT, email, secuencias largas y
-# campos con credenciales conocidas).
-#
-#  log-shipper:
-#    image: grafana/promtail:3.0.0
-#    container_name: anamneo-promtail
-#    restart: unless-stopped
-#    user: root
-#    volumes:
-#      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-#      - /var/run/docker.sock:/var/run/docker.sock:ro
-#      - ./infra/promtail-config.yml:/etc/promtail/config.yml:ro
-#    command: -config.file=/etc/promtail/config.yml
-#    logging:
-#      driver: "json-file"
-#      options:
-#        max-size: "10m"
-#        max-file: "5"
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: anamneo-prometheus
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      METRICS_SCRAPE_TOKEN: ${METRICS_SCRAPE_TOKEN:-}
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus-alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}
+      - --web.enable-lifecycle
+    ports:
+      - "${PROMETHEUS_BIND_HOST:-127.0.0.1}:${PROMETHEUS_PORT:-9090}:9090"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: anamneo-loki
+    restart: unless-stopped
+    volumes:
+      - ./infra/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "${LOKI_BIND_HOST:-127.0.0.1}:${LOKI_PORT:-3100}:3100"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  log-shipper:
+    image: grafana/promtail:3.0.0
+    container_name: anamneo-promtail
+    restart: unless-stopped
+    depends_on:
+      - loki
+    user: root
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/promtail-config.yml:/etc/promtail/config.yml:ro
+      - promtail-positions:/tmp
+    command: -config.file=/etc/promtail/config.yml
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  grafana:
+    image: grafana/grafana:12.0.0
+    container_name: anamneo-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - loki
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me-before-production}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${GRAFANA_BIND_HOST:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  prometheus-data:
+  loki-data:
+  promtail-positions:
+  grafana-data:

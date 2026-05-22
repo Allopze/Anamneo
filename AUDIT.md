@@ -22,7 +22,7 @@
   - CI con secret scan (gitleaks), lint, typecheck, audit:prod, unit, e2e Jest (~225+ tests) y Playwright smoke/clinical.
   - 77 tests Jest backend, 32 archivos e2e, 68 tests frontend, 3 specs Playwright; coverage real, no decorativa.
 - **Riesgos más graves:**
-  - **La CSP del frontend sigue permitiendo `'unsafe-inline'` en `style-src`.** El backend ya no usa `unsafe-inline` para scripts, pero el frontend mantiene compatibilidad temporal con estilos inline.
+  - **La CSP del frontend ya no permite `'unsafe-inline'` en `style-src`.** Queda como control sensible a mantener: rutas nuevas que dependan de Suspense/CSR deben renderizar con nonce correcto.
   - **La recuperación operativa del único admin sigue dependiendo de validar el flujo de reset/2FA y del runbook.** El endpoint ya existe, pero sigue siendo un punto sensible de operación.
   - **SQLite en producción** con `ALLOW_SQLITE_IN_PRODUCTION=true` por defecto en `docker-compose.yml`. Funciona, pero limita concurrencia, recovery y observabilidad transaccional.
   - **El componente legal/operativo de compliance sigue dependiendo de DPO, DPA y publicación efectiva de la política.** El código ya expone exportación/borrado regulatorio, pero falta cierre formal con la clínica usuaria.
@@ -38,7 +38,7 @@
 | Estabilidad | 78 | Backups+drills+health checks correctos. SQLite sigue siendo el punto de falla condicional, pero el recovery de password ya existe. |
 | Calidad de código | 80 | Modular, helpers separados, DTOs validados con class-validator, sanitización clínica activa. |
 | Testing | 80 | 77 unit + 32 e2e + 68 frontend + 3 Playwright, más suite de aislamiento clínica. Buen smoke clínico; faltan a11y y matrices de seguridad complementarias. |
-| Observabilidad | 76 | Logs JSON estructurados, Sentry con scrubbing PHI, request-id propagado y `/api/metrics` operativo. Faltan dashboards/shipper persistente. |
+| Observabilidad | 80 | Logs JSON estructurados, Sentry con scrubbing PHI, request-id propagado, `/api/metrics`, Prometheus/Loki/Promtail/Grafana y dashboard base. Faltan notificaciones externas y retención productiva formal. |
 | DevOps/deploy | 80 | Docker Compose + cloudflared + deploy.sh con backup/restore/rollback. Sin CD automatizado a prod, pero la ruta de despliegue ya está bastante madura. |
 | Performance | 65 | SQLite limita escalado vertical. Índices presentes. Sin pruebas de carga; sin cache layer. |
 | UX / producto | 74 | Flujos clínicos cubiertos (encuentros, secciones, firmas, consentimientos, adjuntos). Password reset, export regulatorio y páginas legales ya existen; algunos puntos abiertos siguen en `FEATURES.md`. |
@@ -107,18 +107,18 @@
 - Validar CI verde en release commit, restore drill en infra real, smoke E2E manual en cloudflared.
 
 ### 2. Primera semana post-lanzamiento
-- F-09: dashboards/alerting conectados al endpoint `/api/metrics`.
-- F-12: configurar log shipper persistente (rotación + retención ≥90 días).
+- F-09: conectar notificaciones externas reales para alerting y validar retención productiva.
+- F-12: validar retención/offsite del shipper Loki/Promtail activo.
 - F-15: revisar exposición del password SMTP con un caso fallido real.
-- F-21: sacar el backup-cron de `root`.
+- F-21: verificar permisos del host para el backup-cron no-root.
 - Monitoreo activo de Sentry, espacio en disco, backups, restore drill semanal.
 
 ### 3. Primer mes post-lanzamiento
-- F-06: CSP nonce-based para estilos del frontend.
+- F-06: mantener pruebas visuales/a11y para rutas nuevas bajo CSP nonce-based.
 - F-11: habilitar ClamAV en uploads si la clínica requiere cuarentena automática.
-- F-17: matriz e2e de IDOR cruzados más exhaustiva.
+- F-17: extender matriz e2e de IDOR a recursos sensibles fuera de encounters/attachments.
 - F-18: completar gaps `[BE]`/`[NEW]` de `FEATURES.md` priorizados con la clínica.
-- F-19: a11y en CI.
+- F-19: ampliar a11y a rutas autenticadas y revisión manual WCAG.
 - F-23: revisar el último resultado de `npm audit`.
 - Planificar migración a PostgreSQL si se confirma escalado >1 clínica o >10 usuarios concurrentes.
 
@@ -184,17 +184,17 @@ Inspección documental + estructural; **no se ejecutaron** build/test/audit. Rev
 |---|---|---|
 | **F-02** (password reset self-service) | Ya existe el flujo en backend/frontend. Lo que faltó en esta sesión fue la verificación end-to-end en staging/prod y la revisión del runbook operativo. | Validar el flujo completo y la recuperación del admin único antes del go-live. |
 | **F-03** (export/borrado regulatorio) | Ya existe el endpoint y la exportación regulatoria. Lo que sigue faltando es el cierre formal con DPO/DPA y la publicación/aceptación efectiva de la política. | Cerrar el componente legal/operativo con la clínica usuaria. |
-| **F-06** (CSP nonce-based) | Requiere refactor de carga de estilos inline en Next.js 16 / Tailwind generated CSS. Riesgo de romper UI sin pruebas visuales. | Post-launch, primer mes. |
+| **F-06** (CSP nonce-based) | Cerrado técnicamente en esta remediación: CSP del frontend usa nonce por request y se removió `style-src 'unsafe-inline'`. La ruta `/login` se volvió dinámica para que Next aplique nonce correctamente. | Mantener el gate Playwright/a11y y revisar visualmente rutas nuevas que dependan de Suspense/CSR. |
 | **F-07** (migrar SQLite → PostgreSQL) | Decisión condicional al volumen real. Para single-clinic ≤5 usuarios concurrentes, SQLite es viable. | Re-evaluar después de 30 días de tráfico real. |
 | **F-08** (CSRF token) | Ya existe el middleware de doble submit; la nota aquí queda sólo para trazabilidad histórica. | No requiere implementación adicional salvo auditoría puntual. |
-| **F-09** (métricas Prometheus + SLOs) | El endpoint `/api/metrics` y el documento de SLO ya existen; lo pendiente es la instrumentación operativa completa. | Post-launch, primera semana. |
+| **F-09** (métricas Prometheus + SLOs) | Parcialmente cerrado: Compose ya levanta Prometheus, Loki, Promtail y Grafana con dashboard y reglas básicas. | Falta conectar notificación externa real (Alertmanager/contact points) y revisar retención productiva. |
 | **F-11** (ClamAV en adjuntos) | El servicio de scan/quarantine ya existe; falta decidir y activar su uso en producción. | Post-launch, primer mes. |
-| **F-12** (log shipper persistente) | Decisión de operador (Loki, S3, Datadog, etc.). | Primera semana post-launch. |
+| **F-12** (log shipper persistente) | Cerrado para el despliegue Compose: Promtail queda activo y envía logs a Loki con volumen persistente. | Definir retención/offsite según política de la clínica. |
 | **F-15** (revisar exposición de SMTP password en logs) | Requiere prueba activa con Sentry capturando un evento fallido para confirmar el blast radius del scrub actual. | Validación en staging. |
-| **F-17** (matriz tests IDOR cruzados) | Hay una suite fuerte de aislamiento clínica; sigue faltando cobertura exhaustiva por endpoint sensible y matriz completa de roles. | Post-launch, primer mes. |
+| **F-17** (matriz tests IDOR cruzados) | Parcialmente cerrado: se agregó matriz documental y cobertura e2e endpoint-por-endpoint para operaciones `:id` de encuentros/adjuntos entre médicos. | Seguir extendiendo la matriz a recursos no cubiertos fuera de encuentros/adjuntos. |
 | **F-18** (gaps `[BE]`/`[NEW]` en `FEATURES.md`) | Producto, no audit; decisión de stakeholders. | Priorizar con la clínica usuaria antes del go-live. |
-| **F-19** (a11y / WCAG) | No hay gate automático de accesibilidad en CI. | Post-launch, primer mes. |
-| **F-21** (backup-cron como root) | Requiere refactor de permisos en `docker-compose.yml`. | Post-launch, primer mes. |
+| **F-19** (a11y / WCAG) | Cerrado como gate base: CI ejecuta `@axe-core/playwright` sobre rutas públicas críticas. | Ampliar a rutas autenticadas y revisión manual WCAG cuando haya datos de staging. |
+| **F-21** (backup-cron como root) | Cerrado en Compose: `backup-cron` corre como UID/GID `1000:1000`. | Verificar permisos reales de `runtime/data`, `runtime/data/backups` y `runtime/uploads` en el host. |
 | **F-23** (revisar último resultado `npm audit`) | No se ejecutó en esta sesión. | Validar el último CI run antes del merge de remediación. |
 
 ### J.2 Pre-requisitos no técnicos (los bloqueadores reales hoy)
@@ -217,18 +217,16 @@ Inspección documental + estructural; **no se ejecutaron** build/test/audit. Rev
 **Próximas 2 semanas (T+7–21 días)**
 5. Validar en staging/prod el flujo de password reset y recuperación del admin único (F-02, ya implementado).
 6. Cerrar el componente legal/operativo de export/borrado regulatorio con la clínica usuaria (F-03, ya implementado técnicamente).
-7. Decidir log shipper (Loki/Datadog/S3) y configurar (F-12).
+7. Revisar retención/offsite de Loki/Promtail y definir si se requiere export adicional (F-12).
 8. Validar el último resultado de `npm audit --omit=dev --audit-level=high` en CI (F-23).
 9. Designar DPO formal y firmar DPA con la clínica usuaria.
 
 **Primer mes (T+21–60 días)**
-10. Migrar CSP a nonce-based (F-06).
-11. Métricas Prometheus + dashboards + SLO formales (F-09).
-12. ClamAV en pipeline de uploads (F-11).
-13. Matriz e2e de IDOR cruzados (F-17).
-14. A11y en CI (F-19).
-15. Backup-cron sin root (F-21).
-16. Re-evaluar si la carga real justifica migrar a PostgreSQL (F-07).
+10. Conectar contact points/Alertmanager para las reglas Prometheus/Grafana (remanente F-09).
+11. ClamAV en pipeline de uploads (F-11).
+12. Extender la matriz e2e de IDOR a recursos sensibles fuera de encuentros/adjuntos (remanente F-17).
+13. Ampliar a11y a rutas autenticadas y revisión manual WCAG (remanente F-19).
+14. Re-evaluar si la carga real justifica migrar a PostgreSQL (F-07).
 
 **Continuo**
 - Monitorear `bootstrap_token_still_configured`, `phi_field_encryption_disabled` y otros warnings de boot en cada deploy.
@@ -259,23 +257,67 @@ Después de los fixes de esta sesión:
 - **F-13**: el scrubbing de PHI en Sentry ya cubre backend y frontend.
 - **F-14**: el throttler por usuario/sesión ya reemplaza el límite puramente por IP.
 - **F-16**: `scripts/deploy.sh` ya soporta rollback no interactivo.
+- **F-06**: CSP del frontend ya usa nonce por request; `style-src 'unsafe-inline'` fue removido.
+- **F-12**: Promtail/Loki quedan activos en Compose como shipper persistente.
+- **F-19**: CI ya ejecuta gate `@axe-core/playwright` para rutas públicas críticas.
 - **F-20**: `tracesSampleRate` ya subió a 0.1 en producción.
+- **F-21**: `backup-cron` ya corre como usuario no-root en Compose.
 - **F-22**: las rutas absolutas hardcodeadas en docs ya fueron reemplazadas por `${ANAMNEO_ROOT}`.
 
 ### K.2 Parcialmente cerrados
 
 - **F-03**: los endpoints regulatorios y las páginas legales ya existen; queda el cierre formal con DPO/DPA y la validación operativa con la clínica.
-- **F-09**: `/api/metrics` y el documento de SLO ya existen; faltan dashboards, alerting y shipper persistente.
+- **F-09**: `/api/metrics`, SLOs, Prometheus, Loki, Promtail, Grafana, dashboard y reglas básicas ya existen; faltan notificaciones externas/contact points productivos.
 - **F-11**: el servicio de AV/quarantine ya existe; falta decidir y activar su uso productivo.
-- **F-17**: existe una suite robusta de aislamiento clínica; falta una matriz exhaustiva por endpoint y rol.
+- **F-17**: existe matriz documental y cobertura e2e para `:id` de encuentros/adjuntos; falta extenderla al resto de recursos sensibles.
 
 ### K.3 Pendientes reales
 
-- **F-06**: CSP del frontend con `style-src 'unsafe-inline'`.
 - **F-07**: SQLite en producción sigue siendo condicional.
-- **F-12**: no hay shipper persistente activo.
 - **F-15**: falta una prueba activa para medir el blast radius del SMTP password en cuerpo de petición.
 - **F-18**: `FEATURES.md` todavía contiene backlog `[BE]`/`[NEW]`.
-- **F-19**: no hay gate de accesibilidad en CI.
-- **F-21**: el backup-cron sigue corriendo como `root`.
 - **F-23**: falta validar el último `npm audit` real de CI.
+
+## L. Remediación adicional (2026-05-22, segunda sesión)
+
+> Esta sesión se enfocó en los faltantes F-06, F-07, F-09, F-12, F-17, F-19 y F-21. Para CSP se usó Context7 con la guía oficial de Next.js sobre nonces en CSP.
+
+### L.1 Cambios aplicados
+
+| Hallazgo | Estado vigente | Archivos clave | Cambio |
+|---|---|---|---|
+| **F-06** CSP sin inline styles | ✅ Cerrado | `frontend/src/proxy.ts`, `frontend/src/app/login/page.tsx`, `frontend/src/app/login/LoginClient.tsx` | CSP del frontend usa nonce por request para scripts/estilos y removió `style-src 'unsafe-inline'`. `/login` quedó dinámico para evitar HTML prerenderizado sin nonce. |
+| **F-07** SQLite productivo | 🟡 Condicional | `docker-compose.yml`, `.env.example`, `docs/environment.md` | `DATABASE_URL` y `ALLOW_SQLITE_IN_PRODUCTION` quedaron configurables. Se mantiene SQLite como opción sólo para `single-clinic`; PostgreSQL sigue siendo la ruta para multi-clinic o mayor concurrencia. |
+| **F-09** observabilidad | 🟡 Parcial | `docker-compose.yml`, `infra/prometheus.yml`, `infra/prometheus-alerts.yml`, `infra/grafana/**`, `infra/loki-config.yml`, `docs/observability-slos.md` | Compose levanta Prometheus, Grafana, Loki y Promtail. Se agregó dashboard operacional, reglas básicas y acceso de scrape con `METRICS_SCRAPE_TOKEN`. |
+| **F-12** logs persistentes | ✅ Cerrado para Compose | `docker-compose.yml`, `infra/promtail-config.yml`, `infra/loki-config.yml` | El shipper Promtail ya no está comentado; envía logs a Loki con posiciones y datos persistentes. Se aplican relabel/scrub básicos de email/RUT/dígitos largos. |
+| **F-17** matriz IDOR/isolation | 🟡 Parcial fuerte | `docs/idor-isolation-matrix.md`, `backend/test/suites/validation-isolation.e2e-suite.ts`, `backend/test/suites/validation-id-isolation.helpers.ts` | Se agregó matriz documental y test e2e para operaciones `:id` de encounters/attachments entre médicos. La suite detectó y se corrigió una fuga de orden de validación en workflow. |
+| **F-19** a11y en CI | ✅ Gate base cerrado | `frontend/tests/e2e/accessibility.spec.ts`, `.github/workflows/ci.yml`, `frontend/package.json` | Se añadió `@axe-core/playwright`, script `test:e2e:a11y` y ejecución automática en CI para rutas públicas críticas. |
+| **F-21** backup-cron root | ✅ Cerrado en Compose | `docker-compose.yml`, `docs/sqlite-operations.md` | `backup-cron` corre como `1000:1000` y usa crontab temporal escribible, sin `chown` en arranque. |
+
+### L.2 Fixes derivados
+
+- `backend/src/metrics/metrics-access.guard.ts`: `/api/metrics` acepta token de scrape por `X-Metrics-Token`/Bearer o admin autenticado.
+- `backend/src/encounters/encounters-workflow-complete-sign.ts` y `backend/src/encounters/encounters-workflow-reopen-cancel-review.ts`: las transiciones verifican pertenencia del médico antes de checks de estado/password para evitar filtrado por ID ajeno.
+- `backend/src/instrument.ts`: la integración de profiling de Sentry carga de forma perezosa para no romper entornos sin binario nativo disponible.
+- `backend/src/attachments/attachments.service.spec.ts`: el spec se actualizó al constructor vigente.
+
+### L.3 Validación ejecutada
+
+- `npm --prefix backend run typecheck`: ✅
+- `npm --prefix backend run test -- --runInBand`: ✅ 83 suites, 438 tests
+- `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts`: ✅ 227 tests
+- `npm --prefix frontend run typecheck`: ✅
+- `npm --prefix frontend run lint`: ✅
+- `npm --prefix frontend run test -- --ci --runInBand`: ✅ 68 suites, 316 tests
+- `npm --prefix frontend run test:e2e:a11y`: ✅ 4 rutas públicas
+- `docker compose config --quiet`: ✅
+- búsqueda de `unsafe-inline` en CSP/proxy/infra/docs relevantes: ✅ sin coincidencias vigentes
+
+### L.4 Faltante actual
+
+- **F-07**: PostgreSQL sigue pendiente si el alcance deja de ser estrictamente single-clinic, sube la concurrencia o se exige PITR/failover.
+- **F-09**: falta conectar notificaciones externas reales para alertas (Alertmanager o contact points de Grafana) y validar retención productiva.
+- **F-17**: la matriz IDOR debe ampliarse a todos los recursos sensibles fuera de encounters/attachments.
+- **F-19**: el gate automático cubre rutas públicas críticas; faltan rutas autenticadas y revisión manual WCAG con datos de staging.
+- **F-21**: verificar en el host real que los directorios montados por `backup-cron` sean escribibles por UID/GID `1000`.
+- **F-15, F-18, F-23** siguen sin cambios respecto a K.3.
