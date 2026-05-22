@@ -5,26 +5,28 @@
 **Alcance evaluado:** Repo completo a `main@fa63b7e5`.
 
 > Este documento es vivo: la sección **§I (Registro de remediación)** se actualiza con cada fix aplicado, incluyendo commit/refs y archivos tocados.
+> La **§C** conserva la foto base del audit; la foto vigente del repo actual está resumida en la **§K**.
 
 ---
 
 ## A. Resumen ejecutivo
 
 - **Veredicto:** **GO con condiciones** para una operación **single-clinic detrás de Cloudflare Tunnel**, con personal técnico de soporte y los bloqueadores P0 listados resueltos. **NO-GO** para una salida SaaS multi-tenant o para una operación sin esos controles cerrados.
-- **Nivel de confianza:** **Medio**. La base está sólida y madura; hay capas de seguridad, auditoría con hash chain, backups con drills, runbooks y CI. Pero hay riesgos específicos (cifrado de PHI opcional, SQLite, ausencia de recovery de password) que requieren confirmación operativa antes del go-live real.
+- **Nivel de confianza:** **Medio**. La base está sólida y madura; hay capas de seguridad, auditoría con hash chain, backups con drills, runbooks y CI. Pero hay riesgos específicos residuales (CSP de estilos en el frontend, SQLite, validación legal/operativa pendiente) que requieren confirmación operativa antes del go-live real.
 - **Principales razones (positivo):**
   - Guardrails de arranque (`assertSafeConfig` en `backend/src/main.helpers.ts`) fuerzan secrets reales, scope single-clinic, longitud mínima de claves y confirmación de cifrado en reposo.
-  - Auth bien diseñada: cookies HttpOnly + SameSite=strict, JWT por cookie (sin Bearer), sesiones persistidas con `tokenVersion`/`sv` revocables en el siguiente request, bloqueo por intentos, 2FA TOTP con recovery codes, lockout persistente.
+  - Auth bien diseñada: cookies HttpOnly + SameSite=strict, JWT por cookie (sin Bearer), sesiones persistidas con `tokenVersion`/`sv` revocables en el siguiente request, bloqueo por intentos, 2FA TOTP con recovery codes, lockout persistente y flujo de password reset por email.
   - Auditoría con cadena de hashes (`AuditLog.integrityHash` + `AuditChainState`) y serialización para concurrencia.
   - Backups SQLite cada 6h con restore drill, monitor, alertas webhook, deploy con backup pre-migración y rollback automático (`scripts/deploy.sh`).
+  - Exportación/borrado regulatorio de pacientes, páginas legales y CSRF double-submit ya existen; el riesgo actual está en la validación operativa y legal, no en la ausencia de endpoint.
   - CI con secret scan (gitleaks), lint, typecheck, audit:prod, unit, e2e Jest (~225+ tests) y Playwright smoke/clinical.
   - 77 tests Jest backend, 32 archivos e2e, 68 tests frontend, 3 specs Playwright; coverage real, no decorativa.
 - **Riesgos más graves:**
-  - **PHI no cifrada a nivel de aplicación por defecto.** `ENCRYPTION_KEY` (cifrado de campos de `EncounterSection.data`) **es opcional y no está en `docker-compose.yml` ni validado en `assertSafeConfig`**. El cifrado en reposo depende sólo del disco (`ENCRYPTION_AT_REST_CONFIRMED`), que es un flag self-attested, no verificado por la app.
-  - **No existe self-service password reset.** Si un médico pierde el password, depende de un admin disponible. Combinado con 2FA TOTP obligatorio post-setup, hay riesgo real de bloqueo de cuenta del único admin.
+  - **La CSP del frontend sigue permitiendo `'unsafe-inline'` en `style-src`.** El backend ya no usa `unsafe-inline` para scripts, pero el frontend mantiene compatibilidad temporal con estilos inline.
+  - **La recuperación operativa del único admin sigue dependiendo de validar el flujo de reset/2FA y del runbook.** El endpoint ya existe, pero sigue siendo un punto sensible de operación.
   - **SQLite en producción** con `ALLOW_SQLITE_IN_PRODUCTION=true` por defecto en `docker-compose.yml`. Funciona, pero limita concurrencia, recovery y observabilidad transaccional.
-  - **Sin compliance regulatorio formal (Ley 19.628, Ley 21.719 Chile, HIPAA-equivalente).** No hay DPA, no hay política de retención automatizada, no hay procesos de exportación/borrado de datos del paciente.
-  - **Ausencia de tests automatizados de seguridad** (no SAST específico, no fuzzing, no IDOR sweep automatizado más allá de los e2e funcionales).
+  - **El componente legal/operativo de compliance sigue dependiendo de DPO, DPA y publicación efectiva de la política.** El código ya expone exportación/borrado regulatorio, pero falta cierre formal con la clínica usuaria.
+  - **Aún faltan pruebas automatizadas complementarias** (matriz exhaustiva de IDOR, a11y y hardening de adjuntos), aunque ya existe una suite fuerte de aislamiento clínica.
 
 ---
 
@@ -32,16 +34,16 @@
 
 | Área | Score | Comentario |
 |---|---:|---|
-| Seguridad | 72 | Auth/sesiones sólido. PHI sin cifrado app-level por defecto. Sin CSRF token (mitigado por SameSite strict). |
-| Estabilidad | 75 | Backups+drills+health checks correctos. Pero un solo punto de falla SQLite y sin recovery de password. |
+| Seguridad | 82 | Auth/sesiones sólido. CSRF double-submit, scrubbing de PHI y cifrado obligatorio de secciones ya están activos. La deuda más visible es la CSP del frontend. |
+| Estabilidad | 78 | Backups+drills+health checks correctos. SQLite sigue siendo el punto de falla condicional, pero el recovery de password ya existe. |
 | Calidad de código | 80 | Modular, helpers separados, DTOs validados con class-validator, sanitización clínica activa. |
-| Testing | 78 | 77 unit + 32 e2e + 68 frontend + 3 Playwright. Buen smoke clínico. Faltan tests de seguridad/IDOR explícitos. |
-| Observabilidad | 70 | Logs JSON estructurados, Sentry con scrubbing PHI, request-id propagado. Sin métricas Prometheus ni dashboards. |
-| DevOps/deploy | 78 | Docker Compose + cloudflared + deploy.sh con backup/restore/rollback. Sin CD automatizado a prod. |
+| Testing | 80 | 77 unit + 32 e2e + 68 frontend + 3 Playwright, más suite de aislamiento clínica. Buen smoke clínico; faltan a11y y matrices de seguridad complementarias. |
+| Observabilidad | 76 | Logs JSON estructurados, Sentry con scrubbing PHI, request-id propagado y `/api/metrics` operativo. Faltan dashboards/shipper persistente. |
+| DevOps/deploy | 80 | Docker Compose + cloudflared + deploy.sh con backup/restore/rollback. Sin CD automatizado a prod, pero la ruta de despliegue ya está bastante madura. |
 | Performance | 65 | SQLite limita escalado vertical. Índices presentes. Sin pruebas de carga; sin cache layer. |
-| UX / producto | 70 | Flujos clínicos cubiertos (encuentros, secciones, firmas, consentimientos, adjuntos). Algunos puntos abiertos en `FEATURES.md`. |
-| Mantenibilidad | 78 | Buena documentación viva en `docs/`, modularidad razonable, archivos grandes ya divididos. |
-| **Readiness general** | **73** | **Listo con condiciones para single-clinic interno.** |
+| UX / producto | 74 | Flujos clínicos cubiertos (encuentros, secciones, firmas, consentimientos, adjuntos). Password reset, export regulatorio y páginas legales ya existen; algunos puntos abiertos siguen en `FEATURES.md`. |
+| Mantenibilidad | 80 | Buena documentación viva en `docs/`, modularidad razonable, archivos grandes ya divididos. |
+| **Readiness general** | **79** | **Listo con condiciones para single-clinic interno.** |
 
 ---
 
@@ -77,9 +79,7 @@
 
 ## D. Bloqueadores de producción
 
-1. **F-01 — Cifrado de PHI a nivel aplicación es opcional.** No se valida en arranque ni se inyecta por defecto en `docker-compose.yml`.
-2. **F-02 — Sin password reset.** Riesgo operativo crítico de lockout total.
-3. **F-03 — Compliance regulatorio Ley 19.628/21.719 (Chile) sin cobertura formal.** DPA, política de retención, export/borrado por titular y registro de actividades de tratamiento ausentes.
+1. **F-03 — compliance legal/operativo aún no cerrado formalmente.** Los endpoints de exportación/borrado ya existen, pero siguen faltando DPA firmado, validación DPO y publicación/aceptación real de la política.
 
 > **F-07 (SQLite)** es bloqueador condicional: aceptable para single-clinic ≤5 usuarios; bloqueador si el alcance real supera esa carga o si se quiere garantizar SLOs ≥99.9%.
 
@@ -87,46 +87,39 @@
 
 ## E. Condiciones mínimas para aprobar producción
 
-1. Hacer `ENCRYPTION_KEY` **obligatoria en `NODE_ENV=production`** y validarla en `backend/src/main.helpers.ts`; añadirla en `docker-compose.yml` con `:?required`. Backfill de datos legacy con script.
-2. Implementar **flujo de password reset por email** (`POST /auth/forgot-password` + token corto con TTL) y runbook para recuperación de admin vía SSH/CLI.
-3. Publicar **política de privacidad real** y procedimiento documentado para Ley 19.628 / 21.719: export/borrado de datos por titular, retención, DPA con la clínica usuaria.
-4. **Validar configuración productiva real** ejecutando `assertSafeConfig` contra el `.env` de producción.
-5. **Pasar CI completo** en la rama de release.
-6. **Ejecutar al menos un restore drill manual** en la infraestructura productiva real.
-7. **Verificar manualmente el flujo crítico end-to-end** en el deploy real con cloudflared.
-8. **Acordar y documentar SLOs** mínimos esperados con la clínica usuaria.
-9. **Confirmar consentimiento legal vigente publicado** en `/terminos-y-condiciones` y `/politica-de-privacidad`.
+1. **Validar configuración productiva real** ejecutando `assertSafeConfig` contra el `.env` de producción y confirmando secrets reales, `TRUST_PROXY`, `BOOTSTRAP_TOKEN` y `ENCRYPTION_KEY`.
+2. **Cerrar el componente legal/operativo**: DPA firmado, política de privacidad publicada y validación del procedimiento de exportación/borrado con la clínica usuaria.
+3. **Validar en staging/prod** el flujo completo de password reset, 2FA y recuperación del admin único.
+4. **Pasar CI completo** en la rama de release.
+5. **Ejecutar al menos un restore drill manual** en la infraestructura productiva real.
+6. **Verificar manualmente el flujo crítico end-to-end** en el deploy real con cloudflared.
+7. **Acordar y documentar SLOs** mínimos esperados con la clínica usuaria.
+8. **Confirmar consentimiento legal vigente publicado** en `/terminos-y-condiciones` y `/politica-de-privacidad`.
 
 ---
 
 ## F. Plan de remediación
 
 ### 1. Antes de producción (bloqueadores y must-haves)
-- F-01: cifrado PHI obligatorio + backfill.
-- F-02: password reset por email + runbook recovery admin.
-- F-03: política de privacidad publicada + DPA + procedimiento export/borrado.
-- F-04: arranque falla si `ENCRYPTION_KEY` ausente en prod.
+- F-03: cierre legal/operativo (DPA, política publicada, validación DPO).
+- F-07: decidir si SQLite se mantiene o se migra a PostgreSQL según carga real.
 - F-10: invalidar `BOOTSTRAP_TOKEN` tras primer admin.
 - Validar CI verde en release commit, restore drill en infra real, smoke E2E manual en cloudflared.
 
 ### 2. Primera semana post-lanzamiento
-- F-05: confirmar `TRUST_PROXY` correcto, IP forensics funciona.
+- F-09: dashboards/alerting conectados al endpoint `/api/metrics`.
 - F-12: configurar log shipper persistente (rotación + retención ≥90 días).
-- F-13: scrubbing adicional de Sentry messages.
-- F-14: relajar rate limit con llave por usuario.
-- F-16: deploy script no-interactivo.
-- F-22: rutas hardcodeadas en docs.
+- F-15: revisar exposición del password SMTP con un caso fallido real.
+- F-21: sacar el backup-cron de `root`.
 - Monitoreo activo de Sentry, espacio en disco, backups, restore drill semanal.
 
 ### 3. Primer mes post-lanzamiento
-- F-06: CSP nonce-based.
-- F-08: CSRF token explícito.
-- F-09: métricas Prometheus + dashboards + SLO formales.
-- F-11: ClamAV en uploads.
-- F-17: matriz de tests IDOR cruzados.
+- F-06: CSP nonce-based para estilos del frontend.
+- F-11: habilitar ClamAV en uploads si la clínica requiere cuarentena automática.
+- F-17: matriz e2e de IDOR cruzados más exhaustiva.
 - F-18: completar gaps `[BE]`/`[NEW]` de `FEATURES.md` priorizados con la clínica.
 - F-19: a11y en CI.
-- F-21: backup-cron sin root.
+- F-23: revisar el último resultado de `npm audit`.
 - Planificar migración a PostgreSQL si se confirma escalado >1 clínica o >10 usuarios concurrentes.
 
 ---
@@ -172,8 +165,8 @@ Inspección documental + estructural; **no se ejecutaron** build/test/audit. Rev
 | **F-16** `deploy.sh` rollback interactivo | ✅ Cerrado | `scripts/deploy.sh` | Acepta `--auto-rollback` o `--no-rollback`. En stdin no-interactivo aborta sin rollback con warning explícito. |
 | **F-20** `tracesSampleRate` muy bajo en prod | ✅ Cerrado | `backend/src/instrument.ts` | Subido de `0.05` a `0.1` en producción. Ajustable según volumen real. |
 | **F-22** Rutas hardcodeadas en docs operativos | ✅ Cerrado | `docs/operational-procedures.md`, `docs/incident-runbooks.md` | Reemplazado `/home/allopze/dev/Anamneo` por `${ANAMNEO_ROOT}` con nota al inicio de cada doc explicando cómo exportarla. |
-| **F-02** Sin password reset / recuperación admin | ✅ Documentado (runbook); 🟡 Implementación pendiente (feature) | `docs/account-recovery-runbook.md`, `docs/index.md` | Runbook cubre: reset de usuario por admin, reset de admin único de emergencia vía SSH/bcrypt offline, manejo de cuenta robada, diseño detallado del endpoint `/auth/forgot-password` para implementación futura. |
-| **F-03** Sin marco compliance Ley 19.628 / 21.719 | ✅ Documentado (marco); 🟡 Endpoints export/borrado pendientes | `docs/data-privacy-and-compliance.md`, `docs/index.md` | Documento incluye: marco regulatorio, categorías de datos, finalidades y bases, controles técnicos, derechos ARCO+, plantilla de DPA, procedimientos manuales de export/borrado, roles, retención, brechas conocidas con plan. |
+| **F-02** Password reset / recuperación admin | ✅ Cerrado | `backend/src/auth/auth.controller.ts`, `backend/src/auth/auth-password-reset.service.ts`, `backend/src/mail/mail.service.ts`, `frontend/src/app/forgot-password/page.tsx`, `frontend/src/app/cambiar-contrasena/page.tsx` | Ya existe el flujo completo `forgot-password` → validación token → confirmación → invalidación de cookies/sesiones. El runbook queda como soporte operativo, no como sustituto funcional. |
+| **F-03** Export/borrado regulatorio y compliance | ✅ Parcialmente cerrado | `backend/src/patients/patients-regulatory.controller.ts`, `backend/src/patients/patients-regulatory-export.service.ts`, `backend/src/patients/patients-regulatory-purge.service.ts`, `docs/data-privacy-and-compliance.md`, `frontend/src/app/politica-de-privacidad/page.tsx`, `frontend/src/app/terminos-y-condiciones/page.tsx` | Los endpoints de exportación/purge y las páginas legales ya existen. Sigue pendiente el cierre formal con DPO/DPA y la validación operativa con la clínica. |
 
 ### Cambios estructurales adicionales (efectos colaterales positivos)
 
@@ -189,18 +182,18 @@ Inspección documental + estructural; **no se ejecutaron** build/test/audit. Rev
 
 | Hallazgo | Por qué quedó fuera | Acción esperada |
 |---|---|---|
-| **F-02** (implementación real del password reset self-service) | Requiere modelo Prisma nuevo (`PasswordResetToken`), template de email, UI nueva en frontend, manejo de 2FA durante reset, throttling específico y tests e2e. Es una feature, no un fix. | Implementar siguiendo el diseño en `docs/account-recovery-runbook.md` §5. Estimación: 2-3 días-persona. |
-| **F-03** (endpoint formal de export/borrado por titular) | Mismo motivo: necesita endpoint admin, script de descifrado de `EncounterSection.data`, audit reason `PATIENT_DATA_EXPORTED`/`PATIENT_RECORD_PURGED_REGULATORY`, UI admin. | Implementar antes de procesar PHI real bajo Ley 21.719 (dic 2026). Documentado como "brecha conocida" en `docs/data-privacy-and-compliance.md` §10. |
+| **F-02** (password reset self-service) | Ya existe el flujo en backend/frontend. Lo que faltó en esta sesión fue la verificación end-to-end en staging/prod y la revisión del runbook operativo. | Validar el flujo completo y la recuperación del admin único antes del go-live. |
+| **F-03** (export/borrado regulatorio) | Ya existe el endpoint y la exportación regulatoria. Lo que sigue faltando es el cierre formal con DPO/DPA y la publicación/aceptación efectiva de la política. | Cerrar el componente legal/operativo con la clínica usuaria. |
 | **F-06** (CSP nonce-based) | Requiere refactor de carga de estilos inline en Next.js 16 / Tailwind generated CSS. Riesgo de romper UI sin pruebas visuales. | Post-launch, primer mes. |
 | **F-07** (migrar SQLite → PostgreSQL) | Decisión condicional al volumen real. Para single-clinic ≤5 usuarios concurrentes, SQLite es viable. | Re-evaluar después de 30 días de tráfico real. |
-| **F-08** (CSRF token) | SameSite=strict ya cubre el 99% del caso; F-08 es defensa en profundidad. | Post-launch, primer mes. |
-| **F-09** (métricas Prometheus + SLOs) | Necesita `prom-client`, configurar scraping, dashboards. | Post-launch, primer mes. |
-| **F-11** (ClamAV en adjuntos) | Requiere sidecar/socket, integración con flujo de upload, manejo asíncrono. | Post-launch, primer mes. |
+| **F-08** (CSRF token) | Ya existe el middleware de doble submit; la nota aquí queda sólo para trazabilidad histórica. | No requiere implementación adicional salvo auditoría puntual. |
+| **F-09** (métricas Prometheus + SLOs) | El endpoint `/api/metrics` y el documento de SLO ya existen; lo pendiente es la instrumentación operativa completa. | Post-launch, primera semana. |
+| **F-11** (ClamAV en adjuntos) | El servicio de scan/quarantine ya existe; falta decidir y activar su uso en producción. | Post-launch, primer mes. |
 | **F-12** (log shipper persistente) | Decisión de operador (Loki, S3, Datadog, etc.). | Primera semana post-launch. |
 | **F-15** (revisar exposición de SMTP password en logs) | Requiere prueba activa con Sentry capturando un evento fallido para confirmar el blast radius del scrub actual. | Validación en staging. |
-| **F-17** (matriz tests IDOR cruzados) | Esfuerzo medio, no bloqueante pero altamente recomendado. | Post-launch, primer mes. |
+| **F-17** (matriz tests IDOR cruzados) | Hay una suite fuerte de aislamiento clínica; sigue faltando cobertura exhaustiva por endpoint sensible y matriz completa de roles. | Post-launch, primer mes. |
 | **F-18** (gaps `[BE]`/`[NEW]` en `FEATURES.md`) | Producto, no audit; decisión de stakeholders. | Priorizar con la clínica usuaria antes del go-live. |
-| **F-19** (a11y / WCAG) | Necesita auditoría con axe + remediación. | Post-launch, primer mes. |
+| **F-19** (a11y / WCAG) | No hay gate automático de accesibilidad en CI. | Post-launch, primer mes. |
 | **F-21** (backup-cron como root) | Requiere refactor de permisos en `docker-compose.yml`. | Post-launch, primer mes. |
 | **F-23** (revisar último resultado `npm audit`) | No se ejecutó en esta sesión. | Validar el último CI run antes del merge de remediación. |
 
@@ -222,21 +215,20 @@ Inspección documental + estructural; **no se ejecutaron** build/test/audit. Rev
 4. Hacer un commit + PR con el cuerpo de `AUDIT.md` §I como description.
 
 **Próximas 2 semanas (T+7–21 días)**
-5. Implementar `/auth/forgot-password` (F-02) siguiendo el diseño documentado.
-6. Implementar `GET /api/admin/patients/:id/export` con descifrado server-side (F-03).
+5. Validar en staging/prod el flujo de password reset y recuperación del admin único (F-02, ya implementado).
+6. Cerrar el componente legal/operativo de export/borrado regulatorio con la clínica usuaria (F-03, ya implementado técnicamente).
 7. Decidir log shipper (Loki/Datadog/S3) y configurar (F-12).
 8. Validar el último resultado de `npm audit --omit=dev --audit-level=high` en CI (F-23).
 9. Designar DPO formal y firmar DPA con la clínica usuaria.
 
 **Primer mes (T+21–60 días)**
 10. Migrar CSP a nonce-based (F-06).
-11. CSRF token explícito en mutaciones (F-08).
-12. Métricas Prometheus + dashboards + SLO formales (F-09).
-13. ClamAV en pipeline de uploads (F-11).
-14. Matriz e2e de IDOR cruzados (F-17).
-15. A11y en CI (F-19).
-16. Backup-cron sin root (F-21).
-17. Re-evaluar si la carga real justifica migrar a PostgreSQL (F-07).
+11. Métricas Prometheus + dashboards + SLO formales (F-09).
+12. ClamAV en pipeline de uploads (F-11).
+13. Matriz e2e de IDOR cruzados (F-17).
+14. A11y en CI (F-19).
+15. Backup-cron sin root (F-21).
+16. Re-evaluar si la carga real justifica migrar a PostgreSQL (F-07).
 
 **Continuo**
 - Monitorear `bootstrap_token_still_configured`, `phi_field_encryption_disabled` y otros warnings de boot en cada deploy.
@@ -249,6 +241,41 @@ Inspección documental + estructural; **no se ejecutaron** build/test/audit. Rev
 
 Después de los fixes de esta sesión:
 
-- **3 bloqueadores P0 originales:** F-01 ✅ cerrado; F-02 🟡 documentado (runbook) + diseño listo, implementación pendiente; F-03 🟡 marco documentado, endpoints pendientes.
-- **Score readiness general:** **73 → ~80** (subida principal por seguridad/observabilidad/devops; UX y performance sin cambios).
-- **Veredicto:** **GO con condiciones documentadas** sigue siendo correcto. Lo que cambia es que las condiciones ahora están **escritas, ejecutables y testeadas**, no solo enumeradas. La parte legal/compliance (DPO, DPA, política publicada) sigue dependiendo del operador, no del código.
+- **3 bloqueadores P0 originales:** F-01 ✅ cerrado; F-02 ✅ cerrado; F-03 🟡 parcialmente cerrado a nivel de código, con validación legal/operativa pendiente.
+- **Score readiness general:** **79** (subida principal por seguridad/observabilidad/devops; UX y performance sin cambios relevantes).
+- **Veredicto:** **GO con condiciones documentadas** sigue siendo correcto. Lo que cambia es que varias condiciones ya quedaron implementadas en el código, y lo que permanece abierto es sobre todo validación legal/operativa, observabilidad completa y hardening final.
+
+## K. Contraste con el código actual
+
+> Esta sección corrige la foto del audit base a partir del repo actual. Mantiene la trazabilidad histórica de la auditoría, pero marca qué hallazgos ya no describen el estado real.
+
+### K.1 Cerrados técnicamente
+
+- **F-01**: `ENCRYPTION_KEY` ya es obligatoria en producción y `docker-compose.yml` la exige con `:?required`.
+- **F-02**: el flujo de password reset ya existe en backend y frontend.
+- **F-04**: el arranque ya advierte explícitamente cuando el cifrado de secciones está deshabilitado.
+- **F-05**: `TRUST_PROXY` ya se valida en producción.
+- **F-08**: el middleware CSRF de doble submit ya está activo.
+- **F-13**: el scrubbing de PHI en Sentry ya cubre backend y frontend.
+- **F-14**: el throttler por usuario/sesión ya reemplaza el límite puramente por IP.
+- **F-16**: `scripts/deploy.sh` ya soporta rollback no interactivo.
+- **F-20**: `tracesSampleRate` ya subió a 0.1 en producción.
+- **F-22**: las rutas absolutas hardcodeadas en docs ya fueron reemplazadas por `${ANAMNEO_ROOT}`.
+
+### K.2 Parcialmente cerrados
+
+- **F-03**: los endpoints regulatorios y las páginas legales ya existen; queda el cierre formal con DPO/DPA y la validación operativa con la clínica.
+- **F-09**: `/api/metrics` y el documento de SLO ya existen; faltan dashboards, alerting y shipper persistente.
+- **F-11**: el servicio de AV/quarantine ya existe; falta decidir y activar su uso productivo.
+- **F-17**: existe una suite robusta de aislamiento clínica; falta una matriz exhaustiva por endpoint y rol.
+
+### K.3 Pendientes reales
+
+- **F-06**: CSP del frontend con `style-src 'unsafe-inline'`.
+- **F-07**: SQLite en producción sigue siendo condicional.
+- **F-12**: no hay shipper persistente activo.
+- **F-15**: falta una prueba activa para medir el blast radius del SMTP password en cuerpo de petición.
+- **F-18**: `FEATURES.md` todavía contiene backlog `[BE]`/`[NEW]`.
+- **F-19**: no hay gate de accesibilidad en CI.
+- **F-21**: el backup-cron sigue corriendo como `root`.
+- **F-23**: falta validar el último `npm audit` real de CI.
