@@ -77,19 +77,19 @@ const LEGAL_DOCUMENT_SELECT_SQL = `
     status,
     title,
     description,
-    content_json AS contentJson,
-    effective_at AS effectiveAt,
-    published_at AS publishedAt,
-    created_by_id AS createdById,
-    updated_by_id AS updatedById
+    content_json AS "contentJson",
+    effective_at AS "effectiveAt",
+    published_at AS "publishedAt",
+    created_by_id AS "createdById",
+    updated_by_id AS "updatedById"
   FROM legal_documents
 `;
 
 const USER_LEGAL_ACCEPTANCE_SELECT_SQL = `
   SELECT
-    document_type AS documentType,
+    document_type AS "documentType",
     version,
-    accepted_at AS acceptedAt
+    accepted_at AS "acceptedAt"
   FROM user_legal_acceptances
 `;
 

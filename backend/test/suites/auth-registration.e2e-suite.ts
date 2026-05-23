@@ -58,14 +58,15 @@ export function authRegistrationSuite() {
       expect(res.body.isAdmin).toBe(true);
     });
 
-    it('GET /api/health/sqlite → 200 for admin with operational payload', async () => {
-      const res = await req().get('/api/health/sqlite').set('Cookie', cookieHeader(state.adminCookies)).expect(200);
+    it('GET /api/health/database → 200 for admin with operational payload', async () => {
+      const res = await req().get('/api/health/database').set('Cookie', cookieHeader(state.adminCookies)).expect(200);
 
       expect(['ok', 'degraded']).toContain(res.body.status);
       expect(res.body.database?.status).toBe('ok');
-      expect(res.body.sqlite).toBeDefined();
-      expect(typeof res.body.sqlite.enabled).toBe('boolean');
-      expect(res.body.sqlite.restoreDrill).toEqual(
+      expect(res.body.database?.driver).toBe('postgres');
+      expect(res.body.operational).toBeDefined();
+      expect(res.body.operational.driver).toBe('postgres');
+      expect(res.body.operational.restoreDrill).toEqual(
         expect.objectContaining({
           frequencyDays: expect.any(Number),
           isDue: expect.any(Boolean),

@@ -4,7 +4,7 @@ La fuente de verdad es `backend/prisma/schema.prisma`. Este documento no reempla
 
 ## Contexto General
 
-- El datasource actual del schema usa SQLite.
+- El datasource actual del schema usa PostgreSQL.
 - La mayoria de estados persistidos son `String`, no enums nativos de base.
 - Hay entidades clinicas, operativas y de seguridad mezcladas en un solo schema, por lo que conviene pensar por dominios.
 

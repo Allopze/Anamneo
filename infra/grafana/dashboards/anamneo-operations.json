@@ -92,7 +92,7 @@
       },
       "targets": [
         {
-          "expr": "anamneo_sqlite_backup_age_hours",
+          "expr": "anamneo_postgres_backup_age_hours",
           "refId": "A"
         }
       ],

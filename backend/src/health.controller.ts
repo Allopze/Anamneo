@@ -25,10 +25,10 @@ export class HealthController {
     return { status: 'ok', timestamp: new Date().toISOString(), database };
   }
 
-  @Get('sqlite')
+  @Get('database')
   @SkipThrottle()
   @UseGuards(JwtAuthGuard, AdminGuard)
-  async sqlite() {
+  async database() {
     const database = await this.prismaService.getDatabaseHealth();
     if (database.status !== 'ok') {
       throw new ServiceUnavailableException({
@@ -38,12 +38,12 @@ export class HealthController {
       });
     }
 
-    const sqlite = await this.prismaService.getSqliteOperationalStatus();
+    const operational = await this.prismaService.getDatabaseOperationalStatus();
     return {
-      status: sqlite.status === 'warn' ? 'degraded' : 'ok',
+      status: operational.status === 'warn' ? 'degraded' : 'ok',
       timestamp: new Date().toISOString(),
       database,
-      sqlite,
+      operational,
     };
   }
 }

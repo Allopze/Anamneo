@@ -15,7 +15,7 @@ Este directorio concentra la documentacion viva del proyecto. Si un tema aparece
 | `security-and-permissions.md` | Desarrollo / Operacion | JWT, sesiones, cifrado, auditoria y permisos |
 | `idor-isolation-matrix.md` | Desarrollo / Seguridad | Matriz de endpoints con IDs y cobertura de aislamiento/IDOR |
 | `data-privacy-and-compliance.md` | Operacion / Legal | Marco Ley 19.628 / Ley 21.719, DPA, derechos del titular, retencion |
-| `sqlite-operations.md` | Operacion | Backup, restore drill, monitor y alertas SQLite |
+| `postgres-operations.md` | Operacion | Backup, restore drill, monitor y alertas PostgreSQL |
 | `deployment-and-release.md` | Operacion | Build, empaquetado, despliegue y smoke checks |
 | `clinical-workflows.md` | Producto / Desarrollo | Flujos funcionales vigentes y riesgos conocidos |
 | `clinical-analytics.md` | Producto / Desarrollo | Vista de analitica clinica, fuentes de datos, calculos, limites y validacion |
@@ -39,7 +39,7 @@ Este directorio concentra la documentacion viva del proyecto. Si un tema aparece
 4. `testing.md`
 5. `backend-architecture.md` y `frontend-architecture.md`
 6. `security-and-permissions.md`
-7. `sqlite-operations.md` y `deployment-and-release.md`
+7. `postgres-operations.md` y `deployment-and-release.md`
 
 ## Archivo Historico
 

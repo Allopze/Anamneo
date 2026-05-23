@@ -5,8 +5,19 @@ import { useQuery } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 
 type DashboardSystemHealthResponse = {
-  sqlite: {
+  operational: {
     enabled: boolean;
+    driver: 'postgres';
+    sizeBytes: number | null;
+    connections: {
+      total: number;
+      active: number;
+      idle: number;
+    };
+    locks: {
+      waiting: number;
+      longRunning: number;
+    };
     backups: {
       latestBackupFile: string | null;
       latestBackupAt: string | null;
@@ -42,7 +53,7 @@ function formatDateTime(value: string | null) {
 export default function DashboardOperationalChecks() {
   const systemQuery = useQuery({
     queryKey: ['dashboard-operational-checks'],
-    queryFn: async () => (await api.get('/health/sqlite')).data as DashboardSystemHealthResponse,
+    queryFn: async () => (await api.get('/health/database')).data as DashboardSystemHealthResponse,
     staleTime: 60_000,
   });
 
@@ -62,7 +73,7 @@ export default function DashboardOperationalChecks() {
     );
   }
 
-  const { sqlite } = systemQuery.data;
+  const { operational } = systemQuery.data;
 
   return (
     <section className="rounded-card bg-surface-elevated p-5 shadow-soft">
@@ -71,7 +82,7 @@ export default function DashboardOperationalChecks() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Chequeos operativos</p>
           <h2 className="mt-2 text-xl font-bold text-ink">Backup y restore drill</h2>
           <p className="mt-1 text-sm text-ink-secondary">
-            Resumen visible del estado SQLite para no depender sólo de scripts o del tab de sistema.
+            Resumen visible de PostgreSQL para no depender sólo de scripts o del tab de sistema.
           </p>
         </div>
 
@@ -84,41 +95,41 @@ export default function DashboardOperationalChecks() {
         <div className="rounded-2xl border border-surface-muted/30 bg-white/70 p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-ink-primary">Backup reciente</p>
-            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${sqlite.backups.isFresh ? 'bg-status-green/20 text-status-green-text' : 'bg-status-red/15 text-status-red-text'}`}>
-              {sqlite.backups.isFresh ? 'Fresco' : 'Vencido'}
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${operational.backups.isFresh ? 'bg-status-green/20 text-status-green-text' : 'bg-status-red/15 text-status-red-text'}`}>
+              {operational.backups.isFresh ? 'Fresco' : 'Vencido'}
             </span>
           </div>
-          <p className="mt-3 text-sm text-ink-secondary">{formatDateTime(sqlite.backups.latestBackupAt)}</p>
-          <p className="mt-1 text-sm text-ink-secondary">{sqlite.backups.latestBackupFile || 'Sin archivo detectado'}</p>
+          <p className="mt-3 text-sm text-ink-secondary">{formatDateTime(operational.backups.latestBackupAt)}</p>
+          <p className="mt-1 text-sm text-ink-secondary">{operational.backups.latestBackupFile || 'Sin archivo detectado'}</p>
           <p className="mt-3 text-xs text-ink-muted">
-            {sqlite.backups.latestBackupAgeHours === null
+            {operational.backups.latestBackupAgeHours === null
               ? 'Sin antigüedad calculada'
-              : `Antigüedad ${sqlite.backups.latestBackupAgeHours} h de un máximo de ${sqlite.backups.maxAgeHours} h`}
+              : `Antigüedad ${operational.backups.latestBackupAgeHours} h de un máximo de ${operational.backups.maxAgeHours} h`}
           </p>
         </div>
 
         <div className="rounded-2xl border border-surface-muted/30 bg-white/70 p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-ink-primary">Restore drill</p>
-            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${sqlite.restoreDrill.isDue ? 'bg-status-red/15 text-status-red-text' : 'bg-status-green/20 text-status-green-text'}`}>
-              {sqlite.restoreDrill.isDue ? 'Pendiente' : 'Vigente'}
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${operational.restoreDrill.isDue ? 'bg-status-red/15 text-status-red-text' : 'bg-status-green/20 text-status-green-text'}`}>
+              {operational.restoreDrill.isDue ? 'Pendiente' : 'Vigente'}
             </span>
           </div>
-          <p className="mt-3 text-sm text-ink-secondary">{formatDateTime(sqlite.restoreDrill.lastRestoreDrillAt)}</p>
+          <p className="mt-3 text-sm text-ink-secondary">{formatDateTime(operational.restoreDrill.lastRestoreDrillAt)}</p>
           <p className="mt-1 text-xs text-ink-muted">
-            {sqlite.restoreDrill.lastRestoreDrillAgeDays === null
+            {operational.restoreDrill.lastRestoreDrillAgeDays === null
               ? 'Todavía no hay simulacro registrado'
-              : `Hace ${sqlite.restoreDrill.lastRestoreDrillAgeDays} días`}
+              : `Hace ${operational.restoreDrill.lastRestoreDrillAgeDays} días`}
           </p>
           <p className="mt-3 text-xs text-ink-muted">
-            Cadencia objetivo: cada {sqlite.restoreDrill.frequencyDays} días
+            Cadencia objetivo: cada {operational.restoreDrill.frequencyDays} días
           </p>
         </div>
       </div>
 
-      {!sqlite.enabled ? (
-        <p className="mt-4 text-sm text-ink-muted">Este resumen aplica cuando el entorno corre sobre SQLite.</p>
-      ) : null}
+      <p className="mt-4 text-sm text-ink-muted">
+        Conexiones: {operational.connections.total} total, {operational.connections.active} activas. Locks esperando: {operational.locks.waiting}.
+      </p>
     </section>
   );
 }

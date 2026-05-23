@@ -29,13 +29,14 @@ Eso orquesta:
 
 ## Docker Compose
 
-`docker-compose.yml` define tres servicios:
+`docker-compose.yml` define backend, frontend, PostgreSQL, backup y observabilidad:
 
 | Servicio | Puerto | Funcion |
 |---|---|---|
-| `backend` | `5678` | API NestJS |
-| `frontend` | `5555` | App Next.js |
-| `backup-cron` | n/a | Backup automatico SQLite |
+| `postgres` | interno | PostgreSQL 16 |
+| `backend` | `${BACKEND_PORT:-5679}` | API NestJS |
+| `frontend` | `${FRONTEND_PORT:-5556}` | App Next.js |
+| `backup-cron` | n/a | Backup automatico PostgreSQL |
 
 Tambien persiste datos en carpetas locales bajo `./runtime/`:
 
@@ -49,7 +50,7 @@ Los puertos publicados por Compose quedan atados a loopback por defecto (`127.0.
 La beta soportada por este release es **single-clinic**:
 
 - `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic` debe estar configurado en produccion.
-- Una clinica equivale a una instancia de Compose, una base SQLite, un directorio de uploads y una carpeta de backups.
+- Una clinica equivale a una instancia de Compose, una base PostgreSQL, un directorio de uploads y una carpeta de backups.
 - No mezcles clinicas distintas en la misma instancia. El schema aun no tiene `Clinic`, `Tenant` ni `clinicId` obligatorio.
 - El backend rechaza otros alcances productivos, incluido `multi-tenant`, hasta que exista un modelo de tenant/clinic con migraciones, guards, filtros y tests de aislamiento.
 
@@ -103,7 +104,7 @@ Excluye, entre otros:
 - `node_modules/`
 - `.next/`
 - `dist/`
-- bases SQLite y journals
+- bases PostgreSQL y journals
 - `runtime/data/` completo, incluyendo backups locales
 - `runtime/uploads/` completo
 - `.env*` reales
@@ -178,7 +179,7 @@ npm run deploy
 
 El script `scripts/deploy.sh` ejecuta:
 
-1. Backup pre-migración usando `backend/scripts/sqlite-backup.js`, incluyendo metadata y snapshot de uploads.
+1. Backup pre-migración usando `backend/scripts/pg-backup.js`, incluyendo metadata y snapshot de uploads.
 2. Restore drill sobre ese backup para validar que es utilizable también cuando existen adjuntos.
 3. `prisma migrate deploy` sobre todas las migraciones pendientes empaquetadas en `backend/prisma/migrations/`.
 4. Si la migración falla, ofrece rollback automático al estado previo.
@@ -205,7 +206,7 @@ Prerequisitos para este smoke final:
 2. El frontend carga localmente en `http://127.0.0.1:<FRONTEND_PORT>`.
 3. El hostname HTTPS publicado por `cloudflared` responde y carga la app.
 4. Login, refresh de sesion y navegacion privada funcionan a traves del hostname HTTPS publico.
-5. Si aplica, `GET http://127.0.0.1:<BACKEND_PORT>/api/health/sqlite` no reporta alertas graves.
+5. Si aplica, `GET http://127.0.0.1:<BACKEND_PORT>/api/health/database` no reporta alertas graves.
 6. SMTP y Sentry estan configurados si el entorno lo exige.
 
 ## Rollback
@@ -216,7 +217,10 @@ Para rollback manual fuera del script:
 
 ```bash
 docker compose down
-cp runtime/data/backups/anamneo-<timestamp>.db runtime/data/anamneo.db
+docker compose up -d postgres
+docker compose run --rm --no-deps backend sh -c \
+  'pg_restore --clean --if-exists --no-owner --no-privileges --dbname="$MIGRATION_DATABASE_URL" "$1"' \
+  sh /app/data/backups/anamneo-<timestamp>.dump
 docker compose up -d
 ```
 
@@ -224,14 +228,14 @@ Si la migración ya se aplicó y necesitas volver atrás:
 
 1. Identifica el backup más reciente en `runtime/data/backups/`.
 2. Detén los servicios: `docker compose down`.
-3. Restaura la DB: `cp runtime/data/backups/anamneo-<timestamp>.db runtime/data/anamneo.db`.
+3. Levanta Postgres y restaura la DB con `pg_restore --clean --if-exists`.
 4. Levanta: `docker compose up -d`.
-5. Verifica: `curl http://127.0.0.1:5678/api/health`.
+5. Verifica: `curl http://127.0.0.1:${BACKEND_PORT:-5679}/api/health`.
 
-El cron de backup (`backup-cron`) ahora ejecuta `sqlite-ops-runner.js --mode=all`, que incluye backup + restore drill periódico + monitor + alertas. Los restore drills se ejecutan automáticamente según `SQLITE_RESTORE_DRILL_FREQUENCY_DAYS` (default: 7 días).
+El cron de backup (`backup-cron`) ejecuta `pg-ops-runner.js --mode=all`, que incluye backup + restore drill periódico + monitor + alertas. Los restore drills se ejecutan automáticamente según `PG_RESTORE_DRILL_FREQUENCY_DAYS` (default: 7 días).
 
 ## Referencias
 
 - Variables: `environment.md`
-- Operacion SQLite: `sqlite-operations.md`
+- Operacion PostgreSQL: `postgres-operations.md`
 - Desarrollo local: `development.md`

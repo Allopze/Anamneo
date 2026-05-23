@@ -5,6 +5,8 @@ FROM node:20-alpine AS builder
 RUN apk add --no-cache openssl
 
 WORKDIR /app/backend
+ENV DATABASE_URL=postgresql://anamneo_owner:anamneo_owner@localhost:5432/anamneo?schema=public
+ENV MIGRATION_DATABASE_URL=postgresql://anamneo_owner:anamneo_owner@localhost:5432/anamneo?schema=public
 
 # Install dependencies
 COPY backend/package*.json ./
@@ -22,8 +24,8 @@ RUN npm run build
 # Production image
 FROM node:20-alpine AS production
 
-# Prisma requires openssl on Alpine
-RUN apk add --no-cache openssl
+# Prisma requires openssl on Alpine; operational scripts need PostgreSQL client tools.
+RUN apk add --no-cache openssl postgresql16-client
 
 WORKDIR /app
 
@@ -43,6 +45,6 @@ RUN mkdir -p uploads data data/backups && \
 
 USER node
 
-EXPOSE 5678
+EXPOSE 5679
 
 CMD ["node", "dist/backend/src/main.js"]

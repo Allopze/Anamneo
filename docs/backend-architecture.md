@@ -75,7 +75,7 @@ Los services coordinan acceso a Prisma, reglas de dominio, autorizacion especifi
 
 La fuente de verdad es `backend/prisma/schema.prisma`.
 
-- el provider actual del schema es SQLite,
+- el provider actual del schema es PostgreSQL,
 - la aplicacion menciona PostgreSQL como opcion futura/alternativa,
 - y varias reglas de estado viven en strings persistidos, no en enums de base.
 

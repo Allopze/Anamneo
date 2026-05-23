@@ -14,8 +14,8 @@ function buildConfig(values: ConfigValues) {
 function buildProductionConfig(overrides: ConfigValues = {}) {
   return buildConfig({
     NODE_ENV: 'production',
-    DATABASE_URL: 'file:/app/data/anamneo.db',
-    ALLOW_SQLITE_IN_PRODUCTION: 'true',
+    DATABASE_URL: 'postgresql://anamneo_app:app@localhost:5432/anamneo?schema=public',
+    MIGRATION_DATABASE_URL: 'postgresql://anamneo_owner:owner@localhost:5432/anamneo?schema=public',
     ANAMNEO_DEPLOYMENT_SCOPE: 'single-clinic',
     JWT_SECRET: 'a'.repeat(32),
     JWT_REFRESH_SECRET: 'b'.repeat(32),
@@ -66,10 +66,24 @@ describe('assertSafeConfig field encryption', () => {
   it('allows omitting ENCRYPTION_KEY outside production (for backwards compatibility)', () => {
     expect(() => assertSafeConfig(buildConfig({
       NODE_ENV: 'development',
-      DATABASE_URL: 'file:./dev.db',
+      DATABASE_URL: 'postgresql://anamneo_app:app@localhost:5432/anamneo?schema=public',
       JWT_SECRET: 'a'.repeat(32),
       JWT_REFRESH_SECRET: 'b'.repeat(32),
     }))).not.toThrow();
+  });
+});
+
+describe('assertSafeConfig database provider', () => {
+  it('requires PostgreSQL in production', () => {
+    expect(() => assertSafeConfig(buildProductionConfig({ DATABASE_URL: 'file:/app/data/anamneo.db' }))).toThrow(
+      'DATABASE_URL must use postgresql:// or postgres://',
+    );
+  });
+
+  it('rejects placeholder migration URLs in production', () => {
+    expect(() => assertSafeConfig(buildProductionConfig({ MIGRATION_DATABASE_URL: 'postgresql://CHANGE_ME@localhost/anamneo' }))).toThrow(
+      'MIGRATION_DATABASE_URL must not contain placeholder values',
+    );
   });
 });
 

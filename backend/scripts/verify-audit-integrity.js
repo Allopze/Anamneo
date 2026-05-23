@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
-const { resolveDatabaseUrl } = require('./sqlite-utils');
+const { resolveDatabaseUrl } = require('./pg-utils');
 
 function parseLimit(argv) {
   if (argv.includes('--full')) return undefined;

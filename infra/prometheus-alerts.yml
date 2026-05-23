@@ -20,14 +20,14 @@ groups:
           summary: "High backend 5xx rate"
           description: "Backend 5xx rate is above the SLO burn threshold."
 
-      - alert: AnamneoOldSqliteBackup
-        expr: anamneo_sqlite_backup_age_hours > 12
+      - alert: AnamneoOldPostgresBackup
+        expr: anamneo_postgres_backup_age_hours > 12
         for: 10m
         labels:
           severity: high
         annotations:
-          summary: "SQLite backup is older than 12 hours"
-          description: "The latest SQLite backup age gauge is above the operational threshold."
+          summary: "PostgreSQL backup is older than 12 hours"
+          description: "The latest PostgreSQL backup age gauge is above the operational threshold."
 
       - alert: AnamneoAuditChainError
         expr: anamneo_audit_chain_errors_total > 0

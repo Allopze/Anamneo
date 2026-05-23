@@ -194,7 +194,7 @@ echo "── 8. Verificación de Backups ──"
 
 BACKUP_DIR="./runtime/data/backups"
 if [[ -d "$BACKUP_DIR" ]]; then
-  LATEST_BACKUP=$(ls -t "$BACKUP_DIR"/*.db 2>/dev/null | head -1)
+  LATEST_BACKUP=$(ls -t "$BACKUP_DIR"/*.dump "$BACKUP_DIR"/*.backup 2>/dev/null | head -1)
   if [[ -n "$LATEST_BACKUP" ]]; then
     BACKUP_AGE=$(( ($(date +%s) - $(stat -c %Y "$LATEST_BACKUP")) / 3600 ))
     if [[ $BACKUP_AGE -lt 7 ]]; then
@@ -203,12 +203,7 @@ if [[ -d "$BACKUP_DIR" ]]; then
       fail "Último backup tiene $BACKUP_AGE horas de antigüedad (> 7 horas)"
     fi
     
-    INTEGRITY=$(sqlite3 "$LATEST_BACKUP" "PRAGMA integrity_check;" 2>&1)
-    if [[ "$INTEGRITY" == "ok" ]]; then
-      pass "Integridad del backup: OK"
-    else
-      fail "Integridad del backup: FAILED ($INTEGRITY)"
-    fi
+    pass "Backup PostgreSQL detectado: $(basename "$LATEST_BACKUP")"
   else
     fail "No se encontraron backups en $BACKUP_DIR"
   fi

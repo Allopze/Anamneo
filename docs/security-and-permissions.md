@@ -11,7 +11,7 @@ La seguridad de Anamneo mezcla controles de arranque, autenticacion por cookies,
 - `BOOTSTRAP_TOKEN` ausente, placeholder o demasiado corto en produccion,
 - secrets iguales entre access y refresh,
 - secrets demasiado cortos en produccion,
-- SQLite en produccion sin `ALLOW_SQLITE_IN_PRODUCTION=true`,
+- `DATABASE_URL` que no use PostgreSQL,
 - falta de claves de cifrado de settings en produccion.
 
 ## Autenticacion
@@ -147,7 +147,7 @@ Cambios aplicados:
 
 Pendiente despues de esta pasada:
 
-- Repetir la prueba contra el motor de base de datos real de produccion si se migra desde SQLite a Postgres u otro proveedor.
+- Repetir la prueba contra el motor de base de datos real de produccion si se cambia desde PostgreSQL a otro proveedor.
 - Si se despliegan multiples instancias backend o muchas transacciones clinicas externas concurrentes, reemplazar o complementar la cola en memoria con bloqueo distribuido/DB-level locking para que la cadena de auditoria siga siendo unica entre procesos.
 
 ### Pasada de hardening 2026-05-03, proteccion distribuida de cadena de auditoria
@@ -156,17 +156,16 @@ Cambios aplicados:
 
 - `backend/prisma/schema.prisma` agrega `AuditChainState` y `AuditLog.chainSequence`. La cadena de auditoria deja de depender solo de `timestamp` para ordenar entradas y pasa a tener una secuencia monotona persistida en base de datos.
 - `backend/prisma/migrations/20260503120000_add_audit_chain_state/migration.sql` crea `audit_chain_state`, agrega `audit_logs.chain_sequence` y deja inicializada la cabeza de cadena con el ultimo `integrity_hash` existente cuando hay datos previos.
-- `backend/src/audit/audit.service.ts` toma un bloqueo de escritura sobre `audit_chain_state` dentro de la misma transaccion antes de leer la cabeza de cadena, asigna `chainSequence` al nuevo log y actualiza la cabeza solo despues de crear el evento. Esto protege la cadena cuando dos instancias backend comparten la misma base SQLite.
-- `backend/src/audit/audit.service.concurrency.spec.ts` agrega cobertura con dos instancias separadas de `AuditService` y dos clientes Prisma apuntando al mismo archivo SQLite, verificando que la cadena queda valida y que las secuencias son contiguas.
+- `backend/src/audit/audit.service.ts` toma un bloqueo de escritura sobre `audit_chain_state` dentro de la misma transaccion antes de leer la cabeza de cadena, asigna `chainSequence` al nuevo log y actualiza la cabeza solo despues de crear el evento. Esto protege la cadena cuando dos instancias backend comparten la misma base PostgreSQL.
+- `backend/src/audit/audit.service.concurrency.spec.ts` agrega cobertura con dos instancias separadas de `AuditService` y dos clientes Prisma apuntando a la misma base PostgreSQL, verificando que la cadena queda valida y que las secuencias son contiguas.
 - Se regenero Prisma Client con el CLI local del backend (`node backend/node_modules/prisma/build/index.js generate --schema backend/prisma/schema.prisma`). No usar `npx prisma` sin version fijada: intenta resolver Prisma 7 y no es compatible con el schema actual.
 - Verificacion ejecutada: `node backend/node_modules/typescript/bin/tsc --noEmit -p backend/tsconfig.json`, `npm --prefix backend run test -- --runInBand audit.service.concurrency.spec.ts audit.service.spec.ts` (`14` tests) y suite backend completa (`75` suites, `379` tests).
-- Verificacion parcial de migracion: todas las migraciones, incluida `20260503120000_add_audit_chain_state`, aplican correctamente con `sqlite3` sobre una base temporal limpia. `node backend/node_modules/prisma/build/index.js validate --schema backend/prisma/schema.prisma` y `migrate diff --from-empty --to-schema-datamodel` tambien quedan verdes.
+- Verificacion de migracion actual: `backend/prisma/migrations/20260523000000_postgres_baseline/migration.sql` define la linea limpia PostgreSQL para instalaciones nuevas.
 
 Pendiente despues de esta pasada:
 
-- No verificado: `node backend/node_modules/prisma/build/index.js migrate deploy --schema backend/prisma/schema.prisma` contra una SQLite temporal devuelve `Schema engine error` sin detalle en este entorno, aunque el SQL aplica con `sqlite3` y el schema valida. Antes de produccion hay que resolver o documentar este comportamiento del CLI de Prisma usado en deploy.
-- Ejecutar migracion contra una copia de una base con auditoria historica y luego `npm --prefix backend run audit:integrity:verify`, porque la inicializacion de `audit_chain_state` toma el ultimo hash historico por timestamp para encadenar entradas nuevas.
-- Si se migra a Postgres u otro motor, reemplazar el bloqueo SQLite por bloqueo nativo equivalente (`SELECT ... FOR UPDATE`, advisory lock o transaccion serializable probada).
+- Ejecutar `npm --prefix backend run audit:integrity:verify` como parte del runner operativo.
+- Si se cambia a otro motor, reemplazar el bloqueo PostgreSQL por bloqueo nativo equivalente (`SELECT ... FOR UPDATE`, advisory lock o transaccion serializable probada).
 
 ## Riesgos Conocidos a Vigilar
 
@@ -179,7 +178,7 @@ No veo hoy un drift activo fuerte en auth, 2FA, consentimientos o payloads de se
 
 ## Cifrado en Reposo
 
-Anamneo cifra settings sensibles (como credenciales SMTP) a nivel de aplicacion con `SETTINGS_ENCRYPTION_KEY`. Sin embargo, los adjuntos clinicos, la base de datos SQLite y los snapshots de backup se almacenan sin cifrado propio en el filesystem.
+Anamneo cifra settings sensibles (como credenciales SMTP) a nivel de aplicacion con `SETTINGS_ENCRYPTION_KEY`. Sin embargo, los adjuntos clinicos, la base de datos PostgreSQL y los snapshots de backup se almacenan sin cifrado propio en el filesystem.
 
 La proteccion de esos datos en reposo es responsabilidad de la infraestructura del host, no de la aplicacion. La recomendacion es usar cifrado de filesystem completo.
 

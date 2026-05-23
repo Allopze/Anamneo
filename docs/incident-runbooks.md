@@ -177,13 +177,13 @@ ls -lht ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -5
 docker compose logs --since 24h backup-cron | grep -i "backup\|error"
 
 # Ejecutar backup manual para diagnosticar
-docker compose run --rm --no-deps backend node /app/scripts/sqlite-backup.js
+docker compose run --rm --no-deps backend node /app/scripts/pg-backup.js
 ```
 
 **Resolución:**
 ```bash
 # 1. Ejecutar backup manual
-docker compose run --rm --no-deps backend node /app/scripts/sqlite-backup.js
+docker compose run --rm --no-deps backend node /app/scripts/pg-backup.js
 
 # 2. Si falla, verificar espacio en disco
 df -h ${ANAMNEO_ROOT}/runtime
@@ -192,7 +192,7 @@ df -h ${ANAMNEO_ROOT}/runtime
 find ${ANAMNEO_ROOT}/runtime/data/backups -name "*.db" -mtime +14 -delete
 
 # 4. Reintentar backup
-docker compose run --rm --no-deps backend node /app/scripts/sqlite-backup.js
+docker compose run --rm --no-deps backend node /app/scripts/pg-backup.js
 
 # 5. Verificar resultado
 ls -lht ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -3
@@ -212,13 +212,13 @@ ls -lht ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -3
 docker compose logs --since 24h backup-cron | grep -i "restore.*drill\|drill.*fail"
 
 # Ejecutar restore drill manual
-docker compose run --rm --no-deps backend node /app/scripts/sqlite-restore-drill.js
+docker compose run --rm --no-deps backend node /app/scripts/pg-restore-drill.js
 ```
 
 **Resolución:**
 ```bash
 # 1. Ejecutar restore drill manual con verbose
-docker compose run --rm --no-deps backend node /app/scripts/sqlite-restore-drill.js 2>&1
+docker compose run --rm --no-deps backend node /app/scripts/pg-restore-drill.js 2>&1
 
 # 2. Si falla por integridad, verificar backup
 LATEST_BACKUP=$(ls -t ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -1)
@@ -228,7 +228,7 @@ sqlite3 "$LATEST_BACKUP" "PRAGMA integrity_check;"
 ls -lt ${ANAMNEO_ROOT}/runtime/data/backups/*.db
 
 # 4. Ejecutar restore drill con backup específico
-docker compose run --rm --no-deps backend node /app/scripts/sqlite-restore-drill.js --from=/path/to/backup.db
+docker compose run --rm --no-deps backend node /app/scripts/pg-restore-drill.js --from=/path/to/backup.db
 ```
 
 ---

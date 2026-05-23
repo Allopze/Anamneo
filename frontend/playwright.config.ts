@@ -8,8 +8,9 @@ const e2eRunId = process.env.PLAYWRIGHT_E2E_RUN_ID || `${Date.now()}-${Math.rand
 const e2eWorkspace = path.join(backendRoot, '.playwright-e2e', e2eRunId);
 fs.mkdirSync(e2eWorkspace, { recursive: true });
 
-const testDbPath = path.join(e2eWorkspace, 'database.db');
-const testDbUrl = `file:${testDbPath}`;
+const testDbName = `anamneo_playwright_${e2eRunId.replace(/[^a-zA-Z0-9_]/g, '_')}`;
+const testDbUrl = process.env.PLAYWRIGHT_DATABASE_URL
+  || `postgresql://anamneo_owner:anamneo_owner@localhost:5432/${testDbName}?schema=public`;
 const testUploadDir = path.join(e2eWorkspace, 'uploads');
 const host = process.env.PLAYWRIGHT_HOST || '127.0.0.1';
 const frontendPort = process.env.PLAYWRIGHT_FRONTEND_PORT || '5556';
@@ -46,7 +47,7 @@ export default defineConfig({
       env: {
         NODE_ENV: 'test',
         DATABASE_URL: testDbUrl,
-        ALLOW_SQLITE_IN_PRODUCTION: 'false',
+        MIGRATION_DATABASE_URL: testDbUrl,
         JWT_SECRET: 'e2e-jwt-secret-for-testing-only',
         JWT_REFRESH_SECRET: 'e2e-jwt-refresh-secret-for-testing-only',
         JWT_EXPIRES_IN: '15m',

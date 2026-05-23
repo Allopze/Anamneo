@@ -207,7 +207,7 @@ Solo cuando vencio el plazo legal de conservacion clinica.
 
 ```bash
 # 1. Backup pre-purge obligatorio
-docker compose run --rm backend node /app/scripts/sqlite-backup.js
+docker compose run --rm backend node /app/scripts/pg-backup.js
 
 # 2. Soft-delete previo si no esta ya archivado
 # (Usar UI admin)

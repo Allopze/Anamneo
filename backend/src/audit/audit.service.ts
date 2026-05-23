@@ -200,7 +200,7 @@ export class AuditService {
       }
 
       const [entry] = await client.$queryRawUnsafe<AuditLogRow[]>(
-        'SELECT id, entity_type AS entityType, entity_id AS entityId, user_id AS userId, request_id AS requestId, action, reason, result, diff, integrity_hash AS integrityHash, previous_hash AS previousHash, chain_sequence AS chainSequence, timestamp FROM audit_logs WHERE id = $1 LIMIT 1',
+        'SELECT id, entity_type AS "entityType", entity_id AS "entityId", user_id AS "userId", request_id AS "requestId", action, reason, result, diff, integrity_hash AS "integrityHash", previous_hash AS "previousHash", chain_sequence AS "chainSequence", timestamp FROM audit_logs WHERE id = $1 LIMIT 1',
         entryId,
       );
 
@@ -234,27 +234,24 @@ export class AuditService {
 
   private async acquireAuditChainHead(client: Prisma.TransactionClient): Promise<AuditChainHead> {
     if (supportsRawQueries(client)) {
+      await client.$executeRawUnsafe(
+        'INSERT INTO audit_chain_state (id, latest_hash, sequence, updated_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) ON CONFLICT(id) DO NOTHING',
+        'default',
+        'GENESIS',
+        0,
+      );
+
       let state = (await client.$queryRawUnsafe<AuditChainStateRow[]>(
-        'SELECT latest_hash AS latestHash, sequence FROM audit_chain_state WHERE id = $1 LIMIT 1',
+        'SELECT latest_hash AS "latestHash", sequence FROM audit_chain_state WHERE id = $1 LIMIT 1 FOR UPDATE',
         'default',
       ))[0];
-
-      if (!state) {
-        await client.$executeRawUnsafe(
-          'INSERT INTO audit_chain_state (id, latest_hash, sequence, updated_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET latest_hash = excluded.latest_hash, sequence = excluded.sequence, updated_at = CURRENT_TIMESTAMP',
-          'default',
-          'GENESIS',
-          0,
-        );
-        state = { latestHash: 'GENESIS', sequence: 0 };
-      }
 
       if (state.sequence === 0) {
         const [{ total: totalRows } = { total: 0 }] = await client.$queryRawUnsafe<AuditCountRow[]>(
           'SELECT COUNT(*) AS total FROM audit_logs',
         );
         const [lastEntry] = await client.$queryRawUnsafe<AuditHashRow[]>(
-          'SELECT integrity_hash AS integrityHash FROM audit_logs WHERE integrity_hash IS NOT NULL ORDER BY timestamp DESC LIMIT 1',
+          'SELECT integrity_hash AS "integrityHash" FROM audit_logs WHERE integrity_hash IS NOT NULL ORDER BY timestamp DESC LIMIT 1',
         );
         const existingEntries = Number(totalRows);
 
@@ -264,10 +261,10 @@ export class AuditService {
             sequence: existingEntries,
           };
           await client.$executeRawUnsafe(
-            'INSERT INTO audit_chain_state (id, latest_hash, sequence, updated_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET latest_hash = excluded.latest_hash, sequence = excluded.sequence, updated_at = CURRENT_TIMESTAMP',
-            'default',
+            'UPDATE audit_chain_state SET latest_hash = $1, sequence = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
             state.latestHash,
             state.sequence,
+            'default',
           );
         }
       }
@@ -411,8 +408,8 @@ export class AuditService {
     if (supportsRawQueries(this.prisma)) {
       const rawEntries = await this.prisma.$queryRawUnsafe<AuditLogRow[]>(
         normalizedLimit
-          ? 'SELECT id, entity_type AS entityType, entity_id AS entityId, user_id AS userId, request_id AS requestId, action, reason, result, diff, integrity_hash AS integrityHash, previous_hash AS previousHash, chain_sequence AS chainSequence, timestamp FROM audit_logs ORDER BY chain_sequence DESC, timestamp DESC LIMIT $1'
-          : 'SELECT id, entity_type AS entityType, entity_id AS entityId, user_id AS userId, request_id AS requestId, action, reason, result, diff, integrity_hash AS integrityHash, previous_hash AS previousHash, chain_sequence AS chainSequence, timestamp FROM audit_logs ORDER BY chain_sequence ASC, timestamp ASC',
+          ? 'SELECT id, entity_type AS "entityType", entity_id AS "entityId", user_id AS "userId", request_id AS "requestId", action, reason, result, diff, integrity_hash AS "integrityHash", previous_hash AS "previousHash", chain_sequence AS "chainSequence", timestamp FROM audit_logs ORDER BY chain_sequence DESC, timestamp DESC LIMIT $1'
+          : 'SELECT id, entity_type AS "entityType", entity_id AS "entityId", user_id AS "userId", request_id AS "requestId", action, reason, result, diff, integrity_hash AS "integrityHash", previous_hash AS "previousHash", chain_sequence AS "chainSequence", timestamp FROM audit_logs ORDER BY chain_sequence ASC, timestamp ASC',
         ...(normalizedLimit ? [normalizedLimit + 1] : []),
       );
 

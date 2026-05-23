@@ -29,13 +29,24 @@ describe('DashboardAdminView', () => {
     jest.clearAllMocks();
 
     apiGetMock.mockImplementation((url: string) => {
-      if (url === '/health/sqlite') {
+      if (url === '/health/database') {
         return Promise.resolve({
           data: {
-            sqlite: {
+            operational: {
               enabled: true,
+              driver: 'postgres',
+              sizeBytes: 1_572_864,
+              connections: {
+                total: 3,
+                active: 1,
+                idle: 2,
+              },
+              locks: {
+                waiting: 0,
+                longRunning: 0,
+              },
               backups: {
-                latestBackupFile: 'backup-2026-04-18-120000.db',
+                latestBackupFile: 'backup-2026-04-18-120000.dump',
                 latestBackupAt: '2026-04-18T12:00:00.000Z',
                 latestBackupAgeHours: 4,
                 maxAgeHours: 24,
@@ -60,7 +71,7 @@ describe('DashboardAdminView', () => {
     render(<DashboardAdminView user={{ nombre: 'Admin Demo' }} />, { wrapper: createWrapper() });
 
     expect(await screen.findByText('Backup y restore drill')).toBeInTheDocument();
-    expect(screen.getByText('backup-2026-04-18-120000.db')).toBeInTheDocument();
+    expect(screen.getByText('backup-2026-04-18-120000.dump')).toBeInTheDocument();
     expect(screen.getByText('Cadencia objetivo: cada 7 días')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Abrir ajustes del sistema' })).toHaveAttribute('href', '/ajustes?tab=sistema');
   });

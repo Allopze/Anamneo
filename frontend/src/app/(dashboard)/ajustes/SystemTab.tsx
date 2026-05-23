@@ -10,15 +10,22 @@ type SystemHealthResponse = {
   status: 'ok' | 'degraded';
   database: {
     status: 'ok' | 'error';
-    driver: 'sqlite' | 'other';
+    driver: 'postgres';
   };
-  sqlite: {
+  operational: {
     enabled: boolean;
-    status: 'ok' | 'warn' | 'not_applicable';
-    files: {
-      databaseSizeBytes: number | null;
-      walSizeBytes: number | null;
-      walWarnThresholdBytes: number;
+    driver: 'postgres';
+    status: 'ok' | 'warn';
+    version: string | null;
+    sizeBytes: number | null;
+    connections: {
+      total: number;
+      active: number;
+      idle: number;
+    };
+    locks: {
+      waiting: number;
+      longRunning: number;
     };
     backups: {
       latestBackupFile: string | null;
@@ -44,12 +51,8 @@ const WARNING_LABELS: Record<string, string> = {
   latest_backup_is_stale: 'El último backup ya superó la antigüedad tolerada.',
   restore_drill_never_ran: 'Aún no hay una prueba de restauración registrada.',
   restore_drill_overdue: 'La prueba de restauración ya venció según la cadencia configurada.',
-  wal_size_above_threshold: 'El archivo WAL creció por encima del umbral esperado.',
-  journal_mode_is_not_wal: 'SQLite no está trabajando en modo WAL.',
-  synchronous_mode_is_off: 'SQLite está con synchronous=OFF.',
-  busy_timeout_below_recommended_threshold: 'El busy timeout está bajo el mínimo recomendado.',
-  wal_autocheckpoint_disabled: 'El autocheckpoint del WAL está deshabilitado.',
-  database_file_not_found: 'No se encontró el archivo principal de la base.',
+  waiting_locks_detected: 'Hay locks esperando en PostgreSQL.',
+  long_running_locks_detected: 'Hay locks o consultas largas que requieren revisión.',
 };
 
 const OPERATIONAL_CHECKLIST = [
@@ -62,8 +65,8 @@ const OPERATIONAL_CHECKLIST = [
     detail: 'Si la prueba de restauración está vencida, agenda el simulacro antes del próximo despliegue o cambio operativo.',
   },
   {
-    title: 'WAL bajo control',
-    detail: 'Si el WAL crece o aparecen alertas, ejecuta el bundle operativo y revisa bloqueo o checkpoint pendiente.',
+    title: 'Concurrencia bajo control',
+    detail: 'Revisa conexiones activas y locks antes de cambios operativos o ventanas de alta demanda.',
   },
   {
     title: 'Monitoreo diario',
@@ -115,8 +118,8 @@ export default function SystemTab({
   clinicMutation,
 }: SystemTabProps) {
   const systemQuery = useQuery({
-    queryKey: ['system-health', 'sqlite'],
-    queryFn: async () => (await api.get('/health/sqlite')).data as SystemHealthResponse,
+    queryKey: ['system-health', 'database'],
+    queryFn: async () => (await api.get('/health/database')).data as SystemHealthResponse,
     retry: false,
     staleTime: 60_000,
   });
@@ -156,8 +159,8 @@ export default function SystemTab({
     );
   }
 
-  const { sqlite, status } = systemQuery.data;
-  const warningMessages = sqlite.warnings.map((warning) => WARNING_LABELS[warning] || warning);
+  const { operational, status } = systemQuery.data;
+  const warningMessages = operational.warnings.map((warning) => WARNING_LABELS[warning] || warning);
 
   return (
     <div role="tabpanel" id="tabpanel-sistema" aria-labelledby="tab-sistema" className="card space-y-4">
@@ -180,45 +183,50 @@ export default function SystemTab({
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-surface-muted/40 bg-surface-elevated p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-muted">Base</p>
-          <p className="mt-2 text-lg font-semibold text-ink-primary">{sqlite.enabled ? 'SQLite' : 'No aplica'}</p>
+          <p className="mt-2 text-lg font-semibold text-ink-primary">PostgreSQL</p>
           <p className="mt-1 text-sm text-ink-secondary">Estado DB: {systemQuery.data.database.status}</p>
-          <p className="mt-3 text-sm text-ink-secondary">Archivo principal: {formatBytes(sqlite.files.databaseSizeBytes)}</p>
-          <p className="mt-1 text-sm text-ink-secondary">WAL: {formatBytes(sqlite.files.walSizeBytes)}</p>
+          <p className="mt-3 text-sm text-ink-secondary">Tamaño: {formatBytes(operational.sizeBytes)}</p>
+          <p className="mt-1 text-sm text-ink-secondary">
+            Conexiones: {operational.connections.total} total, {operational.connections.active} activas
+          </p>
+          <p className="mt-1 text-sm text-ink-secondary">
+            Locks: {operational.locks.waiting} esperando, {operational.locks.longRunning} largos
+          </p>
         </div>
 
         <div className="rounded-2xl border border-surface-muted/40 bg-surface-elevated p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-muted">Backup reciente</p>
           <p className="mt-2 text-lg font-semibold text-ink-primary">
-            {sqlite.backups.latestBackupAt ? formatDateTime(sqlite.backups.latestBackupAt) : 'Sin backup'}
+            {operational.backups.latestBackupAt ? formatDateTime(operational.backups.latestBackupAt) : 'Sin backup'}
           </p>
           <p className="mt-1 text-sm text-ink-secondary">
-            {sqlite.backups.latestBackupFile || 'No se encontró archivo de backup'}
+            {operational.backups.latestBackupFile || 'No se encontró archivo de backup'}
           </p>
           <p className="mt-3 text-sm text-ink-secondary">
-            {sqlite.backups.latestBackupAgeHours === null
+            {operational.backups.latestBackupAgeHours === null
               ? 'Sin antigüedad calculada'
-              : `Antigüedad: ${sqlite.backups.latestBackupAgeHours} h`}
+              : `Antigüedad: ${operational.backups.latestBackupAgeHours} h`}
           </p>
           <p className="mt-1 text-sm text-ink-secondary">
-            Ventana esperada: hasta {sqlite.backups.maxAgeHours} h
+            Ventana esperada: hasta {operational.backups.maxAgeHours} h
           </p>
         </div>
 
         <div className="rounded-2xl border border-surface-muted/40 bg-surface-elevated p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-muted">Última prueba de restauración</p>
           <p className="mt-2 text-lg font-semibold text-ink-primary">
-            {formatDateTime(sqlite.restoreDrill.lastRestoreDrillAt)}
+            {formatDateTime(operational.restoreDrill.lastRestoreDrillAt)}
           </p>
           <p className="mt-1 text-sm text-ink-secondary">
-            {sqlite.restoreDrill.lastRestoreDrillAgeDays === null
+            {operational.restoreDrill.lastRestoreDrillAgeDays === null
               ? 'Sin simulacro registrado todavía'
-              : `Hace ${sqlite.restoreDrill.lastRestoreDrillAgeDays} días`}
+              : `Hace ${operational.restoreDrill.lastRestoreDrillAgeDays} días`}
           </p>
           <p className="mt-3 text-sm text-ink-secondary">
-            Cadencia objetivo: cada {sqlite.restoreDrill.frequencyDays} días
+            Cadencia objetivo: cada {operational.restoreDrill.frequencyDays} días
           </p>
           <p className="mt-1 text-sm text-ink-secondary">
-            {sqlite.restoreDrill.isDue ? 'El próximo restore drill está vencido.' : 'La verificación sigue vigente.'}
+            {operational.restoreDrill.isDue ? 'El próximo restore drill está vencido.' : 'La verificación sigue vigente.'}
           </p>
         </div>
       </div>
@@ -307,7 +315,7 @@ export default function SystemTab({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="font-medium text-ink-primary">Checklist operativa</p>
-            <p className="mt-1 text-xs text-ink-muted">Resumen práctico del runbook de SQLite para no depender de una doc local.</p>
+            <p className="mt-1 text-xs text-ink-muted">Resumen práctico del runbook PostgreSQL para no depender de una doc local.</p>
           </div>
           <span className="rounded-full bg-surface-inset px-3 py-1 text-xs font-medium text-ink-secondary">
             Runbook embebido

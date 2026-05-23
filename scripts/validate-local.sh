@@ -10,7 +10,7 @@ set -uo pipefail
 # Verifica:
 #   - Backend health check
 #   - Frontend health check
-#   - Base de datos integridad
+#   - Base de datos PostgreSQL
 #   - Backups recientes
 #   - Espacio en disco
 #   - Servicios Docker (si están corriendo)
@@ -69,23 +69,20 @@ else
   fi
 fi
 
-# ── 3. Base de Datos Integridad ───────────────────────────────
+# ── 3. Base de Datos PostgreSQL ───────────────────────────────
 echo ""
-echo "── 3. Base de Datos Integridad ──"
+echo "── 3. Base de Datos PostgreSQL ──"
 
-DB_PATH="./backend/prisma/dev.db"
-if [[ -f "$DB_PATH" ]]; then
-  INTEGRITY=$(sqlite3 "$DB_PATH" "PRAGMA integrity_check;" 2>&1)
-  if [[ "$INTEGRITY" == "ok" ]]; then
-    pass "Integridad de base de datos: OK"
+if command -v psql >/dev/null 2>&1 && [[ -n "${DATABASE_URL:-}" ]]; then
+  if psql "$DATABASE_URL" -Atqc "SELECT 1" >/dev/null 2>&1; then
+    pass "PostgreSQL responde con DATABASE_URL"
+    DB_SIZE=$(psql "$DATABASE_URL" -Atqc "SELECT pg_size_pretty(pg_database_size(current_database()))" 2>/dev/null || true)
+    [[ -n "$DB_SIZE" ]] && echo "  Tamaño: $DB_SIZE"
   else
-    fail "Integridad de base de datos: FAILED ($INTEGRITY)"
+    fail "No se pudo conectar a PostgreSQL con DATABASE_URL"
   fi
-  
-  DB_SIZE=$(du -h "$DB_PATH" | cut -f1)
-  echo "  Tamaño: $DB_SIZE"
 else
-  warn "Base de datos no encontrada en $DB_PATH"
+  warn "psql o DATABASE_URL no disponible; se omite validación directa de PostgreSQL"
 fi
 
 # ── 4. Backups Recientes ──────────────────────────────────────
@@ -94,20 +91,14 @@ echo "── 4. Backups Recientes ──"
 
 BACKUP_DIR="./backend/prisma/backups"
 if [[ -d "$BACKUP_DIR" ]]; then
-  BACKUP_COUNT=$(ls "$BACKUP_DIR"/*.db 2>/dev/null | wc -l)
+  BACKUP_COUNT=$(ls "$BACKUP_DIR"/*.dump "$BACKUP_DIR"/*.backup 2>/dev/null | wc -l)
   if [[ $BACKUP_COUNT -gt 0 ]]; then
     pass "$BACKUP_COUNT backups encontrados"
     
-    LATEST_BACKUP=$(ls -t "$BACKUP_DIR"/*.db 2>/dev/null | head -1)
+    LATEST_BACKUP=$(ls -t "$BACKUP_DIR"/*.dump "$BACKUP_DIR"/*.backup 2>/dev/null | head -1)
     BACKUP_AGE=$(( ($(date +%s) - $(stat -c %Y "$LATEST_BACKUP")) / 60 ))
     echo "  Último backup: $BACKUP_AGE minutos atrás"
-    
-    BACKUP_INTEGRITY=$(sqlite3 "$LATEST_BACKUP" "PRAGMA integrity_check;" 2>&1)
-    if [[ "$BACKUP_INTEGRITY" == "ok" ]]; then
-      pass "Integridad del último backup: OK"
-    else
-      fail "Integridad del último backup: FAILED"
-    fi
+    pass "Último backup PostgreSQL detectado: $(basename "$LATEST_BACKUP")"
   else
     warn "No hay backups en $BACKUP_DIR"
   fi

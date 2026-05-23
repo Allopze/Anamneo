@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 
 const { PrismaClient } = require('@prisma/client');
-const { resolveDatabaseUrl } = require('./sqlite-utils');
+const { resolveDatabaseUrl } = require('./pg-utils');
 
 const CLINICAL_ENTITY_TYPES = [
   'Patient',

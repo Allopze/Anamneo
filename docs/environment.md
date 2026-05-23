@@ -9,7 +9,7 @@ La fuente base para estas variables es `.env.example` en la raiz. `backend/.env`
 - `BOOTSTRAP_TOKEN` debe existir en produccion para proteger el primer registro administrador.
 - En produccion, ambas deben tener al menos 32 caracteres.
 - En produccion, `BOOTSTRAP_TOKEN` tambien debe tener al menos 32 caracteres.
-- Si usas SQLite en produccion, debes habilitarlo explicitamente con `ALLOW_SQLITE_IN_PRODUCTION=true`.
+- `DATABASE_URL` y `MIGRATION_DATABASE_URL` deben usar PostgreSQL.
 - En produccion, el backend exige `SETTINGS_ENCRYPTION_KEY` o `SETTINGS_ENCRYPTION_KEYS` validas.
 - El frontend debe hablar con `/api` same-origin siempre que sea posible para preservar cookies `HttpOnly`.
 - El despliegue soportado para publicar la app a internet es `Docker Compose + cloudflared`, no exponer los puertos de Compose directamente a internet.
@@ -20,8 +20,10 @@ La fuente base para estas variables es `.env.example` en la raiz. `backend/.env`
 |---|---|---|---|
 | `NODE_ENV` | No | `development` | Entorno general |
 | `ANAMNEO_DEPLOYMENT_SCOPE` | Si en produccion | `single-clinic` | Alcance de despliegue soportado. La beta actual es una clinica por instancia/base/volumen |
-| `DATABASE_URL` | Si | `file:./dev.db` en ejemplo | Conexion Prisma |
-| `TEST_DATABASE_URL` | No | vacio | Base de datos opcional para e2e |
+| `DATABASE_URL` | Si | `postgresql://anamneo_app:...` en ejemplo | Conexion Prisma runtime |
+| `MIGRATION_DATABASE_URL` | Si para migraciones | `postgresql://anamneo_owner:...` en ejemplo | Conexion Prisma para DDL/migraciones |
+| `TEST_DATABASE_URL` | No | `postgresql://.../anamneo_test` | Base de datos opcional para e2e |
+| `PLAYWRIGHT_DATABASE_URL` | No | `postgresql://.../anamneo_playwright` | Base de datos para e2e frontend |
 | `JWT_SECRET` | Si | Ninguno valido | Firma de access token |
 | `JWT_EXPIRES_IN` | No | `15m` | TTL access token |
 | `JWT_REFRESH_SECRET` | Si | Ninguno valido | Firma de refresh token |
@@ -42,24 +44,19 @@ La fuente base para estas variables es `.env.example` en la raiz. `backend/.env`
 | `FRONTEND_PUBLIC_URL` | No | vacio | URL alternativa del frontend para enlaces y correos |
 | `TRUST_PROXY` | No | `false` | Ajuste de proxy para Nest |
 
-## SQLite Operativo
+## PostgreSQL Operativo
 
 | Variable | Default | Uso |
 |---|---|---|
-| `ALLOW_SQLITE_IN_PRODUCTION` | `false` | Habilitacion explicita de SQLite en prod |
-| `SQLITE_SYNCHRONOUS` | `NORMAL` | Politica de sincronizacion |
-| `SQLITE_BUSY_TIMEOUT_MS` | `5000` | Espera ante locks |
-| `SQLITE_WAL_AUTOCHECKPOINT_PAGES` | `1000` | Checkpoint WAL |
-| `SQLITE_BACKUP_DIR` | `./backend/prisma/backups` en ejemplo, `/app/data/backups` en Docker | Ruta de backups |
-| `SQLITE_BACKUP_RETENTION_DAYS` | `14` | Retencion de backups |
-| `SQLITE_BACKUP_MAX_AGE_HOURS` | `24` | Antiguedad maxima aceptable del ultimo backup |
-| `SQLITE_WAL_WARN_SIZE_MB` | `128` | Umbral de alerta de WAL |
-| `SQLITE_RESTORE_DRILL_FREQUENCY_DAYS` | `7` | Cadencia esperada de restore drills |
-| `SQLITE_FORCE_RESTORE_DRILL` | `false` | Fuerza un restore drill en la siguiente ejecucion |
+| `PG_BACKUP_DIR` | `./backend/prisma/backups` en ejemplo, `/app/data/backups` en Docker | Ruta de backups |
+| `PG_BACKUP_RETENTION_DAYS` | `14` | Retencion de backups |
+| `PG_BACKUP_MAX_AGE_HOURS` | `24` | Antiguedad maxima aceptable del ultimo backup |
+| `PG_RESTORE_DRILL_FREQUENCY_DAYS` | `7` | Cadencia esperada de restore drills |
+| `PG_FORCE_RESTORE_DRILL` | `false` | Fuerza un restore drill en la siguiente ejecucion |
 | `BACKUP_CRON_SCHEDULE` | `0 */6 * * *` | Cron del contenedor `backup-cron` |
-| `SQLITE_NOTIFY_POLICY` | `on-failure` | Politica de notificacion del runner |
-| `SQLITE_ALERT_SERVICE_NAME` | `anamneo-backend` | Nombre del servicio en alertas |
-| `SQLITE_ALERT_WEBHOOK_URL` | vacio | Webhook para alertas SQLite |
+| `PG_NOTIFY_POLICY` | `on-failure` | Politica de notificacion del runner |
+| `PG_ALERT_SERVICE_NAME` | `anamneo-backend` | Nombre del servicio en alertas |
+| `PG_ALERT_WEBHOOK_URL` | vacio | Webhook para alertas PostgreSQL |
 
 ## SMTP y Settings Cifrados
 
@@ -100,12 +97,12 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 
 - Usa `.env` en la raiz.
 - Mantiene `NEXT_PUBLIC_API_URL=/api`.
-- Permite SQLite sin habilitacion extra porque `NODE_ENV` no es `production`.
+- Requiere PostgreSQL local o accesible por `DATABASE_URL`.
 
 ### Produccion con Docker Compose + cloudflared
 
 - `docker-compose.yml` exige `JWT_SECRET`, `JWT_REFRESH_SECRET`, `BOOTSTRAP_TOKEN`, `CORS_ORIGIN`, `APP_PUBLIC_URL`, `SETTINGS_ENCRYPTION_KEY` y `ENCRYPTION_AT_REST_CONFIRMED`. Para observabilidad real, configura tambien `METRICS_SCRAPE_TOKEN` y cambia `GRAFANA_ADMIN_PASSWORD`.
-- `docker-compose.yml` exige `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic`. Cada clinica productiva debe tener su propia instancia, base SQLite, uploads y backups aislados.
+- `docker-compose.yml` exige `ANAMNEO_DEPLOYMENT_SCOPE=single-clinic`. Cada clinica productiva debe tener su propia instancia, base PostgreSQL, uploads y backups aislados.
 - El frontend recibe `NEXT_PUBLIC_API_URL` como argumento de build y tambien como variable de runtime.
 - El backend aplica chequeos de seguridad al arrancar y falla rapido si encuentra placeholders o si falta la confirmacion de cifrado en reposo.
 - `BACKEND_BIND_HOST` y `FRONTEND_BIND_HOST` deberian quedarse en `127.0.0.1` salvo que tengas un motivo muy claro para abrirlos.

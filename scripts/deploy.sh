@@ -1,45 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ============================================================
-# deploy.sh — Despliegue de Anamneo con backup pre-migración,
-# restore drill post-backup y rollback automatizado.
-#
-# Uso:
-#   ./scripts/deploy.sh
-#
-# Requisitos:
-#   - docker compose disponible
-#   - .env configurado con valores de producción
-#   - Imágenes ya buildeadas (docker compose build)
-#
-# Flujo:
-#   1. Verifica que las imágenes estén buildeadas
-#   2. Toma backup pre-migración de la DB y uploads
-#   3. Ejecuta restore drill sobre el backup
-#   4. Ejecuta prisma migrate deploy
-#   5. Si la migración falla, ofrece rollback automático
-#   6. Levanta los servicios
-# ============================================================
-
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-# Modo no-interactivo: --auto-rollback  -> intenta rollback automáticamente si la migración falla
-#                      --no-rollback    -> aborta sin intentar rollback (CI conservador)
 AUTO_ROLLBACK=""
 for arg in "$@"; do
   case "$arg" in
     --auto-rollback) AUTO_ROLLBACK="yes" ;;
-    --no-rollback)   AUTO_ROLLBACK="no"  ;;
+    --no-rollback) AUTO_ROLLBACK="no" ;;
   esac
 done
 
 RUNTIME_DATA="$ROOT_DIR/runtime/data"
 RUNTIME_UPLOADS="$ROOT_DIR/runtime/uploads"
 BACKUP_DIR="$RUNTIME_DATA/backups"
-DB_PATH="$RUNTIME_DATA/anamneo.db"
-ROLLBACK_DB=""
+ROLLBACK_DUMP=""
 ROLLBACK_UPLOADS_SNAPSHOT=""
 
 RED='\033[0;31m'
@@ -47,7 +23,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-log()  { echo -e "${GREEN}[deploy]${NC} $*"; }
+log() { echo -e "${GREEN}[deploy]${NC} $*"; }
 warn() { echo -e "${YELLOW}[deploy]${NC} $*"; }
 fail() { echo -e "${RED}[deploy]${NC} $*" >&2; exit 1; }
 
@@ -55,38 +31,6 @@ compose_run_no_build=()
 if docker compose run --help 2>&1 | grep -q -- '--no-build'; then
   compose_run_no_build+=(--no-build)
 fi
-
-compose_image_id() {
-  local service="$1"
-  docker compose images --quiet "$service" 2>/dev/null | head -n 1 || true
-}
-
-ensure_images_built() {
-  # Docker Compose puede intentar buildear al hacer `compose run`. Ese build
-  # puede contaminar stdout y romper el JSON que parseamos luego.
-  local needs_build=0
-
-  local backend_image_id=""
-  local frontend_image_id=""
-  local backup_cron_image_id=""
-
-  backend_image_id="$(compose_image_id backend)"
-  frontend_image_id="$(compose_image_id frontend)"
-  backup_cron_image_id="$(compose_image_id backup-cron)"
-
-  if [[ -z "$backend_image_id" || -z "$frontend_image_id" || -z "$backup_cron_image_id" ]]; then
-    needs_build=1
-  fi
-
-  if [[ "$needs_build" -eq 1 ]]; then
-    log "Imágenes no detectadas — ejecutando docker compose build..."
-    docker compose build
-  else
-    log "Imágenes detectadas."
-  fi
-}
-
-# ── 0. Preconditions ─────────────────────────────────────────
 
 if [[ ! -f "$ROOT_DIR/docker-compose.yml" ]]; then
   fail "No se encontró docker-compose.yml en $ROOT_DIR"
@@ -96,71 +40,41 @@ if ! docker compose config --quiet 2>/dev/null; then
   fail "docker compose config falla. Revisa .env y docker-compose.yml"
 fi
 
-# ── 0. Build images (if missing) ────────────────────────────
+mkdir -p "$RUNTIME_DATA" "$RUNTIME_UPLOADS" "$BACKUP_DIR"
 
-ensure_images_built
+log "Asegurando imágenes y PostgreSQL..."
+docker compose build
+docker compose up -d postgres
 
-# ── 1. Pre-migration backup ──────────────────────────────────
+log "Tomando backup PostgreSQL pre-migración..."
+BACKUP_RESULT="$(docker compose run --rm --no-deps "${compose_run_no_build[@]}" \
+  -e PG_BACKUP_DIR="/app/data/backups" \
+  -e UPLOAD_DEST="/app/uploads" \
+  backend node scripts/pg-backup.js)"
 
-mkdir -p "$RUNTIME_DATA" "$RUNTIME_UPLOADS"
-mkdir -p "$BACKUP_DIR"
+ROLLBACK_FILE="$(printf '%s' "$BACKUP_RESULT" | node -e "let data='';process.stdin.on('data',(chunk)=>data+=chunk);process.stdin.on('end',()=>{const lines=data.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);const jsonLine=[...lines].reverse().find(l=>l.startsWith('{')&&l.endsWith('}'));if(!jsonLine){process.exit(1)}const parsed=JSON.parse(jsonLine);if(!parsed.backupFile){process.exit(1)}process.stdout.write(parsed.backupFile)})")"
+ROLLBACK_DUMP="$BACKUP_DIR/$ROLLBACK_FILE"
 
-if [[ -f "$DB_PATH" ]]; then
-  log "Tomando backup pre-migración con sqlite-backup.js..."
-  BACKUP_RESULT="$(docker compose run --rm --no-deps "${compose_run_no_build[@]}" \
-    -e DATABASE_URL="file:/app/data/anamneo.db" \
-    -e SQLITE_BACKUP_DIR="/app/data/backups" \
-    -e UPLOAD_DEST="/app/uploads" \
-    backend node scripts/sqlite-backup.js)"
-
-  ROLLBACK_FILE="$(printf '%s' "$BACKUP_RESULT" | node -e "let data='';process.stdin.on('data',(chunk)=>data+=chunk);process.stdin.on('end',()=>{const lines=data.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);const jsonLine=[...lines].reverse().find(l=>l.startsWith('{')&&l.endsWith('}'));if(!jsonLine){process.exit(1)}const parsed=JSON.parse(jsonLine);if(!parsed.backupFile){process.exit(1)}process.stdout.write(parsed.backupFile)})")"
-  ROLLBACK_DB="$BACKUP_DIR/$ROLLBACK_FILE"
-
-  if [[ ! -f "$ROLLBACK_DB" ]]; then
-    fail "El backup pre-migración reportó éxito pero no apareció en $ROLLBACK_DB"
-  fi
-
-  DB_SIZE=$(du -h "$ROLLBACK_DB" | cut -f1)
-  log "Backup guardado: $ROLLBACK_DB ($DB_SIZE)"
-
-  ROLLBACK_META="${ROLLBACK_DB}.meta.json"
-  if [[ -f "$ROLLBACK_META" ]]; then
-    ROLLBACK_UPLOADS_RELATIVE="$(node -e "const fs=require('fs');const file=process.argv[1];const parsed=JSON.parse(fs.readFileSync(file,'utf8'));process.stdout.write(parsed.uploadsSnapshotRelativePath || '')" "$ROLLBACK_META" 2>/dev/null || true)"
-    if [[ -n "$ROLLBACK_UPLOADS_RELATIVE" ]]; then
-      ROLLBACK_UPLOADS_SNAPSHOT="$BACKUP_DIR/$ROLLBACK_UPLOADS_RELATIVE"
-      if [[ -d "$ROLLBACK_UPLOADS_SNAPSHOT" ]]; then
-        log "Snapshot de uploads para rollback: $ROLLBACK_UPLOADS_SNAPSHOT"
-      else
-        warn "Metadata de backup incluye uploadsSnapshotRelativePath, pero no existe el directorio: $ROLLBACK_UPLOADS_SNAPSHOT"
-        ROLLBACK_UPLOADS_SNAPSHOT=""
-      fi
-    fi
-  fi
-else
-  warn "No existe $DB_PATH — primera instalación, no se requiere backup."
+if [[ ! -f "$ROLLBACK_DUMP" ]]; then
+  fail "El backup pre-migración reportó éxito pero no apareció en $ROLLBACK_DUMP"
 fi
 
-# ── 2. Restore drill on the backup ───────────────────────────
+log "Backup guardado: $ROLLBACK_DUMP ($(du -h "$ROLLBACK_DUMP" | cut -f1))"
 
-if [[ -f "$ROLLBACK_DB" ]]; then
-  log "Ejecutando restore drill sobre el backup pre-migración..."
-  if docker compose run --rm --no-deps "${compose_run_no_build[@]}" \
-    -e DATABASE_URL="file:/app/data/anamneo.db" \
-    -e SQLITE_BACKUP_DIR="/app/data/backups" \
-    -e UPLOAD_DEST="/app/uploads" \
-    backend node scripts/sqlite-restore-drill.js --from="/app/data/backups/$(basename "$ROLLBACK_DB")"; then
-    log "Restore drill pasó — el backup es válido."
-  else
-    fail "Restore drill falló sobre el backup pre-migración. Abortando deploy."
+ROLLBACK_META="${ROLLBACK_DUMP}.meta.json"
+if [[ -f "$ROLLBACK_META" ]]; then
+  ROLLBACK_UPLOADS_RELATIVE="$(node -e "const fs=require('fs');const file=process.argv[1];const parsed=JSON.parse(fs.readFileSync(file,'utf8'));process.stdout.write(parsed.uploadsSnapshotRelativePath || '')" "$ROLLBACK_META" 2>/dev/null || true)"
+  if [[ -n "$ROLLBACK_UPLOADS_RELATIVE" ]]; then
+    ROLLBACK_UPLOADS_SNAPSHOT="$BACKUP_DIR/$ROLLBACK_UPLOADS_RELATIVE"
+    [[ -d "$ROLLBACK_UPLOADS_SNAPSHOT" ]] && log "Snapshot de uploads para rollback: $ROLLBACK_UPLOADS_SNAPSHOT"
   fi
 fi
 
-# ── 3. Run migrations ────────────────────────────────────────
-
-if [[ ! -f "$DB_PATH" ]]; then
-  log "Creando archivo SQLite vacío para primera migración: $DB_PATH"
-  : > "$DB_PATH"
-fi
+log "Ejecutando restore drill sobre el backup pre-migración..."
+docker compose run --rm --no-deps "${compose_run_no_build[@]}" \
+  -e PG_BACKUP_DIR="/app/data/backups" \
+  -e UPLOAD_DEST="/app/uploads" \
+  backend node scripts/pg-restore-drill.js --from="/app/data/backups/$(basename "$ROLLBACK_DUMP")"
 
 log "Ejecutando prisma migrate deploy..."
 if docker compose run --rm --no-deps "${compose_run_no_build[@]}" backend npx prisma migrate deploy; then
@@ -171,58 +85,42 @@ else
   echo -e "${RED}  MIGRACIÓN FALLÓ${NC}"
   echo -e "${RED}═══════════════════════════════════════════════════${NC}"
   echo ""
+  echo -e "${YELLOW}Rollback disponible. Para restaurar el estado previo:${NC}"
+  echo "  docker compose down"
+  echo "  docker compose up -d postgres"
+  echo "  docker compose run --rm --no-deps backend pg_restore --clean --if-exists --no-owner --no-privileges --dbname=\"\$MIGRATION_DATABASE_URL\" \"/app/data/backups/$(basename "$ROLLBACK_DUMP")\""
+  if [[ -n "$ROLLBACK_UPLOADS_SNAPSHOT" ]]; then
+    echo "  rm -rf \"$RUNTIME_UPLOADS\" && mkdir -p \"$RUNTIME_UPLOADS\" && cp -a \"$ROLLBACK_UPLOADS_SNAPSHOT\"/. \"$RUNTIME_UPLOADS\"/"
+  fi
 
-  if [[ -f "$ROLLBACK_DB" ]]; then
-    echo -e "${YELLOW}Rollback disponible. Para restaurar el estado previo:${NC}"
-    echo ""
-    echo "  docker compose down"
-    echo "  cp \"$ROLLBACK_DB\" \"$DB_PATH\""
-    if [[ -n "$ROLLBACK_UPLOADS_SNAPSHOT" ]]; then
-      echo "  rm -rf \"$RUNTIME_UPLOADS\""
-      echo "  mkdir -p \"$RUNTIME_UPLOADS\""
-      echo "  cp -a \"$ROLLBACK_UPLOADS_SNAPSHOT\"/. \"$RUNTIME_UPLOADS\"/"
-    fi
-    echo "  docker compose up -d"
-    echo ""
+  DO_ROLLBACK=""
+  if [[ "$AUTO_ROLLBACK" == "yes" ]]; then
+    DO_ROLLBACK="yes"
+  elif [[ "$AUTO_ROLLBACK" == "no" || ! -t 0 ]]; then
+    DO_ROLLBACK="no"
+  else
+    read -r -p "¿Ejecutar rollback automático ahora? [s/N] " REPLY
+    [[ "$REPLY" =~ ^[sS]$ ]] && DO_ROLLBACK="yes" || DO_ROLLBACK="no"
+  fi
 
-    DO_ROLLBACK=""
-    if [[ "$AUTO_ROLLBACK" == "yes" ]]; then
-      log "Modo --auto-rollback: ejecutando rollback automaticamente."
-      DO_ROLLBACK="yes"
-    elif [[ "$AUTO_ROLLBACK" == "no" ]]; then
-      warn "Modo --no-rollback: NO se ejecuta rollback. Restauralo manualmente con los comandos de arriba."
-      DO_ROLLBACK="no"
-    elif [[ ! -t 0 ]]; then
-      warn "stdin no es interactivo y no se especifico --auto-rollback/--no-rollback. Abortando sin rollback."
-      DO_ROLLBACK="no"
-    else
-      read -r -p "¿Ejecutar rollback automático ahora? [s/N] " REPLY
-      [[ "$REPLY" =~ ^[sS]$ ]] && DO_ROLLBACK="yes" || DO_ROLLBACK="no"
+  if [[ "$DO_ROLLBACK" == "yes" ]]; then
+    docker compose down 2>/dev/null || true
+    docker compose up -d postgres
+    docker compose run --rm --no-deps "${compose_run_no_build[@]}" backend sh -c \
+      'pg_restore --clean --if-exists --no-owner --no-privileges --dbname="$MIGRATION_DATABASE_URL" "$1"' \
+      sh "/app/data/backups/$(basename "$ROLLBACK_DUMP")"
+    if [[ -n "$ROLLBACK_UPLOADS_SNAPSHOT" && -d "$ROLLBACK_UPLOADS_SNAPSHOT" ]]; then
+      rm -rf "$RUNTIME_UPLOADS"
+      mkdir -p "$RUNTIME_UPLOADS"
+      cp -a "$ROLLBACK_UPLOADS_SNAPSHOT"/. "$RUNTIME_UPLOADS"/
+      log "Uploads restaurados desde $ROLLBACK_UPLOADS_SNAPSHOT"
     fi
-
-    if [[ "$DO_ROLLBACK" == "yes" ]]; then
-      docker compose down 2>/dev/null || true
-      cp "$ROLLBACK_DB" "$DB_PATH"
-      log "Base restaurada desde $ROLLBACK_DB"
-      if [[ -n "$ROLLBACK_UPLOADS_SNAPSHOT" && -d "$ROLLBACK_UPLOADS_SNAPSHOT" ]]; then
-        rm -rf "$RUNTIME_UPLOADS"
-        mkdir -p "$RUNTIME_UPLOADS"
-        cp -a "$ROLLBACK_UPLOADS_SNAPSHOT"/. "$RUNTIME_UPLOADS"/
-        log "Uploads restaurados desde $ROLLBACK_UPLOADS_SNAPSHOT"
-      else
-        warn "Rollback de uploads omitido: no se detectó snapshot de uploads para este backup."
-      fi
-      log "Levantando servicios con estado anterior..."
-      docker compose up -d
-      log "Rollback completado. Verifica el estado del sistema."
-      exit 1
-    fi
+    docker compose up -d
+    fail "Rollback completado tras falla de migración. Revisa logs antes de reintentar."
   fi
 
   fail "Migración falló. Deploy abortado."
 fi
-
-# ── 4. Start services ────────────────────────────────────────
 
 log "Levantando servicios..."
 docker compose up -d
@@ -244,50 +142,4 @@ if [[ $TRIES -ge $MAX_TRIES ]]; then
   exit 1
 fi
 
-log "Backend healthy."
-
-log "Esperando health check del frontend..."
-TRIES=0
-MAX_TRIES=30
-while [[ $TRIES -lt $MAX_TRIES ]]; do
-  if docker compose exec -T frontend wget -q --spider http://127.0.0.1:5556 2>/dev/null; then
-    break
-  fi
-  TRIES=$((TRIES + 1))
-  sleep 2
-done
-
-if [[ $TRIES -ge $MAX_TRIES ]]; then
-  warn "Frontend no respondió al health check después de ${MAX_TRIES} intentos."
-  warn "Verifica los logs: docker compose logs frontend"
-  exit 1
-fi
-
-log "Frontend healthy."
-
-# ── 5. Post-deploy summary ───────────────────────────────────
-
-echo ""
-echo -e "${GREEN}═══════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}  DEPLOY COMPLETADO${NC}"
-echo -e "${GREEN}═══════════════════════════════════════════════════${NC}"
-echo ""
-echo "  Backup pre-migración: $ROLLBACK_DB"
-echo "  Servicios:            docker compose ps"
-echo "  Logs:                 docker compose logs -f"
-echo "  Health backend:       curl http://127.0.0.1:${BACKEND_PORT:-5679}/api/health"
-echo "  Health frontend:      curl -I http://127.0.0.1:${FRONTEND_PORT:-5556}"
-echo ""
-
-if [[ -f "$ROLLBACK_DB" ]]; then
-  echo -e "  ${YELLOW}Si necesitas rollback:${NC}"
-  echo "    docker compose down"
-  echo "    cp \"$ROLLBACK_DB\" \"$DB_PATH\""
-  if [[ -n "$ROLLBACK_UPLOADS_SNAPSHOT" ]]; then
-    echo "    rm -rf \"$RUNTIME_UPLOADS\""
-    echo "    mkdir -p \"$RUNTIME_UPLOADS\""
-    echo "    cp -a \"$ROLLBACK_UPLOADS_SNAPSHOT\"/. \"$RUNTIME_UPLOADS\"/"
-  fi
-  echo "    docker compose up -d"
-  echo ""
-fi
+log "Deploy completado."

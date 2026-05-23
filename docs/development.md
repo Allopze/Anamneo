@@ -6,6 +6,7 @@ Esta guia cubre el setup local, los comandos diarios y los tropiezos mas comunes
 
 - Node.js 20+
 - npm
+- PostgreSQL 16 local o una instancia PostgreSQL accesible
 - Docker Compose, solo si vas a levantar el stack en contenedores
 
 ## Primer Setup
@@ -60,7 +61,7 @@ El comando `npm run dev` usa `scripts/dev-supervisor.sh`. Ese script:
 
 La sanitizacion evita que un entorno global roto contamine el desarrollo local:
 
-- desactiva `DATABASE_URL` si no apunta a SQLite,
+- desactiva `DATABASE_URL` si no apunta a PostgreSQL,
 - elimina `JWT_SECRET` y `JWT_REFRESH_SECRET` si siguen con placeholders inseguros,
 - y deja que cada app cargue sus archivos `.env` esperados.
 
@@ -69,7 +70,7 @@ La sanitizacion evita que un entorno global roto contamine el desarrollo local:
 1. Levantar todo con `npm run dev`.
 2. Crear o ajustar migraciones solo cuando cambie el modelo Prisma.
 3. Ejecutar tests del area tocada antes de cerrar cambios.
-4. Si cambias auth, permisos o operaciones SQLite, revisar tambien la documentacion relacionada.
+4. Si cambias auth, permisos u operaciones PostgreSQL, revisar tambien la documentacion relacionada.
 
 ## Guardrails de Codigo
 
@@ -85,14 +86,14 @@ La sanitizacion evita que un entorno global roto contamine el desarrollo local:
 
 Revisa el `.env` de raiz. El backend valida que `DATABASE_URL`, `JWT_SECRET` y `JWT_REFRESH_SECRET` existan y no tengan valores de mentira.
 
-### `SQLite in production requires ALLOW_SQLITE_IN_PRODUCTION=true`
+### `DATABASE_URL must use postgresql:// or postgres://`
 
-Eso es correcto en produccion. En desarrollo no deberia aparecer salvo que `NODE_ENV` y la config apunten a un escenario raro.
+Anamneo ya no soporta SQLite como runtime. Revisa `.env` y confirma que `DATABASE_URL` y `MIGRATION_DATABASE_URL` apunten a PostgreSQL.
 
-### `database is locked`
+### Locks o conexiones esperando
 
-- confirma que no haya multiples procesos tocando la misma base,
-- revisa `SQLITE_BUSY_TIMEOUT_MS`,
+- revisa `GET /api/health/database` con un usuario admin,
+- ejecuta `npm run db:monitor`,
 - y evita correr scripts destructivos mientras el backend esta escribiendo.
 
 ### El frontend levanta, pero la sesion no funciona

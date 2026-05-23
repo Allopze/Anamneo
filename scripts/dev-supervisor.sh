@@ -10,7 +10,7 @@ session_leader_pid="$(ps -o sid= -p $$ | tr -d ' ')"
 
 sanitize_local_env() {
   # Ignore incompatible global overrides and let each app load its local .env files.
-  if [[ -n "${DATABASE_URL:-}" ]] && [[ "${DATABASE_URL}" != file:* ]]; then
+  if [[ -n "${DATABASE_URL:-}" ]] && [[ "${DATABASE_URL}" != postgres://* && "${DATABASE_URL}" != postgresql://* ]]; then
     unset DATABASE_URL
   fi
 

@@ -1,45 +1,19 @@
 /* eslint-disable no-console */
 
-const fs = require('fs');
-const path = require('path');
 const { PrismaClient } = require('@prisma/client');
-
-function resolveSqliteUrl() {
-  const backendDir = path.join(__dirname, '..');
-
-  const candidates = [
-    path.join(backendDir, 'prisma', 'dev.db'),
-    path.join(backendDir, 'dev.db'),
-  ];
-
-  const existing = candidates.find((p) => fs.existsSync(p));
-  const dbPath = existing || candidates[0];
-
-  // Prisma expects forward slashes in file: URLs on Windows.
-  const normalized = dbPath.replace(/\\/g, '/');
-  return `file:${normalized}`;
-}
+const { resolveDatabaseUrl } = require('./pg-utils');
 
 async function main() {
-  const url = resolveSqliteUrl();
-  const prisma = new PrismaClient({
-    datasources: {
-      db: { url },
-    },
-  });
+  const url = resolveDatabaseUrl(process.env.DATABASE_URL);
+  const prisma = new PrismaClient({ datasources: { db: { url } } });
 
-  console.log(`Using SQLite DB: ${url}`);
+  console.log(`Using PostgreSQL DB: ${new URL(url).pathname.replace(/^\//, '')}`);
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // Encounters, sections, attachments, histories, suggestion logs are deleted via cascade from Patient/Encounter.
       const deletedPatients = await tx.patient.deleteMany({});
-
-      // Break assistant -> medico FK before deleting users.
       await tx.user.updateMany({ data: { medicoId: null } });
-
       const deletedUsers = await tx.user.deleteMany({});
-
       return { deletedPatients: deletedPatients.count, deletedUsers: deletedUsers.count };
     });
 

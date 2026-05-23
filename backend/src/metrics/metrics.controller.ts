@@ -1,6 +1,12 @@
 import { Controller, Get, Header, Logger, UseGuards } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
-import { metricsRegistry, sqliteBackupAgeHours } from './metrics-registry';
+import {
+  metricsRegistry,
+  postgresBackupAgeHours,
+  postgresConnectionsTotal,
+  postgresDatabaseSizeBytes,
+  postgresWaitingLocksTotal,
+} from './metrics-registry';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetricsAccessGuard } from './metrics-access.guard';
 
@@ -18,13 +24,20 @@ export class MetricsController {
   @Header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
   async metrics(): Promise<string> {
     try {
-      const sqlite = await this.prismaService.getSqliteOperationalStatus();
-      const ageHours = sqlite?.backups?.latestBackupAgeHours;
+      const database = await this.prismaService.getDatabaseOperationalStatus();
+      const ageHours = database?.backups?.latestBackupAgeHours;
       if (typeof ageHours === 'number') {
-        sqliteBackupAgeHours.set(ageHours);
+        postgresBackupAgeHours.set(ageHours);
+      }
+      postgresConnectionsTotal.set(database.connections.total, { state: 'total' });
+      postgresConnectionsTotal.set(database.connections.active, { state: 'active' });
+      postgresConnectionsTotal.set(database.connections.idle, { state: 'idle' });
+      postgresWaitingLocksTotal.set(database.locks.waiting);
+      if (typeof database.sizeBytes === 'number') {
+        postgresDatabaseSizeBytes.set(database.sizeBytes);
       }
     } catch (error) {
-      this.logger.warn(`Could not refresh sqlite backup gauge: ${(error as Error).message}`);
+      this.logger.warn(`Could not refresh postgres database gauges: ${(error as Error).message}`);
     }
 
     return metricsRegistry.render();

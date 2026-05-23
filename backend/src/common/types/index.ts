@@ -1,5 +1,5 @@
-// Local type definitions for SQLite compatibility
-// SQLite doesn't support ENUMs, so we define them as string literal types
+// Local domain type definitions mirrored from Prisma string fields.
+// Postgres native enums are intentionally deferred to a later model refactor.
 
 export type Role = 'MEDICO' | 'ASISTENTE' | 'ADMIN';
 

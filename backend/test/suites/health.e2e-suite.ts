@@ -7,8 +7,8 @@ export function healthSuite() {
       expect(res.body.status).toBe('ok');
     });
 
-    it('GET /api/health/sqlite → 401 when unauthenticated', async () => {
-      await req().get('/api/health/sqlite').expect(401);
+    it('GET /api/health/database → 401 when unauthenticated', async () => {
+      await req().get('/api/health/database').expect(401);
     });
   });
 }

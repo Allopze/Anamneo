@@ -134,7 +134,19 @@ export const attachmentUploadsTotal = metricsRegistry.counter(
   'anamneo_attachment_uploads_total',
   'Adjuntos subidos por mime declarado',
 );
-export const sqliteBackupAgeHours = metricsRegistry.gauge(
-  'anamneo_sqlite_backup_age_hours',
-  'Edad en horas del último backup SQLite exitoso',
+export const postgresBackupAgeHours = metricsRegistry.gauge(
+  'anamneo_postgres_backup_age_hours',
+  'Edad en horas del último backup PostgreSQL exitoso',
+);
+export const postgresConnectionsTotal = metricsRegistry.gauge(
+  'anamneo_postgres_connections_total',
+  'Conexiones PostgreSQL por estado resumido',
+);
+export const postgresWaitingLocksTotal = metricsRegistry.gauge(
+  'anamneo_postgres_waiting_locks_total',
+  'Locks PostgreSQL en espera',
+);
+export const postgresDatabaseSizeBytes = metricsRegistry.gauge(
+  'anamneo_postgres_database_size_bytes',
+  'Tamaño de la base PostgreSQL en bytes',
 );

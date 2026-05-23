@@ -58,7 +58,7 @@ export ANAMNEO_ROOT=/ruta/a/anamneo
 cd "$ANAMNEO_ROOT"
 
 # 0. Snapshot defensivo previo
-docker compose run --rm --no-deps backend node /app/scripts/sqlite-backup.js
+docker compose run --rm --no-deps backend node /app/scripts/pg-backup.js
 
 # 1. Generar un hash bcrypt offline para el password nuevo
 #    (usar la misma version de bcrypt que el backend: ^6.0.0)

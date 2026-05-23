@@ -82,7 +82,7 @@ curl -s https://anamneo.example.com/api/health | jq '.database.status'
 
 ```bash
 # Ejecutar backup manual
-docker compose run --rm --no-deps backend node /app/scripts/sqlite-backup.js
+docker compose run --rm --no-deps backend node /app/scripts/pg-backup.js
 
 # Verificar que el backup se creó
 ls -la runtime/data/backups/
@@ -128,13 +128,13 @@ createSyntheticData().catch(console.error).finally(() => prisma.$disconnect());
 "
 
 # 2. Tomar backup de los datos sintéticos
-docker compose run --rm --no-deps backend node /app/scripts/sqlite-backup.js
+docker compose run --rm --no-deps backend node /app/scripts/pg-backup.js
 
 # 3. Simular corrupción de datos
 docker compose exec backend sqlite3 /app/data/anamneo.db "DELETE FROM patients;"
 
 # 4. Ejecutar restore drill
-docker compose run --rm --no-deps backend node /app/scripts/sqlite-ops-runner.js --mode=restore-drill
+docker compose run --rm --no-deps backend node /app/scripts/pg-ops-runner.js --mode=restore-drill
 
 # 5. Verificar que los datos se restauraron
 docker compose exec backend sqlite3 /app/data/anamneo.db "SELECT COUNT(*) FROM patients;"

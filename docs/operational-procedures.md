@@ -81,7 +81,7 @@ docker compose logs --since 1h backup-cron | grep -i "alert\|warning\|error"
 ```bash
 # Ejecutar restore drill manual
 cd ${ANAMNEO_ROOT}
-docker compose run --rm --no-deps backend node /app/scripts/sqlite-restore-drill.js
+docker compose run --rm --no-deps backend node /app/scripts/pg-restore-drill.js
 
 # Verificar resultados
 docker compose logs --since 1h backup-cron | grep "restore_drill"
@@ -105,7 +105,7 @@ ls -lht ${ANAMNEO_ROOT}/runtime/data/backups/*.db | wc -l
 echo "Retención: ${SQLITE_BACKUP_RETENTION_DAYS:-14} días"
 
 # Limpieza manual si es necesario
-docker compose run --rm --no-deps backend node /app/scripts/sqlite-backup.js
+docker compose run --rm --no-deps backend node /app/scripts/pg-backup.js
 ```
 
 ### 2.3 Revisión de Logs de Seguridad

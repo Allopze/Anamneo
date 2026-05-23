@@ -3,6 +3,7 @@ import { resolveSettingsEncryptionSecrets } from './settings/settings-encryption
 
 export function assertSafeConfig(configService: ConfigService) {
   const databaseUrl = configService.get<string>('DATABASE_URL');
+  const migrationDatabaseUrl = configService.get<string>('MIGRATION_DATABASE_URL');
   const jwtSecret = configService.get<string>('JWT_SECRET');
   const jwtRefreshSecret = configService.get<string>('JWT_REFRESH_SECRET');
   const appTimeZone = configService.get<string>('APP_TIME_ZONE', 'America/Santiago');
@@ -13,7 +14,6 @@ export function assertSafeConfig(configService: ConfigService) {
   );
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
   const isProduction = nodeEnv === 'production';
-  const allowSqliteInProduction = configService.get<string>('ALLOW_SQLITE_IN_PRODUCTION', 'false') === 'true';
   const deploymentScope = configService.get<string>('ANAMNEO_DEPLOYMENT_SCOPE', isProduction ? '' : 'single-clinic')?.trim();
   const placeholderValues = new Set([
     'replace-with-a-secure-random-secret',
@@ -28,13 +28,31 @@ export function assertSafeConfig(configService: ConfigService) {
     throw new Error('DATABASE_URL is required');
   }
 
-  if (databaseUrl.includes('change-me') || databaseUrl.includes('replace-with')) {
+  const normalizedDatabaseUrl = databaseUrl.toLowerCase();
+  const normalizedMigrationDatabaseUrl = migrationDatabaseUrl?.toLowerCase();
+  if (normalizedDatabaseUrl.includes('change-me') || normalizedDatabaseUrl.includes('change_me') || normalizedDatabaseUrl.includes('replace-with')) {
     throw new Error('DATABASE_URL must not contain placeholder values');
   }
+  if (
+    normalizedMigrationDatabaseUrl
+    && (
+      normalizedMigrationDatabaseUrl.includes('change-me')
+      || normalizedMigrationDatabaseUrl.includes('change_me')
+      || normalizedMigrationDatabaseUrl.includes('replace-with')
+    )
+  ) {
+    throw new Error('MIGRATION_DATABASE_URL must not contain placeholder values');
+  }
 
-  const isSqlite = databaseUrl.startsWith('file:');
-  if (isProduction && isSqlite && !allowSqliteInProduction) {
-    throw new Error('SQLite in production requires ALLOW_SQLITE_IN_PRODUCTION=true. Prefer PostgreSQL for production.');
+  const isPostgres = databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://');
+  if (!isPostgres) {
+    throw new Error('DATABASE_URL must use postgresql:// or postgres://');
+  }
+  if (migrationDatabaseUrl) {
+    const isMigrationPostgres = migrationDatabaseUrl.startsWith('postgresql://') || migrationDatabaseUrl.startsWith('postgres://');
+    if (!isMigrationPostgres) {
+      throw new Error('MIGRATION_DATABASE_URL must use postgresql:// or postgres://');
+    }
   }
 
   if (isProduction) {

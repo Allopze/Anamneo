@@ -1,7 +1,5 @@
 import 'reflect-metadata';
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import { execFileSync } from 'child_process';
 import { AuditService } from './audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -21,7 +19,7 @@ const CREATE_AUDIT_LOG_TABLE_SQL = `
     integrity_hash TEXT,
     previous_hash TEXT,
     chain_sequence INTEGER,
-    timestamp DATETIME NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'))
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT now()
   );
 
   CREATE INDEX idx_audit_logs_timestamp ON audit_logs(timestamp);
@@ -31,7 +29,7 @@ const CREATE_AUDIT_LOG_TABLE_SQL = `
     id TEXT PRIMARY KEY NOT NULL DEFAULT 'default',
     latest_hash TEXT NOT NULL DEFAULT 'GENESIS',
     sequence INTEGER NOT NULL DEFAULT 0,
-    updated_at DATETIME NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'))
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
 
   CREATE TABLE audit_integrity_snapshots (
@@ -42,26 +40,60 @@ const CREATE_AUDIT_LOG_TABLE_SQL = `
     broken_at TEXT,
     warning TEXT,
     verification_scope TEXT NOT NULL,
-    verified_at DATETIME NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'))
+    verified_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
 `;
 
-describe('AuditService concurrency', () => {
+function hasPostgresTestUrl(): boolean {
+  const databaseUrl = process.env.TEST_DATABASE_URL;
+  return Boolean(databaseUrl?.startsWith('postgresql://') || databaseUrl?.startsWith('postgres://'));
+}
+
+function parseDatabaseName(databaseUrl: string): string {
+  return new URL(databaseUrl).pathname.replace(/^\//, '');
+}
+
+function buildDatabaseUrlWithName(databaseUrl: string, databaseName: string): string {
+  const url = new URL(databaseUrl);
+  url.pathname = `/${databaseName}`;
+  return url.toString();
+}
+
+function buildIsolatedDatabaseUrl(baseDatabaseUrl: string): string {
+  const databaseName = `${parseDatabaseName(baseDatabaseUrl)}_audit_${Date.now()}_${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
+  return buildDatabaseUrlWithName(baseDatabaseUrl, databaseName);
+}
+
+function createDatabase(databaseUrl: string) {
+  const databaseName = parseDatabaseName(databaseUrl);
+  const maintenanceUrl = buildDatabaseUrlWithName(databaseUrl, 'postgres');
+  execFileSync('dropdb', ['--if-exists', `--dbname=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
+  execFileSync('createdb', [`--dbname=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
+}
+
+function dropDatabase(databaseUrl: string) {
+  const databaseName = parseDatabaseName(databaseUrl);
+  const maintenanceUrl = buildDatabaseUrlWithName(databaseUrl, 'postgres');
+  execFileSync('dropdb', ['--if-exists', `--dbname=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
+}
+
+const describePostgres = hasPostgresTestUrl() ? describe : describe.skip;
+
+describePostgres('AuditService concurrency', () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
   const originalNodeEnv = process.env.NODE_ENV;
 
   let prisma: PrismaService;
   let service: AuditService;
-  let tempDbPath: string;
+  let databaseUrl: string;
 
   beforeEach(async () => {
-    tempDbPath = path.join(
-      os.tmpdir(),
-      `anamneo-audit-service-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.db`,
-    );
-
-    fs.rmSync(tempDbPath, { force: true });
-    process.env.DATABASE_URL = `file:${tempDbPath}`;
+    databaseUrl = buildIsolatedDatabaseUrl(process.env.TEST_DATABASE_URL || '');
+    createDatabase(databaseUrl);
+    process.env.DATABASE_URL = databaseUrl;
+    process.env.MIGRATION_DATABASE_URL = databaseUrl;
     process.env.NODE_ENV = 'test';
 
     prisma = new PrismaService();
@@ -77,7 +109,9 @@ describe('AuditService concurrency', () => {
 
   afterEach(async () => {
     await prisma?.$disconnect();
-    fs.rmSync(tempDbPath, { force: true });
+    if (databaseUrl) {
+      dropDatabase(databaseUrl);
+    }
 
     if (originalDatabaseUrl === undefined) {
       delete process.env.DATABASE_URL;
@@ -96,7 +130,7 @@ describe('AuditService concurrency', () => {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       await prisma.$executeRawUnsafe('DELETE FROM audit_logs;');
       await prisma.$executeRawUnsafe(
-        'INSERT INTO audit_chain_state (id, latest_hash, sequence, updated_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET latest_hash = excluded.latest_hash, sequence = excluded.sequence, updated_at = CURRENT_TIMESTAMP',
+        'INSERT INTO audit_chain_state (id, latest_hash, sequence, updated_at) VALUES ($1, $2, $3, now()) ON CONFLICT(id) DO UPDATE SET latest_hash = excluded.latest_hash, sequence = excluded.sequence, updated_at = now()',
         'default',
         'GENESIS',
         0,
@@ -158,7 +192,7 @@ describe('AuditService concurrency', () => {
       });
 
       const sequences = await prisma.$queryRawUnsafe<Array<{ chainSequence: number | null }>>(
-        'SELECT chain_sequence AS chainSequence FROM audit_logs ORDER BY chain_sequence ASC',
+        'SELECT chain_sequence AS "chainSequence" FROM audit_logs ORDER BY chain_sequence ASC',
       );
 
       expect(sequences.map((entry) => entry.chainSequence)).toEqual(

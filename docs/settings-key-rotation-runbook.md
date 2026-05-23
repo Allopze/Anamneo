@@ -1,6 +1,6 @@
 # Runbook de Rotación de Claves de Ajustes
 
-Este documento complementa `security-and-permissions.md` y `sqlite-operations.md`. Mantiene el procedimiento especifico de rotacion para settings cifrados; no intenta reemplazar la vista general de seguridad del proyecto.
+Este documento complementa `security-and-permissions.md` y `postgres-operations.md`. Mantiene el procedimiento especifico de rotacion para settings cifrados; no intenta reemplazar la vista general de seguridad del proyecto.
 
 ## Alcance
 
@@ -13,7 +13,7 @@ La fuente de verdad funcional sigue siendo el backend: `settings-encryption.ts`,
 ## Precondiciones
 
 1. Tener acceso al entorno donde corre backend.
-2. Confirmar backup reciente de la base SQLite.
+2. Confirmar backup reciente de la base PostgreSQL.
 3. Preparar una nueva clave de alta entropía.
 4. Conservar temporalmente la clave anterior para permitir relectura y rewrap.
 

@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 
 const { PrismaClient } = require('@prisma/client');
-const { resolveDatabaseUrl } = require('./sqlite-utils');
+const { resolveDatabaseUrl } = require('./pg-utils');
 
 const SEARCHABLE_SECTION_KEYS = [
   'MOTIVO_CONSULTA',
@@ -28,7 +28,7 @@ async function countProjectedRows(prisma) {
       JOIN "encounters" ON "encounters"."id" = "encounter_sections"."encounter_id"
       WHERE "encounter_sections"."section_key" IN (${quotedSectionKeys()})
       GROUP BY "encounters"."patient_id", "encounters"."medico_id"
-      HAVING length(trim(lower(group_concat("encounter_sections"."data", char(10))))) > 0
+      HAVING length(trim(lower(string_agg("encounter_sections"."data", chr(10))))) > 0
     ) AS "projected";
   `);
   const count = rows?.[0]?.count ?? 0;
@@ -64,10 +64,10 @@ async function main() {
       await tx.$executeRawUnsafe(`
         INSERT INTO "patient_clinical_search" ("id", "patient_id", "medico_id", "text", "updated_at")
         SELECT
-          lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-' || '4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6))) AS "id",
+          gen_random_uuid()::text AS "id",
           "encounters"."patient_id",
           "encounters"."medico_id",
-          lower(group_concat("encounter_sections"."data", char(10))) AS "text",
+          lower(string_agg("encounter_sections"."data", chr(10))) AS "text",
           CURRENT_TIMESTAMP AS "updated_at"
         FROM "encounter_sections"
         JOIN "encounters" ON "encounters"."id" = "encounter_sections"."encounter_id"

@@ -10,7 +10,7 @@ import * as request from 'supertest';
 import * as cookieParser from 'cookie-parser';
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../../src/prisma/prisma.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -31,28 +31,38 @@ import { requestTracingMiddleware } from '../../src/common/utils/request-tracing
 
 // ── Test database URL resolution ────────────────────────────────────
 
-const TEST_DB_FILENAME = `test-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`;
-const DEFAULT_TEST_DATABASE_URL = `file:./${TEST_DB_FILENAME}`;
+const TEST_DB_NAME = `anamneo_test_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+const DEFAULT_TEST_DATABASE_URL = `postgresql://anamneo_owner:anamneo_owner@localhost:5432/${TEST_DB_NAME}?schema=public`;
 
 function resolveBaseTestDatabaseUrl() {
   const explicitTestUrl = process.env.TEST_DATABASE_URL;
-  if (explicitTestUrl?.startsWith('file:')) {
+  if (explicitTestUrl?.startsWith('postgresql://') || explicitTestUrl?.startsWith('postgres://')) {
     return explicitTestUrl;
   }
   return DEFAULT_TEST_DATABASE_URL;
 }
 
-function resolveSqliteFilePath(databaseUrl: string): string | null {
-  if (!databaseUrl.startsWith('file:')) {
-    return null;
-  }
-  const rawPath = databaseUrl.slice('file:'.length);
-  if (rawPath.startsWith('/')) {
-    return rawPath;
-  }
-  const prismaDirectory = path.join(__dirname, '..', '..', 'prisma');
-  const normalizedRelativePath = rawPath.replace(/^\.\//, '');
-  return path.resolve(prismaDirectory, normalizedRelativePath);
+function parseDatabaseName(databaseUrl: string): string {
+  return new URL(databaseUrl).pathname.replace(/^\//, '');
+}
+
+function buildDatabaseUrlWithName(databaseUrl: string, databaseName: string): string {
+  const url = new URL(databaseUrl);
+  url.pathname = `/${databaseName}`;
+  return url.toString();
+}
+
+function createTestDatabase(databaseUrl: string) {
+  const databaseName = parseDatabaseName(databaseUrl);
+  const maintenanceUrl = buildDatabaseUrlWithName(databaseUrl, 'postgres');
+  execFileSync('dropdb', ['--if-exists', `--dbname=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
+  execFileSync('createdb', [`--dbname=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
+}
+
+function dropTestDatabase(databaseUrl: string) {
+  const databaseName = parseDatabaseName(databaseUrl);
+  const maintenanceUrl = buildDatabaseUrlWithName(databaseUrl, 'postgres');
+  execFileSync('dropdb', ['--if-exists', `--dbname=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
 }
 
 // ── Shared mutable state ────────────────────────────────────────────
@@ -106,8 +116,7 @@ const TEST_LEGAL_CONTENT = JSON.stringify({
 
 let app: INestApplication;
 let httpServer: any;
-let testDatabaseFilePath: string | null = null;
-let testSchemaSqlPath: string | null = null;
+let testDatabaseUrl: string | null = null;
 let testUploadsDirectory: string | null = null;
 
 export let prisma: PrismaService;
@@ -136,21 +145,15 @@ export function getApp() {
 // ── Bootstrap / Teardown ────────────────────────────────────────────
 
 export async function bootstrapApp() {
-  const testDatabaseUrl = resolveBaseTestDatabaseUrl();
-  testDatabaseFilePath = resolveSqliteFilePath(testDatabaseUrl);
-  testSchemaSqlPath = path.join(__dirname, '..', `schema-e2e-${Date.now()}.sql`);
+  testDatabaseUrl = resolveBaseTestDatabaseUrl();
   testUploadsDirectory = path.join(__dirname, '..', `uploads-e2e-${Date.now()}`);
 
-  if (testDatabaseFilePath && fs.existsSync(testDatabaseFilePath)) {
-    fs.rmSync(testDatabaseFilePath, { force: true });
-  }
-
-  if (testUploadsDirectory) {
-    fs.mkdirSync(testUploadsDirectory, { recursive: true });
-  }
+  createTestDatabase(testDatabaseUrl);
+  fs.mkdirSync(testUploadsDirectory, { recursive: true });
 
   // Set env vars for test
   process.env.DATABASE_URL = testDatabaseUrl;
+  process.env.MIGRATION_DATABASE_URL = testDatabaseUrl;
   process.env.JWT_SECRET = 'test-jwt-secret-key';
   process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-key';
   process.env.JWT_EXPIRES_IN = '15m';
@@ -169,26 +172,18 @@ export async function bootstrapApp() {
 
   execSync('node ./node_modules/prisma/build/index.js generate', {
     cwd: path.join(__dirname, '..', '..'),
-    env: { ...process.env, DATABASE_URL: testDatabaseUrl },
+    env: { ...process.env, DATABASE_URL: testDatabaseUrl, MIGRATION_DATABASE_URL: testDatabaseUrl },
     stdio: 'pipe',
   });
 
-  const schemaSql = execSync(
-    'node ./node_modules/prisma/build/index.js migrate diff --from-empty --to-schema-datamodel ./prisma/schema.prisma --script',
+  execSync(
+    'node ./node_modules/prisma/build/index.js migrate deploy --schema ./prisma/schema.prisma',
     {
       cwd: path.join(__dirname, '..', '..'),
-      env: { ...process.env, DATABASE_URL: testDatabaseUrl },
+      env: { ...process.env, DATABASE_URL: testDatabaseUrl, MIGRATION_DATABASE_URL: testDatabaseUrl },
       stdio: 'pipe',
     },
-  ).toString();
-
-  fs.writeFileSync(testSchemaSqlPath!, schemaSql, 'utf8');
-
-  execSync(`node ./node_modules/prisma/build/index.js db execute --file "${testSchemaSqlPath}" --schema ./prisma/schema.prisma`, {
-    cwd: path.join(__dirname, '..', '..'),
-    env: { ...process.env, DATABASE_URL: testDatabaseUrl },
-    stdio: 'pipe',
-  });
+  );
 
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [
@@ -259,17 +254,8 @@ export async function teardownApp() {
     await app.close();
   }
 
-  if (testDatabaseFilePath) {
-    for (const suffix of ['', '-journal', '-wal', '-shm']) {
-      const candidatePath = `${testDatabaseFilePath}${suffix}`;
-      if (fs.existsSync(candidatePath)) {
-        fs.rmSync(candidatePath, { force: true });
-      }
-    }
-  }
-
-  if (testSchemaSqlPath && fs.existsSync(testSchemaSqlPath)) {
-    fs.rmSync(testSchemaSqlPath, { force: true });
+  if (testDatabaseUrl) {
+    dropTestDatabase(testDatabaseUrl);
   }
 
   if (testUploadsDirectory && fs.existsSync(testUploadsDirectory)) {

@@ -9,7 +9,7 @@ Anamneo es un sistema de gestion de fichas clinicas para consultas medicas en Ch
 - Mantiene catalogos diagnosticos globales y locales con sugerencias por similitud.
 - Permite tareas, consentimientos, alertas clinicas, plantillas de texto y adjuntos.
 - Expone auditoria persistente y sesiones por dispositivo con revocacion.
-- Soporta despliegue simple con Docker Compose y operacion SQLite con backup automatizado.
+- Soporta despliegue simple con Docker Compose y operacion PostgreSQL con backup automatizado.
 
 ## Documentacion
 
@@ -25,7 +25,7 @@ La documentacion activa vive en `docs/` y ya no esta repartida entre intuicion, 
 | [docs/frontend-architecture.md](docs/frontend-architecture.md) | Rutas, proxy y estado del frontend |
 | [docs/data-model.md](docs/data-model.md) | Resumen del modelo Prisma |
 | [docs/security-and-permissions.md](docs/security-and-permissions.md) | Auth, sesiones, cifrado, auditoria y permisos |
-| [docs/sqlite-operations.md](docs/sqlite-operations.md) | Backups, restore drills y monitoreo SQLite |
+| [docs/postgres-operations.md](docs/postgres-operations.md) | Backups, restore drills y monitoreo PostgreSQL |
 | [docs/deployment-and-release.md](docs/deployment-and-release.md) | Build, empaquetado y despliegue |
 | [docs/clinical-workflows.md](docs/clinical-workflows.md) | Flujos funcionales que cruzan producto y backend |
 | [FEATURES.md](FEATURES.md) | Backlog por rol; no confundir con comportamiento garantizado |
@@ -39,13 +39,14 @@ La documentacion activa vive en `docs/` y ya no esta repartida entre intuicion, 
 | Estado cliente | Zustand, React Query 5 |
 | Seguridad | Helmet, throttling, bcrypt, sanitize-html, cifrado de settings |
 | Observabilidad | Sentry y auditoria persistente con diff |
-| Infraestructura | Docker Compose, SQLite WAL y backup automatizado |
+| Infraestructura | Docker Compose, PostgreSQL 16 y backup automatizado |
 
 ## Inicio rapido
 
 ### Requisitos
 
 - Node.js 20+
+- PostgreSQL 16 local para desarrollo
 - Docker y Docker Compose si quieres levantar el stack en contenedores
 
 ### Instalacion local
@@ -95,10 +96,10 @@ Los comandos que realmente vas a usar estan aqui. El resto existe, pero eso no s
 | `npm run db:migrate` | Corre migraciones Prisma en desarrollo |
 | `npm run db:seed` | Carga datos iniciales |
 | `npm run db:reset` | Resetea la base. Si lo corres alegremente, la culpa no sera del README. |
-| `npm run db:ops` | Backup + restore drill + monitor + alerta para SQLite |
+| `npm run db:ops` | Backup + restore drill + monitor + alerta para PostgreSQL |
 | `npm run release` | Empaqueta un zip de despliegue. No crea magia, ni changelog, ni rollback. |
 
-Mas detalle en [docs/development.md](docs/development.md), [docs/testing.md](docs/testing.md) y [docs/sqlite-operations.md](docs/sqlite-operations.md).
+Mas detalle en [docs/development.md](docs/development.md), [docs/testing.md](docs/testing.md) y [docs/postgres-operations.md](docs/postgres-operations.md).
 
 ## Arquitectura en una mirada
 
@@ -122,7 +123,7 @@ Si quieres el mapa tecnico de verdad, no el resumen para humanos cansados, ve a:
 
 - El frontend habla con `/api` same-origin y Next.js reescribe al backend. Forzar llamadas directas desde el navegador suele romper cookies y luego aparecen teorias conspirativas sobre la autenticacion.
 - En produccion, el despliegue esperado es `Docker Compose + cloudflared`; no exponer `:5678` a internet y no abrir `:5555` directo salvo que realmente sepas por que estas rompiendo el modelo soportado.
-- SQLite en produccion esta soportado solo con habilitacion explicita. Funciona, pero exige disciplina operativa; no es un amuleto.
+- PostgreSQL es el unico motor soportado en desarrollo y produccion desde esta migracion.
 - El script de release empaqueta una entrega reproducible en `releases/`, pero hoy no genera tags ni changelog aunque el optimismo corporativo a veces sugiera lo contrario.
 - La rotacion de secretos SMTP esta documentada en [docs/settings-key-rotation-runbook.md](docs/settings-key-rotation-runbook.md).
 

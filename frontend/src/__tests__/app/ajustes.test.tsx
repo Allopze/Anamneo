@@ -127,24 +127,31 @@ describe('AjustesPage', () => {
         });
       }
 
-      if (url === '/health/sqlite') {
+      if (url === '/health/database') {
         return Promise.resolve({
           data: {
             status: 'degraded',
             database: {
               status: 'ok',
-              driver: 'sqlite',
+              driver: 'postgres',
             },
-            sqlite: {
+            operational: {
               enabled: true,
+              driver: 'postgres',
               status: 'warn',
-              files: {
-                databaseSizeBytes: 1_572_864,
-                walSizeBytes: 262_144,
-                walWarnThresholdBytes: 134_217_728,
+              version: 'PostgreSQL 16.9',
+              sizeBytes: 1_572_864,
+              connections: {
+                total: 3,
+                active: 1,
+                idle: 2,
+              },
+              locks: {
+                waiting: 0,
+                longRunning: 0,
               },
               backups: {
-                latestBackupFile: 'backup-2026-04-18-120000.db',
+                latestBackupFile: 'backup-2026-04-18-120000.dump',
                 latestBackupAt: '2026-04-18T12:00:00.000Z',
                 latestBackupAgeHours: 4,
                 maxAgeHours: 24,
@@ -502,7 +509,7 @@ describe('AjustesPage', () => {
 
     expect(await screen.findByText('Backup reciente')).toBeInTheDocument();
     expect(screen.getByText('Última prueba de restauración')).toBeInTheDocument();
-    expect(screen.getByText('backup-2026-04-18-120000.db')).toBeInTheDocument();
+    expect(screen.getByText('backup-2026-04-18-120000.dump')).toBeInTheDocument();
     expect(screen.getByText('Cadencia objetivo: cada 7 días')).toBeInTheDocument();
     expect(screen.getByText('La prueba de restauración ya venció según la cadencia configurada.')).toBeInTheDocument();
     expect(screen.getByText('Checklist operativa')).toBeInTheDocument();

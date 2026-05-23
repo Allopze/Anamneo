@@ -12,7 +12,7 @@ disponibles y los runbooks de búsqueda en logs.
 | Disponibilidad backend | ≥ 99.5% | `1 - (5xx / total)` sobre `anamneo_http_requests_total` | 30 días |
 | Latencia p95 `/api/encounters/*` | < 800ms | percentil 95 de `anamneo_http_request_duration_seconds_sum` por route | 30 días |
 | Tasa de error 5xx global | < 0.5% | `5xx_total / total` por route | 30 días |
-| Edad del último backup | < 6h | `anamneo_sqlite_backup_age_hours` gauge | continuo |
+| Edad del último backup | < 6h | `anamneo_postgres_backup_age_hours` gauge | continuo |
 | Restore drill | éxito semanal | éxito reciente de `db:ops:restore-drill` | 7 días |
 | Login fallidos por minuto | alerta > 20 | `rate(anamneo_auth_login_failed_total[1m])` | 1 min |
 | Errores de cadena de auditoría | 0 | `anamneo_audit_chain_errors_total` debe quedar en 0 | continuo |
@@ -63,7 +63,10 @@ host, ponerlos detras de VPN/reverse proxy con autenticacion.
 | `anamneo_auth_login_failed_total` | counter | `locked` | Logins rechazados (`locked=true` cuando se bloqueó la cuenta) |
 | `anamneo_audit_chain_errors_total` | counter | — | Errores detectados verificando la cadena de hashes del AuditLog |
 | `anamneo_attachment_uploads_total` | counter | `mime` | Adjuntos creados por tipo MIME declarado |
-| `anamneo_sqlite_backup_age_hours` | gauge | — | Edad del último backup. Se actualiza en cada scrape consultando `getSqliteOperationalStatus` |
+| `anamneo_postgres_backup_age_hours` | gauge | — | Edad del último backup. Se actualiza en cada scrape consultando `getDatabaseOperationalStatus` |
+| `anamneo_postgres_connections_total` | gauge | `state` | Conexiones PostgreSQL totales, activas e idle |
+| `anamneo_postgres_waiting_locks_total` | gauge | — | Locks PostgreSQL esperando |
+| `anamneo_postgres_database_size_bytes` | gauge | — | Tamaño de la base PostgreSQL |
 
 ### Cómo añadir nuevas métricas
 
@@ -119,7 +122,7 @@ arrancar `docker compose up -d prometheus`.
 |---|---|---|
 | `AnamneoBackendScrapeDown` | `up{job="anamneo-backend"} == 0` por > 2 min | critica |
 | 5xx burst | `rate(anamneo_http_requests_total{status=~"5.."}[5m]) > 0.1` | alta |
-| Backup viejo | `anamneo_sqlite_backup_age_hours > 12` | alta |
+| Backup viejo | `anamneo_postgres_backup_age_hours > 12` | alta |
 | Login brute force | `rate(anamneo_auth_login_failed_total[1m]) > 10` | media |
 | Audit chain rota | `anamneo_audit_chain_errors_total > 0` | critica |
 

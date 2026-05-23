@@ -1,4 +1,29 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: anamneo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-anamneo}
+      POSTGRES_USER: ${POSTGRES_USER:-anamneo_owner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      ANAMNEO_APP_DB_PASSWORD: ${ANAMNEO_APP_DB_PASSWORD:?ANAMNEO_APP_DB_PASSWORD is required}
+      ANAMNEO_MONITOR_DB_PASSWORD: ${ANAMNEO_MONITOR_DB_PASSWORD:-change-me-before-production}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
+
   backend:
     build:
       context: .
@@ -8,19 +33,12 @@ services:
     environment:
       NODE_ENV: production
       ANAMNEO_DEPLOYMENT_SCOPE: ${ANAMNEO_DEPLOYMENT_SCOPE:?ANAMNEO_DEPLOYMENT_SCOPE=single-clinic is required}
-      DATABASE_URL: ${DATABASE_URL:-file:/app/data/anamneo.db}
-      ALLOW_SQLITE_IN_PRODUCTION: ${ALLOW_SQLITE_IN_PRODUCTION:-true}
-      SQLITE_SYNCHRONOUS: ${SQLITE_SYNCHRONOUS:-NORMAL}
-      SQLITE_BUSY_TIMEOUT_MS: ${SQLITE_BUSY_TIMEOUT_MS:-5000}
-      SQLITE_WAL_AUTOCHECKPOINT_PAGES: ${SQLITE_WAL_AUTOCHECKPOINT_PAGES:-1000}
-      SQLITE_BACKUP_DIR: /app/data/backups
-      SQLITE_BACKUP_RETENTION_DAYS: ${SQLITE_BACKUP_RETENTION_DAYS:-14}
-      SQLITE_BACKUP_MAX_AGE_HOURS: ${SQLITE_BACKUP_MAX_AGE_HOURS:-24}
-      SQLITE_WAL_WARN_SIZE_MB: ${SQLITE_WAL_WARN_SIZE_MB:-128}
-      SQLITE_RESTORE_DRILL_FREQUENCY_DAYS: ${SQLITE_RESTORE_DRILL_FREQUENCY_DAYS:-7}
-      SQLITE_NOTIFY_POLICY: ${SQLITE_NOTIFY_POLICY:-on-failure}
-      SQLITE_ALERT_SERVICE_NAME: ${SQLITE_ALERT_SERVICE_NAME:-anamneo-backend}
-      SQLITE_ALERT_WEBHOOK_URL: ${SQLITE_ALERT_WEBHOOK_URL:-}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://anamneo_app:${ANAMNEO_APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-anamneo}?schema=public&connection_limit=10&pool_timeout=10}
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:-postgresql://${POSTGRES_USER:-anamneo_owner}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-anamneo}?schema=public}
+      PG_BACKUP_DIR: /app/data/backups
+      PG_BACKUP_RETENTION_DAYS: ${PG_BACKUP_RETENTION_DAYS:-14}
+      PG_BACKUP_MAX_AGE_HOURS: ${PG_BACKUP_MAX_AGE_HOURS:-24}
+      PG_RESTORE_DRILL_FREQUENCY_DAYS: ${PG_RESTORE_DRILL_FREQUENCY_DAYS:-7}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
       BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?BOOTSTRAP_TOKEN is required}
@@ -51,6 +69,9 @@ services:
     volumes:
       - ./runtime/data:/app/data
       - ./runtime/uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test:
         ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:5679/api/health"]
@@ -112,10 +133,15 @@ services:
     environment:
       NODE_ENV: production
       ANAMNEO_DEPLOYMENT_SCOPE: ${ANAMNEO_DEPLOYMENT_SCOPE:?ANAMNEO_DEPLOYMENT_SCOPE=single-clinic is required}
-      DATABASE_URL: ${DATABASE_URL:-file:/app/data/anamneo.db}
-      ALLOW_SQLITE_IN_PRODUCTION: ${ALLOW_SQLITE_IN_PRODUCTION:-true}
-      SQLITE_BACKUP_DIR: /app/data/backups
-      SQLITE_BACKUP_RETENTION_DAYS: ${SQLITE_BACKUP_RETENTION_DAYS:-14}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://anamneo_app:${ANAMNEO_APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-anamneo}?schema=public&connection_limit=10&pool_timeout=10}
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:-postgresql://${POSTGRES_USER:-anamneo_owner}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-anamneo}?schema=public}
+      PG_BACKUP_DIR: /app/data/backups
+      PG_BACKUP_RETENTION_DAYS: ${PG_BACKUP_RETENTION_DAYS:-14}
+      PG_BACKUP_MAX_AGE_HOURS: ${PG_BACKUP_MAX_AGE_HOURS:-24}
+      PG_RESTORE_DRILL_FREQUENCY_DAYS: ${PG_RESTORE_DRILL_FREQUENCY_DAYS:-7}
+      PG_NOTIFY_POLICY: ${PG_NOTIFY_POLICY:-on-failure}
+      PG_ALERT_SERVICE_NAME: ${PG_ALERT_SERVICE_NAME:-anamneo-backend}
+      PG_ALERT_WEBHOOK_URL: ${PG_ALERT_WEBHOOK_URL:-}
       UPLOAD_DEST: /app/uploads
       ATTACHMENT_SOFT_DELETE_RETENTION_DAYS: ${ATTACHMENT_SOFT_DELETE_RETENTION_DAYS:-30}
       BACKUP_CRON_SCHEDULE: ${BACKUP_CRON_SCHEDULE:-0 */6 * * *}
@@ -126,9 +152,9 @@ services:
     command:
       - |
         mkdir -p /tmp/crontabs
-        echo "$$BACKUP_CRON_SCHEDULE node /app/scripts/sqlite-ops-runner.js --mode=all --notify=on-failure && node /app/scripts/purge-deleted-attachments.js && node /app/scripts/purge-password-reset-tokens.js >> /proc/1/fd/1 2>&1" > /tmp/crontabs/node
+        echo "$$BACKUP_CRON_SCHEDULE node /app/scripts/pg-ops-runner.js --mode=all --notify=on-failure && node /app/scripts/purge-deleted-attachments.js && node /app/scripts/purge-password-reset-tokens.js >> /proc/1/fd/1 2>&1" > /tmp/crontabs/node
         echo "Backup cron started: $$BACKUP_CRON_SCHEDULE (ops-runner: backup + restore-drill + monitor)"
-        node /app/scripts/sqlite-ops-runner.js --mode=all --notify=on-failure
+        node /app/scripts/pg-ops-runner.js --mode=all --notify=on-failure
         node /app/scripts/purge-deleted-attachments.js
         node /app/scripts/purge-password-reset-tokens.js
         crond -f -l 2 -c /tmp/crontabs
@@ -222,6 +248,7 @@ services:
         max-file: "5"
 
 volumes:
+  postgres-data:
   prometheus-data:
   loki-data:
   promtail-positions:
