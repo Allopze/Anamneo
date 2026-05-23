@@ -25,7 +25,7 @@ Run from repo root unless stated otherwise.
 - Start full local stack: `npm run dev`
 - Build all: `npm run build`
 - DB migrate/seed/reset: `npm run db:migrate`, `npm run db:seed`, `npm run db:reset`
-- SQLite operations bundle: `npm run db:ops`
+- PostgreSQL operations bundle: `npm run db:ops`
 - Backend only: `npm --prefix backend run start:dev:migrate`
 - Frontend only: `npm --prefix frontend run dev`
 

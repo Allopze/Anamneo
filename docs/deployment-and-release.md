@@ -129,7 +129,14 @@ Si quieres un release serio, corre primero build, typecheck y tests relevantes. 
 7. `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts`
 8. `npm --prefix frontend run test:e2e`
 9. `npm run build`
-10. `DATABASE_URL=file:<tmp>/migrate.db npm --prefix backend run prisma:migrate:prod`
+10. Validar migraciones contra una base PostgreSQL temporal:
+    ```bash
+    createdb --dbname="$MIGRATION_DATABASE_URL" anamneo_migrate_check
+    DATABASE_URL="$(node -e "const u=new URL(process.env.MIGRATION_DATABASE_URL);u.pathname='/anamneo_migrate_check';process.stdout.write(u.toString())")" \
+      MIGRATION_DATABASE_URL="$(node -e "const u=new URL(process.env.MIGRATION_DATABASE_URL);u.pathname='/anamneo_migrate_check';process.stdout.write(u.toString())")" \
+      npm --prefix backend run prisma:migrate:prod
+    dropdb --if-exists --dbname="$MIGRATION_DATABASE_URL" anamneo_migrate_check
+    ```
 11. `git ls-files 'backend/.env' 'frontend/.env' '*.db' '*.db.*' '*.db-journal' '*.db-shm' '*.db-wal' '*.bak' 'backend/.playwright-e2e/**' 'backend/uploads-e2e/**' 'runtime/**' 'backend/tmp*.pdf'` no debe listar nada.
 12. `npm run release`
 

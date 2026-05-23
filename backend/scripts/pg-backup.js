@@ -10,6 +10,7 @@ const {
   readPositiveInteger,
   resolveBackupDir,
   resolveDatabaseUrl,
+  resolvePostgresToolUrl,
   resolveUploadsRoot,
 } = require('./pg-utils');
 
@@ -140,7 +141,7 @@ function runPgDump(databaseUrl, backupPath) {
     '--no-owner',
     '--no-privileges',
     `--file=${backupPath}`,
-    databaseUrl,
+    resolvePostgresToolUrl(databaseUrl),
   ], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],

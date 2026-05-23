@@ -75,7 +75,7 @@ ni cesion comercial a terceros.
 | Cifrado en reposo | Disco con LUKS/dm-crypt (confirmado por `ENCRYPTION_AT_REST_CONFIRMED`) + cifrado app-level AES-256-GCM para secciones clinicas (`ENCRYPTION_KEY`, obligatoria en prod) + cifrado app-level para settings secretos (`SETTINGS_ENCRYPTION_KEY`) |
 | Auditoria | `AuditLog` con cadena de hashes SHA-256 (`integrityHash`/`previousHash`), serializada para concurrencia. Eventos READ tambien registrados sobre PHI. |
 | Minimizacion en logs/Sentry | Scrubbing de RUT, email, secuencias de 8+ digitos en `instrument.ts` antes de enviar a Sentry |
-| Retencion | Backups SQLite con `SQLITE_BACKUP_RETENTION_DAYS=14` por defecto; logs de Docker rotables segun configuracion del host |
+| Retencion | Backups PostgreSQL con `PG_BACKUP_RETENTION_DAYS=14` por defecto; logs de Docker rotables segun configuracion del host |
 | Aislamiento | Modelo single-clinic (`ANAMNEO_DEPLOYMENT_SCOPE=single-clinic`). Una instancia = una clinica = una base de datos. |
 | Adjuntos | Validacion magic-bytes (PDF/JPEG/PNG/GIF), tamano maximo configurable, soft-delete con retencion |
 
@@ -146,7 +146,7 @@ OBJETO:
   21.719, en el contexto del uso del sistema Anamneo.
 
 ALCANCE:
-  - Single-clinic, base SQLite/PostgreSQL aislada, volumenes
+  - Single-clinic, base PostgreSQL aislada, volumenes
     `runtime/data` y `runtime/uploads` exclusivos.
   - Sin cesion a terceros, salvo subencargados expresamente listados
     (cloudflare/cloudflared, sentry, smtp provider).
@@ -167,39 +167,29 @@ FECHA: [...]
 
 ## 7. Procedimientos operativos
 
-### 7.1 Exportar datos de un paciente (manual, hasta tener endpoint)
+### 7.1 Exportar datos de un paciente
 
-> Pendiente implementacion de endpoint admin formal. Procedimiento
-> intermedio:
+Usar el endpoint regulatorio admin existente:
 
 ```bash
-# 1. Identificar el paciente
-docker compose exec backend sqlite3 /app/data/anamneo.db \
-  "SELECT id, nombre, rut FROM patients WHERE rut = '<rut>';"
-
-# 2. Exportar tablas relevantes
 PATIENT_ID="<uuid>"
-docker compose exec backend sqlite3 /app/data/anamneo.db <<EOF
-.mode json
-.output /app/data/exports/${PATIENT_ID}.json
-SELECT * FROM patients WHERE id = '${PATIENT_ID}';
-SELECT * FROM patient_histories WHERE patient_id = '${PATIENT_ID}';
-SELECT * FROM encounters WHERE patient_id = '${PATIENT_ID}';
-SELECT * FROM encounter_sections WHERE encounter_id IN
-  (SELECT id FROM encounters WHERE patient_id = '${PATIENT_ID}');
-SELECT * FROM informed_consents WHERE patient_id = '${PATIENT_ID}';
-SELECT * FROM clinical_alerts WHERE patient_id = '${PATIENT_ID}';
-SELECT * FROM attachments
-  WHERE encounter_id IN (SELECT id FROM encounters WHERE patient_id = '${PATIENT_ID}');
-EOF
-
-# 3. Las secciones cifradas (EncounterSection.data con prefijo enc:v1:)
-#    requieren descifrado usando ENCRYPTION_KEY antes de entregar.
-#    Implementar un script `npm run patient:export -- --id=<uuid>` (PENDIENTE).
-
-# 4. Registrar la accion
-docker compose exec backend node -e "console.log('TODO: log PATIENT_DATA_EXPORTED audit event')"
+curl -sS \
+  -H "Authorization: Bearer <admin-token>" \
+  "https://anamneo.example.com/api/patients/${PATIENT_ID}/export/regulatory" \
+  -o "${PATIENT_ID}-regulatory-export.zip"
 ```
+
+Si se necesita operar desde el host, obtener primero un backup PostgreSQL y
+trabajar sobre una restauracion temporal validada, no sobre la base productiva
+en caliente:
+
+```bash
+npm run db:backup
+npm run db:restore:drill
+```
+
+La exportacion debe quedar registrada en auditoria y entregarse por canal
+seguro.
 
 ### 7.2 Borrado regulatorio (purge fisico)
 
@@ -213,8 +203,8 @@ docker compose run --rm backend node /app/scripts/pg-backup.js
 # (Usar UI admin)
 
 # 3. Purge fisico (PENDIENTE script `db:purge-patient --id=<uuid> --confirm=YES`)
-# Por ahora: requiere ticket interno aprobado por DPO y aplicar via
-# script ad-hoc bajo `sqlite3` + INSERT en AuditLog manual.
+# Por ahora: requiere ticket interno aprobado por DPO y un script controlado
+# que use Prisma/PostgreSQL y registre `PATIENT_RECORD_PURGED_REGULATORY`.
 ```
 
 ### 7.3 Reporte de incidentes
@@ -238,7 +228,7 @@ los runbooks 1-9 para incidentes operativos.
 | Ficha clinica (encounters, sections) | Min. 15 anos post ultima atencion | Codigo sanitario / lex specialis |
 | Datos de contacto del paciente | Vida util de la relacion + 15 anos | Acceso a la ficha |
 | `AuditLog` | Indefinido en single-clinic | Integridad de cadena de hashes |
-| Backups SQLite | 14 dias rotando (`SQLITE_BACKUP_RETENTION_DAYS`) | Recuperacion operativa |
+| Backups PostgreSQL | 14 dias rotando (`PG_BACKUP_RETENTION_DAYS`) | Recuperacion operativa |
 | Logs HTTP/stdout | Politica del host (recomendado >=90 dias) | Forensics |
 | Sesiones (`UserSession`) | Hasta revocacion o expiracion del refresh | Continuidad |
 | Invitaciones (`UserInvitation`) | TTL definido + 30 dias post-uso | Auditoria |

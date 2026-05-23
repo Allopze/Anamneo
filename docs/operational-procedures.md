@@ -1,327 +1,197 @@
-# Procedimientos de Operación — Anamneo
+# Procedimientos de Operacion — Anamneo
 
-Este documento cubre los procedimientos operativos diarios, semanales y de emergencia para mantener Anamneo en producción.
+Este documento cubre la operacion diaria, semanal y de emergencia del
+despliegue soportado: Docker Compose, PostgreSQL, frontend same-origin y
+publicacion mediante cloudflared.
 
-> Todos los comandos asumen que la variable `ANAMNEO_ROOT` apunta al directorio donde vive el deploy (por ejemplo `/opt/anamneo` o `/home/anamneo/app`). Exportala antes de copiar/pegar:
+> Todos los comandos asumen que `ANAMNEO_ROOT` apunta al directorio del
+> deploy.
 >
 > ```bash
 > export ANAMNEO_ROOT=/ruta/a/anamneo
+> cd "$ANAMNEO_ROOT"
 > ```
 
-## 1. Procedimientos Diarios
+## 1. Rutina diaria
 
-### 1.1 Verificación de Salud del Sistema
-
-**Frecuencia:** Cada mañana (o automatizado)
+### Salud del stack
 
 ```bash
-# Verificar estado de servicios
 docker compose ps
-
-# Verificar health checks
-curl -s http://localhost:5679/api/health | jq .
-curl -s http://localhost:5556 | head -5
-
-# Verificar logs de errores recientes
+curl -s http://127.0.0.1:${BACKEND_PORT:-5679}/api/health | jq .
+curl -sI http://127.0.0.1:${FRONTEND_PORT:-5556} | head -5
 docker compose logs --since 24h backend | grep -i "error\|fatal\|exception" | tail -20
 docker compose logs --since 24h frontend | grep -i "error\|fatal" | tail -20
-
-# Verificar espacio en disco
-df -h ${ANAMNEO_ROOT}/runtime
-du -sh ${ANAMNEO_ROOT}/runtime/data/backups/
+df -h "$ANAMNEO_ROOT/runtime"
+du -sh "$ANAMNEO_ROOT/runtime/data/backups" "$ANAMNEO_ROOT/runtime/uploads" 2>/dev/null || true
 ```
 
-**Checklist:**
-- [ ] Backend responde `{"status":"ok"}`
-- [ ] Frontend responde `200 OK`
-- [ ] No hay errores críticos en logs
-- [ ] Espacio en disco > 20% libre
-- [ ] Backups automáticos ejecutados (ver logs de backup-cron)
+Checklist:
+- Backend responde `status=ok`.
+- Frontend responde `200`.
+- No hay errores criticos recientes.
+- Disco con al menos 20% libre.
+- `backup-cron` corre sin errores recientes.
 
-### 1.2 Verificación de Backups
-
-**Frecuencia:** Cada 6 horas (automatizado por backup-cron)
+### Backups PostgreSQL
 
 ```bash
-# Verificar últimos backups
-ls -lht ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -5
-
-# Verificar integridad del último backup
-LATEST_BACKUP=$(ls -t ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -1)
-sqlite3 "$LATEST_BACKUP" "PRAGMA integrity_check;"
-
-# Verificar metadata del backup
-cat "${LATEST_BACKUP}.meta.json" | jq .
+ls -lht "$ANAMNEO_ROOT"/runtime/data/backups/*.dump 2>/dev/null | head -5
+docker compose logs --since 24h backup-cron | grep -i "postgres_backup\|backup.*failed\|restore_drill"
+npm run db:monitor
 ```
 
-**Checklist:**
-- [ ] Último backup tiene < 6 horas de antigüedad
-- [ ] Integridad del backup: `ok`
-- [ ] Tamaño del backup es razonable (> 1MB, < 10GB)
-- [ ] Metadata contiene checksum SHA256 válido
+Checklist:
+- Ultimo `.dump` existe y tiene menos de `PG_BACKUP_MAX_AGE_HOURS`.
+- Existe metadata `.meta.json` junto al dump.
+- `npm run db:monitor` no reporta locks, backup vencido ni restore drill vencido.
 
-### 1.3 Monitoreo de Alertas
+## 2. Rutina semanal
 
-**Frecuencia:** Continuo (automatizado)
+### Restore drill
 
 ```bash
-# Verificar alertas recientes
-docker compose logs --since 1h backup-cron | grep -i "alert\|warning\|error"
-
-# Verificar estado de Sentry (si configurado)
-# Acceder a https://sentry.io/organizations/<org>/projects/<project>/
+npm run db:restore:drill
+docker compose logs --since 1h backup-cron | grep -i "restore_drill"
 ```
 
-## 2. Procedimientos Semanales
+Checklist:
+- El drill restaura una base temporal PostgreSQL.
+- La validacion encuentra tablas publicas.
+- Los adjuntos del snapshot asociado existen.
 
-### 2.1 Restore Drill Automatizado
-
-**Frecuencia:** Semanal (automatizado por sqlite-ops-runner)
+### Integridad y busqueda clinica
 
 ```bash
-# Ejecutar restore drill manual
-cd ${ANAMNEO_ROOT}
-docker compose run --rm --no-deps backend node /app/scripts/pg-restore-drill.js
-
-# Verificar resultados
-docker compose logs --since 1h backup-cron | grep "restore_drill"
+npm --prefix backend run audit:integrity:verify
+npm --prefix backend run db:pg:ops:clinical-search
 ```
 
-**Checklist:**
-- [ ] Restore drill ejecutado exitosamente
-- [ ] Integridad verificada en base de datos restaurada
-- [ ] Adjuntos restaurados correctamente (si aplica)
-- [ ] Duración del drill < 5 minutos
+Checklist:
+- La cadena de auditoria valida.
+- La proyeccion `patient_clinical_search` no reporta drift.
 
-### 2.2 Limpieza de Backups Expirados
-
-**Frecuencia:** Automático (cada 6 horas)
+### Seguridad y accesos
 
 ```bash
-# Verificar backups expirados
-ls -lht ${ANAMNEO_ROOT}/runtime/data/backups/*.db | wc -l
-
-# Verificar retención configurada
-echo "Retención: ${SQLITE_BACKUP_RETENTION_DAYS:-14} días"
-
-# Limpieza manual si es necesario
-docker compose run --rm --no-deps backend node /app/scripts/pg-backup.js
-```
-
-### 2.3 Revisión de Logs de Seguridad
-
-**Frecuencia:** Semanal
-
-```bash
-# Verificar intentos de login fallidos
 docker compose logs --since 7d backend | grep -i "login.*fail\|auth.*fail" | tail -20
-
-# Verificar accesos no autorizados
 docker compose logs --since 7d backend | grep -i "403\|401" | tail -20
-
-# Verificar cambios de configuración
 docker compose logs --since 7d backend | grep -i "settings.*change\|config.*update" | tail -20
 ```
 
-## 3. Procedimientos Mensuales
+## 3. Rutina mensual
 
-### 3.1 Actualización de Dependencias
+### Dependencias y build
 
 ```bash
-# Verificar actualizaciones disponibles
-cd ${ANAMNEO_ROOT}/backend
-npm outdated
-
-cd ${ANAMNEO_ROOT}/frontend
-npm outdated
-
-# Actualizar dependencias (en entorno de desarrollo primero)
-cd ${ANAMNEO_ROOT}/backend
-npm update
-
-cd ${ANAMNEO_ROOT}/frontend
-npm update
-
-# Ejecutar tests después de actualizar
-npm --prefix backend test
-npm --prefix frontend test
+npm --prefix backend outdated || true
+npm --prefix frontend outdated || true
+npm --prefix backend run typecheck
+npm --prefix frontend run typecheck
+npm --prefix backend run test
+npm --prefix frontend run test
+npm run build
 ```
 
-### 3.2 Revisión de Certificados SSL
+### Certificados y tunnel
 
 ```bash
-# Verificar expiración de certificado
 echo | openssl s_client -servername anamneo.example.com -connect anamneo.example.com:443 2>/dev/null | openssl x509 -noout -dates
-
-# Verificar configuración de cloudflared
 cloudflared tunnel info <tunnel-uuid>
 ```
 
-### 3.3 Auditoría de Accesos
+### Auditoria operativa
+
+Usar la pantalla `Admin > Auditoria` para revisar eventos recientes. Si se
+requiere evidencia directa de base, usar `psql` con `MIGRATION_DATABASE_URL`
+desde el host o `docker compose exec postgres psql`, nunca procedimientos
+manuales que eviten `AuditLog` para cambios de datos.
+
+## 4. Emergencias
+
+### Rollback de deploy fallido
+
+El flujo principal es `npm run deploy`; si una migracion falla, el script
+ofrece rollback automatico al backup pre-migracion.
+
+Rollback manual:
 
 ```bash
-# Exportar logs de auditoría
-docker compose exec backend sqlite3 /app/data/anamneo.db \
-  "SELECT * FROM audit_logs WHERE created_at > datetime('now', '-30 days') ORDER BY created_at DESC;"
-
-# Revisar usuarios activos
-docker compose exec backend sqlite3 /app/data/anamneo.db \
-  "SELECT id, email, role, last_login FROM users ORDER BY last_login DESC;"
-```
-
-## 4. Procedimientos de Emergencia
-
-### 4.1 Rollback de Deploy Fallido
-
-```bash
-# 1. Detener servicios actuales
 docker compose down
-
-# 2. Restaurar backup pre-migración
-LATEST_BACKUP=$(ls -t ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -1)
-cp "$LATEST_BACKUP" ${ANAMNEO_ROOT}/runtime/data/anamneo.db
-
-# 3. Verificar integridad
-sqlite3 ${ANAMNEO_ROOT}/runtime/data/anamneo.db "PRAGMA integrity_check;"
-
-# 4. Reiniciar servicios
+docker compose up -d postgres
+LATEST_BACKUP=$(ls -t "$ANAMNEO_ROOT"/runtime/data/backups/*.dump | head -1)
+docker compose run --rm --no-deps backend sh -c \
+  'pg_restore --clean --if-exists --no-owner --no-privileges --dbname="$MIGRATION_DATABASE_URL" "$1"' \
+  sh "/app/data/backups/$(basename "$LATEST_BACKUP")"
 docker compose up -d
-
-# 5. Verificar salud
-curl -s http://localhost:5679/api/health | jq .
+curl -s http://127.0.0.1:${BACKEND_PORT:-5679}/api/health | jq .
 ```
 
-### 4.2 Recuperación de Base de Datos Corrupta
+### Recuperacion ante base no disponible
 
 ```bash
-# 1. Detener servicios
-docker compose down
-
-# 2. Verificar corrupción
-sqlite3 ${ANAMNEO_ROOT}/runtime/data/anamneo.db "PRAGMA integrity_check;"
-
-# 3. Si está corrupta, restaurar desde backup
-LATEST_BACKUP=$(ls -t ${ANAMNEO_ROOT}/runtime/data/backups/*.db | head -1)
-echo "Restaurando desde: $LATEST_BACKUP"
-cp "$LATEST_BACKUP" ${ANAMNEO_ROOT}/runtime/data/anamneo.db
-
-# 4. Verificar restauración
-sqlite3 ${ANAMNEO_ROOT}/runtime/data/anamneo.db "PRAGMA integrity_check;"
-
-# 5. Reiniciar servicios
-docker compose up -d
+docker compose ps postgres backend
+docker compose logs --tail 100 postgres
+docker compose logs --tail 100 backend
+npm run db:restore:drill
 ```
 
-### 4.3 Recuperación de Servicio Caído
+Si el problema requiere restaurar datos, detener backend/frontend, restaurar el
+ultimo `.dump` valido con `pg_restore --clean --if-exists`, restaurar el
+snapshot de uploads indicado en el `.meta.json` y ejecutar smoke checks antes
+de volver a exponer el frontend.
+
+### Servicio caido
 
 ```bash
-# 1. Verificar estado de servicios
 docker compose ps
-
-# 2. Verificar logs de errores
 docker compose logs --tail 100 backend
 docker compose logs --tail 100 frontend
-
-# 3. Reiniciar servicio específico
-docker compose restart backend
-docker compose restart frontend
-
-# 4. Si no funciona, reconstruir
-docker compose down
-docker compose build
-docker compose up -d
-
-# 5. Verificar salud
-curl -s http://localhost:5679/api/health | jq .
-curl -s http://localhost:5556 | head -5
+docker compose restart backend frontend
+curl -s http://127.0.0.1:${BACKEND_PORT:-5679}/api/health | jq .
+curl -sI http://127.0.0.1:${FRONTEND_PORT:-5556} | head -5
 ```
 
-### 4.4 Escalación de Incidentes
+## 5. Mantenimiento
 
-**Nivel 1 - Problema menor:**
-- Servicio lento pero funcional
-- Error no crítico en logs
-- **Acción:** Monitorear y registrar
-
-**Nivel 2 - Problema moderado:**
-- Servicio parcialmente caído
-- Error que afecta funcionalidad
-- **Acción:** Reiniciar servicio, verificar logs
-
-**Nivel 3 - Problema crítico:**
-- Servicio completamente caído
-- Pérdida de datos
-- **Acción:** Rollback inmediato, notificar equipo
-
-## 5. Procedimientos de Mantenimiento
-
-### 5.1 Limpieza de Logs
+### Logs
 
 ```bash
-# Limpiar logs de Docker (mantener últimos 7 días)
 docker compose logs --since 7d > /tmp/anamneo-logs-$(date +%Y%m%d).txt
-
-# Limpiar logs antiguos
-find ${ANAMNEO_ROOT}/runtime -name "*.log" -mtime +7 -delete
+docker system df
 ```
 
-### 5.2 Optimización de Base de Datos
+### PostgreSQL
 
 ```bash
-# Ejecutar VACUUM para optimizar
-docker compose exec backend sqlite3 /app/data/anamneo.db "VACUUM;"
-
-# Verificar tamaño después de optimización
-ls -lh ${ANAMNEO_ROOT}/runtime/data/anamneo.db
+npm run db:monitor
+docker compose exec postgres psql -U "${POSTGRES_USER:-anamneo_owner}" -d "${POSTGRES_DB:-anamneo}" -c \
+  "SELECT pg_size_pretty(pg_database_size(current_database())) AS database_size;"
 ```
 
-### 5.3 Actualización de Cloudflared
+## 6. Checklists
 
-```bash
-# Verificar versión actual
-cloudflared --version
+Diario:
+- Salud backend/frontend.
+- Backup reciente.
+- Logs sin errores criticos.
+- Disco suficiente.
 
-# Actualizar cloudflared
-sudo apt update && sudo apt upgrade cloudflared
+Semanal:
+- Restore drill.
+- Integridad de auditoria.
+- Revision de auth/401/403.
+- Drift de busqueda clinica.
 
-# Reiniciar tunnel
-sudo systemctl restart cloudflared
-```
+Mensual:
+- Typecheck, tests y build.
+- Certificado/tunnel.
+- Revision de dependencias.
+- Ensayo documentado de rollback cuando haya cambios de esquema relevantes.
 
-## 6. Checklist de Operaciones
+## 7. Referencias
 
-### 6.1 Checklist Diario
-- [ ] Verificar salud de servicios
-- [ ] Verificar backups automáticos
-- [ ] Revisar logs de errores
-- [ ] Verificar espacio en disco
-- [ ] Monitorear alertas de Sentry
-
-### 6.2 Checklist Semanal
-- [ ] Ejecutar restore drill
-- [ ] Revisión de logs de seguridad
-- [ ] Verificar retención de backups
-- [ ] Revisar métricas de rendimiento
-
-### 6.3 Checklist Mensual
-- [ ] Actualizar dependencias
-- [ ] Revisar certificados SSL
-- [ ] Auditoría de accesos
-- [ ] Optimización de base de datos
-- [ ] Revisión de procedimientos
-
-## 7. Contactos de Emergencia
-
-| Rol | Nombre | Contacto |
-|-----|--------|----------|
-| Administrador de Sistema | Alejandro López | allopze@gmail.com |
-| Desarrollador Backend | [Nombre] | [Email] |
-| Desarrollador Frontend | [Nombre] | [Email] |
-| Soporte Cloudflare | [Contacto] | [Email] |
-
-## 8. Referencias
-
-- [Documentación de Despliegue](./deployment-and-release.md)
-- [Validación Docker/Staging](./docker-staging-validation.md)
-- [Decisiones de Arquitectura](./architecture-decisions/)
-- [Documentación de Entornos](./environment.md)
+- [Operacion PostgreSQL](./postgres-operations.md)
+- [Despliegue y release](./deployment-and-release.md)
+- [Validacion Docker/Staging](./docker-staging-validation.md)
+- [Entorno](./environment.md)

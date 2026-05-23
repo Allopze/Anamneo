@@ -9,6 +9,7 @@ const {
   listBackupFiles,
   resolveBackupDir,
   resolveMigrationDatabaseUrl,
+  resolvePostgresToolUrl,
 } = require('./pg-utils');
 
 function readArg(name) {
@@ -107,8 +108,13 @@ async function main() {
   fs.mkdirSync(drillDir, { recursive: true });
 
   try {
-    run('createdb', [`--dbname=${adminMaintenanceUrl}`, drillDatabaseName]);
-    run('pg_restore', ['--no-owner', '--no-privileges', `--dbname=${drillDatabaseUrl}`, sourceBackupPath]);
+    run('createdb', [`--maintenance-db=${resolvePostgresToolUrl(adminMaintenanceUrl)}`, drillDatabaseName]);
+    run('pg_restore', [
+      '--no-owner',
+      '--no-privileges',
+      `--dbname=${resolvePostgresToolUrl(drillDatabaseUrl)}`,
+      sourceBackupPath,
+    ]);
 
     if (uploadsSnapshotPath && fs.existsSync(uploadsSnapshotPath)) {
       fs.cpSync(uploadsSnapshotPath, drillUploadsPath, { recursive: true });
@@ -132,7 +138,7 @@ async function main() {
     }));
   } finally {
     try {
-      run('dropdb', ['--if-exists', `--dbname=${adminMaintenanceUrl}`, drillDatabaseName]);
+      run('dropdb', ['--if-exists', `--maintenance-db=${resolvePostgresToolUrl(adminMaintenanceUrl)}`, drillDatabaseName]);
     } catch {
       // Best effort cleanup.
     }

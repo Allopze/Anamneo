@@ -128,9 +128,18 @@ function buildDatabaseUrlWithName(databaseUrl, databaseName) {
   return url.toString();
 }
 
+function resolvePostgresToolUrl(databaseUrl) {
+  const url = new URL(resolveDatabaseUrl(databaseUrl));
+  for (const parameter of ['schema', 'connection_limit', 'pool_timeout']) {
+    url.searchParams.delete(parameter);
+  }
+  return url.toString();
+}
+
 module.exports = {
   resolveDatabaseUrl,
   resolveMigrationDatabaseUrl,
+  resolvePostgresToolUrl,
   resolveBackupDir,
   resolveUploadsRoot,
   listBackupFiles,

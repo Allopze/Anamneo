@@ -6,9 +6,9 @@ runbook cubre los procedimientos administrados.
 
 > **Importante:** todas las operaciones aqui descritas son **registradas
 > en `AuditLog`** automaticamente cuando se usan los endpoints/admin UI
-> previstos. Las operaciones manuales contra la base SQLite **no se
-> auditan automaticamente**: solo usarlas en escenarios de emergencia
-> documentados aqui y dejar registro en bitacora.
+> previstos. Las operaciones manuales contra PostgreSQL **no se auditan
+> automaticamente**: solo usarlas en escenarios de emergencia documentados aqui
+> y dejar registro en bitacora.
 
 ---
 
@@ -49,7 +49,7 @@ no existe (aun) un endpoint publico `/auth/forgot-password`.
 
 ### Pre-condiciones
 - Acceso fisico o SSH al host donde corre Docker Compose.
-- Backup reciente verificado (`runtime/data/backups/*.db`).
+- Backup reciente verificado (`runtime/data/backups/*.dump`).
 
 ### Procedimiento de emergencia
 
@@ -70,24 +70,28 @@ NEW_HASH=$(docker compose run --rm --no-deps backend node -e "
 echo "$NEW_HASH"
 
 # 2. Identificar el admin
-docker compose exec backend sqlite3 /app/data/anamneo.db \
-  "SELECT id, email, role, is_admin, active, totp_enabled FROM users WHERE is_admin = 1;"
+docker compose exec postgres psql \
+  -U "${POSTGRES_USER:-anamneo_owner}" \
+  -d "${POSTGRES_DB:-anamneo}" \
+  -c "SELECT id, email, role, is_admin, active, totp_enabled FROM users WHERE is_admin = true;"
 
 # 3. Aplicar reset directo (registra evento minimo en logs)
 ADMIN_ID='<uuid>'
-docker compose exec backend sqlite3 /app/data/anamneo.db <<EOF
+docker compose exec postgres psql \
+  -U "${POSTGRES_USER:-anamneo_owner}" \
+  -d "${POSTGRES_DB:-anamneo}" <<EOF
 UPDATE users
    SET password_hash = '${NEW_HASH}',
-       must_change_password = 1,
-       totp_enabled = 0,
+       must_change_password = true,
+       totp_enabled = false,
        totp_secret = NULL,
        totp_recovery_codes = NULL,
        refresh_token_version = refresh_token_version + 1,
-       updated_at = CURRENT_TIMESTAMP
+       updated_at = now()
  WHERE id = '${ADMIN_ID}';
 
 UPDATE user_sessions
-   SET revoked_at = CURRENT_TIMESTAMP
+   SET revoked_at = now()
  WHERE user_id = '${ADMIN_ID}' AND revoked_at IS NULL;
 EOF
 

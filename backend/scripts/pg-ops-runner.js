@@ -159,6 +159,8 @@ async function main() {
     const result = runNodeScript(task.script, task.args || []);
     if (result.ok) {
       state[task.stateField] = new Date().toISOString();
+      state.restoreDrillFrequencyDays = restoreDrillFrequencyDays;
+      writeOpsState(stateFilePath, state);
     } else {
       ok = false;
     }

@@ -88,7 +88,7 @@ else
   echo -e "${YELLOW}Rollback disponible. Para restaurar el estado previo:${NC}"
   echo "  docker compose down"
   echo "  docker compose up -d postgres"
-  echo "  docker compose run --rm --no-deps backend pg_restore --clean --if-exists --no-owner --no-privileges --dbname=\"\$MIGRATION_DATABASE_URL\" \"/app/data/backups/$(basename "$ROLLBACK_DUMP")\""
+  echo "  docker compose run --rm --no-deps backend sh -c 'DB_URL=\$(node -e \"const u=new URL(process.env.MIGRATION_DATABASE_URL); for (const p of [\\\"schema\\\",\\\"connection_limit\\\",\\\"pool_timeout\\\"]) u.searchParams.delete(p); process.stdout.write(u.toString())\"); pg_restore --clean --if-exists --no-owner --no-privileges --dbname=\"\$DB_URL\" \"\$1\"' sh \"/app/data/backups/$(basename "$ROLLBACK_DUMP")\""
   if [[ -n "$ROLLBACK_UPLOADS_SNAPSHOT" ]]; then
     echo "  rm -rf \"$RUNTIME_UPLOADS\" && mkdir -p \"$RUNTIME_UPLOADS\" && cp -a \"$ROLLBACK_UPLOADS_SNAPSHOT\"/. \"$RUNTIME_UPLOADS\"/"
   fi
@@ -107,7 +107,7 @@ else
     docker compose down 2>/dev/null || true
     docker compose up -d postgres
     docker compose run --rm --no-deps "${compose_run_no_build[@]}" backend sh -c \
-      'pg_restore --clean --if-exists --no-owner --no-privileges --dbname="$MIGRATION_DATABASE_URL" "$1"' \
+      'DB_URL=$(node -e "const u=new URL(process.env.MIGRATION_DATABASE_URL); for (const p of [\"schema\",\"connection_limit\",\"pool_timeout\"]) u.searchParams.delete(p); process.stdout.write(u.toString())"); pg_restore --clean --if-exists --no-owner --no-privileges --dbname="$DB_URL" "$1"' \
       sh "/app/data/backups/$(basename "$ROLLBACK_DUMP")"
     if [[ -n "$ROLLBACK_UPLOADS_SNAPSHOT" && -d "$ROLLBACK_UPLOADS_SNAPSHOT" ]]; then
       rm -rf "$RUNTIME_UPLOADS"

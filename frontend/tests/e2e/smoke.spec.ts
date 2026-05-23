@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { ADMIN_EMAIL, ADMIN_NOMBRE, ADMIN_PASSWORD, BOOTSTRAP_TOKEN } from './e2e-identities';
 
 /**
- * Smoke E2E tests that exercise the full stack: Playwright → Next.js → NestJS → SQLite.
+ * Smoke E2E tests that exercise the full stack: Playwright -> Next.js -> NestJS -> PostgreSQL.
  *
  * The backend is started via Playwright webServer config with a dedicated test DB.
  */

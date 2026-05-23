@@ -22,6 +22,11 @@ La fuente base para estas variables es `.env.example` en la raiz. `backend/.env`
 | `ANAMNEO_DEPLOYMENT_SCOPE` | Si en produccion | `single-clinic` | Alcance de despliegue soportado. La beta actual es una clinica por instancia/base/volumen |
 | `DATABASE_URL` | Si | `postgresql://anamneo_app:...` en ejemplo | Conexion Prisma runtime |
 | `MIGRATION_DATABASE_URL` | Si para migraciones | `postgresql://anamneo_owner:...` en ejemplo | Conexion Prisma para DDL/migraciones |
+| `POSTGRES_DB` | Si en Docker | `anamneo` | Nombre de base creada por el contenedor Postgres |
+| `POSTGRES_USER` | Si en Docker | `anamneo_owner` | Rol owner usado por migraciones y DDL |
+| `POSTGRES_PASSWORD` | Si en Docker | Ninguno valido | Password del owner Postgres |
+| `ANAMNEO_APP_DB_PASSWORD` | Si en Docker | Ninguno valido | Password del rol runtime `anamneo_app` |
+| `ANAMNEO_MONITOR_DB_PASSWORD` | Recomendado en Docker | `change-me-before-production` | Password del rol de monitoreo |
 | `TEST_DATABASE_URL` | No | `postgresql://.../anamneo_test` | Base de datos opcional para e2e |
 | `PLAYWRIGHT_DATABASE_URL` | No | `postgresql://.../anamneo_playwright` | Base de datos para e2e frontend |
 | `JWT_SECRET` | Si | Ninguno valido | Firma de access token |
