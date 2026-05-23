@@ -1,6 +1,7 @@
 import { bootstrapApp, teardownApp } from './helpers/e2e-setup';
 import { healthSuite } from './suites/health.e2e-suite';
 import { authSuite } from './suites/auth.e2e-suite';
+import { onboardingSuite } from './suites/onboarding.e2e-suite';
 import { conditionsSuite } from './suites/conditions.e2e-suite';
 import { patientsSuite } from './suites/patients.e2e-suite';
 import { encountersSuite } from './suites/encounters.e2e-suite';
@@ -15,6 +16,7 @@ describe('Application E2E Tests', () => {
 
   healthSuite();
   authSuite();
+  onboardingSuite();
   conditionsSuite();
   patientsSuite();
   encountersSuite();

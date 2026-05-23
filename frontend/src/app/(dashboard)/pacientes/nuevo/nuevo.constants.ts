@@ -60,6 +60,11 @@ const basePatientObject = z.object({
       `El centro médico no puede exceder ${PATIENT_MEDICAL_CENTER_MAX_LENGTH} caracteres`,
     )
     .optional(),
+  // Ley 21.719 Art 16 quáter — representante legal para NNA
+  legalRepresentativeName: z.string().max(200).optional(),
+  legalRepresentativeRut: z.string().max(20).optional(),
+  legalRepresentativeRelationship: z.enum(['PADRE', 'MADRE', 'TUTOR', 'REPRESENTANTE']).optional(),
+  legalRepresentativeContact: z.string().max(200).optional(),
 });
 
 const rutExemptRefine = (val: z.infer<typeof basePatientObject>, ctx: z.RefinementCtx) => {

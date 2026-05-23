@@ -112,6 +112,21 @@ describe('AjustesPage', () => {
     };
 
     apiGetMock.mockImplementation((url: string) => {
+      if (url === '/onboarding/me') {
+        return Promise.resolve({
+          data: {
+            version: 'clinical-v1',
+            eligible: true,
+            role: authStoreState.user?.role ?? null,
+            steps: [],
+            completedStepIds: [],
+            dismissedAt: null,
+            completedAt: null,
+            isComplete: false,
+          },
+        });
+      }
+
       if (url === '/settings') {
         return Promise.resolve({
           data: {
@@ -226,6 +241,37 @@ describe('AjustesPage', () => {
     const [, payload] = apiPutMock.mock.calls[0];
     expect(payload.smtpPassword).toBeUndefined();
     expect(payload.smtpHost).toBe('smtp.demo.cl');
+  });
+
+  it('allows eligible users to restart the initial guide from profile settings', async () => {
+    authStoreState.user = {
+      id: 'medico-1',
+      email: 'medico@anamneo.cl',
+      nombre: 'Dra. Demo',
+      role: 'MEDICO',
+      isAdmin: false,
+      medicoId: null,
+    };
+    apiPostMock.mockResolvedValueOnce({
+      data: {
+        version: 'clinical-v1',
+        eligible: true,
+        role: 'MEDICO',
+        steps: [],
+        completedStepIds: [],
+        dismissedAt: null,
+        completedAt: null,
+        isComplete: false,
+      },
+    });
+
+    render(<AjustesPage />, { wrapper: createWrapper() });
+
+    await userEvent.click(await screen.findByRole('button', { name: /Reiniciar guía inicial/i }));
+
+    await waitFor(() => {
+      expect(apiPostMock).toHaveBeenCalledWith('/onboarding/me/reset');
+    });
   });
 
   it('lets admin persist the inactivity timeout from the system tab', async () => {

@@ -36,7 +36,7 @@ function buildPrismaMock(overrides: Record<string, unknown> = {}) {
       ]),
     },
     attachment: { findMany: jest.fn().mockResolvedValue([]) },
-    informedConsent: { findMany: jest.fn().mockResolvedValue([]) },
+    clinicalConsent: { findMany: jest.fn().mockResolvedValue([]) },
     clinicalAlert: { findMany: jest.fn().mockResolvedValue([]) },
     patientProblem: { findMany: jest.fn().mockResolvedValue([]) },
     encounterTask: { findMany: jest.fn().mockResolvedValue([]) },

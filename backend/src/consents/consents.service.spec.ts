@@ -11,7 +11,7 @@ describe('ConsentsService', () => {
 
   it('creates consent and audit log inside the same transaction flow', async () => {
     const tx = {
-      informedConsent: {
+      clinicalConsent: {
         create: jest.fn().mockResolvedValue({
           id: 'consent-1',
           patientId: 'pat-1',
@@ -49,10 +49,10 @@ describe('ConsentsService', () => {
     );
 
     expect(prisma.$transaction).toHaveBeenCalled();
-    expect(tx.informedConsent.create).toHaveBeenCalled();
+    expect(tx.clinicalConsent.create).toHaveBeenCalled();
     expect(audit.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        entityType: 'InformedConsent',
+        entityType: 'ClinicalConsent',
         entityId: 'consent-1',
         reason: 'CONSENT_GRANTED',
       }),
@@ -63,7 +63,7 @@ describe('ConsentsService', () => {
 
   it('revokes consent and audit log inside the same transaction flow', async () => {
     const tx = {
-      informedConsent: {
+      clinicalConsent: {
         update: jest.fn().mockResolvedValue({
           id: 'consent-1',
           patientId: 'pat-1',
@@ -81,7 +81,7 @@ describe('ConsentsService', () => {
       },
     };
     const prisma = {
-      informedConsent: {
+      clinicalConsent: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'consent-1',
           patientId: 'pat-1',
@@ -102,10 +102,10 @@ describe('ConsentsService', () => {
     );
 
     expect(prisma.$transaction).toHaveBeenCalled();
-    expect(tx.informedConsent.update).toHaveBeenCalled();
+    expect(tx.clinicalConsent.update).toHaveBeenCalled();
     expect(audit.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        entityType: 'InformedConsent',
+        entityType: 'ClinicalConsent',
         entityId: 'consent-1',
         reason: 'CONSENT_REVOKED',
       }),
@@ -116,7 +116,7 @@ describe('ConsentsService', () => {
 
   it('allows revoking a patient-level consent created by an assistant assigned to the same medico', async () => {
     const tx = {
-      informedConsent: {
+      clinicalConsent: {
         update: jest.fn().mockResolvedValue({
           id: 'consent-1',
           patientId: 'pat-1',
@@ -134,7 +134,7 @@ describe('ConsentsService', () => {
       },
     };
     const prisma = {
-      informedConsent: {
+      clinicalConsent: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'consent-1',
           patientId: 'pat-1',
@@ -156,7 +156,7 @@ describe('ConsentsService', () => {
       { id: 'med-1', role: 'MEDICO' } as never,
     );
 
-    expect(tx.informedConsent.update).toHaveBeenCalled();
+    expect(tx.clinicalConsent.update).toHaveBeenCalled();
     expect(result.status).toBe('REVOCADO');
   });
 
@@ -192,7 +192,7 @@ describe('ConsentsService', () => {
       },
     ];
     const prisma = {
-      informedConsent: {
+      clinicalConsent: {
         findMany: jest.fn()
           .mockResolvedValueOnce([baseConsent])
           .mockResolvedValueOnce(revokedConsents),
@@ -210,7 +210,7 @@ describe('ConsentsService', () => {
 
     expect(result.meta.revokedHasMore).toBe(true);
     expect(result.data.map((consent) => consent.id)).toEqual(['consent-active', 'consent-revoked-1']);
-    expect(prisma.informedConsent.findMany).toHaveBeenNthCalledWith(
+    expect(prisma.clinicalConsent.findMany).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ take: 2 }),
     );

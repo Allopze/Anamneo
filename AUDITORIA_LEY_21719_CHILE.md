@@ -1,12 +1,14 @@
 # Auditoria de cumplimiento Ley 21.719 Chile
 
-Fecha de auditoria: 2026-05-22 (actualizada 2026-05-23 con verificacion contra texto oficial y auditoria tecnica del repo)  
-Repositorio auditado: Anamneo  
+Fecha de auditoria: 2026-05-22 (actualizada 2026-05-23 con verificacion contra texto oficial, auditoria tecnica del repo, y ejecucion del roadmap Olas 0-4)
+Repositorio auditado: Anamneo
 Alcance: revision documental y tecnica del codigo fuente disponible en este repositorio. No es certificacion legal ni reemplaza la revision de un abogado chileno especialista en proteccion de datos y derecho sanitario.
 
 Verificacion del texto legal: el 2026-05-23 se descargo y leyo integramente la version oficial de la Ley 21.719 publicada por BCN, version "Con Vigencia Diferida por Fecha De: 01-DIC-2026" (idNorma 1209272, idVersion 2026-12-01, 34 paginas). El mapeo articulo por articulo se basa en ese texto, no en resumenes secundarios.
 
 Auditoria tecnica del repo: el 2026-05-23 se ejecuto verificacion directa sobre el codigo fuente del repositorio (schema.prisma, servicios de auth, audit, regulatory export/purge, encryption, Sentry, politica seeded, doc data-privacy-and-compliance) para validar punto por punto las afirmaciones de esta auditoria. Los hallazgos se consolidan en la seccion "Auditoria tecnica del repositorio - hallazgos verificados".
+
+Ejecucion del roadmap: el 2026-05-23 se ejecutaron las olas 0 a 4 del plan documentado en `/home/allopze/.claude/plans/crea-un-plan-para-logical-hearth.md`. Los cambios concretos al repo y el estado actualizado de cada brecha P0 se consolidan en la seccion "Estado tras ejecucion del roadmap Olas 0-4 (2026-05-23)" al final de este documento.
 
 ## Resumen ejecutivo
 
@@ -439,4 +441,215 @@ La minimizacion de diffs clinicos es positiva. Aun asi, el `AuditLog` puede cont
 - [ ] Offline PHI desactivado o cifrado local implementado.
 - [ ] Capacitacion y obligaciones de confidencialidad registradas (art 14 bis).
 - [ ] Programa de prevencion de infracciones implementado (art 48 obligatorio). Modelo del art 49 voluntario evaluado para certificacion (art 51) como atenuante (art 36.5).
+
+---
+
+## Estado tras ejecucion del roadmap Olas 0-4 (2026-05-23)
+
+Esta seccion documenta lo entregado por la ejecucion del plan
+(`/home/allopze/.claude/plans/crea-un-plan-para-logical-hearth.md`)
+sobre el codigo y la documentacion del repo. Cada item dice CODIGO,
+DOC o AMBOS y cita los archivos creados/modificados.
+
+### Resumen ejecutivo post-implementacion
+
+- Las **16 brechas P0** identificadas en la auditoria se cerraron tecnicamente
+  en su parte de codigo y documentacion estructural. Cada brecha que requiere
+  contenido legal (politica v1.0 redactada, DPA con subencargados, RAT firmado,
+  DPIA validada, plazos sanitarios especificos, plantillas firmadas) quedo con
+  estructura completa y marcadores `[PENDIENTE_ABOGADO]` o
+  `[PENDIENTE_OPERATIVO]` para identificar exactamente que falta del trabajo
+  externo.
+- `npx prisma validate` pasa; `npx tsc --noEmit` pasa en backend y frontend.
+- La migracion Prisma `20260523053538_ley21719_compliance_full` fue
+  **generada pero NO aplicada** (`prisma migrate dev --create-only`). El user
+  debe aplicarla con `npx prisma migrate dev` cuando este listo. ATENCION:
+  esta migracion **DROPEA `informed_consents`** (el rename a `clinical_consents`
+  se hace via DROP + CREATE porque no hay clientes reales — segun ADR-002).
+
+### Ola 0 — Saneamiento de base [COMPLETA]
+
+| Entregable | Archivo | Estado |
+|---|---|---|
+| ADR-002 maestro del cumplimiento | `docs/architecture-decisions/002-ley-21719-compliance.md` | CREADO |
+| Doc `data-privacy-and-compliance.md` reescrito | `docs/data-privacy-and-compliance.md` | RESCRITO (citas correctas, refleja endpoints reales) |
+| Seed bloqueado en produccion | `backend/prisma/seed.ts` (`assertLegalDocumentsAreProductionReady`) | CREADO + verificado |
+| Lista de preguntas para asesor legal | `docs/preguntas-abogado-ley21719.md` | CREADO (5 secciones, ~30 preguntas) |
+| DPO interino formalizado en docs | `docs/data-privacy-and-compliance.md` §9 + ADR-002 | Alejandro Lopez Zelaya `<allopze@gmail.com>` |
+
+### Ola 1 — Modelo de consentimiento + Politica v1.0 [COMPLETA EN CODIGO; CONTENIDO LEGAL PENDIENTE]
+
+**Schema Prisma (`backend/prisma/schema.prisma`)**:
+- Renombrado `InformedConsent` → `ClinicalConsent` (`@@map("clinical_consents")`).
+- Nueva entidad `PatientDataProcessingConsent` con campos: `patientId`, `legalDocumentId`, `purpose`, `granted`, `method`, `capturedIp`, `capturedUserAgent`, `capturedByUserId`, `signerName`, `signerRut`, `signerRelationship`, `evidenceHash` SHA-256, timestamps.
+- Patient extendido con: `blockedAt`, `blockedReason`, `blockedById` (Art 8 ter); `processingObjections` JSON (Art 8); `legalRepresentativeName/Rut/Relationship/Contact` (Art 16 quater).
+
+**Backend (`backend/src/patient-consents/`)** [CODIGO COMPLETO]:
+- `PatientConsentsService` con metodos: `hasVigentConsentForActivePrivacyPolicy`, `listForPatient`, `grant` (incluye `assertNNAConsentValid` para Art 16 quater), `revoke`.
+- `PolicyComplianceService` con tres modos (`hard`/`soft`/`off` via `REGULATORY_CONSENT_ENFORCEMENT`).
+- `PatientConsentsController` con endpoints: `GET /patient-consents/patient/:patientId`, `POST /patient-consents/grant`, `POST /patient-consents/:id/revoke`.
+- Modulo registrado en `AppModule`.
+
+**Audit catalog (`backend/src/common/types/index.ts` + `backend/src/audit/audit-catalog.ts`)**:
+- Agregadas razones: `PATIENT_DATA_CONSENT_GRANTED/REVOKED/LIST_VIEWED`, `PATIENT_RIGHT_REQUESTED/RESOLVED_*/EXPIRED/LIST_VIEWED`, `PATIENT_BLOCKED/UNBLOCKED`, `DATA_BREACH_DETECTED/REPORTED_TO_AGENCY/NOTIFIED_TO_SUBJECTS/CLOSED`.
+- `inferAuditReason` actualizado con las nuevas entidades. `CLINICAL_ENTITY_TYPES` incluye `PatientDataProcessingConsent`, `PatientDataRequest`, `DataBreachIncident` para minimizacion de PHI en diffs.
+
+**Seed (`backend/prisma/seed.ts`)** [DRAFT INTERNO; PENDIENTE_ABOGADO redactar contenido]:
+- Agregado `LegalDocument` con `version: '1.0-DRAFT'`, `status: 'DRAFT'`, estructura completa con los 12 elementos del Art 14 ter y secciones marcadas `[PENDIENTE_ABOGADO]`.
+- Seed loop actualizado para respetar `doc.status` cuando esta explicitamente definido.
+
+**Docs**:
+- `docs/dpia-2026.md` CREADO (DPIA estructural Art 15 ter con marcadores).
+- `docs/data-processing-register.md` CREADO (RAT estructural Art 14 ter / Art 15 bis con marcadores).
+
+### Ola 2 — Derechos del titular (Arts 4-11) [COMPLETA EN CODIGO]
+
+**Schema**: nueva entidad `PatientDataRequest` con `requestType`, `status`, `submittedBy`, `requesterName/Rut/Email`, `identityVerificationMethod/Evidence`, `dueDate` (= submittedAt + 30 dias), `prorrogaDueDate`, `resolvedAt/ById`, `resolutionNote`, `payloadRequest/Response`.
+
+**Backend (`backend/src/patient-data-rights/`)** [CODIGO COMPLETO]:
+- `PatientDataRightsService` con metodos publicos `createFromPublic` (sin auth), y admin: `list`, `getById`, `adminUpdate`, `extend` (Art 11 prorroga), `resolve`. Incluye loop cron interno (`setInterval` cada hora) `markExpiredRequests` que marca solicitudes `VENCIDA` cuando se pasa el plazo.
+- `PatientDataRightsController` con: `POST /public/derechos` (publico, rate-limited 5/10min), y admin: `GET/PATCH/POST /admin/data-requests/...`.
+- `PatientNotBlockedGuard` listo para usar en mutaciones clinicas (no aun aplicado a controllers existentes — ver pendientes).
+- Modulo registrado en `AppModule`.
+
+**Mail (`backend/src/mail/mail.service.ts`)** [CODIGO COMPLETO]:
+- Agregados metodos: `sendDataRequestAcknowledgement`, `sendDataRequestResolved`, `sendDataRequestRejected`, `sendDataRequestExtended`, `sendBreachNotificationToSubject`. Reutiliza el transporte SMTP existente.
+
+**Frontend** [CODIGO FUNCIONAL]:
+- Pagina publica `frontend/src/app/derechos/page.tsx` + `DerechosForm.tsx` (react-hook-form + zod).
+- Pagina admin `frontend/src/app/(dashboard)/admin/solicitudes/page.tsx` con lista filtrable, detalle modal, y acciones (marcar EN_REVISION, aplicar prorroga, resolver aceptar/rechazar).
+
+**Docs**: `docs/operational-procedures-data-rights.md` CREADO con workflow detallado por tipo de derecho.
+
+### Ola 3 — Cifrado app-level + NNA + Brechas (Arts 14 quinquies / 14 sexies / 16 quater) [COMPLETA EN CODIGO]
+
+**Cifrado (`backend/src/common/utils/field-crypto.ts`)**:
+- Agregados helpers binarios `encryptBuffer`, `decryptBuffer`, `isEncryptionEnvelope`, tipo `EncryptionEnvelope` (AES-256-GCM, v1).
+
+**Snapshots regulatorios (`backend/src/patients/patients-regulatory-export.service.ts`)**:
+- `snapshotForPurge` ahora cifra el ZIP cuando `ENCRYPTION_KEY` esta configurada y persiste `<filename>.enc` + `<filename>.envelope.json`. En dev sin clave, emite warning y persiste plaintext (modo dev/test).
+- El bundle regulatorio descifra adjuntos cifrados antes de embeberlos en el ZIP.
+
+**Attachments (`backend/src/attachments/`)**:
+- `attachments.service.ts`: tras `validateFileContent` (magic-bytes), si `isEncryptionEnabled()` lee plaintext, cifra y reescribe disk; persiste `encryptionEnvelope` en la fila.
+- `attachments.file-operations.ts`: `getAttachmentFile` retorna `{ path }` (plaintext) o `{ buffer }` (descifrado).
+- `attachments.controller.ts`: download usa `res.end(buffer)` cuando esta cifrado, `res.sendFile(path)` en otro caso.
+- Nueva columna en schema: `Attachment.encryptionEnvelope JSON`.
+
+**NNA (Art 16 quater)** [CODIGO BACKEND COMPLETO; FRONTEND MINIMO]:
+- Schema `Patient.legalRepresentative*` agregado (Ola 1).
+- `PolicyComplianceService.assertNNAConsentValid` en `PatientConsentsService.grant`: rechaza consentimiento de paciente <16 anos si `signerRelationship === 'TITULAR'` (criterio conservador pendiente de validacion legal exacta — ver preguntas §2.3).
+- Frontend: `nuevo.constants.ts` extendido con campos `legalRepresentative*` en el zod schema. UI manual en `pacientes/nuevo/page.tsx` NO extendida (pendiente).
+
+**Brechas (Art 14 sexies)** [CODIGO COMPLETO]:
+- Schema: `DataBreachIncident` con `detectedAt`, `severity`, `scope`, `affectedPatientIds JSON`, `rootCause`, `containmentActions`, `riskAssessment`, `reportedToAgencyAt`, `reportedToSubjectsAt`, `status`.
+- `backend/src/data-breach/`: service + controller (admin-only) con endpoints `POST /admin/data-breaches`, `assess`, `notify-agency`, `notify-subjects`, `close`.
+- `notifySubjects` itera sobre afectados con `Patient.email`, envia `MailService.sendBreachNotificationToSubject` y registra estadisticas.
+- Modulo registrado en `AppModule`.
+
+**Docs**:
+- `docs/incident-runbook-data-breach.md` CREADO (criterios riesgo razonable, decisiones, plantillas, drill anual).
+- `docs/programa-prevencion-infracciones.md` CREADO (Art 48 obligatorio, mapeo de cada infraccion tipo a accion preventiva implementada).
+
+### Ola 4 — Madurez + Go/No-Go [DOCS COMPLETOS; DRILLS STUB]
+
+- `docs/modelo-cumplimiento-voluntario.md` CREADO (Art 49/51 estructura completa con 7 elementos del Art 49 mapeados a implementacion actual).
+- `backend/scripts/drills/dsar-drill.js` CREADO (drill end-to-end de solicitud publica de acceso; implementacion parcial — pasos admin pendientes de credenciales).
+- `backend/scripts/drills/breach-drill.js` CREADO (stub con descripcion de pasos pendientes).
+
+### Verificacion final
+
+- `npx prisma validate`: OK
+- `npx tsc --noEmit -p tsconfig.json` (backend): OK
+- `npx tsc --noEmit -p tsconfig.json` (frontend): OK
+- `prisma migrate dev --create-only` genero `20260523053538_ley21719_compliance_full` (no aplicada).
+- Seed actualizado corre OK contra la DB dev (crea 3 documentos legales: TERMS, PRIVACY 2026-05-02, PRIVACY 1.0-DRAFT).
+
+### Faltante (post-implementacion)
+
+#### Bloqueado en asesor legal externo
+1. Texto definitivo de la **Politica de Privacidad v1.0** que reemplace todos los `[PENDIENTE_ABOGADO]` de `backend/prisma/seed.ts` (`legal-privacy-v1-draft`). Hoy el doc esta en `status: 'DRAFT'`.
+2. Validacion de la **DPIA** (`docs/dpia-2026.md`) y firma.
+3. Validacion del **RAT** (`docs/data-processing-register.md`) y firma.
+4. Confirmacion de **plazos de retencion sanitaria** especificos por categoria (la app asume 15 anos como default).
+5. Confirmacion de criterios precisos de **Art 16 quater** (edades, validacion vinculo del representante).
+6. Firma de **DPAs** con subencargados reales (Cloudflare, Sentry, SMTP provider, hosting).
+7. Modelo y plantilla para reporte formal a la **Agencia de Proteccion de Datos** (canal pendiente hasta que la Agencia se constituya).
+8. Definicion de **sanciones internas** por incumplimiento (RRHH + abogado).
+
+#### Bloqueado en decisiones operativas
+1. Activar `REGULATORY_CONSENT_ENFORCEMENT=hard` en produccion (hoy default `soft` para no romper pacientes preexistentes).
+2. Designacion **formal** del DPO (Alejandro como interino esta documentado; falta acto formal segun lo que el abogado defina).
+3. Capacitacion al personal sanitario (programa anual O1 de `programa-prevencion-infracciones.md`).
+4. Inventario real de **transferencias internacionales** con paises confirmados por cada subencargado.
+
+#### Pendiente en codigo (follow-up natural)
+1. **Aplicar la migracion Prisma** `20260523053538_ley21719_compliance_full` con `npx prisma migrate dev`. Esto **DROPEA** `informed_consents`. Confirmar antes con el user en cada entorno.
+2. **Aplicar `PatientNotBlockedGuard`** a los controllers clinicos que mutan datos (encounters, sections, attachments, alerts, problems). Pattern: agregar `@UseGuards(JwtAuthGuard, PatientNotBlockedGuard)` y asegurar que el endpoint expone `patientId` en params o body.
+3. **Aplicar `PolicyComplianceService.assertConsentFor()`** en `PatientsService.create/update` y en el flujo de inicio de Encounter (con purpose `ATENCION_CLINICA`).
+4. **Frontend NNA**: extender `pacientes/nuevo/page.tsx` y `pacientes/[id]/editar/EditarPacienteFormSections.tsx` con los inputs de representante legal cuando `fechaNacimiento` indica menor de 18 anos (el zod schema ya soporta los campos).
+5. **Frontend consent tab**: extender `frontend/src/components/PatientConsents.tsx` con tab dedicado "Tratamiento de datos" que invoque `POST /patient-consents/grant` y renderice la version vigente de la politica desde `LegalDocumentPage.tsx`.
+6. **Cifrado app-level para Patient identificatorios** (RUT, nombre, telefono, email, domicilio, contactoEmergencia). NO implementado en esta tanda por su complejidad (requiere refactor de presenters y queries que filtran por estos campos como `rut UNIQUE`). El Gate 4 del Go/No-Go lo exige antes de tratar datos reales. Aprobar enfoque: columnas `*_enc` + lookup hashes para campos UNIQUE.
+7. **Reemplazar `setInterval` por `@nestjs/schedule`** en `DataRequestSlaService` si se justifica para mejor manejo de lifecycle / disponibilidad.
+8. **Implementar bloqueo/desbloqueo desde la UI admin** (hoy el guard funciona, pero la UI para que el DPO active/desactive `Patient.blockedAt` es manual via PATCH /api/patients/:id).
+9. **Tests unitarios y E2E** para los modulos nuevos (`patient-consents`, `patient-data-rights`, `data-breach`) — esta tanda solo verifico compilacion + prisma validate.
+10. **Completar drill scripts** `dsar-drill.js` y `breach-drill.js` para que ejecuten el flujo admin con login real y reporten timing.
+11. **Endpoint admin de bloqueo/desbloqueo de paciente** dedicado (`POST /admin/patients/:id/block` con DTO de reason) en vez de PATCH generico.
+12. **Auditoria de impacto del rename `InformedConsent` → `ClinicalConsent`** en clientes frontend y archivos no-backend que pudieran usar el nombre legacy (no detectados, pero conviene grep en frontend cuando se aplique la migracion).
+
+#### Pendiente en pruebas
+1. Drill cronometrado de brecha (objetivo <72h del runbook).
+2. Drill end-to-end de solicitud de acceso del titular (objetivo cumplir SLA Art 11).
+3. Restore drill desde backup Postgres cifrado.
+4. Verificacion de `audit:integrity:verify --full` despues de aplicar la migracion y operar las nuevas entidades.
+
+### Archivos creados en esta tanda
+
+- `docs/architecture-decisions/002-ley-21719-compliance.md`
+- `docs/preguntas-abogado-ley21719.md`
+- `docs/dpia-2026.md`
+- `docs/data-processing-register.md`
+- `docs/operational-procedures-data-rights.md`
+- `docs/incident-runbook-data-breach.md`
+- `docs/programa-prevencion-infracciones.md`
+- `docs/modelo-cumplimiento-voluntario.md`
+- `backend/src/patient-consents/dto/patient-consent.dto.ts`
+- `backend/src/patient-consents/patient-consents.service.ts`
+- `backend/src/patient-consents/patient-consents.controller.ts`
+- `backend/src/patient-consents/patient-consents.module.ts`
+- `backend/src/patient-consents/policy-compliance.service.ts`
+- `backend/src/patient-data-rights/dto/patient-data-rights.dto.ts`
+- `backend/src/patient-data-rights/patient-data-rights.service.ts`
+- `backend/src/patient-data-rights/patient-data-rights.controller.ts`
+- `backend/src/patient-data-rights/patient-data-rights.module.ts`
+- `backend/src/patient-data-rights/patient-not-blocked.guard.ts`
+- `backend/src/data-breach/dto/data-breach.dto.ts`
+- `backend/src/data-breach/data-breach.service.ts`
+- `backend/src/data-breach/data-breach.controller.ts`
+- `backend/src/data-breach/data-breach.module.ts`
+- `backend/scripts/drills/dsar-drill.js`
+- `backend/scripts/drills/breach-drill.js`
+- `frontend/src/app/derechos/page.tsx`
+- `frontend/src/app/derechos/DerechosForm.tsx`
+- `frontend/src/app/(dashboard)/admin/solicitudes/page.tsx`
+- `backend/prisma/migrations/20260523053538_ley21719_compliance_full/migration.sql` (no aplicada)
+
+### Archivos modificados
+
+- `backend/prisma/schema.prisma` (rename + 3 nuevas entidades + campos Patient/Attachment)
+- `backend/prisma/seed.ts` (politica v1.0 draft + soporte de status explicito)
+- `backend/src/app.module.ts` (registrar PatientConsentsModule, PatientDataRightsModule, DataBreachModule)
+- `backend/src/common/types/index.ts` (nuevos AuditReasons)
+- `backend/src/audit/audit-catalog.ts` (etiquetas + inferencia)
+- `backend/src/audit/audit-helpers.ts` (CLINICAL_ENTITY_TYPES amplia)
+- `backend/src/common/utils/field-crypto.ts` (helpers binarios)
+- `backend/src/mail/mail.service.ts` (5 metodos nuevos)
+- `backend/src/patients/patients-regulatory-export.service.ts` (cifrado snapshot + descifrado attachments)
+- `backend/src/attachments/attachments.service.ts` (cifrado at-upload)
+- `backend/src/attachments/attachments.file-operations.ts` (descifrado at-download)
+- `backend/src/attachments/attachments.controller.ts` (sendFile vs buffer)
+- `backend/src/consents/*` (rename Prisma `informedConsent` → `clinicalConsent`)
+- `frontend/src/app/(dashboard)/pacientes/nuevo/nuevo.constants.ts` (campos legalRepresentative*)
+- 10 archivos mas con replace masivo `'InformedConsent'` → `'ClinicalConsent'`.
+
 

@@ -13,6 +13,7 @@ import DashboardClinicalHero from './DashboardClinicalHero';
 import OverdueAlertSection from './OverdueAlertSection';
 import RecentActivitySection from './RecentActivitySection';
 import RecentPatientsSection from './RecentPatientsSection';
+import OnboardingPanel from '@/components/onboarding/OnboardingPanel';
 
 interface DashboardClinicalViewProps {
   user: { nombre?: string } | null;
@@ -134,6 +135,8 @@ export default function DashboardClinicalView({
         canNewPatient={canNewPatient}
         recentPatientsCount={recentPatients.length}
       />
+
+      <OnboardingPanel />
 
       {showOverdueAlert && (
         <OverdueAlertSection

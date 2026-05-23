@@ -90,3 +90,60 @@ export function isEncryptionEnabled(): boolean {
   const hex = process.env.ENCRYPTION_KEY;
   return !!hex && hex.length === 64;
 }
+
+// ---------------------------------------------------------------------------
+// Binary helpers — used for app-level encryption of attachments and
+// regulatory snapshots (Ley 21.719 Art 14 quinquies lit a).
+// The envelope is JSON-friendly and stored next to the ciphertext on disk
+// or in DB (e.g. Attachment.encryptionEnvelope).
+// ---------------------------------------------------------------------------
+
+export interface EncryptionEnvelope {
+  alg: 'aes-256-gcm';
+  v: 1;
+  iv: string;   // base64
+  tag: string;  // base64
+}
+
+export function encryptBuffer(plain: Buffer): { ciphertext: Buffer; envelope: EncryptionEnvelope } {
+  const key = getKey();
+  const iv = randomBytes(IV_LENGTH);
+  const cipher = createCipheriv(ALGORITHM, key, iv);
+  const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return {
+    ciphertext,
+    envelope: {
+      alg: 'aes-256-gcm',
+      v: 1,
+      iv: iv.toString('base64'),
+      tag: authTag.toString('base64'),
+    },
+  };
+}
+
+export function decryptBuffer(ciphertext: Buffer, envelope: EncryptionEnvelope): Buffer {
+  if (envelope.alg !== 'aes-256-gcm' || envelope.v !== 1) {
+    throw new Error(`Unsupported encryption envelope: ${envelope.alg}/${envelope.v}`);
+  }
+  const iv = Buffer.from(envelope.iv, 'base64');
+  const tag = Buffer.from(envelope.tag, 'base64');
+  if (tag.length !== AUTH_TAG_LENGTH) {
+    throw new Error('Invalid authentication tag length');
+  }
+  const key = getKey();
+  const decipher = createDecipheriv(ALGORITHM, key, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+}
+
+export function isEncryptionEnvelope(value: unknown): value is EncryptionEnvelope {
+  return (
+    !!value
+    && typeof value === 'object'
+    && (value as EncryptionEnvelope).alg === 'aes-256-gcm'
+    && (value as EncryptionEnvelope).v === 1
+    && typeof (value as EncryptionEnvelope).iv === 'string'
+    && typeof (value as EncryptionEnvelope).tag === 'string'
+  );
+}

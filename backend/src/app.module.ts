@@ -17,11 +17,15 @@ import { AuditModule } from './audit/audit.module';
 import { TemplatesModule } from './templates/templates.module';
 import { SettingsModule } from './settings/settings.module';
 import { ConsentsModule } from './consents/consents.module';
+import { PatientConsentsModule } from './patient-consents/patient-consents.module';
+import { PatientDataRightsModule } from './patient-data-rights/patient-data-rights.module';
+import { DataBreachModule } from './data-breach/data-breach.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { Cie10Module } from './cie10/cie10.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { LegalModule } from './legal/legal.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -68,11 +72,15 @@ import { HealthController } from './health.controller';
     TemplatesModule,
     SettingsModule,
     ConsentsModule,
+    PatientConsentsModule,
+    PatientDataRightsModule,
+    DataBreachModule,
     AlertsModule,
     Cie10Module,
     AnalyticsModule,
     LegalModule,
     MetricsModule,
+    OnboardingModule,
   ],
   controllers: [HealthController],
   providers: [

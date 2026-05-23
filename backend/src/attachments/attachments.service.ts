@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -15,9 +15,12 @@ import {
 import { resolveLinkedOrder } from './attachments.linked-order';
 import { getAttachmentFile } from './attachments.file-operations';
 import { AttachmentsScanService } from './attachments-scan.service';
+import { encryptBuffer, isEncryptionEnabled } from '../common/utils/field-crypto';
 
 @Injectable()
 export class AttachmentsService {
+  private readonly logger = new Logger(AttachmentsService.name);
+
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
@@ -62,6 +65,22 @@ export class AttachmentsService {
       await fs.access(resolvedStoragePath);
       const normalizedMime = await validateFileContent(resolvedStoragePath, file.mimetype);
 
+      // Ley 21.719 Art 14 quinquies lit a: cifrar at-rest a nivel app cuando
+      // ENCRYPTION_KEY este configurada. La validacion magic-byte ya corrio
+      // antes sobre plaintext.
+      let encryptionEnvelopeJson: unknown = null;
+      if (isEncryptionEnabled()) {
+        const plain = await fs.readFile(resolvedStoragePath);
+        const { ciphertext, envelope } = encryptBuffer(plain);
+        await fs.writeFile(resolvedStoragePath, ciphertext);
+        encryptionEnvelopeJson = envelope;
+      } else {
+        this.logger.warn(
+          `Attachment ${file.filename} persisted in CLEARTEXT because ENCRYPTION_KEY is not configured. ` +
+          'Ley 21.719 Art 14 quinquies requires cifrado.',
+        );
+      }
+
       const attachment = await this.prisma.$transaction(async (tx) => {
         const createdAttachment = await tx.attachment.create({
           data: {
@@ -77,6 +96,7 @@ export class AttachmentsService {
             linkedOrderType: linkedOrder?.linkedOrderType || null,
             linkedOrderId: linkedOrder?.linkedOrderId || null,
             linkedOrderLabel: linkedOrder?.linkedOrderLabel || null,
+            encryptionEnvelope: encryptionEnvelopeJson as never,
           },
         });
 

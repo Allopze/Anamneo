@@ -103,7 +103,7 @@ export class ConsentsService {
     }
 
     const consent = await this.prisma.$transaction(async (tx) => {
-      const createdConsent = await tx.informedConsent.create({
+      const createdConsent = await tx.clinicalConsent.create({
         data: {
           patientId: dto.patientId,
           encounterId: dto.encounterId ?? null,
@@ -115,7 +115,7 @@ export class ConsentsService {
 
       await this.audit.log(
         {
-          entityType: 'InformedConsent',
+          entityType: 'ClinicalConsent',
           entityId: createdConsent.id,
           userId: user.id,
           action: 'CREATE',
@@ -160,7 +160,7 @@ export class ConsentsService {
           }
         : {}),
     };
-    const activeConsents = await this.prisma.informedConsent.findMany({
+    const activeConsents = await this.prisma.clinicalConsent.findMany({
       where: {
         ...scopeWhere,
         revokedAt: null,
@@ -171,7 +171,7 @@ export class ConsentsService {
       ? Math.max(0, Math.min(options.revokedLimit ?? 0, 100))
       : undefined;
     const revokedTake = options.withMeta && revokedLimit !== undefined ? revokedLimit + 1 : revokedLimit;
-    const rawRevokedConsents = await this.prisma.informedConsent.findMany({
+    const rawRevokedConsents = await this.prisma.clinicalConsent.findMany({
       where: {
         ...scopeWhere,
         revokedAt: { not: null },
@@ -187,7 +187,7 @@ export class ConsentsService {
 
     const data = consents.map((consent) => this.formatConsent(consent, userNames));
     await this.audit.log({
-      entityType: 'InformedConsent',
+      entityType: 'ClinicalConsent',
       entityId: patientId,
       userId: user.id,
       action: 'READ',
@@ -207,7 +207,7 @@ export class ConsentsService {
 
   async revoke(id: string, dto: RevokeConsentDto, user: RequestUser) {
     const effectiveMedicoId = user.isAdmin ? null : getEffectiveMedicoId(user);
-    const consent = await this.prisma.informedConsent.findUnique({
+    const consent = await this.prisma.clinicalConsent.findUnique({
       where: { id },
       include: {
         encounter: {
@@ -234,7 +234,7 @@ export class ConsentsService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      const revokedConsent = await tx.informedConsent.update({
+      const revokedConsent = await tx.clinicalConsent.update({
         where: { id },
         data: {
           revokedAt: new Date(),
@@ -245,7 +245,7 @@ export class ConsentsService {
 
       await this.audit.log(
         {
-          entityType: 'InformedConsent',
+          entityType: 'ClinicalConsent',
           entityId: id,
           userId: user.id,
           action: 'UPDATE',

@@ -252,7 +252,7 @@ export async function executePatientMergeTransaction(params: ExecutePatientMerge
       }),
       tx.patientProblem.count({ where: { patientId: sourcePatientId } }),
       tx.encounterTask.count({ where: { patientId: sourcePatientId } }),
-      tx.informedConsent.count({ where: { patientId: sourcePatientId } }),
+      tx.clinicalConsent.count({ where: { patientId: sourcePatientId } }),
       tx.clinicalAlert.count({ where: { patientId: sourcePatientId } }),
     ]);
 
@@ -322,7 +322,7 @@ export async function executePatientMergeTransaction(params: ExecutePatientMerge
         where: { patientId: sourcePatientId },
         data: { patientId: targetPatientId },
       }),
-      tx.informedConsent.updateMany({
+      tx.clinicalConsent.updateMany({
         where: { patientId: sourcePatientId },
         data: { patientId: targetPatientId },
       }),

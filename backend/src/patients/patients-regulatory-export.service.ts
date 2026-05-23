@@ -6,7 +6,13 @@ import * as path from 'path';
 import { PassThrough } from 'stream';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { decryptField } from '../common/utils/field-crypto';
+import {
+  decryptBuffer,
+  decryptField,
+  encryptBuffer,
+  isEncryptionEnabled,
+  isEncryptionEnvelope,
+} from '../common/utils/field-crypto';
 import { resolveUploadsRoot } from '../common/utils/uploads-root';
 import { sanitizeFilename } from '../attachments/attachments-helpers';
 import { RequestUser } from '../common/utils/medico-id';
@@ -15,6 +21,7 @@ type AttachmentSnapshot = {
   id: string;
   storagePath: string;
   archivePath: string;
+  encryptionEnvelope?: unknown;
 };
 
 @Injectable()
@@ -100,7 +107,7 @@ export class PatientsRegulatoryExportService {
         })
       : [];
 
-    const consents = await this.prisma.informedConsent.findMany({
+    const consents = await this.prisma.clinicalConsent.findMany({
       where: { patientId },
       orderBy: { createdAt: 'asc' },
     });
@@ -133,6 +140,7 @@ export class PatientsRegulatoryExportService {
         id: att.id,
         storagePath: att.storagePath,
         archivePath,
+        encryptionEnvelope: att.encryptionEnvelope as unknown,
       });
       return {
         id: att.id,
@@ -222,12 +230,33 @@ export class PatientsRegulatoryExportService {
   /**
    * Snapshot regulatorio que se persiste a `runtime/data/purges/<patientId>/...`
    * justo antes de un purge. Devuelve la ruta para anotarla en audit log.
+   *
+   * Ley 21.719 Art 14 quinquies lit a (cifrado y seudonimizacion): cuando
+   * `ENCRYPTION_KEY` esta configurada, el ZIP se cifra a nivel aplicacion
+   * y se persiste como `<filename>.enc` con un sidecar `<filename>.envelope.json`
+   * que contiene el envelope AES-256-GCM (IV + tag). Si la clave no esta
+   * configurada (entorno dev/test sin cifrado), se persiste plaintext con
+   * advertencia en logs.
    */
   async snapshotForPurge(patientId: string, user: RequestUser): Promise<string> {
     const { buffer, filename } = await this.buildZip(patientId, user);
     const baseDir = this.configService.get<string>('REGULATORY_PURGE_DIR')
       || path.resolve(process.cwd(), 'runtime/data/purges');
     await fs.mkdir(baseDir, { recursive: true });
+
+    if (isEncryptionEnabled()) {
+      const { ciphertext, envelope } = encryptBuffer(buffer);
+      const encPath = path.join(baseDir, `${filename}.enc`);
+      const envelopePath = path.join(baseDir, `${filename}.envelope.json`);
+      await fs.writeFile(encPath, ciphertext);
+      await fs.writeFile(envelopePath, JSON.stringify(envelope, null, 2));
+      return encPath;
+    }
+
+    this.logger.warn(
+      'Regulatory snapshot persisted in CLEARTEXT because ENCRYPTION_KEY is not configured. ' +
+      'Ley 21.719 Art 14 quinquies requires cifrado. Configure ENCRYPTION_KEY before tratar datos reales.',
+    );
     const targetPath = path.join(baseDir, filename);
     await fs.writeFile(targetPath, buffer);
     return targetPath;
@@ -249,7 +278,10 @@ export class PatientsRegulatoryExportService {
         for (const att of attachments) {
           try {
             const absolutePath = this.resolveStoragePath(att.storagePath);
-            const content = await fs.readFile(absolutePath);
+            const raw = await fs.readFile(absolutePath);
+            const content: Buffer = isEncryptionEnvelope(att.encryptionEnvelope)
+              ? decryptBuffer(Buffer.from(raw), att.encryptionEnvelope)
+              : Buffer.from(raw);
             archive.append(content, { name: att.archivePath });
           } catch (error) {
             this.logger.warn(

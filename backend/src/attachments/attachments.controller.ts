@@ -62,7 +62,14 @@ export class AttachmentsController {
     res.setHeader('Content-Type', file.mime);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
-    res.sendFile(file.path);
+    if (file.buffer) {
+      // Ley 21.719 Art 14 quinquies: archivo descifrado en memoria.
+      res.end(file.buffer);
+    } else if (file.path) {
+      res.sendFile(file.path);
+    } else {
+      throw new BadRequestException('No se pudo resolver el contenido del archivo');
+    }
   }
 
   @Delete(':id')

@@ -386,4 +386,200 @@ export class MailService {
       { isTest: true },
     );
   }
+
+  // -----------------------------------------------------------------------
+  // Ley 21.719 — comunicaciones a titulares (solicitudes de derechos y
+  // notificaciones de brechas). Reutilizan SMTP del MailService existente.
+  // -----------------------------------------------------------------------
+
+  private async sendPlainEmail(payload: {
+    to: string;
+    subject: string;
+    text: string;
+    html: string;
+  }): Promise<{ sent: boolean; reason: string | null }> {
+    const settings = await this.resolveMailSettings();
+    if (!settings.canSend || !settings.host || !settings.port || !settings.fromEmail) {
+      return { sent: false, reason: settings.misconfiguration ?? 'SMTP no configurado' };
+    }
+    const transporter = nodemailer.createTransport({
+      host: settings.host,
+      port: settings.port,
+      secure: settings.secure,
+      auth: settings.user ? { user: settings.user, pass: settings.password ?? '' } : undefined,
+    });
+    try {
+      await transporter.sendMail({
+        from: formatFromAddress(settings.fromEmail, settings.fromName),
+        to: payload.to,
+        subject: payload.subject,
+        text: payload.text,
+        html: payload.html,
+      });
+      return { sent: true, reason: null };
+    } catch (error) {
+      const reason = scrubPhi(error instanceof Error ? error.message : 'No se pudo enviar el correo') ?? 'No se pudo enviar el correo';
+      const recipient = scrubPhi(payload.to) ?? '[EMAIL]';
+      this.logger.error(`No se pudo enviar correo a ${recipient}: ${reason}`);
+      return { sent: false, reason };
+    }
+  }
+
+  private formatDateCL(date: Date): string {
+    return date.toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
+  }
+
+  async sendDataRequestAcknowledgement(payload: {
+    to: string;
+    requesterName: string;
+    requestId: string;
+    requestType: string;
+    dueDate: Date;
+  }) {
+    const subject = `Acuse de recibo — solicitud de derechos (Ley 21.719) #${payload.requestId.slice(0, 8)}`;
+    const text = [
+      `Hola ${payload.requesterName},`,
+      '',
+      `Recibimos tu solicitud de tipo ${payload.requestType} bajo la Ley 21.719.`,
+      `Número de seguimiento interno: ${payload.requestId}`,
+      `Plazo legal de respuesta: ${this.formatDateCL(payload.dueDate)} (30 días corridos, Art 11).`,
+      '',
+      'Verificaremos tu identidad y responderemos dentro del plazo. Si necesitamos extender la respuesta por hasta 30 días adicionales, te avisaremos por este mismo medio.',
+      '',
+      'Si no realizaste esta solicitud, escríbenos de inmediato.',
+    ].join('\n');
+    const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+      <h2>Acuse de recibo</h2>
+      <p>Hola ${escapeHtml(payload.requesterName)},</p>
+      <p>Recibimos tu solicitud de tipo <strong>${escapeHtml(payload.requestType)}</strong> bajo la Ley 21.719.</p>
+      <p>Número de seguimiento interno: <code>${escapeHtml(payload.requestId)}</code></p>
+      <p>Plazo legal de respuesta: <strong>${escapeHtml(this.formatDateCL(payload.dueDate))}</strong> (30 días corridos, Art 11).</p>
+      <p>Verificaremos tu identidad y responderemos dentro del plazo.</p>
+      <p style="color:#64748b;font-size:13px;">Si no realizaste esta solicitud, escríbenos de inmediato.</p>
+    </div>`;
+    return this.sendPlainEmail({ to: payload.to, subject, text, html });
+  }
+
+  async sendDataRequestResolved(payload: {
+    to: string;
+    requesterName: string;
+    requestId: string;
+    requestType: string;
+    resolutionNote: string;
+  }) {
+    const subject = `Resolución de tu solicitud (Ley 21.719) #${payload.requestId.slice(0, 8)}`;
+    const text = [
+      `Hola ${payload.requesterName},`,
+      '',
+      `Hemos resuelto favorablemente tu solicitud de tipo ${payload.requestType}.`,
+      '',
+      'Detalle de la resolución:',
+      payload.resolutionNote,
+      '',
+      'Si necesitas aclaraciones, responde a este correo.',
+    ].join('\n');
+    const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+      <h2>Resolución aceptada</h2>
+      <p>Hola ${escapeHtml(payload.requesterName)},</p>
+      <p>Hemos resuelto favorablemente tu solicitud de tipo <strong>${escapeHtml(payload.requestType)}</strong>.</p>
+      <p><strong>Detalle:</strong></p>
+      <p style="white-space:pre-line;">${escapeHtml(payload.resolutionNote)}</p>
+    </div>`;
+    return this.sendPlainEmail({ to: payload.to, subject, text, html });
+  }
+
+  async sendDataRequestRejected(payload: {
+    to: string;
+    requesterName: string;
+    requestId: string;
+    requestType: string;
+    reason: string;
+  }) {
+    const subject = `Resolución de tu solicitud (Ley 21.719) #${payload.requestId.slice(0, 8)}`;
+    const text = [
+      `Hola ${payload.requesterName},`,
+      '',
+      `Tras revisión, no podemos acoger tu solicitud de tipo ${payload.requestType}.`,
+      '',
+      'Motivo fundado:',
+      payload.reason,
+      '',
+      'Puedes reclamar esta decisión ante la Agencia de Protección de Datos Personales (Art 11 inciso final, Art 41 Ley 21.719).',
+    ].join('\n');
+    const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+      <h2>Resolución no acogida</h2>
+      <p>Hola ${escapeHtml(payload.requesterName)},</p>
+      <p>Tras revisión, no podemos acoger tu solicitud de tipo <strong>${escapeHtml(payload.requestType)}</strong>.</p>
+      <p><strong>Motivo fundado:</strong></p>
+      <p style="white-space:pre-line;">${escapeHtml(payload.reason)}</p>
+      <p style="color:#64748b;font-size:13px;">Puedes reclamar esta decisión ante la Agencia de Protección de Datos Personales (Art 41 Ley 21.719).</p>
+    </div>`;
+    return this.sendPlainEmail({ to: payload.to, subject, text, html });
+  }
+
+  async sendDataRequestExtended(payload: {
+    to: string;
+    requesterName: string;
+    requestId: string;
+    requestType: string;
+    newDueDate: Date;
+    reason: string;
+  }) {
+    const subject = `Prórroga de plazo en tu solicitud (Ley 21.719) #${payload.requestId.slice(0, 8)}`;
+    const text = [
+      `Hola ${payload.requesterName},`,
+      '',
+      `Extendemos por 30 días corridos adicionales (Art 11) el plazo para responder a tu solicitud de tipo ${payload.requestType}.`,
+      `Nuevo plazo máximo de respuesta: ${this.formatDateCL(payload.newDueDate)}.`,
+      '',
+      'Motivo de la prórroga:',
+      payload.reason,
+    ].join('\n');
+    const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+      <h2>Prórroga aplicada</h2>
+      <p>Hola ${escapeHtml(payload.requesterName)},</p>
+      <p>Extendemos por 30 días corridos adicionales (Art 11) el plazo para responder a tu solicitud de tipo <strong>${escapeHtml(payload.requestType)}</strong>.</p>
+      <p>Nuevo plazo máximo: <strong>${escapeHtml(this.formatDateCL(payload.newDueDate))}</strong>.</p>
+      <p style="white-space:pre-line;">${escapeHtml(payload.reason)}</p>
+    </div>`;
+    return this.sendPlainEmail({ to: payload.to, subject, text, html });
+  }
+
+  async sendBreachNotificationToSubject(payload: {
+    to: string;
+    subjectName: string;
+    breachId: string;
+    detectedAt: Date;
+    scope: string;
+    measuresTaken: string;
+  }) {
+    const subject = `Notificación obligatoria — incidente de seguridad (Ley 21.719 Art 14 sexies) #${payload.breachId.slice(0, 8)}`;
+    const text = [
+      `Hola ${payload.subjectName},`,
+      '',
+      'Le informamos que hemos detectado un incidente que afecta a la seguridad de sus datos personales registrados en Anamneo.',
+      `Fecha de detección: ${this.formatDateCL(payload.detectedAt)}`,
+      'Alcance del incidente:',
+      payload.scope,
+      '',
+      'Medidas adoptadas:',
+      payload.measuresTaken,
+      '',
+      'Recomendaciones: vigile cualquier uso indebido de su información y comuníquese con nosotros ante cualquier duda.',
+      '',
+      'Esta notificación se realiza en cumplimiento del Art 14 sexies de la Ley 21.719. Puede reclamar ante la Agencia de Protección de Datos Personales.',
+    ].join('\n');
+    const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+      <h2 style="color:#b91c1c;">Notificación obligatoria — incidente de seguridad</h2>
+      <p>Hola ${escapeHtml(payload.subjectName)},</p>
+      <p>Le informamos que hemos detectado un incidente que afecta a la seguridad de sus datos personales registrados en Anamneo.</p>
+      <p><strong>Fecha de detección:</strong> ${escapeHtml(this.formatDateCL(payload.detectedAt))}</p>
+      <p><strong>Alcance del incidente:</strong></p>
+      <p style="white-space:pre-line;">${escapeHtml(payload.scope)}</p>
+      <p><strong>Medidas adoptadas:</strong></p>
+      <p style="white-space:pre-line;">${escapeHtml(payload.measuresTaken)}</p>
+      <p style="color:#64748b;font-size:13px;">Esta notificación se realiza en cumplimiento del Art 14 sexies de la Ley 21.719. Puede reclamar ante la Agencia de Protección de Datos Personales.</p>
+    </div>`;
+    return this.sendPlainEmail({ to: payload.to, subject, text, html });
+  }
 }

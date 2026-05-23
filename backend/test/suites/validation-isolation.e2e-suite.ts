@@ -303,7 +303,7 @@ export function validationPatientIsolationSuite() {
 
     it('Encounter-linked and patient-level consents and alerts do not leak across medicos sharing the same patient', async () => {
       const [consent, alert] = await prisma.$transaction([
-        prisma.informedConsent.create({
+        prisma.clinicalConsent.create({
           data: {
             patientId: state.patientId,
             encounterId: leakedEncounterId,
@@ -326,7 +326,7 @@ export function validationPatientIsolationSuite() {
       ]);
 
       const [patientLevelConsent, patientLevelAlert] = await prisma.$transaction([
-        prisma.informedConsent.create({
+        prisma.clinicalConsent.create({
           data: {
             patientId: state.patientId,
             encounterId: null,

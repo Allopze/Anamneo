@@ -96,7 +96,7 @@ describe('AuditService', () => {
     const service = new AuditService(prisma as any);
 
     await service.log({
-      entityType: 'InformedConsent',
+      entityType: 'ClinicalConsent',
       entityId: 'consent-1',
       userId: 'user-1',
       action: 'UPDATE',

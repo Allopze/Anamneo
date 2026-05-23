@@ -26,6 +26,7 @@ import { AuditModule } from '../../src/audit/audit.module';
 import { SettingsModule } from '../../src/settings/settings.module';
 import { AnalyticsModule } from '../../src/analytics/analytics.module';
 import { TemplatesModule } from '../../src/templates/templates.module';
+import { OnboardingModule } from '../../src/onboarding/onboarding.module';
 import { HealthController } from '../../src/health.controller';
 import { requestTracingMiddleware } from '../../src/common/utils/request-tracing';
 
@@ -52,17 +53,23 @@ function buildDatabaseUrlWithName(databaseUrl: string, databaseName: string): st
   return url.toString();
 }
 
+function buildMaintenanceDatabaseUrl(databaseUrl: string) {
+  const url = new URL(buildDatabaseUrlWithName(databaseUrl, 'postgres'));
+  url.searchParams.delete('schema');
+  return url.toString();
+}
+
 function createTestDatabase(databaseUrl: string) {
   const databaseName = parseDatabaseName(databaseUrl);
-  const maintenanceUrl = buildDatabaseUrlWithName(databaseUrl, 'postgres');
-  execFileSync('dropdb', ['--if-exists', `--dbname=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
-  execFileSync('createdb', [`--dbname=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
+  const maintenanceUrl = buildMaintenanceDatabaseUrl(databaseUrl);
+  execFileSync('dropdb', ['--if-exists', `--maintenance-db=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
+  execFileSync('createdb', [`--maintenance-db=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
 }
 
 function dropTestDatabase(databaseUrl: string) {
   const databaseName = parseDatabaseName(databaseUrl);
-  const maintenanceUrl = buildDatabaseUrlWithName(databaseUrl, 'postgres');
-  execFileSync('dropdb', ['--if-exists', `--dbname=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
+  const maintenanceUrl = buildMaintenanceDatabaseUrl(databaseUrl);
+  execFileSync('dropdb', ['--if-exists', `--maintenance-db=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
 }
 
 // ── Shared mutable state ────────────────────────────────────────────
@@ -200,6 +207,7 @@ export async function bootstrapApp() {
       SettingsModule,
       AnalyticsModule,
       TemplatesModule,
+      OnboardingModule,
     ],
     controllers: [HealthController],
   }).compile();

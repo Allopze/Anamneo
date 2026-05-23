@@ -33,6 +33,9 @@ const TAB_DEFS: { key: AjustesTab; label: string; adminOnly?: boolean }[] = [
   { key: 'sistema', label: 'Sistema', adminOnly: true },
 ];
 
+const DEDICATION_TEXT =
+  'Planeado, diseñado y desarrollado por Alejandro L. Zelaya, con amor para su amada Camila Cepeda. Que Anamneo te acompañe y alivie, aunque sea un poco, la ya difícil tarea de estudiar medicina.';
+
 function AjustesContent() {
   const aj = useAjustes();
   const visibleTabs = TAB_DEFS.filter((t) => !t.adminOnly || aj.isAdmin);
@@ -116,6 +119,10 @@ function AjustesContent() {
           clinicMutation={aj.clinicMutation}
         />
       )}
+
+      <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-5 text-ink-muted">
+        {DEDICATION_TEXT}
+      </p>
     </div>
   );
 }

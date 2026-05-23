@@ -25,7 +25,7 @@ describe('audit-catalog', () => {
     ['Attachment', 'READ', {}, 'ATTACHMENT_LIST_VIEWED'],
     ['Attachment', 'DOWNLOAD', {}, 'ATTACHMENT_DOWNLOADED'],
     ['ClinicalAlert', 'READ', {}, 'ALERT_LIST_VIEWED'],
-    ['InformedConsent', 'READ', {}, 'CONSENT_LIST_VIEWED'],
+    ['ClinicalConsent', 'READ', {}, 'CONSENT_LIST_VIEWED'],
     ['UserInvitation', 'UPDATE', { revoked: true }, 'USER_INVITATION_REVOKED'],
     ['UserInvitation', 'DELETE', {}, 'USER_INVITATION_REVOKED'],
     ['User', 'PASSWORD_CHANGED', { reset: true }, 'USER_PASSWORD_RESET'],

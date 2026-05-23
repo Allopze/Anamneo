@@ -10,8 +10,12 @@ export const CLINICAL_ENTITY_TYPES = new Set([
   'EncounterTask',
   'Attachment',
   'ClinicalAlert',
-  'InformedConsent',
+  'ClinicalConsent',
   'TextTemplate',
+  // Ley 21.719: tratar como clinical para minimizar PHI en diff
+  'PatientDataProcessingConsent',
+  'PatientDataRequest',
+  'DataBreachIncident',
 ]);
 
 export const SAFE_CLINICAL_STRING_KEYS = new Set([

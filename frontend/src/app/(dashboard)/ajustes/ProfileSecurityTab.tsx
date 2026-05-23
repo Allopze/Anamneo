@@ -8,6 +8,7 @@ import { useAuthSetUser, useAuthUser } from '@/stores/auth-store';
 import { isSharedDeviceModeForced, usePrivacySettingsStore } from '@/stores/privacy-settings-store';
 import type { AjustesHook } from './useAjustes';
 import LegalDocumentsSection from './LegalDocumentsSection';
+import OnboardingSettingsSection from './OnboardingSettingsSection';
 import SessionManagementSection from './SessionManagementSection';
 import TwoFactorRecoveryCodesPanel from './TwoFactorRecoveryCodesPanel';
 
@@ -194,6 +195,8 @@ export default function ProfileSecurityTab({
       </div>
 
       <LegalDocumentsSection />
+
+      <OnboardingSettingsSection />
 
       <div className="card mb-6">
         <div className="panel-header">

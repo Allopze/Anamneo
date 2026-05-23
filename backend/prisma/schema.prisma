@@ -47,12 +47,15 @@ model User {
   patientProblems       PatientProblem[]
   medicoPatientProblems PatientProblem[]  @relation("ProblemMedico")
   medicoEncounterTasks  EncounterTask[]   @relation("TaskMedico")
-  grantedConsents       InformedConsent[] @relation("ConsentGrantedBy")
-  revokedConsents       InformedConsent[] @relation("ConsentRevokedBy")
+  grantedConsents       ClinicalConsent[] @relation("ConsentGrantedBy")
+  revokedConsents       ClinicalConsent[] @relation("ConsentRevokedBy")
+  capturedDataProcessingConsents PatientDataProcessingConsent[] @relation("DataProcessingConsentCapturedBy")
+  resolvedDataRequests  PatientDataRequest[] @relation("DataRequestResolvedBy")
   createdClinicalAlerts ClinicalAlert[]   @relation("ClinicalAlertCreatedBy")
   acknowledgedAlerts    ClinicalAlert[]   @relation("ClinicalAlertAcknowledgedBy")
   legalAcceptances       UserLegalAcceptance[]
   passwordResetTokens    PasswordResetToken[]
+  onboardingProgresses   UserOnboardingProgress[]
 
   @@map("users")
 }
@@ -99,6 +102,18 @@ model Patient {
   centroMedico    String?   @map("centro_medico")
   archivedAt      DateTime? @map("archived_at")
   archivedById    String?   @map("archived_by_id")
+  // Ley 21.719 Art 8 ter (bloqueo temporal del tratamiento)
+  blockedAt       DateTime? @map("blocked_at")
+  blockedReason   String?   @map("blocked_reason")
+  blockedById     String?   @map("blocked_by_id")
+  // Ley 21.719 Art 8 (oposicion) - JSON con flags por finalidad
+  // Ej: { "ANALITICA_INTERNA": true, "COMUNICACIONES": false }
+  processingObjections Json? @map("processing_objections")
+  // Ley 21.719 Art 16 quater (representante legal NNA)
+  legalRepresentativeName         String? @map("legal_representative_name")
+  legalRepresentativeRut          String? @map("legal_representative_rut")
+  legalRepresentativeRelationship String? @map("legal_representative_relationship")
+  legalRepresentativeContact      String? @map("legal_representative_contact")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
@@ -108,11 +123,14 @@ model Patient {
   episodes   EncounterEpisode[]
   problems   PatientProblem[]
   tasks      EncounterTask[]
-  consents   InformedConsent[]
+  consents   ClinicalConsent[]
+  dataProcessingConsents PatientDataProcessingConsent[]
+  dataRequests           PatientDataRequest[]
   alerts     ClinicalAlert[]
   clinicalSearches PatientClinicalSearch[]
 
   @@index([archivedAt])
+  @@index([blockedAt])
   @@index([createdById, archivedAt, createdAt])
   @@index([completenessStatus, archivedAt])
   @@index([updatedAt])
@@ -182,7 +200,7 @@ model Encounter {
   episode     EncounterEpisode?        @relation(fields: [episodeId], references: [id], onDelete: SetNull)
   sections    EncounterSection[]
   signatures  EncounterSignature[]
-  consents    InformedConsent[]
+  consents    ClinicalConsent[]
   alerts      ClinicalAlert[]
   suggestions ConditionSuggestionLog[]
   attachments Attachment[]
@@ -453,6 +471,11 @@ model Attachment {
   scanStatus   String    @default("PENDING") @map("scan_status")
   scanResult   String?   @map("scan_result")
   scannedAt    DateTime? @map("scanned_at")
+  // Ley 21.719 Art 14 quinquies (cifrado a nivel app). Cuando esta poblado,
+  // el archivo en `storagePath` esta cifrado con AES-256-GCM y el envelope
+  // contiene metadata para descifrarlo (algoritmo, IV, tag).
+  // Formato: { "alg": "aes-256-gcm", "iv": "<b64>", "tag": "<b64>", "v": 1 }
+  encryptionEnvelope Json? @map("encryption_envelope")
 
   encounter  Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
   uploadedBy User      @relation(fields: [uploadedById], references: [id])
@@ -553,6 +576,23 @@ model UserLegalAcceptance {
   @@map("user_legal_acceptances")
 }
 
+model UserOnboardingProgress {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  version          String
+  completedStepIds String    @default("[]") @map("completed_step_ids")
+  dismissedAt      DateTime? @map("dismissed_at")
+  completedAt      DateTime? @map("completed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, version])
+  @@index([userId])
+  @@map("user_onboarding_progress")
+}
+
 model LegalDocument {
   id          String    @id @default(uuid())
   type        String
@@ -567,6 +607,8 @@ model LegalDocument {
   updatedById String?   @map("updated_by_id")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  dataProcessingConsents PatientDataProcessingConsent[]
 
   @@unique([type, version])
   @@index([type, status])
@@ -619,7 +661,12 @@ model TextTemplate {
   @@map("text_templates")
 }
 
-model InformedConsent {
+// Consentimiento clinico de un acto medico (procedimiento, tratamiento,
+// investigacion). Otorgado por un User (medico/asistente) en nombre del
+// paciente. Renombrado desde InformedConsent como parte del roadmap Ley
+// 21.719: el consentimiento de TRATAMIENTO DE DATOS PERSONALES (Art 12)
+// se modela aparte en PatientDataProcessingConsent.
+model ClinicalConsent {
   id          String    @id @default(uuid())
   patientId   String    @map("patient_id")
   encounterId String?   @map("encounter_id")
@@ -640,7 +687,115 @@ model InformedConsent {
 
   @@index([patientId, revokedAt])
   @@index([patientId, revokedAt, grantedAt])
-  @@map("informed_consents")
+  @@map("clinical_consents")
+}
+
+// Ley 21.719 Art 12 - consentimiento del TITULAR (no del medico) para el
+// tratamiento de datos personales. Vincula a la version exacta del
+// LegalDocument (politica de privacidad) aceptada y captura evidencia
+// probatoria (Art 12 inciso final: carga de la prueba sobre el responsable).
+model PatientDataProcessingConsent {
+  id              String   @id @default(uuid())
+  patientId       String   @map("patient_id")
+  legalDocumentId String   @map("legal_document_id")
+  // ATENCION_CLINICA | ANALITICA_INTERNA | COMUNICACIONES | INVESTIGACION
+  purpose         String
+  granted         Boolean  @default(true)
+  grantedAt       DateTime @default(now()) @map("granted_at")
+  revokedAt       DateTime? @map("revoked_at")
+  // PRESENCIAL_TABLET | WEB_TITULAR | REPRESENTANTE
+  method          String
+  capturedIp      String?  @map("captured_ip")
+  capturedUserAgent String? @map("captured_user_agent")
+  // El User que asistio la captura (medico/asistente). Nullable cuando el
+  // titular firmo via WEB_TITULAR sin asistencia.
+  capturedByUserId String? @map("captured_by_user_id")
+  // Identidad declarada del firmante
+  signerName      String   @map("signer_name")
+  signerRut       String?  @map("signer_rut")
+  // TITULAR | PADRE | MADRE | TUTOR | REPRESENTANTE
+  signerRelationship String @map("signer_relationship")
+  // SHA-256 del payload firmado para integridad
+  evidenceHash    String   @map("evidence_hash")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  patient        Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  legalDocument  LegalDocument @relation(fields: [legalDocumentId], references: [id])
+  capturedBy     User?         @relation("DataProcessingConsentCapturedBy", fields: [capturedByUserId], references: [id])
+
+  @@index([patientId, purpose, revokedAt])
+  @@index([legalDocumentId])
+  @@map("patient_data_processing_consents")
+}
+
+// Ley 21.719 Art 4-11 - solicitudes del titular para ejercer sus derechos.
+// El SLA del Art 11 (30 dias corridos + prorroga 30 mas) se calcula en
+// `dueDate` y `prorrogaDueDate`.
+model PatientDataRequest {
+  id          String   @id @default(uuid())
+  patientId   String?  @map("patient_id")
+  // ACCESO | RECTIFICACION | SUPRESION | OPOSICION | PORTABILIDAD | BLOQUEO
+  requestType String   @map("request_type")
+  // RECIBIDA | EN_REVISION | RESUELTA_ACEPTADA | RESUELTA_RECHAZADA | VENCIDA
+  status      String   @default("RECIBIDA")
+  // TITULAR | REPRESENTANTE | ADMIN
+  submittedBy String   @map("submitted_by")
+  submittedAt DateTime @default(now()) @map("submitted_at")
+  // Datos del solicitante (puede no estar asociado a Patient aun, si el
+  // titular escribe desde el formulario publico antes de que se le ubique)
+  requesterName  String  @map("requester_name")
+  requesterRut   String? @map("requester_rut")
+  requesterEmail String  @map("requester_email")
+  // PRESENCIAL | CEDULA_FOTO | CLAVE_UNICA | OTRO
+  identityVerificationMethod String? @map("identity_verification_method")
+  identityVerificationEvidence Json? @map("identity_verification_evidence")
+  dueDate          DateTime  @map("due_date")
+  prorrogaDueDate  DateTime? @map("prorroga_due_date")
+  resolvedAt       DateTime? @map("resolved_at")
+  resolvedById     String?   @map("resolved_by_id")
+  resolutionNote   String?   @map("resolution_note")
+  payloadRequest   String    @map("payload_request")
+  payloadResponse  Json?     @map("payload_response")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  patient     Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  resolvedBy  User?    @relation("DataRequestResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([status, dueDate])
+  @@index([patientId, requestType])
+  @@index([requesterRut])
+  @@map("patient_data_requests")
+}
+
+// Ley 21.719 Art 14 sexies - registro de vulneraciones a las medidas de
+// seguridad. Anamneo siempre trata datos sensibles, por lo que la
+// notificacion a titulares es obligatoria en toda brecha con riesgo
+// razonable.
+model DataBreachIncident {
+  id               String   @id @default(uuid())
+  detectedAt       DateTime @map("detected_at")
+  // BAJO | MEDIO | ALTO | CRITICO
+  severity         String
+  // Resumen del alcance: que datos, cuantos titulares, vector
+  scope            String
+  affectedPatientIds Json?  @map("affected_patient_ids")
+  rootCause        String?  @map("root_cause")
+  containmentActions String? @map("containment_actions")
+  // Decision documentada sobre "riesgo razonable" del Art 14 sexies
+  riskAssessment   String?  @map("risk_assessment")
+  reportedToAgencyAt   DateTime? @map("reported_to_agency_at")
+  reportedToSubjectsAt DateTime? @map("reported_to_subjects_at")
+  // ABIERTO | EN_EVALUACION | NOTIFICADO | CERRADO
+  status           String   @default("ABIERTO")
+  createdById      String   @map("created_by_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([severity, status])
+  @@index([detectedAt])
+  @@map("data_breach_incidents")
 }
 
 model ClinicalAlert {

@@ -73,6 +73,24 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   CONDITION_CSV_IMPORTED: 'Importación CSV de catálogo global',
   MEDICATION_CSV_IMPORTED: 'Importación CSV de catálogo de medicamentos',
   SETTINGS_UPDATED: 'Actualización de configuración',
+  // Ley 21.719 - consentimiento del titular (Art 12)
+  PATIENT_DATA_CONSENT_GRANTED: 'Consentimiento de tratamiento de datos otorgado por el titular (Ley 21.719 Art 12)',
+  PATIENT_DATA_CONSENT_REVOKED: 'Consentimiento de tratamiento de datos revocado por el titular (Ley 21.719 Art 12)',
+  PATIENT_DATA_CONSENT_LIST_VIEWED: 'Consulta de consentimientos de tratamiento de datos del titular',
+  // Ley 21.719 - derechos del titular (Art 4-11)
+  PATIENT_RIGHT_REQUESTED: 'Solicitud de derecho del titular recibida (Ley 21.719 Art 4)',
+  PATIENT_RIGHT_RESOLVED_ACCEPTED: 'Solicitud de derecho del titular resuelta y aceptada',
+  PATIENT_RIGHT_RESOLVED_REJECTED: 'Solicitud de derecho del titular resuelta y rechazada con causa fundada',
+  PATIENT_RIGHT_EXPIRED: 'Solicitud de derecho del titular vencida sin respuesta (Ley 21.719 Art 11)',
+  PATIENT_RIGHT_LIST_VIEWED: 'Consulta de bandeja de solicitudes de derechos del titular',
+  // Ley 21.719 - bloqueo temporal (Art 8 ter)
+  PATIENT_BLOCKED: 'Bloqueo temporal de tratamiento de paciente (Ley 21.719 Art 8 ter)',
+  PATIENT_UNBLOCKED: 'Levantamiento de bloqueo temporal de tratamiento de paciente',
+  // Ley 21.719 - brechas (Art 14 sexies)
+  DATA_BREACH_DETECTED: 'Vulneración a medidas de seguridad detectada (Ley 21.719 Art 14 sexies)',
+  DATA_BREACH_REPORTED_TO_AGENCY: 'Vulneración reportada a la Agencia de Protección de Datos Personales',
+  DATA_BREACH_NOTIFIED_TO_SUBJECTS: 'Vulneración notificada a titulares afectados',
+  DATA_BREACH_CLOSED: 'Investigación de vulneración cerrada',
   AUDIT_UNSPECIFIED: 'Evento no catalogado',
 };
 
@@ -129,9 +147,9 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'ClinicalAlert' && action === 'CREATE') return 'ALERT_CREATED';
   if (entityType === 'ClinicalAlert' && action === 'READ') return 'ALERT_LIST_VIEWED';
   if (entityType === 'ClinicalAlert' && action === 'UPDATE') return 'ALERT_ACKNOWLEDGED';
-  if (entityType === 'InformedConsent' && action === 'READ') return 'CONSENT_LIST_VIEWED';
-  if (entityType === 'InformedConsent' && action === 'CREATE') return 'CONSENT_GRANTED';
-  if (entityType === 'InformedConsent' && action === 'UPDATE') return 'CONSENT_REVOKED';
+  if (entityType === 'ClinicalConsent' && action === 'READ') return 'CONSENT_LIST_VIEWED';
+  if (entityType === 'ClinicalConsent' && action === 'CREATE') return 'CONSENT_GRANTED';
+  if (entityType === 'ClinicalConsent' && action === 'UPDATE') return 'CONSENT_REVOKED';
   if (entityType === 'UserInvitation' && action === 'CREATE') return 'USER_INVITATION_CREATED';
   if (entityType === 'UserInvitation' && action === 'UPDATE') return 'USER_INVITATION_REVOKED';
   if (entityType === 'UserInvitation' && action === 'DELETE') return 'USER_INVITATION_REVOKED';
@@ -148,6 +166,22 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'ConditionCatalog' && action === 'UPDATE' && hasDiffScope(diff, 'CSV_IMPORT')) return 'CONDITION_CSV_IMPORTED';
   if (entityType === 'MedicationCatalog' && action === 'UPDATE' && hasDiffScope(diff, 'CSV_IMPORT')) return 'MEDICATION_CSV_IMPORTED';
   if (entityType === 'Setting' && action === 'UPDATE') return 'SETTINGS_UPDATED';
+
+  // Ley 21.719
+  if (entityType === 'PatientDataProcessingConsent' && action === 'CREATE') return 'PATIENT_DATA_CONSENT_GRANTED';
+  if (entityType === 'PatientDataProcessingConsent' && action === 'UPDATE') return 'PATIENT_DATA_CONSENT_REVOKED';
+  if (entityType === 'PatientDataProcessingConsent' && action === 'READ') return 'PATIENT_DATA_CONSENT_LIST_VIEWED';
+  if (entityType === 'PatientDataRequest' && action === 'CREATE') return 'PATIENT_RIGHT_REQUESTED';
+  if (entityType === 'PatientDataRequest' && action === 'UPDATE' && hasDiffValue(diff, 'status', 'RESUELTA_ACEPTADA')) return 'PATIENT_RIGHT_RESOLVED_ACCEPTED';
+  if (entityType === 'PatientDataRequest' && action === 'UPDATE' && hasDiffValue(diff, 'status', 'RESUELTA_RECHAZADA')) return 'PATIENT_RIGHT_RESOLVED_REJECTED';
+  if (entityType === 'PatientDataRequest' && action === 'UPDATE' && hasDiffValue(diff, 'status', 'VENCIDA')) return 'PATIENT_RIGHT_EXPIRED';
+  if (entityType === 'PatientDataRequest' && action === 'READ') return 'PATIENT_RIGHT_LIST_VIEWED';
+  if (entityType === 'Patient' && action === 'UPDATE' && hasDiffKey(diff, 'blockedAt') && !hasDiffValue(diff, 'blockedAt', null)) return 'PATIENT_BLOCKED';
+  if (entityType === 'Patient' && action === 'UPDATE' && hasDiffKey(diff, 'blockedAt') && hasDiffValue(diff, 'blockedAt', null)) return 'PATIENT_UNBLOCKED';
+  if (entityType === 'DataBreachIncident' && action === 'CREATE') return 'DATA_BREACH_DETECTED';
+  if (entityType === 'DataBreachIncident' && action === 'UPDATE' && hasDiffKey(diff, 'reportedToAgencyAt')) return 'DATA_BREACH_REPORTED_TO_AGENCY';
+  if (entityType === 'DataBreachIncident' && action === 'UPDATE' && hasDiffKey(diff, 'reportedToSubjectsAt')) return 'DATA_BREACH_NOTIFIED_TO_SUBJECTS';
+  if (entityType === 'DataBreachIncident' && action === 'UPDATE' && hasDiffValue(diff, 'status', 'CERRADO')) return 'DATA_BREACH_CLOSED';
 
   return 'AUDIT_UNSPECIFIED';
 }
