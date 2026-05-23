@@ -1,5 +1,29 @@
 import { Prisma } from '@prisma/client';
 import { getPatientDemographicsMissingFields, hasPatientVerificationFieldChanges, isPatientDemographicsComplete } from '../common/utils/patient-completeness';
+import { decryptField } from '../common/utils/field-crypto';
+
+/**
+ * Ley 21.719 Art 14 quinquies — Phase B: read-side switch.
+ *
+ * Si un campo tiene su contraparte `*_enc` poblada, descifrarla y usar el
+ * resultado como fuente de verdad. Caer al plaintext si:
+ *  - El campo `_enc` esta vacio (registro Phase A sin backfill).
+ *  - El descifrado falla (clave rotada o corrupcion).
+ *
+ * Esto permite operar transparentemente durante la transicion hasta que
+ * todos los registros tengan `*_enc` poblado y se eliminen los plaintext
+ * en una migracion final.
+ */
+function decryptOrFallback(enc: string | null | undefined, plain: string | null | undefined): string | null {
+  if (enc) {
+    try {
+      return decryptField(enc);
+    } catch {
+      // Fall through to plaintext if available
+    }
+  }
+  return plain ?? null;
+}
 
 export function formatTask(task: any) {
   return {
@@ -53,10 +77,10 @@ export function formatProblem(problem: any) {
 export function decoratePatient<T extends Record<string, any>>(patient: T) {
   return {
     id: patient.id,
-    rut: patient.rut,
+    rut: decryptOrFallback(patient.rutEnc, patient.rut),
     rutExempt: patient.rutExempt,
     rutExemptReason: patient.rutExemptReason,
-    nombre: patient.nombre,
+    nombre: decryptOrFallback(patient.nombreEnc, patient.nombre) ?? patient.nombre,
     fechaNacimiento: patient.fechaNacimiento,
     edad: patient.edad,
     edadMeses: patient.edadMeses,
@@ -67,14 +91,25 @@ export function decoratePatient<T extends Record<string, any>>(patient: T) {
     completenessStatus: patient.completenessStatus,
     demographicsVerifiedAt: patient.demographicsVerifiedAt ?? null,
     demographicsVerifiedById: patient.demographicsVerifiedById ?? null,
-    domicilio: patient.domicilio,
-    telefono: patient.telefono ?? null,
-    email: patient.email ?? null,
-    contactoEmergenciaNombre: patient.contactoEmergenciaNombre ?? null,
-    contactoEmergenciaTelefono: patient.contactoEmergenciaTelefono ?? null,
+    domicilio: decryptOrFallback(patient.domicilioEnc, patient.domicilio),
+    telefono: decryptOrFallback(patient.telefonoEnc, patient.telefono),
+    email: decryptOrFallback(patient.emailEnc, patient.email),
+    contactoEmergenciaNombre: decryptOrFallback(patient.contactoEmergenciaNombreEnc, patient.contactoEmergenciaNombre),
+    contactoEmergenciaTelefono: decryptOrFallback(patient.contactoEmergenciaTelefonoEnc, patient.contactoEmergenciaTelefono),
     centroMedico: patient.centroMedico,
     archivedAt: patient.archivedAt ?? null,
     archivedById: patient.archivedById ?? null,
+    // Ley 21.719 Art 8 ter — exponer estado de bloqueo a UI admin.
+    blockedAt: patient.blockedAt ?? null,
+    blockedReason: patient.blockedReason ?? null,
+    blockedById: patient.blockedById ?? null,
+    // Ley 21.719 Art 16 quater — representante legal NNA
+    legalRepresentativeName: patient.legalRepresentativeName ?? null,
+    legalRepresentativeRut: patient.legalRepresentativeRut ?? null,
+    legalRepresentativeRelationship: patient.legalRepresentativeRelationship ?? null,
+    legalRepresentativeContact: patient.legalRepresentativeContact ?? null,
+    // Ley 21.719 Art 8 — flags de oposicion por finalidad
+    processingObjections: patient.processingObjections ?? null,
     createdAt: patient.createdAt,
     updatedAt: patient.updatedAt,
     demographicsMissingFields: getPatientDemographicsMissingFields(patient),
@@ -117,15 +152,23 @@ export function formatAdminSummary(patient: {
   } | null;
   encounters: Array<{ createdAt: Date }>;
   _count: { encounters: number };
+  // Campos `_enc` opcionales (Ley 21.719 Art 14 quinquies — read switch Phase B)
+  rutEnc?: string | null;
+  nombreEnc?: string | null;
+  telefonoEnc?: string | null;
+  emailEnc?: string | null;
+  domicilioEnc?: string | null;
+  contactoEmergenciaNombreEnc?: string | null;
+  contactoEmergenciaTelefonoEnc?: string | null;
 }) {
   const { encounters, _count, ...summary } = patient;
 
   return {
     id: summary.id,
-    rut: summary.rut,
+    rut: decryptOrFallback(summary.rutEnc, summary.rut),
     rutExempt: summary.rutExempt,
     rutExemptReason: summary.rutExemptReason,
-    nombre: summary.nombre,
+    nombre: decryptOrFallback(summary.nombreEnc, summary.nombre) ?? summary.nombre,
     fechaNacimiento: summary.fechaNacimiento,
     edad: summary.edad,
     edadMeses: summary.edadMeses,
@@ -137,11 +180,11 @@ export function formatAdminSummary(patient: {
     demographicsVerifiedAt: summary.demographicsVerifiedAt,
     demographicsVerifiedById: summary.demographicsVerifiedById,
     demographicsMissingFields: getPatientDemographicsMissingFields(summary),
-    domicilio: summary.domicilio,
-    telefono: summary.telefono,
-    email: summary.email,
-    contactoEmergenciaNombre: summary.contactoEmergenciaNombre,
-    contactoEmergenciaTelefono: summary.contactoEmergenciaTelefono,
+    domicilio: decryptOrFallback(summary.domicilioEnc, summary.domicilio),
+    telefono: decryptOrFallback(summary.telefonoEnc, summary.telefono),
+    email: decryptOrFallback(summary.emailEnc, summary.email),
+    contactoEmergenciaNombre: decryptOrFallback(summary.contactoEmergenciaNombreEnc, summary.contactoEmergenciaNombre),
+    contactoEmergenciaTelefono: decryptOrFallback(summary.contactoEmergenciaTelefonoEnc, summary.contactoEmergenciaTelefono),
     centroMedico: summary.centroMedico,
     createdAt: summary.createdAt,
     updatedAt: summary.updatedAt,

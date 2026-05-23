@@ -7,6 +7,9 @@ function buildPrismaMock() {
       findUnique: jest.fn(),
       delete: jest.fn().mockResolvedValue(undefined),
     },
+    encounter: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
   } as any;
 }
 

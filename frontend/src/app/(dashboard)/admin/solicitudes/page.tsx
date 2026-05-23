@@ -5,6 +5,7 @@ import { api, getErrorMessage } from '@/lib/api';
 
 interface DataRequest {
   id: string;
+  patientId: string | null;
   requestType: string;
   status: string;
   submittedBy: string;
@@ -14,7 +15,10 @@ interface DataRequest {
   requesterName: string;
   requesterEmail: string;
   requesterRut: string | null;
+  identityVerificationMethod: string | null;
+  identityVerificationEvidence: unknown | null;
   payloadRequest: string;
+  payloadResponse: unknown | null;
   resolutionNote: string | null;
 }
 
@@ -27,12 +31,31 @@ const STATUS_FILTERS = [
   { value: 'VENCIDA', label: 'Vencidas' },
 ];
 
+interface ExportDelivery {
+  downloadId?: string;
+  expiresAt?: string;
+  maxDownloads?: number;
+  fileSha256?: string;
+}
+
+function getExportDelivery(payload: unknown): ExportDelivery | null {
+  if (!payload || typeof payload !== 'object' || !('exportDelivery' in payload)) return null;
+  const delivery = (payload as { exportDelivery?: unknown }).exportDelivery;
+  if (!delivery || typeof delivery !== 'object') return null;
+  return delivery as ExportDelivery;
+}
+
 export default function SolicitudesAdminPage() {
   const [items, setItems] = useState<DataRequest[]>([]);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<DataRequest | null>(null);
+  const [patientId, setPatientId] = useState('');
+  const [identityVerificationMethod, setIdentityVerificationMethod] = useState('PRESENCIAL');
+  const [identityEvidence, setIdentityEvidence] = useState('');
+  const [exportLink, setExportLink] = useState<string | null>(null);
+  const selectedExportDelivery = selected ? getExportDelivery(selected.payloadResponse) : null;
 
   const load = async (filterStatus?: string) => {
     setLoading(true);
@@ -93,6 +116,78 @@ export default function SolicitudesAdminPage() {
     try {
       await api.patch(`/admin/data-requests/${id}`, { status: 'EN_REVISION' });
       await load(status);
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
+  };
+
+  const handleSaveVerification = async () => {
+    if (!selected) return;
+    if (!patientId.trim()) {
+      alert('Debes ingresar el ID del paciente');
+      return;
+    }
+    try {
+      const res = await api.patch<DataRequest>(`/admin/data-requests/${selected.id}`, {
+        patientId: patientId.trim(),
+        identityVerificationMethod,
+        identityVerificationEvidence: {
+          note: identityEvidence.trim() || null,
+          recordedAt: new Date().toISOString(),
+        },
+        status: selected.status === 'RECIBIDA' ? 'EN_REVISION' : undefined,
+      });
+      setSelected(res.data);
+      await load(status);
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
+  };
+
+  const handleGenerateExportLink = async () => {
+    if (!selected) return;
+    try {
+      const res = await api.post<{
+        id: string;
+        downloadUrl: string;
+        expiresAt: string;
+        maxDownloads: number;
+        mail: { sent: boolean; reason: string | null };
+      }>(
+        `/admin/data-requests/${selected.id}/export-link`,
+        {},
+      );
+      setExportLink(res.data.downloadUrl);
+      setSelected({
+        ...selected,
+        payloadResponse: {
+          exportDelivery: {
+            downloadId: res.data.id,
+            expiresAt: res.data.expiresAt,
+            maxDownloads: res.data.maxDownloads,
+          },
+        },
+      });
+      await load(status);
+      if (!res.data.mail.sent) {
+        alert(`Enlace generado, pero no se pudo enviar correo: ${res.data.mail.reason ?? 'SMTP no configurado'}`);
+      }
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
+  };
+
+  const handleRevokeExportLink = async (downloadId: string) => {
+    const reason = window.prompt('Motivo de revocación del enlace:');
+    if (!reason || reason.trim().length < 5) {
+      alert('Indica un motivo breve para auditar la revocación');
+      return;
+    }
+    try {
+      await api.post(`/admin/data-request-downloads/${downloadId}/revoke`, { reason: reason.trim() });
+      setExportLink(null);
+      await load(status);
+      alert('Enlace revocado');
     } catch (err) {
       alert(getErrorMessage(err));
     }
@@ -162,7 +257,13 @@ export default function SolicitudesAdminPage() {
                   <td className="py-2 text-xs">
                     <button
                       className="mr-2 text-teal-700 underline"
-                      onClick={() => setSelected(it)}
+                      onClick={() => {
+                        setSelected(it);
+                        setPatientId(it.patientId ?? '');
+                        setIdentityVerificationMethod(it.identityVerificationMethod ?? 'PRESENCIAL');
+                        setIdentityEvidence('');
+                        setExportLink(null);
+                      }}
                     >
                       Ver
                     </button>
@@ -205,6 +306,10 @@ export default function SolicitudesAdminPage() {
                 <dd>{selected.requesterRut ?? '—'}</dd>
               </div>
               <div>
+                <dt className="text-xs uppercase text-slate-500">Paciente vinculado</dt>
+                <dd>{selected.patientId ?? 'Sin vincular'}</dd>
+              </div>
+              <div>
                 <dt className="text-xs uppercase text-slate-500">Vence</dt>
                 <dd>
                   {new Date(selected.prorrogaDueDate ?? selected.dueDate).toLocaleString('es-CL')}
@@ -225,6 +330,72 @@ export default function SolicitudesAdminPage() {
                 </div>
               )}
             </dl>
+            <div className="mt-4 rounded-lg border border-slate-200 p-3">
+              <p className="mb-3 text-sm font-medium">Verificación y vínculo clínico</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-xs text-slate-600">
+                  ID paciente
+                  <input
+                    value={patientId}
+                    onChange={(e) => setPatientId(e.target.value)}
+                    className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                    placeholder="UUID del paciente"
+                  />
+                </label>
+                <label className="text-xs text-slate-600">
+                  Método de verificación
+                  <select
+                    value={identityVerificationMethod}
+                    onChange={(e) => setIdentityVerificationMethod(e.target.value)}
+                    className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                  >
+                    <option value="PRESENCIAL">Presencial</option>
+                    <option value="CEDULA_FOTO">Cédula + foto</option>
+                    <option value="CLAVE_UNICA">Clave Única</option>
+                    <option value="OTRO">Otro</option>
+                  </select>
+                </label>
+              </div>
+              <label className="mt-3 block text-xs text-slate-600">
+                Evidencia / nota interna
+                <textarea
+                  value={identityEvidence}
+                  onChange={(e) => setIdentityEvidence(e.target.value)}
+                  rows={2}
+                  className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                  placeholder="Documento revisado, canal usado, responsable, etc."
+                />
+              </label>
+              <button
+                onClick={handleSaveVerification}
+                className="mt-3 rounded bg-slate-800 px-3 py-1 text-xs text-white"
+              >
+                Guardar verificación
+              </button>
+            </div>
+            {exportLink && (
+              <div className="mt-4 rounded border border-teal-200 bg-teal-50 p-3 text-xs text-teal-900">
+                Enlace generado y enviado si SMTP está configurado:
+                <p className="mt-1 break-all font-mono">{exportLink}</p>
+              </div>
+            )}
+            {selectedExportDelivery?.downloadId && (
+              <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                <p className="font-medium text-slate-900">Entrega registrada</p>
+                {selectedExportDelivery.expiresAt && (
+                  <p>Vence: {new Date(selectedExportDelivery.expiresAt).toLocaleString('es-CL')}</p>
+                )}
+                {selectedExportDelivery.fileSha256 && (
+                  <p className="break-all font-mono">SHA-256: {selectedExportDelivery.fileSha256}</p>
+                )}
+                <button
+                  onClick={() => handleRevokeExportLink(selectedExportDelivery.downloadId!)}
+                  className="mt-2 rounded bg-rose-700 px-3 py-1 text-xs text-white"
+                >
+                  Revocar enlace
+                </button>
+              </div>
+            )}
             {selected.status !== 'RESUELTA_ACEPTADA' &&
               selected.status !== 'RESUELTA_RECHAZADA' && (
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -250,6 +421,14 @@ export default function SolicitudesAdminPage() {
                   >
                     Resolver — aceptar
                   </button>
+                  {['ACCESO', 'PORTABILIDAD'].includes(selected.requestType) && (
+                    <button
+                      onClick={handleGenerateExportLink}
+                      className="rounded bg-cyan-700 px-3 py-1 text-xs text-white"
+                    >
+                      Generar enlace de descarga
+                    </button>
+                  )}
                   <button
                     onClick={() => handleResolve(selected.id, 'RESUELTA_RECHAZADA')}
                     className="rounded bg-rose-700 px-3 py-1 text-xs text-white"

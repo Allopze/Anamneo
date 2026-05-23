@@ -25,7 +25,7 @@ Cualquiera sea el canal, la solicitud DEBE quedar registrada en `PatientDataRequ
 |---|---|
 | Respuesta al titular | **30 días corridos** desde recepción de la solicitud. |
 | Prórroga (una sola vez, por causa fundada) | +30 días corridos. |
-| Bloqueo temporal (Art 8 ter) — resolución | **3 días hábiles** (Art 41 inciso final). |
+| Bloqueo temporal (Art 8 ter) — resolución por el responsable | **2 días hábiles**. (Nota: los 3 días hábiles del Art 41 inciso final aplican a la resolución de la Agencia en ciertos escenarios, no al plazo ordinario del responsable.) |
 
 El cron interno (`DataRequestSlaService.markExpiredRequests`) corre cada hora y marca como `VENCIDA` cualquier solicitud cuyo plazo (incluyendo prórroga) haya pasado. Esto NO exime de responsabilidad sino que crea evidencia auditable del retraso.
 
@@ -35,9 +35,10 @@ El cron interno (`DataRequestSlaService.markExpiredRequests`) corre cada hora y 
 
 1. Verificar identidad del titular (ver §4).
 2. Vincular la solicitud a un `Patient` desde la admin UI (`PATCH /admin/data-requests/:id` con `patientId`).
-3. Generar bundle regulatorio: `GET /api/patients/:id/export/regulatory` (admin-only). Audita automáticamente con razón `PATIENT_DATA_EXPORTED_REGULATORY`.
-4. Entregar el ZIP de forma segura: encriptación de transporte (correo cifrado, descarga autenticada con TTL corto, presencial). NUNCA por canales no cifrados.
-5. Marcar la solicitud como `RESUELTA_ACEPTADA` con nota que incluya el ID del export entregado.
+3. Generar enlace temporal desde la bandeja admin (`POST /api/admin/data-requests/:id/export-link`).
+4. El sistema reutiliza el bundle regulatorio, guarda el ZIP cifrado en `runtime/data/data-requests/` y envía un enlace a `/descargar-ficha?token=...`.
+5. El titular debe ingresar el RUT asociado para descargar. El enlace vence en 72 horas, permite máximo 3 descargas y cada descarga queda auditada.
+6. Marcar la solicitud como `RESUELTA_ACEPTADA` con nota que incluya el ID del enlace/export entregado.
 
 ### 3.2 Rectificación (Art 6)
 
@@ -65,29 +66,31 @@ El cron interno (`DataRequestSlaService.markExpiredRequests`) corre cada hora y 
 ### 3.5 Portabilidad (Art 9)
 
 1. Verificar identidad.
-2. Generar el ZIP regulatorio (mismo flujo que §3.1).
-3. Entregarlo en formato JSON estructurado (el ZIP ya cumple: `data.json` + adjuntos).
+2. Generar el enlace temporal (mismo flujo que §3.1).
+3. Entregarlo en formato ZIP con `data.json` estructurado + adjuntos.
 4. Marcar `RESUELTA_ACEPTADA`.
 
 ### 3.6 Bloqueo temporal (Art 8 ter)
 
-1. Verificar identidad rápidamente (plazo: 3 días hábiles).
+1. Verificar identidad rápidamente (plazo del responsable: **2 días hábiles**).
 2. Setear `Patient.blockedAt = now()` + `blockedReason` desde la admin UI.
 3. El `PatientNotBlockedGuard` impedirá nuevas mutaciones clínicas mientras el bloqueo esté activo.
 4. Una vez resuelta la causa que motivó el bloqueo (típicamente otra solicitud), levantar el bloqueo seteando `blockedAt = null`.
 
 ## 4. Verificación de identidad
 
-Métodos aceptables (`identityVerificationMethod` en `PatientDataRequest`):
+Métodos aceptables, ajustados al riesgo de cada canal/solicitud (`identityVerificationMethod` en `PatientDataRequest`):
 
-| Método | Evidencia esperada | Riesgo |
+| Canal / situación | Verificación sugerida | Evidencia a guardar |
 |---|---|---|
-| PRESENCIAL | Anotación firmada por personal + ID con foto verificado | Bajo |
-| CEDULA_FOTO | Foto cédula + selfie con cédula visible | Medio |
-| CLAVE_UNICA | Login con Clave Única + verificación del email del registro | Bajo |
-| OTRO | Documentar caso a caso | Variable |
+| Portal autenticado (paciente con cuenta) | Sesión fuerte + segundo factor | Hash de sesión + timestamp + IP |
+| Correo electrónico | Enlace seguro + validación con datos conocidos del paciente | Mensaje enviado + datos validados |
+| Solicitud sensible o ficha clínica | Cédula vigente + autenticación fuerte o validación presencial equivalente | Constancia presencial firmada o copia/foto controlada |
+| Tercero autorizado | Poder o mandato válido | Documento legal + identidad del mandatario |
+| Representante de NNA | Identidad del representante + acreditación del vínculo proporcional al riesgo | Cédula + acreditación (declaración auditada para padre/madre; documento para tutor judicial) |
+| Heredero | Documentación sucesoria o respaldo suficiente | Posesión efectiva / certificado de defunción + acreditación de calidad de heredero |
 
-[PENDIENTE_ABOGADO] Validar listado y criterios mínimos — ver [`preguntas-abogado-ley21719.md`](preguntas-abogado-ley21719.md) §3.1.
+**Principio de proporcionalidad:** no exigir copia de cédula + selfie por defecto en todas las solicitudes. Eso aumenta innecesariamente el tratamiento de datos sensibles/biométricos. Pedirla solo cuando el riesgo lo justifique (solicitudes sensibles, dudas razonables sobre identidad).
 
 Guarde la evidencia en `identityVerificationEvidence` (JSON) — si es un archivo, súbalo a un repositorio seguro y referencie su URL.
 
@@ -101,18 +104,36 @@ Las plantillas las emite automáticamente `MailService`:
 | Resolución aceptada | `sendDataRequestResolved` | Inline HTML + texto plano |
 | Resolución rechazada (motivo fundado) | `sendDataRequestRejected` | Inline HTML + texto plano |
 | Prórroga aplicada | `sendDataRequestExtended` | Inline HTML + texto plano |
+| Enlace temporal de ficha | `sendDataRequestExportLink` | Inline HTML + texto plano |
 
 Ver [`backend/src/mail/mail.service.ts`](../backend/src/mail/mail.service.ts) (sección "Ley 21.719 — comunicaciones a titulares").
 
 ## 6. Causales típicas de denegación fundada
 
-Cuando se rechaza, la nota DEBE citar la causal específica:
+Cuando se rechaza, la nota DEBE citar la causal específica. Causales admisibles:
 
-- Art 7 lit iii — la conservación es necesaria para una **función pública** (no aplica a clínicas privadas, pero sí a clínicas estatales).
-- Art 7 lit iv — **interés público en salud pública**.
-- Art 7 lit i — ejercicio de la **libertad de informar** (no aplica a Anamneo).
-- Identidad no verificada o insuficiente → no se rechaza, se solicita complemento.
-- Solicitud manifiestamente abusiva o repetitiva → causal del Art 10 (cobro o rechazo).
+1. **Falta de verificación de identidad** del solicitante (no se rechaza definitivamente; se solicita complemento antes de denegar).
+2. **Falta de legitimación** del solicitante (no es el titular ni un representante o heredero acreditado).
+3. **Inexistencia de datos** sobre el solicitante en los registros.
+4. **Conservación obligatoria por norma sanitaria** (Ley 20.584, Código Sanitario, normas MINSAL específicas) — caso típico para SUPRESIÓN de ficha clínica.
+5. **Necesidad para defensa jurídica** del responsable (formulación, ejercicio o defensa de reclamaciones).
+6. **Obligación legal** específica que ordene conservar el dato.
+7. **Interés público o salud pública** (Art 7 excepción iv).
+8. **Investigación bajo condiciones legales** (Art 16 quinquies + autorización ética cuando aplique).
+9. **Afectación de derechos de terceros** (un dato que también identifica o concierne a otra persona).
+10. **Imposibilidad técnica justificada** y explicada, si aplica.
+11. **Solicitud manifiestamente infundada o excesiva** (si la ley/reglamento lo permite y se documenta — Art 10 puede habilitar cobro o rechazo).
+
+### Caso especial: solicitud de supresión sobre ficha clínica dentro del plazo de conservación
+
+La respuesta correcta NO es eliminar. La respuesta correcta es indicar que la supresión no procede por la obligación sanitaria de conservación, **pero ofrecer alternativas**:
+
+- revocar consentimientos opcionales (analítica, comunicaciones no clínicas, investigación);
+- bloquear usos no necesarios;
+- restringir finalidades secundarias;
+- corregir datos inexactos;
+- entregar copia / acceso al titular;
+- informar plazo legal de conservación y la base normativa que lo ampara.
 
 ## 7. Escalamiento
 
@@ -125,7 +146,7 @@ Cuando se rechaza, la nota DEBE citar la causal específica:
 
 ## 8. Auditoría
 
-Toda acción sobre `PatientDataRequest` queda registrada con razones específicas del catálogo (`PATIENT_RIGHT_REQUESTED`, `PATIENT_RIGHT_RESOLVED_*`, `PATIENT_RIGHT_EXPIRED`). El bloqueo y desbloqueo de pacientes usa `PATIENT_BLOCKED` / `PATIENT_UNBLOCKED`. La cadena SHA-256 de `AuditLog` provee evidencia íntegra.
+Toda acción sobre `PatientDataRequest` queda registrada con razones específicas del catálogo (`PATIENT_RIGHT_REQUESTED`, `PATIENT_RIGHT_RESOLVED_*`, `PATIENT_RIGHT_EXPIRED`). Los enlaces temporales usan `PATIENT_DATA_REQUEST_EXPORT_LINK_CREATED`, `PATIENT_DATA_REQUEST_EXPORT_DOWNLOADED`, `PATIENT_DATA_REQUEST_EXPORT_EXPIRED` y `PATIENT_DATA_REQUEST_EXPORT_REVOKED`. El bloqueo y desbloqueo de pacientes usa `PATIENT_BLOCKED` / `PATIENT_UNBLOCKED`. La cadena SHA-256 de `AuditLog` provee evidencia íntegra.
 
 ## 9. Referencias
 

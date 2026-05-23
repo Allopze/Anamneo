@@ -13,7 +13,16 @@ Ley 21.719 Art 14 sexies — el responsable debe reportar a la **Agencia de Prot
 
 Anamneo trata datos sensibles (Art 2 lit g) por construcción. Por tanto, **toda vulneración con riesgo razonable también activa la obligación de notificar a los titulares afectados** (Art 14 sexies inciso 3).
 
-**El plazo legal NO es 72 horas** (eso es GDPR). El estándar es cualitativo: "sin dilaciones indebidas". Como política interna se adopta como objetivo operativo **decidir reportabilidad en ≤24h y notificar en ≤72h** desde la detección.
+**El plazo legal NO es 72 horas** (eso es GDPR). El estándar es cualitativo: "sin dilaciones indebidas". Como política interna se adopta una matriz de SLA operativos:
+
+| Hito | Objetivo interno |
+|---|---:|
+| Detección y registro inicial | Inmediato |
+| Triage de severidad | < 24 h |
+| Escalamiento a DPO / legal / seguridad | < 24 h |
+| Evaluación de riesgo razonable | < 48 h |
+| Decisión de notificar | < 72 h |
+| Notificación a Agencia / titulares si procede | Sin demora, documentando razones |
 
 ## 2. Detección
 
@@ -38,7 +47,9 @@ Fuentes de detección admisibles:
 
 ## 4. Evaluación de "riesgo razonable"
 
-Documente esta evaluación en el campo `riskAssessment` del incidente. Marca los factores aplicables:
+> **Regla de presunción para Anamneo (basada en respuesta legal §3.3):** ante acceso no autorizado a datos identificables de pacientes, **la presunción práctica es que existe riesgo razonable**, salvo que se documente lo contrario. Excepciones típicas de bajo riesgo: datos cifrados sin compromiso de llaves, o eventos contenidos sin acceso real a PHI.
+
+Documente esta evaluación en el campo `riskAssessment` del incidente. Marque los factores aplicables:
 
 - [ ] **Naturaleza** del dato afectado (sensible salud = peso alto).
 - [ ] **Volumen** (número de titulares afectados).
@@ -66,15 +77,33 @@ Cada paso queda auditado con razones `DATA_BREACH_*` y entra en la cadena de int
 
 ## 7. Notificación a titulares
 
-La plantilla automática (`sendBreachNotificationToSubject`) incluye:
-- Identificación del incidente.
-- Fecha de detección.
-- Alcance.
-- Medidas adoptadas.
-- Recomendaciones.
-- Mención a la Agencia como vía de reclamación.
+La notificación a titulares puede hacerse por medios electrónicos si son adecuados, trazables y efectivos. Email o SMS pueden servir, pero **para incidentes graves conviene combinar canales**. Si la notificación individual no es posible, evaluar comunicación masiva conforme a la ley.
 
-Si el titular no tiene email registrado (`Patient.email = NULL`), la notificación se hace por canal alternativo (presencial, correo certificado). Documente en `postMortem` qué titulares quedaron pendientes de notificar y por qué medio.
+### 7.1 Contenido mínimo de la notificación (11 elementos)
+
+Toda notificación a un titular afectado debe contener al menos:
+
+1. **Identificación del responsable** del tratamiento (clínica usuaria + Anamneo como encargado, cuando corresponda).
+2. **Datos de contacto del DPO** (nombre + email).
+3. **Fecha o período estimado** del incidente.
+4. **Descripción clara del incidente** en lenguaje sencillo.
+5. **Categorías de datos afectadas** (identificatorios, salud, contacto, NNA, etc.).
+6. **Posibles consecuencias** para el titular (uso indebido, fraude, daño reputacional, riesgo asistencial).
+7. **Medidas adoptadas por el responsable** (contención, rotación de credenciales, refuerzos técnicos).
+8. **Medidas recomendadas al titular** (cambiar contraseña, vigilar movimientos, alertar a su prestador).
+9. **Canales de consulta** habilitados (email del DPO, teléfono de la clínica).
+10. **Referencia explícita al derecho a reclamar ante la Agencia** de Protección de Datos Personales (Art 14 sexies + Art 41).
+11. **Información de seguimiento**, si aplica (cuándo y cómo se actualizará al titular).
+
+### 7.2 Plantillas disponibles
+
+La plantilla automática actual ([`MailService.sendBreachNotificationToSubject`](../backend/src/mail/mail.service.ts)) cubre 6 de los 11 elementos (1, 3, 4, 5, 7, 8 parcialmente). **Pendiente**: extenderla con los 5 restantes (datos de contacto del DPO, posibles consecuencias detalladas, canales de consulta, referencia explícita a la Agencia, información de seguimiento). Ver "Pendientes derivados" en [`respuestas-borrador-ley21719.md`](respuestas-borrador-ley21719.md).
+
+### 7.3 Canales alternativos
+
+Si el titular no tiene email registrado (`Patient.email = NULL`), la notificación se hace por canal alternativo (presencial, correo certificado, llamada telefónica documentada). Documente en `postMortem` qué titulares quedaron pendientes de notificar y por qué medio.
+
+Para incidentes **críticos** (alto volumen + datos sensibles + alta identificabilidad), combinar canales: email + SMS + aviso en el portal / página pública del responsable.
 
 ## 8. Post-mortem obligatorio
 

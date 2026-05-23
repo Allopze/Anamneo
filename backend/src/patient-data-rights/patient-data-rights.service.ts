@@ -3,47 +3,49 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  OnModuleDestroy,
-  OnModuleInit,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
 import { RequestUser } from '../common/utils/medico-id';
 import {
   AdminUpdateDataRequestDto,
+  CreateDataRequestExportLinkDto,
+  DownloadDataRequestExportDto,
   ExtendDataRequestDto,
   PublicDataRequestDto,
   ResolveDataRequestDto,
 } from './dto/patient-data-rights.dto';
+import { PatientDataRequestDeliveryService } from './patient-data-request-delivery.service';
 
 const RESPONSE_SLA_DAYS = 30; // Ley 21.719 Art 11 (30 dias corridos)
 const PRORROGA_DAYS = 30;
-const SLA_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hora
 
 @Injectable()
-export class PatientDataRightsService implements OnModuleInit, OnModuleDestroy {
+export class PatientDataRightsService {
   private readonly logger = new Logger(PatientDataRightsService.name);
-  private slaTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly mail: MailService,
+    private readonly delivery: PatientDataRequestDeliveryService,
   ) {}
 
-  onModuleInit() {
-    if (process.env.NODE_ENV === 'test') return;
-    // SLA loop simple. Reemplazar por @nestjs/schedule si se justifica (la
-    // app es single-clinic con baja concurrencia, basta con un interval).
-    this.slaTimer = setInterval(
-      () => this.markExpiredRequests().catch((err) => this.logger.warn(`SLA check failed: ${err}`)),
-      SLA_CHECK_INTERVAL_MS,
-    );
-  }
-
-  onModuleDestroy() {
-    if (this.slaTimer) clearInterval(this.slaTimer);
+  /**
+   * Cron que cada hora marca solicitudes vencidas (Art 11) y enlaces de
+   * descarga expirados. Reemplaza el setInterval anterior por
+   * `@nestjs/schedule`, que se integra al lifecycle de Nest y permite
+   * disabling automatico en `NODE_ENV=test`.
+   */
+  @Cron(CronExpression.EVERY_HOUR, { disabled: process.env.NODE_ENV === 'test' })
+  async runSlaCheck(): Promise<void> {
+    try {
+      await Promise.all([this.markExpiredRequests(), this.markExpiredDownloads()]);
+    } catch (err) {
+      this.logger.warn(`SLA check failed: ${(err as Error).message}`);
+    }
   }
 
   // ---------- Public submission (titular) ----------
@@ -222,6 +224,18 @@ export class PatientDataRightsService implements OnModuleInit, OnModuleDestroy {
     return updated;
   }
 
+  async createExportLink(id: string, dto: CreateDataRequestExportLinkDto, user: RequestUser) {
+    return this.delivery.createExportLink(id, dto, user);
+  }
+
+  async downloadExport(token: string, dto: DownloadDataRequestExportDto) {
+    return this.delivery.downloadExport(token, dto);
+  }
+
+  async revokeExportLink(downloadId: string, reason: string, user: RequestUser) {
+    return this.delivery.revokeExportLink(downloadId, reason, user);
+  }
+
   // ---------- SLA enforcement ----------
 
   async markExpiredRequests() {
@@ -248,6 +262,13 @@ export class PatientDataRightsService implements OnModuleInit, OnModuleDestroy {
     }
     if (expired.length > 0) {
       this.logger.warn(`[Ley 21.719] ${expired.length} solicitudes marcadas VENCIDAS (Art 11 vencido).`);
+    }
+  }
+
+  async markExpiredDownloads() {
+    const expiredCount = await this.delivery.markExpiredDownloads();
+    if (expiredCount > 0) {
+      this.logger.warn(`[Ley 21.719] ${expiredCount} enlaces de ficha clínica expirados y revocados.`);
     }
   }
 }

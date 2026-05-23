@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { api, getErrorMessage } from '@/lib/api';
 
 const REQUEST_TYPES = [
-  { value: 'ACCESO', label: 'Acceso (copia de mis datos)' },
+  { value: 'ACCESO', label: 'Acceso (copia de mi ficha clínica)' },
   { value: 'RECTIFICACION', label: 'Rectificación (corregir datos inexactos)' },
   { value: 'SUPRESION', label: 'Supresión (eliminar mis datos)' },
   { value: 'OPOSICION', label: 'Oposición a un tratamiento' },
@@ -144,7 +144,7 @@ export function DerechosForm() {
           {...register('payloadRequest')}
           rows={5}
           className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          placeholder="Indica qué datos quieres ejercer y cualquier detalle relevante."
+          placeholder="Indica si necesitas copia completa de tu ficha clínica, portabilidad u otro derecho específico."
         />
         {errors.payloadRequest && (
           <p className="mt-1 text-xs text-rose-600">{errors.payloadRequest.message}</p>

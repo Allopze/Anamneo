@@ -53,11 +53,31 @@ export class PatientsRegulatoryPurgeService {
     if (!input.bypassRetention) {
       const minAgeDays = this.configService.get<number>('PATIENT_PURGE_MIN_AGE_DAYS') ?? DEFAULT_PURGE_MIN_AGE_DAYS;
       const minAgeMs = minAgeDays * 24 * 60 * 60 * 1000;
-      const ageMs = Date.now() - patient.archivedAt.getTime();
+      // Ley 21.719 + Ley 20.584: el plazo de conservacion debe contarse
+      // desde la ULTIMA ATENCION (o ultimo registro clinico relevante), no
+      // desde el archivado. Pacientes archivados anos despues de su ultima
+      // atencion no deben quedar atrapados detras del plazo del archivado.
+      // Tomamos el MAX(archivedAt, lastEncounterCreatedAt, lastEncounterCompletedAt).
+      const lastEncounter = await this.prisma.encounter.findFirst({
+        where: { patientId },
+        select: { createdAt: true, completedAt: true },
+        orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
+      });
+      const lastEncounterAt = lastEncounter
+        ? new Date(Math.max(
+            (lastEncounter.completedAt ?? lastEncounter.createdAt).getTime(),
+            lastEncounter.createdAt.getTime(),
+          ))
+        : null;
+      const retentionAnchor = lastEncounterAt && lastEncounterAt > patient.archivedAt
+        ? lastEncounterAt
+        : patient.archivedAt;
+      const ageMs = Date.now() - retentionAnchor.getTime();
       if (ageMs < minAgeMs) {
         const remainingDays = Math.ceil((minAgeMs - ageMs) / (24 * 60 * 60 * 1000));
         throw new BadRequestException(
-          `Retención regulatoria pendiente: faltan ${remainingDays} día(s) para purgar (mínimo configurado: ${minAgeDays}d). `
+          `Retención regulatoria pendiente: faltan ${remainingDays} día(s) para purgar `
+          + `(mínimo configurado: ${minAgeDays}d, contados desde ${retentionAnchor.toISOString()}). `
           + 'Para casos extraordinarios usar bypassRetention=true con justificación adicional.',
         );
       }

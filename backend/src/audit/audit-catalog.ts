@@ -83,9 +83,18 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   PATIENT_RIGHT_RESOLVED_REJECTED: 'Solicitud de derecho del titular resuelta y rechazada con causa fundada',
   PATIENT_RIGHT_EXPIRED: 'Solicitud de derecho del titular vencida sin respuesta (Ley 21.719 Art 11)',
   PATIENT_RIGHT_LIST_VIEWED: 'Consulta de bandeja de solicitudes de derechos del titular',
+  PATIENT_DATA_REQUEST_EXPORT_LINK_CREATED: 'Enlace temporal de descarga de ficha clínica creado',
+  PATIENT_DATA_REQUEST_EXPORT_DOWNLOADED: 'Ficha clínica descargada por enlace temporal',
+  PATIENT_DATA_REQUEST_EXPORT_EXPIRED: 'Enlace temporal de descarga de ficha clínica expirado',
+  PATIENT_DATA_REQUEST_EXPORT_REVOKED: 'Enlace temporal de descarga de ficha clínica revocado',
   // Ley 21.719 - bloqueo temporal (Art 8 ter)
   PATIENT_BLOCKED: 'Bloqueo temporal de tratamiento de paciente (Ley 21.719 Art 8 ter)',
   PATIENT_UNBLOCKED: 'Levantamiento de bloqueo temporal de tratamiento de paciente',
+  PATIENT_PORTAL_LOGIN: 'Inicio de sesión en portal paciente',
+  PATIENT_PORTAL_RECORD_VIEWED: 'Ficha de paciente consultada desde portal paciente',
+  PATIENT_PORTAL_ENCOUNTER_VIEWED: 'Atención consultada desde portal paciente',
+  PATIENT_PORTAL_DOCUMENT_DOWNLOADED: 'Documento clínico descargado desde portal paciente',
+  PATIENT_PORTAL_DATA_REQUEST_CREATED: 'Solicitud de derechos creada desde portal paciente',
   // Ley 21.719 - brechas (Art 14 sexies)
   DATA_BREACH_DETECTED: 'Vulneración a medidas de seguridad detectada (Ley 21.719 Art 14 sexies)',
   DATA_BREACH_REPORTED_TO_AGENCY: 'Vulneración reportada a la Agencia de Protección de Datos Personales',
@@ -176,6 +185,8 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'PatientDataRequest' && action === 'UPDATE' && hasDiffValue(diff, 'status', 'RESUELTA_RECHAZADA')) return 'PATIENT_RIGHT_RESOLVED_REJECTED';
   if (entityType === 'PatientDataRequest' && action === 'UPDATE' && hasDiffValue(diff, 'status', 'VENCIDA')) return 'PATIENT_RIGHT_EXPIRED';
   if (entityType === 'PatientDataRequest' && action === 'READ') return 'PATIENT_RIGHT_LIST_VIEWED';
+  if (entityType === 'PatientDataRequestDownload' && action === 'CREATE') return 'PATIENT_DATA_REQUEST_EXPORT_LINK_CREATED';
+  if (entityType === 'PatientDataRequestDownload' && action === 'READ') return 'PATIENT_DATA_REQUEST_EXPORT_DOWNLOADED';
   if (entityType === 'Patient' && action === 'UPDATE' && hasDiffKey(diff, 'blockedAt') && !hasDiffValue(diff, 'blockedAt', null)) return 'PATIENT_BLOCKED';
   if (entityType === 'Patient' && action === 'UPDATE' && hasDiffKey(diff, 'blockedAt') && hasDiffValue(diff, 'blockedAt', null)) return 'PATIENT_UNBLOCKED';
   if (entityType === 'DataBreachIncident' && action === 'CREATE') return 'DATA_BREACH_DETECTED';

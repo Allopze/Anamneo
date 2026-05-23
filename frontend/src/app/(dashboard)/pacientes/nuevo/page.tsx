@@ -74,11 +74,11 @@ export default function NuevoPacientePage() {
         ? (validateRut(normalizedRut).formatted ?? normalizedRut)
         : undefined;
       const normalizedRutExemptReason = data.rutExemptReason?.trim();
-      const calculatedAge = data.fechaNacimiento
+      const edadCalculada = data.fechaNacimiento
         ? calculateAgeFromBirthDate(data.fechaNacimiento)
         : null;
 
-      if (isDoctor && !calculatedAge) {
+      if (isDoctor && !edadCalculada) {
         setError('Debe ingresar una fecha de nacimiento válida');
         setIsLoading(false);
         return;
@@ -88,8 +88,8 @@ export default function NuevoPacientePage() {
         ? {
             nombre: data.nombre,
             fechaNacimiento: data.fechaNacimiento || undefined,
-            edad: calculatedAge?.edad,
-            edadMeses: calculatedAge?.edadMeses,
+            edad: edadCalculada?.edad,
+            edadMeses: edadCalculada?.edadMeses,
             sexo: data.sexo,
             prevision: data.prevision,
             trabajo: normalizeOptionalText(data.trabajo),
@@ -99,6 +99,11 @@ export default function NuevoPacientePage() {
             contactoEmergenciaNombre: normalizeOptionalText(data.contactoEmergenciaNombre),
             contactoEmergenciaTelefono: normalizeOptionalText(data.contactoEmergenciaTelefono),
             centroMedico: normalizeOptionalText(data.centroMedico),
+            // Ley 21.719 Art 16 quater (representante legal NNA)
+            legalRepresentativeName: normalizeOptionalText(data.legalRepresentativeName),
+            legalRepresentativeRut: normalizeOptionalText(data.legalRepresentativeRut),
+            legalRepresentativeRelationship: data.legalRepresentativeRelationship || undefined,
+            legalRepresentativeContact: normalizeOptionalText(data.legalRepresentativeContact),
             rut: data.rutExempt ? undefined : formattedRut,
             rutExempt: data.rutExempt,
             rutExemptReason: data.rutExempt ? normalizedRutExemptReason : undefined,
@@ -388,6 +393,77 @@ export default function NuevoPacientePage() {
             )}
           </div>
         </div>
+
+        {/* Ley 21.719 Art 16 quater — representante legal NNA.
+            Renderiza condicionalmente cuando el paciente es menor de 18 anos. */}
+        {edadCalculada && edadCalculada.edad < 18 && (
+          <section className="rounded-md border border-amber-200 bg-amber-50 p-4">
+            <header className="mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                Ley 21.719 Art 16 quáter — Representante legal del NNA
+              </p>
+              <p className="mt-1 text-xs text-amber-900">
+                Paciente menor de 18 años. Para tratamientos sobre datos sensibles
+                {edadCalculada.edad < 14 ? ' (y todo tratamiento)' : ' de menores de 16'} se requiere
+                consentimiento de padre, madre, tutor o representante legal.
+              </p>
+            </header>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div>
+                <label htmlFor="legalRepresentativeName" className="form-label">
+                  Nombre del representante legal
+                </label>
+                <input
+                  id="legalRepresentativeName"
+                  type="text"
+                  className="form-input"
+                  placeholder="Nombre completo"
+                  {...register('legalRepresentativeName')}
+                />
+              </div>
+              <div>
+                <label htmlFor="legalRepresentativeRut" className="form-label">
+                  RUT del representante
+                </label>
+                <input
+                  id="legalRepresentativeRut"
+                  type="text"
+                  className="form-input"
+                  placeholder="12.345.678-9"
+                  {...register('legalRepresentativeRut')}
+                />
+              </div>
+              <div>
+                <label htmlFor="legalRepresentativeRelationship" className="form-label">
+                  Parentesco / vínculo
+                </label>
+                <select
+                  id="legalRepresentativeRelationship"
+                  className="form-input"
+                  {...register('legalRepresentativeRelationship')}
+                >
+                  <option value="">— Seleccionar —</option>
+                  <option value="PADRE">Padre</option>
+                  <option value="MADRE">Madre</option>
+                  <option value="TUTOR">Tutor legal</option>
+                  <option value="REPRESENTANTE">Otro representante legal</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="legalRepresentativeContact" className="form-label">
+                  Contacto del representante (email o teléfono)
+                </label>
+                <input
+                  id="legalRepresentativeContact"
+                  type="text"
+                  className="form-input"
+                  placeholder="email o teléfono"
+                  {...register('legalRepresentativeContact')}
+                />
+              </div>
+            </div>
+          </section>
+        )}
 
           </>
         )}

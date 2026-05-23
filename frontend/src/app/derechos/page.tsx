@@ -18,7 +18,7 @@ export default function DerechosPage() {
           </h1>
           <p className="mt-3 text-sm text-slate-600">
             Como titular de datos personales tienes derecho a solicitar:
-            <strong> acceso</strong>, <strong>rectificación</strong>,{' '}
+            <strong> acceso a una copia de tu ficha clínica</strong>, <strong>rectificación</strong>,{' '}
             <strong>supresión</strong>, <strong>oposición</strong>,{' '}
             <strong>portabilidad</strong> y <strong>bloqueo temporal</strong> de
             tu información. Tu solicitud sera respondida dentro de 30 dias

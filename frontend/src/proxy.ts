@@ -50,6 +50,9 @@ export async function proxy(request: NextRequest) {
   const hasAccessToken = request.cookies.has('access_token');
   const hasRefreshToken = request.cookies.has('refresh_token');
   const hasSessionCookie = hasAccessToken || hasRefreshToken;
+  const hasPatientAccessToken = request.cookies.has('patient_access_token');
+  const hasPatientRefreshToken = request.cookies.has('patient_refresh_token');
+  const hasPatientSessionCookie = hasPatientAccessToken || hasPatientRefreshToken;
 
   const decision = resolveProxyDecision({
     pathname,
@@ -57,6 +60,9 @@ export async function proxy(request: NextRequest) {
     hasSessionCookie,
     hasRefreshToken,
     hasValidatedSession: hasAccessToken,
+    hasPatientSessionCookie,
+    hasPatientRefreshToken,
+    hasValidatedPatientSession: hasPatientAccessToken,
   });
 
   const nonce = generateNonce();

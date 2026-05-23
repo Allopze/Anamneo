@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { PolicyComplianceService } from '../patient-consents/policy-compliance.service';
 import { CreateEncounterDto } from './dto/create-encounter.dto';
 import { SectionKey, EncounterStatus } from '../common/types';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
@@ -40,11 +41,15 @@ export class EncountersService {
     private prisma: PrismaService,
     private auditService: AuditService,
     private alertsService: AlertsService,
+    private policyCompliance: PolicyComplianceService,
   ) {}
 
   // ─── Create ──────────────────────────────────────────────────────────────
 
   async create(patientId: string, createDto: CreateEncounterDto, user: RequestUser) {
+    // Ley 21.719 Art 12 + Art 16 lit e - exige consentimiento del titular
+    // antes de iniciar una nueva atencion. En modo `soft` solo loggea.
+    await this.policyCompliance.assertConsentFor(patientId, 'ATENCION_CLINICA');
     return createEncounterMutation({
       prisma: this.prisma,
       auditService: this.auditService,

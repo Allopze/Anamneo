@@ -9,6 +9,7 @@ import { conditionSuggestionsSuite } from './suites/condition-suggestions.e2e-su
 import { analyticsSuite } from './suites/analytics.e2e-suite';
 import { adminSuite } from './suites/admin.e2e-suite';
 import { validationSuite } from './suites/validation.e2e-suite';
+import { dataRightsSuite } from './suites/data-rights.e2e-suite';
 
 describe('Application E2E Tests', () => {
   beforeAll(bootstrapApp, 30_000);
@@ -24,4 +25,5 @@ describe('Application E2E Tests', () => {
   analyticsSuite();
   adminSuite();
   validationSuite();
+  dataRightsSuite();
 });

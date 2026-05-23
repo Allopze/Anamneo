@@ -545,6 +545,102 @@ export class MailService {
     return this.sendPlainEmail({ to: payload.to, subject, text, html });
   }
 
+  async sendDataRequestExportLink(payload: {
+    to: string;
+    requesterName: string;
+    requestId: string;
+    downloadUrl: string;
+    expiresAt: Date;
+    maxDownloads: number;
+  }) {
+    const subject = `Descarga segura de ficha clínica #${payload.requestId.slice(0, 8)}`;
+    const text = [
+      `Hola ${payload.requesterName},`,
+      '',
+      'Tu copia de ficha clínica está disponible mediante un enlace temporal.',
+      `Enlace: ${payload.downloadUrl}`,
+      `Vence: ${this.formatDateCL(payload.expiresAt)}.`,
+      `Máximo de descargas: ${payload.maxDownloads}.`,
+      '',
+      'Por seguridad, la descarga solicitará el RUT asociado a la solicitud.',
+      'Si no solicitaste esta copia, responde a este correo de inmediato.',
+    ].join('\n');
+    const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+      <h2>Descarga segura de ficha clínica</h2>
+      <p>Hola ${escapeHtml(payload.requesterName)},</p>
+      <p>Tu copia de ficha clínica está disponible mediante un enlace temporal.</p>
+      <p>
+        <a href="${escapeHtml(payload.downloadUrl)}" style="display:inline-block; padding:12px 20px; border-radius:999px; background:#0f766e; color:#ffffff; text-decoration:none; font-weight:600;">Descargar ficha clínica</a>
+      </p>
+      <p>Vence: <strong>${escapeHtml(this.formatDateCL(payload.expiresAt))}</strong>.</p>
+      <p>Máximo de descargas: <strong>${payload.maxDownloads}</strong>.</p>
+      <p style="margin:8px 0 0; color:#0f172a; font-size:14px; word-break:break-all;">${escapeHtml(payload.downloadUrl)}</p>
+      <p style="color:#64748b;font-size:13px;">Por seguridad, la descarga solicitará el RUT asociado a la solicitud. Si no solicitaste esta copia, responde a este correo de inmediato.</p>
+    </div>`;
+    return this.sendPlainEmail({ to: payload.to, subject, text, html });
+  }
+
+  async sendPatientPortalInvite(payload: {
+    to: string;
+    patientName: string;
+    activationUrl: string;
+    expiresAt: Date;
+  }) {
+    const subject = 'Invitación al portal paciente Anamneo';
+    const text = [
+      'Hola,',
+      '',
+      `Se creó una invitación para acceder al portal paciente de ${payload.patientName}.`,
+      `Activa la cuenta aquí: ${payload.activationUrl}`,
+      `El enlace vence: ${this.formatDateCL(payload.expiresAt)}.`,
+      '',
+      'Si no esperabas esta invitación, ignora este correo y avisa a la clínica.',
+    ].join('\n');
+    const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+      <h2>Invitación al portal paciente</h2>
+      <p>Se creó una invitación para acceder al portal paciente de <strong>${escapeHtml(payload.patientName)}</strong>.</p>
+      <p>
+        <a href="${escapeHtml(payload.activationUrl)}" style="display:inline-block; padding:12px 20px; border-radius:999px; background:#0f766e; color:#ffffff; text-decoration:none; font-weight:600;">Activar cuenta</a>
+      </p>
+      <p>El enlace vence: <strong>${escapeHtml(this.formatDateCL(payload.expiresAt))}</strong>.</p>
+      <p style="word-break:break-all;">${escapeHtml(payload.activationUrl)}</p>
+      <p style="color:#64748b;font-size:13px;">Si no esperabas esta invitación, ignora este correo y avisa a la clínica.</p>
+    </div>`;
+    return this.sendPlainEmail({ to: payload.to, subject, text, html });
+  }
+
+  async sendPatientPortalPasswordReset(payload: {
+    to: string;
+    resetUrl: string;
+    expiresAt: Date;
+  }) {
+    const subject = 'Restablecer contraseña del portal paciente';
+    const text = [
+      'Hola,',
+      '',
+      'Recibimos una solicitud para restablecer tu contraseña del portal paciente.',
+      `Enlace: ${payload.resetUrl}`,
+      `Vence: ${this.formatDateCL(payload.expiresAt)}.`,
+      '',
+      'Si no solicitaste este cambio, ignora este correo.',
+    ].join('\n');
+    const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+      <h2>Restablecer contraseña</h2>
+      <p>Recibimos una solicitud para restablecer tu contraseña del portal paciente.</p>
+      <p>
+        <a href="${escapeHtml(payload.resetUrl)}" style="display:inline-block; padding:12px 20px; border-radius:999px; background:#0f766e; color:#ffffff; text-decoration:none; font-weight:600;">Restablecer contraseña</a>
+      </p>
+      <p>Vence: <strong>${escapeHtml(this.formatDateCL(payload.expiresAt))}</strong>.</p>
+      <p style="word-break:break-all;">${escapeHtml(payload.resetUrl)}</p>
+    </div>`;
+    return this.sendPlainEmail({ to: payload.to, subject, text, html });
+  }
+
+  /**
+   * Ley 21.719 Art 14 sexies. Notificacion a titulares afectados.
+   * Cubre los 11 elementos minimos recomendados por asesor legal en
+   * docs/respuestas-borrador-ley21719.md §3.3.
+   */
   async sendBreachNotificationToSubject(payload: {
     to: string;
     subjectName: string;
@@ -552,34 +648,92 @@ export class MailService {
     detectedAt: Date;
     scope: string;
     measuresTaken: string;
+    // Campos nuevos (5 elementos faltantes):
+    // - responsableName: identificacion del responsable del tratamiento (clinica usuaria)
+    // - dpoName + dpoEmail: contacto del DPO
+    // - dataCategoriesAffected: categorias de datos comprometidas
+    // - possibleConsequences: posibles consecuencias para el titular
+    // - recommendedActions: medidas recomendadas al titular
+    // - consultationChannels: canales disponibles para consulta
+    // - followUpInfo: cuando y como se actualizara al titular
+    responsableName?: string;
+    dpoName?: string;
+    dpoEmail?: string;
+    dataCategoriesAffected?: string;
+    possibleConsequences?: string;
+    recommendedActions?: string;
+    consultationChannels?: string;
+    followUpInfo?: string;
   }) {
     const subject = `Notificación obligatoria — incidente de seguridad (Ley 21.719 Art 14 sexies) #${payload.breachId.slice(0, 8)}`;
+    const responsableLine = payload.responsableName
+      ? `Responsable del tratamiento: ${payload.responsableName}.`
+      : 'Responsable del tratamiento: [responsable que opera la instancia Anamneo].';
+    const dpoLine = payload.dpoEmail
+      ? `Contacto del Delegado de Protección de Datos (DPO)${payload.dpoName ? ` — ${payload.dpoName}` : ''}: ${payload.dpoEmail}.`
+      : 'Contacto del Delegado de Protección de Datos (DPO): consulte la política de privacidad publicada por su clínica.';
+    const dataCategoriesLine = payload.dataCategoriesAffected
+      ? `Categorías de datos afectadas: ${payload.dataCategoriesAffected}.`
+      : 'Categorías de datos afectadas: datos personales sensibles relacionados con su atención clínica.';
+    const consequencesLine = payload.possibleConsequences
+      ? `Posibles consecuencias: ${payload.possibleConsequences}.`
+      : 'Posibles consecuencias: riesgo de acceso indebido a información de salud; no se han identificado consecuencias adicionales hasta la fecha de esta notificación.';
+    const recommendedLine = payload.recommendedActions
+      ? `Medidas recomendadas: ${payload.recommendedActions}.`
+      : 'Medidas recomendadas: si nota uso indebido de su información, contáctenos de inmediato. Cambie credenciales asociadas y revise comunicaciones recibidas.';
+    const consultationLine = payload.consultationChannels
+      ? `Canales de consulta: ${payload.consultationChannels}.`
+      : 'Canales de consulta: escriba al correo del DPO o al canal de contacto formal de su clínica.';
+    const followUpLine = payload.followUpInfo
+      ? `Seguimiento: ${payload.followUpInfo}.`
+      : 'Seguimiento: le mantendremos informado(a) si se identifican impactos adicionales o medidas correctivas relevantes.';
+
     const text = [
-      `Hola ${payload.subjectName},`,
+      `Estimado(a) ${payload.subjectName},`,
       '',
-      'Le informamos que hemos detectado un incidente que afecta a la seguridad de sus datos personales registrados en Anamneo.',
-      `Fecha de detección: ${this.formatDateCL(payload.detectedAt)}`,
-      'Alcance del incidente:',
+      responsableLine,
+      dpoLine,
+      '',
+      `Le informamos que hemos detectado un incidente que afecta a la seguridad de sus datos personales registrados en Anamneo.`,
+      `Fecha o período estimado del incidente: ${this.formatDateCL(payload.detectedAt)}.`,
+      '',
+      'Descripción del incidente:',
       payload.scope,
       '',
-      'Medidas adoptadas:',
+      dataCategoriesLine,
+      '',
+      consequencesLine,
+      '',
+      'Medidas adoptadas por el responsable:',
       payload.measuresTaken,
       '',
-      'Recomendaciones: vigile cualquier uso indebido de su información y comuníquese con nosotros ante cualquier duda.',
+      recommendedLine,
       '',
-      'Esta notificación se realiza en cumplimiento del Art 14 sexies de la Ley 21.719. Puede reclamar ante la Agencia de Protección de Datos Personales.',
+      consultationLine,
+      '',
+      'Esta notificación se realiza en cumplimiento del Art 14 sexies de la Ley 21.719. Usted tiene derecho a reclamar ante la Agencia de Protección de Datos Personales si considera que sus derechos no fueron respetados (Art 41 Ley 21.719).',
+      '',
+      followUpLine,
     ].join('\n');
-    const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+
+    const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.55;">
       <h2 style="color:#b91c1c;">Notificación obligatoria — incidente de seguridad</h2>
-      <p>Hola ${escapeHtml(payload.subjectName)},</p>
+      <p>Estimado(a) ${escapeHtml(payload.subjectName)},</p>
+      <p style="font-size:13px;color:#475569;">${escapeHtml(responsableLine)}<br/>${escapeHtml(dpoLine)}</p>
       <p>Le informamos que hemos detectado un incidente que afecta a la seguridad de sus datos personales registrados en Anamneo.</p>
-      <p><strong>Fecha de detección:</strong> ${escapeHtml(this.formatDateCL(payload.detectedAt))}</p>
-      <p><strong>Alcance del incidente:</strong></p>
+      <p><strong>Fecha o período estimado:</strong> ${escapeHtml(this.formatDateCL(payload.detectedAt))}</p>
+      <p><strong>Descripción del incidente:</strong></p>
       <p style="white-space:pre-line;">${escapeHtml(payload.scope)}</p>
-      <p><strong>Medidas adoptadas:</strong></p>
+      <p><strong>Categorías de datos afectadas:</strong> ${escapeHtml(payload.dataCategoriesAffected ?? 'datos personales sensibles relacionados con su atención clínica')}</p>
+      <p><strong>Posibles consecuencias:</strong> ${escapeHtml(payload.possibleConsequences ?? 'riesgo de acceso indebido a información de salud; no se han identificado consecuencias adicionales hasta la fecha de esta notificación')}</p>
+      <p><strong>Medidas adoptadas por el responsable:</strong></p>
       <p style="white-space:pre-line;">${escapeHtml(payload.measuresTaken)}</p>
-      <p style="color:#64748b;font-size:13px;">Esta notificación se realiza en cumplimiento del Art 14 sexies de la Ley 21.719. Puede reclamar ante la Agencia de Protección de Datos Personales.</p>
+      <p><strong>Medidas recomendadas:</strong> ${escapeHtml(payload.recommendedActions ?? 'si nota uso indebido de su información, contáctenos de inmediato. Cambie credenciales asociadas y revise comunicaciones recibidas')}</p>
+      <p><strong>Canales de consulta:</strong> ${escapeHtml(payload.consultationChannels ?? 'escriba al correo del DPO o al canal de contacto formal de su clínica')}</p>
+      <p style="color:#475569;font-size:13px;">Esta notificación se realiza en cumplimiento del Art 14 sexies de la Ley 21.719. Usted tiene derecho a reclamar ante la <strong>Agencia de Protección de Datos Personales</strong> si considera que sus derechos no fueron respetados (Art 41 Ley 21.719).</p>
+      <p style="color:#475569;font-size:13px;">${escapeHtml(followUpLine)}</p>
     </div>`;
+
     return this.sendPlainEmail({ to: payload.to, subject, text, html });
   }
 }

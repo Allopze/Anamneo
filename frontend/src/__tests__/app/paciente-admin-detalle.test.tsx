@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import PatientAdministrativeDetailPage from '@/app/(dashboard)/pacientes/[id]/administrativo/page';
 import type { User } from '@/stores/auth-store';
 
 const replaceMock = jest.fn();
 const apiGetMock = jest.fn();
+const apiPostMock = jest.fn();
 
 let currentUser: User | null = {
   id: 'admin-1',
@@ -29,6 +30,7 @@ jest.mock('@/stores/auth-store', () => ({
 jest.mock('@/lib/api', () => ({
   api: {
     get: (...args: any[]) => apiGetMock(...args),
+    post: (...args: any[]) => apiPostMock(...args),
   },
   getErrorMessage: (err: any) => err?.message || 'Error desconocido',
 }));
@@ -92,6 +94,7 @@ describe('PatientAdministrativeDetailPage', () => {
         },
       },
     });
+    apiPostMock.mockResolvedValue({ data: { ok: true } });
   });
 
   it('renders the administrative patient summary for admin users', async () => {
@@ -106,6 +109,21 @@ describe('PatientAdministrativeDetailPage', () => {
     expect(screen.getByText('+56 9 8765 4321')).toBeInTheDocument();
     expect(screen.getAllByText('Pendiente de verificación médica')).toHaveLength(2);
     expect(apiGetMock).toHaveBeenCalledWith('/patients/patient-1/admin-summary');
+  });
+
+  it('sends a portal invite from the administrative summary', async () => {
+    render(<PatientAdministrativeDetailPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Portal paciente')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Invitar al portal/i }));
+
+    await waitFor(() => {
+      expect(apiPostMock).toHaveBeenCalledWith('/admin/patients/patient-1/portal-invite', {
+        email: 'paciente.demo@test.cl',
+        relationship: 'TITULAR',
+      });
+    });
+    expect(await screen.findByText(/Invitación enviada a paciente.demo@test.cl/i)).toBeInTheDocument();
   });
 
   it('redirects non-admin users to the clinical detail route', async () => {

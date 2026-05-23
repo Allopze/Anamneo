@@ -17,6 +17,8 @@ export function shouldSkipRefresh(url?: string): boolean {
   return (
     url.includes('/auth/login')
     || url.includes('/auth/register')
+    || url.includes('/public/derechos')
+    || url.includes('/public/data-request-downloads/')
     || url.includes(TOTP_VERIFY_ENDPOINT)
     || url.includes(REFRESH_ENDPOINT)
     || url.includes(LOGOUT_ENDPOINT)

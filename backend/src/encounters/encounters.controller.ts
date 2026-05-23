@@ -24,12 +24,13 @@ import { UpdateReviewStatusDto } from './dto/update-review-status.dto';
 import { ParseSectionKeyPipe } from '../common/parse-section-key.pipe';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PatientNotBlockedGuard } from '../patient-data-rights/patient-not-blocked.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { EncounterStatus, SectionKey } from '../common/types';
 
 @Controller('encounters')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PatientNotBlockedGuard)
 export class EncountersController {
   constructor(
     private readonly encountersService: EncountersService,

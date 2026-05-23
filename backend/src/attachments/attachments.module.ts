@@ -1,4 +1,4 @@
-import { BadRequestException, Module } from '@nestjs/common';
+import { BadRequestException, forwardRef, Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { diskStorage } from 'multer';
@@ -9,6 +9,7 @@ import { AttachmentsService } from './attachments.service';
 import { AttachmentsScanService } from './attachments-scan.service';
 import { AttachmentsController } from './attachments.controller';
 import { resolveUploadsRoot } from '../common/utils/uploads-root';
+import { PatientDataRightsModule } from '../patient-data-rights/patient-data-rights.module';
 
 const ALLOWED_MIMES = new Set([
   'application/pdf',
@@ -21,6 +22,7 @@ const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.gif']);
 
 @Module({
   imports: [
+    forwardRef(() => PatientDataRightsModule),
     MulterModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

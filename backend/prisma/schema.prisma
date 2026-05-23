@@ -51,6 +51,8 @@ model User {
   revokedConsents       ClinicalConsent[] @relation("ConsentRevokedBy")
   capturedDataProcessingConsents PatientDataProcessingConsent[] @relation("DataProcessingConsentCapturedBy")
   resolvedDataRequests  PatientDataRequest[] @relation("DataRequestResolvedBy")
+  createdDataRequestDownloads PatientDataRequestDownload[] @relation("DataRequestDownloadCreatedBy")
+  createdPatientPortalAccounts PatientPortalAccount[] @relation("PatientPortalAccountCreatedBy")
   createdClinicalAlerts ClinicalAlert[]   @relation("ClinicalAlertCreatedBy")
   acknowledgedAlerts    ClinicalAlert[]   @relation("ClinicalAlertAcknowledgedBy")
   legalAcceptances       UserLegalAcceptance[]
@@ -100,6 +102,19 @@ model Patient {
   contactoEmergenciaNombre String? @map("contacto_emergencia_nombre")
   contactoEmergenciaTelefono String? @map("contacto_emergencia_telefono")
   centroMedico    String?   @map("centro_medico")
+  // Ley 21.719 Art 14 quinquies lit a (cifrado a nivel app de
+  // identificatorios sensibles). Dual-write Phase A: las columnas plaintext
+  // siguen activas y son la fuente de verdad para lecturas existentes.
+  // Las columnas `*_enc` y `rut_lookup_hash` se populan en cada write.
+  // El hash de lookup permite mantener UNIQUE/lookup por RUT sin descifrar.
+  rutEnc                          String? @map("rut_enc")
+  rutLookupHash                   String? @unique @map("rut_lookup_hash")
+  nombreEnc                       String? @map("nombre_enc")
+  telefonoEnc                     String? @map("telefono_enc")
+  emailEnc                        String? @map("email_enc")
+  domicilioEnc                    String? @map("domicilio_enc")
+  contactoEmergenciaNombreEnc     String? @map("contacto_emergencia_nombre_enc")
+  contactoEmergenciaTelefonoEnc   String? @map("contacto_emergencia_telefono_enc")
   archivedAt      DateTime? @map("archived_at")
   archivedById    String?   @map("archived_by_id")
   // Ley 21.719 Art 8 ter (bloqueo temporal del tratamiento)
@@ -126,6 +141,8 @@ model Patient {
   consents   ClinicalConsent[]
   dataProcessingConsents PatientDataProcessingConsent[]
   dataRequests           PatientDataRequest[]
+  dataRequestDownloads   PatientDataRequestDownload[]
+  portalAccounts         PatientPortalAccount[]
   alerts     ClinicalAlert[]
   clinicalSearches PatientClinicalSearch[]
 
@@ -717,6 +734,27 @@ model PatientDataProcessingConsent {
   signerRelationship String @map("signer_relationship")
   // SHA-256 del payload firmado para integridad
   evidenceHash    String   @map("evidence_hash")
+  // Campos adicionales recomendados por asesor legal
+  // (ver docs/respuestas-borrador-ley21719.md §2.4):
+  // - language: idioma del texto mostrado al titular
+  // - sessionId: id de sesion HTTP / portal que capturo el consent
+  // - clinicId: clinica/establecimiento responsable (cuando aplique
+  //   multi-clinica en el futuro; hoy puede quedar NULL en single-clinic)
+  // - representativeBondEvidenceRef: URL/path en drive seguro al documento
+  //   que acredita el vinculo del representante con el NNA (cuando aplique)
+  // - consentPayloadSnapshot: snapshot inmutable del payload exacto firmado
+  //   (texto mostrado + checkboxes + version UI). El hash de este snapshot
+  //   debe coincidir con evidenceHash.
+  // - revokedReason: motivo de revocacion declarado por el titular
+  // - revokedChannel: canal por el que se ejerce la revocacion
+  //   (WEB_TITULAR | PRESENCIAL | EMAIL | DPO)
+  language        String?  @default("es-CL")
+  sessionId       String?  @map("session_id")
+  clinicId        String?  @map("clinic_id")
+  representativeBondEvidenceRef String? @map("representative_bond_evidence_ref")
+  consentPayloadSnapshot Json? @map("consent_payload_snapshot")
+  revokedReason   String?  @map("revoked_reason")
+  revokedChannel  String?  @map("revoked_channel")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
@@ -762,11 +800,103 @@ model PatientDataRequest {
 
   patient     Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
   resolvedBy  User?    @relation("DataRequestResolvedBy", fields: [resolvedById], references: [id])
+  downloads   PatientDataRequestDownload[]
 
   @@index([status, dueDate])
   @@index([patientId, requestType])
   @@index([requesterRut])
   @@map("patient_data_requests")
+}
+
+// Entregas temporales de copias de ficha clinica al titular. El token plano
+// nunca se persiste: solo `tokenHash` y metadatos auditables.
+model PatientDataRequestDownload {
+  id          String   @id @default(uuid())
+  requestId   String   @map("request_id")
+  patientId   String   @map("patient_id")
+  tokenHash   String   @unique @map("token_hash")
+  filePath    String   @map("file_path")
+  fileSha256  String   @map("file_sha256")
+  encryptionEnvelope Json? @map("encryption_envelope")
+  expiresAt   DateTime @map("expires_at")
+  downloadCount Int    @default(0) @map("download_count")
+  maxDownloads Int     @default(3) @map("max_downloads")
+  revokedAt   DateTime? @map("revoked_at")
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  request   PatientDataRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdBy User @relation("DataRequestDownloadCreatedBy", fields: [createdById], references: [id])
+
+  @@index([requestId])
+  @@index([patientId])
+  @@index([expiresAt])
+  @@map("patient_data_request_downloads")
+}
+
+model PatientPortalAccount {
+  id                  String   @id @default(uuid())
+  patientId           String   @map("patient_id")
+  email               String   @unique
+  passwordHash        String?  @map("password_hash")
+  relationship        String
+  active              Boolean  @default(false)
+  emailVerifiedAt     DateTime? @map("email_verified_at")
+  activationTokenHash String?  @unique @map("activation_token_hash")
+  activationExpiresAt DateTime? @map("activation_expires_at")
+  legalAcceptedAt     DateTime? @map("legal_accepted_at")
+  legalAcceptance      Json?    @map("legal_acceptance")
+  failedAttempts      Int      @default(0) @map("failed_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+  refreshTokenVersion Int      @default(0) @map("refresh_token_version")
+  createdById         String   @map("created_by_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  patient     Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdBy   User @relation("PatientPortalAccountCreatedBy", fields: [createdById], references: [id])
+  sessions    PatientPortalSession[]
+  resetTokens PatientPortalPasswordResetToken[]
+
+  @@index([patientId])
+  @@index([active])
+  @@map("patient_portal_accounts")
+}
+
+model PatientPortalSession {
+  id           String   @id @default(uuid())
+  accountId    String   @map("account_id")
+  tokenVersion Int      @default(1) @map("token_version")
+  userAgent    String?  @map("user_agent")
+  ipAddress    String?  @map("ip_address")
+  lastUsedAt   DateTime @default(now()) @map("last_used_at")
+  revokedAt    DateTime? @map("revoked_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  account PatientPortalAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, revokedAt])
+  @@map("patient_portal_sessions")
+}
+
+model PatientPortalPasswordResetToken {
+  id        String    @id @default(uuid())
+  accountId String    @map("account_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  ipAddress String?   @map("ip_address")
+  userAgent String?   @map("user_agent")
+
+  account PatientPortalAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, usedAt])
+  @@index([expiresAt])
+  @@map("patient_portal_password_reset_tokens")
 }
 
 // Ley 21.719 Art 14 sexies - registro de vulneraciones a las medidas de

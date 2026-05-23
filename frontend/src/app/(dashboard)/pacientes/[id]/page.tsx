@@ -21,6 +21,8 @@ import {
 import ConfirmModal from '@/components/common/ConfirmModal';
 import PatientAlerts from '@/components/PatientAlerts';
 import PatientConsents from '@/components/PatientConsents';
+import PatientDataProcessingConsents from '@/components/PatientDataProcessingConsents';
+import PatientBlockingControls from '@/components/PatientBlockingControls';
 import { InProgressEncounterConflictModal } from '@/components/common/InProgressEncounterConflictModal';
 import PossiblePatientDuplicatesNotice from '@/components/common/PossiblePatientDuplicatesNotice';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
@@ -396,6 +398,19 @@ export default function PatientDetailPage() {
           <div className="card">
             <PatientConsents patientId={patient.id} />
           </div>
+
+          <PatientDataProcessingConsents
+            patientId={patient.id}
+            patientAgeYears={patient.edad ?? null}
+          />
+
+          <PatientBlockingControls
+            patientId={patient.id}
+            blockedAt={(patient as { blockedAt?: string | Date | null }).blockedAt ?? null}
+            blockedReason={(patient as { blockedReason?: string | null }).blockedReason ?? null}
+            blockedById={(patient as { blockedById?: string | null }).blockedById ?? null}
+            isAdmin={Boolean(pd.isAdmin)}
+          />
         </div>
 
         {/* Right column */}

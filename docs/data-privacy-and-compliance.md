@@ -107,11 +107,11 @@ sanitaria especial chilena que la ampara. Ver
 
 ## 5. Derechos del titular (Art 4-11 Ley 21.719)
 
-> **Estado actual:** los endpoints regulatorios (`GET /api/patients/:id/export/regulatory`
-> y `DELETE /api/patients/:id/purge`) existen y son admin-only. No hay
-> aún UI/endpoint público para que el titular ejerza sus derechos
-> directamente. **La Ola 2 del roadmap entrega la entidad
-> `PatientDataRequest` y la UI pública de derechos.**
+> **Estado actual:** existe UI pública `/derechos`, entidad
+> `PatientDataRequest`, bandeja admin `/admin/solicitudes` y entrega segura
+> por enlace temporal `/descargar-ficha?token=...`. Los endpoints regulatorios
+> (`GET /api/patients/:id/export/regulatory` y `DELETE /api/patients/:id/purge`)
+> siguen siendo admin-only.
 
 ### 5.1 Acceso (Art 5)
 
@@ -119,14 +119,13 @@ El titular puede solicitar copia de sus datos a la clínica. El admin
 debe:
 1. Verificar identidad del solicitante (presencial o RUT + medio de
    contacto registrado).
-2. Generar la exportación regulatoria vía
-   `GET /api/patients/:id/export/regulatory`
-   (implementado en
-   [`backend/src/patients/patients-regulatory.controller.ts`](../backend/src/patients/patients-regulatory.controller.ts)).
-3. Entregar el archivo de forma segura (correo cifrado o entrega
-   presencial).
-4. La acción queda registrada automáticamente en `AuditLog` con razón
-   `PATIENT_DATA_EXPORTED_REGULATORY`.
+2. Vincular la solicitud pública a un `Patient` y registrar método/evidencia
+   de verificación en `/admin/solicitudes`.
+3. Generar enlace temporal vía `POST /api/admin/data-requests/:id/export-link`.
+   El ZIP queda cifrado en `runtime/data/data-requests/` cuando
+   `ENCRYPTION_KEY` está configurada.
+4. La descarga exige RUT, vence en 72 horas, permite máximo 3 descargas y queda
+   registrada con razones `PATIENT_DATA_REQUEST_EXPORT_*`.
 5. Responder en un plazo no superior a **30 días corridos** (Art 11),
    prorrogable por otros 30 días corridos por una sola vez.
 
@@ -162,18 +161,17 @@ esfuerzo desproporcionado.
 
 El titular puede oponerse a tratamientos basados en interés legítimo,
 marketing (no aplica a Anamneo) o cuando los datos provengan de
-fuentes públicas. **Implementación pendiente en Ola 2 del roadmap**
-(campo `Patient.processingObjections` y respeto en módulo
-`clinical-analytics`).
+fuentes públicas. El campo `Patient.processingObjections` existe; queda
+pendiente completar el enforcement por finalidad en analítica y módulos que
+usen datos fuera de atención clínica directa.
 
 ### 5.5 Bloqueo temporal (Art 8 ter)
 
 El titular puede solicitar suspensión temporal del tratamiento mientras
 se resuelve una solicitud de rectificación, supresión u oposición.
-Plazo de resolución del bloqueo: 3 días hábiles (Art 41 inciso final).
-**Implementación pendiente en Ola 2 del roadmap** (campo
-`Patient.blockedAt` y `PatientNotBlockedGuard` sobre mutaciones
-clínicas).
+Plazo de resolución del bloqueo por el responsable: **2 días hábiles**. (Los 3 días hábiles del Art 41 inciso final aplican a la resolución de la Agencia en ciertos escenarios, no al plazo ordinario del responsable.)
+El campo `Patient.blockedAt` y `PatientNotBlockedGuard` existen; queda
+pendiente asegurar que todas las mutaciones clínicas relevantes usen el guard.
 
 ### 5.6 Portabilidad (Art 9)
 
@@ -213,23 +211,62 @@ ALCANCE:
   - Sin cesión a terceros, salvo subencargados expresamente listados
     (cloudflare/cloudflared, sentry, smtp provider).
 
-CLAUSULAS MINIMAS (Art 15 bis Ley 21.719):
-  - Objeto, duración, naturaleza y finalidad del tratamiento.
-  - Tipo de datos personales tratados y categorías de titulares.
-  - Derechos y obligaciones del responsable.
-  - Encargado solo trata datos según instrucciones documentadas.
-  - Cumplimiento de medidas técnicas (§4 de este documento) y del
-    Art 14 quinquies (cifrado, seudonimización, resiliencia,
-    verificación regular).
-  - Deber de confidencialidad del personal del encargado.
-  - Asistencia al responsable en el ejercicio de derechos del titular.
-  - Notificación al responsable de toda vulneración (Art 14 sexies).
-  - Devolución o supresión segura de los datos al término del contrato.
-  - Disponibilidad de la información necesaria para auditorías.
-  - Régimen de subencargados con autorización previa por escrito.
+CLAUSULAS MINIMAS (Art 15 bis Ley 21.719 + recomendaciones legales
+recogidas en docs/respuestas-borrador-ley21719.md §3.4 / §5.1):
+
+  1. Objeto del tratamiento.
+  2. Duración del contrato y del tratamiento.
+  3. Naturaleza y finalidad del tratamiento.
+  4. Tipo de datos personales tratados.
+  5. Categorías de titulares.
+  6. Instrucciones documentadas del responsable al encargado.
+  7. Confidencialidad del personal del encargado (subsiste tras
+     terminación; obligación equivalente al Art 14 bis del responsable).
+  8. Medidas de seguridad técnicas y organizativas conforme al
+     Art 14 quinquies (cifrado, seudonimización, resiliencia,
+     verificación regular).
+  9. Régimen de subencargados: autorización previa por escrito,
+     contrato espejo, responsabilidad solidaria del encargado por las
+     infracciones del subencargado autorizado.
+  10. Transferencias internacionales: identificación del país,
+      mecanismo de garantía (cláusulas modelo, país adecuado, normas
+      corporativas vinculantes o excepción), evaluación de transferencia.
+  11. Asistencia al responsable en el ejercicio de los derechos del
+      titular (Arts 4-11): proporcionar la información y mecanismos
+      necesarios para acceso, rectificación, supresión, oposición,
+      portabilidad y bloqueo dentro de los plazos legales.
+  12. Asistencia al responsable en DPIA (Art 15 ter) y consultas previas
+      a la Agencia cuando aplique.
+  13. Notificación de brechas: el encargado avisa al responsable sin
+      dilaciones indebidas (Art 14 sexies) con la información mínima
+      para que el responsable decida reporte a la Agencia y notificación
+      a titulares; tope orientativo: dentro de las 24 horas siguientes
+      a la detección.
+  14. Auditoría y evidencias: el encargado pone a disposición la
+      información necesaria para demostrar cumplimiento (certificaciones
+      SOC 2 / ISO 27001 cuando existan, reportes, configuración
+      técnica) y permite auditorías por el responsable o un tercero
+      designado, con preaviso razonable.
+  15. Devolución o supresión segura de los datos al término del
+      contrato; certificación escrita de destrucción.
+  16. Prohibición expresa de uso de los datos para finalidades propias
+      del encargado distintas a las instruidas por el responsable
+      (no entrenamiento de modelos, no analítica comercial, no
+      benchmarking entre clientes, no cesión a terceros).
+
+CLAUSULAS RECOMENDADAS ADICIONALES (no estrictamente exigidas por la
+ley pero recomendadas):
+
+  17. Notificación previa de cambios relevantes (rotación de
+      subencargados, cambio de país de tratamiento, cambio
+      significativo de medidas de seguridad).
+  18. SLA de cumplimiento operativo (tiempos de respuesta para
+      solicitudes del responsable, soporte, escalamiento).
+  19. Régimen de responsabilidad e indemnidades por incumplimiento.
+  20. Continuidad operacional (backups, restore, exit plan).
 
 DURACION: [vigencia]
-SUBENCARGADOS AUTORIZADOS: [lista]
+SUBENCARGADOS AUTORIZADOS: [lista — Cloudflare, Sentry, SMTP, hosting]
 FECHA: [...]
 ```
 
@@ -365,16 +402,16 @@ en el roadmap aprobado:
 | Registro de Actividades de Tratamiento (Art 14 ter, Art 3 e) | Pendiente | Ola 1 |
 | DPIA formal (Art 15 ter) | Pendiente | Ola 1 (borrador) → Ola 4 (firma) |
 | Designación formal de DPO (Art 50) | Interino designado en ADR-002; formalización pendiente | Ola 0 / Ola 1 |
-| Entidad `PatientDataRequest` para Arts 4-11 | Pendiente | Ola 2 |
-| Derecho de bloqueo temporal (Art 8 ter) | Pendiente | Ola 2 |
-| Derecho de oposición / opt-out a analítica (Art 8) | Pendiente | Ola 2 |
-| Tratamiento diferenciado de NNA (Art 16 quáter) | Pendiente | Ola 1 (schema) + Ola 3 (enforcement) |
-| Cifrado app-level adicional (RUT, email, adjuntos, snapshots) | Pendiente | Ola 3 |
-| Procedimiento de brechas alineado al Art 14 sexies + entidad `DataBreachIncident` | Pendiente | Ola 3 |
+| Entidad `PatientDataRequest` para Arts 4-11 | Implementado | Ola 2 |
+| Derecho de bloqueo temporal (Art 8 ter) | Parcial: schema/guard implementados; falta aplicar guard exhaustivamente | Ola 2 |
+| Derecho de oposición / opt-out a analítica (Art 8) | Parcial: schema implementado; falta enforcement por finalidad | Ola 2 |
+| Tratamiento diferenciado de NNA (Art 16 quáter) | Parcial: schema representante legal; falta enforcement | Ola 1 (schema) + Ola 3 (enforcement) |
+| Cifrado app-level adicional (RUT, email, adjuntos, snapshots) | Parcial: adjuntos/snapshots/entregas cifrables; PII demográfica pendiente | Ola 3 |
+| Procedimiento de brechas alineado al Art 14 sexies + entidad `DataBreachIncident` | Parcial: entidad/runbook; falta validación legal y drills | Ola 3 |
 | DPAs firmados con subencargados (Cloudflare, Sentry, SMTP) | Pendiente | Ola 3 |
 | Inventario de transferencias internacionales (Arts 27-28) | Pendiente | Ola 3 |
 | Programa de prevención de infracciones (Art 48) | Pendiente | Ola 3 |
 | Modelo voluntario de cumplimiento + certificación (Art 49, Art 51) | Pendiente | Ola 4 |
-| UI pública de derechos del titular | Pendiente | Ola 2 |
-| Plantillas de comunicación (acuse, rechazo, brecha) | Pendiente | Olas 2-3 |
+| UI pública de derechos del titular | Implementado | Ola 2 |
+| Plantillas de comunicación (acuse, rechazo, brecha) | Parcial: acuse/resolución/prórroga/enlace/brecha implementadas | Olas 2-3 |
 | Drills (acceso end-to-end, brecha cronometrada, restore) | Pendiente | Ola 4 |

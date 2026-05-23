@@ -15,6 +15,9 @@ export const CLINICAL_ENTITY_TYPES = new Set([
   // Ley 21.719: tratar como clinical para minimizar PHI en diff
   'PatientDataProcessingConsent',
   'PatientDataRequest',
+  'PatientDataRequestDownload',
+  'PatientPortalAccount',
+  'PatientPortalSession',
   'DataBreachIncident',
 ]);
 

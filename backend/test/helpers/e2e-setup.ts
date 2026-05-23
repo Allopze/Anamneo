@@ -32,6 +32,22 @@ import { requestTracingMiddleware } from '../../src/common/utils/request-tracing
 
 // ── Test database URL resolution ────────────────────────────────────
 
+function loadEnvFileIfPresent(filePath: string) {
+  if (!fs.existsSync(filePath)) return;
+  const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) continue;
+    const [key, ...rawValueParts] = trimmed.split('=');
+    if (process.env[key]) continue;
+    const rawValue = rawValueParts.join('=').trim();
+    process.env[key] = rawValue.replace(/^["']|["']$/g, '');
+  }
+}
+
+loadEnvFileIfPresent(path.resolve(__dirname, '../../.env'));
+loadEnvFileIfPresent(path.resolve(__dirname, '../../../.env'));
+
 const TEST_DB_NAME = `anamneo_test_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 const DEFAULT_TEST_DATABASE_URL = `postgresql://anamneo_owner:anamneo_owner@localhost:5432/${TEST_DB_NAME}?schema=public`;
 

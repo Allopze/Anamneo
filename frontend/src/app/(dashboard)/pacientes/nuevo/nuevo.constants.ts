@@ -63,7 +63,10 @@ const basePatientObject = z.object({
   // Ley 21.719 Art 16 quáter — representante legal para NNA
   legalRepresentativeName: z.string().max(200).optional(),
   legalRepresentativeRut: z.string().max(20).optional(),
-  legalRepresentativeRelationship: z.enum(['PADRE', 'MADRE', 'TUTOR', 'REPRESENTANTE']).optional(),
+  legalRepresentativeRelationship: z.preprocess(
+    (value) => value === '' ? undefined : value,
+    z.enum(['PADRE', 'MADRE', 'TUTOR', 'REPRESENTANTE']).optional(),
+  ),
   legalRepresentativeContact: z.string().max(200).optional(),
 });
 

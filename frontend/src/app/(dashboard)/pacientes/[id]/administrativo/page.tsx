@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
@@ -44,6 +45,10 @@ function DetailField({ label, value }: { label: string; value: string }) {
 export default function PatientAdministrativeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const user = useAuthUser();
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRelationship, setInviteRelationship] = useState('TITULAR');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteResult, setInviteResult] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['patient-admin-summary', id],
@@ -100,6 +105,27 @@ export default function PatientAdministrativeDetailPage() {
     ? `Sin RUT${data.rutExemptReason ? ` · ${data.rutExemptReason}` : ''}`
     : data.rut || 'Sin RUT registrado';
   const completenessMeta = getPatientCompletenessMeta(data);
+  const portalInviteEmail = inviteEmail.trim() || data.email || '';
+
+  const handlePortalInvite = async () => {
+    if (!portalInviteEmail) {
+      alert('El paciente no tiene correo registrado. Ingresa un correo para invitarlo.');
+      return;
+    }
+    setInviteLoading(true);
+    setInviteResult(null);
+    try {
+      await api.post(`/admin/patients/${id}/portal-invite`, {
+        email: portalInviteEmail,
+        relationship: inviteRelationship,
+      });
+      setInviteResult(`Invitación enviada a ${portalInviteEmail}`);
+    } catch (err) {
+      alert(getErrorMessage(err));
+    } finally {
+      setInviteLoading(false);
+    }
+  };
 
   return (
     <div className="animate-fade-in pb-10">
@@ -198,6 +224,47 @@ export default function PatientAdministrativeDetailPage() {
             </div>
             <p className="mt-2 text-sm text-ink">{data.createdBy?.nombre || 'No disponible'}</p>
             <p className="mt-1 text-xs text-ink-muted">{data.createdBy?.email || 'Sin correo visible'}</p>
+          </div>
+
+          <div className="rounded-card border border-surface-muted/35 bg-surface-elevated px-4 py-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-ink">
+              <FiShield className="w-4 h-4 text-ink-secondary" />
+              Portal paciente
+            </div>
+            <div className="mt-3 space-y-3">
+              <label className="block text-xs font-medium uppercase tracking-wide text-ink-muted">
+                Correo de invitación
+                <input
+                  value={inviteEmail}
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                  placeholder={data.email || 'correo@dominio.cl'}
+                  className="mt-1 w-full rounded-card border border-surface-muted/50 bg-surface-base px-3 py-2 text-sm normal-case tracking-normal text-ink"
+                />
+              </label>
+              <label className="block text-xs font-medium uppercase tracking-wide text-ink-muted">
+                Relación
+                <select
+                  value={inviteRelationship}
+                  onChange={(event) => setInviteRelationship(event.target.value)}
+                  className="mt-1 w-full rounded-card border border-surface-muted/50 bg-surface-base px-3 py-2 text-sm normal-case tracking-normal text-ink"
+                >
+                  <option value="TITULAR">Titular</option>
+                  <option value="PADRE">Padre</option>
+                  <option value="MADRE">Madre</option>
+                  <option value="TUTOR">Tutor</option>
+                  <option value="REPRESENTANTE">Representante</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={handlePortalInvite}
+                disabled={inviteLoading}
+                className="btn btn-primary w-full justify-center"
+              >
+                {inviteLoading ? 'Enviando…' : 'Invitar al portal'}
+              </button>
+              {inviteResult && <p className="text-xs text-status-green-text">{inviteResult}</p>}
+            </div>
           </div>
         </section>
       </div>

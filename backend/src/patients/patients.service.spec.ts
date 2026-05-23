@@ -42,7 +42,7 @@ describe('PatientsService read auditing', () => {
       pagination: { total: 7 },
     });
 
-    const service = new PatientsService(prisma as never, auditService as never);
+    const service = new PatientsService(prisma as never, auditService as never, { assertConsentFor: async () => undefined } as never, { buildEncryptedFields: () => ({}) } as never);
     const result = await service.findAll(user, 'dolor', 2, 20, { sexo: 'FEMENINO' } as never);
 
     expect(result.pagination.total).toBe(7);
@@ -69,7 +69,7 @@ describe('PatientsService read auditing', () => {
       { id: 'patient-2', matchReasons: ['same_rut'] },
     ]);
 
-    const service = new PatientsService(prisma as never, auditService as never);
+    const service = new PatientsService(prisma as never, auditService as never, { assertConsentFor: async () => undefined } as never, { buildEncryptedFields: () => ({}) } as never);
     const duplicates = await service.findPossibleDuplicates(user, {
       rut: '11.111.111-1',
       nombre: 'Paciente Demo',
@@ -105,7 +105,7 @@ describe('PatientsService read auditing', () => {
       },
     });
 
-    const service = new PatientsService(prisma as never, auditService as never);
+    const service = new PatientsService(prisma as never, auditService as never, { assertConsentFor: async () => undefined } as never, { buildEncryptedFields: () => ({}) } as never);
     await service.getAdminSummary(user, 'patient-1');
 
     expect(auditService.log).toHaveBeenCalledWith(
@@ -137,7 +137,7 @@ describe('PatientsService read auditing', () => {
       pagination: { page: 1, limit: 20, total: 5, totalPages: 1 },
     });
 
-    const service = new PatientsService(prisma as never, auditService as never);
+    const service = new PatientsService(prisma as never, auditService as never, { assertConsentFor: async () => undefined } as never, { buildEncryptedFields: () => ({}) } as never);
 
     await service.findEncounterTimeline(user, 'patient-1', 3, 5);
     await service.findOperationalHistory(user, 'patient-1', 20);

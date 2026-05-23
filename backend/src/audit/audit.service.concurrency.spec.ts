@@ -44,11 +44,6 @@ const CREATE_AUDIT_LOG_TABLE_SQL = `
   );
 `;
 
-function hasPostgresTestUrl(): boolean {
-  const databaseUrl = process.env.TEST_DATABASE_URL;
-  return Boolean(databaseUrl?.startsWith('postgresql://') || databaseUrl?.startsWith('postgres://'));
-}
-
 function parseDatabaseName(databaseUrl: string): string {
   return new URL(databaseUrl).pathname.replace(/^\//, '');
 }
@@ -57,6 +52,39 @@ function buildDatabaseUrlWithName(databaseUrl: string, databaseName: string): st
   const url = new URL(databaseUrl);
   url.pathname = `/${databaseName}`;
   return url.toString();
+}
+
+function buildPostgresCliArgs(databaseUrl: string): { args: string[]; env: NodeJS.ProcessEnv } {
+  const url = new URL(databaseUrl);
+  return {
+    args: [
+      `--host=${url.hostname}`,
+      `--port=${url.port || '5432'}`,
+      `--username=${decodeURIComponent(url.username)}`,
+      '--maintenance-db=postgres',
+    ],
+    env: {
+      ...process.env,
+      PGPASSWORD: decodeURIComponent(url.password),
+    },
+  };
+}
+
+function hasPostgresTestUrl(): boolean {
+  const databaseUrl = process.env.TEST_DATABASE_URL;
+  if (!(databaseUrl?.startsWith('postgresql://') || databaseUrl?.startsWith('postgres://'))) {
+    return false;
+  }
+  const cli = buildPostgresCliArgs(databaseUrl);
+  try {
+    execFileSync('psql', [...cli.args.filter((arg) => !arg.startsWith('--maintenance-db=')), '--dbname=postgres', '--command=SELECT 1'], {
+      stdio: 'pipe',
+      env: cli.env,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function buildIsolatedDatabaseUrl(baseDatabaseUrl: string): string {
@@ -68,15 +96,15 @@ function buildIsolatedDatabaseUrl(baseDatabaseUrl: string): string {
 
 function createDatabase(databaseUrl: string) {
   const databaseName = parseDatabaseName(databaseUrl);
-  const maintenanceUrl = buildDatabaseUrlWithName(databaseUrl, 'postgres');
-  execFileSync('dropdb', ['--if-exists', `--dbname=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
-  execFileSync('createdb', [`--dbname=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
+  const cli = buildPostgresCliArgs(databaseUrl);
+  execFileSync('dropdb', ['--if-exists', ...cli.args, databaseName], { stdio: 'pipe', env: cli.env });
+  execFileSync('createdb', [...cli.args, databaseName], { stdio: 'pipe', env: cli.env });
 }
 
 function dropDatabase(databaseUrl: string) {
   const databaseName = parseDatabaseName(databaseUrl);
-  const maintenanceUrl = buildDatabaseUrlWithName(databaseUrl, 'postgres');
-  execFileSync('dropdb', ['--if-exists', `--dbname=${maintenanceUrl}`, databaseName], { stdio: 'pipe' });
+  const cli = buildPostgresCliArgs(databaseUrl);
+  execFileSync('dropdb', ['--if-exists', ...cli.args, databaseName], { stdio: 'pipe', env: cli.env });
 }
 
 const describePostgres = hasPostgresTestUrl() ? describe : describe.skip;

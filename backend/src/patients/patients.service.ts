@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { PolicyComplianceService } from '../patient-consents/policy-compliance.service';
+import { PatientsFieldCryptoService } from './patients-field-crypto.service';
 import type { AuditReason } from '../common/types';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreatePatientQuickDto } from './dto/create-patient-quick.dto';
@@ -47,6 +49,8 @@ export class PatientsService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
+    private policyCompliance: PolicyComplianceService,
+    private fieldCrypto: PatientsFieldCryptoService,
   ) {}
 
   private async logPatientReadEvent(params: {
@@ -75,11 +79,59 @@ export class PatientsService {
   });
 
   async create(createPatientDto: CreatePatientDto, userId: string) {
-    return createPatient(this.prisma, this.auditService, createPatientDto, userId);
+    const created = await createPatient(this.prisma, this.auditService, createPatientDto, userId);
+    await this.enrichEncryptedIdentifiers(created.id, createPatientDto);
+    return created;
   }
 
   async createQuick(createPatientDto: CreatePatientQuickDto, user: RequestUser) {
-    return createQuickPatient(this.prisma, this.auditService, createPatientDto, user);
+    const created = await createQuickPatient(this.prisma, this.auditService, createPatientDto, user);
+    await this.enrichEncryptedIdentifiers(created.id, createPatientDto);
+    return created;
+  }
+
+  /**
+   * Ley 21.719 Art 14 quinquies — dual-write Phase A.
+   *
+   * Llamado despues de cada create/update del paciente para poblar las
+   * columnas `*_enc` y `rut_lookup_hash`. No bloquea la operacion si la
+   * clave de cifrado no esta configurada (modo dev/test).
+   */
+  private async enrichEncryptedIdentifiers(
+    patientId: string,
+    input: {
+      rut?: string | null;
+      nombre?: string | null;
+      telefono?: string | null;
+      email?: string | null;
+      domicilio?: string | null;
+      contactoEmergenciaNombre?: string | null;
+      contactoEmergenciaTelefono?: string | null;
+    },
+  ): Promise<void> {
+    const enc = this.fieldCrypto.buildEncryptedFields(input);
+    // Si TODOS los valores son null, no hay nada que actualizar.
+    const hasAnyEncrypted =
+      enc.rutEnc !== null ||
+      enc.nombreEnc !== null ||
+      enc.telefonoEnc !== null ||
+      enc.emailEnc !== null ||
+      enc.domicilioEnc !== null ||
+      enc.contactoEmergenciaNombreEnc !== null ||
+      enc.contactoEmergenciaTelefonoEnc !== null ||
+      enc.rutLookupHash !== null;
+    if (!hasAnyEncrypted) return;
+    try {
+      await this.prisma.patient.update({
+        where: { id: patientId },
+        data: enc,
+      });
+    } catch (err) {
+      // Una falla aqui no debe romper la operacion principal del paciente.
+      // El error se loggea para diagnostico.
+      // eslint-disable-next-line no-console
+      console.warn(`[patients.service] enrichEncryptedIdentifiers failed for ${patientId}: ${(err as Error).message}`);
+    }
   }
 
   async findAll(
@@ -264,11 +316,19 @@ export class PatientsService {
   }
 
   async update(id: string, updatePatientDto: UpdatePatientDto, user: RequestUser) {
-    return updatePatient(this.prisma, this.auditService, id, updatePatientDto, user);
+    // Ley 21.719 Art 12 - verifica consentimiento vigente para tratamiento clinico.
+    // En modo `soft` (default) solo loggea; en `hard` (prod) rechaza.
+    await this.policyCompliance.assertConsentFor(id, 'ATENCION_CLINICA');
+    const result = await updatePatient(this.prisma, this.auditService, id, updatePatientDto, user);
+    await this.enrichEncryptedIdentifiers(id, updatePatientDto);
+    return result;
   }
 
   async updateAdminFields(user: RequestUser, patientId: string, dto: UpdatePatientAdminDto) {
-    return updateAdminFields(this.prisma, this.auditService, user, patientId, dto, this.assertPatientAccess);
+    await this.policyCompliance.assertConsentFor(patientId, 'ATENCION_CLINICA');
+    const result = await updateAdminFields(this.prisma, this.auditService, user, patientId, dto, this.assertPatientAccess);
+    await this.enrichEncryptedIdentifiers(patientId, dto);
+    return result;
   }
 
   async verifyDemographics(user: RequestUser, patientId: string) {

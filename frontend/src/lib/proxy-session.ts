@@ -10,14 +10,42 @@ export function resolveProxyDecision(input: {
   hasSessionCookie: boolean;
   hasRefreshToken: boolean;
   hasValidatedSession: boolean;
+  hasPatientSessionCookie?: boolean;
+  hasPatientRefreshToken?: boolean;
+  hasValidatedPatientSession?: boolean;
 }): ProxyDecision {
-  const { pathname, search, hasSessionCookie, hasRefreshToken, hasValidatedSession } = input;
+  const {
+    pathname,
+    search,
+    hasSessionCookie,
+    hasRefreshToken,
+    hasValidatedSession,
+    hasPatientSessionCookie,
+    hasPatientRefreshToken,
+    hasValidatedPatientSession,
+  } = input;
   const isLegalRoute = pathname === '/terminos-y-condiciones' || pathname === '/politica-de-privacidad';
+  const isDataRightsRoute = pathname === '/derechos' || pathname === '/descargar-ficha';
+  const isPortalPublicRoute = pathname === '/portal/login' || pathname === '/portal/activar';
+  const isPortalRoute = pathname === '/portal' || pathname.startsWith('/portal/');
   const isAuthRoute = pathname === '/login' || pathname === '/register' || pathname === '/forgot-password';
   const isPasswordResetWithToken = pathname === '/cambiar-contrasena' && /[?&]token=/.test(search);
-  const isPublicRoute = isAuthRoute || isLegalRoute || isPasswordResetWithToken;
+  const isPublicRoute = isAuthRoute || isLegalRoute || isDataRightsRoute || isPortalPublicRoute || isPasswordResetWithToken;
+
+  if (isPortalRoute && !isPortalPublicRoute) {
+    if (hasValidatedPatientSession || hasPatientRefreshToken) {
+      return { action: 'next' };
+    }
+    if (!hasPatientSessionCookie) {
+      return { action: 'redirect', target: `/portal/login?next=${encodeURIComponent(`${pathname}${search}`)}` };
+    }
+  }
 
   if (isPublicRoute) {
+    if (isPortalPublicRoute && hasValidatedPatientSession) {
+      return { action: 'redirect', target: '/portal' };
+    }
+
     if (isAuthRoute && hasValidatedSession) {
       return { action: 'redirect', target: '/' };
     }

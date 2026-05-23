@@ -15,7 +15,16 @@ const CSRF_EXEMPT_PATHS = new Set([
   '/api/auth/2fa/verify',
   '/api/auth/forgot-password',
   '/api/auth/forgot-password/confirm',
+  '/api/public/derechos',
 ]);
+
+function isCsrfExemptPath(path: string): boolean {
+  return (
+    CSRF_EXEMPT_PATHS.has(path)
+    || /^\/api\/public\/data-request-downloads\/[^/]+\/download$/.test(path)
+    || path.startsWith('/api/portal/auth/')
+  );
+}
 
 function generateToken(): string {
   return randomBytes(32).toString('hex');
@@ -58,7 +67,7 @@ export function csrfMiddleware(req: Request, res: Response, next: NextFunction) 
   }
 
   const path = req.originalUrl?.split('?')[0] ?? req.path;
-  if (CSRF_EXEMPT_PATHS.has(path)) {
+  if (isCsrfExemptPath(path)) {
     return next();
   }
 

@@ -58,6 +58,6 @@ export class PatientConsentsController {
     @Body() dto: RevokePatientDataConsentDto,
     @CurrentUser() user: CurrentUserData,
   ) {
-    return this.service.revoke(id, dto.reason, user);
+    return this.service.revoke(id, dto.reason, user, dto.channel);
   }
 }

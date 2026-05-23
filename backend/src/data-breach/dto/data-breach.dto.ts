@@ -71,6 +71,49 @@ export class NotifySubjectsDto {
   @MinLength(20)
   @MaxLength(4000)
   measuresTaken!: string;
+
+  // ---- Campos recomendados para cumplir los 11 elementos minimos
+  //      de notificacion (ver docs/respuestas-borrador-ley21719.md §3.3) ----
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  responsableName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  dpoName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  dpoEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  dataCategoriesAffected?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  possibleConsequences?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  recommendedActions?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  consultationChannels?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  followUpInfo?: string;
 }
 
 export class CloseDataBreachDto {

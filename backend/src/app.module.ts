@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
@@ -19,6 +20,7 @@ import { SettingsModule } from './settings/settings.module';
 import { ConsentsModule } from './consents/consents.module';
 import { PatientConsentsModule } from './patient-consents/patient-consents.module';
 import { PatientDataRightsModule } from './patient-data-rights/patient-data-rights.module';
+import { PatientPortalModule } from './patient-portal/patient-portal.module';
 import { DataBreachModule } from './data-breach/data-breach.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { Cie10Module } from './cie10/cie10.module';
@@ -31,6 +33,9 @@ import { HealthController } from './health.controller';
 @Module({
   imports: [
     SentryModule.forRoot(),
+
+    // Cron / interval scheduling (Ley 21.719: SLA timer for PatientDataRequest)
+    ScheduleModule.forRoot(),
 
     // Configuration
     ConfigModule.forRoot({
@@ -74,6 +79,7 @@ import { HealthController } from './health.controller';
     ConsentsModule,
     PatientConsentsModule,
     PatientDataRightsModule,
+    PatientPortalModule,
     DataBreachModule,
     AlertsModule,
     Cie10Module,

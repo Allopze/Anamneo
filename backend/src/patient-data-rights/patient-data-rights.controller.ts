@@ -10,10 +10,11 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { Public } from '../common/decorators/public.decorator';
@@ -21,8 +22,11 @@ import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.
 import { PatientDataRightsService } from './patient-data-rights.service';
 import {
   AdminUpdateDataRequestDto,
+  CreateDataRequestExportLinkDto,
+  DownloadDataRequestExportDto,
   ExtendDataRequestDto,
   PublicDataRequestDto,
+  RevokeDataRequestExportLinkDto,
   ResolveDataRequestDto,
 } from './dto/patient-data-rights.dto';
 
@@ -42,6 +46,22 @@ export class PatientDataRightsController {
       ip: req.ip,
       userAgent: req.headers['user-agent']?.toString(),
     });
+  }
+
+  @Public()
+  @Post('public/data-request-downloads/:token/download')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 10 * 60 * 1000 } })
+  async downloadPublic(
+    @Param('token') token: string,
+    @Body() dto: DownloadDataRequestExportDto,
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.service.downloadExport(token, dto);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buffer.length);
+    res.end(buffer);
   }
 
   // ---------- Rutas admin ----------
@@ -92,5 +112,27 @@ export class PatientDataRightsController {
     @CurrentUser() user: CurrentUserData,
   ) {
     return this.service.resolve(id, dto, user);
+  }
+
+  @Post('admin/data-requests/:id/export-link')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @HttpCode(HttpStatus.OK)
+  async createExportLink(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateDataRequestExportLinkDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.service.createExportLink(id, dto, user);
+  }
+
+  @Post('admin/data-request-downloads/:id/revoke')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @HttpCode(HttpStatus.OK)
+  async revokeExportLink(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RevokeDataRequestExportLinkDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.service.revokeExportLink(id, dto.reason, user);
   }
 }

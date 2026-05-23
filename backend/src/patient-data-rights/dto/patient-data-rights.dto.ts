@@ -37,6 +37,7 @@ export const IDENTITY_VERIFICATION_METHODS = [
   'PRESENCIAL',
   'CEDULA_FOTO',
   'CLAVE_UNICA',
+  'PORTAL',
   'OTRO',
 ] as const;
 
@@ -114,6 +115,28 @@ export class ResolveDataRequestDto {
 export class ExtendDataRequestDto {
   @IsString()
   @MinLength(10, { message: 'Motivo de la prórroga debe tener al menos 10 caracteres' })
+  @MaxLength(1000)
+  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  reason!: string;
+}
+
+export class CreateDataRequestExportLinkDto {
+  @IsOptional()
+  @Type(() => Number)
+  ttlHours?: number;
+}
+
+export class DownloadDataRequestExportDto {
+  @IsString()
+  @MinLength(3, { message: 'requesterRut debe tener al menos 3 caracteres' })
+  @MaxLength(20)
+  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  requesterRut!: string;
+}
+
+export class RevokeDataRequestExportLinkDto {
+  @IsString()
+  @MinLength(10, { message: 'El motivo debe tener al menos 10 caracteres' })
   @MaxLength(1000)
   @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
   reason!: string;

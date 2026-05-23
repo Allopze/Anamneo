@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsObject, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export const PATIENT_DATA_CONSENT_PURPOSES = [
   'ATENCION_CLINICA',
@@ -49,7 +49,41 @@ export class GrantPatientDataConsentDto {
 
   @IsIn(PATIENT_DATA_CONSENT_SIGNER_RELATIONSHIPS, { message: 'signerRelationship inválido' })
   signerRelationship!: typeof PATIENT_DATA_CONSENT_SIGNER_RELATIONSHIPS[number];
+
+  // ---- Campos opcionales recomendados por asesor legal (§2.4) ----
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  language?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  sessionId?: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  clinicId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  representativeBondEvidenceRef?: string;
+
+  // Snapshot del payload mostrado al titular (texto, checkboxes, version UI)
+  // El hash de este objeto se comparara con `evidenceHash` para asegurar integridad.
+  @IsOptional()
+  @IsObject()
+  consentPayloadSnapshot?: Record<string, unknown>;
 }
+
+export const PATIENT_DATA_CONSENT_REVOKED_CHANNELS = [
+  'WEB_TITULAR',
+  'PRESENCIAL',
+  'EMAIL',
+  'DPO',
+] as const;
 
 export class RevokePatientDataConsentDto {
   @IsString()
@@ -57,4 +91,8 @@ export class RevokePatientDataConsentDto {
   @MaxLength(1000)
   @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
   reason!: string;
+
+  @IsOptional()
+  @IsIn(PATIENT_DATA_CONSENT_REVOKED_CHANNELS)
+  channel?: typeof PATIENT_DATA_CONSENT_REVOKED_CHANNELS[number];
 }

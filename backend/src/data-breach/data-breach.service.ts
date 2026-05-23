@@ -170,6 +170,14 @@ export class DataBreachService {
         detectedAt: existing.detectedAt,
         scope: existing.scope,
         measuresTaken: dto.measuresTaken,
+        responsableName: dto.responsableName,
+        dpoName: dto.dpoName,
+        dpoEmail: dto.dpoEmail,
+        dataCategoriesAffected: dto.dataCategoriesAffected,
+        possibleConsequences: dto.possibleConsequences,
+        recommendedActions: dto.recommendedActions,
+        consultationChannels: dto.consultationChannels,
+        followUpInfo: dto.followUpInfo,
       });
       if (res.sent) sent += 1;
       else skipped += 1;

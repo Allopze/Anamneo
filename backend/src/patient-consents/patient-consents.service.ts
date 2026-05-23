@@ -106,6 +106,10 @@ export class PatientConsentsService {
       capturedAt: new Date().toISOString(),
       capturedIp: requestMeta.ip ?? null,
       capturedUserAgent: requestMeta.userAgent ?? null,
+      language: dto.language ?? 'es-CL',
+      sessionId: dto.sessionId ?? null,
+      clinicId: dto.clinicId ?? null,
+      consentPayloadSnapshot: dto.consentPayloadSnapshot ?? null,
     };
     const evidenceHash = createHash('sha256').update(JSON.stringify(evidencePayload)).digest('hex');
 
@@ -123,6 +127,11 @@ export class PatientConsentsService {
         signerRut: dto.signerRut,
         signerRelationship: dto.signerRelationship,
         evidenceHash,
+        language: dto.language ?? 'es-CL',
+        sessionId: dto.sessionId,
+        clinicId: dto.clinicId,
+        representativeBondEvidenceRef: dto.representativeBondEvidenceRef,
+        consentPayloadSnapshot: (dto.consentPayloadSnapshot ?? null) as never,
       },
     });
 
@@ -144,7 +153,7 @@ export class PatientConsentsService {
     return created;
   }
 
-  async revoke(consentId: string, reason: string, user: RequestUser) {
+  async revoke(consentId: string, reason: string, user: RequestUser, channel?: string) {
     const consent = await this.prisma.patientDataProcessingConsent.findUnique({
       where: { id: consentId },
       select: { id: true, patientId: true, revokedAt: true, purpose: true },
@@ -156,7 +165,12 @@ export class PatientConsentsService {
 
     const updated = await this.prisma.patientDataProcessingConsent.update({
       where: { id: consentId },
-      data: { revokedAt: new Date(), granted: false },
+      data: {
+        revokedAt: new Date(),
+        granted: false,
+        revokedReason: reason.slice(0, 1000),
+        revokedChannel: channel ?? null,
+      },
     });
 
     await this.audit.log({
@@ -169,6 +183,7 @@ export class PatientConsentsService {
         patientId: consent.patientId,
         purpose: consent.purpose,
         revokedReason: reason.slice(0, 200),
+        revokedChannel: channel ?? null,
       },
     });
 

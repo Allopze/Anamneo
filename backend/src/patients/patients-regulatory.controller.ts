@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Post,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -19,6 +20,7 @@ import { PatientsRegulatoryExportService } from './patients-regulatory-export.se
 import {
   PatientsRegulatoryPurgeService,
 } from './patients-regulatory-purge.service';
+import { PatientsBlockingService } from './patients-blocking.service';
 
 class RegulatoryPurgeDto {
   @IsString()
@@ -35,6 +37,13 @@ class RegulatoryPurgeDto {
   bypassRetention?: string;
 }
 
+class BlockPatientDto {
+  @IsString()
+  @MinLength(10, { message: 'La razón debe tener al menos 10 caracteres' })
+  @MaxLength(1000)
+  reason!: string;
+}
+
 /**
  * Endpoints regulatorios bajo Ley 19.628 / Ley 21.719. Admin-only.
  */
@@ -44,6 +53,7 @@ export class PatientsRegulatoryController {
   constructor(
     private readonly exportService: PatientsRegulatoryExportService,
     private readonly purgeService: PatientsRegulatoryPurgeService,
+    private readonly blockingService: PatientsBlockingService,
   ) {}
 
   @Get(':id/export/regulatory')
@@ -71,5 +81,26 @@ export class PatientsRegulatoryController {
       justification: dto.justification,
       bypassRetention: dto.bypassRetention === 'true',
     });
+  }
+
+  // Ley 21.719 Art 8 ter — bloqueo temporal del tratamiento.
+  @Post(':id/block')
+  @HttpCode(HttpStatus.OK)
+  async blockPatient(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: BlockPatientDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.blockingService.block(id, dto.reason, user);
+  }
+
+  @Post(':id/unblock')
+  @HttpCode(HttpStatus.OK)
+  async unblockPatient(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: BlockPatientDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.blockingService.unblock(id, dto.reason, user);
   }
 }

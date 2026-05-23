@@ -71,6 +71,56 @@ describe('resolveProxyDecision', () => {
     ).toEqual({ action: 'next' });
   });
 
+  it('keeps data-subject routes public without internal session cookies', () => {
+    expect(
+      resolveProxyDecision({
+        pathname: '/derechos',
+        search: '',
+        hasSessionCookie: false,
+        hasRefreshToken: false,
+        hasValidatedSession: false,
+      }),
+    ).toEqual({ action: 'next' });
+
+    expect(
+      resolveProxyDecision({
+        pathname: '/descargar-ficha',
+        search: '?token=abc',
+        hasSessionCookie: false,
+        hasRefreshToken: false,
+        hasValidatedSession: false,
+      }),
+    ).toEqual({ action: 'next' });
+  });
+
+  it('uses patient portal cookies for portal routes', () => {
+    expect(
+      resolveProxyDecision({
+        pathname: '/portal',
+        search: '',
+        hasSessionCookie: false,
+        hasRefreshToken: false,
+        hasValidatedSession: false,
+        hasPatientSessionCookie: false,
+        hasPatientRefreshToken: false,
+        hasValidatedPatientSession: false,
+      }),
+    ).toEqual({ action: 'redirect', target: '/portal/login?next=%2Fportal' });
+
+    expect(
+      resolveProxyDecision({
+        pathname: '/portal',
+        search: '',
+        hasSessionCookie: false,
+        hasRefreshToken: false,
+        hasValidatedSession: false,
+        hasPatientSessionCookie: true,
+        hasPatientRefreshToken: true,
+        hasValidatedPatientSession: false,
+      }),
+    ).toEqual({ action: 'next' });
+  });
+
   it('allows protected routes with only a refresh token so the shell can recover the session', () => {
     expect(
       resolveProxyDecision({
