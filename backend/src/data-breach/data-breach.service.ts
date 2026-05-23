@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
 import { RequestUser } from '../common/utils/medico-id';
+import { resolvePatientIdentifiers } from '../patients/patients-identifiers';
 import {
   AssessDataBreachDto,
   CloseDataBreachDto,
@@ -153,19 +154,20 @@ export class DataBreachService {
     }
     const patients = await this.prisma.patient.findMany({
       where: { id: { in: affectedIds } },
-      select: { id: true, nombre: true, email: true },
+      select: { id: true, nombreEnc: true, emailEnc: true },
     });
 
     let sent = 0;
     let skipped = 0;
     for (const p of patients) {
-      if (!p.email) {
+      const identifiers = resolvePatientIdentifiers(p);
+      if (!identifiers.email) {
         skipped += 1;
         continue;
       }
       const res = await this.mail.sendBreachNotificationToSubject({
-        to: p.email,
-        subjectName: p.nombre,
+        to: identifiers.email,
+        subjectName: identifiers.nombre,
         breachId: id,
         detectedAt: existing.detectedAt,
         scope: existing.scope,

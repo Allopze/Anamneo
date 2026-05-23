@@ -4,6 +4,7 @@ import { buildEncounterTaskScopeWhere } from '../common/utils/patient-access';
 import { isDateOnlyBeforeToday, startOfAppDayUtc } from '../common/utils/local-date';
 import { PrismaService } from '../prisma/prisma.service';
 import { formatTask } from './patients-format';
+import { patientMatchesIdentifierSearch } from './patients-identifiers';
 
 export interface PatientTaskInboxFilters {
   search?: string;
@@ -53,17 +54,6 @@ export async function findPatientTasksReadModel(params: FindPatientTasksReadMode
     whereClauses.push({ priority: filters.priority });
   }
 
-  if (filters?.search?.trim()) {
-    const search = filters.search.trim();
-    whereClauses.push({
-      OR: [
-        { title: { contains: search } },
-        { details: { contains: search } },
-        { patient: { nombre: { contains: search } } },
-      ],
-    });
-  }
-
   if (filters?.overdueOnly) {
     whereClauses.push({ dueDate: { lt: startOfAppDayUtc(new Date()) } });
 
@@ -86,26 +76,38 @@ export async function findPatientTasksReadModel(params: FindPatientTasksReadMode
 
   const where: Prisma.EncounterTaskWhereInput = whereClauses.length === 1 ? whereClauses[0] : { AND: whereClauses };
 
-  const [tasks, total] = await Promise.all([
-    prisma.encounterTask.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
-      include: {
-        patient: {
-          select: { id: true, nombre: true, rut: true },
-        },
-        createdBy: {
-          select: { id: true, nombre: true },
-        },
-      },
-    }),
-    prisma.encounterTask.count({ where }),
-  ]);
+  const include = {
+    patient: {
+      select: { id: true, rutEnc: true, nombreEnc: true },
+    },
+    createdBy: {
+      select: { id: true, nombre: true },
+    },
+  } as const;
+
+  const searchText = filters?.search?.trim();
+  const tasks = searchText
+    ? (await prisma.encounterTask.findMany({
+        where,
+        orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+        include,
+      })).filter((task) => (
+        task.title.includes(searchText)
+        || (task.details?.includes(searchText) ?? false)
+        || patientMatchesIdentifierSearch(task.patient, searchText)
+      ))
+    : await prisma.encounterTask.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+        include,
+      });
+  const total = searchText ? tasks.length : await prisma.encounterTask.count({ where });
+  const pageTasks = searchText ? tasks.slice(skip, skip + limit) : tasks;
 
   return {
-    data: tasks.map((task) => ({
+    data: pageTasks.map((task) => ({
       ...formatTask(task),
       isOverdue: Boolean(
         task.dueDate && isDateOnlyBeforeToday(task.dueDate) && ['PENDIENTE', 'EN_PROCESO'].includes(task.status),

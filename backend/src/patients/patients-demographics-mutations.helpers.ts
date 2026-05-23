@@ -3,13 +3,14 @@ import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { isDateOnlyAfterToday, calculateAgeFromBirthDate, parseDateOnlyToStoredUtcDate } from '../common/utils/local-date';
 import { normalizeNullableEmail, normalizeNullableString } from './patients-format';
+import { computeRutLookupHash } from './patients-identifiers';
 
 export async function findDuplicateRut(prisma: PrismaService, params: { rut: string; excludePatientId?: string }) {
   const { rut, excludePatientId } = params;
 
   return prisma.patient.findFirst({
     where: {
-      rut,
+      rutLookupHash: computeRutLookupHash(rut),
       ...(excludePatientId ? { id: { not: excludePatientId } } : {}),
     },
   });
@@ -81,26 +82,6 @@ export function applySharedDemographicFields(
 
   if (trabajo !== undefined) {
     updateData.trabajo = normalizeNullableString(trabajo);
-  }
-
-  if (domicilio !== undefined) {
-    updateData.domicilio = normalizeNullableString(domicilio);
-  }
-
-  if (telefono !== undefined) {
-    updateData.telefono = normalizeNullableString(telefono);
-  }
-
-  if (email !== undefined) {
-    updateData.email = normalizeNullableEmail(email);
-  }
-
-  if (contactoEmergenciaNombre !== undefined) {
-    updateData.contactoEmergenciaNombre = normalizeNullableString(contactoEmergenciaNombre);
-  }
-
-  if (contactoEmergenciaTelefono !== undefined) {
-    updateData.contactoEmergenciaTelefono = normalizeNullableString(contactoEmergenciaTelefono);
   }
 
   if (centroMedico !== undefined) {

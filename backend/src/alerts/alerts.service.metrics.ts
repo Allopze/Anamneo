@@ -2,6 +2,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { buildAccessiblePatientsWhere } from '../common/utils/patient-access';
 import { buildPatientLevelOwnershipWhere } from './alerts.service.helpers';
+import { resolvePatientIdentifiers } from '../patients/patients-identifiers';
 
 export async function countUnacknowledgedAlerts(
   prisma: PrismaService,
@@ -43,7 +44,7 @@ export async function findRecentUnacknowledgedAlerts(
   const patientWhere = buildAccessiblePatientsWhere(user);
   const effectiveMedicoId = user.isAdmin ? null : getEffectiveMedicoId(user);
 
-  return prisma.clinicalAlert.findMany({
+  const alerts = await prisma.clinicalAlert.findMany({
     where: {
       acknowledgedAt: null,
       ...(effectiveMedicoId
@@ -73,10 +74,17 @@ export async function findRecentUnacknowledgedAlerts(
       message: true,
       createdAt: true,
       patient: {
-        select: { id: true, nombre: true },
+        select: { id: true, nombreEnc: true },
       },
     },
     orderBy: { createdAt: 'desc' },
     take,
   });
+
+  return alerts.map((alert) => ({
+    ...alert,
+    patient: alert.patient
+      ? { id: alert.patient.id, nombre: resolvePatientIdentifiers(alert.patient).nombre }
+      : alert.patient,
+  }));
 }

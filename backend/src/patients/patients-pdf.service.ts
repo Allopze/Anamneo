@@ -28,6 +28,7 @@ import {
   renderPdfHeader,
   renderPdfSectionHeading,
 } from '../common/utils/pdf-document-layout';
+import { withPatientIdentifiers } from './patients-identifiers';
 
 @Injectable()
 export class PatientsPdfService {
@@ -78,8 +79,9 @@ export class PatientsPdfService {
       }
     }
 
-    assertEncounterClinicalOutputAllowed(patient, 'EXPORT_OFFICIAL_DOCUMENTS');
-    return patient;
+    const patientWithIdentifiers = withPatientIdentifiers(patient);
+    assertEncounterClinicalOutputAllowed(patientWithIdentifiers, 'EXPORT_OFFICIAL_DOCUMENTS');
+    return patientWithIdentifiers;
   }
 
   async generateLongitudinalPdf(patientId: string, user: RequestUser): Promise<Buffer> {

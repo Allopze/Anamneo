@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { PatientsPdfService } from './patients-pdf.service';
 import { formatHistoryFieldText } from './patients-pdf-helpers';
+import { buildEncryptedPatientIdentifierFields } from './patients-identifiers';
 
 function countPdfPages(buffer: Buffer) {
   return buffer.toString('latin1').match(/\/Type\s*\/Page\b/g)?.length ?? 0;
@@ -30,8 +31,7 @@ describe('PatientsPdfService', () => {
       patient: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'patient-1',
-          nombre: 'Paciente Demo',
-          rut: '11.111.111-1',
+          ...buildEncryptedPatientIdentifierFields({ nombre: 'Paciente Demo', rut: '11.111.111-1' }),
           rutExempt: false,
           rutExemptReason: null,
           fechaNacimiento: new Date('1986-03-18T00:00:00.000Z'),
@@ -41,7 +41,7 @@ describe('PatientsPdfService', () => {
           prevision: 'FONASA',
           completenessStatus: 'VERIFICADA',
           trabajo: null,
-          domicilio: null,
+          domicilioEnc: null,
           centroMedico: null,
           createdById: 'owner-medico',
           archivedAt: null,
@@ -86,8 +86,7 @@ describe('PatientsPdfService', () => {
       patient: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'patient-1',
-          nombre: 'José Pérez / Control',
-          rut: '11.111.111-1',
+          ...buildEncryptedPatientIdentifierFields({ nombre: 'José Pérez / Control', rut: '11.111.111-1' }),
           rutExempt: false,
           rutExemptReason: null,
           fechaNacimiento: new Date('1986-03-18T00:00:00.000Z'),
@@ -132,8 +131,7 @@ describe('PatientsPdfService', () => {
       patient: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'patient-1',
-          nombre: 'Paciente Demo',
-          rut: null,
+          ...buildEncryptedPatientIdentifierFields({ nombre: 'Paciente Demo', rut: null }),
           rutExempt: false,
           rutExemptReason: null,
           edad: null,
@@ -142,7 +140,7 @@ describe('PatientsPdfService', () => {
           prevision: null,
           completenessStatus: 'INCOMPLETA',
           trabajo: null,
-          domicilio: null,
+          domicilioEnc: null,
           centroMedico: null,
           archivedAt: null,
           history: {},
@@ -173,8 +171,7 @@ describe('PatientsPdfService', () => {
       patient: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'patient-1',
-          nombre: 'Paciente Demo',
-          rut: '11.111.111-1',
+          ...buildEncryptedPatientIdentifierFields({ nombre: 'Paciente Demo', rut: '11.111.111-1' }),
           rutExempt: false,
           rutExemptReason: null,
           fechaNacimiento: new Date('1986-03-18T00:00:00.000Z'),
@@ -184,7 +181,7 @@ describe('PatientsPdfService', () => {
           prevision: 'FONASA',
           completenessStatus: 'VERIFICADA',
           trabajo: null,
-          domicilio: null,
+          domicilioEnc: null,
           centroMedico: null,
           createdById: 'owner-medico',
           archivedAt: null,

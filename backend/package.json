@@ -130,6 +130,9 @@
     "moduleNameMapper": {
       "^@otplib/v12-adapter$": "<rootDir>/../node_modules/@otplib/v12-adapter/dist/index.cjs"
     },
+    "setupFiles": [
+      "<rootDir>/test-env.setup.ts"
+    ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],

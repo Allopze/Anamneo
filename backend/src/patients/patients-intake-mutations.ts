@@ -11,6 +11,7 @@ import {
 } from '../common/utils/local-date';
 import { decoratePatient, normalizeNullableEmail, normalizeNullableString, resolvePatientVerificationState } from './patients-format';
 import { resolveCreatePatientRutInput, resolvePatientRutState } from './patients-create-utils';
+import { buildEncryptedPatientIdentifierFields } from './patients-identifiers';
 
 interface CreatePatientMutationParams {
   prisma: PrismaService;
@@ -70,15 +71,23 @@ export async function createPatientMutation(params: CreatePatientMutationParams)
   const resolvedAge = createPatientDto.fechaNacimiento
     ? calculateAgeFromBirthDate(createPatientDto.fechaNacimiento)
     : { edad: createPatientDto.edad, edadMeses: createPatientDto.edadMeses ?? null };
+  const plaintextIdentifiers = {
+    rut: resolvedRut.rut,
+    nombre: createPatientDto.nombre,
+    domicilio: normalizeNullableString(createPatientDto.domicilio),
+    telefono: normalizeNullableString(createPatientDto.telefono),
+    email: normalizeNullableEmail(createPatientDto.email),
+    contactoEmergenciaNombre: normalizeNullableString(createPatientDto.contactoEmergenciaNombre),
+    contactoEmergenciaTelefono: normalizeNullableString(createPatientDto.contactoEmergenciaTelefono),
+  };
 
   return prisma.$transaction(async (tx) => {
     const patient = await tx.patient.create({
       data: {
         createdById: userId,
-        rut: resolvedRut.rut,
+        ...buildEncryptedPatientIdentifierFields(plaintextIdentifiers),
         rutExempt: resolvedRut.rutExempt,
         rutExemptReason: resolvedRut.rutExemptReason,
-        nombre: createPatientDto.nombre,
         fechaNacimiento: createPatientDto.fechaNacimiento
           ? parseDateOnlyToStoredUtcDate(createPatientDto.fechaNacimiento, 'La fecha de nacimiento')
           : null,
@@ -87,11 +96,6 @@ export async function createPatientMutation(params: CreatePatientMutationParams)
         sexo: createPatientDto.sexo,
         trabajo: normalizeNullableString(createPatientDto.trabajo),
         prevision: createPatientDto.prevision,
-        domicilio: normalizeNullableString(createPatientDto.domicilio),
-        telefono: normalizeNullableString(createPatientDto.telefono),
-        email: normalizeNullableEmail(createPatientDto.email),
-        contactoEmergenciaNombre: normalizeNullableString(createPatientDto.contactoEmergenciaNombre),
-        contactoEmergenciaTelefono: normalizeNullableString(createPatientDto.contactoEmergenciaTelefono),
         centroMedico: normalizeNullableString(createPatientDto.centroMedico),
         registrationMode: 'COMPLETO',
         ...verificationState,
@@ -136,20 +140,27 @@ export async function createQuickPatientMutation(params: CreatePatientQuickMutat
     formattedRut,
     trimmedRutExemptReason,
   });
+  const plaintextIdentifiers = {
+    rut: resolvedRut.rut,
+    nombre: createPatientDto.nombre,
+    domicilio: null,
+    telefono: null,
+    email: null,
+    contactoEmergenciaNombre: null,
+    contactoEmergenciaTelefono: null,
+  };
 
   return prisma.$transaction(async (tx) => {
     const patient = await tx.patient.create({
       data: {
         createdById: user.id,
-        rut: resolvedRut.rut,
+        ...buildEncryptedPatientIdentifierFields(plaintextIdentifiers),
         rutExempt: resolvedRut.rutExempt,
         rutExemptReason: resolvedRut.rutExemptReason,
-        nombre: createPatientDto.nombre,
         edad: null,
         sexo: null,
         prevision: null,
         trabajo: null,
-        domicilio: null,
         registrationMode: 'RAPIDO',
         ...resolvePatientVerificationState({
           actorId: user.id,

@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { validateRut } from '../common/utils/helpers';
 import { PrismaService } from '../prisma/prisma.service';
+import { computeRutLookupHash } from './patients-identifiers';
 
 interface ResolveCreatePatientRutInputParams {
   prisma: PrismaService;
@@ -49,7 +50,7 @@ export async function resolveCreatePatientRutInput(params: ResolveCreatePatientR
 
     const existingPatient = await prisma.patient.findFirst({
       where: {
-        rut: validatedRut,
+        rutLookupHash: computeRutLookupHash(validatedRut),
       },
     });
 

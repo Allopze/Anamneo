@@ -12,8 +12,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RequestUser } from '../common/utils/medico-id';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { UpdatePatientAdminDto } from './dto/update-patient-admin.dto';
-import { resolvePatientVerificationState } from './patients-format';
+import { normalizeNullableEmail, normalizeNullableString, resolvePatientVerificationState } from './patients-format';
 import { applySharedDemographicFields, findDuplicateRut } from './patients-demographics-mutations.helpers';
+import {
+  buildEncryptedPatientIdentifierFields,
+  resolvePatientIdentifiers,
+} from './patients-identifiers';
 
 type ExistingPatient = Patient & {
   createdBy?: {
@@ -40,6 +44,43 @@ interface UpdatePatientAdminDemographicsMutationParams {
   assertPatientAccess: (user: RequestUser, patientId: string) => Promise<ExistingPatient>;
 }
 
+function assignEncryptedIdentifierUpdates(
+  updateData: Prisma.PatientUpdateInput,
+  input: {
+    rut?: string | null;
+    nombre?: string | null;
+    domicilio?: string | null;
+    telefono?: string | null;
+    email?: string | null;
+    contactoEmergenciaNombre?: string | null;
+    contactoEmergenciaTelefono?: string | null;
+  },
+) {
+  const encrypted = buildEncryptedPatientIdentifierFields(input);
+
+  if (Object.prototype.hasOwnProperty.call(input, 'rut')) {
+    updateData.rutEnc = encrypted.rutEnc;
+    updateData.rutLookupHash = encrypted.rutLookupHash;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'nombre')) {
+    updateData.nombreEnc = encrypted.nombreEnc;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'domicilio')) {
+    updateData.domicilioEnc = encrypted.domicilioEnc;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'telefono')) {
+    updateData.telefonoEnc = encrypted.telefonoEnc;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'email')) {
+    updateData.emailEnc = encrypted.emailEnc;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'contactoEmergenciaNombre')) {
+    updateData.contactoEmergenciaNombreEnc = encrypted.contactoEmergenciaNombreEnc;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'contactoEmergenciaTelefono')) {
+    updateData.contactoEmergenciaTelefonoEnc = encrypted.contactoEmergenciaTelefonoEnc;
+  }
+}
 
 export async function updatePatientDemographicsMutation(params: UpdatePatientDemographicsMutationParams) {
   const {
@@ -73,9 +114,14 @@ export async function updatePatientDemographicsMutation(params: UpdatePatientDem
   }
 
   const updateData: Prisma.PatientUpdateInput = {};
+  const currentIdentifiers = resolvePatientIdentifiers(existingPatient);
+  const identifierUpdates: Parameters<typeof assignEncryptedIdentifierUpdates>[1] = {};
+  const nextPlainIdentifiers = { ...currentIdentifiers };
 
   if (updatePatientDto.nombre !== undefined) {
-    updateData.nombre = updatePatientDto.nombre.trim();
+    const nombre = updatePatientDto.nombre.trim();
+    identifierUpdates.nombre = nombre;
+    nextPlainIdentifiers.nombre = nombre;
   }
 
   applySharedDemographicFields(updateData, {
@@ -93,6 +139,32 @@ export async function updatePatientDemographicsMutation(params: UpdatePatientDem
     centroMedico: updatePatientDto.centroMedico,
   });
 
+  if (updatePatientDto.domicilio !== undefined) {
+    const domicilio = normalizeNullableString(updatePatientDto.domicilio) ?? null;
+    identifierUpdates.domicilio = domicilio;
+    nextPlainIdentifiers.domicilio = domicilio;
+  }
+  if (updatePatientDto.telefono !== undefined) {
+    const telefono = normalizeNullableString(updatePatientDto.telefono) ?? null;
+    identifierUpdates.telefono = telefono;
+    nextPlainIdentifiers.telefono = telefono;
+  }
+  if (updatePatientDto.email !== undefined) {
+    const email = normalizeNullableEmail(updatePatientDto.email) ?? null;
+    identifierUpdates.email = email;
+    nextPlainIdentifiers.email = email;
+  }
+  if (updatePatientDto.contactoEmergenciaNombre !== undefined) {
+    const contactoEmergenciaNombre = normalizeNullableString(updatePatientDto.contactoEmergenciaNombre) ?? null;
+    identifierUpdates.contactoEmergenciaNombre = contactoEmergenciaNombre;
+    nextPlainIdentifiers.contactoEmergenciaNombre = contactoEmergenciaNombre;
+  }
+  if (updatePatientDto.contactoEmergenciaTelefono !== undefined) {
+    const contactoEmergenciaTelefono = normalizeNullableString(updatePatientDto.contactoEmergenciaTelefono) ?? null;
+    identifierUpdates.contactoEmergenciaTelefono = contactoEmergenciaTelefono;
+    nextPlainIdentifiers.contactoEmergenciaTelefono = contactoEmergenciaTelefono;
+  }
+
   const dtoRutExempt = updatePatientDto.rutExempt;
   const dtoRutExemptReason = updatePatientDto.rutExemptReason;
   const nextRutExempt = dtoRutExempt !== undefined ? dtoRutExempt : existingPatient.rutExempt;
@@ -108,7 +180,8 @@ export async function updatePatientDemographicsMutation(params: UpdatePatientDem
       throw new BadRequestException('No puede indicar RUT si el paciente está marcado como sin RUT');
     }
 
-    updateData.rut = null;
+    identifierUpdates.rut = null;
+    nextPlainIdentifiers.rut = null;
     updateData.rutExempt = true;
     updateData.rutExemptReason = reason;
   } else if (dtoRutExempt === false) {
@@ -120,8 +193,9 @@ export async function updatePatientDemographicsMutation(params: UpdatePatientDem
     const trimmedRut = dtoRut?.trim() || '';
 
     if (!trimmedRut) {
-      updateData.rut = null;
-    } else if (trimmedRut !== existingPatient.rut) {
+      identifierUpdates.rut = null;
+      nextPlainIdentifiers.rut = null;
+    } else if (trimmedRut !== currentIdentifiers.rut) {
       const rutValidation = validateRut(trimmedRut);
       if (!rutValidation.valid) {
         throw new BadRequestException('El RUT ingresado no es válido');
@@ -138,13 +212,18 @@ export async function updatePatientDemographicsMutation(params: UpdatePatientDem
         throw new ConflictException('Ya existe un paciente con este RUT');
       }
 
-      updateData.rut = validatedRut;
+      identifierUpdates.rut = validatedRut;
+      nextPlainIdentifiers.rut = validatedRut;
     }
   }
 
+  assignEncryptedIdentifierUpdates(updateData, identifierUpdates);
+
   const nextPatient = {
     ...existingPatient,
+    ...currentIdentifiers,
     ...updateData,
+    ...nextPlainIdentifiers,
   };
 
   Object.assign(
@@ -195,6 +274,9 @@ export async function updatePatientAdminDemographicsMutation(params: UpdatePatie
 
   const existingPatient = await assertPatientAccess(user, patientId);
   const updateData: Prisma.PatientUpdateInput = {};
+  const currentIdentifiers = resolvePatientIdentifiers(existingPatient);
+  const identifierUpdates: Parameters<typeof assignEncryptedIdentifierUpdates>[1] = {};
+  const nextPlainIdentifiers = { ...currentIdentifiers };
 
   applySharedDemographicFields(updateData, {
     fechaNacimiento: dto.fechaNacimiento,
@@ -211,9 +293,38 @@ export async function updatePatientAdminDemographicsMutation(params: UpdatePatie
     centroMedico: dto.centroMedico,
   });
 
+  if (dto.domicilio !== undefined) {
+    const domicilio = normalizeNullableString(dto.domicilio) ?? null;
+    identifierUpdates.domicilio = domicilio;
+    nextPlainIdentifiers.domicilio = domicilio;
+  }
+  if (dto.telefono !== undefined) {
+    const telefono = normalizeNullableString(dto.telefono) ?? null;
+    identifierUpdates.telefono = telefono;
+    nextPlainIdentifiers.telefono = telefono;
+  }
+  if (dto.email !== undefined) {
+    const email = normalizeNullableEmail(dto.email) ?? null;
+    identifierUpdates.email = email;
+    nextPlainIdentifiers.email = email;
+  }
+  if (dto.contactoEmergenciaNombre !== undefined) {
+    const contactoEmergenciaNombre = normalizeNullableString(dto.contactoEmergenciaNombre) ?? null;
+    identifierUpdates.contactoEmergenciaNombre = contactoEmergenciaNombre;
+    nextPlainIdentifiers.contactoEmergenciaNombre = contactoEmergenciaNombre;
+  }
+  if (dto.contactoEmergenciaTelefono !== undefined) {
+    const contactoEmergenciaTelefono = normalizeNullableString(dto.contactoEmergenciaTelefono) ?? null;
+    identifierUpdates.contactoEmergenciaTelefono = contactoEmergenciaTelefono;
+    nextPlainIdentifiers.contactoEmergenciaTelefono = contactoEmergenciaTelefono;
+  }
+  assignEncryptedIdentifierUpdates(updateData, identifierUpdates);
+
   const nextPatient = {
     ...existingPatient,
+    ...currentIdentifiers,
     ...updateData,
+    ...nextPlainIdentifiers,
   };
 
   Object.assign(

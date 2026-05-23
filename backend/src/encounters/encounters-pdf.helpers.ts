@@ -7,6 +7,7 @@ import {
   getPatientDemographicsMissingFields,
   type PatientDemographicMissingField,
 } from '../common/utils/patient-completeness';
+import { resolvePatientIdentifiers } from '../patients/patients-identifiers';
 
 // ─── Display maps ────────────────────────────────────────────────────────────
 
@@ -75,9 +76,10 @@ const PDF_TIME_ZONE = 'America/Santiago';
 // ─── Pure formatting helpers ─────────────────────────────────────────────────
 
 export function buildIdentificationSnapshotFromPatient(patient: any) {
+  const identifiers = patient ? resolvePatientIdentifiers(patient) : null;
   return {
-    nombre: patient?.nombre ?? '',
-    rut: patient?.rut ?? '',
+    nombre: identifiers?.nombre ?? '',
+    rut: identifiers?.rut ?? '',
     rutExempt: Boolean(patient?.rutExempt),
     rutExemptReason: patient?.rutExemptReason ?? '',
     edad: patient?.edad ?? '',
@@ -85,7 +87,7 @@ export function buildIdentificationSnapshotFromPatient(patient: any) {
     sexo: patient?.sexo ?? '',
     prevision: patient?.prevision ?? '',
     trabajo: patient?.trabajo ?? '',
-    domicilio: patient?.domicilio ?? '',
+    domicilio: identifiers?.domicilio ?? '',
   };
 }
 
@@ -223,7 +225,9 @@ export function sanitizeFilenameSegment(value: string | undefined | null) {
 }
 
 export function buildEncounterDocumentFilename(encounter: any, prefix: string) {
-  const patientName = sanitizeFilenameSegment(encounter?.patient?.nombre);
+  const patientName = sanitizeFilenameSegment(
+    encounter?.patient ? resolvePatientIdentifiers(encounter.patient).nombre : null,
+  );
   const encounterDate = formatEncounterDateOnly(encounter?.createdAt || new Date());
   if (prefix === 'ficha_clinica') {
     return `${patientName} - ${encounterDate}.pdf`;
@@ -317,8 +321,9 @@ export function formatRevisionSystemEntries(revision: Record<string, any>) {
 }
 
 export function getRutDisplayData(ident: Record<string, any>, patient: any) {
+  const identifiers = patient ? resolvePatientIdentifiers(patient) : null;
   return {
-    rut: ident.rut || patient.rut,
+    rut: ident.rut || identifiers?.rut,
     rutExempt: typeof ident.rutExempt === 'boolean' ? ident.rutExempt : patient.rutExempt,
     rutExemptReason:
       typeof ident.rutExemptReason === 'string' ? ident.rutExemptReason : patient.rutExemptReason,

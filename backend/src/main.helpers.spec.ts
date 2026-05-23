@@ -50,7 +50,7 @@ describe('assertSafeConfig deployment scope', () => {
 describe('assertSafeConfig field encryption', () => {
   it('requires ENCRYPTION_KEY in production', () => {
     expect(() => assertSafeConfig(buildProductionConfig({ ENCRYPTION_KEY: undefined }))).toThrow(
-      'ENCRYPTION_KEY is required in production',
+      'ENCRYPTION_KEY is required',
     );
   });
 
@@ -63,13 +63,13 @@ describe('assertSafeConfig field encryption', () => {
     );
   });
 
-  it('allows omitting ENCRYPTION_KEY outside production (for backwards compatibility)', () => {
+  it('requires ENCRYPTION_KEY outside production too', () => {
     expect(() => assertSafeConfig(buildConfig({
       NODE_ENV: 'development',
       DATABASE_URL: 'postgresql://anamneo_app:app@localhost:5432/anamneo?schema=public',
       JWT_SECRET: 'a'.repeat(32),
       JWT_REFRESH_SECRET: 'b'.repeat(32),
-    }))).not.toThrow();
+    }))).toThrow('ENCRYPTION_KEY is required');
   });
 });
 

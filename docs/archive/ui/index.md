@@ -6,7 +6,8 @@ Este directorio guarda documentos del refactor visual cerrado en marzo de 2026.
 
 - auditoria visual previa,
 - plan de ejecucion del refactor,
-- resumen ejecutivo del trabajo completado.
+- resumen ejecutivo del trabajo completado,
+- plan historico de mejora UX del flujo de encuentros.
 
 ## Para que sirve
 

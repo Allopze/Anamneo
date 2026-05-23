@@ -12,6 +12,7 @@ import {
   formatAdminSummary,
   toCsvCell,
 } from './patients-format';
+import { resolvePatientIdentifiers } from './patients-identifiers';
 import {
   findPossiblePatientDuplicatesReadModel,
 } from './patients-duplicate-read-model';
@@ -34,32 +35,35 @@ export async function exportPatientsCsvReadModel(params: ExportPatientsCsvParams
 
   const patients = await prisma.patient.findMany({
     where: { archivedAt: null },
-    orderBy: { nombre: 'asc' },
+    orderBy: { createdAt: 'asc' },
     include: { _count: { select: { encounters: true } } },
   });
 
   const header =
     'Nombre,RUT,Teléfono,Email,Contacto emergencia,Teléfono emergencia,Edad,Sexo,Previsión,Modo registro,Estado completitud,Trabajo,Domicilio,Atenciones,Creado';
-  const rows = patients.map((p) => {
-    const fields = [
-      toCsvCell(p.nombre || ''),
-      toCsvCell(p.rut),
-      toCsvCell(p.telefono),
-      toCsvCell(p.email),
-      toCsvCell(p.contactoEmergenciaNombre),
-      toCsvCell(p.contactoEmergenciaTelefono),
-      toCsvCell(p.edad),
-      toCsvCell(p.sexo),
-      toCsvCell(p.prevision),
-      toCsvCell(p.registrationMode),
-      toCsvCell(p.completenessStatus),
-      toCsvCell(p.trabajo),
-      toCsvCell(p.domicilio),
-      toCsvCell(p._count.encounters),
-      toCsvCell(p.createdAt.toISOString().slice(0, 10)),
-    ];
-    return fields.join(',');
-  });
+  const rows = patients
+    .map((p) => ({ ...p, identifiers: resolvePatientIdentifiers(p) }))
+    .sort((a, b) => a.identifiers.nombre.localeCompare(b.identifiers.nombre, 'es'))
+    .map((p) => {
+      const fields = [
+        toCsvCell(p.identifiers.nombre || ''),
+        toCsvCell(p.identifiers.rut),
+        toCsvCell(p.identifiers.telefono),
+        toCsvCell(p.identifiers.email),
+        toCsvCell(p.identifiers.contactoEmergenciaNombre),
+        toCsvCell(p.identifiers.contactoEmergenciaTelefono),
+        toCsvCell(p.edad),
+        toCsvCell(p.sexo),
+        toCsvCell(p.prevision),
+        toCsvCell(p.registrationMode),
+        toCsvCell(p.completenessStatus),
+        toCsvCell(p.trabajo),
+        toCsvCell(p.identifiers.domicilio),
+        toCsvCell(p._count.encounters),
+        toCsvCell(p.createdAt.toISOString().slice(0, 10)),
+      ];
+      return fields.join(',');
+    });
 
   await auditService.log({
     entityType: 'PatientExport',
@@ -89,10 +93,10 @@ export async function getPatientAdminSummaryReadModel(params: GetPatientAdminSum
     where: { id },
     select: {
       id: true,
-      rut: true,
+      rutEnc: true,
       rutExempt: true,
       rutExemptReason: true,
-      nombre: true,
+      nombreEnc: true,
       fechaNacimiento: true,
       edad: true,
       edadMeses: true,
@@ -103,11 +107,11 @@ export async function getPatientAdminSummaryReadModel(params: GetPatientAdminSum
       completenessStatus: true,
       demographicsVerifiedAt: true,
       demographicsVerifiedById: true,
-      domicilio: true,
-      telefono: true,
-      email: true,
-      contactoEmergenciaNombre: true,
-      contactoEmergenciaTelefono: true,
+      domicilioEnc: true,
+      telefonoEnc: true,
+      emailEnc: true,
+      contactoEmergenciaNombreEnc: true,
+      contactoEmergenciaTelefonoEnc: true,
       centroMedico: true,
       createdAt: true,
       updatedAt: true,

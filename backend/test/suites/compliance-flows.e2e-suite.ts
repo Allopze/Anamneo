@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { state, prisma, req, cookieHeader } from '../helpers/e2e-setup';
+import { buildEncryptedPatientIdentifierFields } from '../../src/patients/patients-identifiers';
 
 /**
  * E2E completo del cumplimiento Ley 21.719 con login admin:
@@ -94,7 +95,7 @@ export function complianceFlowsSuite() {
         const nna = await prisma.patient.create({
           data: {
             createdById: state.medicoUserId,
-            nombre: 'NNA Test',
+            ...buildEncryptedPatientIdentifierFields({ nombre: 'NNA Test' }),
             fechaNacimiento: new Date(Date.now() - 8 * 365.25 * 24 * 60 * 60 * 1000),
             rutExempt: true,
             rutExemptReason: 'Menor sin RUT',

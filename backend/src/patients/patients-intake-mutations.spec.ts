@@ -128,7 +128,8 @@ describe('patients-intake-mutations', () => {
         data: expect.objectContaining({
           createdById: 'med-1',
           registrationMode: 'COMPLETO',
-          nombre: 'Paciente Demo',
+          nombreEnc: expect.stringMatching(/^enc:v1:/),
+          domicilioEnc: expect.stringMatching(/^enc:v1:/),
           fechaNacimiento: new Date('1990-05-10T12:00:00.000Z'),
         }),
         include: { history: true },

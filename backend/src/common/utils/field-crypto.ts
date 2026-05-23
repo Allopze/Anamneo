@@ -10,8 +10,8 @@ let cachedKey: Buffer | null = null;
 function getKey(): Buffer {
   if (cachedKey) return cachedKey;
 
-  const hex = process.env.ENCRYPTION_KEY;
-  if (!hex || hex.length !== 64) {
+  const hex = process.env.ENCRYPTION_KEY?.trim();
+  if (!hex || hex.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(hex)) {
     throw new Error(
       'ENCRYPTION_KEY must be a 64-character hex string (256 bits). ' +
       'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
@@ -84,11 +84,11 @@ export function decryptField(value: string): string {
 }
 
 /**
- * Returns true if encryption is configured (ENCRYPTION_KEY is set).
+ * Returns true if ENCRYPTION_KEY is configured with the required 256-bit hex format.
  */
 export function isEncryptionEnabled(): boolean {
-  const hex = process.env.ENCRYPTION_KEY;
-  return !!hex && hex.length === 64;
+  const hex = process.env.ENCRYPTION_KEY?.trim();
+  return !!hex && hex.length === 64 && /^[0-9a-fA-F]{64}$/.test(hex);
 }
 
 // ---------------------------------------------------------------------------
@@ -146,4 +146,49 @@ export function isEncryptionEnvelope(value: unknown): value is EncryptionEnvelop
     && typeof (value as EncryptionEnvelope).iv === 'string'
     && typeof (value as EncryptionEnvelope).tag === 'string'
   );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers para metadatos de red (IP, User-Agent) — Ley 21.719 Art 14
+// quinquies lit a. Pueden ser datos identificables del titular cuando se
+// almacenan como evidencia (consentimiento, aceptacion de politica, firma
+// de atencion). Envolverlos con estos helpers garantiza cifrado at-rest
+// cuando `ENCRYPTION_KEY` esta configurado, y deja el valor en texto
+// plano (con prefijo ausente) cuando no, para no romper dev/test.
+//
+// Diseño:
+//  - encryptNetMeta(value): devuelve el `enc:v1:...` o el plano si no hay
+//    clave / valor null / vacío.
+//  - decryptNetMeta(value): inversa segura. Si el valor no tiene prefijo
+//    se devuelve tal cual (compatibilidad con registros legacy).
+//
+// Uso típico en services:
+//   await prisma.foo.create({ data: {
+//     ipAddress: encryptNetMeta(req.ip),
+//     userAgent: encryptNetMeta(req.headers['user-agent']),
+//   }});
+// Y al leer en presenters:
+//   ipAddress: decryptNetMeta(row.ipAddress),
+// ---------------------------------------------------------------------------
+
+export function encryptNetMeta(value: string | null | undefined): string | null {
+  if (value == null || value === '') return null;
+  if (!isEncryptionEnabled()) return value;
+  try {
+    return encryptField(value);
+  } catch {
+    // Fallback defensivo: nunca bloquear el write por error de cifrado.
+    return value;
+  }
+}
+
+export function decryptNetMeta(value: string | null | undefined): string | null {
+  if (value == null || value === '') return null;
+  if (!value.startsWith(PREFIX)) return value;
+  if (!isEncryptionEnabled()) return value;
+  try {
+    return decryptField(value);
+  } catch {
+    return value;
+  }
 }

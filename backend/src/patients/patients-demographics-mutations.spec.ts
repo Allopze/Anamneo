@@ -98,8 +98,9 @@ describe('patients-demographics-mutations', () => {
         where: { id: 'patient-1' },
         include: { history: true },
         data: expect.objectContaining({
-          nombre: 'Nombre Actualizado',
-          rut: '12.345.678-5',
+          nombreEnc: expect.stringMatching(/^enc:v1:/),
+          rutEnc: expect.stringMatching(/^enc:v1:/),
+          rutLookupHash: expect.stringMatching(/^[0-9a-f]{64}$/),
         }),
       }),
     );
@@ -202,7 +203,7 @@ describe('patients-demographics-mutations', () => {
         include: { history: true },
         data: expect.objectContaining({
           trabajo: null,
-          domicilio: 'Calle Nueva 123',
+          domicilioEnc: expect.stringMatching(/^enc:v1:/),
           centroMedico: 'Centro Norte',
         }),
       }),

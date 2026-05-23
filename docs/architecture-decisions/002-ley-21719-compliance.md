@@ -4,7 +4,7 @@
 **Date:** 2026-05-23
 **Decision Owner:** Alejandro López Zelaya (DPO interino, allopze@gmail.com)
 **Supersedes:** N/A
-**Related:** [`001-tenant-clinic-model.md`](001-tenant-clinic-model.md), [`../data-privacy-and-compliance.md`](../data-privacy-and-compliance.md), [`../../AUDITORIA_LEY_21719_CHILE.md`](../../AUDITORIA_LEY_21719_CHILE.md)
+**Related:** [`001-tenant-clinic-model.md`](001-tenant-clinic-model.md), [`../data-privacy-and-compliance.md`](../data-privacy-and-compliance.md), [`../audits/ley-21719-chile-audit-2026-05-23.md`](../audits/ley-21719-chile-audit-2026-05-23.md)
 
 ## Context
 
@@ -77,7 +77,7 @@ Para declarar a Anamneo listo para tratar datos reales bajo Ley 21.719, los 10 c
 
 ## References
 
-- [Auditoría completa Ley 21.719](../../AUDITORIA_LEY_21719_CHILE.md)
+- [Auditoría completa Ley 21.719](../audits/ley-21719-chile-audit-2026-05-23.md)
 - [Plan de implementación por olas](../../../.claude/plans/crea-un-plan-para-logical-hearth.md)
 - [Privacidad de Datos y Compliance — Anamneo](../data-privacy-and-compliance.md)
 - [BCN — Ley 21.719 (idNorma 1209272, vigencia 01-DIC-2026)](https://www.bcn.cl/leychile/navegar?idNorma=1209272)

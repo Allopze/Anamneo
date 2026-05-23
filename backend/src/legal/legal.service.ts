@@ -11,6 +11,7 @@ import {
   type LegalDocumentType,
 } from '../../../shared/legal-contract';
 import { CreateLegalDocumentDraftDto, UpdateLegalDocumentDraftDto } from './dto/legal-document.dto';
+import { encryptNetMeta } from '../common/utils/field-crypto';
 
 export interface LegalAcceptanceInput {
   acceptedTermsVersion?: string;
@@ -578,8 +579,9 @@ export class LegalService {
       documentType,
       version,
       new Date(),
-      context?.ipAddress ?? null,
-      context?.userAgent ?? null,
+      // Ley 21.719 Art 14 quinquies — cifrar IP/UA at-rest.
+      encryptNetMeta(context?.ipAddress ?? null),
+      encryptNetMeta(context?.userAgent ?? null),
     );
   }
 
@@ -589,12 +591,14 @@ export class LegalService {
     version: string,
     context?: LegalAcceptanceContext,
   ) {
+    // Ley 21.719 Art 14 quinquies lit a — cifrar IP/UA al persistir como
+    // evidencia de aceptacion (datos identificables si quedan en claro).
     return {
       userId,
       documentType,
       version,
-      ipAddress: context?.ipAddress ?? null,
-      userAgent: context?.userAgent ?? null,
+      ipAddress: encryptNetMeta(context?.ipAddress ?? null),
+      userAgent: encryptNetMeta(context?.userAgent ?? null),
     };
   }
 

@@ -64,7 +64,7 @@ describe('LoginPage', () => {
     await renderLoginPage();
     expect(screen.getByLabelText('Correo electrónico')).toBeInTheDocument();
     expect(screen.getByLabelText('Contraseña')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toHaveTextContent('Iniciar sesión');
   });
 
   it('shows validation errors for empty submit', async () => {

@@ -104,7 +104,7 @@ Este RAT se revisa:
 ## 6. Referencias
 
 - [DPIA Anamneo](dpia-2026.md)
-- [Auditoría completa Ley 21.719](../AUDITORIA_LEY_21719_CHILE.md)
+- [Auditoría completa Ley 21.719](audits/ley-21719-chile-audit-2026-05-23.md)
 - [ADR-002 Cumplimiento Ley 21.719](architecture-decisions/002-ley-21719-compliance.md)
 - [Política de Privacidad v1.0 (borrador, seedeada como DRAFT)](../backend/prisma/seed.ts)
 - [Preguntas al asesor legal](preguntas-abogado-ley21719.md)

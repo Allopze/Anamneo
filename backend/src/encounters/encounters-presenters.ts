@@ -1,5 +1,6 @@
 import { SectionKey } from '../common/types';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
+import { decryptNetMeta } from '../common/utils/field-crypto';
 import { isDateOnlyBeforeToday } from '../common/utils/local-date';
 import {
   ENCOUNTER_SECTION_LABELS as SECTION_LABELS,
@@ -15,6 +16,7 @@ import {
   parseSectionData,
 } from './encounters-sanitize';
 import { shouldHideEncounterSectionForRole } from './encounter-access-policy';
+import { resolvePatientIdentifiers, withPatientIdentifiers } from '../patients/patients-identifiers';
 
 interface FormatEncounterResponseOptions {
   viewerRole?: string;
@@ -43,6 +45,9 @@ function formatEpisodeSummary(episode: any) {
 }
 
 export function formatEncounterForList(encounter: any) {
+  const patientIdentifiers = encounter.patient ? resolvePatientIdentifiers(encounter.patient) : null;
+  const patientForCompleteness = encounter.patient ? { ...encounter.patient, ...patientIdentifiers } : null;
+
   return {
     id: encounter.id,
     patientId: encounter.patientId,
@@ -59,15 +64,15 @@ export function formatEncounterForList(encounter: any) {
     patient: encounter.patient
       ? {
           id: encounter.patient.id,
-          rut: encounter.patient.rut,
-          nombre: encounter.patient.nombre,
+          rut: patientIdentifiers?.rut ?? null,
+          nombre: patientIdentifiers?.nombre ?? '',
           fechaNacimiento: encounter.patient.fechaNacimiento,
           edad: encounter.patient.edad,
           sexo: encounter.patient.sexo,
           prevision: encounter.patient.prevision,
           registrationMode: encounter.patient.registrationMode,
           completenessStatus: encounter.patient.completenessStatus,
-          demographicsMissingFields: getPatientDemographicsMissingFields(encounter.patient),
+          demographicsMissingFields: getPatientDemographicsMissingFields(patientForCompleteness!),
         }
       : undefined,
     createdBy: encounter.createdBy,
@@ -103,11 +108,12 @@ export function formatEncounterForPatientList(encounter: any) {
 }
 
 export function formatDashboardRecentEncounter(encounter: any) {
+  const patientIdentifiers = resolvePatientIdentifiers(encounter.patient);
   return {
     id: encounter.id,
     patientId: encounter.patientId,
-    patientName: encounter.patient.nombre,
-    patientRut: encounter.patient.rut,
+    patientName: patientIdentifiers.nombre,
+    patientRut: patientIdentifiers.rut,
     createdByName: encounter.createdBy.nombre,
     status: encounter.status,
     createdAt: encounter.createdAt,
@@ -118,6 +124,7 @@ export function formatDashboardRecentEncounter(encounter: any) {
 }
 
 export function formatDashboardUpcomingTask(task: any) {
+  const patientIdentifiers = task.patient ? resolvePatientIdentifiers(task.patient) : null;
   return {
     id: task.id,
     title: task.title,
@@ -126,7 +133,7 @@ export function formatDashboardUpcomingTask(task: any) {
     status: task.status,
     dueDate: task.dueDate,
     isOverdue: Boolean(task.dueDate && isDateOnlyBeforeToday(task.dueDate)),
-    patient: task.patient,
+    patient: task.patient ? { id: task.patient.id, ...patientIdentifiers } : task.patient,
     createdBy: task.createdBy,
   };
 }
@@ -140,7 +147,8 @@ export function formatEncounterResponse(encounter: any, options: FormatEncounter
     (section: any) => !shouldHideEncounterSectionForRole(viewerRole, section.sectionKey as SectionKey),
   );
 
-  const clinicalOutputBlock = getEncounterClinicalOutputBlock(encounter.patient);
+  const patientWithIdentifiers = encounter.patient ? withPatientIdentifiers(encounter.patient) : null;
+  const clinicalOutputBlock = getEncounterClinicalOutputBlock(patientWithIdentifiers);
 
   return {
     id: encounter.id,
@@ -175,8 +183,9 @@ export function formatEncounterResponse(encounter: any, options: FormatEncounter
       userId: signature.userId,
       signatureType: signature.signatureType,
       contentHash: signature.contentHash,
-      ipAddress: signature.ipAddress ?? null,
-      userAgent: signature.userAgent ?? null,
+      // Ley 21.719 Art 14 quinquies — descifrar para exponer al UI admin.
+      ipAddress: decryptNetMeta(signature.ipAddress),
+      userAgent: decryptNetMeta(signature.userAgent),
       signedAt: signature.signedAt,
       revokedAt: signature.revokedAt ?? null,
       revokedReason: signature.revokedReason ?? null,
@@ -238,10 +247,10 @@ export function formatEncounterResponse(encounter: any, options: FormatEncounter
     patient: encounter.patient
       ? {
           id: encounter.patient.id,
-          rut: encounter.patient.rut,
+          rut: patientWithIdentifiers?.rut ?? null,
           rutExempt: encounter.patient.rutExempt,
           rutExemptReason: encounter.patient.rutExemptReason,
-          nombre: encounter.patient.nombre,
+          nombre: patientWithIdentifiers?.nombre ?? '',
           fechaNacimiento: encounter.patient.fechaNacimiento,
           edad: encounter.patient.edad,
           edadMeses: encounter.patient.edadMeses,
@@ -251,11 +260,11 @@ export function formatEncounterResponse(encounter: any, options: FormatEncounter
           registrationMode: encounter.patient.registrationMode,
           completenessStatus: encounter.patient.completenessStatus,
           demographicsVerifiedAt: encounter.patient.demographicsVerifiedAt ?? null,
-          domicilio: encounter.patient.domicilio,
+          domicilio: patientWithIdentifiers?.domicilio ?? null,
           centroMedico: encounter.patient.centroMedico,
           createdAt: encounter.patient.createdAt,
           updatedAt: encounter.patient.updatedAt,
-          demographicsMissingFields: getPatientDemographicsMissingFields(encounter.patient),
+          demographicsMissingFields: getPatientDemographicsMissingFields(patientWithIdentifiers),
           history: encounter.patient.history,
           problems: (encounter.patient.problems || []).map((problem: any) => ({
             id: problem.id,

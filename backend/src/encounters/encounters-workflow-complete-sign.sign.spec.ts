@@ -114,8 +114,8 @@ describe('signEncounterWorkflowMutation', () => {
         data: expect.objectContaining({
           encounterId: 'enc-1',
           userId: 'med-1',
-          ipAddress: '127.0.0.1',
-          userAgent: 'jest',
+          ipAddress: expect.stringMatching(/^enc:v1:/),
+          userAgent: expect.stringMatching(/^enc:v1:/),
         }),
       }),
     );

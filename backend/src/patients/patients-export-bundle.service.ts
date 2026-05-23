@@ -8,6 +8,7 @@ import { AuditService } from '../audit/audit.service';
 import { sanitizeFilename } from '../attachments/attachments-helpers';
 import { assertLoadedPatientAccess } from '../common/utils/patient-access';
 import { assertEncounterClinicalOutputAllowed } from '../common/utils/patient-completeness';
+import { withPatientIdentifiers } from './patients-identifiers';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { resolveUploadsRoot } from '../common/utils/uploads-root';
 import { PrismaService } from '../prisma/prisma.service';
@@ -149,8 +150,8 @@ export class PatientsExportBundleService {
       where: { id: patientId },
       select: {
         id: true,
-        nombre: true,
-        rut: true,
+        nombreEnc: true,
+        rutEnc: true,
         rutExempt: true,
         rutExemptReason: true,
         fechaNacimiento: true,
@@ -169,7 +170,8 @@ export class PatientsExportBundleService {
     });
 
     const scopedPatient = await assertLoadedPatientAccess(this.prisma, user, patientId, patient);
-    assertEncounterClinicalOutputAllowed(scopedPatient, 'EXPORT_OFFICIAL_DOCUMENTS');
+    const scopedPatientWithIdentifiers = withPatientIdentifiers(scopedPatient);
+    assertEncounterClinicalOutputAllowed(scopedPatientWithIdentifiers, 'EXPORT_OFFICIAL_DOCUMENTS');
 
     const attachments = await this.prisma.attachment.findMany({
       where: {
@@ -211,9 +213,9 @@ export class PatientsExportBundleService {
         role: user.role,
       },
       patient: {
-        id: scopedPatient.id,
-        nombre: scopedPatient.nombre,
-        rut: scopedPatient.rut,
+        id: scopedPatientWithIdentifiers.id,
+        nombre: scopedPatientWithIdentifiers.nombre,
+        rut: scopedPatientWithIdentifiers.rut,
         rutExempt: scopedPatient.rutExempt,
         rutExemptReason: scopedPatient.rutExemptReason,
         completenessStatus: scopedPatient.completenessStatus,
@@ -265,7 +267,7 @@ export class PatientsExportBundleService {
 
     return {
       buffer,
-      filename: this.buildBundleFilename(scopedPatient.nombre),
+      filename: this.buildBundleFilename(scopedPatientWithIdentifiers.nombre),
     };
   }
 }

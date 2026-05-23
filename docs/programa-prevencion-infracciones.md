@@ -72,7 +72,7 @@ Este programa se revisa al cierre de cada ola del roadmap y, como mínimo, una v
 
 ## 7. Referencias
 
-- [Auditoría completa Ley 21.719](../AUDITORIA_LEY_21719_CHILE.md)
+- [Auditoría completa Ley 21.719](audits/ley-21719-chile-audit-2026-05-23.md)
 - [ADR-002 Cumplimiento Ley 21.719](architecture-decisions/002-ley-21719-compliance.md)
 - [DPIA Anamneo](dpia-2026.md)
 - [Registro de Actividades de Tratamiento](data-processing-register.md)

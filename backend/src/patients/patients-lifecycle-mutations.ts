@@ -6,6 +6,7 @@ import { PATIENT_HISTORY_FIELD_KEYS, sanitizePatientHistoryFieldValue } from '..
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdatePatientHistoryDto } from './dto/update-patient-history.dto';
 import { resolvePatientVerificationState } from './patients-format';
+import { withPatientIdentifiers } from './patients-identifiers';
 import {
   assertPatientCanArchiveOrRestore,
   executeArchivePatientMutation,
@@ -50,8 +51,9 @@ interface RestorePatientParams {
 export async function verifyPatientDemographicsMutation(params: VerifyPatientDemographicsParams) {
   const { prisma, auditService, user, patientId, assertPatientAccess } = params;
   const patient = await assertPatientAccess(user, patientId);
+  const patientWithIdentifiers = withPatientIdentifiers(patient);
 
-  const missingFields = getPatientDemographicsMissingFields(patient);
+  const missingFields = getPatientDemographicsMissingFields(patientWithIdentifiers);
   if (missingFields.length > 0) {
     throw new BadRequestException('No se puede verificar una ficha con datos demográficos incompletos');
   }
@@ -60,8 +62,8 @@ export async function verifyPatientDemographicsMutation(params: VerifyPatientDem
     const updatedPatient = await tx.patient.update({
       where: { id: patientId },
       data: resolvePatientVerificationState({
-        currentPatient: patient,
-        nextPatient: patient,
+        currentPatient: patientWithIdentifiers,
+        nextPatient: patientWithIdentifiers,
         actorId: user.id,
         actorRole: user.role,
         mode: 'VERIFY',

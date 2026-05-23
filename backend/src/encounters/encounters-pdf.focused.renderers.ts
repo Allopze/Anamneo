@@ -14,6 +14,7 @@ import {
   renderPdfSectionHeading,
   renderPdfSignature,
 } from '../common/utils/pdf-document-layout';
+import { resolvePatientIdentifiers } from '../patients/patients-identifiers';
 
 export function renderFocusedEncounterPdf(
   doc: any,
@@ -24,6 +25,7 @@ export function renderFocusedEncounterPdf(
   clinic?: PdfClinicSettings,
 ) {
   const ident = sectionsMap['IDENTIFICACION'] || {};
+  const patientIdentifiers = resolvePatientIdentifiers(encounter.patient);
   const trat = sectionsMap['TRATAMIENTO'] || {};
   const titleMap = {
     receta: 'RECETA / INDICACIONES',
@@ -45,7 +47,7 @@ export function renderFocusedEncounterPdf(
     clinic,
   });
 
-  field('Paciente', ident.nombre || encounter.patient.nombre);
+  field('Paciente', ident.nombre || patientIdentifiers.nombre);
   field('RUT', formatRutDisplay(getRutDisplayData(ident, encounter.patient)));
   field('Fecha de nacimiento', ident.fechaNacimiento ? formatEncounterDateOnly(ident.fechaNacimiento) : undefined);
   field('Edad', ident.edad != null ? `${ident.edad} años` : undefined);

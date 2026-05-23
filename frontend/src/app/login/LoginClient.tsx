@@ -14,11 +14,8 @@ import { stashAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
 import {
   FiArrowRight,
   FiCheck,
-  FiClipboard,
   FiEye,
   FiEyeOff,
-  FiFileText,
-  FiHeadphones,
   FiLock,
   FiMail,
   FiShield,
@@ -44,19 +41,9 @@ type RegistrationMode = 'loading' | 'bootstrap-open' | 'invitation-only';
 
 const LOGIN_CHIPS = [
   {
-    icon: <FiClipboard className="h-8 w-8" />,
-    label: 'Historia clínica completa',
-    description: 'Encuentros, secciones y seguimiento.',
-  },
-  {
-    icon: <FiShield className="h-8 w-8" />,
-    label: 'Seguridad y trazabilidad',
-    description: 'Roles, permisos y registro de actividad.',
-  },
-  {
-    icon: <FiFileText className="h-8 w-8" />,
-    label: 'Consentimientos y documentos',
-    description: 'Adjuntos ordenados y disponibles.',
+    icon: <FiShield className="h-7 w-7" />,
+    label: 'Trazabilidad y permisos activos',
+    description: 'Acceso protegido con registro de actividad habilitado.',
   },
 ];
 
@@ -212,9 +199,10 @@ function LoginContent() {
 
   return (
     <AuthFrame
-      eyebrow="Plataforma clínica"
-      title="Contexto clínico desde el acceso."
-      description="Anamneo mantiene la información clave de tu práctica ordenada, segura y disponible."
+      variant="loginCompact"
+      eyebrow="Acceso clínico"
+      title="Acceso seguro a tu espacio clínico."
+      description="Consulta y gestiona información clínica con trazabilidad y permisos activos."
       chips={LOGIN_CHIPS}
       cardEyebrow="Acceso"
       cardTitle={step === '2fa' ? 'Verificación 2FA' : 'Iniciar sesión'}
@@ -222,15 +210,15 @@ function LoginContent() {
         ? verificationMethod === 'totp'
           ? 'Ingresa el código de tu app autenticadora.'
           : 'Ingresa uno de tus códigos de recuperación de un solo uso.'
-        : 'Ingresa con tu cuenta de Anamneo.'}
+        : 'Accede con tu cuenta clínica.'}
       logoIconClassName="!h-20 !w-20"
       logoTextClassName="!text-4xl"
       heroFooter={
         <div className="auth-help">
-          <FiHeadphones className="h-8 w-8" aria-hidden="true" />
+          <FiLock className="h-7 w-7" aria-hidden="true" />
           <span>
-            <span className="auth-help-title">Soporte</span>
-            <span className="auth-help-copy">soporte@anamneo.cl</span>
+            <span className="auth-help-title">Acceso protegido</span>
+            <span className="auth-help-copy">Sesiones resguardadas para equipos clínicos.</span>
           </span>
         </div>
       }
@@ -356,7 +344,7 @@ function LoginContent() {
                 Verificando…
               </span>
             ) : (
-              'Verificar y Entrar'
+              'Verificar e iniciar sesión'
             )}
           </button>
 
@@ -404,10 +392,12 @@ function LoginContent() {
         </div>
 
         <div>
-          <label htmlFor="password" className="form-label">
-            Contraseña
-          </label>
-          <Link href="/forgot-password" className="auth-forgot-password auth-inline-link">¿Olvidaste tu contraseña?</Link>
+          <div className="auth-field-row">
+            <label htmlFor="password" className="form-label">
+              Contraseña
+            </label>
+            <Link href="/forgot-password" className="auth-forgot-password auth-inline-link">¿Olvidaste tu contraseña?</Link>
+          </div>
           <div className="relative">
             <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
             <input
@@ -448,7 +438,7 @@ function LoginContent() {
               Iniciando sesión…
             </span>
           ) : (
-            'Entrar a Anamneo'
+            'Iniciar sesión'
           )}
         </button>
       </form>

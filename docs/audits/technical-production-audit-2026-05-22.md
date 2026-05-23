@@ -41,7 +41,7 @@
 | Observabilidad | 80 | Logs JSON estructurados, Sentry con scrubbing PHI, request-id propagado, `/api/metrics`, Prometheus/Loki/Promtail/Grafana y dashboard base. Faltan notificaciones externas y retención productiva formal. |
 | DevOps/deploy | 80 | Docker Compose + cloudflared + deploy.sh con backup/restore/rollback. Sin CD automatizado a prod, pero la ruta de despliegue ya está bastante madura. |
 | Performance | 65 | SQLite limita escalado vertical. Índices presentes. Sin pruebas de carga; sin cache layer. |
-| UX / producto | 74 | Flujos clínicos cubiertos (encuentros, secciones, firmas, consentimientos, adjuntos). Password reset, export regulatorio y páginas legales ya existen; algunos puntos abiertos siguen en `FEATURES.md`. |
+| UX / producto | 74 | Flujos clínicos cubiertos (encuentros, secciones, firmas, consentimientos, adjuntos). Password reset, export regulatorio y páginas legales ya existen; algunos puntos abiertos siguen en `docs/product/features.md`. |
 | Mantenibilidad | 80 | Buena documentación viva en `docs/`, modularidad razonable, archivos grandes ya divididos. |
 | **Readiness general** | **79** | **Listo con condiciones para single-clinic interno.** |
 
@@ -68,7 +68,7 @@
 | F-15 | P2 | Backend / Mail | `MailService.sendTestInvitation` acepta `smtpPassword` en body desde el admin. El password viaja por POST y queda en logs/sentry si falla. | `backend/src/mail/mail.controller.ts` | Posible exposición de credenciales SMTP en logs/sentry/proxies. | Confirmar scrubbing en `beforeSend` y request-tracing; documentar en runbook. | Bajo | No |
 | F-16 | P2 | DB / Migraciones | `scripts/deploy.sh` hace rollback interactivo (`read -r`). En despliegues no-interactivos rompe. | `scripts/deploy.sh:175` | Rollback automático bloqueado en CI/CD futuro. | Agregar flag `--auto-rollback` o `--no-prompt`. | Bajo | No |
 | F-17 | P2 | Testing | No hay tests de IDOR cruzado entre médicos exhaustivos. | `backend/src/patients/patients-access.ts`, suites e2e | Riesgo de exposición cruzada de PHI si una regresión silencia el check. | Matriz de tests e2e: por cada endpoint con `:id`, validar acceso denegado entre médicos no-relacionados. | Medio | No |
-| F-18 | P2 | Producto / UX | `FEATURES.md` documenta items `[BE]`/`[NEW]` no implementados. | `FEATURES.md`, `docs/clinical-workflows.md` | Producto puede llegar a producción con gaps de UX. | Lista clara de "funcionalidad mínima de v1" antes de go-live. | Medio | No |
+| F-18 | P2 | Producto / UX | `docs/product/features.md` documenta items `[BE]`/`[NEW]` no implementados. | `docs/product/features.md`, `docs/clinical-workflows.md` | Producto puede llegar a producción con gaps de UX. | Lista clara de "funcionalidad mínima de v1" antes de go-live. | Medio | No |
 | F-19 | P2 | Frontend / Accesibilidad | No hay evidencia de auditoría WCAG ni atributos ARIA verificados. No hay test de a11y en CI. | Búsqueda en `frontend/src/`: no veo `axe-core`/`jest-axe`. | Posible incumplimiento accesibilidad en entorno clínico. | Agregar `@axe-core/playwright` a smoke E2E. | Medio | No |
 | F-20 | P3 | Seguridad | `tracesSampleRate: 0.05` en producción; pocas trazas si hay incidente de latencia. | `backend/src/instrument.ts:31` | Diagnóstico más lento en incidentes raros. | Subir a 0.1–0.2 inicialmente. | Bajo | No |
 | F-21 | P3 | DevOps | Backup-cron corre como `root` para chown. | `docker-compose.yml:96` | Privilegios elevados; superficie de ataque. | Usar capacidades específicas o sidecar con `user: node`. | Medio | No |
@@ -117,7 +117,7 @@
 - F-06: mantener pruebas visuales/a11y para rutas nuevas bajo CSP nonce-based.
 - F-11: habilitar ClamAV en uploads si la clínica requiere cuarentena automática.
 - F-17: extender matriz e2e de IDOR a recursos sensibles fuera de encounters/attachments.
-- F-18: completar gaps `[BE]`/`[NEW]` de `FEATURES.md` priorizados con la clínica.
+- F-18: completar gaps `[BE]`/`[NEW]` de `docs/product/features.md` priorizados con la clínica.
 - F-19: ampliar a11y a rutas autenticadas y revisión manual WCAG.
 - F-23: revisar el último resultado de `npm audit`.
 - Planificar migración a PostgreSQL si se confirma escalado >1 clínica o >10 usuarios concurrentes.
@@ -192,7 +192,7 @@ Inspección documental + estructural; **no se ejecutaron** build/test/audit. Rev
 | **F-12** (log shipper persistente) | Cerrado para el despliegue Compose: Promtail queda activo y envía logs a Loki con volumen persistente. | Definir retención/offsite según política de la clínica. |
 | **F-15** (revisar exposición de SMTP password en logs) | Requiere prueba activa con Sentry capturando un evento fallido para confirmar el blast radius del scrub actual. | Validación en staging. |
 | **F-17** (matriz tests IDOR cruzados) | Parcialmente cerrado: se agregó matriz documental y cobertura e2e endpoint-por-endpoint para operaciones `:id` de encuentros/adjuntos entre médicos. | Seguir extendiendo la matriz a recursos no cubiertos fuera de encuentros/adjuntos. |
-| **F-18** (gaps `[BE]`/`[NEW]` en `FEATURES.md`) | Producto, no audit; decisión de stakeholders. | Priorizar con la clínica usuaria antes del go-live. |
+| **F-18** (gaps `[BE]`/`[NEW]` en `docs/product/features.md`) | Producto, no audit; decisión de stakeholders. | Priorizar con la clínica usuaria antes del go-live. |
 | **F-19** (a11y / WCAG) | Cerrado como gate base: CI ejecuta `@axe-core/playwright` sobre rutas públicas críticas. | Ampliar a rutas autenticadas y revisión manual WCAG cuando haya datos de staging. |
 | **F-21** (backup-cron como root) | Cerrado en Compose: `backup-cron` corre como UID/GID `1000:1000`. | Verificar permisos reales de `runtime/data`, `runtime/data/backups` y `runtime/uploads` en el host. |
 | **F-23** (revisar último resultado `npm audit`) | No se ejecutó en esta sesión. | Validar el último CI run antes del merge de remediación. |
@@ -212,7 +212,7 @@ Inspección documental + estructural; **no se ejecutaron** build/test/audit. Rev
 1. Ejecutar `npm --prefix backend run test:e2e` y Playwright completo localmente con backend levantado para validar que los cambios de throttler/scrub no rompen flujos.
 2. Generar `ENCRYPTION_KEY`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `BOOTSTRAP_TOKEN`, `SETTINGS_ENCRYPTION_KEY` reales con `openssl rand`/`crypto.randomBytes` y guardarlos en el gestor de secretos elegido.
 3. Validar el flujo end-to-end de `docker compose up` con el `.env` productivo real para confirmar que `assertSafeConfig` no rechaza la configuración.
-4. Hacer un commit + PR con el cuerpo de `AUDIT.md` §I como description.
+4. Hacer un commit + PR con el cuerpo de `docs/audits/technical-production-audit-2026-05-22.md` §I como description.
 
 **Próximas 2 semanas (T+7–21 días)**
 5. Validar en staging/prod el flujo de password reset y recuperación del admin único (F-02, ya implementado).
@@ -233,7 +233,7 @@ Inspección documental + estructural; **no se ejecutaron** build/test/audit. Rev
 - Restore drill semanal en producción real (ya automatizado por `backup-cron`).
 - Auditoría trimestral del `AuditLog` para integridad de cadena (`npm run audit:integrity:verify`).
 - Revisión de Sentry: confirmar que el scrub está funcionando capturando un evento ficticio con RUT/email.
-- Mantener `FEATURES.md` y `docs/clinical-workflows.md` al día con lo que se va completando.
+- Mantener `docs/product/features.md` y `docs/clinical-workflows.md` al día con lo que se va completando.
 
 ### J.4 Veredicto actualizado
 
@@ -275,7 +275,7 @@ Después de los fixes de esta sesión:
 
 - **F-07**: SQLite en producción sigue siendo condicional.
 - **F-15**: falta una prueba activa para medir el blast radius del SMTP password en cuerpo de petición.
-- **F-18**: `FEATURES.md` todavía contiene backlog `[BE]`/`[NEW]`.
+- **F-18**: `docs/product/features.md` todavía contiene backlog `[BE]`/`[NEW]`.
 - **F-23**: falta validar el último `npm audit` real de CI.
 
 ## L. Remediación adicional (2026-05-22, segunda sesión)

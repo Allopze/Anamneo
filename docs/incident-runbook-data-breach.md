@@ -133,5 +133,5 @@ Como parte del Go/No-Go (Ola 4), ejecutar un drill anual cronometrado:
 - [Política de Privacidad v1.0 (seed)](../backend/prisma/seed.ts)
 - [ADR-002 Cumplimiento Ley 21.719](architecture-decisions/002-ley-21719-compliance.md)
 - [Runbooks operativos generales](incident-runbooks.md)
-- [Auditoría completa Ley 21.719](../AUDITORIA_LEY_21719_CHILE.md)
+- [Auditoría completa Ley 21.719](audits/ley-21719-chile-audit-2026-05-23.md)
 - [Preguntas al asesor legal](preguntas-abogado-ley21719.md)

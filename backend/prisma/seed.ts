@@ -35,7 +35,7 @@ const DEV_ONLY_LEGAL_MARKER = 'Documento base para entornos de desarrollo y prue
  *
  * See:
  *   - docs/architecture-decisions/002-ley-21719-compliance.md
- *   - AUDITORIA_LEY_21719_CHILE.md
+ *   - docs/audits/ley-21719-chile-audit-2026-05-23.md
  */
 const legalDocuments = [
   {
@@ -95,27 +95,38 @@ const legalDocuments = [
       footerNote: `${DEV_ONLY_LEGAL_MARKER}; requiere revisión legal antes de producción.`,
     },
   },
-  // Politica de Privacidad v1.0 (placeholder de los 12 elementos del Art 14
-  // ter de la Ley 21.719). Mantenido en DRAFT hasta que el texto de cada
-  // seccion sea redactado y validado por el asesor legal externo (ver
-  // docs/preguntas-abogado-ley21719.md §2.1). El runtime guard del seed
-  // sigue bloqueando produccion porque cada seccion lleva el marcador
-  // `${DEV_ONLY_LEGAL_MARKER}` integrado en el body como [PENDIENTE_ABOGADO].
+  // Politica de Privacidad v1.0 — estructura "general + anexos por
+  // finalidad" recomendada por el asesor legal (ver
+  // docs/respuestas-borrador-ley21719.md §2.1). Cada documento es un
+  // LegalDocument independiente con `type='PRIVACY'` y un `version`
+  // distinto. Esto permite que cada anexo evolucione por separado sin
+  // reescribir la politica general cada vez que cambia un encargado o un
+  // proceso interno.
   //
-  // El frontend ya soporta este contentJson de forma agnostica via
-  // frontend/src/components/legal/LegalDocumentPage.tsx — al publicar la
-  // version validada por legal basta con mutar este objeto y subir el
-  // `status` a 'PUBLISHED'.
+  // **Resolución de "documento vigente para PolicyComplianceService":** el
+  // selector actual usa `findFirst({ type: 'PRIVACY', status: 'PUBLISHED' },
+  // orderBy publishedAt desc)`. Mientras todo este en DRAFT no aplica; al
+  // promover a PUBLISHED, el general debe marcarse PUBLISHED **primero** o
+  // (mejor) introducir un campo `kind` ('GENERAL' | 'ANNEX') en
+  // LegalDocument y filtrar por kind='GENERAL'. Esta decisión esta
+  // pendiente en docs/respuestas-borrador-ley21719.md §"Pendientes
+  // derivados".
+  //
+  // El runtime guard del seed sigue bloqueando produccion porque cada
+  // documento lleva el marcador `${DEV_ONLY_LEGAL_MARKER}`. El frontend
+  // `LegalDocumentPage.tsx` es agnostico al contenido y renderiza todos
+  // los anexos con el mismo layout.
   {
-    id: 'legal-privacy-v1-draft',
+    id: 'legal-privacy-general-v1-draft',
     type: 'PRIVACY',
     version: '1.0-DRAFT',
     status: 'DRAFT',
-    title: 'Política de Privacidad (v1.0 — borrador)',
-    description: 'Política de Privacidad de Anamneo bajo la Ley 21.719 — borrador para revisión legal.',
+    title: 'Política de Privacidad — General (v1.0 borrador)',
+    description: 'Política de Privacidad general de Anamneo bajo la Ley 21.719 — borrador estructural para revisión legal. Las finalidades específicas se detallan en anexos separados.',
     contentJson: {
       summary: [
-        'Esta política describe cómo Anamneo y la clínica usuaria tratan los datos personales de pacientes y del personal de salud.',
+        'Esta es la **política general** que aplica a todo tratamiento de datos personales en Anamneo: responsable, DPO, derechos, seguridad, contacto, Agencia y reglas comunes.',
+        'Las finalidades específicas (atención clínica, ficha clínica, administración de cuentas, soporte, auditoría y seguridad, telemetría, comunicaciones transaccionales y transferencias internacionales) están desarrolladas en **anexos por finalidad** que evolucionan independientemente.',
         `${DEV_ONLY_LEGAL_MARKER} [PENDIENTE_ABOGADO]: cada sección debe ser redactada o validada por el asesor legal externo antes de publicar.`,
       ],
       sections: [
@@ -123,7 +134,7 @@ const legalDocuments = [
           id: 'art-14-ter-1-politica',
           title: '1. Política de tratamiento de datos (Art 14 ter, lit 1)',
           body: [
-            '[PENDIENTE_ABOGADO] Declaración formal de la política adoptada por el responsable, fecha de emisión y versión.',
+            '[PENDIENTE_ABOGADO] Declaración formal de la política adoptada por el Responsable, fecha de emisión y versión. Incluir referencia a esta estructura modular: una política general + anexos por finalidad.',
           ],
         },
         {
@@ -138,34 +149,35 @@ const legalDocuments = [
           title: '3. Delegado de Protección de Datos (Art 14 ter, lit 3 + Art 50)',
           body: [
             'DPO interino al 2026-05-23: Alejandro López Zelaya — allopze@gmail.com.',
-            '[PENDIENTE_ABOGADO] Confirmar si la designación interina requiere formalización adicional.',
+            '[PENDIENTE_ABOGADO] Confirmar si la designación interina requiere formalización adicional ante la Agencia.',
           ],
         },
         {
           id: 'art-14-ter-4-contacto',
           title: '4. Datos de contacto (Art 14 ter, lit 4)',
           body: [
-            '[PENDIENTE_ABOGADO] Domicilio postal del Responsable + correo electrónico + formulario de contacto + URL pública para ejercer derechos.',
+            '[PENDIENTE_ABOGADO] Domicilio postal del Responsable + correo electrónico + formulario de contacto + URL pública para ejercer derechos (`/derechos`).',
           ],
         },
         {
-          id: 'art-14-ter-5-finalidades',
-          title: '5. Categorías de datos, finalidades y bases legales (Art 14 ter, lit 5)',
+          id: 'art-14-ter-5-categorias',
+          title: '5. Categorías de datos y finalidades — vista general (Art 14 ter, lit 5)',
           body: [
-            'Categorías: identificatorios, demográficos, salud (sensibles Art 2 letra g), contacto, representante legal de NNA, personal sanitario, telemetría.',
-            'Finalidades: atención clínica, auditoría, documentos clínicos, comunicaciones transaccionales, monitoreo técnico, estadística agregada.',
-            '[PENDIENTE_ABOGADO] Anclar cada finalidad a la base legal específica de la Ley 21.719 (Arts 12, 13, 16 lit e, 16 quinquies) y a la ley sanitaria especial (Ley 20.584 + normas MINSAL).',
+            'Categorías generales: identificatorios, demográficos, salud (sensibles Art 2 letra g), contacto, representante legal de NNA, personal sanitario, telemetría.',
+            'Finalidades activas: atención clínica · ficha clínica · administración de cuentas · soporte · auditoría y seguridad · telemetría de errores · comunicaciones transaccionales.',
+            'Cada finalidad tiene un **anexo dedicado** con detalle de datos tratados, base legal específica, destinatarios, plazos y particularidades.',
+            'Anamneo NO realiza investigación, analítica externa ni entrenamiento de modelos hoy. Si se incorporan, se añadirá un anexo nuevo y se solicitará base legal específica.',
           ],
         },
         {
           id: 'art-14-ter-6-seguridad',
           title: '6. Política y medidas de seguridad (Art 14 ter, lit 6 + Art 14 quinquies)',
           body: [
-            'Anamneo aplica: autenticación con 2FA TOTP, cookies HttpOnly+SameSite=strict, CSRF, lockout, control de roles + médico efectivo.',
-            'Cifrado en tránsito (HTTPS) y en reposo (filesystem LUKS + AES-256-GCM app-level para secciones clínicas, snapshots regulatorios y adjuntos en Ola 3).',
+            'Anamneo aplica: autenticación con 2FA TOTP, cookies HttpOnly+SameSite=strict, CSRF, lockout, control por roles + médico efectivo.',
+            'Cifrado en tránsito (HTTPS) y en reposo (filesystem LUKS + AES-256-GCM app-level para secciones clínicas, snapshots regulatorios, adjuntos y enlaces temporales DSAR).',
             'Auditoría con cadena de integridad SHA-256 verificable.',
-            'Backups Postgres rotables, restore drills, scrubbing de PHI en logs.',
-            '[PENDIENTE_ABOGADO] Validar nivel de detalle exigible al titular y al fiscalizador.',
+            'Backups Postgres rotables con restore drill periódico, scrubbing de PHI en logs.',
+            '[PENDIENTE_ABOGADO] Validar nivel de detalle exigible al titular y al fiscalizador. El detalle técnico exhaustivo está reservado al anexo de auditoría y seguridad.',
           ],
         },
         {
@@ -174,7 +186,7 @@ const legalDocuments = [
           body: [
             'El titular tiene derecho a: acceso, rectificación, supresión, oposición, portabilidad y bloqueo temporal de sus datos personales.',
             'Plazo de respuesta: 30 días corridos desde la solicitud, prorrogables por 30 días corridos adicionales por una sola vez (Art 11).',
-            'Para ejercer cualquier derecho: usar el formulario público en /derechos o escribir al correo de contacto.',
+            'Para ejercer cualquier derecho: usar el formulario público en `/derechos` o escribir al correo de contacto.',
             '[PENDIENTE_ABOGADO] Confirmar texto definitivo y criterios de verificación de identidad aceptables.',
           ],
         },
@@ -188,23 +200,20 @@ const legalDocuments = [
         },
         {
           id: 'art-14-ter-9-transferencias',
-          title: '9. Transferencias internacionales de datos (Art 14 ter, lit 9 + Arts 27-28)',
+          title: '9. Transferencias internacionales — política general (Art 14 ter, lit 9 + Arts 27-28)',
           body: [
-            'Anamneo utiliza los siguientes encargados que pueden tratar datos fuera de Chile:',
-            'Cloudflare (CDN + túnel) — Estados Unidos / red global.',
-            'Sentry (telemetría de errores, con PHI scrubbed) — Estados Unidos.',
-            'Proveedor SMTP (correos transaccionales) — por confirmar.',
-            '[PENDIENTE_ABOGADO] Garantías aplicables: cláusulas contractuales modelo, normas corporativas vinculantes, consentimiento explícito o adecuación.',
+            'Anamneo utiliza encargados que pueden tratar datos fuera de Chile (Cloudflare, Sentry, proveedor SMTP).',
+            'El detalle de cada encargado (categorías de datos transferidas, finalidad, base legal, garantías aplicables, jurisdicción) está en el **Anexo: Transferencias internacionales**.',
+            '[PENDIENTE_ABOGADO] Confirmar garantías aplicables: cláusulas contractuales modelo, BCR o consentimiento explícito por encargado.',
           ],
         },
         {
           id: 'art-14-ter-10-conservacion',
-          title: '10. Período de conservación (Art 14 ter, lit 10)',
+          title: '10. Período de conservación — regla general (Art 14 ter, lit 10)',
           body: [
-            'Ficha clínica: 15 años desde la última atención (referencia operativa, sujeta a validación legal sanitaria específica).',
-            'Auditoría y trazabilidad: retención prolongada por integridad de cadena y prescripción de infracciones (Art 40: 4 años).',
-            'Backups: política del responsable, recomendado 14 días rotativos.',
-            '[PENDIENTE_ABOGADO] Confirmar plazos por categoría y norma específica aplicable.',
+            'Cada categoría tiene un plazo específico documentado en el anexo correspondiente.',
+            'Reglas comunes: el plazo se cuenta desde la última atención o desde el evento que activó el tratamiento; al vencer, los datos se anonimizan, archivan o destruyen según el anexo.',
+            '[PENDIENTE_ABOGADO] Confirmar plazos por categoría y norma específica aplicable (Ley 20.584, normativa MINSAL, prescripción de infracciones Art 40).',
           ],
         },
         {
@@ -231,39 +240,462 @@ const legalDocuments = [
             'Cuando el tratamiento se base en consentimiento, el titular puede retirarlo en cualquier momento sin afectar la licitud del tratamiento previo a la revocación. El retiro se gestiona desde el mismo formulario que se usó para otorgarlo o vía el correo de contacto.',
           ],
         },
-      ],
-      dataCategories: [
         {
-          label: 'Identificatorios',
-          examples: 'RUT, nombre completo, fecha de nacimiento, sexo.',
-          purpose: 'Atención clínica, generación de documentos, comunicaciones esenciales.',
-        },
-        {
-          label: 'Contacto',
-          examples: 'Teléfono, email, domicilio, contacto de emergencia.',
-          purpose: 'Comunicación clínica y de continuidad de atención.',
-        },
-        {
-          label: 'Datos sensibles de salud',
-          examples: 'Antecedentes, atenciones clínicas, diagnósticos, tratamientos, alertas, consentimientos clínicos, adjuntos.',
-          purpose: 'Asistencia sanitaria (Ley 21.719 Art 16 lit e + ley sanitaria especial).',
-        },
-        {
-          label: 'Representante legal (NNA)',
-          examples: 'Nombre, RUT, parentesco y contacto del padre, madre o tutor.',
-          purpose: 'Ejercicio del consentimiento parental para menores de edad (Ley 21.719 Art 16 quáter).',
-        },
-        {
-          label: 'Trazabilidad operativa',
-          examples: 'Logs de auditoría (entidad, acción, usuario, timestamp).',
-          purpose: 'Cumplimiento del Art 14 quinquies y respaldo de operaciones.',
+          id: 'anexos-listado',
+          title: 'Anexos por finalidad (parte integrante de esta política)',
+          body: [
+            '1. Anexo: Atención clínica',
+            '2. Anexo: Ficha clínica (conservación + acceso)',
+            '3. Anexo: Administración de cuentas',
+            '4. Anexo: Soporte',
+            '5. Anexo: Auditoría y seguridad',
+            '6. Anexo: Telemetría de errores',
+            '7. Anexo: Comunicaciones transaccionales',
+            '8. Anexo: Transferencias internacionales',
+          ],
         },
       ],
       contactEmail: 'allopze@gmail.com',
-      footerNote: `${DEV_ONLY_LEGAL_MARKER}: este documento es un borrador estructural con los 12 elementos del Art 14 ter marcados [PENDIENTE_ABOGADO]. NO publicar antes de revisión legal.`,
+      footerNote: `${DEV_ONLY_LEGAL_MARKER}: documento general v1.0 borrador. NO publicar antes de revisión legal. Cada anexo se publica como LegalDocument independiente con su propio version (\`1.0-DRAFT-ANEXO-{slug}\`).`,
     },
   },
+  // ── Anexos por finalidad ─────────────────────────────────────────────
+  ...buildPrivacyAnnexes(),
 ];
+
+/**
+ * Construye los 8 anexos por finalidad recomendados por asesor legal
+ * (docs/respuestas-borrador-ley21719.md §2.1). Cada uno es un
+ * LegalDocument independiente con `type='PRIVACY'` y `version` con el
+ * sufijo `-ANEXO-{SLUG}` para distinguirlo del general.
+ *
+ * Estructura unificada por anexo: summary breve + sections {finalidad,
+ * datos, base legal, destinatarios, plazos, particularidades} +
+ * dataCategories opcional. Texto marcado [PENDIENTE_ABOGADO] donde
+ * espera redacción/validación del asesor.
+ */
+function buildPrivacyAnnexes() {
+  const baseFooter = `${DEV_ONLY_LEGAL_MARKER}: anexo v1.0 borrador. Forma parte integrante de la Política de Privacidad general (legal-privacy-general-v1-draft).`;
+  return [
+    {
+      id: 'legal-privacy-anexo-atencion-clinica',
+      type: 'PRIVACY',
+      version: '1.0-DRAFT-ANEXO-ATENCION-CLINICA',
+      status: 'DRAFT',
+      title: 'Anexo: Atención clínica',
+      description: 'Tratamiento de datos personales del titular durante la atención clínica directa.',
+      contentJson: {
+        summary: [
+          'Este anexo desarrolla la finalidad **atención clínica directa** mencionada en la política general (sección 5).',
+          'Aplica a todo dato recolectado durante consultas, procedimientos, exámenes y seguimientos asistenciales.',
+        ],
+        sections: [
+          {
+            id: 'finalidad',
+            title: 'Finalidad',
+            body: ['Prestar asistencia sanitaria al titular, registrar atenciones, generar documentos clínicos y coordinar continuidad de cuidados.'],
+          },
+          {
+            id: 'datos',
+            title: 'Datos tratados',
+            body: ['Identificatorios, demográficos, contacto, antecedentes, síntomas, signos vitales, diagnósticos, tratamientos, indicaciones, observaciones del equipo tratante.'],
+          },
+          {
+            id: 'base-legal',
+            title: 'Base legal',
+            body: [
+              'Asistencia sanitaria (Ley 21.719 Art 16 lit e: tratamiento necesario por profesional de la salud).',
+              'Consentimiento del titular para la relación clínica general (Ley 21.719 Art 12).',
+              '[PENDIENTE_ABOGADO] Confirmar si requiere base adicional bajo Ley 20.584.',
+            ],
+          },
+          {
+            id: 'destinatarios',
+            title: 'Destinatarios',
+            body: ['Equipo tratante autorizado (médicos y asistentes con rol asignado). No se ceden datos a terceros para esta finalidad.'],
+          },
+          {
+            id: 'plazos',
+            title: 'Plazos de conservación',
+            body: ['Mientras dure la relación asistencial. La ficha clínica con el registro de las atenciones se conserva según el anexo de Ficha clínica.'],
+          },
+          {
+            id: 'particularidades',
+            title: 'Particularidades',
+            body: [
+              'NNA (<14 años o <16 años con dato sensible): consentimiento del padre, madre, tutor o representante legal (Art 16 quáter).',
+              'Bloqueo temporal del tratamiento (Art 8 ter) suspende toda nueva atención hasta que el titular o el responsable lo levante.',
+            ],
+          },
+        ],
+        contactEmail: 'allopze@gmail.com',
+        footerNote: baseFooter,
+      },
+    },
+    {
+      id: 'legal-privacy-anexo-ficha-clinica',
+      type: 'PRIVACY',
+      version: '1.0-DRAFT-ANEXO-FICHA-CLINICA',
+      status: 'DRAFT',
+      title: 'Anexo: Ficha clínica (conservación + acceso)',
+      description: 'Conservación, acceso y portabilidad del registro acumulado de atenciones del titular.',
+      contentJson: {
+        summary: [
+          'Este anexo cubre el registro acumulado del titular (ficha clínica longitudinal) y su ciclo de vida.',
+        ],
+        sections: [
+          {
+            id: 'finalidad',
+            title: 'Finalidad',
+            body: ['Mantener la trazabilidad clínica histórica para continuidad asistencial, derechos del titular (acceso/portabilidad) y cumplimiento normativo sanitario.'],
+          },
+          {
+            id: 'datos',
+            title: 'Datos tratados',
+            body: ['Todos los datos del anexo de atención clínica + adjuntos clínicos + consentimientos clínicos otorgados + decisiones de revisión y firma.'],
+          },
+          {
+            id: 'base-legal',
+            title: 'Base legal',
+            body: [
+              'Obligación legal sanitaria (Ley 20.584 y normativa MINSAL de archivo de ficha clínica).',
+              'Asistencia sanitaria (Ley 21.719 Art 16 lit e) para usos posteriores en continuidad asistencial.',
+              '[PENDIENTE_ABOGADO] Confirmar plazo exacto y normativa específica MINSAL aplicable.',
+            ],
+          },
+          {
+            id: 'destinatarios',
+            title: 'Destinatarios',
+            body: ['Titular o representante legal (vía portal o solicitud DSAR), equipo tratante autorizado, autoridad sanitaria fiscalizadora cuando lo requiera.'],
+          },
+          {
+            id: 'plazos',
+            title: 'Plazos de conservación',
+            body: [
+              'Operativa actual: 15 años desde la última atención (referencia conservadora).',
+              '[PENDIENTE_ABOGADO] Confirmar plazo legal definitivo y criterio de inicio de cómputo.',
+              'Al vencer: purga regulatoria con auditoría (ver servicio `patients-regulatory-purge.service.ts`).',
+            ],
+          },
+          {
+            id: 'particularidades',
+            title: 'Particularidades',
+            body: [
+              'El derecho de supresión (Art 4 lit c) puede ser denegado por la obligación legal de conservar la ficha — la denegación se documenta y notifica al titular.',
+              'Snapshots pre-purga se cifran AES-256-GCM a nivel app antes de almacenarse.',
+            ],
+          },
+        ],
+        contactEmail: 'allopze@gmail.com',
+        footerNote: baseFooter,
+      },
+    },
+    {
+      id: 'legal-privacy-anexo-administracion-cuentas',
+      type: 'PRIVACY',
+      version: '1.0-DRAFT-ANEXO-ADMINISTRACION-CUENTAS',
+      status: 'DRAFT',
+      title: 'Anexo: Administración de cuentas',
+      description: 'Gestión de cuentas del personal de salud (médicos, asistentes, administradores).',
+      contentJson: {
+        summary: ['Este anexo cubre el tratamiento de datos del personal de salud que usa Anamneo (no aplica a pacientes).'],
+        sections: [
+          {
+            id: 'finalidad',
+            title: 'Finalidad',
+            body: ['Autenticar, autorizar y administrar usuarios del sistema. Mantener trazabilidad de quién realiza qué acción.'],
+          },
+          {
+            id: 'datos',
+            title: 'Datos tratados',
+            body: ['Email, nombre, rol, hash de contraseña, secret TOTP (cifrado), códigos de recuperación 2FA (hash), sesiones activas, último login.'],
+          },
+          {
+            id: 'base-legal',
+            title: 'Base legal',
+            body: [
+              'Interés legítimo del Responsable (Ley 21.719 Art 13) para operar la herramienta de gestión clínica de forma segura.',
+              'Ejecución del contrato laboral o de servicios entre el Responsable y el personal.',
+              '[PENDIENTE_ABOGADO] Validar prevalencia del interés legítimo frente al titular usuario.',
+            ],
+          },
+          {
+            id: 'destinatarios',
+            title: 'Destinatarios',
+            body: ['Administradores del sistema en la clínica usuaria. No se comparten con terceros.'],
+          },
+          {
+            id: 'plazos',
+            title: 'Plazos de conservación',
+            body: ['Mientras dure la relación contractual + 4 años para prescripción de infracciones (Ley 21.719 Art 40).'],
+          },
+          {
+            id: 'particularidades',
+            title: 'Particularidades',
+            body: ['Las cuentas desactivadas mantienen el historial de auditoría pero pierden acceso.'],
+          },
+        ],
+        contactEmail: 'allopze@gmail.com',
+        footerNote: baseFooter,
+      },
+    },
+    {
+      id: 'legal-privacy-anexo-soporte',
+      type: 'PRIVACY',
+      version: '1.0-DRAFT-ANEXO-SOPORTE',
+      status: 'DRAFT',
+      title: 'Anexo: Soporte',
+      description: 'Tratamiento de datos durante interacciones de soporte con el equipo técnico de Anamneo.',
+      contentJson: {
+        summary: ['Cubre los datos compartidos por usuarios al pedir soporte técnico o reportar incidencias.'],
+        sections: [
+          {
+            id: 'finalidad',
+            title: 'Finalidad',
+            body: ['Resolver consultas, incidencias y bugs reportados por el personal de salud. Mejorar la calidad y estabilidad del producto.'],
+          },
+          {
+            id: 'datos',
+            title: 'Datos tratados',
+            body: ['Email de contacto, descripción del problema, datos de sesión necesarios para reproducir el bug, capturas de pantalla (con PHI removido cuando sea posible).'],
+          },
+          {
+            id: 'base-legal',
+            title: 'Base legal',
+            body: [
+              'Ejecución del contrato de servicio entre Anamneo y la clínica usuaria.',
+              'Interés legítimo del Responsable en operar el sistema correctamente.',
+            ],
+          },
+          {
+            id: 'destinatarios',
+            title: 'Destinatarios',
+            body: ['Equipo técnico autorizado de Anamneo. NO se comparte PHI con terceros sin autorización expresa.'],
+          },
+          {
+            id: 'plazos',
+            title: 'Plazos de conservación',
+            body: ['Tickets cerrados: 2 años para mejora de producto y referencia. Tickets que involucran PHI: minimización inmediata tras resolución.'],
+          },
+          {
+            id: 'particularidades',
+            title: 'Particularidades',
+            body: ['Cuando un ticket requiere acceso al ambiente del cliente, se documenta autorización explícita por escrito del Responsable.'],
+          },
+        ],
+        contactEmail: 'allopze@gmail.com',
+        footerNote: baseFooter,
+      },
+    },
+    {
+      id: 'legal-privacy-anexo-auditoria-seguridad',
+      type: 'PRIVACY',
+      version: '1.0-DRAFT-ANEXO-AUDITORIA-SEGURIDAD',
+      status: 'DRAFT',
+      title: 'Anexo: Auditoría y seguridad',
+      description: 'Trazabilidad de todas las acciones realizadas sobre datos personales (Art 14 quinquies).',
+      contentJson: {
+        summary: ['Detalla cómo Anamneo cumple la obligación del Art 14 quinquies de mantener registro de tratamientos y trazabilidad.'],
+        sections: [
+          {
+            id: 'finalidad',
+            title: 'Finalidad',
+            body: ['Demostrar el cumplimiento de la Ley 21.719, detectar accesos no autorizados, soportar respuestas a brechas y derechos del titular.'],
+          },
+          {
+            id: 'datos',
+            title: 'Datos tratados',
+            body: ['Entidad afectada, tipo de acción, ID de usuario que la ejecuta, timestamp, IP, user agent, hash encadenado (SHA-256) para integridad.'],
+          },
+          {
+            id: 'base-legal',
+            title: 'Base legal',
+            body: [
+              'Obligación legal (Ley 21.719 Art 14 quinquies).',
+              'Interés legítimo del Responsable en proteger la información.',
+            ],
+          },
+          {
+            id: 'destinatarios',
+            title: 'Destinatarios',
+            body: ['DPO, administradores de la clínica usuaria, autoridad fiscalizadora cuando lo requiera, equipo técnico de Anamneo en investigación de incidentes.'],
+          },
+          {
+            id: 'plazos',
+            title: 'Plazos de conservación',
+            body: ['Mínimo 4 años (prescripción de infracciones Art 40). Puede ser mayor por integridad de la cadena.'],
+          },
+          {
+            id: 'particularidades',
+            title: 'Particularidades',
+            body: [
+              'La integridad se verifica mediante el endpoint `/api/audit/integrity/verify`.',
+              '[PENDIENTE_ABOGADO] Validar nivel de detalle técnico exigible al titular en este anexo (algunos datos de seguridad son sensibles para divulgar).',
+            ],
+          },
+        ],
+        contactEmail: 'allopze@gmail.com',
+        footerNote: baseFooter,
+      },
+    },
+    {
+      id: 'legal-privacy-anexo-telemetria',
+      type: 'PRIVACY',
+      version: '1.0-DRAFT-ANEXO-TELEMETRIA',
+      status: 'DRAFT',
+      title: 'Anexo: Telemetría de errores',
+      description: 'Captura de errores técnicos para mejora de estabilidad del producto.',
+      contentJson: {
+        summary: ['Anamneo usa Sentry para capturar errores técnicos en producción. Esta telemetría aplica scrubbing automático de PHI.'],
+        sections: [
+          {
+            id: 'finalidad',
+            title: 'Finalidad',
+            body: ['Detectar bugs y crashes en producción para corregirlos y mejorar la estabilidad.'],
+          },
+          {
+            id: 'datos',
+            title: 'Datos tratados',
+            body: ['Stack trace, ID anonimizado de sesión, navegador y versión, endpoint afectado. Los datos identificables (RUT, nombre, email) son removidos por scrubbing antes del envío.'],
+          },
+          {
+            id: 'base-legal',
+            title: 'Base legal',
+            body: [
+              'Interés legítimo del Responsable en operar el sistema correctamente.',
+              '[PENDIENTE_ABOGADO] Validar que el scrubbing automático efectivamente elimina datos personales antes del envío al encargado.',
+            ],
+          },
+          {
+            id: 'destinatarios',
+            title: 'Destinatarios',
+            body: ['Sentry (encargado del tratamiento) y equipo técnico de Anamneo. El detalle de la transferencia internacional está en el Anexo: Transferencias internacionales.'],
+          },
+          {
+            id: 'plazos',
+            title: 'Plazos de conservación',
+            body: ['Retención en Sentry: 90 días (rolling).'],
+          },
+          {
+            id: 'particularidades',
+            title: 'Particularidades',
+            body: ['Si el titular se opone (Art 8) a esta telemetría, su sesión no se envía a Sentry. La oposición se registra en `Patient.processingObjections`.'],
+          },
+        ],
+        contactEmail: 'allopze@gmail.com',
+        footerNote: baseFooter,
+      },
+    },
+    {
+      id: 'legal-privacy-anexo-comunicaciones',
+      type: 'PRIVACY',
+      version: '1.0-DRAFT-ANEXO-COMUNICACIONES',
+      status: 'DRAFT',
+      title: 'Anexo: Comunicaciones transaccionales',
+      description: 'Envío de correos transaccionales relacionados con la atención y los derechos del titular.',
+      contentJson: {
+        summary: ['Cubre los correos enviados al titular relacionados con sus solicitudes DSAR, brechas y notificaciones esenciales.'],
+        sections: [
+          {
+            id: 'finalidad',
+            title: 'Finalidad',
+            body: [
+              'Acuse de recibo y resolución de solicitudes de derechos (Art 4-11).',
+              'Notificación de brechas que lo afecten (Art 14 sexies).',
+              'Comunicaciones esenciales para la continuidad asistencial cuando el titular las autorice.',
+            ],
+          },
+          {
+            id: 'datos',
+            title: 'Datos tratados',
+            body: ['Email del titular, nombre, contenido del mensaje (sin PHI clínica salvo lo mínimo necesario).'],
+          },
+          {
+            id: 'base-legal',
+            title: 'Base legal',
+            body: [
+              'Obligación legal (Ley 21.719 Art 11 para DSAR y Art 14 sexies para brechas).',
+              'Consentimiento para comunicaciones opcionales (Art 12).',
+            ],
+          },
+          {
+            id: 'destinatarios',
+            title: 'Destinatarios',
+            body: ['Proveedor SMTP (encargado del tratamiento). El detalle del proveedor y su jurisdicción está en el Anexo: Transferencias internacionales.'],
+          },
+          {
+            id: 'plazos',
+            title: 'Plazos de conservación',
+            body: ['Logs de envío: 90 días. Contenido del mensaje: no se almacena en Anamneo más allá del envío.'],
+          },
+          {
+            id: 'particularidades',
+            title: 'Particularidades',
+            body: ['El titular puede oponerse a comunicaciones no esenciales (campo `processingObjections.COMUNICACIONES`).'],
+          },
+        ],
+        contactEmail: 'allopze@gmail.com',
+        footerNote: baseFooter,
+      },
+    },
+    {
+      id: 'legal-privacy-anexo-transferencias-internacionales',
+      type: 'PRIVACY',
+      version: '1.0-DRAFT-ANEXO-TRANSFERENCIAS-INTERNACIONALES',
+      status: 'DRAFT',
+      title: 'Anexo: Transferencias internacionales',
+      description: 'Encargados del tratamiento que pueden procesar datos fuera de Chile (Ley 21.719 Arts 27-28).',
+      contentJson: {
+        summary: ['Detalla cada encargado externo: jurisdicción, categorías de datos transferidos, finalidad, base legal y garantías aplicables.'],
+        sections: [
+          {
+            id: 'cloudflare',
+            title: 'Cloudflare (CDN + túnel)',
+            body: [
+              'Jurisdicción: Estados Unidos / red global.',
+              'Datos transferidos: tráfico HTTP en tránsito (incluyendo PHI dentro de payloads cifrados HTTPS), metadatos de la conexión (IP del cliente, headers).',
+              'Finalidad: distribución de contenido, mitigación DDoS, túnel de acceso.',
+              'Base legal: interés legítimo del Responsable + cláusulas contractuales modelo en el DPA.',
+              '[PENDIENTE_ABOGADO] Confirmar versión de cláusulas contractuales modelo aplicable.',
+            ],
+          },
+          {
+            id: 'sentry',
+            title: 'Sentry (telemetría de errores)',
+            body: [
+              'Jurisdicción: Estados Unidos.',
+              'Datos transferidos: stack traces con scrubbing automático de PHI; identificadores anónimos de sesión.',
+              'Finalidad: detección de errores en producción (ver Anexo: Telemetría de errores).',
+              'Base legal: interés legítimo + cláusulas contractuales modelo.',
+              '[PENDIENTE_ABOGADO] Confirmar DPA firmado y vigencia de SCC.',
+            ],
+          },
+          {
+            id: 'smtp',
+            title: 'Proveedor SMTP (correos transaccionales)',
+            body: [
+              'Jurisdicción: por confirmar (depende del proveedor activo en la clínica usuaria).',
+              'Datos transferidos: email del titular, contenido del correo.',
+              'Finalidad: envío de comunicaciones (ver Anexo: Comunicaciones transaccionales).',
+              'Base legal: obligación legal (DSAR, brechas) + interés legítimo (comunicaciones esenciales).',
+              '[PENDIENTE_ABOGADO] Confirmar proveedor definitivo, jurisdicción y DPA firmado.',
+            ],
+          },
+          {
+            id: 'derechos-titular',
+            title: 'Derechos del titular sobre transferencias',
+            body: [
+              'El titular puede solicitar copia del DPA aplicable a cada encargado y de las garantías ofrecidas.',
+              'Para oposición específica a una transferencia, contactar al DPO.',
+            ],
+          },
+        ],
+        contactEmail: 'allopze@gmail.com',
+        footerNote: baseFooter,
+      },
+    },
+  ];
+}
 
 function assertLegalDocumentsAreProductionReady(documents: typeof legalDocuments) {
   if (process.env.NODE_ENV !== 'production') {

@@ -50,6 +50,7 @@ export default defineConfig({
         MIGRATION_DATABASE_URL: testDbUrl,
         JWT_SECRET: 'e2e-jwt-secret-for-testing-only',
         JWT_REFRESH_SECRET: 'e2e-jwt-refresh-secret-for-testing-only',
+        ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
         JWT_EXPIRES_IN: '15m',
         JWT_REFRESH_EXPIRES_IN: '7d',
         BACKEND_PORT: backendPort,

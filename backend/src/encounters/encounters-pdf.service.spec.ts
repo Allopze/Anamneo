@@ -5,6 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { EncountersPdfService } from './encounters-pdf.service';
 import { getEncounterIdentificationMissingFields } from './encounters-pdf.helpers';
+import { buildEncryptedPatientIdentifierFields } from '../patients/patients-identifiers';
 
 function countPdfPages(buffer: Buffer) {
   return buffer.toString('latin1').match(/\/Type\s*\/Page\b/g)?.length ?? 0;
@@ -46,8 +47,7 @@ describe('EncountersPdfService', () => {
           sections: [],
           patient: {
             id: 'patient-1',
-            nombre: 'Paciente Demo',
-            rut: '11.111.111-1',
+            ...buildEncryptedPatientIdentifierFields({ nombre: 'Paciente Demo', rut: '11.111.111-1' }),
             rutExempt: false,
             rutExemptReason: null,
             fechaNacimiento: new Date('1986-04-08T00:00:00.000Z'),
@@ -107,8 +107,7 @@ describe('EncountersPdfService', () => {
           ],
           patient: {
             id: 'patient-1',
-            nombre: 'Paciente Demo',
-            rut: '11.111.111-1',
+            ...buildEncryptedPatientIdentifierFields({ nombre: 'Paciente Demo', rut: '11.111.111-1' }),
             rutExempt: false,
             rutExemptReason: null,
             fechaNacimiento: new Date('1986-04-08T00:00:00.000Z'),
@@ -208,8 +207,7 @@ describe('EncountersPdfService', () => {
           ],
           patient: {
             id: 'patient-1',
-            nombre: 'Paciente Demo',
-            rut: '11.111.111-1',
+            ...buildEncryptedPatientIdentifierFields({ nombre: 'Paciente Demo', rut: '11.111.111-1' }),
             rutExempt: false,
             rutExemptReason: null,
             fechaNacimiento: new Date('1990-05-12T00:00:00.000Z'),
@@ -271,8 +269,7 @@ describe('EncountersPdfService', () => {
           ],
           patient: {
             id: 'patient-1',
-            nombre: 'Paciente Demo',
-            rut: '11.111.111-1',
+            ...buildEncryptedPatientIdentifierFields({ nombre: 'Paciente Demo', rut: '11.111.111-1' }),
             rutExempt: false,
             rutExemptReason: null,
             fechaNacimiento: new Date('1990-05-12T00:00:00.000Z'),

@@ -28,7 +28,8 @@ La documentacion activa vive en `docs/` y ya no esta repartida entre intuicion, 
 | [docs/postgres-operations.md](docs/postgres-operations.md) | Backups, restore drills y monitoreo PostgreSQL |
 | [docs/deployment-and-release.md](docs/deployment-and-release.md) | Build, empaquetado y despliegue |
 | [docs/clinical-workflows.md](docs/clinical-workflows.md) | Flujos funcionales que cruzan producto y backend |
-| [FEATURES.md](FEATURES.md) | Backlog por rol; no confundir con comportamiento garantizado |
+| [docs/product/features.md](docs/product/features.md) | Backlog por rol; no confundir con comportamiento garantizado |
+| [docs/audits/ley-21719-chile-audit-2026-05-23.md](docs/audits/ley-21719-chile-audit-2026-05-23.md) | Auditoria de cumplimiento Ley 21.719 |
 
 ## Stack
 

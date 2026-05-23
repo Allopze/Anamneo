@@ -3,6 +3,7 @@ import { validateRut } from '../common/utils/helpers';
 import { buildAccessiblePatientsWhere } from '../common/utils/patient-access';
 import { RequestUser } from '../common/utils/medico-id';
 import { PrismaService } from '../prisma/prisma.service';
+import { computeRutLookupHash, resolvePatientIdentifiers } from './patients-identifiers';
 
 export type PossiblePatientDuplicateMatchReason = 'same_rut' | 'same_name_birth_date';
 
@@ -98,7 +99,7 @@ export async function findPossiblePatientDuplicatesReadModel(
   const duplicateClauses: Prisma.PatientWhereInput[] = [];
 
   if (normalizedRut) {
-    duplicateClauses.push({ rut: normalizedRut });
+    duplicateClauses.push({ rutLookupHash: computeRutLookupHash(normalizedRut) });
   }
 
   if (canMatchByNameAndBirthDate && birthDateRange) {
@@ -115,8 +116,8 @@ export async function findPossiblePatientDuplicatesReadModel(
     },
     select: {
       id: true,
-      nombre: true,
-      rut: true,
+      nombreEnc: true,
+      rutEnc: true,
       fechaNacimiento: true,
       registrationMode: true,
       completenessStatus: true,
@@ -128,25 +129,26 @@ export async function findPossiblePatientDuplicatesReadModel(
 
   return candidates
     .map((candidate) => {
+      const identifiers = resolvePatientIdentifiers(candidate);
       const candidateDateOnly = toDateOnly(candidate.fechaNacimiento);
       const matchReasons: PossiblePatientDuplicateMatchReason[] = [];
 
-      if (normalizedRut && candidate.rut === normalizedRut) {
+      if (normalizedRut && identifiers.rut === normalizedRut) {
         matchReasons.push('same_rut');
       }
 
       if (
         canMatchByNameAndBirthDate
         && candidateDateOnly === fechaNacimiento
-        && normalizePatientName(candidate.nombre) === normalizedName
+        && normalizePatientName(identifiers.nombre) === normalizedName
       ) {
         matchReasons.push('same_name_birth_date');
       }
 
       return {
         id: candidate.id,
-        nombre: candidate.nombre,
-        rut: candidate.rut,
+        nombre: identifiers.nombre,
+        rut: identifiers.rut,
         fechaNacimiento: candidateDateOnly,
         registrationMode: candidate.registrationMode,
         completenessStatus: candidate.completenessStatus,

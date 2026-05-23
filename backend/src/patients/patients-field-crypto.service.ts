@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { createHmac } from 'crypto';
-import { decryptField, encryptField, isEncryptionEnabled } from '../common/utils/field-crypto';
+import {
+  buildEncryptedPatientIdentifierFields,
+  computeRutLookupHash,
+  decryptPatientIdentifier,
+} from './patients-identifiers';
 
 /**
  * Ley 21.719 Art 14 quinquies lit a (cifrado y seudonimizacion).
@@ -10,15 +13,9 @@ import { decryptField, encryptField, isEncryptionEnabled } from '../common/utils
  * UNIQUE constraint a nivel DB) ademas calcula un `rut_lookup_hash`
  * deterministico que permite busquedas sin descifrar todos los registros.
  *
- * **Estado:** Phase A — dual-write seguro.
- *   - Las columnas plaintext siguen activas y son la fuente de verdad para
- *     lecturas existentes.
- *   - Las columnas `*_enc` y `rut_lookup_hash` se populan en cada write.
- *   - El cifrado se omite (no-op) en dev/test sin `ENCRYPTION_KEY`.
- *
- * **Phase B (futuro):** backfill de registros existentes, switch de reads
- * a las columnas `*_enc`, drop de plaintext columns. Ver documentacion del
- * roadmap.
+ * **Estado:** Phase C — las columnas plaintext ya no forman parte del
+ * modelo Prisma. Los write paths deben persistir solo `*_enc` y
+ * `rut_lookup_hash`; los read paths descifran desde esas columnas.
  */
 @Injectable()
 export class PatientsFieldCryptoService {
@@ -30,37 +27,16 @@ export class PatientsFieldCryptoService {
    * lookup funcione independientemente del formato de entrada.
    */
   computeRutLookupHash(rut: string | null | undefined): string | null {
-    if (!rut) return null;
-    const key = process.env.ENCRYPTION_KEY;
-    if (!key || key.length !== 64) {
-      // En dev/test sin clave, no podemos calcular el hash de lookup.
-      // Esto no rompe nada porque las queries existentes siguen usando rut plaintext.
-      return null;
-    }
-    const normalized = rut
-      .normalize('NFKD')
-      .replace(/[^a-zA-Z0-9]/g, '')
-      .toLowerCase();
-    if (!normalized) return null;
-    // Pepper estatico para diferenciar este hash de otros usos del HMAC con
-    // la misma clave. Cualquier cambio en este string invalida los hashes
-    // existentes — no cambiar sin un migration script de backfill.
-    const PEPPER = 'anamneo.v1.patient.rut_lookup';
-    return createHmac('sha256', Buffer.from(key, 'hex'))
-      .update(PEPPER + ':' + normalized)
-      .digest('hex');
+    return computeRutLookupHash(rut);
   }
 
   /**
-   * Encripta un valor escalar (string). Si la clave no esta configurada,
-   * devuelve null para que el dual-write deje las columnas `_enc` vacias.
-   * El plaintext sigue intacto en la columna original.
+   * Encripta un valor escalar (string). ENCRYPTION_KEY es obligatoria en
+   * startup; se conserva el try/catch para no romper callers legacy de tests.
    */
   encryptScalar(value: string | null | undefined): string | null {
-    if (value == null || value === '') return null;
-    if (!isEncryptionEnabled()) return null;
     try {
-      return encryptField(value);
+      return buildEncryptedPatientIdentifierFields({ nombre: value }).nombreEnc;
     } catch (err) {
       this.logger.warn(`encryptScalar failed: ${(err as Error).message}`);
       return null;
@@ -72,9 +48,8 @@ export class PatientsFieldCryptoService {
    * Devuelve null cuando no se puede descifrar (uso defensivo en presenters).
    */
   decryptScalar(value: string | null | undefined): string | null {
-    if (!value) return null;
     try {
-      return decryptField(value);
+      return decryptPatientIdentifier(value);
     } catch (err) {
       this.logger.warn(`decryptScalar failed: ${(err as Error).message}`);
       return null;
@@ -91,7 +66,7 @@ export class PatientsFieldCryptoService {
    *   await prisma.patient.create({ data: { ...dto, ...enc } });
    *
    * El resultado contiene SIEMPRE las claves esperadas; los valores son
-   * `null` cuando el cifrado no esta disponible o el campo es vacio.
+   * `null` cuando el campo es vacio.
    */
   buildEncryptedFields(input: {
     rut?: string | null;
@@ -111,15 +86,6 @@ export class PatientsFieldCryptoService {
     contactoEmergenciaNombreEnc: string | null;
     contactoEmergenciaTelefonoEnc: string | null;
   } {
-    return {
-      rutEnc: this.encryptScalar(input.rut),
-      rutLookupHash: this.computeRutLookupHash(input.rut),
-      nombreEnc: this.encryptScalar(input.nombre),
-      telefonoEnc: this.encryptScalar(input.telefono),
-      emailEnc: this.encryptScalar(input.email),
-      domicilioEnc: this.encryptScalar(input.domicilio),
-      contactoEmergenciaNombreEnc: this.encryptScalar(input.contactoEmergenciaNombre),
-      contactoEmergenciaTelefonoEnc: this.encryptScalar(input.contactoEmergenciaTelefono),
-    };
+    return buildEncryptedPatientIdentifierFields(input);
   }
 }

@@ -4,6 +4,7 @@ import { buildEncounterTaskScopeWhere, buildPatientProblemScopeWhere } from '../
 import { RequestUser } from '../common/utils/medico-id';
 import { canAccessEncounter } from './encounter-policy';
 import { formatEncounterForList, formatEncounterForPatientList, formatEncounterResponse } from './encounters-presenters';
+import { patientMatchesIdentifierSearch } from '../patients/patients-identifiers';
 
 interface FindEncountersReadModelParams {
   prisma: PrismaService;
@@ -35,18 +36,11 @@ export async function findEncountersReadModel(params: FindEncountersReadModelPar
   }
 
   const trimmedSearch = search?.trim();
-  if (trimmedSearch) {
-    where.OR = [
-      { patient: { nombre: { contains: trimmedSearch } } },
-      { patient: { rut: { contains: trimmedSearch } } },
-    ];
-  }
 
   const [encounters, total] = await Promise.all([
     prisma.encounter.findMany({
       where,
-      skip,
-      take: limit,
+      ...(trimmedSearch ? {} : { skip, take: limit }),
       orderBy: { createdAt: 'desc' },
       include: {
         patient: true,
@@ -77,16 +71,22 @@ export async function findEncountersReadModel(params: FindEncountersReadModelPar
         },
       },
     }),
-    prisma.encounter.count({ where }),
+    trimmedSearch ? Promise.resolve(0) : prisma.encounter.count({ where }),
   ]);
 
+  const filteredEncounters = trimmedSearch
+    ? encounters.filter((encounter) => patientMatchesIdentifierSearch(encounter.patient, trimmedSearch))
+    : encounters;
+  const pageEncounters = trimmedSearch ? filteredEncounters.slice(skip, skip + limit) : filteredEncounters;
+  const resolvedTotal = trimmedSearch ? filteredEncounters.length : total;
+
   return {
-    data: encounters.map((encounter) => formatEncounterForList(encounter)),
+    data: pageEncounters.map((encounter) => formatEncounterForList(encounter)),
     pagination: {
       page,
       limit,
-      total,
-      totalPages: Math.ceil(total / limit),
+      total: resolvedTotal,
+      totalPages: Math.ceil(resolvedTotal / limit),
     },
   };
 }

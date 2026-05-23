@@ -19,6 +19,7 @@ import {
   buildIdentificationSnapshotFromPatient,
   serializeSectionData,
 } from '../encounters/encounters-sanitize';
+import { buildEncryptedPatientIdentifierFields, withPatientIdentifiers } from './patients-identifiers';
 
 export type LoadedPatient = NonNullable<Awaited<ReturnType<PrismaService['patient']['findUnique']>>> & {
   history: PatientHistory | null;
@@ -116,18 +117,33 @@ export function buildTargetPatientMergeData(params: {
   user: RequestUser;
 }) {
   const { targetPatient, sourcePatient, user } = params;
+  const targetIdentifiers = withPatientIdentifiers(targetPatient);
+  const sourceIdentifiers = withPatientIdentifiers(sourcePatient);
 
-  const targetHasRut = hasText(targetPatient.rut);
-  const sourceHasRut = hasText(sourcePatient.rut);
+  const targetHasRut = hasText(targetIdentifiers.rut);
+  const sourceHasRut = hasText(sourceIdentifiers.rut);
   const shouldTransferRut = !targetHasRut && sourceHasRut;
   const shouldCopyRutExemption =
     !targetHasRut &&
     !targetPatient.rutExempt &&
     sourcePatient.rutExempt &&
     hasText(sourcePatient.rutExemptReason);
+  const mergedIdentifiers = {
+    rut: shouldTransferRut ? sourceIdentifiers.rut : targetIdentifiers.rut,
+    nombre: targetIdentifiers.nombre,
+    domicilio: normalizeNullableString(preferTargetValue(targetIdentifiers.domicilio, sourceIdentifiers.domicilio)),
+    telefono: normalizeNullableString(preferTargetValue(targetIdentifiers.telefono, sourceIdentifiers.telefono)),
+    email: normalizeNullableEmail(preferTargetValue(targetIdentifiers.email, sourceIdentifiers.email)),
+    contactoEmergenciaNombre: normalizeNullableString(
+      preferTargetValue(targetIdentifiers.contactoEmergenciaNombre, sourceIdentifiers.contactoEmergenciaNombre),
+    ),
+    contactoEmergenciaTelefono: normalizeNullableString(
+      preferTargetValue(targetIdentifiers.contactoEmergenciaTelefono, sourceIdentifiers.contactoEmergenciaTelefono),
+    ),
+  };
 
   const updateData: Prisma.PatientUpdateInput = {
-    rut: shouldTransferRut ? sourcePatient.rut : targetPatient.rut,
+    ...buildEncryptedPatientIdentifierFields(mergedIdentifiers),
     rutExempt: shouldTransferRut ? false : (targetPatient.rutExempt || shouldCopyRutExemption),
     rutExemptReason: shouldTransferRut
       ? null
@@ -138,15 +154,6 @@ export function buildTargetPatientMergeData(params: {
     sexo: targetPatient.sexo ?? sourcePatient.sexo ?? null,
     prevision: targetPatient.prevision ?? sourcePatient.prevision ?? null,
     trabajo: normalizeNullableString(preferTargetValue(targetPatient.trabajo, sourcePatient.trabajo)),
-    domicilio: normalizeNullableString(preferTargetValue(targetPatient.domicilio, sourcePatient.domicilio)),
-    telefono: normalizeNullableString(preferTargetValue(targetPatient.telefono, sourcePatient.telefono)),
-    email: normalizeNullableEmail(preferTargetValue(targetPatient.email, sourcePatient.email)),
-    contactoEmergenciaNombre: normalizeNullableString(
-      preferTargetValue(targetPatient.contactoEmergenciaNombre, sourcePatient.contactoEmergenciaNombre),
-    ),
-    contactoEmergenciaTelefono: normalizeNullableString(
-      preferTargetValue(targetPatient.contactoEmergenciaTelefono, sourcePatient.contactoEmergenciaTelefono),
-    ),
     centroMedico: normalizeNullableString(preferTargetValue(targetPatient.centroMedico, sourcePatient.centroMedico)),
     registrationMode:
       targetPatient.registrationMode === 'COMPLETO' || sourcePatient.registrationMode === 'COMPLETO'
@@ -156,7 +163,9 @@ export function buildTargetPatientMergeData(params: {
 
   const nextPatient = {
     ...targetPatient,
+    ...targetIdentifiers,
     ...updateData,
+    ...mergedIdentifiers,
   };
 
   Object.assign(
@@ -345,7 +354,7 @@ export async function executePatientMergeTransaction(params: ExecutePatientMerge
     if (shouldTransferRut) {
       await tx.patient.update({
         where: { id: sourcePatientId },
-        data: { rut: null },
+        data: { rutEnc: null, rutLookupHash: null },
       });
     }
 

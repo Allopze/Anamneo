@@ -19,6 +19,7 @@ import {
 import { RequestUser } from '../common/utils/medico-id';
 import { MailService } from '../mail/mail.service';
 import { PatientsRegulatoryExportService } from '../patients/patients-regulatory-export.service';
+import { resolvePatientIdentifiers } from '../patients/patients-identifiers';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateDataRequestExportLinkDto,
@@ -55,7 +56,8 @@ export class PatientDataRequestDeliveryService {
     if (!existing.identityVerificationMethod) {
       throw new BadRequestException('Debe registrar verificación de identidad antes de generar la entrega');
     }
-    if (!existing.requesterRut && !existing.patient.rut) {
+    const existingPatientIdentifiers = resolvePatientIdentifiers(existing.patient);
+    if (!existing.requesterRut && !existingPatientIdentifiers.rut) {
       throw new BadRequestException('La descarga requiere RUT del solicitante o del paciente registrado');
     }
 
@@ -168,7 +170,8 @@ export class PatientDataRequestDeliveryService {
     }
 
     const suppliedRut = normalizeRut(dto.requesterRut);
-    const allowedRuts = [download.request.requesterRut, download.patient.rut]
+    const downloadPatientIdentifiers = resolvePatientIdentifiers(download.patient);
+    const allowedRuts = [download.request.requesterRut, downloadPatientIdentifiers.rut]
       .filter(Boolean)
       .map((rut) => normalizeRut(rut as string));
     if (!allowedRuts.includes(suppliedRut)) {

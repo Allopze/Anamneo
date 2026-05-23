@@ -26,6 +26,7 @@ import {
   renderPdfSectionHeading,
   renderPdfSignature,
 } from '../common/utils/pdf-document-layout';
+import { resolvePatientIdentifiers } from '../patients/patients-identifiers';
 
 export function renderEncounterClinicalPdf(
   doc: any,
@@ -60,10 +61,11 @@ export function renderEncounterClinicalPdf(
   });
 
   const ident = sectionsMap['IDENTIFICACION'] || {};
+  const patientIdentifiers = resolvePatientIdentifiers(encounter.patient);
   const identificationDifferences = getIdentificationDifferenceLabels(encounter, ident);
   const identificationMissingFields = getEncounterIdentificationMissingFields(ident);
   sectionTitle(1, 'IDENTIFICACIÓN DEL PACIENTE');
-  field('Nombre', ident.nombre || encounter.patient.nombre);
+  field('Nombre', ident.nombre || patientIdentifiers.nombre);
   field('RUT', formatRutDisplay(getRutDisplayData(ident, encounter.patient)));
   field(
     'Fecha de nacimiento',

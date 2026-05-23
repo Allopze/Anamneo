@@ -11,6 +11,7 @@ interface AuthChip {
 }
 
 interface AuthFrameProps {
+  variant?: 'default' | 'loginCompact';
   eyebrow: string;
   title: string;
   description?: string;
@@ -27,6 +28,7 @@ interface AuthFrameProps {
 }
 
 export function AuthFrame({
+  variant = 'default',
   eyebrow,
   title,
   description,
@@ -42,7 +44,7 @@ export function AuthFrame({
   logoTextClassName,
 }: AuthFrameProps) {
   return (
-    <div className="auth-shell">
+    <div className={clsx('auth-shell', variant === 'loginCompact' && 'auth-shell-login-compact')}>
       <aside className="auth-hero">
         <div className="auth-hero-panel">
           <AnamneoLogo

@@ -117,25 +117,25 @@ export function assertSafeConfig(configService: ConfigService) {
     }
   }
 
+  const fieldEncryptionKey = configService.get<string>('ENCRYPTION_KEY')?.trim();
+  if (!fieldEncryptionKey) {
+    throw new Error(
+      'ENCRYPTION_KEY is required to encrypt patient identifiers and clinical PHI at rest. '
+      + 'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
+    );
+  }
+
+  if (fieldEncryptionKey.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(fieldEncryptionKey)) {
+    throw new Error(
+      'ENCRYPTION_KEY must be a 64-character hex string (256 bits).',
+    );
+  }
+
   if (isProduction) {
     const encryptionAtRestConfirmed = configService.get<string>('ENCRYPTION_AT_REST_CONFIRMED', 'false') === 'true';
     if (!encryptionAtRestConfirmed) {
       throw new Error(
         'ENCRYPTION_AT_REST_CONFIRMED=true is required in production after verifying filesystem-level encryption for the database, uploads, and backups volumes.',
-      );
-    }
-
-    const fieldEncryptionKey = configService.get<string>('ENCRYPTION_KEY')?.trim();
-    if (!fieldEncryptionKey) {
-      throw new Error(
-        'ENCRYPTION_KEY is required in production to encrypt clinical PHI sections at rest. '
-        + 'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
-      );
-    }
-
-    if (fieldEncryptionKey.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(fieldEncryptionKey)) {
-      throw new Error(
-        'ENCRYPTION_KEY must be a 64-character hex string (256 bits) in production.',
       );
     }
   }

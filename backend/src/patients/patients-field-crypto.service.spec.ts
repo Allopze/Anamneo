@@ -45,11 +45,11 @@ describe('PatientsFieldCryptoService', () => {
       expect(h1).toMatch(/^[0-9a-f]{64}$/);
     });
 
-    it('devuelve null sin ENCRYPTION_KEY', () => {
+    it('requiere ENCRYPTION_KEY para calcular lookup hash', () => {
       const prev = process.env.ENCRYPTION_KEY;
       delete process.env.ENCRYPTION_KEY;
       try {
-        expect(service.computeRutLookupHash('12345678-9')).toBeNull();
+        expect(() => service.computeRutLookupHash('12345678-9')).toThrow('ENCRYPTION_KEY must be a 64-character hex string');
       } finally {
         process.env.ENCRYPTION_KEY = prev;
       }

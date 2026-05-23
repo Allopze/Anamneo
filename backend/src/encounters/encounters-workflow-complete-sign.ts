@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { decryptField } from '../common/utils/field-crypto';
+import { decryptField, encryptNetMeta } from '../common/utils/field-crypto';
 import { SectionKey } from '../common/types';
 import { assertEncounterClinicalOutputAllowed } from '../common/utils/patient-completeness';
 import { assertTreatingMedico } from './encounter-policy';
@@ -21,6 +21,7 @@ import {
 } from './encounters-sanitize';
 import { ENCOUNTER_SECTION_LABELS as SECTION_LABELS } from '../common/utils/encounter-section-meta';
 import { syncEncounterClinicalStructures } from './encounters-clinical-structures';
+import { withPatientIdentifiers } from '../patients/patients-identifiers';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
@@ -114,7 +115,7 @@ export async function completeEncounterWorkflowMutation(params: CompleteEncounte
     throw new BadRequestException('Solo se pueden completar atenciones en progreso');
   }
 
-  assertEncounterClinicalOutputAllowed(encounter.patient, 'COMPLETE_ENCOUNTER');
+  assertEncounterClinicalOutputAllowed(withPatientIdentifiers(encounter.patient), 'COMPLETE_ENCOUNTER');
 
   const sectionByKey = new Map(encounter.sections.map((section) => [section.sectionKey as SectionKey, section]));
 
@@ -262,8 +263,9 @@ export async function signEncounterWorkflowMutation(params: SignEncounterParams)
         encounterId: id,
         userId,
         contentHash,
-        ipAddress: context.ipAddress ?? null,
-        userAgent: context.userAgent ?? null,
+        // Ley 21.719 Art 14 quinquies — cifrar metadatos de red de la firma.
+        ipAddress: encryptNetMeta(context.ipAddress ?? null),
+        userAgent: encryptNetMeta(context.userAgent ?? null),
       },
     });
 

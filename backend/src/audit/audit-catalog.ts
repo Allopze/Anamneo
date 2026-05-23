@@ -87,6 +87,9 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   PATIENT_DATA_REQUEST_EXPORT_DOWNLOADED: 'Ficha clínica descargada por enlace temporal',
   PATIENT_DATA_REQUEST_EXPORT_EXPIRED: 'Enlace temporal de descarga de ficha clínica expirado',
   PATIENT_DATA_REQUEST_EXPORT_REVOKED: 'Enlace temporal de descarga de ficha clínica revocado',
+  PATIENT_RIGHT_VIEWED: 'Consulta de detalle de solicitud de derecho del titular',
+  PATIENT_RIGHT_ADMIN_UPDATED: 'Actualización administrativa de solicitud de derecho del titular',
+  PATIENT_RIGHT_EXTENDED: 'Prórroga de plazo aplicada a solicitud de derecho del titular (Ley 21.719 Art 11)',
   // Ley 21.719 - bloqueo temporal (Art 8 ter)
   PATIENT_BLOCKED: 'Bloqueo temporal de tratamiento de paciente (Ley 21.719 Art 8 ter)',
   PATIENT_UNBLOCKED: 'Levantamiento de bloqueo temporal de tratamiento de paciente',
@@ -100,6 +103,9 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   DATA_BREACH_REPORTED_TO_AGENCY: 'Vulneración reportada a la Agencia de Protección de Datos Personales',
   DATA_BREACH_NOTIFIED_TO_SUBJECTS: 'Vulneración notificada a titulares afectados',
   DATA_BREACH_CLOSED: 'Investigación de vulneración cerrada',
+  DATA_BREACH_ASSESSED: 'Evaluación de riesgo razonable de vulneración registrada (Ley 21.719 Art 14 sexies)',
+  DATA_BREACH_LIST_VIEWED: 'Consulta de listado de vulneraciones',
+  DATA_BREACH_VIEWED: 'Consulta de detalle de vulneración',
   AUDIT_UNSPECIFIED: 'Evento no catalogado',
 };
 
@@ -184,7 +190,10 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'PatientDataRequest' && action === 'UPDATE' && hasDiffValue(diff, 'status', 'RESUELTA_ACEPTADA')) return 'PATIENT_RIGHT_RESOLVED_ACCEPTED';
   if (entityType === 'PatientDataRequest' && action === 'UPDATE' && hasDiffValue(diff, 'status', 'RESUELTA_RECHAZADA')) return 'PATIENT_RIGHT_RESOLVED_REJECTED';
   if (entityType === 'PatientDataRequest' && action === 'UPDATE' && hasDiffValue(diff, 'status', 'VENCIDA')) return 'PATIENT_RIGHT_EXPIRED';
-  if (entityType === 'PatientDataRequest' && action === 'READ') return 'PATIENT_RIGHT_LIST_VIEWED';
+  if (entityType === 'PatientDataRequest' && action === 'UPDATE' && hasDiffKey(diff, 'extension')) return 'PATIENT_RIGHT_EXTENDED';
+  if (entityType === 'PatientDataRequest' && action === 'UPDATE') return 'PATIENT_RIGHT_ADMIN_UPDATED';
+  if (entityType === 'PatientDataRequest' && action === 'READ' && hasDiffKey(diff, 'count')) return 'PATIENT_RIGHT_LIST_VIEWED';
+  if (entityType === 'PatientDataRequest' && action === 'READ') return 'PATIENT_RIGHT_VIEWED';
   if (entityType === 'PatientDataRequestDownload' && action === 'CREATE') return 'PATIENT_DATA_REQUEST_EXPORT_LINK_CREATED';
   if (entityType === 'PatientDataRequestDownload' && action === 'READ') return 'PATIENT_DATA_REQUEST_EXPORT_DOWNLOADED';
   if (entityType === 'Patient' && action === 'UPDATE' && hasDiffKey(diff, 'blockedAt') && !hasDiffValue(diff, 'blockedAt', null)) return 'PATIENT_BLOCKED';
@@ -193,6 +202,9 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'DataBreachIncident' && action === 'UPDATE' && hasDiffKey(diff, 'reportedToAgencyAt')) return 'DATA_BREACH_REPORTED_TO_AGENCY';
   if (entityType === 'DataBreachIncident' && action === 'UPDATE' && hasDiffKey(diff, 'reportedToSubjectsAt')) return 'DATA_BREACH_NOTIFIED_TO_SUBJECTS';
   if (entityType === 'DataBreachIncident' && action === 'UPDATE' && hasDiffValue(diff, 'status', 'CERRADO')) return 'DATA_BREACH_CLOSED';
+  if (entityType === 'DataBreachIncident' && action === 'UPDATE' && hasDiffKey(diff, 'assessment')) return 'DATA_BREACH_ASSESSED';
+  if (entityType === 'DataBreachIncident' && action === 'READ' && hasDiffKey(diff, 'count')) return 'DATA_BREACH_LIST_VIEWED';
+  if (entityType === 'DataBreachIncident' && action === 'READ') return 'DATA_BREACH_VIEWED';
 
   return 'AUDIT_UNSPECIFIED';
 }

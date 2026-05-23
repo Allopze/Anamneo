@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   decoratePatient,
 } from './patients-format';
+import { patientMatchesIdentifierSearch } from './patients-identifiers';
 
 export interface FindPatientsFilters {
   archived?: PatientArchiveFilter;
@@ -90,19 +91,11 @@ export async function findPatientsReadModel(params: FindPatientsReadModelParams)
   } = params;
 
   const skip = (page - 1) * limit;
+  const trimmedSearch = search?.trim();
   const normalizedClinicalSearch = filters?.clinicalSearch?.trim().toLowerCase();
 
   const baseWhere: Prisma.PatientWhereInput = {
     ...buildAccessiblePatientsWhere(user, filters?.archived ?? 'ACTIVE'),
-    ...(search
-      ? {
-          AND: [
-            {
-              OR: [{ nombre: { contains: search } }, { rut: { contains: search } }],
-            },
-          ],
-        }
-      : {}),
   };
 
   if (filters?.sexo) baseWhere.sexo = filters.sexo;
@@ -123,7 +116,45 @@ export async function findPatientsReadModel(params: FindPatientsReadModelParams)
       }
     : baseWhere;
 
-  const orderBy = filters?.sortBy ? { [filters.sortBy]: filters.sortOrder || 'asc' } : { createdAt: 'desc' as const };
+  const orderBy = filters?.sortBy && filters.sortBy !== 'nombre'
+    ? { [filters.sortBy]: filters.sortOrder || 'asc' }
+    : { createdAt: 'desc' as const };
+
+  async function readFilteredPatients(whereInput: Prisma.PatientWhereInput) {
+    const candidates = await prisma.patient.findMany({
+      where: whereInput,
+      orderBy,
+      include: {
+        _count: {
+          select: { encounters: true },
+        },
+      },
+    });
+    const filtered = trimmedSearch
+      ? candidates.filter((patient) => patientMatchesIdentifierSearch(patient, trimmedSearch))
+      : candidates;
+    const decorated = filtered.map((patient) => decoratePatient(patient));
+    if (filters?.sortBy === 'nombre') {
+      decorated.sort((left, right) => {
+        const direction = filters.sortOrder === 'desc' ? -1 : 1;
+        return direction * left.nombre.localeCompare(right.nombre, 'es');
+      });
+    }
+    return decorated;
+  }
+
+  function summarizePatients(patients: Array<{ completenessStatus: string }>) {
+    const incomplete = patients.filter((patient) => patient.completenessStatus === 'INCOMPLETA').length;
+    const pendingVerification = patients.filter((patient) => patient.completenessStatus === 'PENDIENTE_VERIFICACION').length;
+    const verified = patients.filter((patient) => patient.completenessStatus === 'VERIFICADA').length;
+    return {
+      totalPatients: incomplete + pendingVerification + verified,
+      incomplete,
+      pendingVerification,
+      verified,
+      nonVerified: incomplete + pendingVerification,
+    };
+  }
 
   if (normalizedClinicalSearch) {
     const clinicalSearchFilter: Prisma.PatientWhereInput = {
@@ -138,40 +169,35 @@ export async function findPatientsReadModel(params: FindPatientsReadModelParams)
       AND: [where, clinicalSearchFilter],
     };
 
-    const [patients, total, incompleteCount, pendingVerificationCount, verifiedCount] = await Promise.all([
-      prisma.patient.findMany({
-        where: clinicalWhere,
-        skip,
-        take: limit,
-        orderBy,
-        include: {
-          _count: {
-            select: { encounters: true },
-          },
-        },
-      }),
-      prisma.patient.count({ where: clinicalWhere }),
-      prisma.patient.count({ where: { AND: [baseWhere, clinicalSearchFilter, { completenessStatus: 'INCOMPLETA' }] } }),
-      prisma.patient.count({
-        where: { AND: [baseWhere, clinicalSearchFilter, { completenessStatus: 'PENDIENTE_VERIFICACION' }] },
-      }),
-      prisma.patient.count({ where: { AND: [baseWhere, clinicalSearchFilter, { completenessStatus: 'VERIFICADA' }] } }),
-    ]);
+    const patients = await readFilteredPatients(clinicalWhere);
+    const pageData = patients.slice(skip, skip + limit);
+    const summary = summarizePatients(patients);
 
     return {
-      data: patients.map((patient) => decoratePatient(patient)),
-      summary: {
-        totalPatients: incompleteCount + pendingVerificationCount + verifiedCount,
-        incomplete: incompleteCount,
-        pendingVerification: pendingVerificationCount,
-        verified: verifiedCount,
-        nonVerified: incompleteCount + pendingVerificationCount,
-      },
+      data: pageData,
+      summary,
       pagination: {
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+        total: patients.length,
+        totalPages: Math.ceil(patients.length / limit),
+      },
+    };
+  }
+
+  if (trimmedSearch || filters?.sortBy === 'nombre') {
+    const patients = await readFilteredPatients(where);
+    const pageData = patients.slice(skip, skip + limit);
+    const summary = summarizePatients(patients);
+
+    return {
+      data: pageData,
+      summary,
+      pagination: {
+        page,
+        limit,
+        total: patients.length,
+        totalPages: Math.ceil(patients.length / limit),
       },
     };
   }

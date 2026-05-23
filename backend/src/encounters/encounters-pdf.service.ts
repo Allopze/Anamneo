@@ -15,6 +15,7 @@ import { renderFocusedEncounterPdf } from './encounters-pdf.focused.renderers';
 import { addPageNumbers } from '../common/utils/pdf-page-footer';
 import { SettingsService } from '../settings/settings.service';
 import { buildPdfClinicSettings, loadPdfClinicLogo } from '../common/utils/pdf-document-layout';
+import { resolvePatientIdentifiers, withPatientIdentifiers } from '../patients/patients-identifiers';
 
 @Injectable()
 export class EncountersPdfService {
@@ -43,7 +44,7 @@ export class EncountersPdfService {
       throw new NotFoundException('Atención no encontrada');
     }
 
-    assertEncounterClinicalOutputAllowed(encounter.patient, 'EXPORT_OFFICIAL_DOCUMENTS');
+    assertEncounterClinicalOutputAllowed(withPatientIdentifiers(encounter.patient), 'EXPORT_OFFICIAL_DOCUMENTS');
 
     if (requireCompletedStatus) {
       if (encounter.status !== 'COMPLETADO' && encounter.status !== 'FIRMADO') {
@@ -116,8 +117,9 @@ export class EncountersPdfService {
     const encounter = await this.loadEncounterForPdf(encounterId, user);
     const sectionsMap = this.buildSectionsMap(encounter.sections);
     const clinic = await loadPdfClinicLogo(buildPdfClinicSettings(await this.settingsService.getAll()));
+    const patientIdentifiers = resolvePatientIdentifiers(encounter.patient);
     const pdfBuffer = await this.buildDocumentBuffer(
-      `Ficha Clínica - ${encounter.patient.nombre}`,
+      `Ficha Clínica - ${patientIdentifiers.nombre}`,
       encounter.createdBy?.nombre || 'Sistema',
       (doc, pageWidth) => {
         renderEncounterClinicalPdf(doc, pageWidth, encounter, sectionsMap, clinic);
@@ -150,6 +152,7 @@ export class EncountersPdfService {
     const encounter = await this.loadEncounterForPdf(encounterId, user, false);
     const sectionsMap = this.buildSectionsMap(encounter.sections);
     const clinic = await loadPdfClinicLogo(buildPdfClinicSettings(await this.settingsService.getAll()));
+    const patientIdentifiers = resolvePatientIdentifiers(encounter.patient);
     const titleMap = {
       receta: 'RECETA / INDICACIONES',
       ordenes: 'ORDEN DE EXAMENES',
@@ -157,7 +160,7 @@ export class EncountersPdfService {
     } as const;
 
     const pdfBuffer = await this.buildDocumentBuffer(
-      `${titleMap[kind]} - ${encounter.patient.nombre}`,
+      `${titleMap[kind]} - ${patientIdentifiers.nombre}`,
       encounter.createdBy?.nombre || 'Sistema',
       (doc, pageWidth) => {
         renderFocusedEncounterPdf(doc, pageWidth, encounter, sectionsMap, kind, clinic);

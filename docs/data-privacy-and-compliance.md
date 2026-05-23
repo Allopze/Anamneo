@@ -12,7 +12,7 @@ exigibles antes de operar con datos reales en Chile bajo la **Ley 21.719**
 
 **Estado al 2026-05-23:** este documento se actualizó tras la auditoría
 integral contra el texto oficial de la Ley 21.719 (ver
-[`../AUDITORIA_LEY_21719_CHILE.md`](../AUDITORIA_LEY_21719_CHILE.md)).
+[`audits/ley-21719-chile-audit-2026-05-23.md`](audits/ley-21719-chile-audit-2026-05-23.md)).
 Cita correctamente los artículos vigentes y refleja la implementación real
 del repo (no la planificada).
 

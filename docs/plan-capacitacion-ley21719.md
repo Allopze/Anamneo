@@ -114,7 +114,7 @@ Estos registros son parte del paquete de fiscalización (ver `respuestas-borrado
 
 ## 10. Referencias
 
-- [Auditoría completa Ley 21.719](../AUDITORIA_LEY_21719_CHILE.md)
+- [Auditoría completa Ley 21.719](audits/ley-21719-chile-audit-2026-05-23.md)
 - [ADR-002 Cumplimiento Ley 21.719](architecture-decisions/002-ley-21719-compliance.md)
 - [Programa de prevención de infracciones](programa-prevencion-infracciones.md)
 - [Acta DPO](dpo-designation-act.md)

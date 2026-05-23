@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { DataBreachService } from './data-breach.service';
+import { buildEncryptedPatientIdentifierFields } from '../patients/patients-identifiers';
 
 describe('DataBreachService', () => {
   const baseUser = { id: 'admin-1' } as never;
@@ -114,8 +115,8 @@ describe('DataBreachService', () => {
           scope: 'incidente de prueba',
         }),
         findPatients: jest.fn().mockResolvedValue([
-          { id: 'p-1', nombre: 'A', email: 'a@example.com' },
-          { id: 'p-2', nombre: 'B', email: null }, // sin email — skipped
+          { id: 'p-1', ...buildEncryptedPatientIdentifierFields({ nombre: 'A', email: 'a@example.com' }) },
+          { id: 'p-2', ...buildEncryptedPatientIdentifierFields({ nombre: 'B', email: null }) }, // sin email — skipped
         ]),
       });
       const out = await service.notifySubjects(

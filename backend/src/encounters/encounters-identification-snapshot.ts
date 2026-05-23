@@ -1,4 +1,5 @@
 import { parseStoredJson } from '../common/utils/encounter-sections';
+import { resolvePatientIdentifiers } from '../patients/patients-identifiers';
 
 export const IDENTIFICATION_SNAPSHOT_FIELD_META = [
   { key: 'nombre', label: 'nombre' },
@@ -14,9 +15,10 @@ export const IDENTIFICATION_SNAPSHOT_FIELD_META = [
 ] as const;
 
 export function buildIdentificationSnapshotFromPatient(patient: any) {
+  const identifiers = patient ? resolvePatientIdentifiers(patient) : null;
   return {
-    nombre: patient?.nombre ?? '',
-    rut: patient?.rut ?? '',
+    nombre: identifiers?.nombre ?? '',
+    rut: identifiers?.rut ?? '',
     rutExempt: Boolean(patient?.rutExempt),
     rutExemptReason: patient?.rutExemptReason ?? '',
     edad: patient?.edad ?? '',
@@ -24,7 +26,7 @@ export function buildIdentificationSnapshotFromPatient(patient: any) {
     sexo: patient?.sexo ?? '',
     prevision: patient?.prevision ?? '',
     trabajo: patient?.trabajo ?? '',
-    domicilio: patient?.domicilio ?? '',
+    domicilio: identifiers?.domicilio ?? '',
   };
 }
 

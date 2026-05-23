@@ -16,6 +16,7 @@ import {
 import { resolveUploadsRoot } from '../common/utils/uploads-root';
 import { sanitizeFilename } from '../attachments/attachments-helpers';
 import { RequestUser } from '../common/utils/medico-id';
+import { withPatientIdentifiers } from './patients-identifiers';
 
 type AttachmentSnapshot = {
   id: string;
@@ -84,6 +85,7 @@ export class PatientsRegulatoryExportService {
     if (!patient) {
       throw new NotFoundException('Paciente no encontrado');
     }
+    const patientWithIdentifiers = withPatientIdentifiers(patient);
 
     const history = await this.prisma.patientHistory.findUnique({ where: { patientId } });
 
@@ -171,7 +173,7 @@ export class PatientsRegulatoryExportService {
         warning: 'Documento contiene datos sensibles de salud. Tratar bajo principios de minimizacion y confidencialidad.',
       },
       patient: {
-        ...patient,
+        ...patientWithIdentifiers,
         history,
       },
       encounters: encounters.map((encounter) => ({

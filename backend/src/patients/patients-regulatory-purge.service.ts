@@ -40,7 +40,7 @@ export class PatientsRegulatoryPurgeService {
 
     const patient = await this.prisma.patient.findUnique({
       where: { id: patientId },
-      select: { id: true, archivedAt: true, nombre: true },
+      select: { id: true, archivedAt: true },
     });
     if (!patient) {
       throw new NotFoundException('Paciente no encontrado');

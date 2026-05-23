@@ -84,5 +84,5 @@ Convención:
 
 ## Documentación y referencias
 
-- [x] ANAMNEO_AUDIT.md
+- [x] docs/audits/technical-production-audit-2026-05-22.md
 - [ ] UI/UX_REFERENCE.jsx

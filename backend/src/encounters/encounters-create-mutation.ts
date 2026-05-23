@@ -19,6 +19,7 @@ import {
   serializeSectionData,
 } from './encounters-sanitize';
 import { formatEncounterResponse } from './encounters-presenters';
+import { withPatientIdentifiers } from '../patients/patients-identifiers';
 
 interface CreateEncounterMutationParams {
   prisma: PrismaService;
@@ -35,29 +36,30 @@ const DUPLICATE_SOURCE_ALLOWED_STATUSES = new Set(['COMPLETADO', 'FIRMADO']);
 function buildInitialEncounterSectionData(
   key: SectionKey,
   patient: {
-    nombre: string;
+    nombreEnc?: string | null;
     edad: number | null;
     edadMeses: number | null;
     sexo: string | null;
     trabajo: string | null;
     prevision: string | null;
-    domicilio: string | null;
-    rut: string | null;
+    domicilioEnc?: string | null;
+    rutEnc?: string | null;
     rutExempt: boolean;
     rutExemptReason: string | null;
     history?: Record<string, unknown> | null;
   },
 ) {
   if (key === 'IDENTIFICACION') {
+    const identifiers = withPatientIdentifiers(patient);
     return {
-      nombre: patient.nombre,
+      nombre: identifiers.nombre,
       edad: patient.edad,
       edadMeses: patient.edadMeses ?? undefined,
       sexo: patient.sexo,
       trabajo: patient.trabajo || '',
       prevision: patient.prevision,
-      domicilio: patient.domicilio || '',
-      rut: patient.rut || '',
+      domicilio: identifiers.domicilio || '',
+      rut: identifiers.rut || '',
       rutExempt: patient.rutExempt,
       rutExemptReason: patient.rutExemptReason || '',
     };

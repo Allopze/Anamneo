@@ -7,7 +7,7 @@ import { formatDashboardRecentEncounter, formatDashboardUpcomingTask } from './e
 const ACTIVE_TASK_STATUSES = ['PENDIENTE', 'EN_PROCESO'] as const;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const DASHBOARD_ENCOUNTER_INCLUDE = {
-  patient: { select: { id: true, nombre: true, rut: true } },
+  patient: { select: { id: true, nombreEnc: true, rutEnc: true } },
   createdBy: { select: { id: true, nombre: true } },
   episode: {
     select: {
@@ -87,7 +87,7 @@ export async function getEncounterDashboardReadModel(params: EncounterDashboardR
       orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
       include: {
         patient: {
-          select: { id: true, nombre: true, rut: true },
+          select: { id: true, nombreEnc: true, rutEnc: true },
         },
         createdBy: {
           select: { id: true, nombre: true },

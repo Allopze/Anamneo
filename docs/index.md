@@ -19,6 +19,12 @@ Este directorio concentra la documentacion viva del proyecto. Si un tema aparece
 | `deployment-and-release.md` | Operacion | Build, empaquetado, despliegue y smoke checks |
 | `clinical-workflows.md` | Producto / Desarrollo | Flujos funcionales vigentes y riesgos conocidos |
 | `clinical-analytics.md` | Producto / Desarrollo | Vista de analitica clinica, fuentes de datos, calculos, limites y validacion |
+| `product/features.md` | Producto | Backlog funcional por rol y pendientes v1 |
+| `product/landing-page-brief.md` | Producto / Marketing | Brief autosuficiente para una landing externa |
+| `audits/technical-production-audit-2026-05-22.md` | Operacion / Seguridad | Auditoria tecnica de readiness productivo |
+| `audits/ley-21719-chile-audit-2026-05-23.md` | Legal / Compliance | Auditoria de cumplimiento Ley 21.719 |
+| `audits/performance-ux-architecture-audit-2026-04-29.md` | Desarrollo / Producto | Auditoria historica de rendimiento, frontend y UX |
+| `technical-debt/files-over-300-lines.md` | Desarrollo | Seguimiento de archivos grandes pendientes de division |
 | `settings-key-rotation-runbook.md` | Operacion | Rotacion de claves de cifrado para settings |
 | `account-recovery-runbook.md` | Operacion / Soporte | Recuperacion de cuentas, reset de admin de emergencia, diseno de password reset self-service |
 | `observability-slos.md` | Operacion | SLOs, metricas Prometheus, busqueda en logs, alertas recomendadas |
@@ -28,7 +34,7 @@ Este directorio concentra la documentacion viva del proyecto. Si un tema aparece
 
 - `README.md` explica que es Anamneo y como arrancarlo.
 - `docs/` explica como funciona y como operarlo sin inventar rituales.
-- `FEATURES.md` es backlog y roadmap, no contrato de comportamiento.
+- `docs/product/features.md` es backlog y roadmap, no contrato de comportamiento.
 - `docs/archive/` guarda contexto historico que puede servir para trazabilidad, no para operar hoy.
 
 ## Orden Recomendado Para Nuevos Integrantes
@@ -43,4 +49,4 @@ Este directorio concentra la documentacion viva del proyecto. Si un tema aparece
 
 ## Archivo Historico
 
-Los documentos de auditoria y refactor UI de marzo 2026 se movieron a `docs/archive/ui/`. Se conservan por contexto historico, no porque alguien deba consultarlos antes de abrir una PR.
+Los documentos de refactor UI de marzo/abril 2026 se movieron a `docs/archive/ui/`. Se conservan por contexto historico, no porque alguien deba consultarlos antes de abrir una PR.

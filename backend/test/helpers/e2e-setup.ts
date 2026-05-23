@@ -27,6 +27,9 @@ import { SettingsModule } from '../../src/settings/settings.module';
 import { AnalyticsModule } from '../../src/analytics/analytics.module';
 import { TemplatesModule } from '../../src/templates/templates.module';
 import { OnboardingModule } from '../../src/onboarding/onboarding.module';
+import { PatientConsentsModule } from '../../src/patient-consents/patient-consents.module';
+import { PatientDataRightsModule } from '../../src/patient-data-rights/patient-data-rights.module';
+import { DataBreachModule } from '../../src/data-breach/data-breach.module';
 import { HealthController } from '../../src/health.controller';
 import { requestTracingMiddleware } from '../../src/common/utils/request-tracing';
 
@@ -179,6 +182,7 @@ export async function bootstrapApp() {
   process.env.MIGRATION_DATABASE_URL = testDatabaseUrl;
   process.env.JWT_SECRET = 'test-jwt-secret-key';
   process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-key';
+  process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
   process.env.JWT_EXPIRES_IN = '15m';
   process.env.JWT_REFRESH_EXPIRES_IN = '7d';
   process.env.SETTINGS_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
@@ -224,6 +228,9 @@ export async function bootstrapApp() {
       AnalyticsModule,
       TemplatesModule,
       OnboardingModule,
+      PatientConsentsModule,
+      PatientDataRightsModule,
+      DataBreachModule,
     ],
     controllers: [HealthController],
   }).compile();

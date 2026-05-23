@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { GrantPatientDataConsentDto } from './dto/patient-consent.dto';
 import { RequestUser } from '../common/utils/medico-id';
+import { decryptNetMeta, encryptNetMeta } from '../common/utils/field-crypto';
 
 /**
  * Servicio del consentimiento del TITULAR para el tratamiento de datos
@@ -52,7 +53,7 @@ export class PatientConsentsService {
     });
     if (!patient) throw new NotFoundException('Paciente no encontrado');
 
-    const consents = await this.prisma.patientDataProcessingConsent.findMany({
+    const consentsRaw = await this.prisma.patientDataProcessingConsent.findMany({
       where: { patientId },
       orderBy: { grantedAt: 'desc' },
       include: {
@@ -60,6 +61,13 @@ export class PatientConsentsService {
         capturedBy: { select: { id: true, nombre: true } },
       },
     });
+    // Ley 21.719 Art 14 quinquies lit a — descifrar metadatos de red al
+    // exponerlos al UI admin (cifrados at-rest desde el write).
+    const consents = consentsRaw.map((c) => ({
+      ...c,
+      capturedIp: decryptNetMeta(c.capturedIp),
+      capturedUserAgent: decryptNetMeta(c.capturedUserAgent),
+    }));
 
     await this.audit.log({
       entityType: 'PatientDataProcessingConsent',
@@ -120,8 +128,9 @@ export class PatientConsentsService {
         purpose: dto.purpose,
         granted: true,
         method: dto.method,
-        capturedIp: requestMeta.ip,
-        capturedUserAgent: requestMeta.userAgent,
+        // Ley 21.719 Art 14 quinquies — cifrado app-level de IP/UA.
+        capturedIp: encryptNetMeta(requestMeta.ip),
+        capturedUserAgent: encryptNetMeta(requestMeta.userAgent),
         capturedByUserId: dto.method === 'WEB_TITULAR' ? null : user.id,
         signerName: dto.signerName,
         signerRut: dto.signerRut,

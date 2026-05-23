@@ -82,10 +82,8 @@ model PasswordResetToken {
 model Patient {
   id              String    @id @default(uuid())
   createdById     String    @map("created_by_id")
-  rut             String?   @unique
   rutExempt       Boolean   @default(false) @map("rut_exempt")
   rutExemptReason String?   @map("rut_exempt_reason")
-  nombre          String
   fechaNacimiento DateTime?       @map("fecha_nacimiento")
   edad            Int?
   edadMeses       Int?            @map("edad_meses")
@@ -96,16 +94,10 @@ model Patient {
   completenessStatus String @default("VERIFICADA") @map("completeness_status")
   demographicsVerifiedAt DateTime? @map("demographics_verified_at")
   demographicsVerifiedById String? @map("demographics_verified_by_id")
-  domicilio       String?
-  telefono        String?   @map("telefono")
-  email           String?   @map("email")
-  contactoEmergenciaNombre String? @map("contacto_emergencia_nombre")
-  contactoEmergenciaTelefono String? @map("contacto_emergencia_telefono")
   centroMedico    String?   @map("centro_medico")
   // Ley 21.719 Art 14 quinquies lit a (cifrado a nivel app de
-  // identificatorios sensibles). Dual-write Phase A: las columnas plaintext
-  // siguen activas y son la fuente de verdad para lecturas existentes.
-  // Las columnas `*_enc` y `rut_lookup_hash` se populan en cada write.
+  // identificatorios sensibles). Phase C: las columnas plaintext fueron
+  // eliminadas; el codigo solo escribe `*_enc` y `rut_lookup_hash`.
   // El hash de lookup permite mantener UNIQUE/lookup por RUT sin descifrar.
   rutEnc                          String? @map("rut_enc")
   rutLookupHash                   String? @unique @map("rut_lookup_hash")

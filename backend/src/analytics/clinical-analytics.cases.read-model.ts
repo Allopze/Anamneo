@@ -14,6 +14,7 @@ import type {
   ClinicalAnalyticsCaseFocusType,
   ClinicalAnalyticsCasesQueryDto,
 } from './dto/clinical-analytics-cases-query.dto';
+import { resolvePatientIdentifiers } from '../patients/patients-identifiers';
 
 const ANALYTICS_STATUSES = ['COMPLETADO', 'FIRMADO'] as const;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -84,8 +85,8 @@ export async function getClinicalAnalyticsCasesReadModel(params: {
       patient: {
         select: {
           id: true,
-          nombre: true,
-          rut: true,
+          nombreEnc: true,
+          rutEnc: true,
           edad: true,
           sexo: true,
           prevision: true,
@@ -180,35 +181,38 @@ export async function getClinicalAnalyticsCasesReadModel(params: {
       total,
       totalPages,
     },
-    data: matchedEncounters.slice(startIndex, startIndex + pageSize).map(({ rawEncounter, parsedEncounter }) => ({
-      encounterId: rawEncounter.id,
-      patientId: rawEncounter.patientId,
-      episodeId: parsedEncounter.episode?.id ?? null,
-      episodeLabel: parsedEncounter.episode?.label ?? null,
-      episodeStartDate: parsedEncounter.episode?.startDate ?? null,
-      episodeEndDate: parsedEncounter.episode?.endDate ?? null,
-      episodeIsActive: parsedEncounter.episode?.isActive ?? null,
-      patientName: rawEncounter.patient.nombre,
-      patientRut: rawEncounter.patient.rut,
-      createdAt: rawEncounter.createdAt,
-      status: rawEncounter.status,
-      patientAge: rawEncounter.patient.edad,
-      patientSex: rawEncounter.patient.sexo,
-      patientPrevision: rawEncounter.patient.prevision,
-      conditions: uniqueLabels(getEncounterConditions(parsedEncounter, 'ANY')),
-      diagnoses: uniqueLabels(parsedEncounter.diagnoses),
-      medications: uniqueLabels(parsedEncounter.medications),
-      exams: uniqueLabels(parsedEncounter.exams),
-      referrals: uniqueLabels(parsedEncounter.referrals),
-      symptoms: uniqueLabels(parsedEncounter.symptomSignals),
-      foodRelation: localizeFoodRelation(parsedEncounter.foodRelation),
-      outcomeStatus: parsedEncounter.outcome.status,
-      outcomeSource: parsedEncounter.outcome.source,
-      adherenceStatus: parsedEncounter.outcome.adherenceStatus ?? null,
-      adverseEventSeverity: parsedEncounter.outcome.adverseEventSeverity ?? null,
-      hasTreatmentAdjustment: parsedEncounter.hasTreatmentAdjustment,
-      hasFavorableResponse: parsedEncounter.hasFavorableResponse,
-      hasAdverseEvent: parsedEncounter.hasAdverseEvent,
-    })),
+    data: matchedEncounters.slice(startIndex, startIndex + pageSize).map(({ rawEncounter, parsedEncounter }) => {
+      const patientIdentifiers = resolvePatientIdentifiers(rawEncounter.patient);
+      return {
+        encounterId: rawEncounter.id,
+        patientId: rawEncounter.patientId,
+        episodeId: parsedEncounter.episode?.id ?? null,
+        episodeLabel: parsedEncounter.episode?.label ?? null,
+        episodeStartDate: parsedEncounter.episode?.startDate ?? null,
+        episodeEndDate: parsedEncounter.episode?.endDate ?? null,
+        episodeIsActive: parsedEncounter.episode?.isActive ?? null,
+        patientName: patientIdentifiers.nombre,
+        patientRut: patientIdentifiers.rut,
+        createdAt: rawEncounter.createdAt,
+        status: rawEncounter.status,
+        patientAge: rawEncounter.patient.edad,
+        patientSex: rawEncounter.patient.sexo,
+        patientPrevision: rawEncounter.patient.prevision,
+        conditions: uniqueLabels(getEncounterConditions(parsedEncounter, 'ANY')),
+        diagnoses: uniqueLabels(parsedEncounter.diagnoses),
+        medications: uniqueLabels(parsedEncounter.medications),
+        exams: uniqueLabels(parsedEncounter.exams),
+        referrals: uniqueLabels(parsedEncounter.referrals),
+        symptoms: uniqueLabels(parsedEncounter.symptomSignals),
+        foodRelation: localizeFoodRelation(parsedEncounter.foodRelation),
+        outcomeStatus: parsedEncounter.outcome.status,
+        outcomeSource: parsedEncounter.outcome.source,
+        adherenceStatus: parsedEncounter.outcome.adherenceStatus ?? null,
+        adverseEventSeverity: parsedEncounter.outcome.adverseEventSeverity ?? null,
+        hasTreatmentAdjustment: parsedEncounter.hasTreatmentAdjustment,
+        hasFavorableResponse: parsedEncounter.hasFavorableResponse,
+        hasAdverseEvent: parsedEncounter.hasAdverseEvent,
+      };
+    }),
   };
 }

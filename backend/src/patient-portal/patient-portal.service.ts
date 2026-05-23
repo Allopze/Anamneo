@@ -14,6 +14,7 @@ import { AuditService } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
 import { decryptField } from '../common/utils/field-crypto';
 import { EncountersPdfService } from '../encounters/encounters-pdf.service';
+import { resolvePatientIdentifiers, withPatientIdentifiers } from '../patients/patients-identifiers';
 import type { CurrentUserData } from '../common/decorators/current-user.decorator';
 import {
   PortalActivateDto,
@@ -51,9 +52,10 @@ export class PatientPortalService {
   async invitePatient(patientId: string, dto: PortalInviteDto, admin: CurrentUserData) {
     const patient = await this.prisma.patient.findUnique({
       where: { id: patientId },
-      select: { id: true, nombre: true, archivedAt: true },
+      select: { id: true, nombreEnc: true, archivedAt: true },
     });
     if (!patient || patient.archivedAt) throw new NotFoundException('Paciente no encontrado');
+    const patientIdentifiers = resolvePatientIdentifiers(patient);
 
     const token = randomBytes(32).toString('base64url');
     const activationTokenHash = hashToken(token);
@@ -80,7 +82,7 @@ export class PatientPortalService {
     const activationUrl = this.buildPortalUrl(`/portal/activar?token=${encodeURIComponent(token)}`);
     const mailResult = await this.mail.sendPatientPortalInvite({
       to: dto.email,
-      patientName: patient.nombre,
+      patientName: patientIdentifiers.nombre,
       activationUrl,
       expiresAt: activationExpiresAt,
     });
@@ -264,21 +266,22 @@ export class PatientPortalService {
       where: { id: user.patientId },
       select: {
         id: true,
-        rut: true,
+        rutEnc: true,
         rutExempt: true,
-        nombre: true,
+        nombreEnc: true,
         fechaNacimiento: true,
         edad: true,
         edadMeses: true,
         sexo: true,
         prevision: true,
-        email: true,
-        telefono: true,
+        emailEnc: true,
+        telefonoEnc: true,
         legalRepresentativeName: true,
         legalRepresentativeRelationship: true,
       },
     });
     if (!patient) throw new NotFoundException('Paciente no encontrado');
+    const patientWithIdentifiers = withPatientIdentifiers(patient);
     await this.audit.log({
       entityType: 'Patient',
       entityId: patient.id,
@@ -286,7 +289,7 @@ export class PatientPortalService {
       action: 'READ',
       reason: 'PATIENT_PORTAL_RECORD_VIEWED',
     });
-    return patient;
+    return patientWithIdentifiers;
   }
 
   async listEncounters(user: PatientPortalRequestUser) {
@@ -374,6 +377,7 @@ export class PatientPortalService {
   async createDataRequest(user: PatientPortalRequestUser, dto: PortalDataRequestDto) {
     const patient = await this.prisma.patient.findUnique({ where: { id: user.patientId } });
     if (!patient) throw new NotFoundException('Paciente no encontrado');
+    const patientIdentifiers = resolvePatientIdentifiers(patient);
     const now = new Date();
     const created = await this.prisma.patientDataRequest.create({
       data: {
@@ -381,8 +385,8 @@ export class PatientPortalService {
         requestType: dto.requestType,
         status: 'RECIBIDA',
         submittedBy: user.relationship === 'TITULAR' ? 'TITULAR' : 'REPRESENTANTE',
-        requesterName: patient.nombre,
-        requesterRut: dto.requesterRut ?? patient.rut,
+        requesterName: patientIdentifiers.nombre,
+        requesterRut: dto.requesterRut ?? patientIdentifiers.rut,
         requesterEmail: user.email,
         payloadRequest: dto.payloadRequest,
         dueDate: new Date(now.getTime() + DATA_REQUEST_SLA_DAYS * 24 * 60 * 60 * 1000),

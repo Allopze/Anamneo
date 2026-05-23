@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { PatientsExportBundleService } from './patients-export-bundle.service';
+import { buildEncryptedPatientIdentifierFields } from './patients-identifiers';
 
 describe('PatientsExportBundleService', () => {
   const auditService = {
@@ -40,8 +41,7 @@ describe('PatientsExportBundleService', () => {
       patient: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'patient-1',
-          nombre: 'Paciente Demo',
-          rut: '11.111.111-1',
+          ...buildEncryptedPatientIdentifierFields({ nombre: 'Paciente Demo', rut: '11.111.111-1' }),
           rutExempt: false,
           rutExemptReason: null,
           fechaNacimiento: new Date('1986-03-18T00:00:00.000Z'),
@@ -128,8 +128,7 @@ describe('PatientsExportBundleService', () => {
       patient: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'patient-1',
-          nombre: 'Paciente Demo',
-          rut: '11.111.111-1',
+          ...buildEncryptedPatientIdentifierFields({ nombre: 'Paciente Demo', rut: '11.111.111-1' }),
           rutExempt: false,
           rutExemptReason: null,
           fechaNacimiento: new Date('1986-03-18T00:00:00.000Z'),

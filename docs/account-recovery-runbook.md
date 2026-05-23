@@ -1,7 +1,7 @@
 # Recuperacion de cuentas — Runbook operativo
 
 Mientras no exista un flujo self-service de `/auth/forgot-password`
-(seguimiento en `FEATURES.md` → "Password reset self-service"), este
+(seguimiento en `docs/product/features.md` → "Password reset self-service"), este
 runbook cubre los procedimientos administrados.
 
 > **Importante:** todas las operaciones aqui descritas son **registradas

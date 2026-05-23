@@ -1,6 +1,6 @@
 # Flujos Clinicos y Operativos
 
-Este documento resume el comportamiento actual mas importante del producto. `FEATURES.md` sigue existiendo para backlog; esto intenta describir lo que el sistema hace o deberia resguardar hoy, que no es exactamente lo mismo por razones demasiado humanas.
+Este documento resume el comportamiento actual mas importante del producto. `docs/product/features.md` sigue existiendo para backlog; esto intenta describir lo que el sistema hace o deberia resguardar hoy, que no es exactamente lo mismo por razones demasiado humanas.
 
 ## Pacientes
 
@@ -126,7 +126,7 @@ Riesgo conocido:
 - asistente asignado: apoyo operativo y ciertas ediciones permitidas,
 - admin: administracion, no necesariamente edicion clinica cotidiana.
 
-El detalle de permisos compartidos esta en `security-and-permissions.md` y la proyeccion de backlog en `../FEATURES.md`.
+El detalle de permisos compartidos esta en `security-and-permissions.md` y la proyeccion de backlog en `product/features.md`.
 
 En la superficie de `encounters`, la regla compartida actual vive en `shared/encounter-permission-contract.ts` e incluye visibilidad de secciones, cierre, review status, firma, reapertura, cancelacion, exportacion, impresion e historial.
 
@@ -135,7 +135,7 @@ En la superficie de `encounters`, la regla compartida actual vive en `shared/enc
 Usa este criterio:
 
 - si una regla existe en schema, endpoints, UI y tests, tratala como comportamiento actual,
-- si esta en `FEATURES.md`, tratala como backlog hasta validar implementacion real,
+- si esta en `docs/product/features.md`, tratala como backlog hasta validar implementacion real,
 - si aparece en auditorias o regressions, tratala como deuda conocida aunque suene incomodo.
 
 ## Riesgos Vigentes Que Merecen Atencion
@@ -149,4 +149,4 @@ Usa este criterio:
 
 - Modelo de datos: `data-model.md`
 - Seguridad y permisos: `security-and-permissions.md`
-- Backlog por rol: `../FEATURES.md`
+- Backlog por rol: `product/features.md`
