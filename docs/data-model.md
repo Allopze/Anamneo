@@ -16,7 +16,8 @@ La fuente de verdad es `backend/prisma/schema.prisma`. Este documento no reempla
 | Pacientes | `Patient`, `PatientHistory`, `PatientProblem` |
 | Encuentros | `Encounter`, `EncounterSection`, `EncounterSignature`, `EncounterTask` |
 | Decision support | `ConditionCatalog`, `ConditionCatalogLocal`, `ConditionSuggestionLog` |
-| Clinico auxiliar | `InformedConsent`, `ClinicalAlert`, `Attachment`, `TextTemplate` |
+| Clinico auxiliar | `ClinicalConsent`, `ClinicalAlert`, `Attachment`, `TextTemplate` |
+| Privacidad y cumplimiento | `PatientDataProcessingConsent`, `PatientDataRequest`, `PatientDataRequestDownload`, `DataBreachIncident` |
 | Plataforma | `AuditLog`, `Setting` |
 
 ## Relaciones Clave
@@ -32,7 +33,7 @@ La fuente de verdad es `backend/prisma/schema.prisma`. Este documento no reempla
 
 - `Patient` pertenece a quien lo crea (`createdById`).
 - Puede tener `PatientHistory` unica.
-- Se relaciona con `Encounter`, `PatientProblem`, `EncounterTask`, `InformedConsent` y `ClinicalAlert`.
+- Se relaciona con `Encounter`, `PatientProblem`, `EncounterTask`, `ClinicalConsent`, `PatientDataProcessingConsent`, `PatientDataRequest` y `ClinicalAlert`.
 - Tiene `registrationMode` y `completenessStatus` para distinguir alta completa vs registro rapido y verificacion posterior.
 
 ### Encounter
@@ -61,7 +62,9 @@ La fuente de verdad es `backend/prisma/schema.prisma`. Este documento no reempla
 | `EncounterSection` | `data` | Seccion serializada |
 | `EncounterTask` | `status`, `priority`, `dueDate` | Seguimiento clinico |
 | `PatientProblem` | `status`, `severity`, `resolvedAt` | Problemas activos/resueltos |
-| `InformedConsent` | `revokedAt`, `revokedReason` | Revocacion del consentimiento |
+| `ClinicalConsent` | `revokedAt`, `revokedReason` | Revocacion del consentimiento clinico |
+| `PatientDataProcessingConsent` | `purpose`, `legalDocumentId`, `revokedAt` | Consentimiento del titular para tratamiento de datos personales |
+| `PatientDataRequest` | `requestType`, `status`, `dueDate` | Solicitudes de derechos del titular |
 | `ClinicalAlert` | `acknowledgedAt` | Confirmacion de alerta |
 | `Setting` | `key`, `value` | Settings persistidos, algunos cifrados |
 

@@ -140,7 +140,7 @@ Los anexos por finalidad permiten mantener consistencia con el RAT o catálogo d
 
 Esta estructura es más mantenible para un producto en evolución y evita que cada cambio técnico obligue a reescribir todo el documento.
 
-> **Implementación en repo:** la próxima refactorización de [`backend/prisma/seed.ts`](../backend/prisma/seed.ts) reemplazará el `legal-privacy-v1-draft` por **un documento general + N anexos**, manteniendo el contrato de `LegalDocumentPage.tsx` (que ya es agnóstico al contenido). Trabajo pendiente: ver "Pendientes derivados" al final.
+> **Implementación en repo:** [`backend/prisma/seed.ts`](../backend/prisma/seed.ts) ya fue refactorizado a **documento general + anexos** manteniendo el contrato de `LegalDocumentPage.tsx`. Sigue pendiente que el asesor legal entregue el texto final y que el documento se publique como versión vigente.
 
 ---
 
@@ -178,7 +178,7 @@ Para **analítica clínica interna**, la respuesta depende del uso:
 - Si la analítica es estrictamente para seguridad, calidad, continuidad del cuidado o gestión asistencial dentro de la clínica, puede documentarse como gestión sanitaria, siempre que sea proporcional y necesaria.
 - Si la analítica se usa para investigación, publicación, desarrollo comercial, entrenamiento de modelos, benchmarking entre clínicas o mejora general del producto Anamneo, debe separarse y evaluarse con base legal propia, anonimización, consentimiento o autorización específica.
 
-> **Implementación en repo:** matriz incorporada en [`data-processing-register.md`](data-processing-register.md) §3-ext (pendiente).
+> **Implementación en repo:** matriz incorporada en [`data-processing-register.md`](data-processing-register.md) §3 y §2-ext. Sigue pendiente validar y firmar el RAT con asesor legal y responsable del tratamiento.
 
 ---
 
@@ -228,7 +228,7 @@ Para acreditar vínculo:
 
 No hay una obligación general de reportar a una autoridad solo por tratar datos de NNA. Sí existe un estándar reforzado: finalidad legítima, interés superior, autonomía progresiva, minimización, control de acceso y trazabilidad.
 
-> **Implementación en repo:** [`patient-consents.service.ts:assertNNAConsentValid`](../backend/src/patient-consents/patient-consents.service.ts) implementa el criterio conservador (<16 con `signerRelationship=TITULAR` se rechaza). El schema agregó campos de representante legal. Falta extender la UI de creación de paciente con campos condicionales por edad (Ola 3 pendiente de UI).
+> **Implementación en repo:** [`patient-consents.service.ts:assertNNAConsentValid`](../backend/src/patient-consents/patient-consents.service.ts) implementa el criterio conservador (<16 con `signerRelationship=TITULAR` se rechaza). El schema agregó campos de representante legal y la UI de creación/detalle de paciente ya expone el flujo. Sigue pendiente validación legal externa del criterio exacto y de la evidencia de vínculo.
 
 ---
 
@@ -476,7 +476,7 @@ La ficha clínica debe conservarse **al menos 15 años**. La Ley 20.584 fija ese
 
 El valor actual `PATIENT_PURGE_MIN_AGE_DAYS = 5475` es correcto como mínimo técnico equivalente a 15 años, pero debería contarse desde la **última atención o último registro clínico relevante**, no necesariamente desde la creación del paciente.
 
-> **Acción técnica pendiente:** revisar [`patients-regulatory-purge.service.ts`](../backend/src/patients/patients-regulatory-purge.service.ts) — actualmente calcula el plazo desde `patient.archivedAt`, no desde "última atención". Para fichas archivadas justo después de una atención, los plazos coinciden; en casos donde un paciente se archiva años después, podría purgarse antes del plazo legal real. Ver "Pendientes derivados" más abajo.
+> **Implementación en repo:** [`patients-regulatory-purge.service.ts`](../backend/src/patients/patients-regulatory-purge.service.ts) calcula la retención desde la fecha más reciente entre archivo y última atención relevante. Sigue pendiente validar la matriz de retención por categoría con asesor legal.
 
 Recomendación de matriz:
 
@@ -561,7 +561,7 @@ Contenido mínimo de notificación a titulares:
 10. referencia al derecho a reclamar ante la Agencia;
 11. información de seguimiento, si aplica.
 
-> **Implementación en repo:** [`incident-runbook-data-breach.md`](incident-runbook-data-breach.md) actualizado con la tabla SLA, presunción de riesgo razonable, y la plantilla de 11 elementos. [`MailService.sendBreachNotificationToSubject`](../backend/src/mail/mail.service.ts) cubre 6 de los 11 elementos; falta extender (Ola 4 follow-up).
+> **Implementación en repo:** [`incident-runbook-data-breach.md`](incident-runbook-data-breach.md) actualizado con la tabla SLA, presunción de riesgo razonable, y la plantilla de 11 elementos. [`MailService.sendBreachNotificationToSubject`](../backend/src/mail/mail.service.ts) cubre los 11 elementos con campos explícitos y fallbacks.
 
 ---
 
@@ -668,7 +668,7 @@ Si Anamneo decide no cifrar a nivel app, debería justificarlo en la DPIA y refo
 
 Riesgo regulatorio: si ocurre una brecha, será más difícil demostrar que las medidas eran adecuadas al riesgo de datos sensibles de salud. No cifrar app-level puede ser defendible en ciertos contextos, pero debe estar muy bien justificado y compensado.
 
-> **Estado en repo:** adjuntos y snapshots regulatorios YA cifrados app-level (Ola 3). Identificatorios del paciente (RUT/nombre/teléfono/email/domicilio) pendientes — es un criterio del Gate Go/No-Go y la respuesta del abogado lo confirma como **recomendación fuerte**.
+> **Estado en repo:** adjuntos, snapshots regulatorios e identificatorios principales del paciente ya tienen cifrado app-level. Quedan drops controlados de columnas plaintext transitorias para representante legal, firmante de consentimiento y solicitante DSAR, documentados en `backend/prisma/migrations-pending/`.
 
 ---
 
@@ -707,7 +707,7 @@ Contenido mínimo recomendado:
 
 El programa debe demostrar responsabilidad proactiva, no solo existencia documental.
 
-> **Implementación en repo:** [`programa-prevencion-infracciones.md`](programa-prevencion-infracciones.md) cubre los 18 elementos. Pendiente: bitácora de decisiones (#16) — crear `docs/bitacora-decisiones-cumplimiento.md` que registre fecha/decisión/responsable/justificación de cada cambio relevante en política o procedimientos.
+> **Implementación en repo:** [`programa-prevencion-infracciones.md`](programa-prevencion-infracciones.md) cubre los 18 elementos y [`bitacora-decisiones-cumplimiento.md`](bitacora-decisiones-cumplimiento.md) registra decisiones de cumplimiento. Quedan pendientes ejecución operativa, capacitación, sanciones internas y revisiones periódicas.
 
 ---
 
@@ -970,7 +970,7 @@ Para ingeniería, agregar:
 - [x] Crear catálogo/RAT extendido. → `data-processing-register.md`
 - [x] Hacer DPIA inicial. → `dpia-2026.md`
 - [x] Diseñar modelo de consentimiento granular. → schema `PatientDataProcessingConsent` + servicio
-- [x] Definir flujo NNA y representantes. → `assertNNAConsentValid` + schema (UI pendiente)
+- [x] Definir flujo NNA y representantes. → `assertNNAConsentValid` + schema + UI
 
 ## Olas 2-3
 
@@ -980,7 +980,7 @@ Para ingeniería, agregar:
 - [x] Implementar procedimiento de brechas. → módulo `data-breach` + runbook
 - [ ] Armar expediente de proveedores. → drive seguro
 - [ ] Revisar DPAs Cloudflare, Sentry y SMTP.
-- [~] Definir estrategia de cifrado app-level. → adjuntos y snapshots ya cifrados; identificatorios pendientes
+- [x] Definir estrategia de cifrado app-level. → adjuntos, snapshots e identificatorios principales cifrados; quedan drops controlados de plaintext transitorio
 
 ## Ola 4
 
@@ -995,12 +995,12 @@ Para ingeniería, agregar:
 ## Pendientes derivados de estas respuestas (issues técnicos detectados)
 
 1. **Plazo de bloqueo: corregir de 3 a 2 días hábiles** en `operational-procedures-data-rights.md` y en cualquier UI/documentación que mencione el plazo. ✅ Aplicado.
-2. **Plazo de purga: contar desde "última atención" no desde `archivedAt`** — revisar `patients-regulatory-purge.service.ts:54-56`. La fórmula actual `Date.now() - patient.archivedAt.getTime()` usa archivedAt como referencia. Para casos donde un paciente se archiva años después de su última atención, podríamos purgar antes del plazo legal. Solución: calcular el máximo entre `archivedAt` y el `MAX(encounter.completedAt | createdAt)` del paciente.
-3. **Política como general + anexos**: refactorizar `legal-privacy-v1-draft` en seed para soportar estructura modular.
-4. **Schema de consentimiento extendido**: agregar campos `language`, `sessionId`, `clinicId`, `representativeBondEvidenceRef`, `consentPayloadSnapshot`, `revokedReason`, `revokedChannel` al modelo `PatientDataProcessingConsent`.
-5. **Plantilla de notificación de brecha extendida**: actualizar `MailService.sendBreachNotificationToSubject` para cubrir los 11 elementos completos.
-6. **Bitácora de decisiones**: crear `docs/bitacora-decisiones-cumplimiento.md`.
-7. **Validar cifrado app-level de identificatorios del paciente**: ya confirmado como recomendación fuerte por el abogado (no estrictamente exigido por ley). Decisión arquitectónica para Gate Go/No-Go.
+2. **Plazo de purga: contar desde "última atención" no desde `archivedAt`**. ✅ Aplicado: el servicio calcula la fecha relevante con la atención más reciente.
+3. **Política como general + anexos**. ✅ Aplicado en `backend/prisma/seed.ts`; falta texto final validado.
+4. **Schema de consentimiento extendido**. ✅ Aplicado en `PatientDataProcessingConsent`.
+5. **Plantilla de notificación de brecha extendida**. ✅ Aplicado: `MailService.sendBreachNotificationToSubject` cubre los 11 elementos mínimos con fallbacks.
+6. **Bitácora de decisiones**. ✅ Aplicado: `docs/bitacora-decisiones-cumplimiento.md`.
+7. **Validar cifrado app-level de identificatorios del paciente**. ✅ Aplicado para identificatorios principales; quedan drops de plaintext transitorio D/E/F bajo ventana controlada.
 
 ---
 

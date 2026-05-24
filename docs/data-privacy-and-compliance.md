@@ -10,8 +10,9 @@ exigibles antes de operar con datos reales en Chile bajo la **Ley 21.719**
 > en [ADR-002](architecture-decisions/002-ley-21719-compliance.md) y pasar
 > el Gate Go/No-Go documentado en `/home/allopze/.claude/plans/crea-un-plan-para-logical-hearth.md`.
 
-**Estado al 2026-05-23:** este documento se actualizó tras la auditoría
-integral contra el texto oficial de la Ley 21.719 (ver
+**Estado al 2026-05-24:** este documento se actualizó tras la auditoría
+integral contra el texto oficial de la Ley 21.719 y las iteraciones técnicas
+posteriores (ver
 [`audits/ley-21719-chile-audit-2026-05-23.md`](audits/ley-21719-chile-audit-2026-05-23.md)).
 Cita correctamente los artículos vigentes y refleja la implementación real
 del repo (no la planificada).
@@ -50,11 +51,11 @@ limitación de finalidad de **GDPR Art. 5**.
 
 | Categoría | Sensibilidad | Ejemplos en Anamneo |
 |---|---|---|
-| Datos identificatorios | Alta | `Patient.rut`, `Patient.nombre`, `Patient.email`, `Patient.telefono`, `Patient.domicilio` |
+| Datos identificatorios | Alta | `Patient.rutEnc`, `Patient.nombreEnc`, `Patient.emailEnc`, `Patient.telefonoEnc`, `Patient.domicilioEnc` + `rutLookupHash` |
 | Datos demográficos | Media | `Patient.sexo`, `Patient.fechaNacimiento`, `Patient.edad`, `Patient.prevision`, `Patient.trabajo` |
-| Datos de salud (PHI) | **Crítica** | `PatientHistory`, `EncounterSection.data`, `EncounterDiagnosis`, `EncounterTreatment`, `PatientProblem`, `ClinicalAlert`, `InformedConsent`, `Attachment` |
-| Datos de contacto de emergencia | Alta | `Patient.contactoEmergencia*` |
-| Datos de representante legal (NNA) | Alta | Pendiente — Ola 1 del roadmap |
+| Datos de salud (PHI) | **Crítica** | `PatientHistory`, `EncounterSection.data`, `EncounterDiagnosis`, `EncounterTreatment`, `PatientProblem`, `ClinicalAlert`, `ClinicalConsent`, `Attachment` |
+| Datos de contacto de emergencia | Alta | `Patient.contactoEmergenciaNombreEnc`, `Patient.contactoEmergenciaTelefonoEnc` |
+| Datos de representante legal (NNA) | Alta | `Patient.legalRepresentative*` + columnas cifradas `legalRepresentative*Enc`; drop de plaintext pendiente de ventana controlada |
 | Datos de personal sanitario | Media | `User.email`, `User.nombre`, `User.role`, sesiones, logs de auditoría |
 | Telemetría | Baja | `AuditLog` (con `requestId`, `userId`, `entityId`), logs HTTP |
 
@@ -64,7 +65,11 @@ Anamneo **no** trata por defecto datos de pago, datos biométricos
 Anamneo trata datos de menores de edad en contexto clínico. La Ley 21.719
 Art 16 quáter exige consentimiento de padres o representante legal para
 menores de 14 años, y para datos sensibles de menores de 16 años.
-**Implementación pendiente en Ola 3 del roadmap.**
+El backend aplica un criterio conservador en `PatientConsentsService`: para
+menores de 16 años, el consentimiento de datos sensibles no puede quedar
+firmado como `TITULAR`. La UI de creación/edición de pacientes ya captura
+representante legal cuando corresponde; queda pendiente validar formalmente
+con asesor legal el criterio exacto de vínculo y autonomía progresiva.
 
 ---
 
@@ -95,13 +100,13 @@ sanitaria especial chilena que la ampara. Ver
 | Autenticación fuerte | bcrypt cost 12, JWT por cookie HttpOnly SameSite=strict, 2FA TOTP opcional con recovery codes, lockout persistente tras 5 intentos |
 | Autorización | Guards NestJS (`JwtAuthGuard`, `RolesGuard`, `AdminGuard`) + scope por médico efectivo (`getEffectiveMedicoId`) |
 | Cifrado en tránsito | HTTPS obligatorio en producción vía cloudflared |
-| Cifrado en reposo | Disco con LUKS/dm-crypt (confirmado por `ENCRYPTION_AT_REST_CONFIRMED`) + cifrado app-level AES-256-GCM para secciones clínicas (`ENCRYPTION_KEY`, obligatoria en prod) + cifrado app-level para settings secretos (`SETTINGS_ENCRYPTION_KEY`) |
-| Cifrado app-level pendiente | RUT/nombre/email/teléfono del paciente, adjuntos y snapshots regulatorios — implementación en Ola 3 |
+| Cifrado en reposo | Disco con LUKS/dm-crypt (confirmado por `ENCRYPTION_AT_REST_CONFIRMED`) + cifrado app-level AES-256-GCM para secciones clínicas, identificatorios del paciente, adjuntos, snapshots regulatorios y entregas DSAR (`ENCRYPTION_KEY`, obligatoria en prod) + cifrado app-level para settings secretos (`SETTINGS_ENCRYPTION_KEY`) |
+| Cifrado app-level pendiente | Drop controlado de columnas plaintext transitorias de representante legal, firmante de consentimiento y solicitante DSAR; cifrado de IP/UA en tablas restantes es mejora futura no bloqueante |
 | Auditoría | `AuditLog` con cadena de hashes SHA-256 (`integrityHash`/`previousHash`), serializada para concurrencia. Eventos READ también registrados sobre PHI. |
 | Minimización en logs/Sentry | Scrubbing de RUT, email, secuencias de 8+ dígitos en `instrument.ts` antes de enviar a Sentry |
 | Retención | Backups Postgres rotables; logs de Docker rotables según configuración del host |
 | Aislamiento | Modelo single-clinic (`ANAMNEO_DEPLOYMENT_SCOPE=single-clinic`). Una instancia = una clínica = una base de datos. |
-| Adjuntos | Validación magic-bytes (PDF/JPEG/PNG/GIF), tamaño máximo configurable, soft-delete con retención. AV scan opcional vía ClamAV (queda `SKIPPED` si no hay host/puerto). |
+| Adjuntos | Validación magic-bytes (PDF/JPEG/PNG/GIF), tamaño máximo configurable, cifrado app-level at-upload con `Attachment.encryptionEnvelope`, descarga descifrada en memoria, soft-delete con retención. AV scan opcional vía ClamAV (queda `SKIPPED` si no hay host/puerto). |
 
 ---
 
@@ -146,7 +151,8 @@ esfuerzo desproporcionado.
    `DELETE /api/patients/:id/purge` con confirmación
    `PURGE-REGULATORY`, justificación ≥16 caracteres y respeto a la
    retención mínima configurable
-   (`PATIENT_PURGE_MIN_AGE_DAYS`, default 5475 días = 15 años).
+   (`PATIENT_PURGE_MIN_AGE_DAYS`, default 5475 días = 15 años desde la
+   fecha más reciente entre archivo y última atención relevante).
    Implementado en
    [`backend/src/patients/patients-regulatory-purge.service.ts`](../backend/src/patients/patients-regulatory-purge.service.ts).
    Antes de la eliminación física se genera un snapshot del bundle
@@ -162,16 +168,20 @@ esfuerzo desproporcionado.
 El titular puede oponerse a tratamientos basados en interés legítimo,
 marketing (no aplica a Anamneo) o cuando los datos provengan de
 fuentes públicas. El campo `Patient.processingObjections` existe; queda
-pendiente completar el enforcement por finalidad en analítica y módulos que
-usen datos fuera de atención clínica directa.
+pendiente validar legalmente qué finalidades opcionales deben bloquearse
+siempre frente a oposición. Las finalidades clínicas necesarias no deberían
+depender exclusivamente de consentimiento ni oposición.
 
 ### 5.5 Bloqueo temporal (Art 8 ter)
 
 El titular puede solicitar suspensión temporal del tratamiento mientras
 se resuelve una solicitud de rectificación, supresión u oposición.
 Plazo de resolución del bloqueo por el responsable: **2 días hábiles**. (Los 3 días hábiles del Art 41 inciso final aplican a la resolución de la Agencia en ciertos escenarios, no al plazo ordinario del responsable.)
-El campo `Patient.blockedAt` y `PatientNotBlockedGuard` existen; queda
-pendiente asegurar que todas las mutaciones clínicas relevantes usen el guard.
+El campo `Patient.blockedAt` y `PatientNotBlockedGuard` existen; el guard
+está aplicado en las superficies clínicas principales (`encounters` y
+`attachments`) y existen endpoints admin dedicados para bloqueo/desbloqueo
+con razón obligatoria. Nuevas mutaciones clínicas deben incorporar el guard
+antes de salir a producción.
 
 ### 5.6 Portabilidad (Art 9)
 
@@ -312,11 +322,12 @@ Implementación:
 
 Flujo:
 1. Valida que el paciente esté archivado (soft-deleted) previamente.
-2. Valida retención (default 15 años desde archivo, vía
-   `PATIENT_PURGE_MIN_AGE_DAYS`).
-3. Genera snapshot regulatorio defensivo en
-   `runtime/data/purges/<nombre>.zip` **(actualmente en claro;
-   cifrado app-level pendiente en Ola 3 del roadmap)**.
+2. Valida retención (default 15 años desde la fecha más reciente entre
+   archivo y última atención relevante, vía `PATIENT_PURGE_MIN_AGE_DAYS`).
+3. Genera snapshot regulatorio defensivo en `runtime/data/purges/`.
+   Cuando `ENCRYPTION_KEY` está configurada, el ZIP se persiste cifrado
+   como `.enc` junto a su `envelope.json`; en dev/test sin clave puede
+   persistirse en claro con warning.
 4. Registra evento `PATIENT_RECORD_PURGED_REGULATORY` en `AuditLog`
    con cadena de integridad.
 5. Cascade delete sobre `Patient` y todas sus relaciones.
@@ -348,11 +359,12 @@ sencillo.
 | **Medio** | Indisponibilidad >4h o backup fallido consecutivo >24h | Registro interno + análisis post-mortem |
 | **Bajo** | Incidente cubierto por runbook estándar | Registro en `AuditLog`/Sentry |
 
-Flujo operativo: ver [`incident-runbooks.md`](incident-runbooks.md).
-**El runbook específico de brechas alineado al Art 14 sexies se
-crea en la Ola 3 del roadmap** (`docs/incident-runbook-data-breach.md`)
-junto con la entidad `DataBreachIncident` y las plantillas de
-notificación.
+Flujo operativo específico: ver
+[`incident-runbook-data-breach.md`](incident-runbook-data-breach.md).
+La entidad `DataBreachIncident`, los endpoints admin y la plantilla de
+notificación a titulares ya existen. Queda pendiente ejecutar un drill
+cronometrado en staging/producción y completar el canal formal de reporte
+a la Agencia cuando esté operativo.
 
 ---
 
@@ -396,22 +408,22 @@ en el roadmap aprobado:
 
 | Brecha | Estado | Ola del roadmap |
 |---|---|---|
-| Política de privacidad seeded marcada "no apta para producción" | Bloqueada en `NODE_ENV=production` por seed; reemplazo pendiente | Ola 1 |
-| Política v1.0 con 12 elementos Art 14 ter | Pendiente | Ola 1 |
-| Modelo de consentimiento del titular separado del clínico (Art 12) | Pendiente | Ola 1 |
-| Registro de Actividades de Tratamiento (Art 14 ter, Art 3 e) | Pendiente | Ola 1 |
-| DPIA formal (Art 15 ter) | Pendiente | Ola 1 (borrador) → Ola 4 (firma) |
-| Designación formal de DPO (Art 50) | Interino designado en ADR-002; formalización pendiente | Ola 0 / Ola 1 |
+| Política de privacidad seeded marcada "no apta para producción" | Bloqueada en `NODE_ENV=production`; estructura modular general + anexos lista, texto final legal pendiente | Ola 1 |
+| Política v1.0 con 12 elementos Art 14 ter | Borrador estructural listo; pendiente texto/firma/publicación legal | Ola 1 |
+| Modelo de consentimiento del titular separado del clínico (Art 12) | Implementado vía `PatientDataProcessingConsent`; activar enforcement hard depende de política final y backfill operativo | Ola 1 |
+| Registro de Actividades de Tratamiento (Art 14 ter, Art 3 e) | Borrador estructural creado; pendiente validación/firma | Ola 1 |
+| DPIA formal (Art 15 ter) | Borrador estructural creado; pendiente validación/firma | Ola 1 → Ola 4 |
+| Designación formal de DPO (Art 50) | Acta borrador creada; firma de máxima autoridad pendiente | Ola 0 / Ola 1 |
 | Entidad `PatientDataRequest` para Arts 4-11 | Implementado | Ola 2 |
-| Derecho de bloqueo temporal (Art 8 ter) | Parcial: schema/guard implementados; falta aplicar guard exhaustivamente | Ola 2 |
-| Derecho de oposición / opt-out a analítica (Art 8) | Parcial: schema implementado; falta enforcement por finalidad | Ola 2 |
-| Tratamiento diferenciado de NNA (Art 16 quáter) | Parcial: schema representante legal; falta enforcement | Ola 1 (schema) + Ola 3 (enforcement) |
-| Cifrado app-level adicional (RUT, email, adjuntos, snapshots) | Parcial: adjuntos/snapshots/entregas cifrables; PII demográfica pendiente | Ola 3 |
-| Procedimiento de brechas alineado al Art 14 sexies + entidad `DataBreachIncident` | Parcial: entidad/runbook; falta validación legal y drills | Ola 3 |
+| Derecho de bloqueo temporal (Art 8 ter) | Implementado en backend/UI admin para superficies principales; ampliar en nuevas mutaciones | Ola 2 |
+| Derecho de oposición / opt-out a analítica (Art 8) | Schema implementado; falta matriz legal final de finalidades opcionales | Ola 2 |
+| Tratamiento diferenciado de NNA (Art 16 quáter) | Schema/UI/backend implementados con criterio conservador; validación legal pendiente | Ola 1 + Ola 3 |
+| Cifrado app-level adicional (RUT, email, adjuntos, snapshots) | Implementado para identificatorios Patient, adjuntos, snapshots y entregas DSAR; drops de plaintext transitorios D/E/F pendientes | Ola 3 |
+| Procedimiento de brechas alineado al Art 14 sexies + entidad `DataBreachIncident` | Implementado; falta validación legal, canal Agencia y drill | Ola 3 |
 | DPAs firmados con subencargados (Cloudflare, Sentry, SMTP) | Pendiente | Ola 3 |
-| Inventario de transferencias internacionales (Arts 27-28) | Pendiente | Ola 3 |
-| Programa de prevención de infracciones (Art 48) | Pendiente | Ola 3 |
-| Modelo voluntario de cumplimiento + certificación (Art 49, Art 51) | Pendiente | Ola 4 |
+| Inventario de transferencias internacionales (Arts 27-28) | Borrador RAT creado; falta confirmar proveedor/país/DPA real | Ola 3 |
+| Programa de prevención de infracciones (Art 48) | Borrador creado; falta ejecutar capacitación, sanciones internas y revisiones | Ola 3 |
+| Modelo voluntario de cumplimiento + certificación (Art 49, Art 51) | Borrador creado; certificación futura dependiente de Agencia/reglamentos | Ola 4 |
 | UI pública de derechos del titular | Implementado | Ola 2 |
-| Plantillas de comunicación (acuse, rechazo, brecha) | Parcial: acuse/resolución/prórroga/enlace/brecha implementadas | Olas 2-3 |
+| Plantillas de comunicación (acuse, rechazo, brecha) | Implementadas; revisar texto final con abogado | Olas 2-3 |
 | Drills (acceso end-to-end, brecha cronometrada, restore) | Pendiente | Ola 4 |

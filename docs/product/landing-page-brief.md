@@ -115,7 +115,7 @@ La landing debe vender principalmente:
 - Auditoria persistente con entidad, usuario, accion, resultado, diff, request id, timestamps y hashes de integridad.
 - Settings sensibles cifrados a nivel aplicacion.
 - En produccion, la app exige confirmacion de cifrado del filesystem para base de datos, uploads y backups.
-- Operacion simple con Docker Compose, SQLite WAL, backups y restore drills documentados.
+- Operacion simple con Docker Compose, PostgreSQL, backups y restore drills documentados.
 
 ## 4. Usuarios y mensajes por rol
 
@@ -162,7 +162,7 @@ Mensaje:
 ### No prometer
 
 - No vender "NLP clinico avanzado" ni "IA medica" como motor general.
-- No decir "SQLite cifrado por la app": la app cifra settings sensibles; base, uploads y backups dependen del cifrado del filesystem.
+- No decir "base de datos completamente cifrada por la app": la app cifra campos y archivos sensibles; el volumen completo sigue dependiendo del cifrado del filesystem.
 - No prometer "admin-blind absoluto" como garantia legal cerrada. Usar "limites de acceso y trazabilidad".
 - No describir la firma como "firma electronica avanzada" o "firma digital legal avanzada".
 - No usar "gratis", "comienza ahora" o "abre tu cuenta" si el acceso real es bootstrap inicial e invitaciones.
@@ -466,7 +466,7 @@ Evitar:
 - Construir una recreacion legible de UI, no una imagen decorativa borrosa.
 - Mantener CTA de acceso/invitacion, no registro libre.
 - Usar copy en espanol chileno neutro, profesional y directo.
-- No prometer agenda, facturacion, IA medica, firma legal avanzada ni cifrado propio de SQLite.
+- No prometer agenda, facturacion, IA medica, firma legal avanzada ni cifrado total de base de datos a nivel app.
 - Verificar responsive mobile: el hero debe mostrar marca, mensaje, CTA y al menos una senal visual del producto sin solapamientos.
 - Revisar contraste: texto principal sobre crema debe usar `--ink`; texto sobre frame oscuro debe usar blanco o lima con moderacion.
 

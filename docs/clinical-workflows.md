@@ -107,7 +107,9 @@ Riesgo actual a tener presente:
 
 ## Consentimientos y Alertas
 
-- `InformedConsent` persiste otorgamiento, revocacion y razon.
+- `ClinicalConsent` persiste otorgamiento, revocacion y razon de
+  consentimientos clinicos. El consentimiento del titular para tratamiento
+  de datos personales vive separado en `PatientDataProcessingConsent`.
 - `ClinicalAlert` persiste severidad, mensaje, origen y acknowledgement.
 
 Riesgo conocido:

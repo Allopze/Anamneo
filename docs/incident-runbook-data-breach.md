@@ -97,7 +97,12 @@ Toda notificación a un titular afectado debe contener al menos:
 
 ### 7.2 Plantillas disponibles
 
-La plantilla automática actual ([`MailService.sendBreachNotificationToSubject`](../backend/src/mail/mail.service.ts)) cubre 6 de los 11 elementos (1, 3, 4, 5, 7, 8 parcialmente). **Pendiente**: extenderla con los 5 restantes (datos de contacto del DPO, posibles consecuencias detalladas, canales de consulta, referencia explícita a la Agencia, información de seguimiento). Ver "Pendientes derivados" en [`respuestas-borrador-ley21719.md`](respuestas-borrador-ley21719.md).
+La plantilla automática actual
+([`MailService.sendBreachNotificationToSubject`](../backend/src/mail/mail.service.ts))
+cubre los 11 elementos mínimos mediante campos obligatorios y opcionales con
+fallback seguro. En producción, el DPO debe revisar el texto final y completar
+los campos opcionales en cada notificación: responsable, DPO/contacto,
+categorías afectadas, consecuencias, recomendaciones, canales y seguimiento.
 
 ### 7.3 Canales alternativos
 
