@@ -23,6 +23,7 @@ import {
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { AuthFrame } from '@/components/auth/AuthFrame';
 import toast from 'react-hot-toast';
+import { LoginFallback } from './LoginFallback';
 
 const loginSchema = z.object({
   email: z.string().email('Ingresa un correo electrónico válido'),
@@ -41,7 +42,7 @@ type RegistrationMode = 'loading' | 'bootstrap-open' | 'invitation-only';
 
 const LOGIN_CHIPS = [
   {
-    icon: <FiShield className="h-7 w-7" />,
+    icon: <FiShield className="h-7 w-7" aria-hidden="true" />,
     label: 'Trazabilidad y permisos activos',
     description: 'Acceso protegido con registro de actividad habilitado.',
   },
@@ -49,16 +50,7 @@ const LOGIN_CHIPS = [
 
 export function LoginClient() {
   return (
-    <Suspense
-      fallback={
-        <div className="loading-shell">
-          <div className="status-card max-w-sm">
-            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-accent border-t-transparent" />
-            <p className="mt-4 text-sm text-ink-muted">Cargando acceso...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<LoginFallback />}>
       <LoginContent />
     </Suspense>
   );
@@ -163,7 +155,7 @@ function LoginContent() {
         setError(
           apiMessage && apiMessage !== 'Unauthorized'
             ? apiMessage
-            : 'Credenciales incorrectas. Verifica tu correo y contraseña.',
+            : 'No pudimos iniciar sesión. Revisa tus credenciales o recupera tu contraseña.',
         );
       } else {
         setError(apiMessage);
@@ -211,8 +203,9 @@ function LoginContent() {
           ? 'Ingresa el código de tu app autenticadora.'
           : 'Ingresa uno de tus códigos de recuperación de un solo uso.'
         : 'Accede con tu cuenta clínica.'}
-      logoIconClassName="!h-20 !w-20"
-      logoTextClassName="!text-4xl"
+      className={step === '2fa' ? 'auth-card-2fa' : undefined}
+      logoIconClassName="!h-14 !w-14 lg:!h-20 lg:!w-20"
+      logoTextClassName="!text-3xl lg:!text-4xl"
       heroFooter={
         <div className="auth-help">
           <FiLock className="h-7 w-7" aria-hidden="true" />
@@ -240,13 +233,13 @@ function LoginContent() {
       {step === '2fa' && (
         <>
           <div className="auth-step-bar">
-            <span className="auth-step auth-step-done"><FiCheck className="h-3.5 w-3.5" /> Credenciales</span>
-            <span className="auth-step auth-step-active"><FiShield className="h-3.5 w-3.5" /> Verificación</span>
+            <span className="auth-step auth-step-done"><FiCheck className="h-3.5 w-3.5" aria-hidden="true" /> Credenciales</span>
+            <span className="auth-step auth-step-active"><FiShield className="h-3.5 w-3.5" aria-hidden="true" /> Verificación</span>
           </div>
           <div className="auth-note">
-            <span className="auth-badge-accent"><FiShield className="h-3.5 w-3.5" /> 2FA activo</span>
+            <span className="auth-badge-accent"><FiShield className="h-3.5 w-3.5" aria-hidden="true" /> 2FA activo</span>
             <span className="auth-badge">
-              <FiLock className="h-3.5 w-3.5" />
+              <FiLock className="h-3.5 w-3.5" aria-hidden="true" />
               {verificationMethod === 'totp' ? ' Código de 6 dígitos' : ' Código de recuperación'}
             </span>
           </div>
@@ -260,7 +253,7 @@ function LoginContent() {
       )}
 
       {step === '2fa' ? (
-        <form onSubmit={handleVerification(onVerify2FA)} className="space-y-5">
+        <form method="post" noValidate onSubmit={handleVerification(onVerify2FA)} className="space-y-5">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               type="button"
@@ -271,7 +264,7 @@ function LoginContent() {
               }}
               className={`btn ${verificationMethod === 'totp' ? 'btn-accent' : 'btn-secondary'}`}
             >
-              Usar app autenticadora
+              App autenticadora
             </button>
             <button
               type="button"
@@ -282,7 +275,7 @@ function LoginContent() {
               }}
               className={`btn ${verificationMethod === 'recovery' ? 'btn-accent' : 'btn-secondary'}`}
             >
-              Usar código de recuperación
+              Código de recuperación
             </button>
           </div>
 
@@ -305,10 +298,9 @@ function LoginContent() {
                 spellCheck={verificationMethod === 'totp' ? undefined : false}
                 maxLength={verificationMethod === 'totp' ? 6 : 19}
                 className={`form-input pl-10 ${verificationMethod === 'totp' ? 'text-center text-xl tracking-[0.3em]' : 'font-mono uppercase tracking-[0.18em]'} ${verificationErrors.code ? 'form-input-error' : ''}`}
-                placeholder={verificationMethod === 'totp' ? '000000' : 'ABCD-EFGH'}
+                placeholder={verificationMethod === 'totp' ? '000000…' : 'ABCD-EFGH…'}
                 aria-invalid={!!verificationErrors.code}
                 aria-describedby={verificationErrors.code ? 'totp-error' : undefined}
-                autoFocus
                 {...verificationField}
                 onChange={(event) => {
                   event.target.value = verificationMethod === 'totp'
@@ -357,91 +349,93 @@ function LoginContent() {
               setError(null);
               setTempToken(null);
             }}
-            className="w-full text-center text-sm text-ink-secondary hover:text-ink"
+            className="auth-secondary-action"
           >
             Volver al inicio de sesión
           </button>
         </form>
       ) : (
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        <div>
-          <label htmlFor="email" className="form-label">
-            Correo electrónico
-          </label>
-          <div className="relative">
-            <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              inputMode="email"
-              autoCapitalize="none"
-              spellCheck={false}
-              className={`form-input pl-10 ${errors.email ? 'form-input-error' : ''}`}
-              placeholder="nombre@clinica.cl"
-              aria-invalid={!!errors.email}
-              aria-describedby={errors.email ? 'email-error' : undefined}
-              {...register('email')}
-            />
-          </div>
-          {errors.email ? (
-            <p id="email-error" className="form-error" role="alert">
-              {errors.email.message}
-            </p>
-          ) : null}
-        </div>
-
-        <div>
-          <div className="auth-field-row">
-            <label htmlFor="password" className="form-label">
-              Contraseña
+        <form method="post" noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <div>
+            <label htmlFor="email" className="form-label">
+              Correo electrónico
             </label>
-            <Link href="/forgot-password" className="auth-forgot-password auth-inline-link">¿Olvidaste tu contraseña?</Link>
+            <div className="relative">
+              <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                className={`form-input pl-10 ${errors.email ? 'form-input-error' : ''}`}
+                placeholder="nombre@clinica.cl…"
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? 'email-error' : undefined}
+                {...register('email')}
+              />
+            </div>
+            {errors.email ? (
+              <p id="email-error" className="form-error" role="alert">
+                {errors.email.message}
+              </p>
+            ) : null}
           </div>
-          <div className="relative">
-            <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
-            <input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              className={`form-input pl-10 pr-12 ${errors.password ? 'form-input-error' : ''}`}
-              placeholder="••••••••"
-              aria-invalid={!!errors.password}
-              aria-describedby={errors.password ? 'password-error' : undefined}
-              {...register('password')}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((visible) => !visible)}
-              className="auth-password-toggle"
-              aria-label={showPassword ? 'Ocultar clave' : 'Mostrar clave'}
-            >
-              {showPassword ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
-            </button>
-          </div>
-          {errors.password ? (
-            <p id="password-error" className="form-error" role="alert">
-              {errors.password.message}
-            </p>
-          ) : null}
-        </div>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          aria-label="Iniciar sesión"
-          className="btn btn-accent w-full py-3"
-        >
-          {isLoading ? (
-            <span className="flex items-center gap-2" aria-live="polite">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Iniciando sesión…
-            </span>
-          ) : (
-            'Iniciar sesión'
-          )}
-        </button>
-      </form>
+          <div>
+            <div className="auth-field-row">
+              <label htmlFor="password" className="form-label">
+                Contraseña
+              </label>
+            </div>
+            <div className="relative">
+              <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                className={`form-input pl-10 pr-12 ${errors.password ? 'form-input-error' : ''}`}
+                placeholder="Tu contraseña"
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? 'password-error' : undefined}
+                {...register('password')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                className="auth-password-toggle"
+                aria-label={showPassword ? 'Ocultar clave' : 'Mostrar clave'}
+              >
+                {showPassword ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
+              </button>
+            </div>
+            {errors.password ? (
+              <p id="password-error" className="form-error" role="alert">
+                {errors.password.message}
+              </p>
+            ) : null}
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            aria-label="Iniciar sesión"
+            className="btn btn-accent w-full py-3"
+          >
+            {isLoading ? (
+              <span className="flex items-center gap-2" aria-live="polite">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Iniciando sesión…
+              </span>
+            ) : (
+              'Iniciar sesión'
+            )}
+          </button>
+          <Link href="/forgot-password" className="auth-forgot-password auth-inline-link">
+            Recuperar contraseña
+          </Link>
+        </form>
       )}
     </AuthFrame>
   );

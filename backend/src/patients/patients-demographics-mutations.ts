@@ -54,6 +54,10 @@ function assignEncryptedIdentifierUpdates(
     email?: string | null;
     contactoEmergenciaNombre?: string | null;
     contactoEmergenciaTelefono?: string | null;
+    legalRepresentativeName?: string | null;
+    legalRepresentativeRut?: string | null;
+    legalRepresentativeRelationship?: string | null;
+    legalRepresentativeContact?: string | null;
   },
 ) {
   const encrypted = buildEncryptedPatientIdentifierFields(input);
@@ -79,6 +83,19 @@ function assignEncryptedIdentifierUpdates(
   }
   if (Object.prototype.hasOwnProperty.call(input, 'contactoEmergenciaTelefono')) {
     updateData.contactoEmergenciaTelefonoEnc = encrypted.contactoEmergenciaTelefonoEnc;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'legalRepresentativeName')) {
+    updateData.legalRepresentativeNameEnc = encrypted.legalRepresentativeNameEnc;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'legalRepresentativeRut')) {
+    updateData.legalRepresentativeRutEnc = encrypted.legalRepresentativeRutEnc;
+    updateData.legalRepresentativeRutLookupHash = encrypted.legalRepresentativeRutLookupHash;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'legalRepresentativeRelationship')) {
+    updateData.legalRepresentativeRelationshipEnc = encrypted.legalRepresentativeRelationshipEnc;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'legalRepresentativeContact')) {
+    updateData.legalRepresentativeContactEnc = encrypted.legalRepresentativeContactEnc;
   }
 }
 
@@ -163,6 +180,26 @@ export async function updatePatientDemographicsMutation(params: UpdatePatientDem
     const contactoEmergenciaTelefono = normalizeNullableString(updatePatientDto.contactoEmergenciaTelefono) ?? null;
     identifierUpdates.contactoEmergenciaTelefono = contactoEmergenciaTelefono;
     nextPlainIdentifiers.contactoEmergenciaTelefono = contactoEmergenciaTelefono;
+  }
+  if (updatePatientDto.legalRepresentativeName !== undefined) {
+    const val = normalizeNullableString(updatePatientDto.legalRepresentativeName) ?? null;
+    identifierUpdates.legalRepresentativeName = val;
+    nextPlainIdentifiers.legalRepresentativeName = val;
+  }
+  if (updatePatientDto.legalRepresentativeRut !== undefined) {
+    const val = updatePatientDto.legalRepresentativeRut?.trim() || null;
+    identifierUpdates.legalRepresentativeRut = val;
+    nextPlainIdentifiers.legalRepresentativeRut = val;
+  }
+  if (updatePatientDto.legalRepresentativeRelationship !== undefined) {
+    const val = normalizeNullableString(updatePatientDto.legalRepresentativeRelationship) ?? null;
+    identifierUpdates.legalRepresentativeRelationship = val;
+    nextPlainIdentifiers.legalRepresentativeRelationship = val;
+  }
+  if (updatePatientDto.legalRepresentativeContact !== undefined) {
+    const val = normalizeNullableString(updatePatientDto.legalRepresentativeContact) ?? null;
+    identifierUpdates.legalRepresentativeContact = val;
+    nextPlainIdentifiers.legalRepresentativeContact = val;
   }
 
   const dtoRutExempt = updatePatientDto.rutExempt;

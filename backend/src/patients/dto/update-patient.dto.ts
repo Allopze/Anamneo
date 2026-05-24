@@ -138,4 +138,29 @@ export class UpdatePatientDto {
 	@Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
 	@IsOptional()
 	centroMedico?: string | null;
+
+	// Ley 21.719 Art 16 quater — representante legal NNA (cifrado en Phase D)
+	@IsString()
+	@MinLength(2, { message: 'El nombre del representante debe tener al menos 2 caracteres' })
+	@MaxLength(200, { message: 'El nombre del representante no puede exceder 200 caracteres' })
+	@Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+	@IsOptional()
+	legalRepresentativeName?: string | null;
+
+	@IsString()
+	@MaxLength(PATIENT_RUT_MAX_LENGTH, { message: `El RUT del representante no puede exceder ${PATIENT_RUT_MAX_LENGTH} caracteres` })
+	@IsOptional()
+	legalRepresentativeRut?: string | null;
+
+	@IsString()
+	@MaxLength(100, { message: 'El parentesco no puede exceder 100 caracteres' })
+	@Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+	@IsOptional()
+	legalRepresentativeRelationship?: string | null;
+
+	@IsString()
+	@MaxLength(200, { message: 'El contacto del representante no puede exceder 200 caracteres' })
+	@Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+	@IsOptional()
+	legalRepresentativeContact?: string | null;
 }

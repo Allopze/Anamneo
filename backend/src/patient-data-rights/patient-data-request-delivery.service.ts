@@ -19,7 +19,8 @@ import {
 import { RequestUser } from '../common/utils/medico-id';
 import { MailService } from '../mail/mail.service';
 import { PatientsRegulatoryExportService } from '../patients/patients-regulatory-export.service';
-import { resolvePatientIdentifiers } from '../patients/patients-identifiers';
+import { computeRutLookupHash, resolvePatientIdentifiers } from '../patients/patients-identifiers';
+import { decryptField, encryptField } from '../common/utils/field-crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateDataRequestExportLinkDto,
@@ -128,9 +129,12 @@ export class PatientDataRequestDeliveryService {
       },
     });
 
+    // Phase F — descifrar para el envío de email; fallback a plaintext durante backfill
+    const requesterEmail = (existing.requesterEmailEnc ? decryptField(existing.requesterEmailEnc) : null) ?? existing.requesterEmail;
+    const requesterName = (existing.requesterNameEnc ? decryptField(existing.requesterNameEnc) : null) ?? existing.requesterName;
     const mailResult = await this.mail.sendDataRequestExportLink({
-      to: existing.requesterEmail,
-      requesterName: existing.requesterName,
+      to: requesterEmail,
+      requesterName,
       requestId: existing.id,
       downloadUrl,
       expiresAt,
@@ -169,12 +173,15 @@ export class PatientDataRequestDeliveryService {
       throw new UnauthorizedException('El enlace alcanzó el máximo de descargas');
     }
 
-    const suppliedRut = normalizeRut(dto.requesterRut);
+    // Phase F — verificar RUT por hash (evita decrypt). Fallback a comparación
+    // normalizada durante la ventana de backfill (cuando requesterRutLookupHash todavía sea null).
     const downloadPatientIdentifiers = resolvePatientIdentifiers(download.patient);
-    const allowedRuts = [download.request.requesterRut, downloadPatientIdentifiers.rut]
-      .filter(Boolean)
-      .map((rut) => normalizeRut(rut as string));
-    if (!allowedRuts.includes(suppliedRut)) {
+    const suppliedRutHash = computeRutLookupHash(dto.requesterRut);
+    const patientRutHash = downloadPatientIdentifiers.rut ? computeRutLookupHash(downloadPatientIdentifiers.rut) : null;
+    const requestRutHash = download.request.requesterRutLookupHash
+      ?? (download.request.requesterRut ? computeRutLookupHash(download.request.requesterRut) : null);
+    const allowedHashes = [requestRutHash, patientRutHash].filter(Boolean);
+    if (!suppliedRutHash || !allowedHashes.includes(suppliedRutHash)) {
       throw new UnauthorizedException('RUT no coincide con la solicitud');
     }
 

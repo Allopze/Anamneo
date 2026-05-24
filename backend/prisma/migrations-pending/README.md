@@ -1,14 +1,14 @@
-# Migraciones pendientes de revision
+# Migraciones pendientes de revisión
 
-Esta carpeta contiene migraciones Prisma que **NO se aplican automaticamente**.
-Estan aqui porque requieren validacion humana antes de cambiar el schema
+Esta carpeta contiene migraciones Prisma que **NO se aplican automáticamente**.
+Están aquí porque requieren validación humana antes de cambiar el schema
 productivo.
 
-Prisma solo ejecuta las migraciones que estan en `prisma/migrations/`.
-Para activar una migracion de esta carpeta:
+Prisma solo ejecuta las migraciones que están en `prisma/migrations/`.
+Para activar una migración de esta carpeta:
 
 ```bash
-# 1. Verificar prerequisitos (cada migracion documenta los suyos arriba)
+# 1. Verificar prerequisitos (cada migración documenta los suyos arriba)
 # 2. Mover el directorio:
 mv prisma/migrations-pending/<id> prisma/migrations/
 # 3. Aplicar:
@@ -17,16 +17,40 @@ npx prisma migrate deploy
 npx prisma generate
 ```
 
-## Migraciones actuales
+---
 
-### `20260524000000_ley21719_phase_c_drop_patient_plaintext`
+## Migraciones pendientes activas
 
-Phase C del cifrado app-level del paciente: drop final de las columnas
-plaintext (`rut`, `nombre`, `telefono`, `email`, `domicilio`,
-`contacto_emergencia_nombre`, `contacto_emergencia_telefono`).
+### `20260524010000_ley21719_phase_d_drop_legal_representative_plaintext`
 
-**Pre-requisitos** documentados en la cabecera de la migracion.
-**Acompanar** con cambios en `schema.prisma` (eliminar las columnas
-plaintext de `model Patient`) y en `patients-presenters.ts` (eliminar
-los argumentos `*Enc, *plain` de `decryptOrFallback` y dejar solo el
-descifrado directo).
+Phase D — drop de las columnas plaintext del representante legal NNA
+(`legal_representative_name`, `legal_representative_rut`,
+`legal_representative_relationship`, `legal_representative_contact`).
+
+**Pre-requisitos** documentados en la cabecera de la migración.
+
+---
+
+### `20260524020000_ley21719_phase_e_drop_consent_signer_plaintext`
+
+Phase E — drop de las columnas plaintext del firmante de consentimiento
+(`signer_name`, `signer_rut`) en `patient_data_processing_consents`.
+
+**Pre-requisitos** documentados en la cabecera de la migración.
+
+---
+
+### `20260524030000_ley21719_phase_f_drop_data_request_requester_plaintext`
+
+Phase F — drop de las columnas plaintext del solicitante DSAR
+(`requester_name`, `requester_rut`, `requester_email`) en `patient_data_requests`.
+
+**Pre-requisitos** documentados en la cabecera de la migración.
+
+---
+
+## Historial (ya activadas)
+
+| Migración | Activada |
+|---|---|
+| `20260524000000_ley21719_phase_c_drop_patient_plaintext` | ✅ Movida a `migrations/` (Phase C) |

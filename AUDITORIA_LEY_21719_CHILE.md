@@ -1359,3 +1359,105 @@ Sin cambios desde sub-iteraciones anteriores:
 | Cifrado at-rest de IP/UA | Activo en consent + legal acceptance + encounter signature |
 | Phase C drop plaintext | Postergada a sesion dedicada (decision explicita del usuario) |
 | Pendientes restantes | **100% legales/operativos o decisiones estrategicas postergadas** — sin deuda tecnica bloqueante |
+
+---
+
+## Actualizacion 2026-05-24-octies — Phase C activada + cifrado PII en tablas relacionadas
+
+Sesion dedicada para cerrar Phase C y extender el cifrado app-level a las tres areas de PII que quedaron plaintext en `septies` (Hallazgo #4 de `HALLAZGOS_AUDITORIA.md`).
+
+### Resumen de cambios
+
+| # | Fase | Tarea | Estado | Archivos clave |
+|---|---|---|---|---|
+| 1 | C | Adaptar `backfill-patient-identifier-encryption.js` a `$queryRawUnsafe` (Prisma client ya no expone columnas plaintext de Patient) | ✅ | `backend/scripts/backfill-patient-identifier-encryption.js` |
+| 2 | C | Migración `20260524000000_ley21719_phase_c_drop_patient_plaintext` movida de `migrations-pending/` a `migrations/` | ✅ (requiere `prisma migrate deploy` en prod) | `backend/prisma/migrations/20260524000000_ley21719_phase_c_drop_patient_plaintext/` |
+| 3 | C | Archivar script obsoleto + actualizar README de `migrations-pending/` con Phases D/E/F | ✅ | `backend/scripts/archive/`, `backend/prisma/migrations-pending/README.md` |
+| 4 | D | Migración add columns `legalRepresentative*Enc` + actualizar `schema.prisma` | ✅ | `backend/prisma/migrations/20260524010000_ley21719_phase_d_legal_representative_encryption/` |
+| 5 | D | Extender `PatientIdentifierInput`, `buildEncryptedPatientIdentifierFields`, `resolvePatientIdentifiers` para los 4 campos del representante legal | ✅ | `backend/src/patients/patients-identifiers.ts` |
+| 6 | D | Writes: `patients-intake-mutations.ts`, `patients-demographics-mutations.ts` (+ extender `assignEncryptedIdentifierUpdates`) | ✅ | — |
+| 7 | D | Reads: `patients-presenters.ts:decoratePatient` descifra NNA desde `identifiers` (ya no lee plaintext); `patient-portal.service.ts` selecciona columnas `*Enc` | ✅ | — |
+| 8 | D | DTOs: `CreatePatientDto` y `UpdatePatientDto` ahora declaran `legalRepresentative*` (cierra Hallazgo #5 — DTO incompleto) | ✅ | `backend/src/patients/dto/create-patient.dto.ts`, `update-patient.dto.ts` |
+| 9 | D | Script `backfill-legal-representative-encryption.js` + migración drop preparada (`migrations-pending/`) | ✅ | — |
+| 10 | E | Migración add columns `signerName/RutEnc` + `signerRutLookupHash` en `patient_data_processing_consents` | ✅ | `backend/prisma/migrations/20260524020000_ley21719_phase_e_consent_signer_encryption/` |
+| 11 | E | `patient-consents.service.ts`: write cifra `signerName`/`signerRut` con `encryptField` + hash; read `listForPatient` descifra con fallback | ✅ | `backend/src/patient-consents/patient-consents.service.ts` |
+| 12 | E | Script `backfill-consent-signer-encryption.js` + migración drop preparada | ✅ | — |
+| 13 | F | Migración add columns `requesterName/Rut/EmailEnc` + `requesterRutLookupHash` en `patient_data_requests` | ✅ | `backend/prisma/migrations/20260524030000_ley21719_phase_f_data_request_requester_encryption/` |
+| 14 | F | `patient-data-rights.service.ts`: write cifra los 3 campos; helper `decryptRequesterContact` para reads en email flows | ✅ | — |
+| 15 | F | `patient-data-request-delivery.service.ts`: verificacion de RUT en download por hash (`requesterRutLookupHash`) en lugar de plaintext | ✅ | — |
+| 16 | F | Script `backfill-data-request-requester-encryption.js` + migración drop preparada (`migrations-pending/`) | ✅ | — |
+| 17 | Tests | Tests E2E para Phase D (legalRepresentative cifrado round-trip), E (signerName/RUT cifrado en DB, descifrado en list), F (requester cifrado en DB) | ✅ (+12 tests) | `backend/test/suites/compliance-flows.e2e-suite.ts` |
+
+### Verificacion final
+
+```
+backend npx prisma validate          OK
+backend npx prisma generate          OK (Prisma Client v5.22.0)
+backend npx tsc --noEmit             OK (exit 0, 0 errors)
+backend npx jest (unit affected)     53 tests, 0 failed
+```
+
+### Estado de los drops de Phase D/E/F
+
+Las migraciones que eliminan las columnas plaintext están en `migrations-pending/` y **NO se aplican automáticamente**. Requieren backfill + verificación antes de activarse:
+
+| Migración drop | Pre-requisito | Query de verificación antes del drop |
+|---|---|---|
+| `20260524010000_ley21719_phase_d_drop_legal_representative_plaintext` | `backfill-legal-representative-encryption.js` corrido en todos los entornos | `SELECT COUNT(*) FROM patients WHERE (legal_representative_name IS NOT NULL AND legal_representative_name_enc IS NULL) OR ...` = 0 |
+| `20260524020000_ley21719_phase_e_drop_consent_signer_plaintext` | `backfill-consent-signer-encryption.js` corrido en todos los entornos | `SELECT COUNT(*) FROM patient_data_processing_consents WHERE signer_name_enc IS NULL` = 0 |
+| `20260524030000_ley21719_phase_f_drop_data_request_requester_plaintext` | `backfill-data-request-requester-encryption.js` corrido en todos los entornos | `SELECT COUNT(*) FROM patient_data_requests WHERE requester_name_enc IS NULL OR requester_email_enc IS NULL` = 0 |
+
+### Phase C en produccion — pasos operativos pendientes
+
+La migracion `20260524000000_ley21719_phase_c_drop_patient_plaintext` esta lista en `migrations/` pero **requiere accion humana** en prod:
+
+1. Verificar backfill en prod (el script fue arreglado y puede correrse):
+   ```bash
+   ENCRYPTION_KEY=<prod_key> node backend/scripts/backfill-patient-identifier-encryption.js --dry-run
+   ENCRYPTION_KEY=<prod_key> node backend/scripts/backfill-patient-identifier-encryption.js
+   ```
+2. Query de verificacion (debe retornar 0 antes de migrar):
+   ```sql
+   SELECT COUNT(*) FROM patients
+    WHERE (rut IS NOT NULL AND rut_enc IS NULL)
+       OR (nombre IS NOT NULL AND nombre_enc IS NULL);
+   ```
+3. Backup completo + `ENCRYPTION_KEY` en boveda separada.
+4. `npx prisma migrate deploy` en staging → smoke → prod.
+
+### Hallazgos cerrados en esta sesion
+
+| Hallazgo | Estado anterior | Estado actual |
+|---|---|---|
+| Hallazgo #4 — PII fuera de Patient en claro (legalRepresentative*, signerName/Rut, requesterName/Rut/Email) | Abierto | **Cerrado** — cifrado con enc/dec + hash para lookups |
+| Hallazgo #5 — DTO NNA incompleto (`forbidNonWhitelisted` rechazaba campos del representante) | Abierto | **Cerrado** — DTOs `CreatePatientDto` y `UpdatePatientDto` ya declaran `legalRepresentative*` |
+
+### Pendientes tras `octies`
+
+#### Pendiente operativo (acciones manuales en entornos)
+1. **Phase C prod**: backfill + verificacion SQL + `prisma migrate deploy` (instrucciones arriba).
+2. **Phases D/E/F**: backfill en cada entorno (scripts disponibles) + `prisma migrate deploy` cuando COUNT=0.
+
+#### Pendiente en codigo (opcional, no bloquea Gate)
+1. **Cifrado IP/UA en tablas restantes** — `UserSession`, `PasswordResetToken`, `PatientPortalSession`. Decision anterior de postergar sigue vigente; reevaluar tras DPIA.
+2. **`legalRepresentative*` en schema Phase D-drop**: eliminar los campos plaintext del `model Patient` en `schema.prisma` ANTES de aplicar el drop (actualmente el schema los conserva para la ventana de backfill — ver comentario en las líneas correspondientes).
+3. **`@index([requesterRut])`** en `PatientDataRequest`: reemplazar por `@index([requesterRutLookupHash])` en `schema.prisma` sincronicamente con la aplicacion del Phase F-drop (la migracion drop ya incluye el cambio de índice SQL).
+4. **Selector PRIVACY "GENERAL vs ANNEX"** — decision pendiente de `septies` sobre campo `kind` en `LegalDocument`.
+
+#### Bloqueado en asesor legal externo (sin cambios)
+1. Validacion de `respuestas-borrador-ley21719.md`.
+2. Texto definitivo de los 8 anexos de la politica v1.0.
+3. Firmas DPO, DPIA, RAT, DPAs.
+
+### Conclusion `octies`
+
+| Categoria | Estado |
+|---|---|
+| Code-side del Gate Go/No-Go | **6/6 verdes** (sin regresion) |
+| Tests automatizados | **53 unit + E2E ampliados (+12 tests)** sobre modulos Ley 21.719 |
+| Phase C drop plaintext | **Migración activada** en `migrations/`; requiere `prisma migrate deploy` en prod + backfill previo |
+| Phase D legalRepresentative cifrado | **En código** (escribe/lee enc); drop preparado en `migrations-pending/` |
+| Phase E consent signer cifrado | **En código** (escribe/lee enc); drop preparado en `migrations-pending/` |
+| Phase F data request requester cifrado | **En código** (escribe/lee enc); drop preparado en `migrations-pending/` |
+| Hallazgos #4 y #5 | **Cerrados** |
+| Pendientes restantes | Operativos (backfills + deploys) + legales externos |

@@ -12,10 +12,10 @@ export function ErrorAlert(props: { message: string; title?: string }) {
       role="alert"
       aria-live="polite"
     >
-      <FiAlertCircle className="w-5 h-5 text-status-red flex-shrink-0 mt-0.5" />
+      <FiAlertCircle className="w-5 h-5 text-status-red flex-shrink-0 mt-0.5" aria-hidden="true" />
       <div>
         {title && <p className="text-sm font-semibold text-red-800 mb-1">{title}</p>}
-        <p className="text-sm text-status-red whitespace-pre-line">{message}</p>
+        <p className="text-sm text-status-red-text whitespace-pre-line">{message}</p>
       </div>
     </div>
   );

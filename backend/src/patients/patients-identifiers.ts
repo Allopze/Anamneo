@@ -9,6 +9,10 @@ export type PatientIdentifierInput = {
   domicilio?: string | null;
   contactoEmergenciaNombre?: string | null;
   contactoEmergenciaTelefono?: string | null;
+  legalRepresentativeName?: string | null;
+  legalRepresentativeRut?: string | null;
+  legalRepresentativeRelationship?: string | null;
+  legalRepresentativeContact?: string | null;
 };
 
 export type PatientEncryptedIdentifierShape = {
@@ -19,6 +23,16 @@ export type PatientEncryptedIdentifierShape = {
   domicilioEnc?: string | null;
   contactoEmergenciaNombreEnc?: string | null;
   contactoEmergenciaTelefonoEnc?: string | null;
+  legalRepresentativeNameEnc?: string | null;
+  legalRepresentativeRutEnc?: string | null;
+  legalRepresentativeRutLookupHash?: string | null;
+  legalRepresentativeRelationshipEnc?: string | null;
+  legalRepresentativeContactEnc?: string | null;
+  // Plaintext columns — kept temporarily until Phase D-drop backfill is applied
+  legalRepresentativeName?: string | null;
+  legalRepresentativeRut?: string | null;
+  legalRepresentativeRelationship?: string | null;
+  legalRepresentativeContact?: string | null;
 };
 
 export type PatientPlainIdentifiers = {
@@ -29,6 +43,10 @@ export type PatientPlainIdentifiers = {
   domicilio: string | null;
   contactoEmergenciaNombre: string | null;
   contactoEmergenciaTelefono: string | null;
+  legalRepresentativeName: string | null;
+  legalRepresentativeRut: string | null;
+  legalRepresentativeRelationship: string | null;
+  legalRepresentativeContact: string | null;
 };
 
 export const PATIENT_ENCRYPTED_IDENTIFIER_SELECT = {
@@ -39,6 +57,11 @@ export const PATIENT_ENCRYPTED_IDENTIFIER_SELECT = {
   domicilioEnc: true,
   contactoEmergenciaNombreEnc: true,
   contactoEmergenciaTelefonoEnc: true,
+  legalRepresentativeNameEnc: true,
+  legalRepresentativeRutEnc: true,
+  legalRepresentativeRutLookupHash: true,
+  legalRepresentativeRelationshipEnc: true,
+  legalRepresentativeContactEnc: true,
 } as const;
 
 export function normalizeRutLookupValue(rut: string | null | undefined): string | null {
@@ -86,6 +109,11 @@ export function buildEncryptedPatientIdentifierFields(input: PatientIdentifierIn
     domicilioEnc: encryptIdentifierValue(input.domicilio),
     contactoEmergenciaNombreEnc: encryptIdentifierValue(input.contactoEmergenciaNombre),
     contactoEmergenciaTelefonoEnc: encryptIdentifierValue(input.contactoEmergenciaTelefono),
+    legalRepresentativeNameEnc: encryptIdentifierValue(input.legalRepresentativeName),
+    legalRepresentativeRutEnc: encryptIdentifierValue(input.legalRepresentativeRut),
+    legalRepresentativeRutLookupHash: computeRutLookupHash(input.legalRepresentativeRut),
+    legalRepresentativeRelationshipEnc: encryptIdentifierValue(input.legalRepresentativeRelationship),
+    legalRepresentativeContactEnc: encryptIdentifierValue(input.legalRepresentativeContact),
   };
 }
 
@@ -103,6 +131,11 @@ export function resolvePatientIdentifiers(patient: PatientEncryptedIdentifierSha
     domicilio: decryptPatientIdentifier(patient.domicilioEnc),
     contactoEmergenciaNombre: decryptPatientIdentifier(patient.contactoEmergenciaNombreEnc),
     contactoEmergenciaTelefono: decryptPatientIdentifier(patient.contactoEmergenciaTelefonoEnc),
+    // Phase D — descifrar representante legal. Fallback a plaintext durante la ventana de backfill.
+    legalRepresentativeName: decryptPatientIdentifier(patient.legalRepresentativeNameEnc) ?? patient.legalRepresentativeName ?? null,
+    legalRepresentativeRut: decryptPatientIdentifier(patient.legalRepresentativeRutEnc) ?? patient.legalRepresentativeRut ?? null,
+    legalRepresentativeRelationship: decryptPatientIdentifier(patient.legalRepresentativeRelationshipEnc) ?? patient.legalRepresentativeRelationship ?? null,
+    legalRepresentativeContact: decryptPatientIdentifier(patient.legalRepresentativeContactEnc) ?? patient.legalRepresentativeContact ?? null,
   };
 }
 

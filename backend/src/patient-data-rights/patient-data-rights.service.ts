@@ -18,6 +18,8 @@ import {
   ResolveDataRequestDto,
 } from './dto/patient-data-rights.dto';
 import { PatientDataRequestDeliveryService } from './patient-data-request-delivery.service';
+import { decryptField, encryptField } from '../common/utils/field-crypto';
+import { computeRutLookupHash } from '../patients/patients-identifiers';
 
 const RESPONSE_SLA_DAYS = 30; // Ley 21.719 Art 11 (30 dias corridos)
 const PRORROGA_DAYS = 30;
@@ -63,6 +65,11 @@ export class PatientDataRightsService {
         requesterName: dto.requesterName,
         requesterRut: dto.requesterRut,
         requesterEmail: dto.requesterEmail,
+        // Phase F — cifrado app-level del solicitante DSAR
+        requesterNameEnc: encryptField(dto.requesterName),
+        requesterRutEnc: dto.requesterRut ? encryptField(dto.requesterRut) : null,
+        requesterRutLookupHash: computeRutLookupHash(dto.requesterRut ?? null),
+        requesterEmailEnc: encryptField(dto.requesterEmail),
         payloadRequest: dto.payloadRequest,
         dueDate,
       },
@@ -83,7 +90,7 @@ export class PatientDataRightsService {
       },
     });
 
-    // Acuse de recibo al titular
+    // Acuse de recibo al titular (se usan los datos en memoria, no desde DB, para evitar decrypt en create)
     await this.mail.sendDataRequestAcknowledgement({
       to: dto.requesterEmail,
       requesterName: dto.requesterName,
@@ -91,6 +98,8 @@ export class PatientDataRightsService {
       requestType: dto.requestType,
       dueDate,
     });
+    // NOTE: dto.requesterEmail / dto.requesterName se usan directamente aquí (en memoria, pre-persist)
+    // porque acabamos de crearlos. En flujos de re-notificación, usar decryptRequesterContact().
 
     return { id: created.id, status: created.status, dueDate: created.dueDate };
   }
@@ -153,6 +162,14 @@ export class PatientDataRightsService {
     return updated;
   }
 
+  /** Descifra los campos de contacto del requester; fallback a plaintext durante ventana de backfill */
+  private decryptRequesterContact(item: { requesterName: string; requesterEmail: string; requesterNameEnc: string | null; requesterEmailEnc: string | null }) {
+    return {
+      requesterName: (item.requesterNameEnc ? decryptField(item.requesterNameEnc) : null) ?? item.requesterName,
+      requesterEmail: (item.requesterEmailEnc ? decryptField(item.requesterEmailEnc) : null) ?? item.requesterEmail,
+    };
+  }
+
   async extend(id: string, dto: ExtendDataRequestDto, user: RequestUser) {
     const existing = await this.prisma.patientDataRequest.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Solicitud no encontrada');
@@ -171,9 +188,10 @@ export class PatientDataRightsService {
       action: 'UPDATE',
       diff: { extension: true, prorrogaDueDate: prorrogaDueDate.toISOString(), reason: dto.reason.slice(0, 200) },
     });
+    const { requesterName, requesterEmail } = this.decryptRequesterContact(existing);
     await this.mail.sendDataRequestExtended({
-      to: existing.requesterEmail,
-      requesterName: existing.requesterName,
+      to: requesterEmail,
+      requesterName,
       requestId: existing.id,
       requestType: existing.requestType,
       newDueDate: prorrogaDueDate,
@@ -204,18 +222,19 @@ export class PatientDataRightsService {
       action: 'UPDATE',
       diff: { status: dto.status, resolvedAt: new Date().toISOString() },
     });
+    const { requesterName, requesterEmail } = this.decryptRequesterContact(existing);
     if (dto.status === 'RESUELTA_ACEPTADA') {
       await this.mail.sendDataRequestResolved({
-        to: existing.requesterEmail,
-        requesterName: existing.requesterName,
+        to: requesterEmail,
+        requesterName,
         requestId: existing.id,
         requestType: existing.requestType,
         resolutionNote: dto.resolutionNote,
       });
     } else {
       await this.mail.sendDataRequestRejected({
-        to: existing.requesterEmail,
-        requesterName: existing.requesterName,
+        to: requesterEmail,
+        requesterName,
         requestId: existing.id,
         requestType: existing.requestType,
         reason: dto.resolutionNote,

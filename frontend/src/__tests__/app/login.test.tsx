@@ -65,6 +65,14 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText('Correo electrónico')).toBeInTheDocument();
     expect(screen.getByLabelText('Contraseña')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toHaveTextContent('Iniciar sesión');
+    expect(screen.getByRole('button', { name: 'Iniciar sesión' }).closest('form')).toHaveAttribute(
+      'method',
+      'post',
+    );
+    expect(screen.getByRole('button', { name: 'Iniciar sesión' }).closest('form')).toHaveAttribute(
+      'novalidate',
+      '',
+    );
   });
 
   it('shows validation errors for empty submit', async () => {
@@ -186,8 +194,12 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     expect(await screen.findByText('Verificación 2FA')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Verificar código' }).closest('form')).toHaveAttribute(
+      'method',
+      'post',
+    );
 
-    await user.click(screen.getByRole('button', { name: 'Usar código de recuperación' }));
+    await user.click(screen.getByRole('button', { name: 'Código de recuperación' }));
     await user.type(screen.getByLabelText('Código de recuperación'), 'ABCD-EFGH');
     await user.click(screen.getByRole('button', { name: 'Verificar código' }));
 
@@ -217,7 +229,7 @@ describe('LoginPage', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('Credenciales incorrectas. Verifica tu correo y contraseña.')
+        screen.getByText('No pudimos iniciar sesión. Revisa tus credenciales o recupera tu contraseña.')
       ).toBeInTheDocument();
     });
   });

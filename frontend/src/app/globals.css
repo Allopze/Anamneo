@@ -402,7 +402,7 @@ body {
 
   /* ── Auth Screens ─────────────── */
   .auth-shell {
-    @apply relative min-h-screen overflow-hidden lg:grid lg:grid-cols-[0.94fr,1.06fr];
+    @apply relative min-h-[100dvh] overflow-hidden lg:grid lg:grid-cols-[0.94fr,1.06fr];
     background:
       linear-gradient(180deg, rgba(253, 252, 251, 0.96), rgba(239, 237, 232, 0.98));
   }
@@ -420,7 +420,7 @@ body {
   }
 
   .auth-hero {
-    @apply relative flex flex-col justify-center border-b border-frame/10 bg-frame px-5 py-7 text-white sm:px-6 sm:py-10 lg:min-h-screen lg:border-b-0 lg:px-14 lg:py-14;
+    @apply relative flex flex-col justify-center border-b border-frame/10 bg-frame px-5 py-7 text-white sm:px-6 sm:py-10 lg:min-h-[100dvh] lg:border-b-0 lg:px-14 lg:py-14;
     background:
       linear-gradient(155deg, rgba(36, 36, 34, 0.99), rgba(48, 49, 45, 0.99));
   }
@@ -534,6 +534,68 @@ body {
     @apply mt-6 border-t border-surface-muted/35 pt-5 text-sm;
   }
 
+  .auth-login-skeleton {
+    @apply space-y-4;
+  }
+
+  .auth-skeleton {
+    @apply rounded-full;
+    background: linear-gradient(90deg, rgba(31, 79, 74, 0.08), rgba(31, 79, 74, 0.15), rgba(31, 79, 74, 0.08));
+    animation: auth-skeleton-pulse 1.5s ease-in-out infinite;
+  }
+
+  .auth-hero .auth-skeleton {
+    background: linear-gradient(90deg, rgba(159, 198, 189, 0.14), rgba(159, 198, 189, 0.26), rgba(159, 198, 189, 0.14));
+  }
+
+  .auth-skeleton-kicker {
+    @apply h-3 w-28;
+  }
+
+  .auth-skeleton-hero-title {
+    @apply mt-5 h-8 w-full max-w-[20rem] sm:h-12;
+  }
+
+  .auth-skeleton-hero-copy {
+    @apply mt-5 hidden h-5 w-full max-w-[22rem] sm:block;
+  }
+
+  .auth-skeleton-logo {
+    @apply h-14 w-14 rounded-2xl;
+  }
+
+  .auth-skeleton-card-kicker {
+    @apply h-3 w-16;
+  }
+
+  .auth-skeleton-card-title {
+    @apply h-8 w-48;
+  }
+
+  .auth-skeleton-card-copy {
+    @apply h-4 w-full max-w-[16rem];
+  }
+
+  .auth-skeleton-input {
+    @apply h-[50px] w-full rounded-input;
+  }
+
+  .auth-skeleton-button {
+    @apply h-[46px] w-full rounded-pill;
+    background: linear-gradient(90deg, rgba(47, 111, 104, 0.16), rgba(47, 111, 104, 0.28), rgba(47, 111, 104, 0.16));
+  }
+
+  @keyframes auth-skeleton-pulse {
+    0%,
+    100% {
+      opacity: 0.72;
+    }
+
+    50% {
+      opacity: 1;
+    }
+  }
+
   .auth-card .form-input {
     @apply rounded-input bg-white px-4 py-3 shadow-none;
   }
@@ -556,11 +618,11 @@ body {
   }
 
   .auth-password-toggle {
-    @apply absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-muted/45 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20;
+    @apply absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 touch-manipulation items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-muted/45 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20;
   }
 
   .auth-forgot-password {
-    @apply float-right -mt-6 text-micro font-medium text-ink-muted;
+    @apply w-full justify-center text-sm font-semibold text-ink-muted;
   }
 
   .auth-note {
@@ -590,7 +652,11 @@ body {
   }
 
   .auth-inline-link {
-    @apply inline-flex items-center gap-1 font-semibold text-ink transition-colors hover:text-frame;
+    @apply inline-flex min-h-11 touch-manipulation items-center gap-1 px-1 font-semibold text-ink transition-colors hover:text-frame focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20;
+  }
+
+  .auth-secondary-action {
+    @apply inline-flex min-h-11 w-full touch-manipulation items-center justify-center rounded-pill text-center text-sm font-semibold text-ink-secondary transition-colors hover:bg-surface-base/60 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20;
   }
 
   .auth-inline-metrics {
@@ -634,7 +700,7 @@ body {
   }
 
   .auth-shell-login-compact .auth-hero {
-    @apply px-5 py-8 sm:px-8 sm:py-9 lg:px-14;
+    @apply px-5 py-5 sm:px-8 sm:py-9 lg:px-14;
     background: #253430;
   }
 
@@ -648,11 +714,11 @@ body {
   }
 
   .auth-shell-login-compact .auth-headline {
-    @apply text-[1.9rem] font-bold sm:text-[2.45rem];
+    @apply text-[1.65rem] font-bold sm:text-[2.45rem];
   }
 
   .auth-shell-login-compact .auth-hero-description {
-    @apply mt-4 max-w-md text-[0.96rem] leading-7;
+    @apply mt-4 hidden max-w-md text-[0.96rem] leading-7 sm:block;
     color: rgba(255, 255, 255, 0.78);
   }
 
@@ -696,16 +762,39 @@ body {
   }
 
   .auth-shell-login-compact .auth-panel {
-    @apply items-center justify-center px-5 py-7 sm:px-8 lg:justify-start lg:px-20;
+    @apply items-center justify-center px-5 py-4 sm:px-8 sm:py-7 lg:justify-start lg:px-20;
   }
 
   .auth-shell-login-compact .auth-card {
-    @apply max-w-[29rem] rounded-2xl border bg-white p-6 shadow-elevated sm:p-8;
+    @apply max-w-[29rem] rounded-2xl border bg-white p-5 shadow-elevated sm:p-8;
     border-color: rgba(31, 79, 74, 0.12);
   }
 
   .auth-shell-login-compact .auth-card-header {
-    @apply mb-6;
+    @apply mb-5 sm:mb-6;
+  }
+
+  .auth-shell-login-compact .auth-card-2fa .auth-card-header {
+    @apply mb-4 sm:mb-6;
+  }
+
+  .auth-shell-login-compact .auth-card-2fa .auth-card-header > .flex:first-child {
+    display: none;
+  }
+
+  @media (min-width: 640px) {
+    .auth-shell-login-compact .auth-card-2fa .auth-card-header > .flex:first-child {
+      display: flex;
+    }
+  }
+
+  .auth-shell-login-compact .auth-card-2fa .auth-step-bar,
+  .auth-shell-login-compact .auth-card-2fa .auth-note {
+    @apply mb-4 gap-1.5;
+  }
+
+  .auth-shell-login-compact .auth-card-2fa form {
+    @apply space-y-3 sm:space-y-5;
   }
 
   .auth-shell-login-compact .auth-card-kicker {
@@ -819,6 +908,19 @@ body {
 
   .auth-role-indicator {
     @apply mt-1 h-3 w-3 shrink-0 rounded-full border border-surface-muted bg-surface-base;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .auth-shell *,
+    .auth-shell *::before,
+    .auth-shell *::after,
+    .loading-shell *,
+    .loading-shell *::before,
+    .loading-shell *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 
   /* ── Legal Documents ──────────── */

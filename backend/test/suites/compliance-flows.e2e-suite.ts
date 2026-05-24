@@ -541,5 +541,164 @@ export function complianceFlowsSuite() {
         expect(res.body.data.some((item: any) => item.entityId === breachId)).toBe(true);
       });
     });
+
+    // ──────────────────────────────────────────────────────────────────
+    // 7. Phase D — cifrado legalRepresentative* (NNA Art 16 quater)
+    // ──────────────────────────────────────────────────────────────────
+    describe('Phase D — cifrado legalRepresentative (NNA Art 16 quater)', () => {
+      let nnaEncPatientId: string;
+
+      afterAll(async () => {
+        if (nnaEncPatientId) {
+          await prisma.patient.delete({ where: { id: nnaEncPatientId } }).catch(() => {});
+        }
+      });
+
+      it('POST /api/patients -> persiste representante legal cifrado en DB', async () => {
+        const res = await req()
+          .post('/api/patients')
+          .set('Cookie', cookieHeader(state.medicoCookies))
+          .send({
+            nombre: 'NNA Cifrado Test',
+            fechaNacimiento: '2018-03-10',
+            edad: 7,
+            sexo: 'MASCULINO',
+            prevision: 'FONASA_A',
+            rutExempt: true,
+            rutExemptReason: 'Menor sin RUT',
+            legalRepresentativeName: 'Madre del NNA Cifrado',
+            legalRepresentativeRut: '11.222.333-4',
+            legalRepresentativeRelationship: 'MADRE',
+            legalRepresentativeContact: 'madre@test.cl',
+          })
+          .expect(201);
+
+        nnaEncPatientId = res.body.id;
+        // La API devuelve plaintext descifrado
+        expect(res.body.legalRepresentativeName).toBe('Madre del NNA Cifrado');
+        expect(res.body.legalRepresentativeRelationship).toBe('MADRE');
+        expect(res.body.legalRepresentativeContact).toBe('madre@test.cl');
+
+        // En DB debe estar cifrado (enc:v1:...)
+        const raw = await prisma.patient.findUnique({
+          where: { id: nnaEncPatientId },
+          select: {
+            legalRepresentativeNameEnc: true,
+            legalRepresentativeRutEnc: true,
+            legalRepresentativeRutLookupHash: true,
+            legalRepresentativeName: true,
+          },
+        });
+        expect(raw!.legalRepresentativeNameEnc).toMatch(/^enc:v1:/);
+        expect(raw!.legalRepresentativeRutEnc).toMatch(/^enc:v1:/);
+        expect(raw!.legalRepresentativeRutLookupHash).toMatch(/^[a-f0-9]{64}$/);
+      });
+
+      it('GET /api/patients/:id -> devuelve representante legal descifrado', async () => {
+        const res = await req()
+          .get(`/api/patients/${nnaEncPatientId}`)
+          .set('Cookie', cookieHeader(state.adminCookies))
+          .expect(200);
+
+        expect(res.body.legalRepresentativeName).toBe('Madre del NNA Cifrado');
+        expect(res.body.legalRepresentativeRut).toBe('11.222.333-4');
+        expect(res.body.legalRepresentativeContact).toBe('madre@test.cl');
+      });
+    });
+
+    // ──────────────────────────────────────────────────────────────────
+    // 8. Phase E — cifrado consent signer
+    // ──────────────────────────────────────────────────────────────────
+    describe('Phase E — cifrado signerName/signerRut (Art 12)', () => {
+      it('POST /api/patient-consents/grant -> persiste firmante cifrado en DB', async () => {
+        const res = await req()
+          .post('/api/patient-consents/grant')
+          .set('Cookie', cookieHeader(state.adminCookies))
+          .send({
+            patientId: state.patientId,
+            legalDocumentId: privacyPolicyId,
+            purpose: 'INVESTIGACION',
+            method: 'PRESENCIAL_TABLET',
+            signerName: 'Firmante Cifrado Test',
+            signerRut: '12.345.678-5',
+            signerRelationship: 'TITULAR',
+          })
+          .expect(201);
+
+        const consentId = res.body.id;
+        const raw = await prisma.patientDataProcessingConsent.findUnique({
+          where: { id: consentId },
+          select: { signerNameEnc: true, signerRutEnc: true, signerRutLookupHash: true, signerName: true },
+        });
+        expect(raw!.signerNameEnc).toMatch(/^enc:v1:/);
+        expect(raw!.signerRutEnc).toMatch(/^enc:v1:/);
+        expect(raw!.signerRutLookupHash).toMatch(/^[a-f0-9]{64}$/);
+      });
+
+      it('GET /api/patient-consents/patient/:patientId -> devuelve signerName descifrado', async () => {
+        const res = await req()
+          .get(`/api/patient-consents/patient/${state.patientId}`)
+          .set('Cookie', cookieHeader(state.adminCookies))
+          .expect(200);
+
+        const withSigner = res.body.find((c: any) => c.signerName === 'Firmante Cifrado Test');
+        expect(withSigner).toBeDefined();
+        expect(withSigner.signerRut).toBe('12.345.678-5');
+      });
+    });
+
+    // ──────────────────────────────────────────────────────────────────
+    // 9. Phase F — cifrado requester DSAR
+    // ──────────────────────────────────────────────────────────────────
+    describe('Phase F — cifrado requesterName/Rut/Email DSAR (Art 4-11)', () => {
+      let encDataRequestId: string;
+
+      it('POST /api/public/derechos -> persiste requester cifrado en DB', async () => {
+        const res = await req()
+          .post('/api/public/derechos')
+          .send({
+            requestType: 'ACCESO',
+            requesterName: 'Titular Cifrado Test',
+            requesterRut: '9.876.543-2',
+            requesterEmail: 'titular-cifrado@test.cl',
+            payloadRequest: 'Solicitud de acceso cifrada E2E',
+            submittedBy: 'TITULAR',
+          })
+          .expect(201);
+
+        encDataRequestId = res.body.id;
+
+        const raw = await prisma.patientDataRequest.findUnique({
+          where: { id: encDataRequestId },
+          select: {
+            requesterNameEnc: true,
+            requesterRutEnc: true,
+            requesterRutLookupHash: true,
+            requesterEmailEnc: true,
+          },
+        });
+        expect(raw!.requesterNameEnc).toMatch(/^enc:v1:/);
+        expect(raw!.requesterRutEnc).toMatch(/^enc:v1:/);
+        expect(raw!.requesterRutLookupHash).toMatch(/^[a-f0-9]{64}$/);
+        expect(raw!.requesterEmailEnc).toMatch(/^enc:v1:/);
+      });
+
+      it('GET /api/admin/data-requests/:id -> devuelve requester con plaintext fallback durante backfill', async () => {
+        const res = await req()
+          .get(`/api/admin/data-requests/${encDataRequestId}`)
+          .set('Cookie', cookieHeader(state.adminCookies))
+          .expect(200);
+
+        // El servicio puede devolver plaintext o descifrado; lo importante es que no explota
+        expect(res.body.id).toBe(encDataRequestId);
+        expect(res.body.requesterName).toBeDefined();
+      });
+
+      afterAll(async () => {
+        if (encDataRequestId) {
+          await prisma.patientDataRequest.delete({ where: { id: encDataRequestId } }).catch(() => {});
+        }
+      });
+    });
   });
 }

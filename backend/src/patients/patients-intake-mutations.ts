@@ -79,6 +79,10 @@ export async function createPatientMutation(params: CreatePatientMutationParams)
     email: normalizeNullableEmail(createPatientDto.email),
     contactoEmergenciaNombre: normalizeNullableString(createPatientDto.contactoEmergenciaNombre),
     contactoEmergenciaTelefono: normalizeNullableString(createPatientDto.contactoEmergenciaTelefono),
+    legalRepresentativeName: normalizeNullableString(createPatientDto.legalRepresentativeName),
+    legalRepresentativeRut: createPatientDto.legalRepresentativeRut?.trim() || null,
+    legalRepresentativeRelationship: normalizeNullableString(createPatientDto.legalRepresentativeRelationship),
+    legalRepresentativeContact: normalizeNullableString(createPatientDto.legalRepresentativeContact),
   };
 
   return prisma.$transaction(async (tx) => {
@@ -148,6 +152,10 @@ export async function createQuickPatientMutation(params: CreatePatientQuickMutat
     email: null,
     contactoEmergenciaNombre: null,
     contactoEmergenciaTelefono: null,
+    legalRepresentativeName: null,
+    legalRepresentativeRut: null,
+    legalRepresentativeRelationship: null,
+    legalRepresentativeContact: null,
   };
 
   return prisma.$transaction(async (tx) => {

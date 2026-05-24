@@ -2,29 +2,33 @@
 /* eslint-disable no-console */
 /**
  * Backfill de cifrado app-level de identificatorios del paciente
- * (Ley 21.719 Art 14 quinquies lit a — Phase B).
+ * (Ley 21.719 Art 14 quinquies lit a — Phase C prerequisite).
  *
- * Recorre todos los `Patient` y, cuando no tienen `*_enc` o `rut_lookup_hash`
+ * Lee las columnas plaintext directamente desde la DB con $queryRawUnsafe
+ * porque el Prisma client ya fue regenerado sin esas columnas (schema.prisma
+ * ya las eliminó del modelo Patient). La DB todavía las tiene hasta que se
+ * aplique la migración 20260524000000_ley21719_phase_c_drop_patient_plaintext.
+ *
+ * Recorre todos los Patient y, cuando no tienen `*_enc` / `rut_lookup_hash`
  * poblados, los calcula a partir de los valores plaintext y los persiste.
  *
  * Pre-requisitos:
- *   - ENCRYPTION_KEY configurada (hex 64 chars). Sin clave, el script
- *     aborta porque seria un no-op silencioso peligroso.
- *   - Migracion `20260523070000_ley21719_patient_identifier_encryption`
- *     aplicada (las columnas deben existir).
+ *   - ENCRYPTION_KEY configurada (hex 64 chars). Sin clave, el script aborta.
+ *   - La migración Phase C NO debe haberse aplicado todavía (las columnas
+ *     plaintext deben existir en la DB).
  *
  * Flags:
- *   --dry-run     no escribe nada, solo reporta cuantos paciente se
- *                 actualizarian.
- *   --force       reencripta aunque ya tengan `*_enc`. Util tras rotacion
+ *   --dry-run     no escribe nada, solo reporta cuántos pacientes se
+ *                 actualizarían.
+ *   --force       re-encripta aunque ya tengan `*_enc`. Útil tras rotación
  *                 de clave.
- *   --batch-size  default 200. Numero de pacientes por chunk.
+ *   --batch-size  default 200.
  *
  * Uso:
  *   node backend/scripts/backfill-patient-identifier-encryption.js --dry-run
  *   node backend/scripts/backfill-patient-identifier-encryption.js
  *
- * Auditoria: cada paciente actualizado emite un evento AuditLog
+ * Auditoría: cada paciente actualizado emite un AuditLog
  * `PATIENT_UPDATED` con `scope: 'IDENTIFIER_ENC_BACKFILL'` en el diff.
  */
 
@@ -75,15 +79,26 @@ async function main() {
 
   const hex = process.env.ENCRYPTION_KEY;
   if (!hex || hex.length !== 64) {
-    console.error('[FAIL] ENCRYPTION_KEY no configurada (debe ser hex 64 chars). Abortando para evitar no-op silencioso.');
+    console.error('[FAIL] ENCRYPTION_KEY no configurada (debe ser hex 64 chars). Abortando.');
     process.exit(1);
   }
 
   console.log(`[BACKFILL] iniciado dry-run=${args.dryRun} force=${args.force} batch=${args.batchSize}`);
+  console.log('[BACKFILL] Leyendo columnas plaintext vía $queryRawUnsafe (Prisma client ya no las expone)');
 
   const prisma = new PrismaClient();
   try {
-    const total = await prisma.patient.count();
+    // Verificar que las columnas plaintext todavía existen (la migración Phase C no se aplicó)
+    try {
+      await prisma.$queryRawUnsafe('SELECT rut FROM patients LIMIT 1');
+    } catch {
+      console.error('[FAIL] La columna "rut" ya no existe en la tabla patients.');
+      console.error('       La migración Phase C ya fue aplicada. Este script ya no es necesario.');
+      process.exit(1);
+    }
+
+    const [countResult] = await prisma.$queryRawUnsafe('SELECT COUNT(*)::int AS total FROM patients');
+    const total = countResult.total;
     console.log(`[BACKFILL] ${total} pacientes en total`);
 
     let processed = 0;
@@ -91,32 +106,30 @@ async function main() {
     let skipped = 0;
     let errored = 0;
 
-    let cursor = undefined;
+    let lastId = '';
     while (true) {
-      const batch = await prisma.patient.findMany({
-        take: args.batchSize,
-        skip: cursor ? 1 : 0,
-        ...(cursor ? { cursor: { id: cursor } } : {}),
-        orderBy: { id: 'asc' },
-        select: {
-          id: true,
-          rut: true,
-          nombre: true,
-          telefono: true,
-          email: true,
-          domicilio: true,
-          contactoEmergenciaNombre: true,
-          contactoEmergenciaTelefono: true,
-          rutEnc: true,
-          rutLookupHash: true,
-          nombreEnc: true,
-          telefonoEnc: true,
-          emailEnc: true,
-          domicilioEnc: true,
-          contactoEmergenciaNombreEnc: true,
-          contactoEmergenciaTelefonoEnc: true,
-        },
-      });
+      // Paginación por cursor con id > lastId (evita OFFSET costoso)
+      const batch = await prisma.$queryRawUnsafe(
+        `SELECT id,
+                rut, nombre, telefono, email, domicilio,
+                contacto_emergencia_nombre AS "contactoEmergenciaNombre",
+                contacto_emergencia_telefono AS "contactoEmergenciaTelefono",
+                rut_enc AS "rutEnc",
+                rut_lookup_hash AS "rutLookupHash",
+                nombre_enc AS "nombreEnc",
+                telefono_enc AS "telefonoEnc",
+                email_enc AS "emailEnc",
+                domicilio_enc AS "domicilioEnc",
+                contacto_emergencia_nombre_enc AS "contactoEmergenciaNombreEnc",
+                contacto_emergencia_telefono_enc AS "contactoEmergenciaTelefonoEnc"
+         FROM patients
+         WHERE id > $1
+         ORDER BY id ASC
+         LIMIT $2`,
+        lastId,
+        args.batchSize,
+      );
+
       if (batch.length === 0) break;
 
       for (const p of batch) {
@@ -166,7 +179,7 @@ async function main() {
           console.error(`  [ERR] patient ${p.id}: ${err.message}`);
         }
       }
-      cursor = batch[batch.length - 1].id;
+      lastId = batch[batch.length - 1].id;
       if (batch.length < args.batchSize) break;
     }
 

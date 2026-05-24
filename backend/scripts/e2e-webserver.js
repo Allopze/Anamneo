@@ -26,6 +26,12 @@ function buildDatabaseUrlWithName(databaseUrl, databaseName) {
   return url.toString();
 }
 
+function buildMaintenanceDatabaseUrl(databaseUrl) {
+  const url = new URL(buildDatabaseUrlWithName(databaseUrl, 'postgres'));
+  url.searchParams.delete('schema');
+  return url.toString();
+}
+
 function runOrThrow(command, args, env = process.env) {
   const result = spawnSync(command, args, {
     cwd: backendRoot,
@@ -38,15 +44,15 @@ function runOrThrow(command, args, env = process.env) {
 function prepareTestDatabase() {
   const databaseUrl = resolveDatabaseUrl();
   const databaseName = parseDatabaseName(databaseUrl);
-  const maintenanceUrl = buildDatabaseUrlWithName(databaseUrl, 'postgres');
+  const maintenanceUrl = buildMaintenanceDatabaseUrl(databaseUrl);
   const env = {
     ...process.env,
     DATABASE_URL: databaseUrl,
     MIGRATION_DATABASE_URL: process.env.MIGRATION_DATABASE_URL || databaseUrl,
   };
 
-  runOrThrow('dropdb', ['--if-exists', `--dbname=${maintenanceUrl}`, databaseName], env);
-  runOrThrow('createdb', [`--dbname=${maintenanceUrl}`, databaseName], env);
+  runOrThrow('dropdb', ['--if-exists', `--maintenance-db=${maintenanceUrl}`, databaseName], env);
+  runOrThrow('createdb', [`--maintenance-db=${maintenanceUrl}`, databaseName], env);
 
   if (process.env.UPLOAD_DEST) {
     rmSync(process.env.UPLOAD_DEST, { recursive: true, force: true });

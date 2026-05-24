@@ -4,7 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { GrantPatientDataConsentDto } from './dto/patient-consent.dto';
 import { RequestUser } from '../common/utils/medico-id';
-import { decryptNetMeta, encryptNetMeta } from '../common/utils/field-crypto';
+import { decryptField, decryptNetMeta, encryptField, encryptNetMeta } from '../common/utils/field-crypto';
+import { computeRutLookupHash } from '../patients/patients-identifiers';
 
 /**
  * Servicio del consentimiento del TITULAR para el tratamiento de datos
@@ -61,12 +62,15 @@ export class PatientConsentsService {
         capturedBy: { select: { id: true, nombre: true } },
       },
     });
-    // Ley 21.719 Art 14 quinquies lit a — descifrar metadatos de red al
+    // Ley 21.719 Art 14 quinquies lit a — descifrar metadatos de red y firmante al
     // exponerlos al UI admin (cifrados at-rest desde el write).
     const consents = consentsRaw.map((c) => ({
       ...c,
       capturedIp: decryptNetMeta(c.capturedIp),
       capturedUserAgent: decryptNetMeta(c.capturedUserAgent),
+      // Phase E — descifrar firmante; fallback a plaintext durante ventana de backfill
+      signerName: (c.signerNameEnc ? decryptField(c.signerNameEnc) : null) ?? c.signerName,
+      signerRut: c.signerRutEnc ? decryptField(c.signerRutEnc) : c.signerRut,
     }));
 
     await this.audit.log({
@@ -134,6 +138,10 @@ export class PatientConsentsService {
         capturedByUserId: dto.method === 'WEB_TITULAR' ? null : user.id,
         signerName: dto.signerName,
         signerRut: dto.signerRut,
+        // Phase E — cifrado app-level del firmante
+        signerNameEnc: encryptField(dto.signerName),
+        signerRutEnc: dto.signerRut ? encryptField(dto.signerRut) : null,
+        signerRutLookupHash: computeRutLookupHash(dto.signerRut ?? null),
         signerRelationship: dto.signerRelationship,
         evidenceHash,
         language: dto.language ?? 'es-CL',

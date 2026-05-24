@@ -278,6 +278,8 @@ export class PatientPortalService {
         telefonoEnc: true,
         legalRepresentativeName: true,
         legalRepresentativeRelationship: true,
+        legalRepresentativeNameEnc: true,
+        legalRepresentativeRelationshipEnc: true,
       },
     });
     if (!patient) throw new NotFoundException('Paciente no encontrado');

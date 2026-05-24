@@ -117,10 +117,17 @@ model Patient {
   // Ej: { "ANALITICA_INTERNA": true, "COMUNICACIONES": false }
   processingObjections Json? @map("processing_objections")
   // Ley 21.719 Art 16 quater (representante legal NNA)
+  // Columnas plaintext mantenidas para backfill (Phase D-drop las eliminará tras verificación).
   legalRepresentativeName         String? @map("legal_representative_name")
   legalRepresentativeRut          String? @map("legal_representative_rut")
   legalRepresentativeRelationship String? @map("legal_representative_relationship")
   legalRepresentativeContact      String? @map("legal_representative_contact")
+  // Phase D — cifrado app-level del representante legal
+  legalRepresentativeNameEnc         String? @map("legal_representative_name_enc")
+  legalRepresentativeRutEnc          String? @map("legal_representative_rut_enc")
+  legalRepresentativeRutLookupHash   String? @map("legal_representative_rut_lookup_hash")
+  legalRepresentativeRelationshipEnc String? @map("legal_representative_relationship_enc")
+  legalRepresentativeContactEnc      String? @map("legal_representative_contact_enc")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
@@ -719,9 +726,13 @@ model PatientDataProcessingConsent {
   // El User que asistio la captura (medico/asistente). Nullable cuando el
   // titular firmo via WEB_TITULAR sin asistencia.
   capturedByUserId String? @map("captured_by_user_id")
-  // Identidad declarada del firmante
+  // Identidad declarada del firmante — plaintext mantenido para backfill (Phase E-drop lo eliminará)
   signerName      String   @map("signer_name")
   signerRut       String?  @map("signer_rut")
+  // Phase E — cifrado app-level del firmante
+  signerNameEnc         String? @map("signer_name_enc")
+  signerRutEnc          String? @map("signer_rut_enc")
+  signerRutLookupHash   String? @map("signer_rut_lookup_hash")
   // TITULAR | PADRE | MADRE | TUTOR | REPRESENTANTE
   signerRelationship String @map("signer_relationship")
   // SHA-256 del payload firmado para integridad
@@ -772,11 +783,15 @@ model PatientDataRequest {
   // TITULAR | REPRESENTANTE | ADMIN
   submittedBy String   @map("submitted_by")
   submittedAt DateTime @default(now()) @map("submitted_at")
-  // Datos del solicitante (puede no estar asociado a Patient aun, si el
-  // titular escribe desde el formulario publico antes de que se le ubique)
+  // Datos del solicitante — plaintext mantenido para backfill (Phase F-drop lo eliminará)
   requesterName  String  @map("requester_name")
   requesterRut   String? @map("requester_rut")
   requesterEmail String  @map("requester_email")
+  // Phase F — cifrado app-level del solicitante DSAR
+  requesterNameEnc         String? @map("requester_name_enc")
+  requesterRutEnc          String? @map("requester_rut_enc")
+  requesterRutLookupHash   String? @map("requester_rut_lookup_hash")
+  requesterEmailEnc        String? @map("requester_email_enc")
   // PRESENCIAL | CEDULA_FOTO | CLAVE_UNICA | OTRO
   identityVerificationMethod String? @map("identity_verification_method")
   identityVerificationEvidence Json? @map("identity_verification_evidence")

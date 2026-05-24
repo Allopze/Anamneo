@@ -83,11 +83,11 @@ export function decoratePatient<T extends Record<string, any>>(patient: T) {
     blockedAt: patient.blockedAt ?? null,
     blockedReason: patient.blockedReason ?? null,
     blockedById: patient.blockedById ?? null,
-    // Ley 21.719 Art 16 quater — representante legal NNA
-    legalRepresentativeName: patient.legalRepresentativeName ?? null,
-    legalRepresentativeRut: patient.legalRepresentativeRut ?? null,
-    legalRepresentativeRelationship: patient.legalRepresentativeRelationship ?? null,
-    legalRepresentativeContact: patient.legalRepresentativeContact ?? null,
+    // Ley 21.719 Art 16 quater — representante legal NNA (descifrado vía resolvePatientIdentifiers)
+    legalRepresentativeName: identifiers.legalRepresentativeName,
+    legalRepresentativeRut: identifiers.legalRepresentativeRut,
+    legalRepresentativeRelationship: identifiers.legalRepresentativeRelationship,
+    legalRepresentativeContact: identifiers.legalRepresentativeContact,
     // Ley 21.719 Art 8 — flags de oposicion por finalidad
     processingObjections: patient.processingObjections ?? null,
     createdAt: patient.createdAt,
