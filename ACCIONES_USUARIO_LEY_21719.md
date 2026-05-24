@@ -1,23 +1,59 @@
-# Acciones que necesito de ti para cerrar cumplimiento Ley 21.719
+# Acciones de privacidad para Anamneo
 
 **Fecha:** 2026-05-24  
-**Alcance:** Anamneo, despliegue single-clinic en Chile  
+**Alcance actual:** app personal de apoyo al estudio de medicina; no comercial, no clínica, no SaaS.  
+**Alcance futuro posible:** despliegue single-clinic en Chile con pacientes reales.  
 **Referencia oficial:** Ley 21.719 / Ley 19.628 modificada, vigencia diferida al 2026-12-01 según BCN/Ley Chile.  
-**Nota:** esto es una guía operativa para cerrar evidencias y decisiones; no reemplaza asesoría legal.
+**Nota:** esto es una guía operativa de reducción de riesgo; no reemplaza asesoría legal.
 
 ## Estado corto
+El enfoque anterior asumía que Anamneo iba camino a operar con datos reales
+de pacientes en contexto clínico. Eso llevaba a una ruta pesada: abogado,
+DPO, DPIA, RAT, DPAs, drills, políticas públicas y evidencia formal.
 
-La base técnica del repo está avanzada: derechos del titular, consentimiento separado de datos, bloqueo temporal, brechas, cifrado app-level de identificatorios principales, adjuntos, snapshots y entregas DSAR ya están implementados o documentados. Lo que falta para poder afirmar cumplimiento es principalmente:
+Para el uso real de hoy, el objetivo correcto es otro:
 
-- validación legal externa,
-- firmas formales,
-- configuración productiva,
-- simulacros/drills con evidencia,
-- contratos con subencargados,
-- publicación efectiva de política v1.0,
-- una ventana controlada para drops de columnas plaintext transitorias.
+- **no ingresar datos reales identificables de pacientes**;
+- usar casos ficticios, simulados o anonimizados para estudiar;
+- mantener la app cerrada, privada y con pocos usuarios;
+- conservar los controles técnicos útiles que ya existen;
+- dejar la ruta legal completa como condición futura si el proyecto cambia
+  de uso personal a uso clínico o comercial.
 
-## Bloqueadores antes de tratar datos reales
+## Ruta recomendada para uso personal/estudio
+Estas son las acciones razonables hoy, sin convertir el proyecto en una carga
+jurídica imposible:
+
+| # | Acción | Por qué importa | Evidencia suficiente |
+|---|---|---|---|
+| 1 | No usar nombres, RUT, emails, teléfonos, direcciones, fotos ni documentos de pacientes reales | Si no hay datos personales identificables, baja drásticamente el riesgo legal y ético | Checklist personal aceptado por quienes usen la app |
+| 2 | Crear casos ficticios o anonimizados antes de ingresarlos | Para estudiar anamnesis y razonamiento clínico no hace falta identificar a nadie | Convención escrita: "todo caso debe ser ficticio o anonimizado" |
+| 3 | Mantener acceso solo para ti y tu novia | Reduce exposición, superficie de ataque y obligaciones prácticas | Inventario corto de usuarios |
+| 4 | No publicar la app como servicio abierto ni promocionarla como herramienta clínica | Evita que se transforme en producto sanitario o tratamiento organizado de datos | README/nota interna de alcance |
+| 5 | Desactivar integraciones externas innecesarias para estudio | Evita enviar datos a proveedores si no aportan valor real | `.env` sin Sentry/SMTP públicos cuando no sean necesarios |
+| 6 | Usar contraseñas fuertes, 2FA si está disponible y cifrado local/disco | Controles simples con buen retorno | Configuración revisada |
+| 7 | Borrar regularmente datos de prueba que ya no sirvan | Minimización práctica | Limpieza mensual o al terminar cada ciclo de estudio |
+| 8 | Si aparece un caso real, transformarlo antes de guardarlo | La regla operativa debe ser "no copiar fichas clínicas" | Datos reemplazados por valores sintéticos |
+
+Regla de oro: si un tercero pudiera reconocer al paciente por el contenido,
+no debe entrar a Anamneo en el modo personal/estudio.
+
+## Línea roja: cuándo vuelve la ruta legal completa
+La ruta pesada vuelve a ser necesaria si ocurre cualquiera de estas cosas:
+
+- se guardan datos reales identificables de pacientes;
+- más personas usan la app como parte de una práctica clínica;
+- una clínica, universidad, consulta o prestador la adopta formalmente;
+- se publica en internet como servicio para terceros;
+- se cobran planes, soporte o acceso;
+- se integran proveedores que procesan datos clínicos reales;
+- se usa IA externa con datos clínicos reales;
+- se quiere afirmar "cumple Ley 21.719" frente a terceros.
+
+## Bloqueadores antes de tratar datos reales identificables
+Lo siguiente **no es necesario para el uso personal con datos ficticios o
+anonimizados**. Sí pasa a ser bloqueador antes de operar con datos reales de
+pacientes o con una institución de salud.
 
 | # | Necesito de ti | Por qué importa | Cómo hacerlo | Evidencia esperada |
 |---|---|---|---|---|
@@ -29,12 +65,13 @@ La base técnica del repo está avanzada: derechos del titular, consentimiento s
 | 6 | Firmar RAT | Acredita responsabilidad proactiva y transparencia por finalidad | Revisar `docs/data-processing-register.md`, completar responsable/proveedores/países/retención, firmar | RAT firmado y versionado |
 | 7 | Firmar DPAs con clínica y subencargados | Cloudflare, Sentry, SMTP, hosting y soporte pueden ser subencargados o transferencias internacionales | Revisar contratos/DPA estándar, completar anexo de subencargados, guardar copias firmadas | Carpeta con DPAs vigentes |
 | 8 | Confirmar matriz de retención sanitaria | La app usa default de 15 años; debe validarse por tipo de ficha/documento | Pedir al abogado confirmar plazo por ficha clínica, adjuntos, consentimientos, logs, backups y snapshots | Tabla final de retención firmada |
-| 9 | Activar `REGULATORY_CONSENT_ENFORCEMENT=hard` en producción | En `soft` el sistema advierte pero no bloquea pacientes sin consentimiento vigente | Activarlo solo después de publicar política v1.0 y cargar/backfillear consentimientos necesarios | `.env` productivo + prueba de bloqueo real |
+| 9 | Activar `REGULATORY_CONSENT_ENFORCEMENT=hard` en producción clínica | En `soft` el sistema advierte pero no bloquea pacientes sin consentimiento vigente | Activarlo solo después de publicar política v1.0 y cargar/backfillear consentimientos necesarios | `.env` productivo + prueba de bloqueo real |
 | 10 | Ejecutar restore drill en infraestructura real | El cumplimiento no se demuestra solo con backups; hay que probar restauración | Forzar restore drill según docs de operación y conservar log | Resultado del drill, fecha, responsable y tiempo de recuperación |
 
-## Configuración productiva que debes completar
+## Configuración si algún día hay producción clínica
 
-Completar `.env` productivo con valores reales, no placeholders:
+Completar `.env` productivo con valores reales, no placeholders, solo si el
+proyecto pasa a tratar pacientes reales:
 
 ```bash
 NODE_ENV=production
@@ -71,9 +108,9 @@ Qué guardar fuera del servidor:
 
 Sin `ENCRYPTION_KEY` no se pueden recuperar identificatorios y adjuntos cifrados si se pierde la clave.
 
-## Proveedores y transferencias internacionales
+## Proveedores y transferencias internacionales futuras
 
-Necesito que confirmes proveedor real y país para:
+Confirmar proveedor real y país solo si hay despliegue clínico o datos reales:
 
 | Servicio | Dato a confirmar | Acción |
 |---|---|---|
@@ -85,9 +122,10 @@ Necesito que confirmes proveedor real y país para:
 
 Resultado esperado: completar `docs/data-processing-register.md` §3 con países, garantías y DPA firmado sí/no.
 
-## Drills que debes ejecutar y documentar
+## Drills para despliegue clínico
 
-Ejecutar en staging o producción controlada, no solo en dev.
+Ejecutar en staging o producción controlada, no solo en dev, si Anamneo pasa
+a un contexto clínico real.
 
 ### 1. Solicitud de derechos del titular
 
@@ -202,7 +240,7 @@ node backend/node_modules/prisma/build/index.js generate --schema backend/prisma
 
 7. Ejecutar typecheck, tests y smoke.
 
-## Validaciones antes de Go/No-Go
+## Validaciones antes de Go/No-Go clínico
 
 Ejecutar desde raíz:
 
@@ -222,9 +260,10 @@ Si Playwright falla porque no hay backend en `:5678`, levantar stack:
 npm run dev
 ```
 
-## Paquete de fiscalización
+## Paquete de fiscalización futuro
 
-Crear un drive/carpeta segura con:
+Crear un drive/carpeta segura solo si se busca operar con datos reales o
+demostrar cumplimiento ante terceros:
 
 - Política de privacidad v1.0 publicada.
 - Términos vigentes.
@@ -245,7 +284,9 @@ Crear un drive/carpeta segura con:
 
 ## Decisión final
 
-No marcar producción con datos reales como lista hasta que estén cerrados:
+Mantener Anamneo en modo personal/estudio mientras use casos ficticios o
+anonimizados. No marcar producción con datos reales como lista hasta que estén
+cerrados:
 
 - política v1.0 publicada,
 - DPO/DPIA/RAT firmados,

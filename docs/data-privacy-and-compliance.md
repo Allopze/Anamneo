@@ -1,14 +1,23 @@
 # Privacidad de Datos y Compliance — Anamneo
 
-Este documento describe cómo Anamneo trata datos personales y datos sensibles
-de salud (PHI/datos clínicos) de pacientes, y los procedimientos mínimos
-exigibles antes de operar con datos reales en Chile bajo la **Ley 21.719**
-(vigencia plena el 01-DIC-2026).
+Este documento describe dos modos de uso posibles de Anamneo:
+
+1. **Modo personal/estudio**, que es el alcance actual: app privada para
+   practicar anamnesis y razonamiento clínico con casos ficticios o
+   anonimizados, sin explotación comercial ni operación clínica.
+2. **Modo clínico/productivo**, que es una posibilidad futura: operación con
+   datos reales identificables de pacientes en Chile bajo la **Ley 21.719**
+   (vigencia plena el 01-DIC-2026) y normativa sanitaria aplicable.
 
 > Este es un marco operativo, no asesoría legal. Antes de procesar PHI real
 > en producción, se debe completar el roadmap de cumplimiento documentado
 > en [ADR-002](architecture-decisions/002-ley-21719-compliance.md) y pasar
 > el Gate Go/No-Go documentado en `/home/allopze/.claude/plans/crea-un-plan-para-logical-hearth.md`.
+
+> Para el modo personal/estudio, la regla principal es no ingresar datos
+> reales identificables de pacientes. Usar datos ficticios o anonimización
+> robusta es más importante que simular una estructura formal de DPO,
+> contratos, DPIA y fiscalización.
 
 **Estado al 2026-05-24:** este documento se actualizó tras la auditoría
 integral contra el texto oficial de la Ley 21.719 y las iteraciones técnicas
@@ -20,6 +29,18 @@ del repo (no la planificada).
 ---
 
 ## 1. Marco regulatorio aplicable
+
+### 1.0 Lectura práctica según alcance
+
+- En **modo personal/estudio**, Anamneo no debe contener datos que permitan
+  identificar a pacientes reales. El foco es minimización, acceso privado,
+  borrado periódico y no enviar información clínica a terceros.
+- En **modo clínico/productivo**, todo lo restante de este documento aplica
+  como checklist de preparación antes de operar con PHI real.
+- Si un caso clínico fue tomado de una práctica, hospital, universidad o
+  ficha real, debe transformarse antes de ingresarlo: cambiar identificadores,
+  fechas, lugares, eventos únicos y cualquier combinación que permita
+  reidentificación.
 
 - **Ley 21.719 (2024) sobre Protección y Tratamiento de los Datos Personales
   y crea la Agencia de Protección de Datos Personales** — vigencia plena el

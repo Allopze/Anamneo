@@ -4,9 +4,17 @@
 **Documento base:** [`preguntas-abogado-ley21719.md`](preguntas-abogado-ley21719.md)
 **DPO interino:** Alejandro López Zelaya `<allopze@gmail.com>`
 **Fecha de este borrador:** 2026-05-23
-**Estado:** **Borrador interno**, NO sustituye la opinión del asesor legal. Sirve como base de trabajo para convertir las preguntas en decisiones operativas, issues, documentos internos y cláusulas contractuales.
+**Estado:** **Borrador interno para un escenario clínico/productivo futuro**, NO sustituye la opinión del asesor legal. Sirve como base de trabajo si Anamneo pasa de app personal de estudio a sistema con datos reales identificables de pacientes.
 
-> Este documento se mantiene vivo. Cuando el asesor legal externo emita opinión definitiva sobre una sección, marcarla con `[VALIDADO_ABOGADO YYYY-MM-DD]` y enlazar a la opinión firmada en el drive seguro.
+> Alcance actual: Anamneo es una app personal de apoyo al estudio de medicina.
+> En este modo no debe almacenar datos reales identificables de pacientes. Si
+> se usan casos clínicos, deben ser ficticios o estar anonimizados de forma
+> robusta antes de ingresarlos.
+>
+> Este documento se mantiene vivo. Cuando exista intención real de operar con
+> pacientes, clínica, universidad, terceros o fines comerciales, retomar esta
+> ruta y marcar las secciones con `[VALIDADO_ABOGADO YYYY-MM-DD]` solo después
+> de una opinión legal externa.
 
 ---
 
