@@ -21,11 +21,12 @@ import { UpsertPatientTaskDto } from './dto/upsert-patient-task.dto';
 import { UpdatePatientTaskStatusDto } from './dto/update-patient-task-status.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PatientNotBlockedGuard } from '../patient-data-rights/patient-not-blocked.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 
 @Controller('patients')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PatientNotBlockedGuard)
 export class PatientsAuxController {
   constructor(
     private readonly patientsService: PatientsService,

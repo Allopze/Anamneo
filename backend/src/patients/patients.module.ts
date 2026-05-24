@@ -14,6 +14,7 @@ import { AuditModule } from '../audit/audit.module';
 import { ConsentsModule } from '../consents/consents.module';
 import { SettingsModule } from '../settings/settings.module';
 import { PatientConsentsModule } from '../patient-consents/patient-consents.module';
+import { PatientNotBlockedGuard } from '../patient-data-rights/patient-not-blocked.guard';
 
 @Module({
   imports: [AuditModule, ConfigModule, ConsentsModule, SettingsModule, PatientConsentsModule],
@@ -30,6 +31,7 @@ import { PatientConsentsModule } from '../patient-consents/patient-consents.modu
     PatientsRegulatoryExportService,
     PatientsRegulatoryPurgeService,
     PatientsBlockingService,
+    PatientNotBlockedGuard,
   ],
   exports: [
     PatientsService,

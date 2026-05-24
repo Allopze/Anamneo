@@ -12,11 +12,12 @@ import { AlertsService } from './alerts.service';
 import { CreateAlertDto } from './dto/alert.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PatientNotBlockedGuard } from '../patient-data-rights/patient-not-blocked.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 
 @Controller('alerts')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PatientNotBlockedGuard)
 export class AlertsController {
   constructor(private readonly alertsService: AlertsService) {}
 

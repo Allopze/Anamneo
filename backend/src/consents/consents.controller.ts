@@ -12,11 +12,12 @@ import { ConsentsService } from './consents.service';
 import { CreateConsentDto, RevokeConsentDto } from './dto/consent.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PatientNotBlockedGuard } from '../patient-data-rights/patient-not-blocked.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 
 @Controller('consents')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PatientNotBlockedGuard)
 export class ConsentsController {
   constructor(private readonly consentsService: ConsentsService) {}
 

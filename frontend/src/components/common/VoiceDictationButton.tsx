@@ -20,8 +20,10 @@ interface Props {
 }
 
 export default function VoiceDictationButton({ onTranscript, label = 'Dictar' }: Props) {
+  const enabled = process.env.NEXT_PUBLIC_ENABLE_VOICE_DICTATION !== 'false';
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<InstanceType<SpeechRecognitionCtor> | null>(null);
 
   const SpeechRecognition = useMemo(() => {
@@ -39,7 +41,7 @@ export default function VoiceDictationButton({ onTranscript, label = 'Dictar' }:
     };
   }, []);
 
-  if (!supported) return null;
+  if (!enabled || !supported) return null;
 
   const handleToggle = () => {
     if (listening) {
@@ -49,6 +51,7 @@ export default function VoiceDictationButton({ onTranscript, label = 'Dictar' }:
     }
 
     const recognition = new SpeechRecognition!();
+    setError(null);
     recognition.lang = 'es-CL';
     recognition.interimResults = false;
     recognition.continuous = false;
@@ -60,9 +63,14 @@ export default function VoiceDictationButton({ onTranscript, label = 'Dictar' }:
 
       if (transcript) {
         onTranscript(transcript);
+        setError(null);
       }
     };
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
+      const errorCode = event?.error;
+      setError(errorCode === 'not-allowed' || errorCode === 'service-not-allowed'
+        ? 'Permiso de microfono denegado'
+        : 'No se pudo iniciar el dictado');
       setListening(false);
     };
     recognition.onend = () => {
@@ -70,25 +78,37 @@ export default function VoiceDictationButton({ onTranscript, label = 'Dictar' }:
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
-    setListening(true);
+    try {
+      recognition.start();
+      setListening(true);
+    } catch {
+      setError('No se pudo iniciar el dictado');
+      setListening(false);
+    }
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleToggle}
-      aria-pressed={listening}
-      aria-label={listening ? 'Detener dictado por voz' : 'Iniciar dictado por voz'}
-      className={`inline-flex min-h-10 touch-manipulation items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/25 ${
-        listening
-          ? 'border-status-red/40 bg-status-red/10 text-status-red-text hover:bg-status-red/15'
-          : 'border-frame/15 bg-surface-elevated text-ink hover:border-frame/30 hover:bg-surface-base'
-      }`}
-      title={listening ? 'Detener dictado' : 'Dictado por voz'}
-    >
-      {listening ? <FiMicOff className="h-4 w-4" /> : <FiMic className="h-4 w-4" />}
-      {listening ? 'Escuchando…' : label}
-    </button>
+    <span className="inline-flex flex-col items-end gap-1">
+      <button
+        type="button"
+        onClick={handleToggle}
+        aria-pressed={listening}
+        aria-label={listening ? 'Detener dictado por voz' : 'Iniciar dictado por voz'}
+        className={`inline-flex min-h-10 touch-manipulation items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/25 ${
+          listening
+            ? 'border-status-red/40 bg-status-red/10 text-status-red-text hover:bg-status-red/15'
+            : 'border-frame/15 bg-surface-elevated text-ink hover:border-frame/30 hover:bg-surface-base'
+        }`}
+        title={listening ? 'Detener dictado' : 'Dictado por voz'}
+      >
+        {listening ? <FiMicOff className="h-4 w-4" /> : <FiMic className="h-4 w-4" />}
+        {listening ? 'Escuchando…' : label}
+      </button>
+      {error ? (
+        <span role="status" className="max-w-44 text-right text-xs text-status-red-text">
+          {error}
+        </span>
+      ) : null}
+    </span>
   );
 }

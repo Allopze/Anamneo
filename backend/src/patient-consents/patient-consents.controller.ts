@@ -12,6 +12,8 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { PatientConsentsService } from './patient-consents.service';
 import {
@@ -26,7 +28,8 @@ import {
  * El endpoint publico WEB_TITULAR vendra en una iteracion posterior.
  */
 @Controller('patient-consents')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('MEDICO', 'ASISTENTE', 'ADMIN')
 export class PatientConsentsController {
   constructor(private readonly service: PatientConsentsService) {}
 

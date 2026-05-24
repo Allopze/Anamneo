@@ -26,6 +26,10 @@ export class PatientNotBlockedGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest();
+    if (this.isReadOnlyMethod(req.method)) {
+      return true;
+    }
+
     const patientId = await this.resolvePatientId(req);
     if (!patientId) {
       return true; // sin patient identificable, dejamos pasar
@@ -45,9 +49,16 @@ export class PatientNotBlockedGuard implements CanActivate {
     return true;
   }
 
+  private isReadOnlyMethod(method?: string): boolean {
+    return method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
+  }
+
   private async resolvePatientId(req: {
+    method?: string;
     params?: Record<string, string>;
     body?: Record<string, unknown>;
+    baseUrl?: string;
+    originalUrl?: string;
     route?: { path?: string };
     url?: string;
   }): Promise<string | undefined> {
@@ -55,7 +66,25 @@ export class PatientNotBlockedGuard implements CanActivate {
     if (params.patientId) return params.patientId;
     if (typeof req.body?.patientId === 'string') return req.body.patientId as string;
 
-    const path = req.route?.path ?? req.url ?? '';
+    const path = [req.baseUrl, req.route?.path, req.url, req.originalUrl]
+      .filter((part): part is string => typeof part === 'string' && part.length > 0)
+      .join(' ');
+
+    if (params.problemId) {
+      const problem = await this.prisma.patientProblem.findUnique({
+        where: { id: params.problemId },
+        select: { patientId: true },
+      });
+      if (problem?.patientId) return problem.patientId;
+    }
+
+    if (params.taskId) {
+      const task = await this.prisma.encounterTask.findUnique({
+        where: { id: params.taskId },
+        select: { patientId: true },
+      });
+      if (task?.patientId) return task.patientId;
+    }
 
     // /encounters/:encounterId, /encounters/:id, /encounters/:id/complete
     if (params.encounterId || (path.includes('/encounters') && params.id)) {
@@ -76,6 +105,24 @@ export class PatientNotBlockedGuard implements CanActivate {
         select: { encounter: { select: { patientId: true } } },
       });
       if (att?.encounter?.patientId) return att.encounter.patientId;
+    }
+
+    // /alerts/:id/acknowledge
+    if (path.includes('/alerts') && params.id) {
+      const alert = await this.prisma.clinicalAlert.findUnique({
+        where: { id: params.id },
+        select: { patientId: true },
+      });
+      if (alert?.patientId) return alert.patientId;
+    }
+
+    // /consents/:id/revoke
+    if (path.includes('/consents') && params.id && !path.includes('/patient-consents')) {
+      const consent = await this.prisma.clinicalConsent.findUnique({
+        where: { id: params.id },
+        select: { patientId: true },
+      });
+      if (consent?.patientId) return consent.patientId;
     }
 
     // /patients/:id/*

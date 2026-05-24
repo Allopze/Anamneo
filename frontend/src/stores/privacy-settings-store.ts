@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 const PRIVACY_SETTINGS_STORAGE_KEY = 'anamneo-privacy-settings';
 const FORCE_SHARED_DEVICE_MODE = process.env.NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE === 'true';
+const DEFAULT_SHARED_DEVICE_MODE = process.env.NEXT_PUBLIC_DEFAULT_SHARED_DEVICE_MODE !== 'false';
 
 type PrivacySettingsState = {
   sharedDeviceMode: boolean;
@@ -45,7 +46,7 @@ function readPersistedSharedDeviceMode(): boolean {
 export const usePrivacySettingsStore = create<PrivacySettingsState>()(
   persist(
     (set) => ({
-      sharedDeviceMode: FORCE_SHARED_DEVICE_MODE,
+      sharedDeviceMode: FORCE_SHARED_DEVICE_MODE || DEFAULT_SHARED_DEVICE_MODE,
       hasHydrated: false,
       setHasHydrated: (value) => set({ hasHydrated: value }),
       setSharedDeviceMode: (value) => set({ sharedDeviceMode: FORCE_SHARED_DEVICE_MODE ? true : value }),

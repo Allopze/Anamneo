@@ -2,7 +2,8 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PatientConsentsService } from './patient-consents.service';
 
 describe('PatientConsentsService', () => {
-  const baseUser = { id: 'user-1' } as never;
+  const baseUser = { id: 'user-1', role: 'ADMIN', isAdmin: true } as never;
+  const medicoUser = { id: 'medico-1', role: 'MEDICO', isAdmin: false } as never;
   const requestMeta = { ip: '127.0.0.1', userAgent: 'jest' };
 
   function buildService(overrides?: {
@@ -14,9 +15,16 @@ describe('PatientConsentsService', () => {
     createConsent?: jest.Mock;
     findUniqueConsent?: jest.Mock;
     updateConsent?: jest.Mock;
+    findEncounter?: jest.Mock;
     auditLog?: jest.Mock;
   }) {
-    const findPatient = overrides?.findPatient ?? jest.fn();
+    const findPatient = overrides?.findPatient ?? jest.fn().mockResolvedValue({
+      id: 'p-1',
+      fechaNacimiento: null,
+      createdById: 'user-1',
+      archivedAt: null,
+      createdBy: null,
+    });
     const findLegal = overrides?.findLegal ?? jest.fn();
     const findFirstLegal = overrides?.findFirstLegal ?? jest.fn();
     const findFirstConsent = overrides?.findFirstConsent ?? jest.fn();
@@ -24,6 +32,7 @@ describe('PatientConsentsService', () => {
     const createConsent = overrides?.createConsent ?? jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'consent-1', ...data }));
     const findUniqueConsent = overrides?.findUniqueConsent ?? jest.fn();
     const updateConsent = overrides?.updateConsent ?? jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'consent-1', ...data }));
+    const findEncounter = overrides?.findEncounter ?? jest.fn().mockResolvedValue(null);
     const auditLog = overrides?.auditLog ?? jest.fn().mockResolvedValue(undefined);
 
     const prisma = {
@@ -36,6 +45,7 @@ describe('PatientConsentsService', () => {
         findUnique: findUniqueConsent,
         update: updateConsent,
       },
+      encounter: { findFirst: findEncounter },
     } as never;
     const audit = { log: auditLog } as never;
 
@@ -49,6 +59,7 @@ describe('PatientConsentsService', () => {
       createConsent,
       findUniqueConsent,
       updateConsent,
+      findEncounter,
       auditLog,
     };
   }
@@ -96,6 +107,22 @@ describe('PatientConsentsService', () => {
     it('rechaza si el paciente no existe', async () => {
       const { service } = buildService({ findPatient: jest.fn().mockResolvedValue(null) });
       await expect(service.grant(validDto, baseUser, requestMeta)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('rechaza si el usuario no tiene acceso al paciente', async () => {
+      const { service, findLegal } = buildService({
+        findPatient: jest.fn().mockResolvedValue({
+          id: 'p-1',
+          fechaNacimiento: null,
+          createdById: 'otro-medico',
+          archivedAt: null,
+          createdBy: null,
+        }),
+        findEncounter: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.grant(validDto, medicoUser, requestMeta)).rejects.toBeInstanceOf(NotFoundException);
+      expect(findLegal).not.toHaveBeenCalled();
     });
 
     it('rechaza si la politica no esta PUBLISHED', async () => {
@@ -181,6 +208,22 @@ describe('PatientConsentsService', () => {
       await expect(service.revoke('c-1', 'motivo', baseUser)).rejects.toBeInstanceOf(BadRequestException);
     });
 
+    it('rechaza si el usuario no tiene acceso al paciente del consentimiento', async () => {
+      const { service, updateConsent } = buildService({
+        findUniqueConsent: jest.fn().mockResolvedValue({ id: 'c-1', revokedAt: null, patientId: 'p-1', purpose: 'X' }),
+        findPatient: jest.fn().mockResolvedValue({
+          id: 'p-1',
+          createdById: 'otro-medico',
+          archivedAt: null,
+          createdBy: null,
+        }),
+        findEncounter: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.revoke('c-1', 'motivo', medicoUser)).rejects.toBeInstanceOf(NotFoundException);
+      expect(updateConsent).not.toHaveBeenCalled();
+    });
+
     it('revoca correctamente con channel y razon', async () => {
       const { service, updateConsent, auditLog } = buildService({
         findUniqueConsent: jest.fn().mockResolvedValue({ id: 'c-1', revokedAt: null, patientId: 'p-1', purpose: 'X' }),
@@ -196,6 +239,23 @@ describe('PatientConsentsService', () => {
       expect(auditLog).toHaveBeenCalledWith(expect.objectContaining({
         reason: 'PATIENT_DATA_CONSENT_REVOKED',
       }));
+    });
+  });
+
+  describe('listForPatient', () => {
+    it('rechaza si el usuario no tiene acceso al paciente', async () => {
+      const { service, findManyConsents } = buildService({
+        findPatient: jest.fn().mockResolvedValue({
+          id: 'p-1',
+          createdById: 'otro-medico',
+          archivedAt: null,
+          createdBy: null,
+        }),
+        findEncounter: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.listForPatient('p-1', medicoUser)).rejects.toBeInstanceOf(NotFoundException);
+      expect(findManyConsents).not.toHaveBeenCalled();
     });
   });
 });

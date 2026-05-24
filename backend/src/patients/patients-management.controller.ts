@@ -14,11 +14,12 @@ import { UpdatePatientAdminDto } from './dto/update-patient-admin.dto';
 import { UpdatePatientHistoryDto } from './dto/update-patient-history.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PatientNotBlockedGuard } from '../patient-data-rights/patient-not-blocked.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 
 @Controller('patients')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PatientNotBlockedGuard)
 export class PatientsManagementController {
   constructor(
     private readonly patientsService: PatientsService,

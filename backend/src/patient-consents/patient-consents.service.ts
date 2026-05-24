@@ -6,6 +6,7 @@ import { GrantPatientDataConsentDto } from './dto/patient-consent.dto';
 import { RequestUser } from '../common/utils/medico-id';
 import { decryptField, decryptNetMeta, encryptField, encryptNetMeta } from '../common/utils/field-crypto';
 import { computeRutLookupHash } from '../patients/patients-identifiers';
+import { assertLoadedPatientAccess, assertPatientAccess } from '../common/utils/patient-access';
 
 /**
  * Servicio del consentimiento del TITULAR para el tratamiento de datos
@@ -48,11 +49,7 @@ export class PatientConsentsService {
   }
 
   async listForPatient(patientId: string, user: RequestUser) {
-    const patient = await this.prisma.patient.findUnique({
-      where: { id: patientId },
-      select: { id: true },
-    });
-    if (!patient) throw new NotFoundException('Paciente no encontrado');
+    await assertPatientAccess(this.prisma, user, patientId);
 
     const consentsRaw = await this.prisma.patientDataProcessingConsent.findMany({
       where: { patientId },
@@ -87,9 +84,15 @@ export class PatientConsentsService {
   async grant(dto: GrantPatientDataConsentDto, user: RequestUser, requestMeta: { ip?: string; userAgent?: string }) {
     const patient = await this.prisma.patient.findUnique({
       where: { id: dto.patientId },
-      select: { id: true, fechaNacimiento: true },
+      select: {
+        id: true,
+        fechaNacimiento: true,
+        createdById: true,
+        archivedAt: true,
+        createdBy: { select: { medicoId: true } },
+      },
     });
-    if (!patient) throw new NotFoundException('Paciente no encontrado');
+    const scopedPatient = await assertLoadedPatientAccess(this.prisma, user, dto.patientId, patient);
 
     const legalDocument = await this.prisma.legalDocument.findUnique({
       where: { id: dto.legalDocumentId },
@@ -104,7 +107,7 @@ export class PatientConsentsService {
     }
 
     // Ley 21.719 Art 16 quater - validacion NNA
-    this.assertNNAConsentValid(patient.fechaNacimiento, dto);
+    this.assertNNAConsentValid(scopedPatient.fechaNacimiento, dto);
 
     const evidencePayload = {
       patientId: dto.patientId,
@@ -176,6 +179,7 @@ export class PatientConsentsService {
       select: { id: true, patientId: true, revokedAt: true, purpose: true },
     });
     if (!consent) throw new NotFoundException('Consentimiento no encontrado');
+    await assertPatientAccess(this.prisma, user, consent.patientId);
     if (consent.revokedAt) {
       throw new BadRequestException('El consentimiento ya esta revocado');
     }

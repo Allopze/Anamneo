@@ -244,19 +244,60 @@ export default function AnaliticaClinicaPage() {
           Filtros clínicos
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <input className="form-input xl:col-span-2" placeholder="Afección, síntoma o CIE10" value={filters.condition} onChange={(event) => setFilters((current) => ({ ...current, condition: event.target.value }))} />
-          <select className="form-input" value={filters.source} onChange={(event) => setFilters((current) => ({ ...current, source: event.target.value as ClinicalAnalyticsFilterState['source'] }))}>
-            <option value="ANY">Todas las fuentes</option>
-            <option value="AFECCION_PROBABLE">Afección probable</option>
-            <option value="SOSPECHA_DIAGNOSTICA">Sospecha diagnóstica</option>
-          </select>
-          <input type="date" className="form-input" value={filters.fromDate} onChange={(event) => setFilters((current) => ({ ...current, fromDate: event.target.value }))} />
-          <input type="date" className="form-input" value={filters.toDate} onChange={(event) => setFilters((current) => ({ ...current, toDate: event.target.value }))} />
-          <select className="form-input" value={filters.followUpDays} onChange={(event) => setFilters((current) => ({ ...current, followUpDays: event.target.value }))}>
-            <option value="7">Seguimiento 7 días</option>
-            <option value="30">Seguimiento 30 días</option>
-            <option value="90">Seguimiento 90 días</option>
-          </select>
+          <label className="block xl:col-span-2">
+            <span className="sr-only">Afección, síntoma o CIE10</span>
+            <input
+              className="form-input"
+              placeholder="Afección, síntoma o CIE10"
+              value={filters.condition}
+              onChange={(event) => setFilters((current) => ({ ...current, condition: event.target.value }))}
+            />
+          </label>
+          <label className="block">
+            <span className="sr-only">Fuente clínica</span>
+            <select
+              className="form-input"
+              value={filters.source}
+              onChange={(event) => setFilters((current) => ({
+                ...current,
+                source: event.target.value as ClinicalAnalyticsFilterState['source'],
+              }))}
+            >
+              <option value="ANY">Todas las fuentes</option>
+              <option value="AFECCION_PROBABLE">Afección probable</option>
+              <option value="SOSPECHA_DIAGNOSTICA">Sospecha diagnóstica</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="sr-only">Fecha desde</span>
+            <input
+              type="date"
+              className="form-input"
+              value={filters.fromDate}
+              onChange={(event) => setFilters((current) => ({ ...current, fromDate: event.target.value }))}
+            />
+          </label>
+          <label className="block">
+            <span className="sr-only">Fecha hasta</span>
+            <input
+              type="date"
+              className="form-input"
+              value={filters.toDate}
+              onChange={(event) => setFilters((current) => ({ ...current, toDate: event.target.value }))}
+            />
+          </label>
+          <label className="block">
+            <span className="sr-only">Ventana de seguimiento</span>
+            <select
+              className="form-input"
+              value={filters.followUpDays}
+              onChange={(event) => setFilters((current) => ({ ...current, followUpDays: event.target.value }))}
+            >
+              <option value="7">Seguimiento 7 días</option>
+              <option value="30">Seguimiento 30 días</option>
+              <option value="90">Seguimiento 90 días</option>
+            </select>
+          </label>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button type="button" className="btn btn-primary" onClick={() => router.push(buildClinicalAnalyticsSummaryUrl(filters))}>Actualizar vista</button>

@@ -204,8 +204,8 @@ export default function ProfileSecurityTab({
         </div>
 
         <p className="text-sm text-ink-muted mb-4">
-          Activa este modo en computadores compartidos para deshabilitar borradores locales, copias recuperables en
-          conflicto y la cola offline clínica en este navegador.
+          Este modo viene activo por defecto para deshabilitar borradores locales, copias recuperables en conflicto y
+          cola offline clínica en navegadores compartidos o no verificados.
         </p>
 
         {sharedDeviceModeForced ? (
