@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { getPatientDemographicsMissingFields, hasPatientVerificationFieldChanges, isPatientDemographicsComplete } from '../common/utils/patient-completeness';
 import { resolvePatientIdentifiers, withPatientIdentifiers } from './patients-identifiers';
+import { buildPatientLegalStatus } from '../../../shared/patient-legal-status';
 
 export function formatTask(task: any) {
   return {
@@ -90,6 +91,11 @@ export function decoratePatient<T extends Record<string, any>>(patient: T) {
     legalRepresentativeContact: identifiers.legalRepresentativeContact,
     // Ley 21.719 Art 8 — flags de oposicion por finalidad
     processingObjections: patient.processingObjections ?? null,
+    legalStatus: buildPatientLegalStatus({
+      blockedAt: patient.blockedAt ?? null,
+      blockedReason: patient.blockedReason ?? null,
+      processingObjections: patient.processingObjections ?? null,
+    }),
     createdAt: patient.createdAt,
     updatedAt: patient.updatedAt,
     demographicsMissingFields: getPatientDemographicsMissingFields(patientForCompleteness),

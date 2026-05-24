@@ -19,7 +19,8 @@
     "test:e2e:a11y": "playwright test --workers=1 tests/e2e/accessibility.spec.ts",
     "test:e2e:workflow-clinical": "playwright test --workers=1 tests/e2e/workflow-clinical.spec.ts",
     "test:e2e:workflow-clinical:repeat": "sh -c 'for run in 1 2 3; do echo \"[workflow-clinical repeat $run/3]\"; playwright test --workers=1 tests/e2e/workflow-clinical.spec.ts || exit $?; done'",
-    "test:e2e:smoke": "playwright test --workers=1 tests/e2e/smoke.spec.ts"
+    "test:e2e:smoke": "playwright test --workers=1 tests/e2e/smoke.spec.ts",
+    "test:e2e:security-headers": "playwright test --workers=1 tests/e2e/security-headers.spec.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",

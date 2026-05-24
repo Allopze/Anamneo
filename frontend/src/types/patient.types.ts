@@ -10,6 +10,21 @@ export interface PatientHistoryFieldValue {
   items?: string[];
 }
 
+export interface PatientLegalStatus {
+  canReceiveCare: boolean;
+  canCreateEncounter: boolean;
+  canEditEncounter: boolean;
+  canUploadAttachment: boolean;
+  canRegisterClinicalConsent: boolean;
+  canRegisterDataProcessingConsent: boolean;
+  legalBlockReason: string | null;
+  requiredActions: Array<{
+    code: string;
+    label: string;
+    severity: 'warning' | 'blocking';
+  }>;
+}
+
 export interface Patient {
   id: string;
   rut: string | null;
@@ -34,6 +49,11 @@ export interface Patient {
   contactoEmergenciaTelefono: string | null;
   archivedAt?: string | null;
   archivedById?: string | null;
+  blockedAt?: string | null;
+  blockedReason?: string | null;
+  blockedById?: string | null;
+  processingObjections?: unknown;
+  legalStatus?: PatientLegalStatus;
   centroMedico: string | null;
   createdAt: string;
   updatedAt: string;

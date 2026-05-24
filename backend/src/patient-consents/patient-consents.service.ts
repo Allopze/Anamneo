@@ -8,6 +8,8 @@ import { decryptField, decryptNetMeta, encryptField, encryptNetMeta } from '../c
 import { computeRutLookupHash } from '../patients/patients-identifiers';
 import { assertLoadedPatientAccess, assertPatientAccess } from '../common/utils/patient-access';
 
+const ENCRYPTED_LEGACY_PLACEHOLDER = '[encrypted]';
+
 /**
  * Servicio del consentimiento del TITULAR para el tratamiento de datos
  * personales (Ley 21.719 Art 12). Distinto del ClinicalConsent que
@@ -139,8 +141,8 @@ export class PatientConsentsService {
         capturedIp: encryptNetMeta(requestMeta.ip),
         capturedUserAgent: encryptNetMeta(requestMeta.userAgent),
         capturedByUserId: dto.method === 'WEB_TITULAR' ? null : user.id,
-        signerName: dto.signerName,
-        signerRut: dto.signerRut,
+        signerName: ENCRYPTED_LEGACY_PLACEHOLDER,
+        signerRut: null,
         // Phase E — cifrado app-level del firmante
         signerNameEnc: encryptField(dto.signerName),
         signerRutEnc: dto.signerRut ? encryptField(dto.signerRut) : null,

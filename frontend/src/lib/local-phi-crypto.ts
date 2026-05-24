@@ -1,4 +1,4 @@
-const KEY_STORAGE_ID = 'anamneo:phi-session-key:v1';
+const KEY_STORAGE_ID = 'anamneo:phi-browser-key:v2';
 const ENVELOPE_VERSION = 1;
 
 type EncryptedEnvelope = {
@@ -33,30 +33,30 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
-function getSessionStorage(): Storage | null {
+function getKeyStorage(): Storage | null {
   if (typeof window === 'undefined') return null;
-  return window.sessionStorage;
+  return window.localStorage;
 }
 
-async function importSessionKey(rawKey: Uint8Array): Promise<CryptoKey> {
+async function importBrowserKey(rawKey: Uint8Array): Promise<CryptoKey> {
   const subtle = getSubtleCrypto();
   if (!subtle) throw new Error('WebCrypto no disponible');
   return subtle.importKey('raw', toArrayBuffer(rawKey), 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
 
-async function getOrCreateSessionKey(): Promise<CryptoKey> {
+async function getOrCreateBrowserKey(): Promise<CryptoKey> {
   const subtle = getSubtleCrypto();
-  const storage = getSessionStorage();
+  const storage = getKeyStorage();
   if (!subtle || !storage) throw new Error('WebCrypto no disponible');
 
   const existing = storage.getItem(KEY_STORAGE_ID);
   if (existing) {
-    return importSessionKey(base64ToBytes(existing));
+    return importBrowserKey(base64ToBytes(existing));
   }
 
   const rawKey = crypto.getRandomValues(new Uint8Array(32));
   storage.setItem(KEY_STORAGE_ID, bytesToBase64(rawKey));
-  return importSessionKey(rawKey);
+  return importBrowserKey(rawKey);
 }
 
 export function isEncryptedPhiEnvelope(value: unknown): value is EncryptedEnvelope {
@@ -74,7 +74,7 @@ export async function encryptPhiJson(value: unknown): Promise<EncryptedEnvelope>
   const subtle = getSubtleCrypto();
   if (!subtle) throw new Error('WebCrypto no disponible');
 
-  const key = await getOrCreateSessionKey();
+  const key = await getOrCreateBrowserKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const plaintext = new TextEncoder().encode(JSON.stringify(value));
   const ciphertext = await subtle.encrypt({ name: 'AES-GCM', iv: toArrayBuffer(iv) }, key, plaintext);
@@ -94,7 +94,7 @@ export async function decryptPhiJson<T>(envelope: unknown): Promise<T | null> {
   if (!subtle) return null;
 
   try {
-    const key = await getOrCreateSessionKey();
+    const key = await getOrCreateBrowserKey();
     const plaintext = await subtle.decrypt(
       { name: 'AES-GCM', iv: toArrayBuffer(base64ToBytes(envelope.iv)) },
       key,

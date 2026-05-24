@@ -23,6 +23,7 @@ import { computeRutLookupHash } from '../patients/patients-identifiers';
 
 const RESPONSE_SLA_DAYS = 30; // Ley 21.719 Art 11 (30 dias corridos)
 const PRORROGA_DAYS = 30;
+const ENCRYPTED_LEGACY_PLACEHOLDER = '[encrypted]';
 
 @Injectable()
 export class PatientDataRightsService {
@@ -62,9 +63,9 @@ export class PatientDataRightsService {
         requestType: dto.requestType,
         status: 'RECIBIDA',
         submittedBy,
-        requesterName: dto.requesterName,
-        requesterRut: dto.requesterRut,
-        requesterEmail: dto.requesterEmail,
+        requesterName: ENCRYPTED_LEGACY_PLACEHOLDER,
+        requesterRut: null,
+        requesterEmail: ENCRYPTED_LEGACY_PLACEHOLDER,
         // Phase F — cifrado app-level del solicitante DSAR
         requesterNameEnc: encryptField(dto.requesterName),
         requesterRutEnc: dto.requesterRut ? encryptField(dto.requesterRut) : null,

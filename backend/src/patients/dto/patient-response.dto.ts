@@ -56,6 +56,23 @@ export class PatientTaskResponseDto {
   patient?: PatientRefDto;
 }
 
+export class PatientLegalRequiredActionDto {
+  code: string;
+  label: string;
+  severity: 'warning' | 'blocking';
+}
+
+export class PatientLegalStatusDto {
+  canReceiveCare: boolean;
+  canCreateEncounter: boolean;
+  canEditEncounter: boolean;
+  canUploadAttachment: boolean;
+  canRegisterClinicalConsent: boolean;
+  canRegisterDataProcessingConsent: boolean;
+  legalBlockReason: string | null;
+  requiredActions: PatientLegalRequiredActionDto[];
+}
+
 export class PatientResponseDto {
   id: string;
   rut: string | null;
@@ -81,6 +98,7 @@ export class PatientResponseDto {
   createdAt: Date;
   updatedAt: Date;
   demographicsMissingFields: string[];
+  legalStatus: PatientLegalStatusDto;
 
   // Conditionally included based on query includes
   history?: any;

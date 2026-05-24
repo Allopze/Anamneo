@@ -97,6 +97,12 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 | `PROMETHEUS_RETENTION` | `30d` | Retencion TSDB de Prometheus |
 | `PROMETHEUS_PORT` / `GRAFANA_PORT` / `LOKI_PORT` | `9090` / `3000` / `3100` | Puertos locales del stack de observabilidad |
 
+## Politica de PHI Local
+
+`NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE=true` es la postura recomendada para equipos compartidos o cualquier despliegue clinico sin politica formal de dispositivo. En ese modo no se persisten borradores, conflictos ni cola offline local con PHI.
+
+Si el admin/dev permite persistencia local desactivando el modo compartido, los payloads clinicos se cifran con WebCrypto antes de escribirse en `localStorage` o IndexedDB. La clave es persistente del navegador para recuperar drafts despues de cerrar el browser, por lo que el perfil del navegador debe tratarse como almacenamiento sensible. La decision completa esta en `DECISION_ALMACENAMIENTO_LOCAL_PHI.md`.
+
 ## Desarrollo vs Produccion
 
 ### Desarrollo local

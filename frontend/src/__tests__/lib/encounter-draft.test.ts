@@ -57,6 +57,7 @@ describe('encounter draft helpers', () => {
     expect(raw).toEqual(expect.any(String));
     expect(raw).not.toContain('cefalea');
 
+    window.sessionStorage.clear();
     const draft = await readEncounterDraft(encounterId, userId);
     expect(draft).toMatchObject({
       version: 2,

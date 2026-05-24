@@ -34,6 +34,7 @@ import PatientVitalsCard from './PatientVitalsCard';
 import PatientEncounterTimeline from './PatientEncounterTimeline';
 import PatientLongitudinalSummaryCard from './PatientLongitudinalSummaryCard';
 import PatientOperationalHistoryCard from './PatientOperationalHistoryCard';
+import PatientLegalStatusSummary from './PatientLegalStatusSummary';
 
 export default function PatientDetailPage() {
   const pd = usePatientDetail();
@@ -404,11 +405,13 @@ export default function PatientDetailPage() {
             patientAgeYears={patient.edad ?? null}
           />
 
+          <PatientLegalStatusSummary legalStatus={patient.legalStatus} />
+
           <PatientBlockingControls
             patientId={patient.id}
-            blockedAt={(patient as { blockedAt?: string | Date | null }).blockedAt ?? null}
-            blockedReason={(patient as { blockedReason?: string | null }).blockedReason ?? null}
-            blockedById={(patient as { blockedById?: string | null }).blockedById ?? null}
+            blockedAt={patient.blockedAt ?? null}
+            blockedReason={patient.blockedReason ?? null}
+            blockedById={patient.blockedById ?? null}
             isAdmin={Boolean(pd.isAdmin)}
           />
         </div>

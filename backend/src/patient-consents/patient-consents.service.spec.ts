@@ -177,6 +177,11 @@ describe('PatientConsentsService', () => {
       const callArg = createConsent.mock.calls[0][0];
       expect(callArg.data.evidenceHash).toMatch(/^[0-9a-f]{64}$/);
       expect(callArg.data.capturedByUserId).toBe('user-1');
+      expect(callArg.data.signerName).toBe('[encrypted]');
+      expect(callArg.data.signerRut).toBeNull();
+      expect(callArg.data.signerNameEnc).toMatch(/^enc:v1:/);
+      expect(callArg.data.signerRutEnc).toMatch(/^enc:v1:/);
+      expect(callArg.data.signerRutLookupHash).toMatch(/^[a-f0-9]{64}$/);
       // Ley 21.719 Art 14 quinquies: capturedIp puede llegar cifrado
       // (`enc:v1:...`) si ENCRYPTION_KEY esta configurado, o en plano si no.
       expect(callArg.data.capturedIp === '127.0.0.1' || callArg.data.capturedIp?.startsWith('enc:v1:')).toBe(true);

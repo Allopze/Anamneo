@@ -12,9 +12,9 @@ import type { StringValue } from 'ms';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
-import { decryptField, encryptNetMeta } from '../common/utils/field-crypto';
+import { decryptField, encryptField, encryptNetMeta } from '../common/utils/field-crypto';
 import { EncountersPdfService } from '../encounters/encounters-pdf.service';
-import { resolvePatientIdentifiers, withPatientIdentifiers } from '../patients/patients-identifiers';
+import { computeRutLookupHash, resolvePatientIdentifiers, withPatientIdentifiers } from '../patients/patients-identifiers';
 import type { CurrentUserData } from '../common/decorators/current-user.decorator';
 import {
   PortalActivateDto,
@@ -31,6 +31,7 @@ const PORTAL_RESET_TTL_MINUTES = 30;
 const PORTAL_LOCK_ATTEMPTS = 5;
 const PORTAL_LOCK_MINUTES = 15;
 const DATA_REQUEST_SLA_DAYS = 30;
+const ENCRYPTED_LEGACY_PLACEHOLDER = '[encrypted]';
 
 type SessionContext = {
   userAgent?: string | null;
@@ -381,15 +382,20 @@ export class PatientPortalService {
     if (!patient) throw new NotFoundException('Paciente no encontrado');
     const patientIdentifiers = resolvePatientIdentifiers(patient);
     const now = new Date();
+    const requesterRut = dto.requesterRut ?? patientIdentifiers.rut;
     const created = await this.prisma.patientDataRequest.create({
       data: {
         patientId: user.patientId,
         requestType: dto.requestType,
         status: 'RECIBIDA',
         submittedBy: user.relationship === 'TITULAR' ? 'TITULAR' : 'REPRESENTANTE',
-        requesterName: patientIdentifiers.nombre,
-        requesterRut: dto.requesterRut ?? patientIdentifiers.rut,
-        requesterEmail: user.email,
+        requesterName: ENCRYPTED_LEGACY_PLACEHOLDER,
+        requesterRut: null,
+        requesterEmail: ENCRYPTED_LEGACY_PLACEHOLDER,
+        requesterNameEnc: encryptField(patientIdentifiers.nombre),
+        requesterRutEnc: requesterRut ? encryptField(requesterRut) : null,
+        requesterRutLookupHash: computeRutLookupHash(requesterRut),
+        requesterEmailEnc: encryptField(user.email),
         payloadRequest: dto.payloadRequest,
         dueDate: new Date(now.getTime() + DATA_REQUEST_SLA_DAYS * 24 * 60 * 60 * 1000),
         identityVerificationMethod: 'PORTAL',
