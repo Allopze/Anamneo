@@ -5,7 +5,6 @@ import { PatientsExportBundleService } from './patients-export-bundle.service';
 import { PatientsRegulatoryExportService } from './patients-regulatory-export.service';
 import { PatientsRegulatoryPurgeService } from './patients-regulatory-purge.service';
 import { PatientsBlockingService } from './patients-blocking.service';
-import { PatientsFieldCryptoService } from './patients-field-crypto.service';
 import { PatientsPdfService } from './patients-pdf.service';
 import { PatientsController } from './patients.controller';
 import { PatientsManagementController } from './patients-management.controller';
@@ -31,13 +30,11 @@ import { PatientConsentsModule } from '../patient-consents/patient-consents.modu
     PatientsRegulatoryExportService,
     PatientsRegulatoryPurgeService,
     PatientsBlockingService,
-    PatientsFieldCryptoService,
   ],
   exports: [
     PatientsService,
     PatientsRegulatoryExportService,
     PatientsBlockingService,
-    PatientsFieldCryptoService,
   ],
 })
 export class PatientsModule {}

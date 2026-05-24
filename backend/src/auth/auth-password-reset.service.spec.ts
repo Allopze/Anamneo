@@ -99,7 +99,7 @@ describe('AuthPasswordResetService', () => {
           userId: 'u1',
           tokenHash: expect.any(String),
           expiresAt: expect.any(Date),
-          ipAddress: '1.2.3.4',
+          ipAddress: expect.stringMatching(/^enc:v1:/),
         }),
       }));
       expect(mail.sendPasswordResetEmail).toHaveBeenCalledWith(expect.objectContaining({

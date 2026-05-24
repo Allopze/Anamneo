@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { isMobileClient } from '../common/utils/mobile-client';
 import { PatientPortalService } from './patient-portal.service';
 import { PatientPortalAuthGuard } from './patient-portal-auth.guard';
 import { CurrentPatientPortalUser } from './current-patient-portal-user.decorator';
@@ -73,7 +74,7 @@ export class PatientPortalController {
   async activate(@Body() dto: PortalActivateDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const tokens = await this.service.activate(dto, this.getSessionContext(req));
     this.setPortalCookies(res, tokens);
-    return { message: 'Portal activado' };
+    return { message: 'Portal activado', ...this.maybeMobileTokens(req, tokens) };
   }
 
   @Public()
@@ -83,21 +84,26 @@ export class PatientPortalController {
   async login(@Body() dto: PortalLoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const tokens = await this.service.login(dto, this.getSessionContext(req));
     this.setPortalCookies(res, tokens);
-    return { message: 'Inicio de sesión exitoso' };
+    return { message: 'Inicio de sesión exitoso', ...this.maybeMobileTokens(req, tokens) };
   }
 
   @Public()
   @Post('portal/auth/refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Req() req: Request & { cookies?: Record<string, string> }, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies?.patient_refresh_token;
+  async refresh(
+    @Req() req: Request & { cookies?: Record<string, string> },
+    @Body() body: { refreshToken?: string } = {},
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // Web usa cookie httpOnly; móvil envía el refresh token en el body.
+    const refreshToken = req.cookies?.patient_refresh_token ?? body?.refreshToken;
     if (!refreshToken) {
       this.clearPortalCookies(res);
       return { message: 'Sin sesión' };
     }
     const tokens = await this.service.refresh(refreshToken, this.getSessionContext(req));
     this.setPortalCookies(res, tokens);
-    return { message: 'Tokens actualizados' };
+    return { message: 'Tokens actualizados', ...this.maybeMobileTokens(req, tokens) };
   }
 
   @Post('portal/auth/logout')
@@ -179,6 +185,13 @@ export class PatientPortalController {
   private setPortalCookies(res: Response, tokens: { accessToken: string; refreshToken: string }) {
     res.cookie('patient_access_token', tokens.accessToken, getCookieOptions(this.accessMaxAge, this.isProduction));
     res.cookie('patient_refresh_token', tokens.refreshToken, getCookieOptions(this.refreshMaxAge, this.isProduction));
+  }
+
+  private maybeMobileTokens(
+    req: Request,
+    tokens: { accessToken: string; refreshToken: string },
+  ): { tokens?: { accessToken: string; refreshToken: string } } {
+    return isMobileClient(req) ? { tokens } : {};
   }
 
   private clearPortalCookies(res: Response) {

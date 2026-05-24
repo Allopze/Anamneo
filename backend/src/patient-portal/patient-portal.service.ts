@@ -12,7 +12,7 @@ import type { StringValue } from 'ms';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
-import { decryptField } from '../common/utils/field-crypto';
+import { decryptField, encryptNetMeta } from '../common/utils/field-crypto';
 import { EncountersPdfService } from '../encounters/encounters-pdf.service';
 import { resolvePatientIdentifiers, withPatientIdentifiers } from '../patients/patients-identifiers';
 import type { CurrentUserData } from '../common/decorators/current-user.decorator';
@@ -187,8 +187,8 @@ export class PatientPortalService {
       data: {
         tokenVersion: { increment: 1 },
         lastUsedAt: new Date(),
-        userAgent: context?.userAgent?.slice(0, 255) ?? undefined,
-        ipAddress: context?.ipAddress?.slice(0, 64) ?? undefined,
+        userAgent: encryptNetMeta(context?.userAgent?.slice(0, 255)),
+        ipAddress: encryptNetMeta(context?.ipAddress?.slice(0, 64)),
       },
     });
     return this.signTokens(account, session.id, session.tokenVersion);
@@ -218,8 +218,8 @@ export class PatientPortalService {
         accountId: account.id,
         tokenHash: hashToken(token),
         expiresAt,
-        ipAddress: context?.ipAddress?.slice(0, 64) ?? null,
-        userAgent: context?.userAgent?.slice(0, 255) ?? null,
+        ipAddress: encryptNetMeta(context?.ipAddress?.slice(0, 64)),
+        userAgent: encryptNetMeta(context?.userAgent?.slice(0, 255)),
       },
     });
     await this.mail.sendPatientPortalPasswordReset({
@@ -416,8 +416,8 @@ export class PatientPortalService {
       data: {
         accountId: account.id,
         tokenVersion: 1,
-        userAgent: context?.userAgent?.slice(0, 255) ?? null,
-        ipAddress: context?.ipAddress?.slice(0, 64) ?? null,
+        userAgent: encryptNetMeta(context?.userAgent?.slice(0, 255)),
+        ipAddress: encryptNetMeta(context?.ipAddress?.slice(0, 64)),
         lastUsedAt: new Date(),
       },
     });

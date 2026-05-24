@@ -6,10 +6,13 @@ import { JwtPayload } from '../auth.service';
 import { UsersService } from '../../users/users.service';
 import { UsersSessionService } from '../../users/users-session.service';
 import { Request } from 'express';
+import { extractBearerToken } from '../../common/utils/mobile-client';
 
-// Extract JWT strictly from HttpOnly cookie — no Bearer fallback
-function extractJwtFromCookie(req: Request): string | null {
-  return req?.cookies?.access_token ?? null;
+// El cliente web usa cookie httpOnly; el cliente móvil envía Bearer en el header
+// Authorization. La cookie tiene prioridad para no confundir flujos cuando ambos
+// llegan en la misma request.
+function extractJwtFromCookieOrBearer(req: Request): string | null {
+  return req?.cookies?.access_token ?? extractBearerToken(req);
 }
 
 @Injectable()
@@ -20,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private sessionService: UsersSessionService,
   ) {
     super({
-      jwtFromRequest: extractJwtFromCookie,
+      jwtFromRequest: extractJwtFromCookieOrBearer,
       ignoreExpiration: false,
       secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
     });

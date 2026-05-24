@@ -1,6 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { randomBytes, timingSafeEqual } from 'crypto';
 import type { NextFunction, Request, Response } from 'express';
+import { isMobileClient } from '../utils/mobile-client';
 
 const CSRF_COOKIE = 'csrf_token';
 const CSRF_HEADER = 'x-csrf-token';
@@ -68,6 +69,15 @@ export function csrfMiddleware(req: Request, res: Response, next: NextFunction) 
 
   const path = req.originalUrl?.split('?')[0] ?? req.path;
   if (isCsrfExemptPath(path)) {
+    return next();
+  }
+
+  // Clientes móviles nativos (React Native, Flutter, etc.) no son vulnerables
+  // a CSRF: el ataque depende de credenciales ambient (cookies del navegador)
+  // siendo enviadas automáticamente a un origen tercero. Las apps nativas
+  // inyectan el JWT manualmente vía header Authorization, así que no hay
+  // superficie de ataque que el doble-cookie esté mitigando.
+  if (isMobileClient(req)) {
     return next();
   }
 

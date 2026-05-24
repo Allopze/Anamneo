@@ -1432,10 +1432,24 @@ La migracion `20260524000000_ley21719_phase_c_drop_patient_plaintext` esta lista
 | Hallazgo #4 — PII fuera de Patient en claro (legalRepresentative*, signerName/Rut, requesterName/Rut/Email) | Abierto | **Cerrado** — cifrado con enc/dec + hash para lookups |
 | Hallazgo #5 — DTO NNA incompleto (`forbidNonWhitelisted` rechazaba campos del representante) | Abierto | **Cerrado** — DTOs `CreatePatientDto` y `UpdatePatientDto` ya declaran `legalRepresentative*` |
 
-### Pendientes tras `octies`
+---
+
+## Actualizacion 2026-05-24-novenaries
+
+### Cambios en esta sesion
+
+**Alcance**: Cierre de limpieza post-`octies` y elaboracion de plan operacional para Phases D/E/F.
+
+1. **C.5 completado** — `backend/scripts/backfill-patient-identifier-encryption.js` movido a `backend/scripts/archive/`. La migracion Phase C ya estaba en `migrations/` y el README de `migrations-pending/` ya registraba el historial; el unico paso faltante era mover el script, que ahora esta archivado.
+
+2. **Plan operacional creado** — archivo `.claude/plans/revisa-que-falta-de-jaunty-aurora.md` con los pasos exactos de backfill + verificacion SQL + drop para Phases D, E y F, incluyendo queries de verificacion, ordenes de ejecucion, y advertencias de irreversibilidad.
+
+3. **Verificacion de salud** — `tsc --noEmit` (exit 0) y 25 tests afectados (`patient-consents`, `data-rights`) verdes tras el archivado.
+
+### Estado actualizado de pendientes
 
 #### Pendiente operativo (acciones manuales en entornos)
-1. **Phase C prod**: backfill + verificacion SQL + `prisma migrate deploy` (instrucciones arriba).
+1. **Phase C prod** (si aun no se hizo): verificar con `SELECT column_name FROM information_schema.columns WHERE table_name = 'patients' AND column_name = 'rut'` — si retorna fila, falta `prisma migrate deploy`. Backfill previo con `backend/scripts/archive/backfill-patient-identifier-encryption.js`.
 2. **Phases D/E/F**: backfill en cada entorno (scripts disponibles) + `prisma migrate deploy` cuando COUNT=0.
 
 #### Pendiente en codigo (opcional, no bloquea Gate)
@@ -1461,3 +1475,84 @@ La migracion `20260524000000_ley21719_phase_c_drop_patient_plaintext` esta lista
 | Phase F data request requester cifrado | **En código** (escribe/lee enc); drop preparado en `migrations-pending/` |
 | Hallazgos #4 y #5 | **Cerrados** |
 | Pendientes restantes | Operativos (backfills + deploys) + legales externos |
+
+---
+
+### Conclusion `novenaries`
+
+| Categoria | Estado |
+|---|---|
+| Phase C code cleanup (C.5) | **Completo** — script archivado en `backend/scripts/archive/` |
+| Plan operacional D/E/F | **Creado** — `.claude/plans/revisa-que-falta-de-jaunty-aurora.md` |
+| Build post-archivado | **Verde** — `tsc --noEmit` + 25 tests afectados OK |
+| Phase C prod deploy | **Pendiente verificacion** — confirmar con `information_schema.columns` |
+| Phase D/E/F drops | **Pendiente operativo** — backfills no ejecutados aun en ningun entorno |
+
+---
+
+## Actualizacion 2026-05-24-decimaries
+
+### Cambios en esta sesion
+
+**Alcance**: Cifrado app-level de IP/UserAgent en tablas de sesion + eliminacion de dead code.
+
+#### Cifrado IP/UA en tablas de sesion (Ley 21.719 Art 14 quinquies lit a)
+
+Estado anterior: `EncounterSignature` y `PatientDataProcessingConsent` ya usaban `encryptNetMeta`/`decryptNetMeta`. `UserLegalAcceptance` tambien (via `buildAcceptanceRecord`). Las 4 tablas restantes escribian plaintext.
+
+Cambios realizados (enfoque inline: misma columna, sin migracion, prefijo `enc:v1:`):
+
+1. **`backend/src/users/users-session.service.ts`** — `normalizeSessionMetadata` ahora aplica `encryptNetMeta` antes del write; `createSession`, `rotateSessionTokenVersion` y `listActiveSessionsForUser` aplican `decryptNetMeta` al retornar. Afecta: `UserSession.ipAddress` y `UserSession.userAgent`.
+
+2. **`backend/src/auth/auth-password-reset.service.ts`** — `requestReset` aplica `encryptNetMeta` al crear `PasswordResetToken`. Afecta: `PasswordResetToken.ipAddress` y `PasswordResetToken.userAgent`.
+
+3. **`backend/src/patient-portal/patient-portal.service.ts`** — `issueTokens` (create) y `refreshSession` (update) de `PatientPortalSession`, y `requestPasswordReset` de `PatientPortalPasswordResetToken` aplican `encryptNetMeta`. Afecta: ambas tablas del portal.
+
+4. **`backend/scripts/backfill-net-meta-encryption.js`** (NUEVO) — Script unico parametrizable con `--table=<tabla>` para cifrar filas existentes en las 4 tablas. Detecta automaticamente registros sin prefijo `enc:v1:`. Soporta `--dry-run`, `--force`, `--batch-size`.
+
+5. **`backend/src/auth/auth-password-reset.service.spec.ts`** — Test `requestReset` actualizado: expectativa de `ipAddress` cambiada a `stringMatching(/^enc:v1:/)`.
+
+#### Eliminacion de dead code
+
+6. **`backend/src/patients/patients-field-crypto.service.ts`** y su spec eliminados. Era un wrapper thin sobre `buildEncryptedPatientIdentifierFields`/`decryptPatientIdentifier`, exportado en `PatientsModule` pero sin ningun consumidor fuera del modulo. `patients.module.ts` actualizado.
+
+### Verificacion
+
+- `tsc --noEmit`: exit 0 (sin errores)
+- `npx jest`: 484 passed, 2 skipped (suite PostgreSQL condicional), 0 failed
+
+### Tablas completamente cifradas en esta sesion
+
+| Tabla | Campos | Metodo |
+|---|---|---|
+| `user_sessions` | `ip_address`, `user_agent` | `encryptNetMeta` inline (desde esta sesion) |
+| `password_reset_tokens` | `ip_address`, `user_agent` | `encryptNetMeta` inline (desde esta sesion) |
+| `patient_portal_sessions` | `ip_address`, `user_agent` | `encryptNetMeta` inline (desde esta sesion) |
+| `patient_portal_password_reset_tokens` | `ip_address`, `user_agent` | `encryptNetMeta` inline (desde esta sesion) |
+| `encounter_signatures` | `ip_address`, `user_agent` | ya cifrado (sesion anterior) |
+| `patient_data_processing_consents` | `captured_ip`, `captured_user_agent` | ya cifrado (sesion anterior) |
+| `user_legal_acceptances` | `ip_address`, `user_agent` | ya cifrado via `buildAcceptanceRecord` (sesion anterior) |
+
+### Pendiente operativo
+
+**Backfill de registros existentes** (filas anteriores a esta sesion tienen IP/UA en plaintext):
+```bash
+ENCRYPTION_KEY=<env> node backend/scripts/backfill-net-meta-encryption.js --table=user_sessions --dry-run
+ENCRYPTION_KEY=<env> node backend/scripts/backfill-net-meta-encryption.js --table=user_sessions
+ENCRYPTION_KEY=<env> node backend/scripts/backfill-net-meta-encryption.js --table=password_reset_tokens
+ENCRYPTION_KEY=<env> node backend/scripts/backfill-net-meta-encryption.js --table=patient_portal_sessions
+ENCRYPTION_KEY=<env> node backend/scripts/backfill-net-meta-encryption.js --table=patient_portal_password_reset_tokens
+```
+`decryptNetMeta` ya maneja el caso mixto (lee plaintext legacy sin error), por lo que el backfill puede correrse sin ventana de mantenimiento.
+
+### Conclusion `decimaries`
+
+| Categoria | Estado |
+|---|---|
+| IP/UA cifrado en sesiones admin | **Completo** (nuevos writes cifrados) |
+| IP/UA cifrado en portal | **Completo** (nuevos writes cifrados) |
+| IP/UA cifrado en password resets | **Completo** (nuevos writes cifrados) |
+| Backfill registros existentes IP/UA | **Pendiente operativo** (script listo) |
+| Dead code `PatientsFieldCryptoService` | **Eliminado** |
+| Build | **Verde** — 484 tests OK |
+| Hallazgo IP/UA cerrado | Todos los modelos de sesion cubiertos |

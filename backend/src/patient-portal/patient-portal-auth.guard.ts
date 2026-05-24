@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import type { PatientPortalJwtPayload } from './patient-portal.types';
+import { extractBearerToken } from '../common/utils/mobile-client';
 
 @Injectable()
 export class PatientPortalAuthGuard implements CanActivate {
@@ -14,7 +15,7 @@ export class PatientPortalAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest();
-    const token = req?.cookies?.patient_access_token;
+    const token = req?.cookies?.patient_access_token ?? extractBearerToken(req);
     if (!token) throw new UnauthorizedException('Sesión de portal paciente requerida');
 
     let payload: PatientPortalJwtPayload;

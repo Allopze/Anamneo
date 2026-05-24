@@ -19,6 +19,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { UsersService } from '../users/users.service';
 import { ConfigService } from '@nestjs/config';
+import { isMobileClient } from '../common/utils/mobile-client';
 
 // Cookie configuration helper
 function getCookieOptions(maxAge: number, isProduction: boolean) {
@@ -64,6 +65,17 @@ export class AuthController {
     res.cookie('refresh_token', tokens.refreshToken, getCookieOptions(this.refreshMaxAge, this.isProduction));
   }
 
+  // Apps nativas no pueden leer cookies httpOnly, así que cuando el cliente se
+  // identifica como móvil devolvemos los tokens también en el body. El cliente
+  // los almacenará en almacenamiento seguro (Keychain/Keystore) y los enviará
+  // como Bearer en el header Authorization.
+  private maybeMobileTokens(
+    req: Request,
+    tokens: { accessToken: string; refreshToken: string },
+  ): { tokens?: { accessToken: string; refreshToken: string } } {
+    return isMobileClient(req) ? { tokens } : {};
+  }
+
   private clearAuthCookies(res: Response) {
     const opts = { httpOnly: true, secure: this.isProduction, sameSite: 'strict' as const, path: '/' };
     res.clearCookie('access_token', opts);
@@ -97,18 +109,20 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @Throttle({ short: { limit: 3, ttl: 60000 } })
   async register(@Body() registerDto: RegisterWithInvitationDto, @Res({ passthrough: true }) res: Response) {
-    const sessionContext = this.getSessionContext(res.req as Request);
+    const req = res.req as Request;
+    const sessionContext = this.getSessionContext(req);
     const result = await this.authService.register(registerDto, sessionContext);
     this.setAuthCookies(res, result);
     const user = await this.authService.getSessionUserByEmail(registerDto.email);
-    return { message: 'Registro exitoso', user };
+    return { message: 'Registro exitoso', user, ...this.maybeMobileTokens(req, result) };
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: 5, ttl: 60000 } })
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const sessionContext = this.getSessionContext(res.req as Request);
+    const req = res.req as Request;
+    const sessionContext = this.getSessionContext(req);
     const result = await this.authService.login(loginDto, sessionContext);
 
     if ('requires2FA' in result) {
@@ -117,14 +131,18 @@ export class AuthController {
 
     this.setAuthCookies(res, result);
     const user = await this.authService.getSessionUserByEmail(loginDto.email);
-    return { message: 'Inicio de sesión exitoso', user };
+    return { message: 'Inicio de sesión exitoso', user, ...this.maybeMobileTokens(req, result) };
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Res({ passthrough: true }) res: Response) {
+  async refresh(
+    @Body() body: { refreshToken?: string } = {},
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const req = res.req as Request & { cookies?: Record<string, string> };
-    const refreshToken = req.cookies?.refresh_token;
+    // El web usa cookie httpOnly; el móvil envía el refresh token en el body.
+    const refreshToken = req.cookies?.refresh_token ?? body?.refreshToken;
     if (!refreshToken) {
       this.clearAuthCookies(res);
       throw new UnauthorizedException('Token de refresco no proporcionado');
@@ -132,7 +150,7 @@ export class AuthController {
     try {
       const tokens = await this.authService.refreshTokens(refreshToken, this.getSessionContext(req));
       this.setAuthCookies(res, tokens);
-      return { message: 'Tokens actualizados' };
+      return { message: 'Tokens actualizados', ...this.maybeMobileTokens(req, tokens) };
     } catch (err) {
       // Clear stale cookies so the browser stops sending expired tokens
       this.clearAuthCookies(res);
@@ -162,9 +180,12 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@Res({ passthrough: true }) res: Response) {
+  async logout(
+    @Body() body: { refreshToken?: string } = {},
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const req = res.req as Request & { cookies?: Record<string, string> };
-    const refreshToken = req.cookies?.refresh_token;
+    const refreshToken = req.cookies?.refresh_token ?? body?.refreshToken;
 
     if (refreshToken) {
       await this.authService.revokeByRefreshToken(refreshToken);
@@ -273,10 +294,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: 5, ttl: 60000 } })
   async verify2FA(@Body() dto: VerifyTotpLoginDto, @Res({ passthrough: true }) res: Response) {
-    const sessionContext = this.getSessionContext(res.req as Request);
+    const req = res.req as Request;
+    const sessionContext = this.getSessionContext(req);
     const result = await this.authService.verify2FALogin(dto.tempToken, dto.code, sessionContext);
     this.setAuthCookies(res, result.tokens);
     const user = await this.authService.getSessionUserById(result.userId);
-    return { message: 'Verificación 2FA exitosa', user };
+    return { message: 'Verificación 2FA exitosa', user, ...this.maybeMobileTokens(req, result.tokens) };
   }
 }

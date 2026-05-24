@@ -2,6 +2,7 @@ import { Injectable, Logger, UnauthorizedException, BadRequestException } from '
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
+import { encryptNetMeta } from '../common/utils/field-crypto';
 import { authenticator } from '@otplib/v12-adapter';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
@@ -66,8 +67,8 @@ export class AuthPasswordResetService {
         userId: user.id,
         tokenHash,
         expiresAt,
-        ipAddress: sessionContext.ipAddress ?? null,
-        userAgent: sessionContext.userAgent ?? null,
+        ipAddress: encryptNetMeta(sessionContext.ipAddress),
+        userAgent: encryptNetMeta(sessionContext.userAgent),
       },
     });
 

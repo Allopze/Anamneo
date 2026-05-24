@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { decryptNetMeta, encryptNetMeta } from '../common/utils/field-crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
 type SessionMetadata = {
@@ -15,8 +16,8 @@ export class UsersSessionService {
     const ipAddress = metadata?.ipAddress?.trim().slice(0, 64) || null;
 
     return {
-      userAgent,
-      ipAddress,
+      userAgent: encryptNetMeta(userAgent),
+      ipAddress: encryptNetMeta(ipAddress),
     };
   }
 
@@ -52,7 +53,7 @@ export class UsersSessionService {
   async createSession(userId: string, metadata?: SessionMetadata) {
     const normalized = this.normalizeSessionMetadata(metadata);
 
-    return this.prisma.userSession.create({
+    const row = await this.prisma.userSession.create({
       data: {
         userId,
         tokenVersion: 1,
@@ -70,10 +71,11 @@ export class UsersSessionService {
         revokedAt: true,
       },
     });
+    return { ...row, userAgent: decryptNetMeta(row.userAgent), ipAddress: decryptNetMeta(row.ipAddress) };
   }
 
   async findActiveSessionById(id: string) {
-    return this.prisma.userSession.findFirst({
+    const row = await this.prisma.userSession.findFirst({
       where: {
         id,
         revokedAt: null,
@@ -88,6 +90,8 @@ export class UsersSessionService {
         revokedAt: true,
       },
     });
+    if (!row) return null;
+    return { ...row, userAgent: decryptNetMeta(row.userAgent), ipAddress: decryptNetMeta(row.ipAddress) };
   }
 
   async rotateSessionTokenVersion(id: string, metadata?: SessionMetadata) {
@@ -112,7 +116,7 @@ export class UsersSessionService {
       return null;
     }
 
-    return this.prisma.userSession.findUnique({
+    const row = await this.prisma.userSession.findUnique({
       where: { id },
       select: {
         id: true,
@@ -123,6 +127,8 @@ export class UsersSessionService {
         revokedAt: true,
       },
     });
+    if (!row) return null;
+    return { ...row, userAgent: decryptNetMeta(row.userAgent), ipAddress: decryptNetMeta(row.ipAddress) };
   }
 
   async revokeSessionById(id: string) {
@@ -167,7 +173,7 @@ export class UsersSessionService {
   }
 
   async listActiveSessionsForUser(userId: string) {
-    return this.prisma.userSession.findMany({
+    const rows = await this.prisma.userSession.findMany({
       where: {
         userId,
         revokedAt: null,
@@ -181,6 +187,7 @@ export class UsersSessionService {
         createdAt: true,
       },
     });
+    return rows.map((r) => ({ ...r, userAgent: decryptNetMeta(r.userAgent), ipAddress: decryptNetMeta(r.ipAddress) }));
   }
 
   async revokeOwnedSession(userId: string, id: string) {
