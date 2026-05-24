@@ -67,9 +67,9 @@ describe('PatientDataRightsService — workflow', () => {
       const dueDateMs = new Date(callArg.data.dueDate).getTime();
       const expectedDueDateMs = Date.now() + 30 * 24 * 60 * 60 * 1000;
       expect(Math.abs(dueDateMs - expectedDueDateMs)).toBeLessThan(5000);
-      expect(callArg.data.requesterName).toBe('[encrypted]');
-      expect(callArg.data.requesterRut).toBeNull();
-      expect(callArg.data.requesterEmail).toBe('[encrypted]');
+      expect(callArg.data.requesterName).toBeUndefined();
+      expect(callArg.data.requesterRut).toBeUndefined();
+      expect(callArg.data.requesterEmail).toBeUndefined();
       expect(callArg.data.requesterNameEnc).toMatch(/^enc:v1:/);
       expect(callArg.data.requesterEmailEnc).toMatch(/^enc:v1:/);
       expect(out.status).toBe('RECIBIDA');

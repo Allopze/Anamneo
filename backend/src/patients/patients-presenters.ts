@@ -95,6 +95,28 @@ export function decoratePatient<T extends Record<string, any>>(patient: T) {
       blockedAt: patient.blockedAt ?? null,
       blockedReason: patient.blockedReason ?? null,
       processingObjections: patient.processingObjections ?? null,
+      hasActiveDataProcessingConsent: Array.isArray(patient.dataProcessingConsents)
+        ? patient.dataProcessingConsents.length > 0
+        : null,
+      dataProcessingConsent: Array.isArray(patient.dataProcessingConsents) && patient.dataProcessingConsents[0]
+        ? {
+            id: patient.dataProcessingConsents[0].id,
+            legalDocumentVersion: patient.dataProcessingConsents[0].legalDocument?.version ?? null,
+            grantedAt: patient.dataProcessingConsents[0].grantedAt ?? null,
+            evidenceHash: patient.dataProcessingConsents[0].evidenceHash ?? null,
+          }
+        : null,
+      activeDataRequestCount: Array.isArray(patient.dataRequests)
+        ? patient.dataRequests.length
+        : null,
+      activeDataRequests: Array.isArray(patient.dataRequests)
+        ? patient.dataRequests.map((request: any) => ({
+            id: request.id,
+            requestType: request.requestType,
+            status: request.status,
+            dueDate: request.dueDate ?? null,
+          }))
+        : null,
     }),
     createdAt: patient.createdAt,
     updatedAt: patient.updatedAt,

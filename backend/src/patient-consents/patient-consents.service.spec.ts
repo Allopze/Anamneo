@@ -177,8 +177,8 @@ describe('PatientConsentsService', () => {
       const callArg = createConsent.mock.calls[0][0];
       expect(callArg.data.evidenceHash).toMatch(/^[0-9a-f]{64}$/);
       expect(callArg.data.capturedByUserId).toBe('user-1');
-      expect(callArg.data.signerName).toBe('[encrypted]');
-      expect(callArg.data.signerRut).toBeNull();
+      expect(callArg.data.signerName).toBeUndefined();
+      expect(callArg.data.signerRut).toBeUndefined();
       expect(callArg.data.signerNameEnc).toMatch(/^enc:v1:/);
       expect(callArg.data.signerRutEnc).toMatch(/^enc:v1:/);
       expect(callArg.data.signerRutLookupHash).toMatch(/^[a-f0-9]{64}$/);

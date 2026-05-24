@@ -17,6 +17,20 @@ export interface PatientLegalStatus {
   canUploadAttachment: boolean;
   canRegisterClinicalConsent: boolean;
   canRegisterDataProcessingConsent: boolean;
+  hasActiveDataProcessingConsent: boolean | null;
+  dataProcessingConsent: {
+    id: string;
+    legalDocumentVersion: string | null;
+    grantedAt: string | Date | null;
+    evidenceHash: string | null;
+  } | null;
+  activeDataRequestCount: number;
+  activeDataRequests: Array<{
+    id: string;
+    requestType: string;
+    status: string;
+    dueDate: string | Date | null;
+  }>;
   legalBlockReason: string | null;
   requiredActions: Array<{
     code: string;

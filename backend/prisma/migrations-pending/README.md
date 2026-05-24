@@ -21,31 +21,7 @@ npx prisma generate
 
 ## Migraciones pendientes activas
 
-### `20260524010000_ley21719_phase_d_drop_legal_representative_plaintext`
-
-Phase D — drop de las columnas plaintext del representante legal NNA
-(`legal_representative_name`, `legal_representative_rut`,
-`legal_representative_relationship`, `legal_representative_contact`).
-
-**Pre-requisitos** documentados en la cabecera de la migración.
-
----
-
-### `20260524020000_ley21719_phase_e_drop_consent_signer_plaintext`
-
-Phase E — drop de las columnas plaintext del firmante de consentimiento
-(`signer_name`, `signer_rut`) en `patient_data_processing_consents`.
-
-**Pre-requisitos** documentados en la cabecera de la migración.
-
----
-
-### `20260524030000_ley21719_phase_f_drop_data_request_requester_plaintext`
-
-Phase F — drop de las columnas plaintext del solicitante DSAR
-(`requester_name`, `requester_rut`, `requester_email`) en `patient_data_requests`.
-
-**Pre-requisitos** documentados en la cabecera de la migración.
+No hay migraciones pendientes activas.
 
 ---
 
@@ -54,3 +30,6 @@ Phase F — drop de las columnas plaintext del solicitante DSAR
 | Migración | Activada |
 |---|---|
 | `20260524000000_ley21719_phase_c_drop_patient_plaintext` | ✅ Movida a `migrations/` (Phase C) |
+| `20260524010000_ley21719_phase_d_drop_legal_representative_plaintext` | ✅ Movida a `migrations/` (Phase D-drop) |
+| `20260524020000_ley21719_phase_e_drop_consent_signer_plaintext` | ✅ Movida a `migrations/` (Phase E-drop) |
+| `20260524030000_ley21719_phase_f_drop_data_request_requester_plaintext` | ✅ Movida a `migrations/` (Phase F-drop) |

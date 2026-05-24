@@ -61,8 +61,8 @@ async function main() {
     try {
       await prisma.$queryRawUnsafe('SELECT requester_name FROM patient_data_requests LIMIT 1');
     } catch {
-      console.error('[FAIL] Columna requester_name ya no existe. Phase F-drop ya fue aplicada.');
-      process.exit(1);
+      console.log('[SKIP] Columna requester_name ya no existe. Phase F-drop ya fue aplicada.');
+      return;
     }
 
     const [{ total }] = await prisma.$queryRawUnsafe(

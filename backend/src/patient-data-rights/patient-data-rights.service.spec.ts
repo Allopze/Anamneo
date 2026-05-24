@@ -3,6 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { UnauthorizedException } from '@nestjs/common';
 import { PatientDataRequestDeliveryService } from './patient-data-request-delivery.service';
+import { computeRutLookupHash } from '../patients/patients-identifiers';
 
 describe('PatientDataRightsService export delivery links', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'anamneo-data-request-'));
@@ -22,7 +23,7 @@ describe('PatientDataRightsService export delivery links', () => {
       revokedAt: null,
       request: {
         id: 'request-1',
-        requesterRut: '12.345.678-5',
+        requesterRutLookupHash: computeRutLookupHash('12.345.678-5'),
       },
       patient: {
         id: 'patient-1',

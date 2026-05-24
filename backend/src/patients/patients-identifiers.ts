@@ -28,11 +28,6 @@ export type PatientEncryptedIdentifierShape = {
   legalRepresentativeRutLookupHash?: string | null;
   legalRepresentativeRelationshipEnc?: string | null;
   legalRepresentativeContactEnc?: string | null;
-  // Plaintext columns — kept temporarily until Phase D-drop backfill is applied
-  legalRepresentativeName?: string | null;
-  legalRepresentativeRut?: string | null;
-  legalRepresentativeRelationship?: string | null;
-  legalRepresentativeContact?: string | null;
 };
 
 export type PatientPlainIdentifiers = {
@@ -131,11 +126,10 @@ export function resolvePatientIdentifiers(patient: PatientEncryptedIdentifierSha
     domicilio: decryptPatientIdentifier(patient.domicilioEnc),
     contactoEmergenciaNombre: decryptPatientIdentifier(patient.contactoEmergenciaNombreEnc),
     contactoEmergenciaTelefono: decryptPatientIdentifier(patient.contactoEmergenciaTelefonoEnc),
-    // Phase D — descifrar representante legal. Fallback a plaintext durante la ventana de backfill.
-    legalRepresentativeName: decryptPatientIdentifier(patient.legalRepresentativeNameEnc) ?? patient.legalRepresentativeName ?? null,
-    legalRepresentativeRut: decryptPatientIdentifier(patient.legalRepresentativeRutEnc) ?? patient.legalRepresentativeRut ?? null,
-    legalRepresentativeRelationship: decryptPatientIdentifier(patient.legalRepresentativeRelationshipEnc) ?? patient.legalRepresentativeRelationship ?? null,
-    legalRepresentativeContact: decryptPatientIdentifier(patient.legalRepresentativeContactEnc) ?? patient.legalRepresentativeContact ?? null,
+    legalRepresentativeName: decryptPatientIdentifier(patient.legalRepresentativeNameEnc),
+    legalRepresentativeRut: decryptPatientIdentifier(patient.legalRepresentativeRutEnc),
+    legalRepresentativeRelationship: decryptPatientIdentifier(patient.legalRepresentativeRelationshipEnc),
+    legalRepresentativeContact: decryptPatientIdentifier(patient.legalRepresentativeContactEnc),
   };
 }
 

@@ -83,9 +83,9 @@ async function main() {
     try {
       await prisma.$queryRawUnsafe('SELECT legal_representative_name FROM patients LIMIT 1');
     } catch {
-      console.error('[FAIL] La columna "legal_representative_name" ya no existe.');
-      console.error('       La migración Phase D-drop ya fue aplicada. Este script ya no es necesario.');
-      process.exit(1);
+      console.log('[SKIP] La columna "legal_representative_name" ya no existe.');
+      console.log('       La migración Phase D-drop ya fue aplicada. Este script ya no es necesario.');
+      return;
     }
 
     const [countResult] = await prisma.$queryRawUnsafe(

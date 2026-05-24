@@ -8,8 +8,6 @@ import { decryptField, decryptNetMeta, encryptField, encryptNetMeta } from '../c
 import { computeRutLookupHash } from '../patients/patients-identifiers';
 import { assertLoadedPatientAccess, assertPatientAccess } from '../common/utils/patient-access';
 
-const ENCRYPTED_LEGACY_PLACEHOLDER = '[encrypted]';
-
 /**
  * Servicio del consentimiento del TITULAR para el tratamiento de datos
  * personales (Ley 21.719 Art 12). Distinto del ClinicalConsent que
@@ -67,9 +65,8 @@ export class PatientConsentsService {
       ...c,
       capturedIp: decryptNetMeta(c.capturedIp),
       capturedUserAgent: decryptNetMeta(c.capturedUserAgent),
-      // Phase E — descifrar firmante; fallback a plaintext durante ventana de backfill
-      signerName: (c.signerNameEnc ? decryptField(c.signerNameEnc) : null) ?? c.signerName,
-      signerRut: c.signerRutEnc ? decryptField(c.signerRutEnc) : c.signerRut,
+      signerName: c.signerNameEnc ? decryptField(c.signerNameEnc) : null,
+      signerRut: c.signerRutEnc ? decryptField(c.signerRutEnc) : null,
     }));
 
     await this.audit.log({
@@ -141,9 +138,6 @@ export class PatientConsentsService {
         capturedIp: encryptNetMeta(requestMeta.ip),
         capturedUserAgent: encryptNetMeta(requestMeta.userAgent),
         capturedByUserId: dto.method === 'WEB_TITULAR' ? null : user.id,
-        signerName: ENCRYPTED_LEGACY_PLACEHOLDER,
-        signerRut: null,
-        // Phase E — cifrado app-level del firmante
         signerNameEnc: encryptField(dto.signerName),
         signerRutEnc: dto.signerRut ? encryptField(dto.signerRut) : null,
         signerRutLookupHash: computeRutLookupHash(dto.signerRut ?? null),

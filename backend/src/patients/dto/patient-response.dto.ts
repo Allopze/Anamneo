@@ -69,6 +69,20 @@ export class PatientLegalStatusDto {
   canUploadAttachment: boolean;
   canRegisterClinicalConsent: boolean;
   canRegisterDataProcessingConsent: boolean;
+  hasActiveDataProcessingConsent: boolean | null;
+  dataProcessingConsent: {
+    id: string;
+    legalDocumentVersion: string | null;
+    grantedAt: Date | string | null;
+    evidenceHash: string | null;
+  } | null;
+  activeDataRequestCount: number;
+  activeDataRequests: Array<{
+    id: string;
+    requestType: string;
+    status: string;
+    dueDate: Date | string | null;
+  }>;
   legalBlockReason: string | null;
   requiredActions: PatientLegalRequiredActionDto[];
 }

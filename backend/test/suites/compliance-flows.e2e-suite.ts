@@ -640,7 +640,6 @@ export function complianceFlowsSuite() {
             legalRepresentativeNameEnc: true,
             legalRepresentativeRutEnc: true,
             legalRepresentativeRutLookupHash: true,
-            legalRepresentativeName: true,
           },
         });
         expect(raw!.legalRepresentativeNameEnc).toMatch(/^enc:v1:/);
@@ -682,7 +681,7 @@ export function complianceFlowsSuite() {
         const consentId = res.body.id;
         const raw = await prisma.patientDataProcessingConsent.findUnique({
           where: { id: consentId },
-          select: { signerNameEnc: true, signerRutEnc: true, signerRutLookupHash: true, signerName: true },
+          select: { signerNameEnc: true, signerRutEnc: true, signerRutLookupHash: true },
         });
         expect(raw!.signerNameEnc).toMatch(/^enc:v1:/);
         expect(raw!.signerRutEnc).toMatch(/^enc:v1:/);

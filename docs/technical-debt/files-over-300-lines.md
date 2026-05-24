@@ -14,17 +14,17 @@ Archivos manuales por encima del umbral recomendado de 300 lineas. Los que super
 | --- | ---: | --- | --- |
 | P1 | 746 | `backend/src/legal/legal.service.ts` | publicacion/versionado, aceptacion, lectura publica, difusion |
 | P1 | 739 | `backend/src/mail/mail.service.ts` | transporte SMTP, render, templates por dominio |
-| P1 | 574 | `backend/src/audit/audit.service.ts` | escritura, lectura, cadena hash/verificacion, retencion |
+| P2 | 478 | `backend/src/audit/audit.service.ts` | retencion/consultas restantes; integridad ya extraida a `audit-integrity.ts` |
 | P2 | 462 | `frontend/src/app/register/page.tsx` | pasos, validacion, llamadas API, estado del wizard; `RegisterPasswordFields` ya extraido |
 | P2 | 493 | `frontend/src/app/(dashboard)/pacientes/nuevo/page.tsx` | secciones de formulario, hooks de submit, helpers de duplicados |
 | P2 | 489 | `frontend/src/app/(dashboard)/ajustes/ProfileSecurityTab.tsx` | perfil, seguridad, sesiones, privacidad local |
 | P2 | 471 | `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts` | reducer/maquina de estados de guardado |
-| P2 | 472 | `backend/src/patient-portal/patient-portal.service.ts` | auth portal, solicitudes, descargas, consentimiento |
+| P2 | 466 | `backend/src/patient-portal/patient-portal.service.ts` | auth portal, solicitudes, descargas, consentimiento |
 | P2 | 465 | `frontend/src/app/(dashboard)/pacientes/[id]/page.tsx` | estado legal, resumen clinico, acciones/exportes; `PatientLegalStatusSummary` ya extraido |
 
 ## Backend
 
-- [ ] backend/src/audit/audit.service.ts
+- [x] backend/src/audit/audit.service.ts (bajo de 500; integridad extraida a `audit-integrity.ts`, pendiente seguir bajando hacia 300)
 - [ ] backend/src/legal/legal.service.ts
 - [ ] backend/src/mail/mail.service.ts
 - [ ] backend/src/patient-portal/patient-portal.service.ts

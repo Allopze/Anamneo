@@ -180,6 +180,39 @@ export async function findPatientByIdReadModel(params: FindPatientByIdParams) {
           },
         },
       },
+      dataProcessingConsents: {
+        where: {
+          purpose: 'ATENCION_CLINICA',
+          granted: true,
+          revokedAt: null,
+          legalDocument: {
+            type: 'PRIVACY',
+            status: 'PUBLISHED',
+          },
+        },
+        take: 1,
+        orderBy: { grantedAt: 'desc' },
+        select: {
+          id: true,
+          grantedAt: true,
+          evidenceHash: true,
+          legalDocument: {
+            select: { version: true },
+          },
+        },
+      },
+      dataRequests: {
+        where: {
+          status: { in: ['RECIBIDA', 'EN_REVISION'] },
+        },
+        take: 20,
+        select: {
+          id: true,
+          requestType: true,
+          status: true,
+          dueDate: true,
+        },
+      },
       createdBy: {
         select: { medicoId: true },
       },

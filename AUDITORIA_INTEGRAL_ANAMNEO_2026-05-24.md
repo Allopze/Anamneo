@@ -26,10 +26,13 @@ Correcciones aplicadas en esta ronda:
 - Resuelta la decision de almacenamiento local de PHI para el contexto actual: uso personal/controlado, opt-in por admin/env, TTL 24h, recuperacion tras cierre del navegador y falla cerrada sin plaintext.
 - Cambiada la clave local de PHI a persistencia de navegador para soportar recuperacion tras cerrar el browser; el riesgo residual queda documentado en `DECISION_ALMACENAMIENTO_LOCAL_PHI.md`.
 - Creado `DECISION_ALMACENAMIENTO_LOCAL_PHI.md` en la raiz con opciones, respuestas del dev, decision adoptada, riesgo residual y runbook minimo.
-- Agregado `legalStatus` compartido de paciente para exponer si puede recibir atencion, crear/editar atenciones, subir adjuntos y registrar consentimientos.
-- Agregado resumen visual de estado legal en la ficha de paciente y extraido a componente propio para no crecer `page.tsx`.
-- Reducida duplicacion runtime de PHI legacy: nuevas escrituras de consentimientos de datos y solicitudes DSAR/portal guardan placeholders en columnas plaintext y usan campos cifrados/hash para los valores sensibles.
+- Ampliado `legalStatus` compartido de paciente para exponer si puede recibir atencion, crear/editar atenciones, subir adjuntos, registrar consentimientos, si tiene consentimiento vigente de tratamiento de datos, evidencia/version legal del consentimiento y detalle navegable de solicitudes DSAR activas.
+- Agregado resumen visual de estado legal en la ficha de paciente, incluyendo consentimiento de datos, version/hash de evidencia y solicitudes activas con enlace al modulo admin, extraido a componente propio para no crecer `page.tsx`.
+- Ejecutadas migraciones destructivas locales para eliminar columnas plaintext legacy de representantes legales, firmantes de consentimientos y solicitantes DSAR, despues de backup, backfill y verificacion de prerequisitos.
+- Actualizado `schema.prisma`, servicios y tests para que los campos cifrados/hash sean la unica fuente de verdad tras los drops legacy.
+- Agregado guardrail estatico post-drop `npm --prefix backend run audit:legacy-plaintext` para evitar regresiones de dependencias a columnas PHI plaintext ya eliminadas.
 - Agregado E2E focalizado de headers de seguridad (`test:e2e:security-headers`) para CSP y `Permissions-Policy`.
+- Extraida la logica de integridad/hash chain de auditoria a `backend/src/audit/audit-integrity.ts`, reduciendo `audit.service.ts` bajo el limite duro de 500 lineas.
 - Agregada supresion de desgloses detallados en analitica clinica para cohortes menores a 10 pacientes; se mantiene el resumen minimo y caveat explicito.
 - Agregado guardrail estatico `npm --prefix backend run audit:patient-scope` para detectar controladores nuevos con `patientId` sin contrato de scope conocido.
 - Agregado modo CSP estricto opt-in con `NEXT_PUBLIC_STRICT_CSP=true` para validar `script-src` con nonce/`strict-dynamic` en staging antes de activarlo por defecto.
@@ -47,7 +50,12 @@ Validaciones ejecutadas:
 - `npm --prefix backend run typecheck`
 - `npm --prefix frontend run typecheck`
 - `npm --prefix backend run audit:patient-scope`
+- `npm --prefix backend run audit:legacy-plaintext`
+- `DATABASE_URL=postgresql://postgres:***@localhost:5432/anamneo?... npm --prefix backend run prisma:migrate:prod`
+- `npm --prefix backend run prisma:generate`
+- Verificacion SQL local de ausencia de columnas legacy en `Patient`, `PatientDataProcessingConsent` y `PatientDataRequest`
 - `npm --prefix backend run test -- patient-legal-status.spec.ts patient-consents.service.spec.ts patient-data-rights.service.workflow.spec.ts --runInBand`
+- `npm --prefix backend run test -- audit.service.spec.ts audit.service.concurrency.spec.ts --runInBand`
 - `npm --prefix frontend run test -- encounter-draft.test.ts --runInBand`
 - `npm --prefix frontend run test -- paciente-detalle.test.tsx --runInBand`
 - `npm --prefix backend run test -- clinical-analytics.read-model.spec.ts --runInBand`
@@ -66,16 +74,16 @@ Validaciones ejecutadas:
 - `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` (280 tests pass, 1 snapshot pass)
 - `npm --prefix frontend run test:e2e -- accessibility.spec.ts` (6 tests pass)
 - `npm --prefix frontend run test:e2e` (20 tests pass)
+- `PLAYWRIGHT_DATABASE_URL=postgresql://postgres:***@localhost:5432/anamneo_playwright_headers?... npm --prefix frontend run test:e2e:security-headers` (1 test pass)
 
 Pendiente fuera del alcance de esta ronda, por requerir validacion externa, migracion operativa o nueva funcionalidad:
 
 - Prueba real/staging de Sentry bajo CSP.
 - Prueba manual de dictado por voz en navegador objetivo.
-- Ejecucion de `npm --prefix frontend run test:e2e:security-headers` en un entorno con PostgreSQL local/credenciales Playwright correctas; en esta maquina el webServer no arranco por autenticacion fallida de `anamneo_owner`.
 - Revalidacion de politica de PHI local si Anamneo pasa de uso personal/controlado a uso clinico real con equipos compartidos.
 - Validacion staging del modo `NEXT_PUBLIC_STRICT_CSP=true`; el soporte opt-in ya existe, pero no debe activarse por defecto sin smoke real.
-- Ejecucion de migraciones destructivas para eliminar columnas plaintext legacy, previa verificacion de backfill y rollback. Las nuevas escrituras ya minimizan PHI plaintext en consentimientos y solicitudes DSAR/portal.
-- Refactor estructural de archivos grandes restantes; `register/page.tsx` bajo de 500 lineas, pero legal/mail/audit y otras pantallas siguen en backlog.
+- Despliegue operativo de las migraciones destructivas en staging/produccion con el mismo checklist de backup, backfill, verificacion SQL y rollback ya probado en local.
+- Refactor estructural de archivos grandes restantes; `register/page.tsx` y `audit.service.ts` estan bajo 500 lineas, pero legal/mail y otras pantallas siguen en backlog.
 
 ## Resumen ejecutivo
 
@@ -83,9 +91,9 @@ Anamneo es un sistema de ficha clinica y gestion de atenciones para prestadores 
 
 La base tecnica es solida: backend modular en NestJS, frontend en Next.js App Router, contratos compartidos de permisos, CSRF, CSP, cookies httpOnly, cifrado de campos sensibles, auditoria, e2e stateful y una intencion clara de cumplir Ley 21.719. La experiencia clinica tambien esta bastante avanzada: atenciones seccionales, autosave, cola offline, conflictos, completitud de paciente, consentimientos, alertas y analitica.
 
-El principal riesgo no esta en la madurez general, sino en inconsistencias puntuales de autorizacion y cumplimiento. La remediacion del 2026-05-24 cerro los riesgos mas directos en consentimientos de tratamiento de datos, bloqueo temporal, CSP/dictado, privacidad local por defecto, decision de PHI local para el contexto actual, cifrado local de PHI, accesibilidad automatizada y estabilidad e2e. Queda pendiente deuda estructural de mantenibilidad, migraciones destructivas legacy y validaciones manuales/staging.
+El principal riesgo no esta en la madurez general, sino en inconsistencias puntuales de autorizacion y cumplimiento. La remediacion del 2026-05-24 cerro los riesgos mas directos en consentimientos de tratamiento de datos, bloqueo temporal, CSP/dictado, privacidad local por defecto, decision de PHI local para el contexto actual, cifrado local de PHI, accesibilidad automatizada, estabilidad e2e y eliminacion local de columnas plaintext legacy. Queda pendiente deuda estructural de mantenibilidad y validaciones manuales/staging.
 
-La recomendacion es no tratar esto como una auditoria cosmetica. Tras la remediacion aplicada, los frentes prioritarios antes de ampliar funcionalidad son reducir deuda en archivos core demasiado grandes, completar la salida de columnas plaintext legacy y validar manualmente integraciones sensibles como Sentry/dictado.
+La recomendacion es no tratar esto como una auditoria cosmetica. Tras la remediacion aplicada, los frentes prioritarios antes de ampliar funcionalidad son reducir deuda en archivos core demasiado grandes, llevar las migraciones destructivas ya probadas a staging/produccion y validar manualmente integraciones sensibles como Sentry/dictado.
 
 ## Supuestos de producto
 
@@ -246,15 +254,15 @@ Archivos principales:
 | --- | ---: |
 | `backend/src/legal/legal.service.ts` | 746 |
 | `backend/src/mail/mail.service.ts` | 739 |
-| `backend/src/audit/audit.service.ts` | 574 |
+| `backend/src/audit/audit.service.ts` | 478 |
 | `frontend/src/app/register/page.tsx` | 462 |
 | `frontend/src/app/(dashboard)/pacientes/nuevo/page.tsx` | 493 |
 | `frontend/src/app/(dashboard)/ajustes/ProfileSecurityTab.tsx` | 489 |
 | `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts` | 471 |
-| `backend/src/patient-portal/patient-portal.service.ts` | 472 |
+| `backend/src/patient-portal/patient-portal.service.ts` | 466 |
 | `frontend/src/app/(dashboard)/pacientes/[id]/page.tsx` | 465 |
 
-Problema: varios archivos manuales superan el umbral recomendado de 300 lineas y algunos backend siguen superando el limite duro de 500 mencionado en `AGENTS.md`. `register/page.tsx` ya bajo del limite duro, pero continua siendo candidato a seguir separando hooks/componentes.
+Problema: varios archivos manuales superan el umbral recomendado de 300 lineas y `legal.service.ts`/`mail.service.ts` siguen superando el limite duro de 500 mencionado en `AGENTS.md`. `register/page.tsx` y `audit.service.ts` ya bajaron del limite duro, pero continuan siendo candidatos a seguir separando hooks/componentes o casos de uso.
 
 Impacto: mayor riesgo de cambios inseguros en modulos de alto impacto: legal, auditoria, emails, registro, detalle de paciente y autosave de atenciones.
 
@@ -264,27 +272,28 @@ Recomendacion concreta:
 
 - Dividir `legal.service.ts` en publicacion/versionado, aceptacion, lectura publica y utilidades de difusion.
 - Dividir `mail.service.ts` en SMTP/renderer/templates por dominio.
-- Dividir `audit.service.ts` en escritura, lectura, cadena hash/verificacion y retencion.
+- Continuar reduciendo `audit.service.ts`; la cadena hash/verificacion ya fue extraida a `audit-integrity.ts`.
 - Extraer `register/page.tsx` a componentes y hooks de pasos.
 - Actualizar el documento de deuda tecnica y convertirlo en backlog con owners.
 
-### 7. Persisten columnas plaintext sensibles pendientes de eliminacion
+### 7. Columnas plaintext sensibles eliminadas localmente; pendiente despliegue operativo
 
 Modulo afectado: modelo de datos y migraciones de privacidad.  
-Archivos: `backend/prisma/schema.prisma`, `backend/prisma/migrations-pending/*`.
+Archivos: `backend/prisma/schema.prisma`, `backend/prisma/migrations/*`.
 
-Problema: el esquema conserva columnas plaintext legacy para datos de representantes legales, firmantes y solicitantes de derechos. Hay migraciones pendientes para drops por fases, lo que sugiere que la reduccion de superficie sensible no esta completa.
+Problema original: el esquema conservaba columnas plaintext legacy para datos de representantes legales, firmantes y solicitantes de derechos. Estado actual local: las fases destructivas D/E/F fueron activadas, aplicadas localmente y el codigo ya no depende de esas columnas.
 
-Impacto: mayor superficie de exposicion si una query, backup o error operativo accede a columnas legacy.
+Impacto residual: el riesgo queda desplazado a operacion de release. Staging y produccion deben repetir el checklist de backup, backfill, verificacion SQL y rollback antes de desplegar los drops.
 
-Severidad: media-alta.
+Severidad residual: media operativa.
 
 Recomendacion concreta:
 
-- Mantener las nuevas escrituras con placeholders plaintext y campos cifrados/hash como fuente de verdad.
-- Verificar backfill completo en staging y produccion.
-- Ejecutar fases D/E/F con checklist de rollback.
-- Agregar test o script de auditoria que falle si quedan columnas plaintext no permitidas.
+- Mantener campos cifrados/hash como fuente de verdad.
+- Ejecutar `npm --prefix backend run audit:legacy-plaintext` en CI/release junto con `audit:patient-scope`.
+- Verificar backfill completo en staging y produccion antes del rollout destructivo.
+- Ejecutar fases D/E/F en staging/produccion con backup y prueba de rollback.
+- Extender el guardrail cuando se agreguen nuevos campos sensibles.
 
 ## Bugs e inconsistencias reproducibles
 
@@ -633,16 +642,16 @@ Deuda o riesgos:
 | --- | --- | --- |
 | `patient-consents` sin scope de paciente | Cerrado con guard, scope service y e2e de aislamiento | Cerrado |
 | Bloqueo temporal no uniforme | Cerrado para matriz tecnica prioritaria; falta definicion fina admin/regulatoria | P1 producto |
-| Servicios legal/mail/audit enormes | Mantenibilidad y errores en cambios | P1 |
-| Campos plaintext legacy | Nuevas escrituras minimizadas; drops destructivos pendientes | P1 operativo |
+| Servicios legal/mail enormes; audit aun grande pero bajo 500 | Mantenibilidad y errores en cambios | P1 |
+| Campos plaintext legacy | Drops destructivos aplicados localmente; pendiente rollout staging/prod con checklist | P1 operativo |
 | Estados clinicos como strings dispersos | Bugs por valores invalidos | P2 |
-| Reglas legales repartidas | Mitigado con `legalStatus` compartido; falta consolidar politica completa | P2 |
+| Reglas legales repartidas | Mitigado con `legalStatus` compartido para bloqueo, consentimiento, evidencia/version legal y DSAR activas navegables; faltan excepciones admin/regulatorias completas | P2 |
 
 Refactors priorizados:
 
-1. Ampliar la capa de politica de paciente iniciada con `legalStatus`: acceso, bloqueo, consentimiento y permisos de mutacion.
+1. Ampliar la capa de politica de paciente iniciada con `legalStatus`: excepciones regulatorias/admin y permisos de mutacion.
 2. Dividir servicios >500 lineas en servicios de caso de uso.
-3. Completar migraciones de eliminacion de plaintext legacy.
+3. Desplegar migraciones de eliminacion de plaintext legacy en staging/produccion.
 4. Tipar estados clinicos con enums o contratos compartidos mas estrictos.
 5. Agregar tests de autorizacion por dominio, no solo tests felices de flujo.
 
@@ -704,7 +713,7 @@ Pruebas recomendadas:
 
 ### P0/P1: confianza, cumplimiento y continuidad
 
-- Panel unico de "Estado legal del paciente": iniciado en ficha de paciente con habilitacion/bloqueo/acciones; falta sumar consentimiento de tratamiento y solicitudes activas.
+- Panel unico de "Estado legal del paciente": iniciado en ficha de paciente con habilitacion/bloqueo/acciones, consentimiento de tratamiento, evidencia/version legal y solicitudes activas navegables; falta sumar excepciones admin/regulatorias y vista dedicada de investigacion/soporte.
 - Matriz de permisos visible para admin: que puede hacer medico, asistente y admin.
 - Modo equipo compartido gestionado por politica, no solo preferencia local.
 - Evidencia de consentimiento mas robusta: identidad del firmante, vinculo, documento asociado, version legal aceptada y auditoria visible.
@@ -732,13 +741,14 @@ Pruebas recomendadas:
 3. Cerrado tecnico: dictado habilitado con policy compatible y opt-out por env.
 4. Cerrado para matriz prioritaria: guard ajustado a lecturas vs mutaciones, aplicado a endpoints de mayor riesgo y cubierto por e2e. Pendiente solo definicion fina de producto para operaciones regulatorias/admin.
 5. Cerrado para contexto actual: decision de PHI local documentada y aplicada con recuperacion tras cierre de navegador.
-6. Cerrado parcial: estado legal compartido expuesto en ficha de paciente.
+6. Cerrado parcial: estado legal compartido expuesto en ficha de paciente con bloqueo, consentimiento de tratamiento, evidencia/version legal y solicitudes DSAR activas navegables.
+7. Cerrado local: drops destructivos de plaintext legacy aplicados tras backup/backfill/verificacion y guardrail `audit:legacy-plaintext` actualizado para evitar regresiones.
 
 ### 1 a 2 semanas
 
-1. Completar politica central de paciente bloqueado/consentimiento sobre el `legalStatus` compartido.
-2. Completar o calendarizar migraciones de columnas plaintext.
-3. Refactorizar `legal.service.ts`, `mail.service.ts`, `audit.service.ts`.
+1. Completar politica central de paciente sobre el `legalStatus` compartido: excepciones regulatorias/admin y permisos de mutacion por caso regulatorio.
+2. Ejecutar migraciones destructivas de columnas plaintext en staging/produccion con checklist operativo.
+3. Refactorizar `legal.service.ts`, `mail.service.ts` y continuar bajando `audit.service.ts` hacia 300 lineas.
 4. Rehacer componentes legales de ficha paciente con sistema visual consistente.
 5. Revalidar la politica de almacenamiento local de PHI solo si Anamneo pasa a uso clinico real, multiusuario o equipos compartidos.
 
@@ -758,7 +768,7 @@ Antes de operar con datos reales a escala, recomendaria exigir:
 - Matriz de bloqueo/consentimiento cubierta por e2e.
 - CSP compatible con todas las integraciones activas.
 - Decision formal sobre almacenamiento local de PHI registrada y revalidada para el contexto real de despliegue.
-- Migraciones de plaintext legacy completadas o excepcion documentada.
+- Migraciones de plaintext legacy completadas en el entorno objetivo o excepcion documentada con fecha de salida.
 - Auditoria de accesibilidad manual en atencion, paciente y consentimientos.
 - Runbook de incidente de privacidad y revocacion de acceso.
 

@@ -61,8 +61,8 @@ async function main() {
     try {
       await prisma.$queryRawUnsafe('SELECT signer_name FROM patient_data_processing_consents LIMIT 1');
     } catch {
-      console.error('[FAIL] Columna signer_name ya no existe. Phase E-drop ya fue aplicada.');
-      process.exit(1);
+      console.log('[SKIP] Columna signer_name ya no existe. Phase E-drop ya fue aplicada.');
+      return;
     }
 
     const [{ total }] = await prisma.$queryRawUnsafe(

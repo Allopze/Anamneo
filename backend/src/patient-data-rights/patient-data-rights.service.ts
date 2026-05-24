@@ -23,7 +23,6 @@ import { computeRutLookupHash } from '../patients/patients-identifiers';
 
 const RESPONSE_SLA_DAYS = 30; // Ley 21.719 Art 11 (30 dias corridos)
 const PRORROGA_DAYS = 30;
-const ENCRYPTED_LEGACY_PLACEHOLDER = '[encrypted]';
 
 @Injectable()
 export class PatientDataRightsService {
@@ -63,10 +62,6 @@ export class PatientDataRightsService {
         requestType: dto.requestType,
         status: 'RECIBIDA',
         submittedBy,
-        requesterName: ENCRYPTED_LEGACY_PLACEHOLDER,
-        requesterRut: null,
-        requesterEmail: ENCRYPTED_LEGACY_PLACEHOLDER,
-        // Phase F — cifrado app-level del solicitante DSAR
         requesterNameEnc: encryptField(dto.requesterName),
         requesterRutEnc: dto.requesterRut ? encryptField(dto.requesterRut) : null,
         requesterRutLookupHash: computeRutLookupHash(dto.requesterRut ?? null),
@@ -163,11 +158,10 @@ export class PatientDataRightsService {
     return updated;
   }
 
-  /** Descifra los campos de contacto del requester; fallback a plaintext durante ventana de backfill */
-  private decryptRequesterContact(item: { requesterName: string; requesterEmail: string; requesterNameEnc: string | null; requesterEmailEnc: string | null }) {
+  private decryptRequesterContact(item: { requesterNameEnc: string | null; requesterEmailEnc: string | null }) {
     return {
-      requesterName: (item.requesterNameEnc ? decryptField(item.requesterNameEnc) : null) ?? item.requesterName,
-      requesterEmail: (item.requesterEmailEnc ? decryptField(item.requesterEmailEnc) : null) ?? item.requesterEmail,
+      requesterName: item.requesterNameEnc ? decryptField(item.requesterNameEnc) : 'Titular',
+      requesterEmail: item.requesterEmailEnc ? decryptField(item.requesterEmailEnc) : '',
     };
   }
 

@@ -58,7 +58,7 @@ export class PatientDataRequestDeliveryService {
       throw new BadRequestException('Debe registrar verificación de identidad antes de generar la entrega');
     }
     const existingPatientIdentifiers = resolvePatientIdentifiers(existing.patient);
-    if (!existing.requesterRut && !existingPatientIdentifiers.rut) {
+    if (!existing.requesterRutLookupHash && !existingPatientIdentifiers.rut) {
       throw new BadRequestException('La descarga requiere RUT del solicitante o del paciente registrado');
     }
 
@@ -129,9 +129,8 @@ export class PatientDataRequestDeliveryService {
       },
     });
 
-    // Phase F — descifrar para el envío de email; fallback a plaintext durante backfill
-    const requesterEmail = (existing.requesterEmailEnc ? decryptField(existing.requesterEmailEnc) : null) ?? existing.requesterEmail;
-    const requesterName = (existing.requesterNameEnc ? decryptField(existing.requesterNameEnc) : null) ?? existing.requesterName;
+    const requesterEmail = existing.requesterEmailEnc ? decryptField(existing.requesterEmailEnc) : '';
+    const requesterName = existing.requesterNameEnc ? decryptField(existing.requesterNameEnc) : 'Titular';
     const mailResult = await this.mail.sendDataRequestExportLink({
       to: requesterEmail,
       requesterName,
@@ -173,13 +172,11 @@ export class PatientDataRequestDeliveryService {
       throw new UnauthorizedException('El enlace alcanzó el máximo de descargas');
     }
 
-    // Phase F — verificar RUT por hash (evita decrypt). Fallback a comparación
-    // normalizada durante la ventana de backfill (cuando requesterRutLookupHash todavía sea null).
+    // Phase F-drop — verificar RUT por hash sin depender de columnas plaintext.
     const downloadPatientIdentifiers = resolvePatientIdentifiers(download.patient);
     const suppliedRutHash = computeRutLookupHash(dto.requesterRut);
     const patientRutHash = downloadPatientIdentifiers.rut ? computeRutLookupHash(downloadPatientIdentifiers.rut) : null;
-    const requestRutHash = download.request.requesterRutLookupHash
-      ?? (download.request.requesterRut ? computeRutLookupHash(download.request.requesterRut) : null);
+    const requestRutHash = download.request.requesterRutLookupHash;
     const allowedHashes = [requestRutHash, patientRutHash].filter(Boolean);
     if (!suppliedRutHash || !allowedHashes.includes(suppliedRutHash)) {
       throw new UnauthorizedException('RUT no coincide con la solicitud');

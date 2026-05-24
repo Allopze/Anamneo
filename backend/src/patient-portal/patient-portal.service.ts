@@ -31,7 +31,6 @@ const PORTAL_RESET_TTL_MINUTES = 30;
 const PORTAL_LOCK_ATTEMPTS = 5;
 const PORTAL_LOCK_MINUTES = 15;
 const DATA_REQUEST_SLA_DAYS = 30;
-const ENCRYPTED_LEGACY_PLACEHOLDER = '[encrypted]';
 
 type SessionContext = {
   userAgent?: string | null;
@@ -277,8 +276,6 @@ export class PatientPortalService {
         prevision: true,
         emailEnc: true,
         telefonoEnc: true,
-        legalRepresentativeName: true,
-        legalRepresentativeRelationship: true,
         legalRepresentativeNameEnc: true,
         legalRepresentativeRelationshipEnc: true,
       },
@@ -389,9 +386,6 @@ export class PatientPortalService {
         requestType: dto.requestType,
         status: 'RECIBIDA',
         submittedBy: user.relationship === 'TITULAR' ? 'TITULAR' : 'REPRESENTANTE',
-        requesterName: ENCRYPTED_LEGACY_PLACEHOLDER,
-        requesterRut: null,
-        requesterEmail: ENCRYPTED_LEGACY_PLACEHOLDER,
         requesterNameEnc: encryptField(patientIdentifiers.nombre),
         requesterRutEnc: requesterRut ? encryptField(requesterRut) : null,
         requesterRutLookupHash: computeRutLookupHash(requesterRut),

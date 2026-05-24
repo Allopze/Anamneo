@@ -117,12 +117,6 @@ model Patient {
   // Ej: { "ANALITICA_INTERNA": true, "COMUNICACIONES": false }
   processingObjections Json? @map("processing_objections")
   // Ley 21.719 Art 16 quater (representante legal NNA)
-  // Columnas plaintext mantenidas para backfill (Phase D-drop las eliminará tras verificación).
-  legalRepresentativeName         String? @map("legal_representative_name")
-  legalRepresentativeRut          String? @map("legal_representative_rut")
-  legalRepresentativeRelationship String? @map("legal_representative_relationship")
-  legalRepresentativeContact      String? @map("legal_representative_contact")
-  // Phase D — cifrado app-level del representante legal
   legalRepresentativeNameEnc         String? @map("legal_representative_name_enc")
   legalRepresentativeRutEnc          String? @map("legal_representative_rut_enc")
   legalRepresentativeRutLookupHash   String? @map("legal_representative_rut_lookup_hash")
@@ -726,10 +720,7 @@ model PatientDataProcessingConsent {
   // El User que asistio la captura (medico/asistente). Nullable cuando el
   // titular firmo via WEB_TITULAR sin asistencia.
   capturedByUserId String? @map("captured_by_user_id")
-  // Identidad declarada del firmante — plaintext mantenido para backfill (Phase E-drop lo eliminará)
-  signerName      String   @map("signer_name")
-  signerRut       String?  @map("signer_rut")
-  // Phase E — cifrado app-level del firmante
+  // Identidad declarada del firmante cifrada app-level
   signerNameEnc         String? @map("signer_name_enc")
   signerRutEnc          String? @map("signer_rut_enc")
   signerRutLookupHash   String? @map("signer_rut_lookup_hash")
@@ -783,11 +774,7 @@ model PatientDataRequest {
   // TITULAR | REPRESENTANTE | ADMIN
   submittedBy String   @map("submitted_by")
   submittedAt DateTime @default(now()) @map("submitted_at")
-  // Datos del solicitante — plaintext mantenido para backfill (Phase F-drop lo eliminará)
-  requesterName  String  @map("requester_name")
-  requesterRut   String? @map("requester_rut")
-  requesterEmail String  @map("requester_email")
-  // Phase F — cifrado app-level del solicitante DSAR
+  // Datos del solicitante cifrados app-level
   requesterNameEnc         String? @map("requester_name_enc")
   requesterRutEnc          String? @map("requester_rut_enc")
   requesterRutLookupHash   String? @map("requester_rut_lookup_hash")
@@ -811,7 +798,7 @@ model PatientDataRequest {
 
   @@index([status, dueDate])
   @@index([patientId, requestType])
-  @@index([requesterRut])
+  @@index([requesterRutLookupHash])
   @@map("patient_data_requests")
 }
 
