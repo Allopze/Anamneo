@@ -159,6 +159,7 @@ export default function HistorialPacientePage() {
           <Link
             href={`/pacientes/${id}`}
             className="p-2 hover:bg-surface-muted rounded-card transition-colors"
+            aria-label="Volver a ficha del paciente"
           >
             <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
           </Link>
@@ -181,6 +182,7 @@ export default function HistorialPacientePage() {
           <Link
             href={`/pacientes/${id}`}
             className="p-2 hover:bg-surface-muted rounded-card transition-colors"
+            aria-label="Volver a ficha del paciente"
           >
             <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
           </Link>

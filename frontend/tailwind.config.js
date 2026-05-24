@@ -30,7 +30,7 @@ module.exports = {
           DEFAULT:  '#2b2b2b',
           primary:  '#2b2b2b',
           secondary:'#555555',
-          muted:    '#767676',
+          muted:    '#666666',
           onDark:   '#ffffff',
         },
         /* ── Chips & chart ────────────────────────────── */
@@ -38,7 +38,7 @@ module.exports = {
           DEFAULT:  '#555555',
           hover:    '#404040',
         },
-        chartGray:  '#767676',
+        chartGray:  '#666666',
         /* ── Soft status ──────────────────────────────── */
         status: {
           red:        '#D08C84',

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthUser } from '@/stores/auth-store';
-import { isMedicoUser } from '@/lib/permissions';
+import { canRegisterClinicalConsent, canRevokeClinicalConsent, isAssistantUser } from '@/lib/permissions';
 import { FiFileText, FiPlus, FiXCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -47,7 +47,9 @@ interface PatientConsentsProps {
 export default function PatientConsents({ patientId, encounterId }: PatientConsentsProps) {
   const queryClient = useQueryClient();
   const user = useAuthUser();
-  const isMedico = isMedicoUser(user);
+  const canRegisterConsent = canRegisterClinicalConsent(user);
+  const canRevokeConsent = canRevokeClinicalConsent(user);
+  const isAssistant = isAssistantUser(user);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ type: 'TRATAMIENTO', description: '' });
   const [revokeId, setRevokeId] = useState<string | null>(null);
@@ -107,13 +109,15 @@ export default function PatientConsents({ patientId, encounterId }: PatientConse
             Bitácora simple de consentimientos registrados y revocados dentro de la ficha del paciente.
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="btn btn-secondary flex items-center gap-2 text-sm"
-        >
-          <FiPlus className="h-4 w-4" />
-          Nuevo
-        </button>
+        {canRegisterConsent ? (
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="btn btn-secondary flex items-center gap-2 text-sm"
+          >
+            <FiPlus className="h-4 w-4" />
+            {isAssistant ? 'Registrar evidencia' : 'Registrar consentimiento'}
+          </button>
+        ) : null}
       </div>
 
       {showForm && (
@@ -194,7 +198,7 @@ export default function PatientConsents({ patientId, encounterId }: PatientConse
                     <p className="mt-1 text-xs text-ink-muted">Registrado por {consent.grantedBy.nombre}</p>
                   )}
                 </div>
-                {isMedico && (
+                {canRevokeConsent && (
                   revokeId === consent.id ? (
                     <div className="flex flex-col gap-2">
                       <input

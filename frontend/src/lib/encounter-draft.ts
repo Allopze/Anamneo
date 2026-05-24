@@ -1,4 +1,5 @@
 import { isSharedDeviceModeEnabled } from '@/stores/privacy-settings-store';
+import { decryptPhiJson, encryptPhiJson, isEncryptedPhiEnvelope } from './local-phi-crypto';
 
 const ENCOUNTER_DRAFT_VERSION = 2;
 const ENCOUNTER_DRAFT_PREFIX = 'anamneo:encounter-draft';
@@ -46,15 +47,23 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export function readEncounterDraft(encounterId: string, userId: string): EncounterDraft | null {
+export async function readEncounterDraft(encounterId: string, userId: string): Promise<EncounterDraft | null> {
   if (typeof window === 'undefined') return null;
   if (isSharedDeviceModeEnabled()) return null;
 
   try {
-    const raw = window.localStorage.getItem(getEncounterDraftKey(encounterId, userId));
+    const key = getEncounterDraftKey(encounterId, userId);
+    const raw = window.localStorage.getItem(key);
     if (!raw) return null;
 
-    const parsed = JSON.parse(raw) as Partial<EncounterDraft>;
+    const envelope = JSON.parse(raw) as unknown;
+    if (!isEncryptedPhiEnvelope(envelope)) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+
+    const parsed = await decryptPhiJson<Partial<EncounterDraft>>(envelope);
+    if (!parsed) return null;
     if (
       parsed.version !== ENCOUNTER_DRAFT_VERSION
       || parsed.encounterId !== encounterId
@@ -68,7 +77,7 @@ export function readEncounterDraft(encounterId: string, userId: string): Encount
 
     // Expire drafts older than TTL
     if (parsed.savedAt && Date.now() - new Date(parsed.savedAt).getTime() > DRAFT_TTL_MS) {
-      window.localStorage.removeItem(getEncounterDraftKey(encounterId, userId));
+      window.localStorage.removeItem(key);
       return null;
     }
 
@@ -89,29 +98,38 @@ export function readEncounterDraft(encounterId: string, userId: string): Encount
   }
 }
 
-export function writeEncounterDraft(draft: EncounterDraft): void {
+export async function writeEncounterDraft(draft: EncounterDraft): Promise<void> {
   if (typeof window === 'undefined') return;
   if (isSharedDeviceModeEnabled()) return;
 
+  const encrypted = await encryptPhiJson({ ...draft, savedAt: new Date().toISOString() });
   window.localStorage.setItem(
     getEncounterDraftKey(draft.encounterId, draft.userId),
-    JSON.stringify({ ...draft, savedAt: new Date().toISOString() }),
+    JSON.stringify(encrypted),
   );
 }
 
-export function readEncounterSectionConflict(
+export async function readEncounterSectionConflict(
   encounterId: string,
   userId: string,
   sectionKey: string,
-): EncounterSectionConflictBackup | null {
+): Promise<EncounterSectionConflictBackup | null> {
   if (typeof window === 'undefined') return null;
   if (isSharedDeviceModeEnabled()) return null;
 
   try {
-    const raw = window.localStorage.getItem(getEncounterConflictKey(encounterId, userId, sectionKey));
+    const key = getEncounterConflictKey(encounterId, userId, sectionKey);
+    const raw = window.localStorage.getItem(key);
     if (!raw) return null;
 
-    const parsed = JSON.parse(raw) as Partial<EncounterSectionConflictBackup>;
+    const envelope = JSON.parse(raw) as unknown;
+    if (!isEncryptedPhiEnvelope(envelope)) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+
+    const parsed = await decryptPhiJson<Partial<EncounterSectionConflictBackup>>(envelope);
+    if (!parsed) return null;
     if (
       parsed.version !== ENCOUNTER_DRAFT_VERSION
       || parsed.encounterId !== encounterId
@@ -124,7 +142,7 @@ export function readEncounterSectionConflict(
     }
 
     if (parsed.savedAt && Date.now() - new Date(parsed.savedAt).getTime() > DRAFT_TTL_MS) {
-      window.localStorage.removeItem(getEncounterConflictKey(encounterId, userId, sectionKey));
+      window.localStorage.removeItem(key);
       return null;
     }
 
@@ -143,20 +161,21 @@ export function readEncounterSectionConflict(
   }
 }
 
-export function writeEncounterSectionConflict(conflict: EncounterSectionConflictBackup): void {
+export async function writeEncounterSectionConflict(conflict: EncounterSectionConflictBackup): Promise<void> {
   if (typeof window === 'undefined') return;
   if (isSharedDeviceModeEnabled()) return;
 
+  const encrypted = await encryptPhiJson({ ...conflict, savedAt: new Date().toISOString() });
   window.localStorage.setItem(
     getEncounterConflictKey(conflict.encounterId, conflict.userId, conflict.sectionKey),
-    JSON.stringify({ ...conflict, savedAt: new Date().toISOString() }),
+    JSON.stringify(encrypted),
   );
 }
 
-export function listEncounterSectionConflicts(
+export async function listEncounterSectionConflicts(
   encounterId: string,
   userId: string,
-): EncounterSectionConflictBackup[] {
+): Promise<EncounterSectionConflictBackup[]> {
   if (typeof window === 'undefined') return [];
   if (isSharedDeviceModeEnabled()) return [];
 
@@ -170,7 +189,7 @@ export function listEncounterSectionConflicts(
     }
 
     const sectionKey = key.slice(prefix.length);
-    const conflict = readEncounterSectionConflict(encounterId, userId, sectionKey);
+    const conflict = await readEncounterSectionConflict(encounterId, userId, sectionKey);
     if (conflict) {
       conflicts.push(conflict);
     }

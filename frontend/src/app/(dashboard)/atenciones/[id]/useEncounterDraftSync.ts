@@ -52,40 +52,52 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
       return;
     }
 
+    let cancelled = false;
     initializedEncounterIdRef.current = encounter.id;
 
-    const initialData: Record<string, any> = {};
-    encounter.sections.forEach((section) => {
-      initialData[section.sectionKey] = section.data;
-    });
+    async function hydrateDraft() {
+      if (!encounter?.sections) return;
 
-    const storedDraft = effectiveSharedDeviceMode || !userId ? null : readEncounterDraft(encounter.id, userId);
-    const draftIsStale =
-      storedDraft?.encounterUpdatedAt
-      && encounter.updatedAt
-      && new Date(encounter.updatedAt).getTime() > new Date(storedDraft.encounterUpdatedAt).getTime();
+      const initialData: Record<string, any> = {};
+      encounter.sections.forEach((section) => {
+        initialData[section.sectionKey] = section.data;
+      });
 
-    const useDraft = storedDraft && !draftIsStale;
-    const restoredFormData = useDraft ? storedDraft.formData : initialData;
-    const restoredSavedSnapshot = useDraft ? storedDraft.savedSnapshot : initialData;
-    const restoredDraft = useDraft && hasEncounterDraftUnsavedChanges(storedDraft) ? storedDraft : null;
+      const storedDraft = effectiveSharedDeviceMode || !userId ? null : await readEncounterDraft(encounter.id, userId);
+      if (cancelled) return;
 
-    setFormData(restoredFormData);
-    formDataRef.current = restoredFormData;
-    lastSavedRef.current = JSON.stringify(restoredSavedSnapshot);
-    setSavedSnapshotJson(lastSavedRef.current);
-    setRestoredDraft(restoredDraft);
-    setCurrentSectionIndex(
-      Math.min(Math.max(useDraft ? storedDraft.currentSectionIndex : 0, 0), Math.max(sectionsLength - 1, 0)),
-    );
-    setIsDraftHydrated(true);
+      const draftIsStale =
+        storedDraft?.encounterUpdatedAt
+        && encounter.updatedAt
+        && new Date(encounter.updatedAt).getTime() > new Date(storedDraft.encounterUpdatedAt).getTime();
 
-    if (draftIsStale && storedDraft && hasEncounterDraftUnsavedChanges(storedDraft)) {
-      toast('Se descartó un borrador local porque la atención fue actualizada en otra sesión', { icon: '⚠️' });
-      if (userId) clearEncounterDraft(encounter.id, userId);
-    } else if (restoredDraft) {
-      toast.success('Se restauró un borrador local de esta atención');
+      const useDraft = storedDraft && !draftIsStale;
+      const restoredFormData = useDraft ? storedDraft.formData : initialData;
+      const restoredSavedSnapshot = useDraft ? storedDraft.savedSnapshot : initialData;
+      const restoredDraft = useDraft && hasEncounterDraftUnsavedChanges(storedDraft) ? storedDraft : null;
+
+      setFormData(restoredFormData);
+      formDataRef.current = restoredFormData;
+      lastSavedRef.current = JSON.stringify(restoredSavedSnapshot);
+      setSavedSnapshotJson(lastSavedRef.current);
+      setRestoredDraft(restoredDraft);
+      setCurrentSectionIndex(
+        Math.min(Math.max(useDraft ? storedDraft.currentSectionIndex : 0, 0), Math.max(sectionsLength - 1, 0)),
+      );
+      setIsDraftHydrated(true);
+
+      if (draftIsStale && storedDraft && hasEncounterDraftUnsavedChanges(storedDraft)) {
+        toast('Se descartó un borrador local porque la atención fue actualizada en otra sesión', { icon: '⚠️' });
+        if (userId) clearEncounterDraft(encounter.id, userId);
+      } else if (restoredDraft) {
+        toast.success('Se restauró un borrador local de esta atención');
+      }
     }
+
+    void hydrateDraft();
+    return () => {
+      cancelled = true;
+    };
   }, [
     encounter,
     formDataRef,
@@ -134,7 +146,9 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
     }
 
     if (hasEncounterDraftUnsavedChanges(draft)) {
-      writeEncounterDraft(draft);
+      void writeEncounterDraft(draft).catch(() => {
+        toast.error('No se pudo cifrar el borrador local de esta atención');
+      });
       return;
     }
 

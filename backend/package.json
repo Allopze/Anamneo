@@ -41,7 +41,8 @@
     "db:pg:ops:clinical-search": "node scripts/pg-ops-runner.js --mode=clinical-search --notify=on-failure",
     "clinical-search:rebuild": "node scripts/rebuild-patient-clinical-search.js",
     "audit:integrity:verify": "node scripts/verify-audit-integrity.js",
-    "audit:redact:clinical-logs": "node scripts/audit-redact-clinical-logs.js"
+    "audit:redact:clinical-logs": "node scripts/audit-redact-clinical-logs.js",
+    "audit:patient-scope": "node scripts/audit-patient-scope.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.19",

@@ -1,4 +1,5 @@
 import { resolveProxyDecision } from '@/lib/proxy-session';
+import { buildCsp, buildPermissionsPolicy, resolveSentryOrigin } from '@/lib/proxy-security';
 
 describe('resolveProxyDecision', () => {
   it('redirects protected routes without session cookies', () => {
@@ -143,5 +144,50 @@ describe('resolveProxyDecision', () => {
         hasValidatedSession: false,
       }),
     ).toEqual({ action: 'redirect', target: '/login?from=%2Fpacientes%2F123%3Ftab%3Dadmin' });
+  });
+});
+
+describe('proxy security headers', () => {
+  const originalSentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+  const originalVoiceFlag = process.env.NEXT_PUBLIC_ENABLE_VOICE_DICTATION;
+  const originalStrictCsp = process.env.NEXT_PUBLIC_STRICT_CSP;
+
+  afterEach(() => {
+    if (originalSentryDsn === undefined) delete process.env.NEXT_PUBLIC_SENTRY_DSN;
+    else process.env.NEXT_PUBLIC_SENTRY_DSN = originalSentryDsn;
+
+    if (originalVoiceFlag === undefined) delete process.env.NEXT_PUBLIC_ENABLE_VOICE_DICTATION;
+    else process.env.NEXT_PUBLIC_ENABLE_VOICE_DICTATION = originalVoiceFlag;
+
+    if (originalStrictCsp === undefined) delete process.env.NEXT_PUBLIC_STRICT_CSP;
+    else process.env.NEXT_PUBLIC_STRICT_CSP = originalStrictCsp;
+  });
+
+  it('adds the Sentry DSN origin to connect-src when configured', () => {
+    process.env.NEXT_PUBLIC_SENTRY_DSN = 'https://abc123@o999999.ingest.sentry.io/1234567';
+
+    expect(resolveSentryOrigin()).toBe('https://o999999.ingest.sentry.io');
+    expect(buildCsp('nonce-test', true)).toContain("connect-src 'self' https://o999999.ingest.sentry.io");
+  });
+
+  it('allows Next App Router inline bootstrap scripts on static pages', () => {
+    delete process.env.NEXT_PUBLIC_STRICT_CSP;
+    expect(buildCsp('nonce-test', true)).toContain("script-src 'self' 'unsafe-inline'");
+  });
+
+  it('can emit strict nonce-based script policy for staging validation', () => {
+    process.env.NEXT_PUBLIC_STRICT_CSP = 'true';
+    const csp = buildCsp('nonce-test', true);
+
+    expect(csp).toContain("script-src 'self' 'nonce-nonce-test' 'strict-dynamic'");
+    expect(csp).not.toContain("'unsafe-inline'");
+  });
+
+  it('keeps microphone enabled for self unless voice dictation is explicitly disabled', () => {
+    delete process.env.NEXT_PUBLIC_ENABLE_VOICE_DICTATION;
+    expect(buildPermissionsPolicy()).toContain('microphone=(self)');
+
+    process.env.NEXT_PUBLIC_ENABLE_VOICE_DICTATION = 'false';
+    expect(buildPermissionsPolicy()).toContain('microphone=()');
   });
 });

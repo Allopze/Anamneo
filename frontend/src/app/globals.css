@@ -183,8 +183,8 @@ body {
   }
 
   .btn-danger {
-    @apply bg-status-red text-white hover:brightness-90
-           focus-visible:ring-status-red;
+    @apply bg-status-red-text text-white hover:brightness-110
+           focus-visible:ring-status-red-text;
   }
 
   /* ── Toolbar Buttons ─────────── */
@@ -962,7 +962,7 @@ body {
   }
 
   .legal-aside-label {
-    @apply text-micro font-semibold uppercase tracking-[0.14em] text-ink-muted;
+    @apply text-micro font-semibold uppercase tracking-[0.14em] text-ink-secondary;
   }
 
   .legal-aside-title {
@@ -978,7 +978,7 @@ body {
   }
 
   .legal-meta-list dt {
-    @apply text-ink-muted;
+    @apply text-ink-secondary;
   }
 
   .legal-meta-list dd {

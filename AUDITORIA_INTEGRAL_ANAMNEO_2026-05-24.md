@@ -11,30 +11,61 @@ Actualizacion: 2026-05-24.
 Correcciones aplicadas en esta ronda:
 
 - Cerrada la brecha critica de autorizacion en `patient-consents`: el controlador ahora usa `RolesGuard` y el servicio valida scope de paciente antes de listar, otorgar o revocar consentimientos de tratamiento de datos.
+- Agregada prueba e2e de aislamiento para consentimientos de tratamiento de datos: usuario A no puede listar, otorgar ni revocar consentimientos de paciente fuera de su scope.
 - Normalizado el `PatientNotBlockedGuard`: las rutas de lectura (`GET`, `HEAD`, `OPTIONS`) ya no quedan bloqueadas por error, y las mutaciones de pacientes, problemas, tareas, alertas y consentimientos clinicos pasan por el guard.
 - Agregada resolucion de paciente desde `problemId`, `taskId`, `clinicalAlert.id` y `clinicalConsent.id` para cubrir mutaciones que no reciben `patientId` directo.
+- Agregada matriz e2e de bloqueo temporal: lectura historica permitida y mutaciones clinicas principales denegadas con `403`.
+- Ajustado el contrato de permisos FE/BE para consentimientos clinicos: asistentes pueden registrar evidencia, la revocacion queda reservada al medico.
 - Corregido el conflicto entre dictado por voz y `Permissions-Policy`: el microfono queda permitido para `self` salvo que `NEXT_PUBLIC_ENABLE_VOICE_DICTATION=false`; el boton ahora muestra error visible si el dictado no puede iniciar.
 - Corregida la CSP de frontend para permitir el origen de `NEXT_PUBLIC_SENTRY_DSN` en `connect-src` cuando Sentry esta activo.
+- Extraida la construccion de CSP/Permissions-Policy a `frontend/src/lib/proxy-security.ts` y cubierta con tests unitarios.
+- Ajustada la CSP para compatibilidad con el bootstrap inline que Next.js emite en App Router; queda pendiente hardening estricto con nonces/dynamic rendering.
 - Reforzado el modo de privacidad local: `sharedDeviceMode` queda activo por defecto salvo `NEXT_PUBLIC_DEFAULT_SHARED_DEVICE_MODE=false`, reduciendo persistencia local de PHI en estaciones compartidas.
-- Corregidos labels accesibles en filtros de analitica clinica.
+- Agregado cifrado WebCrypto para borradores de atencion y copias recuperables de conflicto antes de persistir en `localStorage`; valores legacy plaintext se descartan.
+- Agregado cifrado WebCrypto del payload clinico de la cola offline antes de persistir en IndexedDB.
+- Creado `DECISION_ALMACENAMIENTO_LOCAL_PHI.md` en la raiz con opciones, riesgo residual y preguntas dirigidas al equipo de desarrollo/producto.
+- Agregada supresion de desgloses detallados en analitica clinica para cohortes menores a 10 pacientes; se mantiene el resumen minimo y caveat explicito.
+- Agregado guardrail estatico `npm --prefix backend run audit:patient-scope` para detectar controladores nuevos con `patientId` sin contrato de scope conocido.
+- Agregado modo CSP estricto opt-in con `NEXT_PUBLIC_STRICT_CSP=true` para validar `script-src` con nonce/`strict-dynamic` en staging antes de activarlo por defecto.
+- Reducido `frontend/src/app/register/page.tsx` bajo el limite duro de 500 lineas extrayendo `RegisterPasswordFields`.
+- Corregidos labels accesibles, contraste y nombres de controles en analitica, pacientes, seguimientos, sidebar y superficies legales.
+- Corregido el flujo de registro para evitar fallback persistente de `Suspense`/`useSearchParams` en e2e productivo.
+- Corregido refresh web para aceptar refresh token por body solo en clientes moviles identificados.
+- Corregida preservacion de verificacion de paciente al actualizar identificadores cifrados.
+- Agregado caveat de cohorte pequena en analitica clinica cuando el filtro devuelve menos de 10 pacientes.
+- Actualizado `docs/technical-debt/files-over-300-lines.md` con snapshot priorizado de archivos grandes.
+- Relajado el throttling de endpoints sensibles solo en `NODE_ENV=test` para evitar falsos `429` durante Playwright; limites productivos se mantienen.
 
 Validaciones ejecutadas:
 
 - `npm --prefix backend run typecheck`
 - `npm --prefix frontend run typecheck`
+- `npm --prefix backend run audit:patient-scope`
+- `npm --prefix backend run test -- clinical-analytics.read-model.spec.ts --runInBand`
+- `npm --prefix frontend run test -- encounter-draft.test.ts proxy.test.ts --runInBand`
+- `npm --prefix frontend run test -- offline-queue.test.ts --runInBand`
+- `npm --prefix frontend run test -- clinical-analytics-page.test.tsx register-legal.test.ts login.test.tsx --runInBand`
 - `npm --prefix backend run test` (90 suites pass, 1 skipped; 492 tests pass, 2 skipped)
 - `npm --prefix frontend run test` (69 suites pass; 324 tests pass)
 - `npm --prefix backend run test -- patient-consents.service.spec.ts patient-not-blocked.guard.spec.ts`
+- `npm --prefix backend run test -- patient-not-blocked.guard.spec.ts clinical-analytics.read-model.spec.ts`
+- `npm --prefix backend run test -- patients-demographics-mutations.spec.ts patients-list-read-model.spec.ts`
+- `npm --prefix backend run test -- auth.service.session.spec.ts auth-refresh-flow.spec.ts`
 - `npm --prefix frontend run test -- clinical-analytics-page.test.tsx`
 - `npm --prefix frontend run test -- ajustes.test.tsx encounter-draft.test.ts offline-queue.test.ts`
+- `npm --prefix frontend run test -- permissions-contract.test.ts patient-consents.test.tsx proxy.test.ts`
+- `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts` (280 tests pass, 1 snapshot pass)
+- `npm --prefix frontend run test:e2e -- accessibility.spec.ts` (6 tests pass)
+- `npm --prefix frontend run test:e2e` (20 tests pass)
 
-Pendiente de validar antes de cerrar remediacion completa:
+Pendiente fuera del alcance de esta ronda, por requerir validacion externa, migracion operativa o nueva funcionalidad:
 
-- E2E backend stateful completo: `npm --prefix backend run test:e2e -- --runInBand --testPathPattern=app.e2e-spec.ts`
-- E2E frontend con backend en `:5678`: `npm --prefix frontend run test:e2e`
 - Prueba real/staging de Sentry bajo CSP.
 - Prueba manual de dictado por voz en navegador objetivo.
-- Decision de producto/seguridad sobre cifrado WebCrypto de drafts locales; por ahora se redujo riesgo cambiando el default a modo compartido.
+- Decision formal de producto/seguridad sobre permitir o no persistencia local de PHI por organizacion/dispositivo; el documento de decision ya existe, falta resolverlo.
+- Validacion staging del modo `NEXT_PUBLIC_STRICT_CSP=true`; el soporte opt-in ya existe, pero no debe activarse por defecto sin smoke real.
+- Ejecucion de migraciones destructivas para eliminar columnas plaintext legacy, previa verificacion de backfill y rollback.
+- Refactor estructural de archivos grandes restantes; `register/page.tsx` bajo de 500 lineas, pero legal/mail/audit y otras pantallas siguen en backlog.
 
 ## Resumen ejecutivo
 
@@ -42,9 +73,9 @@ Anamneo es un sistema de ficha clinica y gestion de atenciones para prestadores 
 
 La base tecnica es solida: backend modular en NestJS, frontend en Next.js App Router, contratos compartidos de permisos, CSRF, CSP, cookies httpOnly, cifrado de campos sensibles, auditoria, e2e stateful y una intencion clara de cumplir Ley 21.719. La experiencia clinica tambien esta bastante avanzada: atenciones seccionales, autosave, cola offline, conflictos, completitud de paciente, consentimientos, alertas y analitica.
 
-El principal riesgo no esta en la madurez general, sino en inconsistencias puntuales de autorizacion y cumplimiento. La primera ronda de remediacion ya cerro los riesgos mas directos en consentimientos de tratamiento de datos, bloqueo temporal, CSP/dictado y privacidad local por defecto. Quedan pendientes validaciones e2e completas y deuda estructural de mantenibilidad.
+El principal riesgo no esta en la madurez general, sino en inconsistencias puntuales de autorizacion y cumplimiento. La remediacion del 2026-05-24 cerro los riesgos mas directos en consentimientos de tratamiento de datos, bloqueo temporal, CSP/dictado, privacidad local por defecto, cifrado local de PHI, accesibilidad automatizada y estabilidad e2e. Queda pendiente deuda estructural de mantenibilidad, decision formal de politica de dispositivo para PHI local y validaciones manuales/staging.
 
-La recomendacion es no tratar esto como una auditoria cosmetica. Hay tres frentes de correccion prioritaria antes de ampliar funcionalidad: cerrar brechas de permisos, normalizar reglas de bloqueo/consentimiento y reducir deuda en archivos core demasiado grandes.
+La recomendacion es no tratar esto como una auditoria cosmetica. Tras la remediacion aplicada, los frentes prioritarios antes de ampliar funcionalidad son reducir deuda en archivos core demasiado grandes, resolver la decision operativa de privacidad local y validar manualmente integraciones sensibles como Sentry/dictado.
 
 ## Supuestos de producto
 
@@ -74,7 +105,7 @@ Impacto en usuario/producto: un usuario autenticado podria consultar o alterar c
 
 Severidad: critica.
 
-Estado 2026-05-24: corregido. `PatientConsentsController` usa `RolesGuard` con roles explicitos y `PatientConsentsService` valida acceso al paciente antes de leer, crear o revocar. Se agregaron tests unitarios de no acceso.
+Estado 2026-05-24: corregido. `PatientConsentsController` usa `RolesGuard` con roles explicitos y `PatientConsentsService` valida acceso al paciente antes de leer, crear o revocar. Se agregaron tests unitarios y e2e stateful de aislamiento entre pacientes/usuarios.
 
 Evidencia:
 
@@ -110,7 +141,7 @@ Impacto: un paciente bloqueado por tratamiento de datos puede quedar en un estad
 
 Severidad: alta.
 
-Estado 2026-05-24: parcialmente corregido. El guard ya no bloquea lecturas y se aplica a mutaciones de pacientes, problemas, tareas, alertas y consentimientos clinicos. Queda pendiente e2e de matriz completa y decidir con precision que operaciones regulatorias/admin deben quedar permitidas durante bloqueo.
+Estado 2026-05-24: corregido para la matriz tecnica prioritaria. El guard ya no bloquea lecturas y se aplica a mutaciones de pacientes, problemas, tareas, alertas y consentimientos clinicos. Se agrego e2e que valida lectura historica permitida y mutaciones clinicas principales denegadas. Queda pendiente decision de producto sobre operaciones regulatorias/admin permitidas durante bloqueo.
 
 Evidencia:
 
@@ -164,13 +195,14 @@ Impacto: errores reales de navegador, replays o trazas pueden perderse justo en 
 
 Severidad: media-alta.
 
-Estado 2026-05-24: corregido tecnicamente. La CSP agrega el origen de `NEXT_PUBLIC_SENTRY_DSN` a `connect-src` cuando existe. Queda pendiente prueba en staging contra el DSN real.
+Estado 2026-05-24: corregido tecnicamente. La CSP agrega el origen de `NEXT_PUBLIC_SENTRY_DSN` a `connect-src` cuando existe y esta cubierta por unit tests. Tambien existe modo opt-in `NEXT_PUBLIC_STRICT_CSP=true` para validar `script-src` con nonce/`strict-dynamic` en staging. Queda pendiente prueba en staging contra el DSN real y contra el modo estricto antes de activarlo por defecto.
 
 Recomendacion concreta:
 
 - Derivar el origen del DSN y permitirlo en `connect-src` cuando Sentry este activo.
 - Alternativamente, usar relay same-origin.
 - Agregar una prueba o checklist de CSP en staging con error de prueba controlado.
+- Validar `NEXT_PUBLIC_STRICT_CSP=true` en staging antes de eliminar `unsafe-inline` por defecto.
 
 ### 5. PHI en almacenamiento local del navegador para drafts y cola offline
 
@@ -183,12 +215,13 @@ Impacto: en computadores compartidos, perfiles persistentes o sesiones mal cerra
 
 Severidad: alta como riesgo de privacidad; media como bug si el modo shared-device esta bien configurado en operacion.
 
-Estado 2026-05-24: mitigado. `sharedDeviceMode` queda activo por defecto salvo `NEXT_PUBLIC_DEFAULT_SHARED_DEVICE_MODE=false`, lo que desactiva drafts/conflictos/cola offline locales por defecto. Sigue pendiente cifrado WebCrypto o una politica de dispositivo mas granular.
+Estado 2026-05-24: mitigado y endurecido. `sharedDeviceMode` queda activo por defecto salvo `NEXT_PUBLIC_DEFAULT_SHARED_DEVICE_MODE=false`, lo que desactiva drafts/conflictos/cola offline locales por defecto. Si una organizacion permite persistencia local, drafts, conflictos y payloads de cola offline se cifran con WebCrypto antes de escribirse en `localStorage`/IndexedDB. Sigue pendiente la decision formal de producto/seguridad sobre en que dispositivos se permite esta capacidad; se creo `DECISION_ALMACENAMIENTO_LOCAL_PHI.md`.
 
 Recomendacion concreta:
 
 - Hacer `sharedDeviceMode` predeterminado en contextos clinicos o administrado por politica.
-- Cifrar drafts locales con WebCrypto y clave efimera no persistida.
+- Mantener el cifrado WebCrypto local y fallar cerrado si no esta disponible.
+- Resolver la politica de dispositivo usando `DECISION_ALMACENAMIENTO_LOCAL_PHI.md`.
 - Mostrar indicador claro: "borrador guardado localmente en este equipo".
 - Reducir TTL o hacerlo configurable por organizacion.
 - Purgar drafts al expirar sesion, cambiar usuario o cerrar atencion.
@@ -203,14 +236,14 @@ Archivos principales:
 | `backend/src/legal/legal.service.ts` | 746 |
 | `backend/src/mail/mail.service.ts` | 739 |
 | `backend/src/audit/audit.service.ts` | 574 |
-| `frontend/src/app/register/page.tsx` | 521 |
+| `frontend/src/app/register/page.tsx` | 462 |
 | `frontend/src/app/(dashboard)/pacientes/nuevo/page.tsx` | 493 |
 | `frontend/src/app/(dashboard)/ajustes/ProfileSecurityTab.tsx` | 489 |
 | `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts` | 471 |
 | `backend/src/patient-portal/patient-portal.service.ts` | 466 |
 | `frontend/src/app/(dashboard)/pacientes/[id]/page.tsx` | 462 |
 
-Problema: varios archivos manuales superan el umbral recomendado de 300 lineas y algunos superan el limite duro de 500 mencionado en `AGENTS.md`. Ademas, `docs/technical-debt/files-over-300-lines.md` no refleja todos los casos actuales.
+Problema: varios archivos manuales superan el umbral recomendado de 300 lineas y algunos backend siguen superando el limite duro de 500 mencionado en `AGENTS.md`. `register/page.tsx` ya bajo del limite duro, pero continua siendo candidato a seguir separando hooks/componentes.
 
 Impacto: mayor riesgo de cambios inseguros en modulos de alto impacto: legal, auditoria, emails, registro, detalle de paciente y autosave de atenciones.
 
@@ -476,7 +509,7 @@ Fortalezas:
 Problemas:
 
 - El rail/seccionado puede volverse complejo en mobile.
-- El dictado por voz esta incoherente con headers de seguridad.
+- El dictado por voz ya es coherente con headers de seguridad a nivel tecnico; falta smoke manual en navegador objetivo.
 - La resiliencia offline aumenta riesgo de PHI local si no hay politica operacional fuerte.
 - La cantidad de estados posibles puede ser dificil de explicar: guardado local, guardado remoto, pendiente de sincronizar, conflicto, bloqueado, firmado.
 
@@ -488,7 +521,7 @@ Recomendacion:
 
 - Agregar un pequeno indicador unificado de estado de guardado con tooltip accesible.
 - En mobile, ofrecer navegacion de secciones como segmented list o drawer persistente, no solo rail desktop.
-- Resolver primero dictado y persistencia local antes de promocionarlos como diferenciadores.
+- Resolver formalmente la politica de persistencia local antes de promocionarla como diferenciador; para dictado, completar smoke manual y criterio de soporte por navegador.
 
 ### Analitica clinica
 
@@ -498,9 +531,9 @@ Fortalezas:
 
 Problemas:
 
-- Filtros sin labels estables.
+- Los filtros detectados por axe ya tienen labels accesibles; mantener el patron en nuevos controles compactos.
 - La palabra "desenlaces proxy" es correcta tecnicamente, pero puede ser interpretada como evidencia causal.
-- Se necesita prevenir reidentificacion en cohortes pequenas si la analitica se comparte fuera del medico tratante.
+- Se necesitaba prevenir reidentificacion en cohortes pequenas si la analitica se comparte fuera del medico tratante. Se agrego supresion automatica de desgloses para cohortes menores a 10 pacientes, ademas del caveat explicito.
 
 Impacto: riesgo de malinterpretacion clinica y pequenas fallas de accesibilidad.
 
@@ -508,9 +541,9 @@ Severidad: media.
 
 Recomendacion:
 
-- Labels accesibles en todos los filtros.
+- Mantener labels accesibles en todos los filtros nuevos.
 - Mostrar disclaimers breves en exportes: "analisis observacional, no causal".
-- Agregar supresion o aviso para cohortes pequenas segun rol/contexto.
+- Mantener supresion de desgloses para cohortes pequenas y validar con producto si el umbral de 10 pacientes debe variar por rol/contexto.
 
 ### Admin y ajustes
 
@@ -543,11 +576,11 @@ Riesgos:
 
 ### Permisos
 
-La existencia de `shared/permission-contract.ts` es una fortaleza: alinea intencion frontend/backend. Aun asi, los permisos reales deben vivir en backend. La brecha de `patient-consents` sugiere que se necesita una prueba transversal por dominio: todo endpoint que acepte `patientId` debe demostrar `assertPatientAccess` o una razon explicita para no hacerlo.
+La existencia de `shared/permission-contract.ts` es una fortaleza: alinea intencion frontend/backend. Aun asi, los permisos reales deben vivir en backend. La brecha de `patient-consents` mostro que conviene tener guardrails transversales por dominio. En esta ronda se agrego `npm --prefix backend run audit:patient-scope`, que lista controladores con `patientId` y exige evidencia estatica de scope o una excepcion explicita.
 
 Recomendacion:
 
-- Crear test o script de auditoria simple que liste controladores con parametros `patientId` y confirme guard/helper esperado.
+- Ejecutar `npm --prefix backend run audit:patient-scope` en CI/release y actualizar su contrato cuando se agreguen dominios nuevos.
 - Agregar decorador o interceptor de dominio para reducir dependencia de recordar el helper manualmente.
 
 ### Consentimientos y derechos de datos
@@ -586,8 +619,8 @@ Deuda o riesgos:
 
 | Hallazgo | Impacto | Prioridad |
 | --- | --- | --- |
-| `patient-consents` sin scope de paciente | Bloqueante para produccion segura | P0 |
-| Bloqueo temporal no uniforme | Riesgo regulatorio y bugs | P0/P1 |
+| `patient-consents` sin scope de paciente | Cerrado con guard, scope service y e2e de aislamiento | Cerrado |
+| Bloqueo temporal no uniforme | Cerrado para matriz tecnica prioritaria; falta definicion fina admin/regulatoria | P1 producto |
 | Servicios legal/mail/audit enormes | Mantenibilidad y errores en cambios | P1 |
 | Campos plaintext legacy | Privacidad y backups | P1 |
 | Estados clinicos como strings dispersos | Bugs por valores invalidos | P2 |
@@ -616,18 +649,18 @@ Deuda o riesgos:
 
 | Hallazgo | Impacto | Prioridad |
 | --- | --- | --- |
-| Dictado vs Permissions-Policy | Feature rota | P1 |
-| Drafts/queue con PHI local | Privacidad | P1 |
-| Pantallas >400-500 lineas | Mantenibilidad | P1/P2 |
-| Analitica con controles sin labels | Accesibilidad | P2 |
-| Estilos legales fuera de tokens | Consistencia | P2 |
+| Dictado vs Permissions-Policy | Cerrado tecnicamente; pendiente smoke manual | P1 validacion |
+| Drafts/queue con PHI local | Mitigado por modo compartido por defecto y cifrado WebCrypto; falta decision de politica | P1 decision |
+| Pantallas >400-500 lineas | Mantenibilidad; `register/page.tsx` ya bajo de 500, quedan otros modulos | P1/P2 |
+| Analitica/seguimientos con controles sin labels | Cerrado en controles detectados por axe | Cerrado |
+| Estilos legales fuera de tokens | Mitigado en contraste/tokens prioritarios | P2 |
 | Complejidad de atencion repartida en hooks largos | Riesgo de regresiones | P2 |
 
 Refactors priorizados:
 
 1. Convertir flujo de atencion en una maquina de estados ligera o reducer tipado.
 2. Extraer componentes legales/compliance con tokens de diseno.
-3. Reducir register, patient detail y patient creation en subcomponentes.
+3. Reducir patient detail, patient creation y ajustes en subcomponentes; continuar extraccion de hooks de registro si crece de nuevo.
 4. Crear componentes de form field accesibles obligatorios para filtros compactos.
 
 ## QA y testing
@@ -641,20 +674,19 @@ Fortalezas:
 
 Brechas:
 
-- Falta test e2e especifico de aislamiento en `patient-consents`; hay cobertura unitaria nueva para denegar acceso cruzado.
-- Falta matriz e2e de bloqueo de paciente por dominio; hay cobertura unitaria nueva del guard.
+- Cerrado: ya existe test e2e especifico de aislamiento en `patient-consents`, ademas de cobertura unitaria para denegar acceso cruzado.
+- Cerrado para matriz prioritaria: ya existe e2e de bloqueo de paciente con lectura historica permitida y mutaciones clinicas principales denegadas.
 - La cobertura de accesibilidad automatizada usa principalmente serious/critical y no reemplaza navegacion completa por teclado/screen reader.
-- Faltan pruebas de CSP/headers contra features activas como Sentry y dictado.
+- Hay unit tests de CSP/headers y modo estricto; faltan smoke tests reales contra Sentry/dictado en navegador/staging.
 - Faltan escenarios robustos de perdida de red, conflicto y cierre de sesion en atencion.
 
 Pruebas recomendadas:
 
-1. `patient-consents.e2e-spec`: usuario A no puede listar/grant/revoke consentimiento de paciente de usuario B.
-2. `patient-blocking.e2e-spec`: matriz de metodos para atenciones, adjuntos, problemas, tareas, alertas y consentimientos.
-3. Playwright: atencion mobile, cambio de seccion, autosave, conflicto y reload.
-4. Playwright a11y: analitica, detalle paciente, modal de consentimiento, admin usuarios.
-5. CSP smoke: Sentry client event y dictado segun feature flag.
-6. Unit tests de helper de estados de guardado/offline.
+1. Extender matriz de bloqueo si producto define excepciones regulatorias/admin durante bloqueo temporal.
+2. Playwright: atencion mobile, cambio de seccion, autosave, conflicto y reload.
+3. Playwright a11y manual: analitica, detalle paciente, modal de consentimiento, admin usuarios.
+4. CSP smoke: Sentry client event y dictado segun feature flag.
+5. Unit tests de helper de estados de guardado/offline.
 
 ## Mejoras de producto alineadas con Anamneo
 
@@ -684,9 +716,9 @@ Pruebas recomendadas:
 ### Primeras 48 horas
 
 1. Cerrado: autorizacion de `patient-consents`.
-2. Cerrado parcial: tests unitarios de regresion para acceso cruzado por paciente. Pendiente e2e stateful.
+2. Cerrado: tests unitarios y e2e stateful de regresion para acceso cruzado por paciente.
 3. Cerrado tecnico: dictado habilitado con policy compatible y opt-out por env.
-4. Cerrado parcial: guard ajustado a lecturas vs mutaciones y aplicado a endpoints de mayor riesgo. Pendiente matriz e2e completa.
+4. Cerrado para matriz prioritaria: guard ajustado a lecturas vs mutaciones, aplicado a endpoints de mayor riesgo y cubierto por e2e. Pendiente solo definicion fina de producto para operaciones regulatorias/admin.
 
 ### 1 a 2 semanas
 
@@ -694,7 +726,7 @@ Pruebas recomendadas:
 2. Completar o calendarizar migraciones de columnas plaintext.
 3. Refactorizar `legal.service.ts`, `mail.service.ts`, `audit.service.ts`.
 4. Rehacer componentes legales de ficha paciente con sistema visual consistente.
-5. Endurecer drafts/offline queue con cifrado WebCrypto. Mitigacion aplicada: modo equipo compartido activo por defecto.
+5. Resolver formalmente la politica de almacenamiento local de PHI usando `DECISION_ALMACENAMIENTO_LOCAL_PHI.md`; el endurecimiento WebCrypto ya esta aplicado.
 
 ### 1 mes
 

@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
@@ -9,7 +9,7 @@ import { api, getErrorMessage } from '@/lib/api';
 import { useAuthLogin } from '@/stores/auth-store';
 import { stashAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
 import { AuthFrame } from '@/components/auth/AuthFrame';
-import { FiEye, FiEyeOff, FiLock, FiMail, FiShield, FiUser, FiUserPlus } from 'react-icons/fi';
+import { FiLock, FiMail, FiShield, FiUser, FiUserPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import {
   getLegalDocumentByType,
@@ -25,30 +25,18 @@ import {
 } from './register.constants';
 import RegisterFooter from './RegisterFooter';
 import RegisterLegalAcceptance from './RegisterLegalAcceptance';
+import RegisterPasswordFields from './RegisterPasswordFields';
 import RegisterRoleField from './RegisterRoleField';
 
 export default function RegisterPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="loading-shell">
-          <div className="status-card max-w-sm">
-            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-accent border-t-transparent" />
-            <p className="mt-4 text-sm text-ink-muted">Cargando registro...</p>
-          </div>
-        </div>
-      }
-    >
-      <RegisterContent />
-    </Suspense>
-  );
+  return <RegisterContent />;
 }
 
 function RegisterContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const login = useAuthLogin();
-  const invitationTokenFromQuery = searchParams.get('token')?.trim() || null;
+  const [invitationTokenFromQuery, setInvitationTokenFromQuery] = useState<string | null>(null);
+  const [hasLoadedRegistrationQuery, setHasLoadedRegistrationQuery] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [availableRoles, setAvailableRoles] = useState<RegisterRole[]>(['ADMIN']);
@@ -85,6 +73,16 @@ function RegisterContent() {
       acceptedLegal: false,
     },
   });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const token = new URLSearchParams(window.location.search).get('token')?.trim() || null;
+    setInvitationTokenFromQuery(token);
+    setHasLoadedRegistrationQuery(true);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -148,6 +146,10 @@ function RegisterContent() {
   }, [watch]);
 
   useEffect(() => {
+    if (!hasLoadedRegistrationQuery) {
+      return;
+    }
+
     let cancelled = false;
 
     const loadBootstrapState = async () => {
@@ -193,7 +195,7 @@ function RegisterContent() {
         }
 
         setIsInvitationMode(false);
-  setRequiresBootstrapToken(Boolean(response.data?.requiresBootstrapToken));
+        setRequiresBootstrapToken(Boolean(response.data?.requiresBootstrapToken));
         setInvitationToken(null);
         setInvitationEmail(null);
         setAvailableRoles(['ADMIN']);
@@ -215,7 +217,7 @@ function RegisterContent() {
     return () => {
       cancelled = true;
     };
-  }, [invitationTokenFromQuery, setValue]);
+  }, [hasLoadedRegistrationQuery, invitationTokenFromQuery, setValue]);
 
   const termsDocument = getLegalDocumentByType(legalDocumentsQuery.data, 'TERMS');
   const privacyDocument = getLegalDocumentByType(legalDocumentsQuery.data, 'PRIVACY');
@@ -386,76 +388,15 @@ function RegisterContent() {
           disabled={isFormBusy}
         />
 
-        <div className="grid gap-5 md:grid-cols-2">
-          <div>
-            <label htmlFor="password" className="form-label">
-              Contraseña
-            </label>
-            <div className="relative">
-              <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                {...register('password')}
-                disabled={isFormBusy}
-                className={`form-input pl-10 pr-10 ${errors.password ? 'form-input-error' : ''}`}
-                placeholder="••••••••"
-                aria-invalid={!!errors.password}
-                aria-describedby="password-help password-error"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted transition-colors hover:text-ink-secondary"
-                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              >
-                {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
-              </button>
-            </div>
-            {errors.password ? (
-              <p id="password-error" className="form-error" role="alert">
-                {errors.password.message}
-              </p>
-            ) : null}
-            <p id="password-help" className="mt-1 text-micro text-ink-muted">
-              Mínimo 8 caracteres, una mayúscula, una minúscula y un número.
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="confirmPassword" className="form-label">
-              Confirmar contraseña
-            </label>
-            <div className="relative">
-              <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
-              <input
-                id="confirmPassword"
-                type={showConfirmPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                {...register('confirmPassword')}
-                disabled={isFormBusy}
-                className={`form-input pl-10 pr-10 ${errors.confirmPassword ? 'form-input-error' : ''}`}
-                placeholder="••••••••"
-                aria-invalid={!!errors.confirmPassword}
-                aria-describedby={errors.confirmPassword ? 'confirm-password-error' : undefined}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted transition-colors hover:text-ink-secondary"
-                aria-label={showConfirmPassword ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'}
-              >
-                {showConfirmPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
-              </button>
-            </div>
-            {errors.confirmPassword ? (
-              <p id="confirm-password-error" className="form-error" role="alert">
-                {errors.confirmPassword.message}
-              </p>
-            ) : null}
-          </div>
-        </div>
+        <RegisterPasswordFields
+          disabled={isFormBusy}
+          errors={errors}
+          register={register}
+          setShowConfirmPassword={setShowConfirmPassword}
+          setShowPassword={setShowPassword}
+          showConfirmPassword={showConfirmPassword}
+          showPassword={showPassword}
+        />
 
         {!isInvitationMode && requiresBootstrapToken ? (
           <div>

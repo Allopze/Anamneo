@@ -266,7 +266,7 @@ export async function updatePatientDemographicsMutation(params: UpdatePatientDem
   Object.assign(
     updateData,
     resolvePatientVerificationState({
-      currentPatient: existingPatient,
+      currentPatient: { ...existingPatient, ...currentIdentifiers },
       nextPatient,
       actorId: user.id,
       actorRole: user.role,
@@ -367,7 +367,7 @@ export async function updatePatientAdminDemographicsMutation(params: UpdatePatie
   Object.assign(
     updateData,
     resolvePatientVerificationState({
-      currentPatient: existingPatient,
+      currentPatient: { ...existingPatient, ...currentIdentifiers },
       nextPatient,
       actorId: user.id,
       actorRole: user.role,

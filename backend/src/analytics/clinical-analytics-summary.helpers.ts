@@ -302,12 +302,19 @@ export function buildConditionRanking(
   return buildRankedRows(new Map([...aggregated.entries()].map(([keyValue, row]) => [keyValue, row])), query.limit);
 }
 
-export function buildCaveats(hasConditionFilter: boolean) {
+export const SMALL_COHORT_PATIENT_THRESHOLD = 10;
+
+export function buildCaveats(hasConditionFilter: boolean, matchedPatients: number) {
   return [
     'Los resultados son descriptivos y observacionales; no prueban efectividad comparativa ni causalidad.',
     'La afección probable y la sospecha diagnóstica no equivalen necesariamente a diagnóstico clínico confirmado.',
     'Los ajustes de tratamiento y la evolución siguen dependiendo en parte de texto libre.',
     'La respuesta favorable proxy se imputa al plan estructurado del encuentro; si hubo varios tratamientos en la misma atención, no se atribuye causalidad a uno solo.',
+    ...(matchedPatients > 0 && matchedPatients < SMALL_COHORT_PATIENT_THRESHOLD
+      ? [
+          `Cohorte pequeña (${matchedPatients} pacientes): se ocultaron desgloses detallados para reducir riesgo de reidentificación.`,
+        ]
+      : []),
     ...(hasConditionFilter
       ? ['Con la fuente "Todas", el filtro también revisa motivo/anamnesis para soportar cohortes por síntoma o motivo de consulta, por ejemplo dolor abdominal.']
       : []),

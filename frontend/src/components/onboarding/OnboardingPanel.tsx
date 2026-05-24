@@ -41,7 +41,7 @@ export default function OnboardingPanel() {
 
   return (
     <section
-      className="animate-fade-in overflow-hidden rounded-card border border-accent/25 bg-surface-elevated shadow-soft"
+      className="overflow-hidden rounded-card border border-accent/25 bg-surface-elevated shadow-soft"
       aria-labelledby="onboarding-title"
     >
       <div className="flex flex-col gap-4 border-b border-surface-muted/35 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">

@@ -72,6 +72,9 @@ export default defineConfig({
       env: {
         ...process.env,
         API_PROXY_TARGET: apiProxyTarget,
+        NEXT_PUBLIC_API_URL: '/api',
+        NEXT_PUBLIC_DEFAULT_SHARED_DEVICE_MODE: 'false',
+        NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE: 'false',
         HOSTNAME: host,
         PORT: frontendPort,
       },

@@ -38,6 +38,10 @@ type ClinicalAnalyticsResponse = {
     limit: number;
   };
   caveats: string[];
+  privacy?: {
+    smallCohortSuppressed: boolean;
+    smallCohortThreshold: number;
+  };
   summary: {
     matchedPatients: number;
     matchedEncounters: number;
@@ -182,6 +186,9 @@ export default function AnaliticaClinicaPage() {
     actionHref: buildClinicalAnalyticsCasesUrl(appliedFilters, { type: 'SYMPTOM', value: row.label }),
     actionLabel: 'Ver casos',
   }));
+  const suppressedEmptyMessage = data?.privacy?.smallCohortSuppressed
+    ? `Desglose oculto: la cohorte tiene menos de ${data.privacy.smallCohortThreshold} pacientes.`
+    : undefined;
 
   const handleDownloadCsv = async () => {
     setIsDownloadingCsv(true);
@@ -340,33 +347,33 @@ export default function AnaliticaClinicaPage() {
           </section>
 
           <section className="grid gap-4 xl:grid-cols-2">
-            <AnalyticsRankedTable title="Cohortes principales" description="Afecciones más frecuentes en la ventana observada. Haz clic para fijar la cohorte." rows={conditionRows} emptyMessage="No hay afecciones con datos suficientes para esta ventana." />
-            <AnalyticsRankedTable title="Medicamentos estructurados" description="Patrones terapéuticos observados en la cohorte filtrada." rows={medicationRows} emptyMessage="No hay medicamentos estructurados para esta cohorte." />
-            <AnalyticsRankedTable title="Síntomas asociados" description="Subgrupos observados dentro de la cohorte filtrada, útil para consultas como dolor abdominal con vómitos o diarrea." rows={symptomRows} emptyMessage="No hay síntomas asociados reconocibles para esta cohorte." />
-            <AnalyticsRankedTable title="Relación con comida" description="Clasificación heurística desde motivo, anamnesis próxima y revisión gastrointestinal." rows={data.cohortBreakdown.foodRelation} emptyMessage="No hay señales suficientes sobre asociación con comida en esta cohorte." />
-            <AnalyticsRankedTable title="Exámenes estructurados" description="Solicitudes diagnósticas registradas en tratamiento." rows={data.treatmentPatterns.exams} emptyMessage="No hay exámenes estructurados para esta cohorte." />
-            <AnalyticsRankedTable title="Derivaciones estructuradas" description="Escalamiento y referencia registrados en tratamiento." rows={data.treatmentPatterns.referrals} emptyMessage="No hay derivaciones estructuradas para esta cohorte." />
+            <AnalyticsRankedTable title="Cohortes principales" description="Afecciones más frecuentes en la ventana observada. Haz clic para fijar la cohorte." rows={conditionRows} emptyMessage={suppressedEmptyMessage ?? 'No hay afecciones con datos suficientes para esta ventana.'} />
+            <AnalyticsRankedTable title="Medicamentos estructurados" description="Patrones terapéuticos observados en la cohorte filtrada." rows={medicationRows} emptyMessage={suppressedEmptyMessage ?? 'No hay medicamentos estructurados para esta cohorte.'} />
+            <AnalyticsRankedTable title="Síntomas asociados" description="Subgrupos observados dentro de la cohorte filtrada, útil para consultas como dolor abdominal con vómitos o diarrea." rows={symptomRows} emptyMessage={suppressedEmptyMessage ?? 'No hay síntomas asociados reconocibles para esta cohorte.'} />
+            <AnalyticsRankedTable title="Relación con comida" description="Clasificación heurística desde motivo, anamnesis próxima y revisión gastrointestinal." rows={data.cohortBreakdown.foodRelation} emptyMessage={suppressedEmptyMessage ?? 'No hay señales suficientes sobre asociación con comida en esta cohorte.'} />
+            <AnalyticsRankedTable title="Exámenes estructurados" description="Solicitudes diagnósticas registradas en tratamiento." rows={data.treatmentPatterns.exams} emptyMessage={suppressedEmptyMessage ?? 'No hay exámenes estructurados para esta cohorte.'} />
+            <AnalyticsRankedTable title="Derivaciones estructuradas" description="Escalamiento y referencia registrados en tratamiento." rows={data.treatmentPatterns.referrals} emptyMessage={suppressedEmptyMessage ?? 'No hay derivaciones estructuradas para esta cohorte.'} />
           </section>
 
           <AnalyticsOutcomeTable
             title="Medicamentos con respuesta favorable proxy"
             description="Resume cuántas veces cada medicamento estructurado quedó asociado a una evolución favorable proxy dentro de la ventana de seguimiento."
             rows={data.treatmentOutcomeProxies.medications}
-            emptyMessage="No hay medicamentos estructurados suficientes para estimar respuesta favorable proxy en esta cohorte."
+            emptyMessage={suppressedEmptyMessage ?? 'No hay medicamentos estructurados suficientes para estimar respuesta favorable proxy en esta cohorte.'}
           />
 
           <AnalyticsOutcomeTable
             title="Exámenes con respuesta favorable proxy"
             description="Resume cuántas veces cada examen estructurado quedó asociado a una evolución favorable proxy dentro de la ventana de seguimiento."
             rows={data.treatmentOutcomeProxies.exams}
-            emptyMessage="No hay exámenes estructurados suficientes para estimar respuesta favorable proxy en esta cohorte."
+            emptyMessage={suppressedEmptyMessage ?? 'No hay exámenes estructurados suficientes para estimar respuesta favorable proxy en esta cohorte.'}
           />
 
           <AnalyticsOutcomeTable
             title="Derivaciones con respuesta favorable proxy"
             description="Resume cuántas veces cada derivación estructurada quedó asociada a una evolución favorable proxy dentro de la ventana de seguimiento."
             rows={data.treatmentOutcomeProxies.referrals}
-            emptyMessage="No hay derivaciones estructuradas suficientes para estimar respuesta favorable proxy en esta cohorte."
+            emptyMessage={suppressedEmptyMessage ?? 'No hay derivaciones estructuradas suficientes para estimar respuesta favorable proxy en esta cohorte.'}
           />
         </>
       ) : null}

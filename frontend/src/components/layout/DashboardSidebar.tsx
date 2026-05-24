@@ -109,7 +109,7 @@ export default function DashboardSidebar({
               </div>
               <div className="min-w-0 overflow-hidden">
                 <p className="truncate text-sm font-bold text-white" title={user?.nombre}>{user?.nombre}</p>
-                <p className="truncate text-xs font-medium capitalize text-white/50">
+                <p className="truncate text-xs font-medium capitalize text-white/70">
                   {userRoleLabel}
                 </p>
               </div>
@@ -166,7 +166,7 @@ export default function DashboardSidebar({
               <Tooltip label="Salir" side="right">
                 <button
                   onClick={onLogout}
-                  className="flex h-11 w-11 items-center justify-center rounded-card bg-frame-dark text-white/55 transition-colors hover:bg-status-red hover:text-white"
+                  className="flex h-11 w-11 items-center justify-center rounded-card bg-frame-dark text-white/70 transition-colors hover:bg-status-red hover:text-white"
                   aria-label="Salir"
                 >
                   <FiLogOut className="h-4.5 w-4.5" />
@@ -176,7 +176,7 @@ export default function DashboardSidebar({
           ) : (
             <button
               onClick={onLogout}
-              className="flex w-full items-center justify-center rounded-pill bg-frame-dark px-4 py-3 text-sm font-bold text-white/50 transition-colors hover:bg-status-red hover:text-white"
+              className="flex w-full items-center justify-center rounded-pill bg-frame-dark px-4 py-3 text-sm font-bold text-white/70 transition-colors hover:bg-status-red hover:text-white"
             >
               <FiLogOut className="mr-3 h-5 w-5" />
               Salir

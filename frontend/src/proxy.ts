@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveProxyDecision } from './lib/proxy-session';
+import { buildCsp, buildPermissionsPolicy } from './lib/proxy-security';
 
 function generateNonce(): string {
   const bytes = new Uint8Array(16);
@@ -16,50 +17,6 @@ function generateNonce(): string {
   }
   if (typeof btoa === 'function') return btoa(binary);
   return Buffer.from(bytes).toString('base64');
-}
-
-function resolveSentryOrigin(): string | null {
-  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
-  if (!dsn) return null;
-
-  try {
-    return new URL(dsn).origin;
-  } catch {
-    return null;
-  }
-}
-
-function buildCsp(nonce: string, isProd: boolean): string {
-  // Next extrae el nonce desde el CSP del request y lo aplica a sus estilos/scripts inline.
-  // Mantenemos 'self' para bundles externos de Next en el standalone de produccion.
-  const scriptSrc = isProd
-    ? `'self' 'nonce-${nonce}'`
-    : `'self' 'nonce-${nonce}' 'unsafe-eval'`; // unsafe-eval solo en dev para Fast Refresh
-  const sentryOrigin = resolveSentryOrigin();
-  const connectSrc = [`'self'`, ...(sentryOrigin ? [sentryOrigin] : [])].join(' ');
-
-  return [
-    `default-src 'self'`,
-    `script-src ${scriptSrc}`,
-    `style-src 'self' 'nonce-${nonce}'`,
-    `img-src 'self' data: blob:`,
-    `connect-src ${connectSrc}`,
-    `font-src 'self'`,
-    `object-src 'none'`,
-    `frame-src 'none'`,
-    `frame-ancestors 'none'`,
-    `form-action 'self'`,
-    `base-uri 'self'`,
-    `upgrade-insecure-requests`,
-  ].join('; ');
-}
-
-function buildPermissionsPolicy(): string {
-  const microphonePolicy = process.env.NEXT_PUBLIC_ENABLE_VOICE_DICTATION === 'false'
-    ? 'microphone=()'
-    : 'microphone=(self)';
-
-  return ['camera=()', microphonePolicy, 'geolocation=()'].join(', ');
 }
 
 export async function proxy(request: NextRequest) {

@@ -27,14 +27,14 @@ export function SidebarNavItem({
         collapsed
           ? isActive
             ? 'flex h-11 w-11 items-center justify-center rounded-card bg-accent text-accent-text shadow-soft'
-            : 'flex h-11 w-11 items-center justify-center rounded-card text-white/55 hover:bg-frame-dark hover:text-white'
+            : 'flex h-11 w-11 items-center justify-center rounded-card text-white/70 hover:bg-frame-dark hover:text-white'
           : isActive
             ? 'flex w-full items-center rounded-pill bg-accent px-4 py-3.5 text-sm font-bold text-accent-text'
-            : 'flex w-full items-center rounded-pill px-4 py-3.5 text-sm font-bold text-white/50 hover:bg-frame-dark hover:text-white',
+            : 'flex w-full items-center rounded-pill px-4 py-3.5 text-sm font-bold text-white/70 hover:bg-frame-dark hover:text-white',
       )}
     >
       <span className={clsx(collapsed ? 'flex h-5 w-5 items-center justify-center' : 'mr-4 flex h-5 w-5 items-center justify-center')}>
-        <item.icon className={clsx('h-5 w-5', isActive ? 'text-accent-text' : 'text-white/40')} />
+        <item.icon className={clsx('h-5 w-5', isActive ? 'text-accent-text' : 'text-white/70')} />
       </span>
       {!collapsed ? item.name : null}
     </Link>

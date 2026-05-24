@@ -105,22 +105,15 @@ describe('clinical-analytics.read-model', () => {
       }),
     );
     expect(result.summary.demographics.averageAge).toBe(32.5);
-    expect(result.treatmentPatterns.medications).toEqual([
-      expect.objectContaining({
-        label: 'Omeprazol',
-        encounterCount: 2,
-        patientCount: 2,
-        subtitle: undefined,
-      }),
-    ]);
-    expect(result.treatmentOutcomeProxies.medications).toEqual([
-      expect.objectContaining({
-        label: 'Omeprazol',
-        encounterCount: 2,
-        patientCount: 2,
-        subtitle: undefined,
-      }),
-    ]);
+    expect(result.privacy).toEqual({
+      smallCohortSuppressed: true,
+      smallCohortThreshold: 10,
+    });
+    expect(result.caveats).toContain(
+      'Cohorte pequeña (2 pacientes): se ocultaron desgloses detallados para reducir riesgo de reidentificación.',
+    );
+    expect(result.treatmentPatterns.medications).toEqual([]);
+    expect(result.treatmentOutcomeProxies.medications).toEqual([]);
     expect(result.treatmentOutcomeProxies.exams).toEqual([]);
     expect(result.treatmentOutcomeProxies.referrals).toEqual([]);
   });

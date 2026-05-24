@@ -12,17 +12,20 @@ function buildContext(request: Record<string, unknown>): ExecutionContext {
 describe('PatientNotBlockedGuard', () => {
   function buildGuard(overrides?: {
     patient?: jest.Mock;
+    encounter?: jest.Mock;
+    attachment?: jest.Mock;
     patientProblem?: jest.Mock;
     encounterTask?: jest.Mock;
+    clinicalAlert?: jest.Mock;
     clinicalConsent?: jest.Mock;
   }) {
     const prisma = {
       patient: { findUnique: overrides?.patient ?? jest.fn().mockResolvedValue(null) },
-      encounter: { findUnique: jest.fn().mockResolvedValue(null) },
-      attachment: { findUnique: jest.fn().mockResolvedValue(null) },
+      encounter: { findUnique: overrides?.encounter ?? jest.fn().mockResolvedValue(null) },
+      attachment: { findUnique: overrides?.attachment ?? jest.fn().mockResolvedValue(null) },
       patientProblem: { findUnique: overrides?.patientProblem ?? jest.fn().mockResolvedValue(null) },
       encounterTask: { findUnique: overrides?.encounterTask ?? jest.fn().mockResolvedValue(null) },
-      clinicalAlert: { findUnique: jest.fn().mockResolvedValue(null) },
+      clinicalAlert: { findUnique: overrides?.clinicalAlert ?? jest.fn().mockResolvedValue(null) },
       clinicalConsent: { findUnique: overrides?.clinicalConsent ?? jest.fn().mockResolvedValue(null) },
     } as never;
 
@@ -75,6 +78,69 @@ describe('PatientNotBlockedGuard', () => {
       where: { id: 'p-1' },
       select: { id: true, blockedAt: true, blockedReason: true },
     });
+  });
+
+  it('resuelve patientId desde encounterId para mutaciones de atenciones', async () => {
+    const patientFind = jest.fn().mockResolvedValue({ id: 'p-1', blockedAt: null, blockedReason: null });
+    const encounterFind = jest.fn().mockResolvedValue({ patientId: 'p-1' });
+    const { guard } = buildGuard({ patient: patientFind, encounter: encounterFind });
+
+    await expect(
+      guard.canActivate(buildContext({
+        method: 'PATCH',
+        params: { encounterId: 'enc-1' },
+        baseUrl: '/api/encounters',
+        route: { path: '/:encounterId/sections/:sectionKey' },
+      })),
+    ).resolves.toBe(true);
+
+    expect(encounterFind).toHaveBeenCalledWith({
+      where: { id: 'enc-1' },
+      select: { patientId: true },
+    });
+    expect(patientFind).toHaveBeenCalled();
+  });
+
+  it('resuelve patientId desde attachment id para mutaciones de adjuntos', async () => {
+    const patientFind = jest.fn().mockResolvedValue({ id: 'p-1', blockedAt: null, blockedReason: null });
+    const attachmentFind = jest.fn().mockResolvedValue({ encounter: { patientId: 'p-1' } });
+    const { guard } = buildGuard({ patient: patientFind, attachment: attachmentFind });
+
+    await expect(
+      guard.canActivate(buildContext({
+        method: 'DELETE',
+        params: { id: 'att-1' },
+        baseUrl: '/api/attachments',
+        route: { path: '/:id' },
+      })),
+    ).resolves.toBe(true);
+
+    expect(attachmentFind).toHaveBeenCalledWith({
+      where: { id: 'att-1' },
+      select: { encounter: { select: { patientId: true } } },
+    });
+    expect(patientFind).toHaveBeenCalled();
+  });
+
+  it('resuelve patientId desde alerta clinica para acknowledge', async () => {
+    const patientFind = jest.fn().mockResolvedValue({ id: 'p-1', blockedAt: null, blockedReason: null });
+    const alertFind = jest.fn().mockResolvedValue({ patientId: 'p-1' });
+    const { guard } = buildGuard({ patient: patientFind, clinicalAlert: alertFind });
+
+    await expect(
+      guard.canActivate(buildContext({
+        method: 'POST',
+        params: { id: 'alert-1' },
+        baseUrl: '/api/alerts',
+        route: { path: '/:id/acknowledge' },
+      })),
+    ).resolves.toBe(true);
+
+    expect(alertFind).toHaveBeenCalledWith({
+      where: { id: 'alert-1' },
+      select: { patientId: true },
+    });
+    expect(patientFind).toHaveBeenCalled();
   });
 
   it('resuelve patientId desde taskId para mutaciones de tareas', async () => {

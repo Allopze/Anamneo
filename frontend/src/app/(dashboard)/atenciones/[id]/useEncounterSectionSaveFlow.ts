@@ -171,7 +171,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
           serverUpdatedAt: latestSection.updatedAt,
           savedAt,
         };
-        writeEncounterSectionConflict(conflictBackup);
+        await writeEncounterSectionConflict(conflictBackup);
         setRecoverableConflicts((current) => [
           conflictBackup,
           ...current.filter((item) => item.sectionKey !== sectionKey),

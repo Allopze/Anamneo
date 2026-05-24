@@ -122,15 +122,28 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
       return;
     }
 
-    const visibleSectionKeys = new Set(sections.map((section) => section.sectionKey));
-    const storedConflict = sections
-      .map((section) => readEncounterSectionConflict(id, userId, section.sectionKey))
-      .find((conflict): conflict is EncounterSectionConflictBackup => conflict !== null);
-    const storedConflicts = listEncounterSectionConflicts(id, userId).filter((conflict) =>
-      visibleSectionKeys.has(conflict.sectionKey as SectionKey));
+    let cancelled = false;
+    const activeUserId = userId;
 
-    setRecoverableConflicts(storedConflicts);
-    setRecoverableConflict(storedConflict ?? storedConflicts[0] ?? null);
+    async function loadRecoverableConflicts() {
+      const visibleSectionKeys = new Set(sections.map((section) => section.sectionKey));
+      const conflictsBySection = await Promise.all(
+        sections.map((section) => readEncounterSectionConflict(id, activeUserId, section.sectionKey)),
+      );
+      const storedConflict = conflictsBySection
+        .find((conflict): conflict is EncounterSectionConflictBackup => conflict !== null);
+      const storedConflicts = (await listEncounterSectionConflicts(id, activeUserId)).filter((conflict) =>
+        visibleSectionKeys.has(conflict.sectionKey as SectionKey));
+
+      if (cancelled) return;
+      setRecoverableConflicts(storedConflicts);
+      setRecoverableConflict(storedConflict ?? storedConflicts[0] ?? null);
+    }
+
+    void loadRecoverableConflicts();
+    return () => {
+      cancelled = true;
+    };
   }, [effectiveSharedDeviceMode, id, sections, userId]);
 
   useEffect(() => {

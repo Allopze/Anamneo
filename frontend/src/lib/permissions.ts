@@ -75,6 +75,14 @@ export function canCreatePatientTask(user: PermissionUser | null | undefined) {
   return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
 }
 
+export function canRegisterClinicalConsent(user: PermissionUser | null | undefined) {
+  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
+}
+
+export function canRevokeClinicalConsent(user: PermissionUser | null | undefined) {
+  return Boolean(isMedicoUser(user));
+}
+
 export function canViewMedicoOnlySections(user: PermissionUser | null | undefined) {
   return Boolean(user && ENCOUNTER_PERMISSION_CONTRACT[user.role]?.canViewMedicoOnlySections);
 }

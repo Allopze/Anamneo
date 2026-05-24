@@ -108,7 +108,7 @@ export default function PatientProblemsCard({
             <p className="mt-1 text-xs text-status-red">{problemForm.formState.errors.notes.message}</p>
           )}
         </div>
-        <select className="form-input" {...problemForm.register('status')}>
+        <select className="form-input" aria-label="Estado del problema" {...problemForm.register('status')}>
           {Object.entries(PROBLEM_STATUS_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
               {label}

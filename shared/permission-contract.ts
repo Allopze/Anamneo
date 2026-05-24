@@ -11,6 +11,8 @@ export interface PermissionContractExpectations {
   canEditAntecedentes: boolean;
   canEditPatientAdmin: boolean;
   canCreateEncounter: boolean;
+  canRegisterClinicalConsent: boolean;
+  canRevokeClinicalConsent: boolean;
   canViewMedicoOnlySections: boolean;
   canUpdateReviewStatus: boolean;
 }
@@ -32,6 +34,8 @@ export const PERMISSION_CONTRACT_SCENARIOS: PermissionContractScenario[] = [
       canEditAntecedentes: true,
       canEditPatientAdmin: true,
       canCreateEncounter: true,
+      canRegisterClinicalConsent: true,
+      canRevokeClinicalConsent: true,
       canViewMedicoOnlySections: true,
       canUpdateReviewStatus: true,
     },
@@ -47,6 +51,8 @@ export const PERMISSION_CONTRACT_SCENARIOS: PermissionContractScenario[] = [
       canEditAntecedentes: false,
       canEditPatientAdmin: false,
       canCreateEncounter: false,
+      canRegisterClinicalConsent: false,
+      canRevokeClinicalConsent: false,
       canViewMedicoOnlySections: false,
       canUpdateReviewStatus: false,
     },
@@ -62,6 +68,8 @@ export const PERMISSION_CONTRACT_SCENARIOS: PermissionContractScenario[] = [
       canEditAntecedentes: true,
       canEditPatientAdmin: true,
       canCreateEncounter: true,
+      canRegisterClinicalConsent: true,
+      canRevokeClinicalConsent: false,
       canViewMedicoOnlySections: false,
       canUpdateReviewStatus: false,
     },
@@ -77,6 +85,8 @@ export const PERMISSION_CONTRACT_SCENARIOS: PermissionContractScenario[] = [
       canEditAntecedentes: false,
       canEditPatientAdmin: false,
       canCreateEncounter: false,
+      canRegisterClinicalConsent: false,
+      canRevokeClinicalConsent: false,
       canViewMedicoOnlySections: false,
       canUpdateReviewStatus: false,
     },

@@ -132,6 +132,7 @@ export default function NuevoPacientePage() {
         <Link
           href="/pacientes"
           className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
+          aria-label="Volver a pacientes"
         >
           <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
         </Link>

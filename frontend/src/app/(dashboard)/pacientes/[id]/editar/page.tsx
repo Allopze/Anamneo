@@ -225,6 +225,7 @@ export default function EditarPacientePage() {
           <Link
             href={`/pacientes/${id}`}
             className="p-2 transition-colors hover:bg-surface-muted rounded-lg"
+            aria-label="Volver a ficha del paciente"
           >
             <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
           </Link>

@@ -147,7 +147,7 @@ export default function SeguimientosPage() {
               placeholder="Buscar por tarea o paciente"
             />
           </div>
-          <select className="form-input" value={status} onChange={(e) => {
+          <select className="form-input" aria-label="Filtrar por estado" value={status} onChange={(e) => {
             setStatus(e.target.value);
             updateUrl(search, e.target.value, type, priority, overdueOnly);
           }}>
@@ -157,7 +157,7 @@ export default function SeguimientosPage() {
               </option>
             ))}
           </select>
-          <select className="form-input" value={type} onChange={(e) => {
+          <select className="form-input" aria-label="Filtrar por tipo" value={type} onChange={(e) => {
             setType(e.target.value);
             updateUrl(search, status, e.target.value, priority, overdueOnly);
           }}>
@@ -167,7 +167,7 @@ export default function SeguimientosPage() {
               </option>
             ))}
           </select>
-          <select className="form-input" value={priority} onChange={(e) => {
+          <select className="form-input" aria-label="Filtrar por prioridad" value={priority} onChange={(e) => {
             setPriority(e.target.value);
             updateUrl(search, status, type, e.target.value, overdueOnly);
           }}>

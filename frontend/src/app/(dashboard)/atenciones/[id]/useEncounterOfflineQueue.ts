@@ -47,7 +47,7 @@ export async function persistRecoverableOfflineConflict(params: {
     serverUpdatedAt: latestSection.updatedAt,
     savedAt: new Date().toISOString(),
   };
-  writeEncounterSectionConflict(conflictBackup);
+  await writeEncounterSectionConflict(conflictBackup);
   return true;
 }
 

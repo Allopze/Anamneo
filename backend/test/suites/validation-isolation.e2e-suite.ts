@@ -6,6 +6,7 @@ import {
   cookieHeader,
   TEST_LEGAL_ACCEPTANCE,
 } from '../helpers/e2e-setup';
+import { randomUUID } from 'crypto';
 import {
   expectAttachmentIdIsolation,
   expectEncounterIdIsolation,
@@ -27,6 +28,7 @@ export function validationPatientIsolationSuite() {
     let leakedStandaloneTaskId: string;
     let leakedConsentId: string;
     let leakedAlertId: string;
+    let leakedDataProcessingConsentId: string;
 
     it('Admin invites a second medico', async () => {
       const res = await req()
@@ -406,6 +408,67 @@ export function validationPatientIsolationSuite() {
 
       expect(medico2AlertsRes.body.map((item: any) => item.id)).toContain(leakedAlertId);
       expect(medico2AlertsRes.body.map((item: any) => item.id)).toContain(patientLevelAlert.id);
+    });
+
+    it('Patient data processing consents cannot be listed, granted or revoked across patient scope', async () => {
+      const legalDocumentId = randomUUID();
+      await prisma.legalDocument.create({
+        data: {
+          id: legalDocumentId,
+          type: 'PRIVACY',
+          version: `patient-consent-isolation-${Date.now()}`,
+          status: 'PUBLISHED',
+          title: 'Politica de privacidad aislamiento patient-consents',
+          description: 'Fixture e2e para aislamiento de consentimientos de tratamiento de datos.',
+          contentJson: JSON.stringify({ summary: ['fixture'], sections: [] }),
+          effectiveAt: new Date(),
+          publishedAt: new Date(),
+        },
+      });
+
+      const grant = await req()
+        .post('/api/patient-consents/grant')
+        .set('Cookie', cookieHeader(medico2Cookies))
+        .send({
+          patientId: medico2PatientId,
+          legalDocumentId,
+          purpose: 'ATENCION_CLINICA',
+          method: 'PRESENCIAL_TABLET',
+          signerName: 'Paciente Medico2',
+          signerRelationship: 'TITULAR',
+        })
+        .expect(201);
+      leakedDataProcessingConsentId = grant.body.id;
+
+      await req()
+        .get(`/api/patient-consents/patient/${medico2PatientId}`)
+        .set('Cookie', cookieHeader(state.medicoCookies))
+        .expect(404);
+
+      await req()
+        .post('/api/patient-consents/grant')
+        .set('Cookie', cookieHeader(state.medicoCookies))
+        .send({
+          patientId: medico2PatientId,
+          legalDocumentId,
+          purpose: 'COMUNICACIONES',
+          method: 'PRESENCIAL_TABLET',
+          signerName: 'Intento fuera de scope',
+          signerRelationship: 'TITULAR',
+        })
+        .expect(404);
+
+      await req()
+        .post(`/api/patient-consents/${leakedDataProcessingConsentId}/revoke`)
+        .set('Cookie', cookieHeader(state.medicoCookies))
+        .send({ reason: 'Intento fuera de scope' })
+        .expect(404);
+
+      const medico2List = await req()
+        .get(`/api/patient-consents/patient/${medico2PatientId}`)
+        .set('Cookie', cookieHeader(medico2Cookies))
+        .expect(200);
+      expect(medico2List.body.map((item: any) => item.id)).toContain(leakedDataProcessingConsentId);
     });
 
     it('First medico cannot update second medico patient history or admin fields', async () => {

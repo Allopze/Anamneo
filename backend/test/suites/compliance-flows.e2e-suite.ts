@@ -255,6 +255,60 @@ export function complianceFlowsSuite() {
         expect(String(res.body.message)).toMatch(/bloqueo temporal vigente|Art 8 ter/);
       });
 
+      it('GET historicos siguen permitidos con paciente bloqueado', async () => {
+        await req()
+          .get(`/api/patients/${state.patientId}`)
+          .set('Cookie', cookieHeader(state.medicoCookies))
+          .expect(200);
+
+        await req()
+          .get(`/api/encounters/${state.encounterId}`)
+          .set('Cookie', cookieHeader(state.medicoCookies))
+          .expect(200);
+      });
+
+      it('mutaciones clinicas relacionadas al paciente bloqueado retornan 403', async () => {
+        await req()
+          .put(`/api/patients/${state.patientId}/admin`)
+          .set('Cookie', cookieHeader(state.assistantCookies))
+          .send({ trabajo: 'No debe mutar bloqueado' })
+          .expect(403);
+
+        await req()
+          .post(`/api/patients/${state.patientId}/problems`)
+          .set('Cookie', cookieHeader(state.medicoCookies))
+          .send({ label: 'No debe crear problema bloqueado' })
+          .expect(403);
+
+        await req()
+          .post(`/api/patients/${state.patientId}/tasks`)
+          .set('Cookie', cookieHeader(state.medicoCookies))
+          .send({ title: 'No debe crear tarea bloqueada' })
+          .expect(403);
+
+        await req()
+          .post('/api/alerts')
+          .set('Cookie', cookieHeader(state.medicoCookies))
+          .send({
+            patientId: state.patientId,
+            type: 'GENERAL',
+            severity: 'MEDIA',
+            title: 'No debe crear alerta bloqueada',
+            message: 'Paciente bloqueado por Art 8 ter.',
+          })
+          .expect(403);
+
+        await req()
+          .post('/api/consents')
+          .set('Cookie', cookieHeader(state.assistantCookies))
+          .send({
+            patientId: state.patientId,
+            type: 'TRATAMIENTO',
+            description: 'No debe registrar consentimiento clinico bloqueado',
+          })
+          .expect(403);
+      });
+
       it('POST /api/patients/:id/unblock -> admin levanta el bloqueo', async () => {
         const res = await req()
           .post(`/api/patients/${state.patientId}/unblock`)
@@ -563,11 +617,11 @@ export function complianceFlowsSuite() {
             fechaNacimiento: '2018-03-10',
             edad: 7,
             sexo: 'MASCULINO',
-            prevision: 'FONASA_A',
+            prevision: 'FONASA',
             rutExempt: true,
             rutExemptReason: 'Menor sin RUT',
             legalRepresentativeName: 'Madre del NNA Cifrado',
-            legalRepresentativeRut: '11.222.333-4',
+            legalRepresentativeRut: '11.111.111-1',
             legalRepresentativeRelationship: 'MADRE',
             legalRepresentativeContact: 'madre@test.cl',
           })
@@ -597,11 +651,11 @@ export function complianceFlowsSuite() {
       it('GET /api/patients/:id -> devuelve representante legal descifrado', async () => {
         const res = await req()
           .get(`/api/patients/${nnaEncPatientId}`)
-          .set('Cookie', cookieHeader(state.adminCookies))
+          .set('Cookie', cookieHeader(state.medicoCookies))
           .expect(200);
 
         expect(res.body.legalRepresentativeName).toBe('Madre del NNA Cifrado');
-        expect(res.body.legalRepresentativeRut).toBe('11.222.333-4');
+        expect(res.body.legalRepresentativeRut).toBe('11.111.111-1');
         expect(res.body.legalRepresentativeContact).toBe('madre@test.cl');
       });
     });
@@ -659,10 +713,9 @@ export function complianceFlowsSuite() {
           .send({
             requestType: 'ACCESO',
             requesterName: 'Titular Cifrado Test',
-            requesterRut: '9.876.543-2',
+            requesterRut: '22.222.222-2',
             requesterEmail: 'titular-cifrado@test.cl',
             payloadRequest: 'Solicitud de acceso cifrada E2E',
-            submittedBy: 'TITULAR',
           })
           .expect(201);
 

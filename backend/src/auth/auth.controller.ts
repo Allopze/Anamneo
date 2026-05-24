@@ -21,6 +21,17 @@ import { UsersService } from '../users/users.service';
 import { ConfigService } from '@nestjs/config';
 import { isMobileClient } from '../common/utils/mobile-client';
 
+const AUTH_THROTTLE_TTL_MS = 60_000;
+const isTestRuntime = process.env.NODE_ENV === 'test';
+const authThrottleLimits = {
+  register: isTestRuntime ? 30 : 3,
+  login: isTestRuntime ? 60 : 5,
+  forgotPassword: isTestRuntime ? 30 : 2,
+  forgotPasswordCheck: isTestRuntime ? 60 : 10,
+  forgotPasswordConfirm: isTestRuntime ? 30 : 5,
+  verify2FA: isTestRuntime ? 60 : 5,
+};
+
 // Cookie configuration helper
 function getCookieOptions(maxAge: number, isProduction: boolean) {
   return {
@@ -107,7 +118,7 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  @Throttle({ short: { limit: 3, ttl: 60000 } })
+  @Throttle({ short: { limit: authThrottleLimits.register, ttl: AUTH_THROTTLE_TTL_MS } })
   async register(@Body() registerDto: RegisterWithInvitationDto, @Res({ passthrough: true }) res: Response) {
     const req = res.req as Request;
     const sessionContext = this.getSessionContext(req);
@@ -119,7 +130,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { limit: 5, ttl: 60000 } })
+  @Throttle({ short: { limit: authThrottleLimits.login, ttl: AUTH_THROTTLE_TTL_MS } })
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const req = res.req as Request;
     const sessionContext = this.getSessionContext(req);
@@ -142,7 +153,7 @@ export class AuthController {
   ) {
     const req = res.req as Request & { cookies?: Record<string, string> };
     // El web usa cookie httpOnly; el móvil envía el refresh token en el body.
-    const refreshToken = req.cookies?.refresh_token ?? body?.refreshToken;
+    const refreshToken = req.cookies?.refresh_token ?? (isMobileClient(req) ? body?.refreshToken : undefined);
     if (!refreshToken) {
       this.clearAuthCookies(res);
       throw new UnauthorizedException('Token de refresco no proporcionado');
@@ -199,7 +210,7 @@ export class AuthController {
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { limit: 2, ttl: 60000 } })
+  @Throttle({ short: { limit: authThrottleLimits.forgotPassword, ttl: AUTH_THROTTLE_TTL_MS } })
   async forgotPassword(@Body() dto: RequestPasswordResetDto, @Res({ passthrough: true }) res: Response) {
     const sessionContext = this.getSessionContext(res.req as Request);
     await this.authPasswordResetService.requestReset(dto.email, sessionContext);
@@ -208,14 +219,14 @@ export class AuthController {
 
   @Get('forgot-password/:token')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { limit: 10, ttl: 60000 } })
+  @Throttle({ short: { limit: authThrottleLimits.forgotPasswordCheck, ttl: AUTH_THROTTLE_TTL_MS } })
   async checkForgotPasswordToken(@Param('token') token: string) {
     return this.authPasswordResetService.validateToken(token);
   }
 
   @Post('forgot-password/confirm')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { limit: 5, ttl: 60000 } })
+  @Throttle({ short: { limit: authThrottleLimits.forgotPasswordConfirm, ttl: AUTH_THROTTLE_TTL_MS } })
   async confirmForgotPassword(
     @Body() dto: ConfirmPasswordResetDto,
     @Res({ passthrough: true }) res: Response,
@@ -292,7 +303,7 @@ export class AuthController {
 
   @Post('2fa/verify')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { limit: 5, ttl: 60000 } })
+  @Throttle({ short: { limit: authThrottleLimits.verify2FA, ttl: AUTH_THROTTLE_TTL_MS } })
   async verify2FA(@Body() dto: VerifyTotpLoginDto, @Res({ passthrough: true }) res: Response) {
     const req = res.req as Request;
     const sessionContext = this.getSessionContext(req);

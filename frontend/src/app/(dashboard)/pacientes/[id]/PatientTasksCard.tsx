@@ -123,14 +123,14 @@ export default function PatientTasksCard({
           )}
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <select className="form-input" {...taskForm.register('type')}>
+          <select className="form-input" aria-label="Tipo de seguimiento" {...taskForm.register('type')}>
             {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
           </select>
-          <select className="form-input" {...taskForm.register('priority')}>
+          <select className="form-input" aria-label="Prioridad del seguimiento" {...taskForm.register('priority')}>
             {TASK_PRIORITIES.map((value) => (
               <option key={value} value={value}>
                 {TASK_PRIORITY_LABELS[value]}
@@ -139,7 +139,7 @@ export default function PatientTasksCard({
           </select>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <select className="form-input" {...taskForm.register('recurrenceRule')}>
+          <select className="form-input" aria-label="Recurrencia del seguimiento" {...taskForm.register('recurrenceRule')}>
             {Object.entries(TASK_RECURRENCE_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
@@ -148,7 +148,7 @@ export default function PatientTasksCard({
           </select>
         </div>
         <div>
-          <input type="date" className="form-input" {...taskForm.register('dueDate')} />
+          <input type="date" className="form-input" aria-label="Fecha de vencimiento" {...taskForm.register('dueDate')} />
           {taskForm.formState.errors.dueDate && (
             <p className="mt-1 text-xs text-status-red">{taskForm.formState.errors.dueDate.message}</p>
           )}

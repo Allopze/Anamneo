@@ -90,6 +90,7 @@ La rotacion de claves esta detallada en `settings-key-rotation-runbook.md`.
 | `SENTRY_DSN` | vacio | Sentry backend |
 | `NEXT_PUBLIC_SENTRY_DSN` | vacio | Sentry frontend |
 | `NEXT_PUBLIC_SENTRY_REPLAY_ENABLED` | `false` | Replay de Sentry solo para depuracion no productiva |
+| `NEXT_PUBLIC_STRICT_CSP` | `false` | Activa `script-src` con nonce/`strict-dynamic` en frontend. Validar en staging antes de produccion porque puede romper bootstrap inline de Next |
 | `METRICS_SCRAPE_TOKEN` | recomendado para observabilidad | Token Bearer para que Prometheus lea `/api/metrics` sin sesion humana |
 | `GRAFANA_ADMIN_USER` | `admin` | Usuario admin local de Grafana en Docker Compose |
 | `GRAFANA_ADMIN_PASSWORD` | recomendado cambiar | Password admin local de Grafana en Docker Compose |

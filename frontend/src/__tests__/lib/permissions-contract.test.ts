@@ -1,6 +1,8 @@
 import { PERMISSION_CONTRACT_SCENARIOS } from '../../../../shared/permission-contract';
 import {
   canCreateEncounter,
+  canRegisterClinicalConsent,
+  canRevokeClinicalConsent,
   canEditAntecedentes,
   canEditPatientAdmin,
   canUpdateEncounterReviewStatus,
@@ -15,6 +17,8 @@ describe('permission contract', () => {
     expect(canEditAntecedentes(permissionUser)).toBe(expectations.canEditAntecedentes);
     expect(canEditPatientAdmin(permissionUser)).toBe(expectations.canEditPatientAdmin);
     expect(canCreateEncounter(permissionUser)).toBe(expectations.canCreateEncounter);
+    expect(canRegisterClinicalConsent(permissionUser)).toBe(expectations.canRegisterClinicalConsent);
+    expect(canRevokeClinicalConsent(permissionUser)).toBe(expectations.canRevokeClinicalConsent);
     expect(canViewMedicoOnlySections(permissionUser)).toBe(expectations.canViewMedicoOnlySections);
     expect(canUpdateEncounterReviewStatus(permissionUser, 'REVISADA_POR_MEDICO')).toBe(expectations.canUpdateReviewStatus);
   });

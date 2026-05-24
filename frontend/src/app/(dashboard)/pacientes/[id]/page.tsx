@@ -111,7 +111,7 @@ export default function PatientDetailPage() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
-          <Link href="/pacientes" className="p-2 hover:bg-surface-muted rounded-card transition-colors">
+          <Link href="/pacientes" className="p-2 hover:bg-surface-muted rounded-card transition-colors" aria-label="Volver a pacientes">
             <FiArrowLeft className="w-5 h-5 text-ink-secondary" />
           </Link>
           <div className="flex items-center gap-4">

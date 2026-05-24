@@ -6,8 +6,28 @@ Convención:
 - [ ] pendiente de split
 - [x] ya revisado o dividido
 
+## Snapshot prioritario 2026-05-24
+
+Archivos manuales por encima del umbral recomendado de 300 lineas. Los que superan 500 lineas tienen prioridad P1 por el limite duro de `AGENTS.md`.
+
+| Prioridad | Lineas | Archivo | Split sugerido |
+| --- | ---: | --- | --- |
+| P1 | 746 | `backend/src/legal/legal.service.ts` | publicacion/versionado, aceptacion, lectura publica, difusion |
+| P1 | 739 | `backend/src/mail/mail.service.ts` | transporte SMTP, render, templates por dominio |
+| P1 | 574 | `backend/src/audit/audit.service.ts` | escritura, lectura, cadena hash/verificacion, retencion |
+| P2 | 462 | `frontend/src/app/register/page.tsx` | pasos, validacion, llamadas API, estado del wizard; `RegisterPasswordFields` ya extraido |
+| P2 | 493 | `frontend/src/app/(dashboard)/pacientes/nuevo/page.tsx` | secciones de formulario, hooks de submit, helpers de duplicados |
+| P2 | 489 | `frontend/src/app/(dashboard)/ajustes/ProfileSecurityTab.tsx` | perfil, seguridad, sesiones, privacidad local |
+| P2 | 471 | `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts` | reducer/maquina de estados de guardado |
+| P2 | 466 | `backend/src/patient-portal/patient-portal.service.ts` | auth portal, solicitudes, descargas, consentimiento |
+| P2 | 462 | `frontend/src/app/(dashboard)/pacientes/[id]/page.tsx` | estado legal, resumen clinico, acciones/exportes |
+
 ## Backend
 
+- [ ] backend/src/audit/audit.service.ts
+- [ ] backend/src/legal/legal.service.ts
+- [ ] backend/src/mail/mail.service.ts
+- [ ] backend/src/patient-portal/patient-portal.service.ts
 - [x] backend/src/alerts/alerts.service.ts
 - [x] backend/src/analytics/clinical-analytics-summary.ts
 - [x] backend/src/analytics/clinical-analytics.helpers.spec.ts
@@ -70,7 +90,7 @@ Convención:
 - [ ] frontend/src/app/(dashboard)/pacientes/page.tsx
 - [ ] frontend/src/app/(dashboard)/seguimientos/page.tsx
 - [ ] frontend/src/app/login/page.tsx
-- [ ] frontend/src/app/register/page.tsx
+- [ ] frontend/src/app/register/page.tsx (bajo de 500; pendiente seguir bajando hacia 300)
 - [x] frontend/src/components/EncounterDrawer.tsx
 - [x] frontend/src/components/layout/DashboardLayout.tsx
 - [x] frontend/src/components/layout/DashboardSidebar.tsx

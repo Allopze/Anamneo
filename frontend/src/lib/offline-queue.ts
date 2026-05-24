@@ -1,4 +1,5 @@
 import { isSharedDeviceModeEnabled } from '@/stores/privacy-settings-store';
+import { decryptPhiJson, encryptPhiJson, isEncryptedPhiEnvelope } from './local-phi-crypto';
 
 /**
  * Offline save queue backed by IndexedDB.
@@ -25,6 +26,11 @@ export interface PendingSave {
   queuedAt: string;
   userId: string;
 }
+
+type StoredPendingSave = Omit<PendingSave, 'data'> & {
+  data: unknown;
+  encryptedData?: unknown;
+};
 
 function isPendingSaveExpired(save: Pick<PendingSave, 'queuedAt'>): boolean {
   const queuedAtTs = new Date(save.queuedAt).getTime();
@@ -89,6 +95,11 @@ export async function enqueueSave(save: Omit<PendingSave, 'id'>): Promise<void> 
   if (!isIndexedDBAvailable()) {
     throw new Error('IndexedDB no disponible — no se puede encolar el guardado offline');
   }
+  const storedSave: Omit<StoredPendingSave, 'id'> = {
+    ...save,
+    data: null,
+    encryptedData: await encryptPhiJson(save.data),
+  };
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -98,7 +109,7 @@ export async function enqueueSave(save: Omit<PendingSave, 'id'>): Promise<void> 
     request.onsuccess = () => {
       const cursor = request.result;
       if (!cursor) {
-        store.add(save);
+        store.add(storedSave);
         return;
       }
 
@@ -136,16 +147,33 @@ export async function getPendingSaves(): Promise<PendingSave[]> {
     const request = store.getAll();
 
     request.onsuccess = () => {
-      const rawSaves = request.result as PendingSave[];
-      const activeSaves = rawSaves.filter((save) => !isPendingSaveExpired(save));
+      const rawSaves = request.result as StoredPendingSave[];
+      const activeSaves: PendingSave[] = [];
 
-      rawSaves.forEach((save) => {
+      void Promise.all(rawSaves.map(async (save) => {
         if (save.id && isPendingSaveExpired(save)) {
           store.delete(save.id);
+          return;
         }
-      });
 
-      resolve(collapsePendingSaves(activeSaves));
+        if (!isEncryptedPhiEnvelope(save.encryptedData)) {
+          return;
+        }
+
+        const decryptedData = await decryptPhiJson<unknown>(save.encryptedData);
+        if (decryptedData === null) {
+          return;
+        }
+
+        activeSaves.push({
+          ...save,
+          data: decryptedData,
+        });
+      })).then(() => {
+        resolve(collapsePendingSaves(activeSaves));
+      }).catch((error) => {
+        reject(error);
+      });
     };
     request.onerror = () => {
       db.close();

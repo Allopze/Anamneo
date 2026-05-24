@@ -20,6 +20,7 @@ import {
   evaluateEncounterOutcome,
   ratio,
   resolveDefaultFromDate,
+  SMALL_COHORT_PATIENT_THRESHOLD,
   type ScopedProblem,
 } from './clinical-analytics-summary';
 import type { ClinicalAnalyticsQueryDto } from './dto/clinical-analytics-query.dto';
@@ -223,6 +224,8 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
   }
 
   const patientList = [...uniquePatients.values()];
+  const suppressDetailedAnalytics =
+    uniquePatients.size > 0 && uniquePatients.size < SMALL_COHORT_PATIENT_THRESHOLD;
 
   const demographics = {
     averageAge: calculateAverageAge(matchedEncounters),
@@ -242,7 +245,11 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
       followUpDays,
       limit,
     },
-    caveats: buildCaveats(Boolean(normalizedCondition)),
+    caveats: buildCaveats(Boolean(normalizedCondition), uniquePatients.size),
+    privacy: {
+      smallCohortSuppressed: suppressDetailedAnalytics,
+      smallCohortThreshold: SMALL_COHORT_PATIENT_THRESHOLD,
+    },
     summary: {
       matchedPatients: uniquePatients.size,
       matchedEncounters: matchedEncounters.length,
@@ -262,20 +269,30 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
       adverseEventRate: ratio(adverseEventCount, matchedEncounters.length),
       demographics,
     },
-    topConditions: buildConditionRanking(normalizedCondition ? matchedEncounters : baseEncounters, query),
+    topConditions: suppressDetailedAnalytics
+      ? []
+      : buildConditionRanking(normalizedCondition ? matchedEncounters : baseEncounters, query),
     cohortBreakdown: {
-      associatedSymptoms: buildSymptomRanking(matchedEncounters, normalizedCondition, limit),
-      foodRelation: buildFoodRelationRanking(matchedEncounters),
+      associatedSymptoms: suppressDetailedAnalytics
+        ? []
+        : buildSymptomRanking(matchedEncounters, normalizedCondition, limit),
+      foodRelation: suppressDetailedAnalytics ? [] : buildFoodRelationRanking(matchedEncounters),
     },
     treatmentPatterns: {
-      medications: buildTreatmentRanking(matchedEncounters, 'medications', limit),
-      exams: buildTreatmentRanking(matchedEncounters, 'exams', limit),
-      referrals: buildTreatmentRanking(matchedEncounters, 'referrals', limit),
+      medications: suppressDetailedAnalytics ? [] : buildTreatmentRanking(matchedEncounters, 'medications', limit),
+      exams: suppressDetailedAnalytics ? [] : buildTreatmentRanking(matchedEncounters, 'exams', limit),
+      referrals: suppressDetailedAnalytics ? [] : buildTreatmentRanking(matchedEncounters, 'referrals', limit),
     },
     treatmentOutcomeProxies: {
-      medications: buildTreatmentOutcomeRanking(matchedEncounters, evaluationByEncounterId, 'medications', limit),
-      exams: buildTreatmentOutcomeRanking(matchedEncounters, evaluationByEncounterId, 'exams', limit),
-      referrals: buildTreatmentOutcomeRanking(matchedEncounters, evaluationByEncounterId, 'referrals', limit),
+      medications: suppressDetailedAnalytics
+        ? []
+        : buildTreatmentOutcomeRanking(matchedEncounters, evaluationByEncounterId, 'medications', limit),
+      exams: suppressDetailedAnalytics
+        ? []
+        : buildTreatmentOutcomeRanking(matchedEncounters, evaluationByEncounterId, 'exams', limit),
+      referrals: suppressDetailedAnalytics
+        ? []
+        : buildTreatmentOutcomeRanking(matchedEncounters, evaluationByEncounterId, 'referrals', limit),
     },
     outcomeProxies: {
       reconsultWithinWindowRate: ratio(reconsultCount, matchedEncounters.length),

@@ -89,7 +89,7 @@ export function DashboardSidebarSearch({
         </div>
       ) : (
         <div className="relative">
-          <FiSearch className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+          <FiSearch className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/70" />
           <input
             ref={searchInputRef}
             type="text"
