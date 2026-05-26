@@ -4,6 +4,7 @@ import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { PrismaService } from '../prisma/prisma.service';
 import { canAccessEncounter } from './encounter-policy';
 import { ReassignEncounterDto } from './dto/reassign-encounter.dto';
+import { roleHasFineGrainedAction } from '../../../shared/fine-grained-permission-contract';
 
 interface ReassignEncounterParams {
   prisma: PrismaService;
@@ -59,7 +60,7 @@ export async function reassignEncounterMutation(params: ReassignEncounterParams)
     throw new BadRequestException('Solo se pueden reasignar atenciones en progreso');
   }
 
-  if (!user.isAdmin && user.role !== 'MEDICO') {
+  if (!roleHasFineGrainedAction(user.role as any, 'encounter.reassign')) {
     throw new ForbiddenException('Solo el medico responsable o admin puede reasignar una atencion');
   }
 

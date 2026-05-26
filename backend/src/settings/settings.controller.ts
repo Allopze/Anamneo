@@ -9,13 +9,17 @@ import {
   IsBoolean,
   IsEmail,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   IsUrl,
   Matches,
   Max,
   MaxLength,
-  Min,  ValidateIf,} from 'class-validator';
+  Min,
+  ValidateIf,
+} from 'class-validator';
+import type { EncounterSectionConfig } from '../../../shared/encounter-section-config';
 
 class UpdateSettingsDto {
   @IsString() @MaxLength(200) @IsOptional() clinicName?: string;
@@ -45,6 +49,11 @@ class UpdateSettingsDto {
   sessionInactivityTimeoutMinutes?: number;
 }
 
+class UpdateEncounterSectionConfigDto {
+  @IsObject()
+  config!: EncounterSectionConfig;
+}
+
 @Controller('settings')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SettingsController {
@@ -63,6 +72,21 @@ export class SettingsController {
   @Roles('ADMIN', 'MEDICO', 'ASISTENTE')
   getSessionPolicy() {
     return this.settingsService.getSessionPolicy();
+  }
+
+  @Get('encounter-sections')
+  @Roles('ADMIN', 'MEDICO', 'ASISTENTE')
+  getEncounterSections() {
+    return this.settingsService.getEncounterSectionConfig();
+  }
+
+  @Put('encounter-sections')
+  @Roles('ADMIN')
+  updateEncounterSections(
+    @Body() dto: UpdateEncounterSectionConfigDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.settingsService.updateEncounterSectionConfig(dto.config, user.id, this.auditService);
   }
 
   @Put()

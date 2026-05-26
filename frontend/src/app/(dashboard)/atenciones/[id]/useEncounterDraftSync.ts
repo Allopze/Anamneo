@@ -146,7 +146,7 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
     }
 
     if (hasEncounterDraftUnsavedChanges(draft)) {
-      void writeEncounterDraft(draft).catch(() => {
+      void Promise.resolve(writeEncounterDraft(draft)).catch(() => {
         toast.error('No se pudo cifrar el borrador local de esta atención');
       });
       return;

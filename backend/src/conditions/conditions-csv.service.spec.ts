@@ -63,6 +63,7 @@ describe('ConditionsCsvService', () => {
     expect(result.createCount).toBe(0);
     expect(result.updateCount).toBe(1);
     expect(result.reactivateCount).toBe(1);
+    expect(result.deactivateCount).toBe(0);
     expect(result.invalidRows).toEqual([]);
     expect(result.preview[0].synonyms).toEqual(
       expect.arrayContaining(['hta', 'presión, alta', 'control presión']),
@@ -120,6 +121,7 @@ describe('ConditionsCsvService', () => {
       created: 0,
       updated: 1,
       reactivated: 1,
+      deactivated: 0,
       total: 2,
       duplicateRows: 0,
     });
@@ -155,6 +157,56 @@ describe('ConditionsCsvService', () => {
         userId: 'admin-user-id',
         action: 'UPDATE',
         reason: 'CONDITION_CSV_IMPORTED',
+      }),
+    );
+  });
+
+  it('supports active/activo/enabled columns with explicit deactivation', async () => {
+    mockPrisma.conditionCatalog.findMany.mockResolvedValue([
+      {
+        id: 'condition-active',
+        name: 'Hipertensión',
+        normalizedName: 'hipertension',
+        synonyms: '["hta"]',
+        tags: '["cardio"]',
+        active: true,
+      },
+    ]);
+    mockPrisma.conditionCatalog.update.mockImplementation(
+      async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => ({
+        id: where.id,
+        ...data,
+      }),
+    );
+
+    const preview = await service.previewGlobalCsv(
+      Buffer.from(['name,activo', 'Hipertensión,no'].join('\n')),
+    );
+
+    expect(preview.deactivateCount).toBe(1);
+    expect(preview.preview[0]).toMatchObject({
+      name: 'Hipertensión',
+      active: false,
+      action: 'DEACTIVATE',
+    });
+
+    const result = await service.importGlobalCsv(
+      Buffer.from(['name,enabled', 'Hipertensión,false'].join('\n')),
+      'admin-user-id',
+    );
+
+    expect(result).toEqual({
+      created: 0,
+      updated: 0,
+      reactivated: 0,
+      deactivated: 1,
+      total: 1,
+      duplicateRows: 0,
+    });
+    expect(mockPrisma.conditionCatalog.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'condition-active' },
+        data: expect.objectContaining({ active: false }),
       }),
     );
   });

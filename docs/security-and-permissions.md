@@ -35,6 +35,8 @@ Cuando el sistema aun no tiene un admin activo, el primer registro requiere `BOO
 
 La referencia compartida base para permisos generales esta en `shared/permission-contract.ts`.
 
+La matriz cerrada de permisos finos por accion esta en `shared/fine-grained-permission-contract.ts`. Cubre pacientes, atenciones, adjuntos, tareas, problemas, consentimientos clinicos, exportaciones y acciones admin de mantenimiento. El frontend puede usarla para ocultar o deshabilitar acciones, pero el backend sigue siendo la fuente efectiva de enforcement.
+
 Para permisos clinicos de `encounters` que necesitan mas granularidad, la fuente compartida actual vive en `shared/encounter-permission-contract.ts`. Ahi se define:
 
 - visibilidad de secciones solo-medico,
@@ -172,6 +174,7 @@ Pendiente despues de esta pasada:
 No veo hoy un drift activo fuerte en auth, 2FA, consentimientos o payloads de sections como el que existia en pasadas anteriores. Lo que si conviene vigilar:
 
 - si aparece una nueva seccion clinica sensible o una nueva transicion de workflow, actualizar `shared/encounter-permission-contract.ts` y sus tests antes de tocar solo una capa,
+- si aparece una accion nueva sobre pacientes, encounters, adjuntos, tareas, problemas, consentimientos, exportaciones o mantenimiento admin, declararla primero en `shared/fine-grained-permission-contract.ts`,
 - si aparece una accion nueva sobre `encounters` que dependa de rol o estado, declararla primero en el contrato compartido antes de repartir condicionales nuevos por la UI,
 - mantener `patient access` y `encounter access` uniformes en consentimientos, alertas, adjuntos y exports,
 - seguir agrupando mutacion de negocio y auditoria en la misma transaccion cuando el flujo sea clinicamente sensible.
@@ -231,7 +234,7 @@ Ese fallo es deliberado: para este proyecto el cifrado en reposo del host ya no 
 
 1. Los permisos visibles en UI son ayuda de UX, no seguridad real.
 2. Cada endpoint clinico debe validar acceso efectivo al paciente o encounter correspondiente.
-3. Si un cambio toca permisos de encounters o sus acciones de workflow, el lugar para declararlo primero es `shared/encounter-permission-contract.ts`.
+3. Si un cambio toca permisos finos por accion, declararlo primero en `shared/fine-grained-permission-contract.ts`; si toca secciones o workflow de encounters, usar tambien `shared/encounter-permission-contract.ts`.
 4. Cualquier cambio en auth o permisos deberia venir con tests backend y, si afecta experiencia visible, tests frontend.
 5. No uses placeholders en entornos compartidos aunque sea "solo por un rato". Ese rato siempre termina siendo mas largo de lo que alguien admite.
 

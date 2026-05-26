@@ -5,6 +5,8 @@ import { api } from '@/lib/api';
 import type { Dispatch, SetStateAction } from 'react';
 import type { AjustesHook } from './useAjustes';
 import LegalAdminSection from './LegalAdminSection';
+import EncounterSectionsSettingsCard from './EncounterSectionsSettingsCard';
+import MaintenanceActionsCard from './MaintenanceActionsCard';
 
 type SystemHealthResponse = {
   status: 'ok' | 'degraded';
@@ -241,6 +243,10 @@ export default function SystemTab({
       </div>
 
       <LegalAdminSection />
+
+      <EncounterSectionsSettingsCard />
+
+      <MaintenanceActionsCard />
 
       <div className="rounded-2xl border border-surface-muted/40 bg-surface-elevated p-4 text-sm text-ink-secondary">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">

@@ -5,6 +5,7 @@ import { RequestUser } from '../common/utils/medico-id';
 import { canAccessEncounter } from './encounter-policy';
 import { formatEncounterForList, formatEncounterForPatientList, formatEncounterResponse } from './encounters-presenters';
 import { patientMatchesIdentifierSearch } from '../patients/patients-identifiers';
+import type { EncounterSectionConfig } from '../../../shared/encounter-section-config';
 
 interface FindEncountersReadModelParams {
   prisma: PrismaService;
@@ -102,6 +103,7 @@ interface FindEncounterByIdReadModelParams {
   includeTasks?: boolean;
   includeSignatures?: boolean;
   includeSuggestions?: boolean;
+  sectionConfig?: EncounterSectionConfig;
 }
 
 export async function findEncounterByIdReadModel(params: FindEncounterByIdReadModelParams) {
@@ -116,6 +118,7 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
     includeTasks = true,
     includeSignatures = true,
     includeSuggestions = true,
+    sectionConfig,
   } = params;
 
   const encounter = await prisma.encounter.findFirst({
@@ -247,7 +250,7 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
       ...encounter,
       signatureBaseline,
     },
-    { viewerRole: user.role },
+    { viewerRole: user.role, sectionConfig },
   );
 }
 

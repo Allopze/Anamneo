@@ -26,6 +26,7 @@ import PatientBlockingControls from '@/components/PatientBlockingControls';
 import { InProgressEncounterConflictModal } from '@/components/common/InProgressEncounterConflictModal';
 import PossiblePatientDuplicatesNotice from '@/components/common/PossiblePatientDuplicatesNotice';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
+import ReassignmentCard from '@/components/ReassignmentCard';
 
 import { usePatientDetail } from './usePatientDetail';
 import PatientProblemsCard from './PatientProblemsCard';
@@ -236,6 +237,18 @@ export default function PatientDetailPage() {
       />
 
       <PatientLongitudinalSummaryCard patient={patient} clinicalSummary={pd.clinicalSummary} />
+
+      {pd.canReassignPatientAllowed && (
+        <div className="mb-6">
+          <ReassignmentCard
+            title="Reasignar paciente"
+            description="Mueve la ficha, problemas y seguimientos al médico destino."
+            endpoint={`/patients/${pd.id}/reassign`}
+            includeOpenEncountersOption
+            onSuccess={pd.handleReassignmentSuccess}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column */}

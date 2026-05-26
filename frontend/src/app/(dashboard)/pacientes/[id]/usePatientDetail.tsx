@@ -7,6 +7,7 @@ import type { AxiosError } from 'axios';
 import { api, getErrorMessage } from '@/lib/api';
 import { DUPLICATE_ENCOUNTER_CREATED_MESSAGE } from '@/lib/encounter-duplicate';
 import type { Patient } from '@/types';
+import { canReassignPatient } from '@/lib/permissions';
 import {
   useAuthCanCreateEncounter,
   useAuthCanEditAntecedentes,
@@ -42,6 +43,7 @@ export function usePatientDetail() {
   const canEditAntecedentes = useAuthCanEditAntecedentes();
   const canEditAdminFields = useAuthCanEditPatientAdmin();
   const canCreateEncounterAllowed = useAuthCanCreateEncounter();
+  const canReassignPatientAllowed = canReassignPatient(user);
 
   const [conflictEncounters, setConflictEncounters] = useState<InProgressEncounterSummary[] | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -287,6 +289,7 @@ export function usePatientDetail() {
     isDoctor,
     canEditAdminFields,
     canCreateEncounterAllowed,
+    canReassignPatientAllowed,
     canEditAntecedentes,
     historyHasContent,
     completenessMeta,
@@ -342,6 +345,14 @@ export function usePatientDetail() {
     // Actions
     handleExportHistorial,
     handleExportBundle,
+    handleReassignmentSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['patient', id] }),
+        queryClient.invalidateQueries({ queryKey: ['patient-encounters', id] }),
+        queryClient.invalidateQueries({ queryKey: ['patient-operational-history', id] }),
+        queryClient.invalidateQueries({ queryKey: ['patient-clinical-summary', id] }),
+      ]);
+    },
     handleDelete: () => setShowDeleteConfirm(true),
     confirmMerge: () => {
       if (!mergeCandidate) return;

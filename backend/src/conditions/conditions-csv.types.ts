@@ -3,6 +3,7 @@ export interface ParsedConditionCsvRow {
   name: string;
   synonyms: string[];
   tags: string[];
+  active?: boolean;
   normalizedName: string;
 }
 
@@ -26,7 +27,8 @@ export interface ConditionCsvPreviewItem {
   name: string;
   synonyms: string[];
   tags: string[];
-  action: 'CREATE' | 'UPDATE' | 'REACTIVATE';
+  active?: boolean;
+  action: 'CREATE' | 'UPDATE' | 'REACTIVATE' | 'DEACTIVATE';
 }
 
 export interface ConditionCsvPreviewResult {
@@ -39,6 +41,7 @@ export interface ConditionCsvPreviewResult {
   createCount: number;
   updateCount: number;
   reactivateCount: number;
+  deactivateCount: number;
   invalidRows: ConditionCsvInvalidRow[];
   preview: ConditionCsvPreviewItem[];
 }
@@ -47,6 +50,7 @@ export interface ConditionCsvImportResult {
   created: number;
   updated: number;
   reactivated: number;
+  deactivated: number;
   total: number;
   duplicateRows: number;
 }

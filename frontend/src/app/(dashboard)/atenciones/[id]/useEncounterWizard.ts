@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuthCanEditAntecedentes, useAuthIsMedico, useAuthUser } from '@/stores/auth-store';
 import {
   canEditEncounter,
+  canReassignEncounter,
   canViewEncounterSection,
   canUploadAttachments as canUploadAttachmentsPermission,
 } from '@/lib/permissions';
@@ -36,6 +37,7 @@ export function useEncounterWizard() {
   });
 
   const canEdit = canEditEncounter(user ?? null, encounter);
+  const canReassign = canReassignEncounter(user ?? null);
   const canUpload = canUploadAttachmentsPermission(user ?? null, encounter);
   const duplicateAction = useDuplicateEncounterAction(encounter);
   const allSections = encounter?.sections;
@@ -167,6 +169,7 @@ export function useEncounterWizard() {
     isOperationalAdmin,
     isDoctor,
     canEdit,
+    canReassign,
     canUpload,
     canDuplicateEncounter: duplicateAction.canDuplicateEncounter,
     canDeleteAttachments,
@@ -278,6 +281,7 @@ export function useEncounterWizard() {
     handleSaveGeneratedSummary,
     handleQuickNotesSave: persistence.handleQuickNotesSave,
     handleViewFicha: workflow.handleViewFicha,
+    handleReassignmentSuccess: () => queryClient.invalidateQueries({ queryKey: ['encounter', id] }),
   };
 }
 

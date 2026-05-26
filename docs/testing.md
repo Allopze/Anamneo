@@ -49,15 +49,15 @@ Consecuencia importante:
 ### Playwright
 
 - La configuracion vive en `frontend/playwright.config.ts`.
-- Por defecto `baseURL` es `http://127.0.0.1:5555`, pero puedes mover el frontend con `PLAYWRIGHT_FRONTEND_PORT`.
-- El backend e2e usa `5678` por defecto, pero puedes moverlo con `PLAYWRIGHT_BACKEND_PORT`.
+- Por defecto `baseURL` es `http://127.0.0.1:5556`, pero puedes mover el frontend con `PLAYWRIGHT_FRONTEND_PORT`.
+- El backend e2e usa `5679` por defecto, pero puedes moverlo con `PLAYWRIGHT_BACKEND_PORT`.
 - El `webServer` construye una build de pruebas y levanta el frontend/backend con `scripts/e2e-webserver.js`.
 - `fullyParallel` esta desactivado.
 
 Importante:
 
-- Playwright levanta el frontend, no el backend.
-- Si la prueba requiere trafico real contra `/api`, necesitas el backend disponible en el puerto configurado para Playwright.
+- Playwright levanta backend y frontend mediante `webServer` para las suites e2e configuradas.
+- Si corres specs manuales fuera de esa configuracion, verifica que el backend quede disponible en el puerto esperado por el proxy.
 - El proxy de Next.js reescribe `/api/*` al backend configurado, por lo que una API caida no se arregla con optimismo.
 - `workflow-clinical.spec.ts` comparte bootstrap y estado de datos por corrida; para medir estabilidad usa corridas independientes con `npm --prefix frontend run test:e2e:workflow-clinical:repeat` en vez de `--repeat-each` dentro de un mismo proceso de Playwright.
 - Si ya tienes servidores levantados y quieres reutilizarlos a conciencia, habilita `PLAYWRIGHT_REUSE_EXISTING=true`.

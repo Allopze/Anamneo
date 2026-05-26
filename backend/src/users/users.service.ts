@@ -56,6 +56,21 @@ export class UsersService {
     });
   }
 
+  async findActiveMedicosForReassignment() {
+    return this.prisma.user.findMany({
+      where: {
+        role: 'MEDICO',
+        active: true,
+      },
+      select: {
+        id: true,
+        nombre: true,
+        email: true,
+      },
+      orderBy: { nombre: 'asc' },
+    });
+  }
+
   async findById(id: string) {
     return this.prisma.user.findUnique({
       where: { id },

@@ -32,6 +32,11 @@ El backlog se basa en lo que **ya existe en el código** del proyecto (módulos 
 - Alta rápida de recepción ya usa `/patients/quick` y deja fichas en modo `RAPIDO`.
 - Nueva atención usa selección + checklist pre-consulta antes de crear la atención preparada.
 - Admin puede exportar atenciones operativas por rango de fechas y médico opcional.
+- Reasignacion operativa de pacientes y atenciones disponible desde UI, con selector de medico activo, motivo y auditoria.
+- Permisos finos por accion documentados en contrato compartido para pacientes, atenciones, adjuntos, tareas, problemas, consentimientos clinicos y exportaciones.
+- Herramientas admin de mantenimiento seguras disponibles con confirmacion textual, razon, rol admin y auditoria.
+- Configuracion administrable de secciones de atencion: habilitada, requerida para cierre, orden y etiqueta visible.
+- CSV de afecciones soporta `active`/`activo`/`enabled` con valores booleanos claros.
 - Corte 2026-05-22: se reconciliaron estados contra código existente; plantillas, adjuntos con preview, búsqueda avanzada, alertas, seguimientos, reset admin y permisos base ya no quedan como backlog pendiente.
 
 ---
@@ -62,7 +67,7 @@ El backlog se basa en lo que **ya existe en el código** del proyecto (módulos 
 5. **Clasificación de adjuntos** — Etiquetar adjuntos (tipo, fecha del examen, origen) y ordenarlos en la atención. **Estado:** [YA]
 6. **Búsqueda por criterios administrativos** — Buscar por previsión, rango etario, estado RUT exento, etc. **Estado:** [YA]
 7. **Marcado de tareas del paciente** — “Falta documento”, “traer examen”, “pendiente firma consentimiento”. **Estado:** [YA]
-8. **Derivación interna / reasignación de médico** — Cambiar médico responsable del paciente con motivo y registro. **Estado:** [BE]
+8. **Derivación interna / reasignación de médico** — Cambiar médico responsable del paciente o atención con motivo y registro. **Estado:** [YA]
 9. **Checklist pre-consulta** — Confirmación de datos + adjuntos + antecedentes antes de pasar a consulta. **Estado:** [YA]
 
 ---
@@ -77,10 +82,10 @@ El backlog se basa en lo que **ya existe en el código** del proyecto (módulos 
 5. **Importación CSV global de afecciones** — Carga masiva inicial del catálogo global por admin. **Estado:** [YA]
 6. **Catálogo local por instancia** — Médicos/asistentes pueden crear/editar/ocultar afecciones sin afectar el global. **Estado:** [YA]
 5. **Permisos más consistentes por rol** — Revisar endpoints “solo autenticado” y aplicar reglas uniformes (médico efectivo vs admin). **Estado:** [YA]
-6. **Permisos finos por acción** — Matriz “quién puede editar qué” (ej. asistente puede editar datos administrativos pero no plan terapéutico). **Estado:** [NEW]
-7. **Herramientas de saneamiento seguras** — Reemplazar scripts destructivos por acciones admin con confirmación, limitaciones y auditoría. **Estado:** [BE]
+6. **Permisos finos por acción** — Matriz “quién puede editar qué” (ej. asistente puede editar datos administrativos pero no plan terapéutico). **Estado:** [YA]
+7. **Herramientas de saneamiento seguras** — Reemplazar scripts destructivos por acciones admin con confirmación, limitaciones y auditoría. **Estado:** [YA]
 8. **Exportación de datos (operativa)** — Exportar pacientes/atenciones por rango de fechas y médico para soporte administrativo. **Estado:** [YA]
-9. **Configuración de secciones del encuentro** — Habilitar/deshabilitar secciones, nombres, orden, campos obligatorios. **Estado:** [NEW]
+9. **Configuración de secciones del encuentro** — Habilitar/deshabilitar secciones, nombres, orden, campos obligatorios. **Estado:** [YA]
 
 ---
 
@@ -97,4 +102,4 @@ El backlog se basa en lo que **ya existe en el código** del proyecto (módulos 
 
 - El sistema ya tiene módulos claros: pacientes, atenciones (encounters), catálogo de afecciones (conditions), adjuntos (attachments), usuarios/auth y auditoría.
 - Muchas mejoras pueden implementarse como **pulido de flujo/UI** apoyándose en endpoints existentes; las marcadas [BE]/[NEW] requieren acordar reglas de negocio antes.
-- Pendientes v1 reales a priorizar con la clínica: derivación interna/reasignación de médico, permisos finos por acción, herramientas admin de saneamiento seguras y configuración flexible de secciones.
+- Pendientes v1 reales a priorizar con la clínica: validación operativa de permisos finos por acción, checklist de adopción de las herramientas admin de saneamiento y pruebas e2e completas de reasignación/mantenimiento.

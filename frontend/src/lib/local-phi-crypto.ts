@@ -29,8 +29,15 @@ function base64ToBytes(value: string): Uint8Array {
   return bytes;
 }
 
-function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+type BufferConstructorLike = {
+  from(value: Uint8Array): Uint8Array;
+};
+
+function toBufferSource(bytes: Uint8Array): BufferSource {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  const bufferConstructor = (globalThis as typeof globalThis & { Buffer?: BufferConstructorLike }).Buffer;
+  return bufferConstructor ? bufferConstructor.from(copy) : copy;
 }
 
 function getKeyStorage(): Storage | null {
@@ -41,7 +48,7 @@ function getKeyStorage(): Storage | null {
 async function importBrowserKey(rawKey: Uint8Array): Promise<CryptoKey> {
   const subtle = getSubtleCrypto();
   if (!subtle) throw new Error('WebCrypto no disponible');
-  return subtle.importKey('raw', toArrayBuffer(rawKey), 'AES-GCM', false, ['encrypt', 'decrypt']);
+  return subtle.importKey('raw', toBufferSource(rawKey), 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
 
 async function getOrCreateBrowserKey(): Promise<CryptoKey> {
@@ -77,7 +84,7 @@ export async function encryptPhiJson(value: unknown): Promise<EncryptedEnvelope>
   const key = await getOrCreateBrowserKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const plaintext = new TextEncoder().encode(JSON.stringify(value));
-  const ciphertext = await subtle.encrypt({ name: 'AES-GCM', iv: toArrayBuffer(iv) }, key, plaintext);
+  const ciphertext = await subtle.encrypt({ name: 'AES-GCM', iv: toBufferSource(iv) }, key, plaintext);
 
   return {
     v: ENVELOPE_VERSION,
@@ -96,9 +103,9 @@ export async function decryptPhiJson<T>(envelope: unknown): Promise<T | null> {
   try {
     const key = await getOrCreateBrowserKey();
     const plaintext = await subtle.decrypt(
-      { name: 'AES-GCM', iv: toArrayBuffer(base64ToBytes(envelope.iv)) },
+      { name: 'AES-GCM', iv: toBufferSource(base64ToBytes(envelope.iv)) },
       key,
-      toArrayBuffer(base64ToBytes(envelope.ciphertext)),
+      toBufferSource(base64ToBytes(envelope.ciphertext)),
     );
     return JSON.parse(new TextDecoder().decode(plaintext)) as T;
   } catch {

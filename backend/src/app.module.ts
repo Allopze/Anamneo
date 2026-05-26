@@ -28,6 +28,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { LegalModule } from './legal/legal.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { AdminMaintenanceModule } from './admin-maintenance/admin-maintenance.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -87,6 +88,7 @@ import { HealthController } from './health.controller';
     LegalModule,
     MetricsModule,
     OnboardingModule,
+    AdminMaintenanceModule,
   ],
   controllers: [HealthController],
   providers: [

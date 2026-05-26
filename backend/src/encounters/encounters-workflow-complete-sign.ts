@@ -22,6 +22,10 @@ import {
 import { ENCOUNTER_SECTION_LABELS as SECTION_LABELS } from '../common/utils/encounter-section-meta';
 import { syncEncounterClinicalStructures } from './encounters-clinical-structures';
 import { withPatientIdentifiers } from '../patients/patients-identifiers';
+import {
+  getRequiredEncounterSectionKeys,
+  type EncounterSectionConfig,
+} from '../../../shared/encounter-section-config';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
@@ -31,6 +35,7 @@ interface CompleteEncounterParams {
   id: string;
   userId: string;
   closureNote?: string;
+  sectionConfig?: EncounterSectionConfig;
 }
 
 interface SignEncounterParams {
@@ -98,7 +103,7 @@ function buildEncounterSignatureContentPayload(encounter: {
 }
 
 export async function completeEncounterWorkflowMutation(params: CompleteEncounterParams) {
-  const { prisma, auditService, id, userId, closureNote } = params;
+  const { prisma, auditService, id, userId, closureNote, sectionConfig } = params;
 
   const encounter = await prisma.encounter.findUnique({
     where: { id },
@@ -119,7 +124,14 @@ export async function completeEncounterWorkflowMutation(params: CompleteEncounte
 
   const sectionByKey = new Map(encounter.sections.map((section) => [section.sectionKey as SectionKey, section]));
 
-  const incompleteSections = REQUIRED_COMPLETION_SECTIONS.filter((key) => {
+  const requiredCompletionSections = sectionConfig
+    ? getRequiredEncounterSectionKeys(sectionConfig) as SectionKey[]
+    : REQUIRED_COMPLETION_SECTIONS;
+  const requiredSemanticSections = sectionConfig
+    ? REQUIRED_SEMANTIC_SECTIONS.filter((key) => requiredCompletionSections.includes(key))
+    : REQUIRED_SEMANTIC_SECTIONS;
+
+  const incompleteSections = requiredCompletionSections.filter((key) => {
     const section = sectionByKey.get(key);
     return !section || !section.completed;
   });
@@ -132,7 +144,7 @@ export async function completeEncounterWorkflowMutation(params: CompleteEncounte
     );
   }
 
-  const semanticallyIncompleteSections = REQUIRED_SEMANTIC_SECTIONS.filter((key) => {
+  const semanticallyIncompleteSections = requiredSemanticSections.filter((key) => {
     const section = sectionByKey.get(key);
     if (!section) {
       return true;

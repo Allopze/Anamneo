@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -8,6 +8,12 @@ import {
   isEncryptedSettingValue,
   resolveSettingsEncryptionSecrets,
 } from './settings-encryption';
+import {
+  ENCOUNTER_SECTION_CONFIG_KEY,
+  ENCOUNTER_SECTION_KEYS,
+  normalizeEncounterSectionConfig,
+  type EncounterSectionConfig,
+} from '../../../shared/encounter-section-config';
 
 const SECRET_SETTING_KEYS = new Set(['smtp.password']);
 const SESSION_INACTIVITY_TIMEOUT_KEY = 'session.inactivityTimeoutMinutes';
@@ -213,6 +219,52 @@ export class SettingsService {
       inactivityTimeoutMinutes: this.parseSessionInactivityTimeoutMinutes(configuredValue),
       ...constraints,
     };
+  }
+
+  async getEncounterSectionConfig() {
+    const raw = await this.get(ENCOUNTER_SECTION_CONFIG_KEY);
+    if (!raw) {
+      return normalizeEncounterSectionConfig(null);
+    }
+
+    try {
+      return normalizeEncounterSectionConfig(JSON.parse(raw));
+    } catch {
+      return normalizeEncounterSectionConfig(null);
+    }
+  }
+
+  validateEncounterSectionConfig(input: EncounterSectionConfig) {
+    if (!input || typeof input !== 'object' || !Array.isArray(input.sections)) {
+      throw new BadRequestException('La configuracion de secciones debe incluir un arreglo sections');
+    }
+
+    const validKeys = new Set<string>(ENCOUNTER_SECTION_KEYS);
+    const seen = new Set<string>();
+    for (const section of input.sections) {
+      if (!section || typeof section !== 'object') {
+        throw new BadRequestException('Cada seccion debe ser un objeto valido');
+      }
+      if (!validKeys.has(section.key)) {
+        throw new BadRequestException(`Seccion no soportada: ${section.key}`);
+      }
+      if (seen.has(section.key)) {
+        throw new BadRequestException(`Seccion duplicada: ${section.key}`);
+      }
+      seen.add(section.key);
+    }
+
+    return normalizeEncounterSectionConfig(input);
+  }
+
+  async updateEncounterSectionConfig(input: EncounterSectionConfig, userId: string, auditService: AuditService) {
+    const normalized = this.validateEncounterSectionConfig(input);
+    await this.updateWithAudit(
+      { [ENCOUNTER_SECTION_CONFIG_KEY]: JSON.stringify(normalized) },
+      userId,
+      auditService,
+    );
+    return normalized;
   }
 
   async set(key: string, value: string) {

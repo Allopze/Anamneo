@@ -7,7 +7,7 @@ import type {
   ParsedConditionCsvRow,
 } from './conditions-csv.types';
 
-const CSV_HEADERS = ['name', 'synonyms', 'tags'] as const;
+const CSV_HEADERS = ['name', 'synonyms', 'tags', 'active', 'activo', 'enabled'] as const;
 const CSV_HEADER_SET = new Set<string>(CSV_HEADERS);
 const MIN_NAME_LENGTH = 2;
 const MAX_NAME_LENGTH = 300;
@@ -125,8 +125,13 @@ function parseHeaderRecord(
   rowNumber: number,
   invalidRows: ConditionCsvInvalidRow[],
 ) {
+  const invalidCountBefore = invalidRows.length;
   const name = parseName(getRecordValue(record, headerIndexes, 'name'), rowNumber, invalidRows);
   if (!name) {
+    return null;
+  }
+  const active = parseActive(record, headerIndexes, rowNumber, invalidRows);
+  if (invalidRows.length > invalidCountBefore) {
     return null;
   }
 
@@ -135,6 +140,7 @@ function parseHeaderRecord(
     name,
     synonyms: parseList(getRecordValue(record, headerIndexes, 'synonyms')),
     tags: parseList(getRecordValue(record, headerIndexes, 'tags')),
+    active,
     normalizedName: normalizeConditionName(name),
   };
 }
@@ -162,6 +168,7 @@ function parseLegacyRecord(
     name,
     synonyms: [],
     tags: [],
+    active: undefined,
     normalizedName: normalizeConditionName(name),
   };
 }
@@ -210,6 +217,34 @@ function parseList(value: string) {
   return mergeUniqueStrings([], value.split('|'));
 }
 
+function parseActive(
+  record: string[],
+  headerIndexes: Map<CsvHeader, number>,
+  rowNumber: number,
+  invalidRows: ConditionCsvInvalidRow[],
+) {
+  const rawValue = getRecordValue(record, headerIndexes, 'active')
+    || getRecordValue(record, headerIndexes, 'activo')
+    || getRecordValue(record, headerIndexes, 'enabled');
+  if (!rawValue) {
+    return undefined;
+  }
+
+  const normalized = rawValue.trim().toLowerCase();
+  if (['true', '1', 'si', 'sí', 'yes', 'y', 'activo', 'active', 'enabled'].includes(normalized)) {
+    return true;
+  }
+  if (['false', '0', 'no', 'n', 'inactivo', 'inactive', 'disabled'].includes(normalized)) {
+    return false;
+  }
+
+  invalidRows.push({
+    rowNumber,
+    message: 'La columna active/activo/enabled debe ser booleana',
+  });
+  return undefined;
+}
+
 function mergeDuplicateRows(rows: ParsedConditionCsvRow[]) {
   const mergedRows = new Map<string, ParsedConditionCsvRow>();
   let duplicateRows = 0;
@@ -221,6 +256,7 @@ function mergeDuplicateRows(rows: ParsedConditionCsvRow[]) {
         ...row,
         synonyms: [...row.synonyms],
         tags: [...row.tags],
+        active: row.active,
       });
       continue;
     }
@@ -229,6 +265,9 @@ function mergeDuplicateRows(rows: ParsedConditionCsvRow[]) {
     existing.name = row.name;
     existing.synonyms = mergeUniqueStrings(existing.synonyms, row.synonyms);
     existing.tags = mergeUniqueStrings(existing.tags, row.tags);
+    if (row.active !== undefined) {
+      existing.active = row.active;
+    }
   }
 
   return {

@@ -5,13 +5,39 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   LEGAL_DOCUMENT_LABELS,
   LEGAL_DOCUMENT_TYPES,
-  isSupportedLegalDocumentType,
-  type LegalDocumentContentJson,
   type LegalDocumentPublic,
-  type LegalDocumentType,
 } from '../../../shared/legal-contract';
 import { CreateLegalDocumentDraftDto, UpdateLegalDocumentDraftDto } from './dto/legal-document.dto';
-import { encryptNetMeta } from '../common/utils/field-crypto';
+import {
+  LEGAL_DOCUMENT_SELECT_SQL,
+  USER_LEGAL_ACCEPTANCE_SELECT_SQL,
+  assertAcceptanceAgainst,
+  buildAcceptanceRecord,
+  buildDraftVersion,
+  findCurrentPublishedDocument,
+  findCurrentPublishedDocumentRaw,
+  findCurrentPublishedDocumentRecord,
+  findCurrentPublishedDocumentRecordRaw,
+  findLegalDocumentByIdRaw,
+  formatDocument,
+  normalizeDocumentType,
+  normalizeLegalDocumentRow,
+  normalizeUserLegalAcceptanceRow,
+  parseEffectiveAt,
+  requireDate,
+  requireNonEmpty,
+  resolveCreateContent,
+  rethrowUniqueVersionError,
+  supportsRawQueries,
+  upsertUserLegalAcceptanceRaw,
+  validateContentJson,
+  type CurrentDocumentsByType,
+  type LegalAdminUser,
+  type LegalDocumentRecord,
+  type LegalDocumentRow,
+  type UserLegalAcceptanceRecord,
+  type UserLegalAcceptanceRow,
+} from './legal-service-helpers';
 
 export interface LegalAcceptanceInput {
   acceptedTermsVersion?: string;
@@ -23,77 +49,6 @@ export interface LegalAcceptanceContext {
   userAgent?: string | null;
 }
 
-type CurrentDocumentsByType = Record<LegalDocumentType, LegalDocumentPublic | null>;
-type LegalAdminUser = { id: string };
-
-type RawLegalClient = {
-  $executeRawUnsafe: <T = unknown>(query: string, ...values: unknown[]) => Promise<T>;
-  $queryRawUnsafe: <T = unknown>(query: string, ...values: unknown[]) => Promise<T>;
-};
-
-type LegalDocumentRecord = {
-  id: string;
-  type: LegalDocumentType;
-  version: string;
-  status: string;
-  title: string;
-  description: string;
-  contentJson: string;
-  effectiveAt: Date;
-  publishedAt: Date | null;
-  createdById: string | null;
-  updatedById: string | null;
-};
-
-type LegalDocumentRow = Omit<LegalDocumentRecord, 'type' | 'effectiveAt' | 'publishedAt'> & {
-  type: string;
-  effectiveAt: Date | string;
-  publishedAt: Date | string | null;
-  createdAt?: Date | string;
-  updatedAt?: Date | string;
-};
-
-type UserLegalAcceptanceRecord = {
-  documentType: LegalDocumentType;
-  version: string;
-  acceptedAt: Date;
-};
-
-type UserLegalAcceptanceRow = Omit<UserLegalAcceptanceRecord, 'documentType' | 'acceptedAt'> & {
-  documentType: string;
-  acceptedAt: Date | string;
-};
-
-function supportsRawQueries(client: unknown): client is RawLegalClient {
-  return !!client
-    && typeof (client as { $executeRawUnsafe?: unknown }).$executeRawUnsafe === 'function'
-    && typeof (client as { $queryRawUnsafe?: unknown }).$queryRawUnsafe === 'function';
-}
-
-const LEGAL_DOCUMENT_SELECT_SQL = `
-  SELECT
-    id,
-    type,
-    version,
-    status,
-    title,
-    description,
-    content_json AS "contentJson",
-    effective_at AS "effectiveAt",
-    published_at AS "publishedAt",
-    created_by_id AS "createdById",
-    updated_by_id AS "updatedById"
-  FROM legal_documents
-`;
-
-const USER_LEGAL_ACCEPTANCE_SELECT_SQL = `
-  SELECT
-    document_type AS "documentType",
-    version,
-    accepted_at AS "acceptedAt"
-  FROM user_legal_acceptances
-`;
-
 @Injectable()
 export class LegalService {
   constructor(private readonly prisma: PrismaService) {}
@@ -101,24 +56,24 @@ export class LegalService {
   async getCurrentPublishedDocuments() {
     if (supportsRawQueries(this.prisma)) {
       const documents = await Promise.all(
-        LEGAL_DOCUMENT_TYPES.map((type) => this.findCurrentPublishedDocumentRaw(type)),
+        LEGAL_DOCUMENT_TYPES.map((type) => findCurrentPublishedDocumentRaw(this.prisma, type)),
       );
 
       return { documents: documents.filter((document): document is LegalDocumentPublic => Boolean(document)) };
     }
 
     const documents = await Promise.all(
-      LEGAL_DOCUMENT_TYPES.map((type) => this.findCurrentPublishedDocument(type)),
+      LEGAL_DOCUMENT_TYPES.map((type) => findCurrentPublishedDocument(this.prisma, type)),
     );
 
     return { documents: documents.filter((document): document is LegalDocumentPublic => Boolean(document)) };
   }
 
   async getCurrentPublishedDocument(type: string) {
-    const documentType = this.normalizeDocumentType(type);
+    const documentType = normalizeDocumentType(type);
     const document = supportsRawQueries(this.prisma)
-      ? await this.findCurrentPublishedDocumentRaw(documentType)
-      : await this.findCurrentPublishedDocument(documentType);
+      ? await findCurrentPublishedDocumentRaw(this.prisma, documentType)
+      : await findCurrentPublishedDocument(this.prisma, documentType);
 
     if (!document) {
       throw new NotFoundException(`No hay una versión publicada para ${LEGAL_DOCUMENT_LABELS[documentType]}`);
@@ -129,7 +84,7 @@ export class LegalService {
 
   async assertCurrentAcceptance(input: LegalAcceptanceInput) {
     const currentDocuments = await this.getCurrentDocumentsByType();
-    this.assertAcceptanceAgainst(input, currentDocuments);
+    assertAcceptanceAgainst(input, currentDocuments);
   }
 
   async recordCurrentAcceptance(
@@ -138,7 +93,7 @@ export class LegalService {
     context?: LegalAcceptanceContext,
   ) {
     const currentDocuments = await this.getCurrentDocumentsByType();
-    this.assertAcceptanceAgainst(input, currentDocuments);
+    assertAcceptanceAgainst(input, currentDocuments);
 
     if (supportsRawQueries(this.prisma)) {
       await Promise.all(
@@ -148,7 +103,8 @@ export class LegalService {
             throw new BadRequestException(`No hay una versión vigente de ${LEGAL_DOCUMENT_LABELS[documentType]}`);
           }
 
-          await this.upsertUserLegalAcceptanceRaw(
+          await upsertUserLegalAcceptanceRaw(
+            this.prisma,
             userId,
             documentType,
             document.version,
@@ -167,7 +123,7 @@ export class LegalService {
           throw new BadRequestException(`No hay una versión vigente de ${LEGAL_DOCUMENT_LABELS[documentType]}`);
         }
 
-        const data = this.buildAcceptanceRecord(userId, documentType, document.version, context);
+        const data = buildAcceptanceRecord(userId, documentType, document.version, context);
 
         const prisma = this.prisma as any;
 
@@ -222,7 +178,7 @@ export class LegalService {
       }) as Promise<UserLegalAcceptanceRow[]>,
       this.getCurrentDocumentsByType(),
     ]);
-    const normalizedAcceptances = acceptances.map((acceptance) => this.normalizeUserLegalAcceptanceRow(acceptance));
+    const normalizedAcceptances = acceptances.map((acceptance) => normalizeUserLegalAcceptanceRow(acceptance));
 
     return {
       documents: LEGAL_DOCUMENT_TYPES.map((type) => ({
@@ -240,7 +196,7 @@ export class LegalService {
         `${LEGAL_DOCUMENT_SELECT_SQL} ORDER BY type ASC, status ASC, updated_at DESC`,
       );
 
-          return { documents: documents.map((document) => this.formatDocument(this.normalizeLegalDocumentRow(document))) };
+      return { documents: documents.map((document) => formatDocument(normalizeLegalDocumentRow(document))) };
     }
 
     const prisma = this.prisma as any;
@@ -248,24 +204,24 @@ export class LegalService {
       orderBy: [{ type: 'asc' }, { status: 'asc' }, { updatedAt: 'desc' }],
     }) as LegalDocumentRow[];
 
-    return { documents: documents.map((document) => this.formatDocument(this.normalizeLegalDocumentRow(document))) };
+    return { documents: documents.map((document) => formatDocument(normalizeLegalDocumentRow(document))) };
   }
 
   async createDraft(user: LegalAdminUser, dto: CreateLegalDocumentDraftDto) {
-    const type = this.normalizeDocumentType(dto.type);
+    const type = normalizeDocumentType(dto.type);
 
     if (supportsRawQueries(this.prisma)) {
       const source = dto.sourceDocumentId
-        ? await this.findLegalDocumentByIdRaw(dto.sourceDocumentId)
-        : await this.findCurrentPublishedDocumentRecordRaw(type);
+        ? await findLegalDocumentByIdRaw(this.prisma, dto.sourceDocumentId)
+        : await findCurrentPublishedDocumentRecordRaw(this.prisma, type);
 
       if (dto.sourceDocumentId && (!source || source.type !== type)) {
         throw new NotFoundException('No se encontró el documento base para crear el borrador');
       }
 
-      const contentJson = this.resolveCreateContent(dto, source);
-      const version = dto.version?.trim() || await this.buildDraftVersion(type);
-      const effectiveAt = this.parseEffectiveAt(dto.effectiveAt) ?? source?.effectiveAt ?? new Date();
+      const contentJson = resolveCreateContent(dto, source);
+      const version = dto.version?.trim() || await buildDraftVersion(this.prisma, type);
+      const effectiveAt = parseEffectiveAt(dto.effectiveAt) ?? source?.effectiveAt ?? new Date();
       const id = crypto.randomUUID();
 
       try {
@@ -284,14 +240,14 @@ export class LegalService {
           user.id,
         );
 
-        const created = await this.findLegalDocumentByIdRaw(id);
+        const created = await findLegalDocumentByIdRaw(this.prisma, id);
         if (!created) {
           throw new Error('No se pudo crear el borrador legal');
         }
 
-        return this.formatDocument(created);
+        return formatDocument(created);
       } catch (error) {
-        this.rethrowUniqueVersionError(error);
+        rethrowUniqueVersionError(error);
         throw error;
       }
     }
@@ -299,15 +255,15 @@ export class LegalService {
     const prisma = this.prisma as any;
     const source = dto.sourceDocumentId
       ? await prisma.legalDocument.findUnique({ where: { id: dto.sourceDocumentId } })
-      : await this.findCurrentPublishedDocumentRecord(type);
+      : await findCurrentPublishedDocumentRecord(this.prisma, type);
 
     if (dto.sourceDocumentId && (!source || source.type !== type)) {
       throw new NotFoundException('No se encontró el documento base para crear el borrador');
     }
 
-    const contentJson = this.resolveCreateContent(dto, source);
-    const version = dto.version?.trim() || await this.buildDraftVersion(type);
-    const effectiveAt = this.parseEffectiveAt(dto.effectiveAt) ?? source?.effectiveAt ?? new Date();
+    const contentJson = resolveCreateContent(dto, source);
+    const version = dto.version?.trim() || await buildDraftVersion(this.prisma, type);
+    const effectiveAt = parseEffectiveAt(dto.effectiveAt) ?? source?.effectiveAt ?? new Date();
 
     try {
       const created = await this.prisma.legalDocument.create({
@@ -324,16 +280,16 @@ export class LegalService {
         },
       }) as LegalDocumentRow;
 
-      return this.formatDocument(this.normalizeLegalDocumentRow(created));
+      return formatDocument(normalizeLegalDocumentRow(created));
     } catch (error) {
-      this.rethrowUniqueVersionError(error);
+      rethrowUniqueVersionError(error);
       throw error;
     }
   }
 
   async updateDraft(user: LegalAdminUser, id: string, dto: UpdateLegalDocumentDraftDto) {
     if (supportsRawQueries(this.prisma)) {
-      const document = await this.findLegalDocumentByIdRaw(id);
+      const document = await findLegalDocumentByIdRaw(this.prisma, id);
 
       if (!document) {
         throw new NotFoundException('No se encontró el documento legal');
@@ -342,16 +298,16 @@ export class LegalService {
         throw new BadRequestException('Solo los borradores pueden editarse');
       }
 
-      const nextVersion = dto.version !== undefined ? this.requireNonEmpty(dto.version, 'La versión no puede quedar vacía') : document.version;
-      const nextTitle = dto.title !== undefined ? this.requireNonEmpty(dto.title, 'El título no puede quedar vacío') : document.title;
+      const nextVersion = dto.version !== undefined ? requireNonEmpty(dto.version, 'La versión no puede quedar vacía') : document.version;
+      const nextTitle = dto.title !== undefined ? requireNonEmpty(dto.title, 'El título no puede quedar vacío') : document.title;
       const nextDescription = dto.description !== undefined ? dto.description.trim() : document.description;
-      const nextEffectiveAt = dto.effectiveAt !== undefined ? this.requireDate(dto.effectiveAt) : document.effectiveAt;
+      const nextEffectiveAt = dto.effectiveAt !== undefined ? requireDate(dto.effectiveAt) : document.effectiveAt;
       const nextContentJson = dto.contentJson !== undefined
-        ? JSON.stringify(this.validateContentJson(dto.contentJson))
+        ? JSON.stringify(validateContentJson(dto.contentJson))
         : document.contentJson;
 
       try {
-            await this.prisma.$executeRawUnsafe(
+        await this.prisma.$executeRawUnsafe(
           'UPDATE legal_documents SET version = $1, title = $2, description = $3, effective_at = $4, content_json = $5, updated_by_id = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7',
           nextVersion,
           nextTitle,
@@ -362,14 +318,14 @@ export class LegalService {
           id,
         );
 
-        const updated = await this.findLegalDocumentByIdRaw(id);
+        const updated = await findLegalDocumentByIdRaw(this.prisma, id);
         if (!updated) {
           throw new Error('No se pudo actualizar el borrador legal');
         }
 
-            return this.formatDocument(this.normalizeLegalDocumentRow(updated));
+        return formatDocument(normalizeLegalDocumentRow(updated));
       } catch (error) {
-        this.rethrowUniqueVersionError(error);
+        rethrowUniqueVersionError(error);
         throw error;
       }
     }
@@ -389,19 +345,19 @@ export class LegalService {
     };
 
     if (dto.version !== undefined) {
-      data.version = this.requireNonEmpty(dto.version, 'La versión no puede quedar vacía');
+      data.version = requireNonEmpty(dto.version, 'La versión no puede quedar vacía');
     }
     if (dto.title !== undefined) {
-      data.title = this.requireNonEmpty(dto.title, 'El título no puede quedar vacío');
+      data.title = requireNonEmpty(dto.title, 'El título no puede quedar vacío');
     }
     if (dto.description !== undefined) {
       data.description = dto.description.trim();
     }
     if (dto.effectiveAt !== undefined) {
-      data.effectiveAt = this.requireDate(dto.effectiveAt);
+      data.effectiveAt = requireDate(dto.effectiveAt);
     }
     if (dto.contentJson !== undefined) {
-      data.contentJson = JSON.stringify(this.validateContentJson(dto.contentJson));
+      data.contentJson = JSON.stringify(validateContentJson(dto.contentJson));
     }
 
     try {
@@ -410,16 +366,16 @@ export class LegalService {
         data,
       }) as LegalDocumentRow;
 
-      return this.formatDocument(this.normalizeLegalDocumentRow(updated));
+      return formatDocument(normalizeLegalDocumentRow(updated));
     } catch (error) {
-      this.rethrowUniqueVersionError(error);
+      rethrowUniqueVersionError(error);
       throw error;
     }
   }
 
   async publishDraft(user: LegalAdminUser, id: string) {
     if (supportsRawQueries(this.prisma)) {
-      const document = await this.findLegalDocumentByIdRaw(id);
+      const document = await findLegalDocumentByIdRaw(this.prisma, id);
 
       if (!document) {
         throw new NotFoundException('No se encontró el documento legal');
@@ -458,7 +414,7 @@ export class LegalService {
         throw new Error('No se pudo publicar el borrador legal');
       }
 
-      return this.formatDocument(updated);
+      return formatDocument(updated);
     }
 
     const prisma = this.prisma as any;
@@ -494,7 +450,7 @@ export class LegalService {
       });
     }) as LegalDocumentRow;
 
-    return this.formatDocument(this.normalizeLegalDocumentRow(updated));
+    return formatDocument(normalizeLegalDocumentRow(updated));
   }
 
   private async getCurrentDocumentsByType(): Promise<CurrentDocumentsByType> {
@@ -505,242 +461,4 @@ export class LegalService {
     }, {} as CurrentDocumentsByType);
   }
 
-  private assertAcceptanceAgainst(input: LegalAcceptanceInput, documents: CurrentDocumentsByType) {
-    if (!documents.TERMS || input.acceptedTermsVersion !== documents.TERMS.version) {
-      throw new BadRequestException(
-        `Debes aceptar los ${LEGAL_DOCUMENT_LABELS.TERMS} vigentes para crear la cuenta`,
-      );
-    }
-
-    if (!documents.PRIVACY || input.acceptedPrivacyVersion !== documents.PRIVACY.version) {
-      throw new BadRequestException(
-        `Debes aceptar la ${LEGAL_DOCUMENT_LABELS.PRIVACY} vigente para crear la cuenta`,
-      );
-    }
-  }
-
-  private async findCurrentPublishedDocument(type: LegalDocumentType) {
-    const document = await this.findCurrentPublishedDocumentRecord(type);
-    return document ? this.formatDocument(document) : null;
-  }
-
-  private async findCurrentPublishedDocumentRecord(type: LegalDocumentType) {
-    const prisma = this.prisma as any;
-    const document = await prisma.legalDocument.findFirst({
-      where: {
-        type,
-        status: 'PUBLISHED',
-      },
-      orderBy: [{ publishedAt: 'desc' }, { updatedAt: 'desc' }],
-    }) as LegalDocumentRow | null;
-
-    return document ? this.normalizeLegalDocumentRow(document) : null;
-  }
-
-  private async findCurrentPublishedDocumentRaw(type: LegalDocumentType) {
-    const [document] = await this.prisma.$queryRawUnsafe<LegalDocumentRecord[]>(
-      `${LEGAL_DOCUMENT_SELECT_SQL} WHERE type = $1 AND status = $2 ORDER BY published_at DESC, updated_at DESC LIMIT 1`,
-      type,
-      'PUBLISHED',
-    );
-
-    return document ? this.formatDocument(this.normalizeLegalDocumentRow(document)) : null;
-  }
-
-  private async findCurrentPublishedDocumentRecordRaw(type: LegalDocumentType) {
-    const [document] = await this.prisma.$queryRawUnsafe<LegalDocumentRecord[]>(
-      `${LEGAL_DOCUMENT_SELECT_SQL} WHERE type = $1 AND status = $2 ORDER BY published_at DESC, updated_at DESC LIMIT 1`,
-      type,
-      'PUBLISHED',
-    );
-
-    return document ? this.normalizeLegalDocumentRow(document) : null;
-  }
-
-  private async findLegalDocumentByIdRaw(id: string) {
-    const [document] = await this.prisma.$queryRawUnsafe<LegalDocumentRecord[]>(
-      `${LEGAL_DOCUMENT_SELECT_SQL} WHERE id = $1 LIMIT 1`,
-      id,
-    );
-
-    return document ? this.normalizeLegalDocumentRow(document) : null;
-  }
-
-  private async upsertUserLegalAcceptanceRaw(
-    userId: string,
-    documentType: LegalDocumentType,
-    version: string,
-    context?: LegalAcceptanceContext,
-  ) {
-    await this.prisma.$executeRawUnsafe(
-      'INSERT INTO user_legal_acceptances (id, user_id, document_type, version, accepted_at, ip_address, user_agent) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT(user_id, document_type, version) DO UPDATE SET ip_address = excluded.ip_address, user_agent = excluded.user_agent',
-      crypto.randomUUID(),
-      userId,
-      documentType,
-      version,
-      new Date(),
-      // Ley 21.719 Art 14 quinquies — cifrar IP/UA at-rest.
-      encryptNetMeta(context?.ipAddress ?? null),
-      encryptNetMeta(context?.userAgent ?? null),
-    );
-  }
-
-  private buildAcceptanceRecord(
-    userId: string,
-    documentType: LegalDocumentType,
-    version: string,
-    context?: LegalAcceptanceContext,
-  ) {
-    // Ley 21.719 Art 14 quinquies lit a — cifrar IP/UA al persistir como
-    // evidencia de aceptacion (datos identificables si quedan en claro).
-    return {
-      userId,
-      documentType,
-      version,
-      ipAddress: encryptNetMeta(context?.ipAddress ?? null),
-      userAgent: encryptNetMeta(context?.userAgent ?? null),
-    };
-  }
-
-  private formatDocument(document: LegalDocumentRecord): LegalDocumentPublic {
-    return {
-      id: document.id,
-      type: this.normalizeDocumentType(document.type),
-      status: document.status as LegalDocumentPublic['status'],
-      title: document.title,
-      description: document.description,
-      version: document.version,
-      effectiveAt: document.effectiveAt.toISOString(),
-      publishedAt: document.publishedAt?.toISOString() ?? null,
-      contentJson: this.parseContentJson(document.contentJson),
-    };
-  }
-
-  private normalizeLegalDocumentRow(document: LegalDocumentRow): LegalDocumentRecord {
-    return {
-      ...document,
-      type: this.normalizeDocumentType(document.type),
-      effectiveAt: new Date(document.effectiveAt),
-      publishedAt: document.publishedAt ? new Date(document.publishedAt) : null,
-    };
-  }
-
-  private normalizeUserLegalAcceptanceRow(acceptance: UserLegalAcceptanceRow): UserLegalAcceptanceRecord {
-    return {
-      documentType: this.normalizeDocumentType(acceptance.documentType),
-      version: acceptance.version,
-      acceptedAt: new Date(acceptance.acceptedAt),
-    };
-  }
-
-  private normalizeDocumentType(value: string): LegalDocumentType {
-    if (!isSupportedLegalDocumentType(value)) {
-      throw new BadRequestException('Tipo de documento legal no soportado');
-    }
-
-    return value;
-  }
-
-  private parseContentJson(value: string): LegalDocumentContentJson {
-    try {
-      return this.validateContentJson(JSON.parse(value));
-    } catch {
-      throw new BadRequestException('El contenido legal guardado no tiene formato JSON válido');
-    }
-  }
-
-  private validateContentJson(value: unknown): LegalDocumentContentJson {
-    if (!value || typeof value !== 'object') {
-      throw new BadRequestException('El contenido legal debe ser un objeto JSON');
-    }
-
-    const content = value as LegalDocumentContentJson;
-    if (!Array.isArray(content.summary) || !content.summary.every((item) => typeof item === 'string')) {
-      throw new BadRequestException('El contenido legal debe incluir un resumen válido');
-    }
-    if (!Array.isArray(content.sections) || content.sections.length === 0) {
-      throw new BadRequestException('El contenido legal debe incluir secciones');
-    }
-
-    for (const section of content.sections) {
-      if (
-        typeof section.id !== 'string'
-        || typeof section.title !== 'string'
-        || !Array.isArray(section.body)
-        || !section.body.every((paragraph) => typeof paragraph === 'string')
-      ) {
-        throw new BadRequestException('Cada sección legal debe tener id, título y párrafos válidos');
-      }
-    }
-
-    return content;
-  }
-
-  private resolveCreateContent(
-    dto: CreateLegalDocumentDraftDto,
-    source: LegalDocumentRecord | null,
-  ) {
-    if (dto.contentJson) {
-      return this.validateContentJson(dto.contentJson);
-    }
-    if (source) {
-      return this.parseContentJson(source.contentJson);
-    }
-
-    throw new BadRequestException('Debes entregar contenido JSON o crear el borrador desde una versión existente');
-  }
-
-  private parseEffectiveAt(value?: string) {
-    return value ? this.requireDate(value) : null;
-  }
-
-  private requireDate(value: string) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      throw new BadRequestException('La fecha de vigencia no es válida');
-    }
-
-    return date;
-  }
-
-  private requireNonEmpty(value: string, message: string) {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      throw new BadRequestException(message);
-    }
-
-    return trimmed;
-  }
-
-  private async buildDraftVersion(type: LegalDocumentType) {
-    const base = new Date().toISOString().slice(0, 10);
-    const existing: Array<{ version: string }> = supportsRawQueries(this.prisma)
-      ? await this.prisma.$queryRawUnsafe<Array<{ version: string }>>(
-        'SELECT version FROM legal_documents WHERE type = $1 AND version LIKE $2',
-        type,
-        `${base}%`,
-      )
-      : await (this.prisma as any).legalDocument.findMany({
-        where: { type, version: { startsWith: base } },
-        select: { version: true },
-      }) as Array<{ version: string }>;
-    const versions = new Set(existing.map((document) => document.version));
-
-    if (!versions.has(base)) {
-      return base;
-    }
-
-    let index = 2;
-    while (versions.has(`${base}-r${index}`)) {
-      index += 1;
-    }
-
-    return `${base}-r${index}`;
-  }
-
-  private rethrowUniqueVersionError(error: unknown): never | void {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      throw new BadRequestException('Ya existe un documento legal con ese tipo y versión');
-    }
-  }
 }

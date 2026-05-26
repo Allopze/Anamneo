@@ -4,6 +4,7 @@ import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { isPatientOwnedByMedico } from '../common/utils/patient-access';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReassignPatientDto } from './dto/reassign-patient.dto';
+import { roleHasFineGrainedAction } from '../../../shared/fine-grained-permission-contract';
 
 interface ReassignPatientParams {
   prisma: PrismaService;
@@ -51,6 +52,10 @@ export async function reassignPatientMutation(params: ReassignPatientParams) {
   }
 
   const effectiveMedicoId = getEffectiveMedicoId(user);
+  if (!roleHasFineGrainedAction(user.role as any, 'patient.reassign')) {
+    throw new ForbiddenException('No tiene permisos para reasignar pacientes');
+  }
+
   if (!user.isAdmin && !isPatientOwnedByMedico(patient, effectiveMedicoId)) {
     throw new ForbiddenException('Solo el medico responsable o admin puede reasignar la ficha completa');
   }

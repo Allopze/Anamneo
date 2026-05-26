@@ -6,27 +6,28 @@ Convención:
 - [ ] pendiente de split
 - [x] ya revisado o dividido
 
-## Snapshot prioritario 2026-05-24
+## Snapshot prioritario 2026-05-26
 
-Archivos manuales por encima del umbral recomendado de 300 lineas. Los que superan 500 lineas tienen prioridad P1 por el limite duro de `AGENTS.md`.
+Archivos productivos por encima del umbral recomendado de 300 lineas. No quedan archivos productivos de `backend/src`, `frontend/src` o `shared` sobre 500 lineas en este snapshot; quedan tests frontend heredados sobre 500 listados mas abajo como deuda separada.
 
 | Prioridad | Lineas | Archivo | Split sugerido |
 | --- | ---: | --- | --- |
-| P1 | 746 | `backend/src/legal/legal.service.ts` | publicacion/versionado, aceptacion, lectura publica, difusion |
-| P1 | 739 | `backend/src/mail/mail.service.ts` | transporte SMTP, render, templates por dominio |
 | P2 | 478 | `backend/src/audit/audit.service.ts` | retencion/consultas restantes; integridad ya extraida a `audit-integrity.ts` |
+| P2 | 475 | `backend/src/mail/mail.service.ts` | seguir bajando hacia 300; templates extraidos a helpers |
+| P2 | 464 | `backend/src/legal/legal.service.ts` | seguir bajando hacia 300; helpers internos extraidos |
 | P2 | 462 | `frontend/src/app/register/page.tsx` | pasos, validacion, llamadas API, estado del wizard; `RegisterPasswordFields` ya extraido |
-| P2 | 493 | `frontend/src/app/(dashboard)/pacientes/nuevo/page.tsx` | secciones de formulario, hooks de submit, helpers de duplicados |
+| P2 | 494 | `frontend/src/app/(dashboard)/pacientes/nuevo/page.tsx` | secciones de formulario, hooks de submit, helpers de duplicados |
 | P2 | 489 | `frontend/src/app/(dashboard)/ajustes/ProfileSecurityTab.tsx` | perfil, seguridad, sesiones, privacidad local |
 | P2 | 471 | `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts` | reducer/maquina de estados de guardado |
 | P2 | 466 | `backend/src/patient-portal/patient-portal.service.ts` | auth portal, solicitudes, descargas, consentimiento |
-| P2 | 465 | `frontend/src/app/(dashboard)/pacientes/[id]/page.tsx` | estado legal, resumen clinico, acciones/exportes; `PatientLegalStatusSummary` ya extraido |
+| P2 | 478 | `frontend/src/app/(dashboard)/pacientes/[id]/page.tsx` | estado legal, resumen clinico, acciones/exportes; `PatientLegalStatusSummary` ya extraido |
+| P2 | 353 | `frontend/src/app/(dashboard)/ajustes/SystemTab.tsx` | seguir partiendo paneles de sistema; mantenimiento y secciones ya extraidos |
 
 ## Backend
 
 - [x] backend/src/audit/audit.service.ts (bajo de 500; integridad extraida a `audit-integrity.ts`, pendiente seguir bajando hacia 300)
-- [ ] backend/src/legal/legal.service.ts
-- [ ] backend/src/mail/mail.service.ts
+- [x] backend/src/legal/legal.service.ts (bajo de 500; helpers extraidos a `legal-service-helpers.ts`, pendiente seguir bajando hacia 300)
+- [x] backend/src/mail/mail.service.ts (bajo de 500; templates extraidos a `mail-auth-templates.ts` y `mail-notification-templates.ts`, pendiente seguir bajando hacia 300)
 - [ ] backend/src/patient-portal/patient-portal.service.ts
 - [x] backend/src/alerts/alerts.service.ts
 - [x] backend/src/analytics/clinical-analytics-summary.ts

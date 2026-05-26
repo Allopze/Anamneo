@@ -1,8 +1,6 @@
 # Recuperacion de cuentas — Runbook operativo
 
-Mientras no exista un flujo self-service de `/auth/forgot-password`
-(seguimiento en `docs/product/features.md` → "Password reset self-service"), este
-runbook cubre los procedimientos administrados.
+Este runbook cubre recuperacion administrada, emergencia operativa y el flujo self-service de `/auth/forgot-password`.
 
 > **Importante:** todas las operaciones aqui descritas son **registradas
 > en `AuditLog`** automaticamente cuando se usan los endpoints/admin UI
@@ -96,8 +94,7 @@ UPDATE user_sessions
 EOF
 
 # 4. Registrar manualmente en AuditLog (cadena de hashes)
-#    -> Pendiente: implementar `scripts/audit-emergency-event.js`.
-#    Mientras tanto, dejar registro en bitacora interna fuera de DB.
+#    -> Implementado: `npm --prefix backend run audit:emergency-event -- --user-id=<id> --reason="..." --message="..." --confirmation="REGISTRAR EVENTO EMERGENCIA"`.
 
 # 5. Validar
 curl -sf http://127.0.0.1:5679/api/health
@@ -142,22 +139,16 @@ limpia.
 
 ---
 
-## 5. Plan para auto-servicio (pendiente de implementacion)
+## 5. Auto-servicio de password reset
 
-Diseno propuesto para `POST /api/auth/forgot-password`:
+El reset self-service por correo esta implementado. Mantenerlo operativo exige SMTP configurado, expiracion corta de tokens y purga periodica de tokens usados/expirados.
 
-1. Endpoint publico con throttle (`@Throttle({ short: { limit: 2, ttl: 60000 } })`).
-2. Body: `{ email }`. Responde 200 sin filtrar si el email existe (anti-enum).
-3. Si existe, generar `ResetToken { token: cryptoRandom(32 bytes), userId,
-   expiresAt: now + 15min, usedAt: null }` (nuevo modelo Prisma).
-4. Enviar email con link `${APP_PUBLIC_URL}/cambiar-contrasena?token=<token>`.
-5. Frontend valida token contra `GET /api/auth/forgot-password/:token`.
-6. `POST /api/auth/forgot-password/confirm` con `{ token, newPassword }`:
-   - Valida token vigente y no usado.
-   - Aplica `usersService.changePasswordWithoutCurrent`.
-   - **Revoca sesiones y desactiva 2FA** (mismo flujo que reset admin).
-   - Marca token usado.
-7. Auditar con `USER_PASSWORD_RESET_VIA_EMAIL`.
+Flujo implementado:
+
+1. `POST /api/auth/forgot-password` recibe `{ email }` y responde sin filtrar existencia del usuario.
+2. Si corresponde, genera token de reset con TTL corto y envia email con link a `/cambiar-contrasena`.
+3. `GET /api/auth/forgot-password/:token` valida vigencia sin consumirlo.
+4. `POST /api/auth/forgot-password/confirm` aplica la nueva password, marca el token usado, revoca sesiones y audita `USER_PASSWORD_RESET_VIA_EMAIL`.
 
 Riesgos a mitigar:
 - Enumeracion: no diferenciar respuesta entre email existente o no.
@@ -166,5 +157,4 @@ Riesgos a mitigar:
 - 2FA bypass: el reset por email **no debe bypassear 2FA**; si el usuario
   tiene 2FA habilitado, exigir tambien un recovery code en `confirm`.
 
-Esto es trabajo de feature, no de fix; se documenta aqui para que
-quede claro el plan y no quede como deuda invisible.
+Pendiente operativo: programar o ejecutar la purga periodica de tokens usados/expirados y revisar metricas de abuso.

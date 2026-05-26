@@ -12,6 +12,10 @@ import {
   canRoleViewEncounterAudit,
   canRoleViewEncounterSection,
 } from '../../../shared/encounter-permission-contract';
+import {
+  roleHasFineGrainedAction,
+  type FineGrainedAction,
+} from '../../../shared/fine-grained-permission-contract';
 
 export interface PermissionUser {
   id: string;
@@ -65,6 +69,29 @@ export function canImportConditionsCsv(user: PermissionUser | null | undefined) 
 
 export function canImportMedicationsCsv(user: PermissionUser | null | undefined) {
   return Boolean(user?.role === 'ADMIN');
+}
+
+export function canPerformFineGrainedAction(
+  user: PermissionUser | null | undefined,
+  action: FineGrainedAction,
+) {
+  return roleHasFineGrainedAction(user?.role, action);
+}
+
+export function canReassignPatient(user: PermissionUser | null | undefined) {
+  return canPerformFineGrainedAction(user, 'patient.reassign');
+}
+
+export function canReassignEncounter(user: PermissionUser | null | undefined) {
+  return canPerformFineGrainedAction(user, 'encounter.reassign');
+}
+
+export function canRunAdminMaintenance(user: PermissionUser | null | undefined) {
+  return canPerformFineGrainedAction(user, 'admin.maintenance');
+}
+
+export function canManageSettings(user: PermissionUser | null | undefined) {
+  return canPerformFineGrainedAction(user, 'settings.manage');
 }
 
 export function canEditAntecedentes(user: PermissionUser | null | undefined) {

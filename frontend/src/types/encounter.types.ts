@@ -26,6 +26,7 @@ export interface EncounterSection {
   schemaVersion: number;
   label: string;
   order: number;
+  requiredForCompletion?: boolean;
   data: Record<string, any>;
   completed: boolean;
   notApplicable: boolean;

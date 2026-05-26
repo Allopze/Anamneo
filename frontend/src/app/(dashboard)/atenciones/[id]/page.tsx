@@ -8,6 +8,7 @@ import ConfirmModal from '@/components/common/ConfirmModal';
 import SignEncounterModal from '@/components/common/SignEncounterModal';
 import AttachmentPreviewModal from '@/components/common/AttachmentPreviewModal';
 import { getErrorMessage } from '@/lib/api';
+import ReassignmentCard from '@/components/ReassignmentCard';
 
 import { useEncounterWizard } from './useEncounterWizard';
 import EncounterHeader from './EncounterHeader';
@@ -140,6 +141,16 @@ export default function EncounterWizardPage() {
 
             {encounter.patientId ? (
               <EncounterClinicalSummaryCard patientId={encounter.patientId} patient={encounter.patient} />
+            ) : null}
+
+            {wiz.canReassign ? (
+              <ReassignmentCard
+                title="Reasignar atención"
+                description="Transfiere esta atención junto a sus problemas y seguimientos asociados."
+                endpoint={`/encounters/${wiz.id}/reassign`}
+                allowClosedOverrideOption
+                onSuccess={() => void wiz.handleReassignmentSuccess()}
+              />
             ) : null}
 
             <EncounterWorkspacePanel

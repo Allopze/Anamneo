@@ -34,6 +34,7 @@ import {
 import { getEncounterDashboardReadModel, getEncounterHeaderCountsReadModel } from './encounters-dashboard-read-model';
 import { getEncounterAuditHistoryReadModel } from './encounters-audit-history';
 import { reassignEncounterMutation } from './encounters-reassignment-mutation';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class EncountersService {
@@ -44,6 +45,7 @@ export class EncountersService {
     private auditService: AuditService,
     private alertsService: AlertsService,
     private policyCompliance: PolicyComplianceService,
+    private settingsService: SettingsService,
   ) {}
 
   // ─── Create ──────────────────────────────────────────────────────────────
@@ -96,6 +98,7 @@ export class EncountersService {
     } = {},
   ) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
+    const sectionConfig = await this.settingsService.getEncounterSectionConfig();
     const encounter = await findEncounterByIdReadModel({
       prisma: this.prisma,
       id,
@@ -107,6 +110,7 @@ export class EncountersService {
       includeTasks: options.includeTasks,
       includeSignatures: options.includeSignatures,
       includeSuggestions: options.includeSuggestions,
+      sectionConfig,
     });
     await this.auditService.log({
       entityType: 'Encounter',
@@ -186,12 +190,14 @@ export class EncountersService {
   // ─── Workflow transitions ────────────────────────────────────────────────
 
   async complete(id: string, userId: string, closureNote?: string) {
+    const sectionConfig = await this.settingsService.getEncounterSectionConfig();
     return completeEncounterWorkflowMutation({
       prisma: this.prisma,
       auditService: this.auditService,
       id,
       userId,
       closureNote,
+      sectionConfig,
     });
   }
 

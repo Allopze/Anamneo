@@ -181,8 +181,12 @@ export function buildEncounterCompletionChecklist(
 ): EncounterWorkflowChecklistItem[] {
   const sections = encounter?.sections ?? [];
   const sectionByKey = new Map(sections.map((section) => [section.sectionKey, section]));
-  const incompleteSections = REQUIRED_COMPLETION_SECTION_KEYS.filter((key) => !sectionByKey.get(key)?.completed);
-  const semanticallyIncompleteSections = REQUIRED_SEMANTIC_SECTION_KEYS.filter(
+  const requiredCompletionKeys = sections.some((section) => section.requiredForCompletion !== undefined)
+    ? sections.filter((section) => section.requiredForCompletion).map((section) => section.sectionKey)
+    : REQUIRED_COMPLETION_SECTION_KEYS;
+  const requiredSemanticKeys = REQUIRED_SEMANTIC_SECTION_KEYS.filter((key) => requiredCompletionKeys.includes(key));
+  const incompleteSections = requiredCompletionKeys.filter((key) => !sectionByKey.get(key)?.completed);
+  const semanticallyIncompleteSections = requiredSemanticKeys.filter(
     (key) => !hasMeaningfulContent(sectionByKey.get(key)?.data),
   );
   const blockReason = getEncounterClinicalOutputBlockReason(encounter?.clinicalOutputBlock, 'COMPLETE_ENCOUNTER');
@@ -195,7 +199,7 @@ export function buildEncounterCompletionChecklist(
       status: incompleteSections.length === 0 ? 'ready' : 'blocked',
       detail:
         incompleteSections.length === 0
-          ? `${REQUIRED_COMPLETION_SECTION_KEYS.length} de ${REQUIRED_COMPLETION_SECTION_KEYS.length} listas para cierre.`
+          ? `${requiredCompletionKeys.length} de ${requiredCompletionKeys.length} listas para cierre.`
           : `Faltan: ${formatSectionKeyList(incompleteSections)}.`,
     },
     {

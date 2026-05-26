@@ -37,6 +37,7 @@ export class ConditionsCsvService {
       createCount: preview.createCount,
       updateCount: preview.updateCount,
       reactivateCount: preview.reactivateCount,
+      deactivateCount: preview.deactivateCount,
       invalidRows: parsed.invalidRows,
       preview: preview.rows.slice(0, CSV_PREVIEW_LIMIT),
     };
@@ -56,6 +57,7 @@ export class ConditionsCsvService {
     let created = 0;
     let updated = 0;
     let reactivated = 0;
+    let deactivated = 0;
 
     const operations = parsed.rows.map((row) => {
       const existingCondition = existingByName.get(row.normalizedName);
@@ -66,10 +68,15 @@ export class ConditionsCsvService {
         );
         const nextTags = mergeUniqueStrings(parseStringArray(existingCondition.tags), row.tags);
 
-        if (existingCondition.active) {
+        const nextActive = row.active ?? true;
+        if (existingCondition.active && !nextActive) {
+          deactivated += 1;
+        } else if (existingCondition.active) {
           updated += 1;
-        } else {
+        } else if (nextActive) {
           reactivated += 1;
+        } else {
+          updated += 1;
         }
 
         return this.prisma.conditionCatalog.update({
@@ -79,7 +86,7 @@ export class ConditionsCsvService {
             normalizedName: row.normalizedName,
             synonyms: JSON.stringify(nextSynonyms),
             tags: JSON.stringify(nextTags),
-            active: true,
+            active: nextActive,
           },
         });
       }
@@ -91,6 +98,7 @@ export class ConditionsCsvService {
           normalizedName: row.normalizedName,
           synonyms: JSON.stringify(row.synonyms),
           tags: JSON.stringify(row.tags),
+          active: row.active ?? true,
         },
       });
     });
@@ -115,6 +123,7 @@ export class ConditionsCsvService {
           created,
           updated,
           reactivated,
+          deactivated,
         },
       });
     }
@@ -123,6 +132,7 @@ export class ConditionsCsvService {
       created,
       updated,
       reactivated,
+      deactivated,
       total: parsed.rows.length,
       duplicateRows: parsed.duplicateRows,
     };
@@ -140,18 +150,25 @@ export class ConditionsCsvService {
     let createCount = 0;
     let updateCount = 0;
     let reactivateCount = 0;
+    let deactivateCount = 0;
 
     const previewRows = rows.map((row) => {
       const existingCondition = existingByName.get(row.normalizedName);
       let action: ConditionCsvPreviewItem['action'] = 'CREATE';
 
       if (existingCondition) {
-        if (existingCondition.active) {
+        if (existingCondition.active && row.active === false) {
+          action = 'DEACTIVATE';
+          deactivateCount += 1;
+        } else if (existingCondition.active) {
           action = 'UPDATE';
           updateCount += 1;
-        } else {
+        } else if (row.active !== false) {
           action = 'REACTIVATE';
           reactivateCount += 1;
+        } else {
+          action = 'UPDATE';
+          updateCount += 1;
         }
       } else {
         createCount += 1;
@@ -162,6 +179,7 @@ export class ConditionsCsvService {
         name: row.name,
         synonyms: row.synonyms,
         tags: row.tags,
+        active: row.active,
         action,
       };
     });
@@ -170,6 +188,7 @@ export class ConditionsCsvService {
       createCount,
       updateCount,
       reactivateCount,
+      deactivateCount,
       rows: previewRows,
     };
   }

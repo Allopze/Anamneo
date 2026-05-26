@@ -15,6 +15,7 @@ Este directorio concentra la documentacion viva del proyecto. Si un tema aparece
 | `security-and-permissions.md` | Desarrollo / Operacion | JWT, sesiones, cifrado, auditoria y permisos |
 | `idor-isolation-matrix.md` | Desarrollo / Seguridad | Matriz de endpoints con IDs y cobertura de aislamiento/IDOR |
 | `data-privacy-and-compliance.md` | Operacion / Legal | Marco Ley 19.628 / Ley 21.719, DPA, derechos del titular, retencion |
+| `legal-postponed.md` | Operacion / Legal | Pendientes legales expresamente postergados y bloqueo de enforcement hard |
 | `postgres-operations.md` | Operacion | Backup, restore drill, monitor y alertas PostgreSQL |
 | `deployment-and-release.md` | Operacion | Build, empaquetado, despliegue y smoke checks |
 | `clinical-workflows.md` | Producto / Desarrollo | Flujos funcionales vigentes y riesgos conocidos |
@@ -26,7 +27,7 @@ Este directorio concentra la documentacion viva del proyecto. Si un tema aparece
 | `audits/performance-ux-architecture-audit-2026-04-29.md` | Desarrollo / Producto | Auditoria historica de rendimiento, frontend y UX |
 | `technical-debt/files-over-300-lines.md` | Desarrollo | Seguimiento de archivos grandes pendientes de division |
 | `settings-key-rotation-runbook.md` | Operacion | Rotacion de claves de cifrado para settings |
-| `account-recovery-runbook.md` | Operacion / Soporte | Recuperacion de cuentas, reset de admin de emergencia, diseno de password reset self-service |
+| `account-recovery-runbook.md` | Operacion / Soporte | Recuperacion de cuentas, reset de admin de emergencia y password reset self-service |
 | `observability-slos.md` | Operacion | SLOs, metricas Prometheus, busqueda en logs, alertas recomendadas |
 | `design-tokens-anamneo.md` | Frontend | Contrato visual activo del frontend |
 

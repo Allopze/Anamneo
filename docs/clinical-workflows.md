@@ -59,9 +59,10 @@ Esto permite soporte diagnostico sin obligar a que todo conocimiento clinico viv
 ### Importacion CSV del catalogo global
 
 - Solo un usuario `ADMIN` puede validar o importar el CSV global de afecciones.
-- El formato recomendado usa encabezados: `name`, `synonyms`, `tags`.
+- El formato recomendado usa encabezados: `name`, `synonyms`, `tags`; opcionalmente `active`.
 - `name` es obligatorio.
 - `synonyms` y `tags` aceptan multiples valores separados por `|`.
+- `active`, `activo` o `enabled` aceptan valores booleanos claros para activar/desactivar la afeccion durante la carga.
 - El formato legacy de una sola columna sigue soportado para cargas antiguas, pero no deberia usarse para catalogos nuevos.
 - La UI valida primero contra el parser real del backend y luego ejecuta la importacion.
 - Duplicados dentro del mismo archivo se consolidan por nombre normalizado antes de persistir.
@@ -72,7 +73,7 @@ Esto permite soporte diagnostico sin obligar a que todo conocimiento clinico viv
 - Ya implementado: parser CSV formal, preview server-side y consolidacion de duplicados dentro del archivo.
 - Ya implementado: `ConditionCatalog` persiste `normalizedName` y la base de datos impone unicidad por ese valor normalizado.
 - Ya implementado: la importacion bulk del catalogo global registra auditoria explicita (`CONDITION_CSV_IMPORTED`) con trazabilidad de cambios.
-- Pendiente: definir si el CSV soportara control explicito de `active` en una fase posterior.
+- Ya implementado: el CSV soporta control explicito de `active` usando encabezados `active`, `activo` o `enabled`; si la columna no existe, se conserva el comportamiento por defecto.
 
 ### Catalogo de medicamentos
 
@@ -100,7 +101,7 @@ Esto permite soporte diagnostico sin obligar a que todo conocimiento clinico viv
 - Ya implementado: existe cobertura e2e para una decision `AUTO` valida que comprueba la persistencia de metadata del ranking.
 - Ya implementado: existe un `e2e-spec` aislado del flujo de sugerencias para validarlo sin depender del estado compartido de `app.e2e-spec.ts`.
 - Pendiente: validar si `ConditionSuggestionLog` debe guardar tambien el texto final persistido de la seccion y no solo el input enviado al endpoint.
-- Pendiente: definir si conviene agregar explicabilidad visible de la sugerencia en UI, por ejemplo motivo de coincidencia o campo matched.
+- Implementado: las sugerencias conservan snapshot de texto persistido y explicabilidad basica de coincidencias. Queda como mejora futura afinar la presentacion visual de esa explicabilidad.
 - Pendiente: decidir si la metadata persistida actual es suficiente o si conviene guardar tambien los campos exactos de matching usados para explicar la sugerencia.
 
 ## Tareas y Problemas
@@ -154,7 +155,7 @@ Usa este criterio:
 - si aparece una nueva seccion clinica sensible o una nueva accion/transition de workflow, hay que extender el contrato compartido de encounters antes de tocar solo frontend o solo backend,
 - las reglas de acceso clinico deben seguir uniformes entre pacientes, encounters, consentimientos, alertas, adjuntos y exportaciones,
 - cuando aparezcan nuevas mutaciones clinicas sensibles, conviene mantener el patron de negocio + auditoria en una misma transaccion,
-- en sugerencias diagnosticas todavia quedan decisiones de producto abiertas sobre explicabilidad visible y cuanta metadata de matching vale la pena persistir.
+- en sugerencias diagnosticas quedan decisiones de producto abiertas sobre cuanta metadata adicional de matching vale la pena mostrar, no sobre la explicabilidad basica ya persistida.
 
 ## Donde Seguir
 

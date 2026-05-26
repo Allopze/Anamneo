@@ -6,6 +6,7 @@ import {
   ENCOUNTER_SECTION_LABELS as SECTION_LABELS,
   ENCOUNTER_SECTION_ORDER as SECTION_ORDER,
 } from '../common/utils/encounter-section-meta';
+import type { EncounterSectionConfig } from '../../../shared/encounter-section-config';
 import {
   getEncounterClinicalOutputBlock,
   getPatientDemographicsMissingFields,
@@ -20,6 +21,7 @@ import { resolvePatientIdentifiers, withPatientIdentifiers } from '../patients/p
 
 interface FormatEncounterResponseOptions {
   viewerRole?: string;
+  sectionConfig?: EncounterSectionConfig;
 }
 
 function formatProgress(sections: Array<{ completed: boolean }>) {
@@ -139,12 +141,19 @@ export function formatDashboardUpcomingTask(task: any) {
 }
 
 export function formatEncounterResponse(encounter: any, options: FormatEncounterResponseOptions = {}) {
-  const { viewerRole } = options;
+  const { viewerRole, sectionConfig } = options;
+  const configuredSections = new Map((sectionConfig?.sections ?? []).map((section) => [section.key, section]));
   const sortedSections = [...(encounter.sections || [])].sort((a: any, b: any) => {
-    return SECTION_ORDER.indexOf(a.sectionKey) - SECTION_ORDER.indexOf(b.sectionKey);
+    const leftOrder = configuredSections.get(a.sectionKey)?.order ?? SECTION_ORDER.indexOf(a.sectionKey);
+    const rightOrder = configuredSections.get(b.sectionKey)?.order ?? SECTION_ORDER.indexOf(b.sectionKey);
+    return leftOrder - rightOrder;
   });
   const visibleSections = sortedSections.filter(
-    (section: any) => !shouldHideEncounterSectionForRole(viewerRole, section.sectionKey as SectionKey),
+    (section: any) => {
+      const configured = configuredSections.get(section.sectionKey);
+      return configured?.enabled !== false
+        && !shouldHideEncounterSectionForRole(viewerRole, section.sectionKey as SectionKey);
+    },
   );
 
   const patientWithIdentifiers = encounter.patient ? withPatientIdentifiers(encounter.patient) : null;
@@ -239,8 +248,9 @@ export function formatEncounterResponse(encounter: any, options: FormatEncounter
               ...section,
               data: parseSectionData(section.data) ?? {},
             }),
-            label: SECTION_LABELS[section.sectionKey as SectionKey],
-            order: SECTION_ORDER.indexOf(section.sectionKey as SectionKey),
+            label: configuredSections.get(section.sectionKey)?.label ?? SECTION_LABELS[section.sectionKey as SectionKey],
+            order: configuredSections.get(section.sectionKey)?.order ?? SECTION_ORDER.indexOf(section.sectionKey as SectionKey),
+            requiredForCompletion: configuredSections.get(section.sectionKey)?.requiredForCompletion ?? false,
           })),
         }
       : null,
@@ -288,8 +298,9 @@ export function formatEncounterResponse(encounter: any, options: FormatEncounter
         ...section,
         data: parseSectionData(section.data) ?? {},
       }),
-      label: SECTION_LABELS[section.sectionKey as SectionKey],
-      order: SECTION_ORDER.indexOf(section.sectionKey as SectionKey),
+      label: configuredSections.get(section.sectionKey)?.label ?? SECTION_LABELS[section.sectionKey as SectionKey],
+      order: configuredSections.get(section.sectionKey)?.order ?? SECTION_ORDER.indexOf(section.sectionKey as SectionKey),
+      requiredForCompletion: configuredSections.get(section.sectionKey)?.requiredForCompletion ?? false,
     })),
   };
 }
