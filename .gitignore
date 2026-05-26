@@ -57,3 +57,7 @@ releases/
 # Sentry Config File
 .sentryclirc
 frontend/.next.bak/
+._.DS_Store
+node_modules/.bin/conc
+node_modules/.bin/concurrently
+node_modules/.bin/tree-kill
