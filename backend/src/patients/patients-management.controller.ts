@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { PatientsService } from './patients.service';
 import { MergePatientDto } from './dto/merge-patient.dto';
+import { ReassignPatientDto } from './dto/reassign-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { UpdatePatientAdminDto } from './dto/update-patient-admin.dto';
 import { UpdatePatientHistoryDto } from './dto/update-patient-history.dto';
@@ -81,5 +82,15 @@ export class PatientsManagementController {
     @CurrentUser() user: CurrentUserData,
   ) {
     return this.patientsService.restore(id, user);
+  }
+
+  @Put(':id/reassign')
+  @Roles('MEDICO', 'ADMIN')
+  reassign(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReassignPatientDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.patientsService.reassignPatient(id, dto, user);
   }
 }

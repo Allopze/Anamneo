@@ -26,6 +26,8 @@ import {
   UpdatePatientTaskInput,
 } from './patients-clinical-write-side';
 import { MergePatientDto } from './dto/merge-patient.dto';
+import { ReassignPatientDto } from './dto/reassign-patient.dto';
+import { reassignPatientMutation } from './patients-reassignment-mutation';
 
 export async function createPatient(
   prisma: PrismaService,
@@ -184,6 +186,22 @@ export async function restorePatient(
     id,
     user,
     effectiveMedicoId,
+  });
+}
+
+export async function reassignPatient(
+  prisma: PrismaService,
+  auditService: AuditService,
+  patientId: string,
+  dto: ReassignPatientDto,
+  user: RequestUser,
+) {
+  return reassignPatientMutation({
+    prisma,
+    auditService,
+    patientId,
+    dto,
+    user,
   });
 }
 

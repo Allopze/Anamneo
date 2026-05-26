@@ -5,6 +5,7 @@ import { FiFilter, FiChevronDown, FiDownload } from 'react-icons/fi';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { todayLocalDateString } from '@/lib/date';
+import PatientsOperationalExportPanel from './PatientsOperationalExportPanel';
 import {
   ARCHIVED_OPTIONS,
   SEXO_OPTIONS,
@@ -221,6 +222,7 @@ export default function PatientsFilterPanel({
               </button>
             )}
           </div>
+          {isAdmin && <PatientsOperationalExportPanel />}
         </div>
       )}
     </div>

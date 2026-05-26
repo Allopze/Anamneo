@@ -25,6 +25,13 @@ Implicacion funcional:
 - Las secciones viven en `EncounterSection`, identificadas por `sectionKey`.
 - El cierre persiste `completedAt`, `completedById` y `closureNote`.
 
+### Preparacion de consulta
+
+- La pantalla de nueva atencion primero selecciona el paciente y muestra un checklist pre-consulta.
+- El checklist resume identidad/RUT, estado de completitud demografica y cantidad de atenciones previas.
+- La atencion se crea recien cuando el usuario confirma `Crear atencion preparada`.
+- Si existe conflicto con una atencion en curso, se mantiene el modal de conflicto existente antes de abrir o cancelar.
+
 ### Reglas de trabajo
 
 - las secciones se actualizan por separado,
@@ -121,6 +128,8 @@ Riesgo conocido:
 - `Attachment` vincula archivos a encuentros y opcionalmente a ordenes.
 - La exportacion clinica depende del estado del encounter y de la completitud del paciente.
 - El frontend ya expone ayudas para bloquear output clinico cuando corresponde.
+- La exportacion operativa admin permite descargar CSV de atenciones por rango de fechas y medico opcional.
+- La exportacion operativa registra auditoria `OperationalEncounterExport` con rango, medico y cantidad de atenciones exportadas.
 
 ## Roles En La Operacion Diaria
 

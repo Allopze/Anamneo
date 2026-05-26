@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PolicyComplianceService } from '../patient-consents/policy-compliance.service';
 import { CreateEncounterDto } from './dto/create-encounter.dto';
+import { ReassignEncounterDto } from './dto/reassign-encounter.dto';
 import { SectionKey, EncounterStatus } from '../common/types';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { AlertsService } from '../alerts/alerts.service';
@@ -32,6 +33,7 @@ import {
 } from './encounters-read-side';
 import { getEncounterDashboardReadModel, getEncounterHeaderCountsReadModel } from './encounters-dashboard-read-model';
 import { getEncounterAuditHistoryReadModel } from './encounters-audit-history';
+import { reassignEncounterMutation } from './encounters-reassignment-mutation';
 
 @Injectable()
 export class EncountersService {
@@ -237,6 +239,16 @@ export class EncountersService {
       user,
       reviewStatus,
       note,
+    });
+  }
+
+  async reassignEncounter(id: string, dto: ReassignEncounterDto, user: RequestUser) {
+    return reassignEncounterMutation({
+      prisma: this.prisma,
+      auditService: this.auditService,
+      encounterId: id,
+      dto,
+      user,
     });
   }
 

@@ -8,6 +8,10 @@ import { getPatientAdminSummaryReadModel } from './patients-read-side';
 import { getPatientOperationalHistoryReadModel } from './patients-operational-history-read-model';
 import { getClinicalSummaryReadModel, getEncounterTimelineReadModel } from './patients-clinical-read-model';
 import { findPatientTasksReadModel, PatientTaskInboxFilters } from './patients-task-read-model';
+import {
+  exportOperationalEncountersCsvReadModel,
+  OperationalEncountersExportFilters,
+} from './patients-operational-export-read-model';
 
 export async function findAllPatients(
   prisma: PrismaService,
@@ -55,6 +59,20 @@ export async function exportPatientsCsv(
     prisma,
     auditService,
     user,
+  });
+}
+
+export async function exportOperationalEncountersCsv(
+  prisma: PrismaService,
+  auditService: any,
+  user: RequestUser,
+  filters: OperationalEncountersExportFilters,
+) {
+  return exportOperationalEncountersCsvReadModel({
+    prisma,
+    auditService,
+    user,
+    filters,
   });
 }
 

@@ -56,6 +56,25 @@ export class PatientsController {
     res.send(csv);
   }
 
+  @Get('export/operational-encounters.csv')
+  @UseGuards(AdminGuard)
+  async exportOperationalEncountersCsv(
+    @CurrentUser() user: CurrentUserData,
+    @Query('fromDate') fromDate: string,
+    @Query('toDate') toDate: string,
+    @Query('medicoId') medicoId: string | undefined,
+    @Res() res: Response,
+  ) {
+    const csv = await this.patientsService.exportOperationalEncountersCsv(user, {
+      fromDate,
+      toDate,
+      medicoId,
+    });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=atenciones_operativas_${fromDate}_${toDate}.csv`);
+    res.send(csv);
+  }
+
   @Get()
   @Roles('ADMIN', 'MEDICO', 'ASISTENTE')
   findAll(

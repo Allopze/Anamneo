@@ -9,6 +9,7 @@ import { UpdatePatientDto } from './dto/update-patient.dto';
 import { UpdatePatientAdminDto } from './dto/update-patient-admin.dto';
 import { UpdatePatientHistoryDto } from './dto/update-patient-history.dto';
 import { MergePatientDto } from './dto/merge-patient.dto';
+import { ReassignPatientDto } from './dto/reassign-patient.dto';
 import { UpsertPatientProblemDto } from './dto/upsert-patient-problem.dto';
 import { UpdatePatientProblemDto } from './dto/update-patient-problem.dto';
 import { CreatePatientTaskInput, UpdatePatientTaskInput } from './patients-clinical-write-side';
@@ -20,6 +21,7 @@ import {
   findAllPatients,
   findPossiblePatientDuplicates,
   exportPatientsCsv,
+  exportOperationalEncountersCsv,
   getPatientAdminSummary,
   findPatientById,
   findEncounterTimeline,
@@ -37,6 +39,7 @@ import {
   updateHistory,
   removePatient,
   restorePatient,
+  reassignPatient,
   createProblem,
   updateProblem,
   createTask,
@@ -144,6 +147,14 @@ export class PatientsService {
 
   async exportCsv(user: RequestUser) {
     return exportPatientsCsv(this.prisma, this.auditService, user);
+  }
+
+  async exportOperationalEncountersCsv(user: RequestUser, filters: {
+    fromDate: string;
+    toDate: string;
+    medicoId?: string;
+  }) {
+    return exportOperationalEncountersCsv(this.prisma, this.auditService, user, filters);
   }
 
   async getAdminSummary(user: RequestUser, id: string) {
@@ -295,6 +306,10 @@ export class PatientsService {
 
   async restore(id: string, user: RequestUser) {
     return restorePatient(this.prisma, this.auditService, id, user);
+  }
+
+  async reassignPatient(id: string, dto: ReassignPatientDto, user: RequestUser) {
+    return reassignPatient(this.prisma, this.auditService, id, dto, user);
   }
 
   async createProblem(user: RequestUser, patientId: string, dto: UpsertPatientProblemDto) {

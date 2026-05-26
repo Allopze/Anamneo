@@ -107,6 +107,18 @@ requiere evidencia directa de base, usar `psql` con `MIGRATION_DATABASE_URL`
 desde el host o `docker compose exec postgres psql`, nunca procedimientos
 manuales que eviten `AuditLog` para cambios de datos.
 
+### Exportacion operativa
+
+Desde `Pacientes > Filtros avanzados`, un usuario admin puede descargar:
+
+- CSV general de pacientes.
+- CSV de atenciones por rango de fechas y medico opcional.
+
+La exportacion de atenciones usa el endpoint
+`GET /api/patients/export/operational-encounters.csv`, limita el rango a 370
+dias y registra `OperationalEncounterExport` en auditoria. Usar este flujo para
+soporte administrativo en vez de consultas directas a base de datos.
+
 ## 4. Emergencias
 
 ### Rollback de deploy fallido

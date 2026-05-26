@@ -18,6 +18,7 @@ import { EncountersPdfService } from './encounters-pdf.service';
 import { CreateEncounterDto } from './dto/create-encounter.dto';
 import { CompleteEncounterDto } from './dto/complete-encounter.dto';
 import { ReopenEncounterDto } from './dto/reopen-encounter.dto';
+import { ReassignEncounterDto } from './dto/reassign-encounter.dto';
 import { SignEncounterDto } from './dto/sign-encounter.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
 import { UpdateReviewStatusDto } from './dto/update-review-status.dto';
@@ -233,6 +234,16 @@ export class EncountersController {
     @CurrentUser() user: CurrentUserData,
   ) {
     return this.encountersService.updateReviewStatus(id, user, dto.reviewStatus, dto.note);
+  }
+
+  @Put(':id/reassign')
+  @Roles('MEDICO', 'ADMIN')
+  reassign(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReassignEncounterDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.encountersService.reassignEncounter(id, dto, user);
   }
 
   @Get(':id/audit')
