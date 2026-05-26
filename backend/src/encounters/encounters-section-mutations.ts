@@ -165,6 +165,7 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
   }
 
   const sanitizedData = sanitizeSectionPayload(sectionKey, dto.data);
+  const previousSectionData = formatEncounterSectionForRead(section).data ?? {};
 
   if (sectionKey === 'IDENTIFICACION' && !matchesCurrentPatientSnapshot(encounter, sanitizedData)) {
     throw new BadRequestException(
@@ -239,7 +240,7 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
     entityId: section.id,
     userId: user.id,
     action: 'UPDATE',
-    diff: summarizeSectionAuditData(sectionKey, sanitizedData, dto.completed),
+    diff: summarizeSectionAuditData(sectionKey, sanitizedData, dto.completed, previousSectionData),
   });
 
   const vitalSigns =

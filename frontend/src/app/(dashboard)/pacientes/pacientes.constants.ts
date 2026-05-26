@@ -16,6 +16,12 @@ export const PREVISION_OPTIONS = [
   { value: 'DESCONOCIDA', label: 'Desconocida' },
 ];
 
+export const RUT_EXEMPT_OPTIONS = [
+  { value: '', label: 'Todos' },
+  { value: 'false', label: 'Con RUT' },
+  { value: 'true', label: 'Sin RUT' },
+];
+
 export const COMPLETENESS_OPTIONS: Array<{ value: '' | PatientCompletenessStatus; label: string }> = [
   { value: '', label: 'Todas las fichas' },
   { value: 'INCOMPLETA', label: PATIENT_COMPLETENESS_STATUS_LABELS.INCOMPLETA },
@@ -48,6 +54,7 @@ export interface PatientFilters {
   archived: string;
   sexo: string;
   prevision: string;
+  rutExempt: string;
   completenessStatus: string;
   taskWindow: string;
   edadMin: string;

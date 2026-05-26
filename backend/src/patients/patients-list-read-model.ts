@@ -13,6 +13,7 @@ export interface FindPatientsFilters {
   archived?: PatientArchiveFilter;
   sexo?: string;
   prevision?: string;
+  rutExempt?: boolean;
   completenessStatus?: PatientCompletenessStatus;
   taskWindow?: 'OVERDUE' | 'TODAY' | 'THIS_WEEK' | 'NO_DUE_DATE';
   edadMin?: number;
@@ -100,6 +101,7 @@ export async function findPatientsReadModel(params: FindPatientsReadModelParams)
 
   if (filters?.sexo) baseWhere.sexo = filters.sexo;
   if (filters?.prevision) baseWhere.prevision = filters.prevision;
+  if (filters?.rutExempt !== undefined) baseWhere.rutExempt = filters.rutExempt;
   const taskWindowFilter = buildTaskWindowFilter(filters?.taskWindow);
   if (taskWindowFilter) baseWhere.tasks = taskWindowFilter;
   if (filters?.edadMin !== undefined || filters?.edadMax !== undefined) {

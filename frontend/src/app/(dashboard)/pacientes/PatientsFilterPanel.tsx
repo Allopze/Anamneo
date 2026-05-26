@@ -9,6 +9,7 @@ import {
   ARCHIVED_OPTIONS,
   SEXO_OPTIONS,
   PREVISION_OPTIONS,
+  RUT_EXEMPT_OPTIONS,
   COMPLETENESS_OPTIONS,
   SORT_OPTIONS,
   TASK_WINDOW_OPTIONS,
@@ -82,6 +83,21 @@ export default function PatientsFilterPanel({
                 {PREVISION_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="patient-rut-exempt" className="block text-micro text-ink-muted mb-1">RUT</label>
+              <select
+                id="patient-rut-exempt"
+                className="input w-full text-sm"
+                value={filters.rutExempt}
+                onChange={(e) => onFilterChange('rutExempt', e.target.value)}
+              >
+                {RUT_EXEMPT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>

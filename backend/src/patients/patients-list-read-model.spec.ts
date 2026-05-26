@@ -71,4 +71,33 @@ describe('findPatientsReadModel clinical search', () => {
     expect(result.pagination).toMatchObject({ total: 1 });
     expect(result.pagination).not.toHaveProperty('clinicalSearchCapped');
   });
+
+  it('passes the RUT exemption filter to the patient query', async () => {
+    const prisma = {
+      patient: {
+        findMany: jest.fn().mockResolvedValue([patient({ rutExempt: true, rutExemptReason: 'Extranjero' })]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+    } as any;
+
+    await findPatientsReadModel({
+      prisma,
+      user: { id: 'med-1', role: 'MEDICO', isAdmin: false } as any,
+      effectiveMedicoId: 'med-1',
+      page: 1,
+      limit: 10,
+      filters: { rutExempt: true },
+    });
+
+    expect(prisma.patient.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ rutExempt: true }),
+      }),
+    );
+    expect(prisma.patient.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ rutExempt: true }),
+      }),
+    );
+  });
 });

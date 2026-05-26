@@ -53,16 +53,24 @@ Cada entrada usa el formato:
 - **Decisión:** adoptar la estructura **política general + anexos por finalidad** en lugar de un documento monolítico. El frontend (`LegalDocumentPage.tsx`) ya es agnóstico al contenido y soporta secciones extensibles.
 - **Responsable:** DPO interino (basado en `respuestas-borrador-ley21719.md` §2.1).
 - **Justificación:** mantenibilidad ante cambios técnicos y operativos; consistencia con el RAT por finalidad.
-- **Artefactos:** [`backend/prisma/seed.ts`](../backend/prisma/seed.ts) (`legal-privacy-v1-draft`); refactorización a múltiples anexos pendiente.
+- **Artefactos:** [`backend/prisma/seed.ts`](../backend/prisma/seed.ts) (`legal-privacy-general-v1-draft` + anexos `1.0-DRAFT-ANEXO-*`); texto final y publicación quedan pendientes de revisión legal.
 - **Próxima revisión:** cuando el asesor legal externo entregue el texto definitivo de la política y cada anexo.
 
 ### 2026-05-23 — Cifrado app-level: alcance definido para Olas 3 y posterior
 
-- **Decisión:** cifrar a nivel aplicación con AES-256-GCM (a) los snapshots regulatorios pre-purge, (b) los adjuntos de pacientes. Diferir cifrado de identificatorios del paciente (RUT, nombre, teléfono, email, domicilio) como criterio del Gate Go/No-Go Ola 4 — sujeto a decisión arquitectónica sobre lookup hashes para `rut UNIQUE`.
+- **Decisión:** cifrar a nivel aplicación con AES-256-GCM los snapshots regulatorios pre-purge, adjuntos de pacientes e identificatorios del paciente. La búsqueda por RUT usa `rutLookupHash`; las columnas plaintext de Patient y datos regulatorios transitorios ya fueron eliminadas por fases C-F.
 - **Responsable:** DPO interino + equipo de ingeniería.
-- **Justificación:** Ley 21.719 Art 14 quinquies lit a + respuesta legal §3.5 que confirma "recomendación fuerte" sin ser exigencia literal. Adjuntos y snapshots se priorizan por su sensibilidad agregada (contienen PHI completa en un único artefacto).
-- **Artefactos:** [`patients-regulatory-export.service.ts`](../backend/src/patients/patients-regulatory-export.service.ts), [`attachments.service.ts`](../backend/src/attachments/attachments.service.ts), [`field-crypto.ts`](../backend/src/common/utils/field-crypto.ts).
-- **Próxima revisión:** antes de tratar datos reales en producción. Si se decide NO cifrar identificatorios, justificar en la DPIA y aplicar controles compensatorios.
+- **Justificación:** Ley 21.719 Art 14 quinquies lit a + respuesta legal §3.5 que confirma "recomendación fuerte" sin ser exigencia literal. Adjuntos, snapshots e identificatorios concentran PHI o datos de identificación de alto impacto.
+- **Artefactos:** [`patients-regulatory-export.service.ts`](../backend/src/patients/patients-regulatory-export.service.ts), [`attachments.service.ts`](../backend/src/attachments/attachments.service.ts), [`field-crypto.ts`](../backend/src/common/utils/field-crypto.ts), [`patients-identifiers.ts`](../backend/src/patients/patients-identifiers.ts), migraciones `20260524000000` a `20260524030000`.
+- **Próxima revisión:** rotación/backup de `ENCRYPTION_KEY` y validación de restore en staging.
+
+### 2026-05-26 — Oposición aplicada a analítica interna
+
+- **Decisión:** excluir de `/analytics/clinical/summary` y `/analytics/clinical/cases` las atenciones de pacientes con `Patient.processingObjections.ANALITICA_INTERNA = true`.
+- **Responsable:** equipo de ingeniería.
+- **Justificación:** materializar el control técnico del derecho de oposición en la única finalidad opcional ya modelada en producto, sin esperar la matriz legal final para otras finalidades.
+- **Artefactos:** [`clinical-analytics.read-model.ts`](../backend/src/analytics/clinical-analytics.read-model.ts), [`clinical-analytics.cases.read-model.ts`](../backend/src/analytics/clinical-analytics.cases.read-model.ts), [`clinical-analytics.md`](clinical-analytics.md).
+- **Próxima revisión:** ajustar claves/finalidades si el asesor legal redefine la matriz de tratamientos opcionales.
 
 ### 2026-05-23 — Inclusión de cláusulas modelo de Diciembre 2025 como referencia para SCCs
 

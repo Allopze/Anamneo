@@ -76,7 +76,7 @@ limitación de finalidad de **GDPR Art. 5**.
 | Datos demográficos | Media | `Patient.sexo`, `Patient.fechaNacimiento`, `Patient.edad`, `Patient.prevision`, `Patient.trabajo` |
 | Datos de salud (PHI) | **Crítica** | `PatientHistory`, `EncounterSection.data`, `EncounterDiagnosis`, `EncounterTreatment`, `PatientProblem`, `ClinicalAlert`, `ClinicalConsent`, `Attachment` |
 | Datos de contacto de emergencia | Alta | `Patient.contactoEmergenciaNombreEnc`, `Patient.contactoEmergenciaTelefonoEnc` |
-| Datos de representante legal (NNA) | Alta | `Patient.legalRepresentative*` + columnas cifradas `legalRepresentative*Enc`; drop de plaintext pendiente de ventana controlada |
+| Datos de representante legal (NNA) | Alta | `Patient.legalRepresentative*Enc` + `legalRepresentativeRutLookupHash` |
 | Datos de personal sanitario | Media | `User.email`, `User.nombre`, `User.role`, sesiones, logs de auditoría |
 | Telemetría | Baja | `AuditLog` (con `requestId`, `userId`, `entityId`), logs HTTP |
 
@@ -122,7 +122,7 @@ sanitaria especial chilena que la ampara. Ver
 | Autorización | Guards NestJS (`JwtAuthGuard`, `RolesGuard`, `AdminGuard`) + scope por médico efectivo (`getEffectiveMedicoId`) |
 | Cifrado en tránsito | HTTPS obligatorio en producción vía cloudflared |
 | Cifrado en reposo | Disco con LUKS/dm-crypt (confirmado por `ENCRYPTION_AT_REST_CONFIRMED`) + cifrado app-level AES-256-GCM para secciones clínicas, identificatorios del paciente, adjuntos, snapshots regulatorios y entregas DSAR (`ENCRYPTION_KEY`, obligatoria en prod) + cifrado app-level para settings secretos (`SETTINGS_ENCRYPTION_KEY`) |
-| Cifrado app-level pendiente | Drop controlado de columnas plaintext transitorias de representante legal, firmante de consentimiento y solicitante DSAR; cifrado de IP/UA en tablas restantes es mejora futura no bloqueante |
+| Cifrado app-level pendiente | No hay columnas plaintext transitorias activas en `Patient`, firmantes de consentimiento ni solicitantes DSAR. Queda como mejora futura evaluar cifrado de metadatos forenses adicionales si la DPIA lo pide. |
 | Auditoría | `AuditLog` con cadena de hashes SHA-256 (`integrityHash`/`previousHash`), serializada para concurrencia. Eventos READ también registrados sobre PHI. |
 | Minimización en logs/Sentry | Scrubbing de RUT, email, secuencias de 8+ dígitos en `instrument.ts` antes de enviar a Sentry |
 | Retención | Backups Postgres rotables; logs de Docker rotables según configuración del host |
@@ -437,9 +437,9 @@ en el roadmap aprobado:
 | Designación formal de DPO (Art 50) | Acta borrador creada; firma de máxima autoridad pendiente | Ola 0 / Ola 1 |
 | Entidad `PatientDataRequest` para Arts 4-11 | Implementado | Ola 2 |
 | Derecho de bloqueo temporal (Art 8 ter) | Implementado en backend/UI admin para superficies principales; ampliar en nuevas mutaciones | Ola 2 |
-| Derecho de oposición / opt-out a analítica (Art 8) | Schema implementado; falta matriz legal final de finalidades opcionales | Ola 2 |
+| Derecho de oposición / opt-out a analítica (Art 8) | Schema implementado y analítica interna excluye pacientes con `ANALITICA_INTERNA=true`; falta matriz legal final de finalidades opcionales | Ola 2 |
 | Tratamiento diferenciado de NNA (Art 16 quáter) | Schema/UI/backend implementados con criterio conservador; validación legal pendiente | Ola 1 + Ola 3 |
-| Cifrado app-level adicional (RUT, email, adjuntos, snapshots) | Implementado para identificatorios Patient, adjuntos, snapshots y entregas DSAR; drops de plaintext transitorios D/E/F pendientes | Ola 3 |
+| Cifrado app-level adicional (RUT, email, adjuntos, snapshots) | Implementado para identificatorios Patient, adjuntos, snapshots, entregas DSAR, firmantes y solicitantes DSAR; fases de drop plaintext C-F ya movidas a migraciones activas | Ola 3 |
 | Procedimiento de brechas alineado al Art 14 sexies + entidad `DataBreachIncident` | Implementado; falta validación legal, canal Agencia y drill | Ola 3 |
 | DPAs firmados con subencargados (Cloudflare, Sentry, SMTP) | Pendiente | Ola 3 |
 | Inventario de transferencias internacionales (Arts 27-28) | Borrador RAT creado; falta confirmar proveedor/país/DPA real | Ola 3 |

@@ -28,6 +28,16 @@ import type { ClinicalAnalyticsQueryDto } from './dto/clinical-analytics-query.d
 const ANALYTICS_STATUSES = ['COMPLETADO', 'FIRMADO'] as const;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
+function hasAnalyticsOptOut(patient: { processingObjections?: unknown } | null | undefined) {
+  const objections = patient?.processingObjections;
+  return Boolean(
+    objections
+      && typeof objections === 'object'
+      && !Array.isArray(objections)
+      && (objections as Record<string, unknown>).ANALITICA_INTERNA === true,
+  );
+}
+
 function buildPatientLevelAlertScopeWhere(effectiveMedicoId: string) {
   return {
     encounterId: null,
@@ -73,6 +83,7 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
           edad: true,
           sexo: true,
           prevision: true,
+          processingObjections: true,
         },
       },
       sections: {
@@ -130,7 +141,8 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
     },
   });
 
-  const parsedEncounters = rawEncounters.map((rawEncounter) =>
+  const analyticsAllowedEncounters = rawEncounters.filter((rawEncounter) => !hasAnalyticsOptOut(rawEncounter.patient));
+  const parsedEncounters = analyticsAllowedEncounters.map((rawEncounter) =>
     buildClinicalAnalyticsEncounterFromPersistence(rawEncounter as any),
   );
   const baseEncounters = parsedEncounters.filter((entry) => entry.createdAt >= fromStart && entry.createdAt < toEndExclusive);

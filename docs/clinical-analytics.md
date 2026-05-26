@@ -120,6 +120,20 @@ Reglas importantes:
 
 ## Fuentes de datos
 
+## Privacidad y oposición
+
+Antes de construir el resumen o el drill-down de casos, el backend excluye
+atenciones de pacientes con `Patient.processingObjections.ANALITICA_INTERNA =
+true`. Esto aplica a:
+
+- `/api/analytics/clinical/summary`
+- `/api/analytics/clinical/cases`
+
+La exclusión se hace antes de calcular cohortes, pacientes únicos,
+desgloses, seguimiento y export de casos. La matriz legal final puede ajustar
+qué finalidades son opcionales, pero el control técnico de opt-out para
+analítica interna ya está aplicado.
+
 ## Secciones clinicas
 
 - `MOTIVO_CONSULTA`

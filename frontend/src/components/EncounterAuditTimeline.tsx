@@ -14,6 +14,11 @@ interface AuditEntry {
   userName: string;
   sectionKey: string | null;
   sectionLabel: string | null;
+  diffSummary?: {
+    changedTopLevelKeys: string[];
+    changedFieldCount: number;
+    redacted: boolean;
+  } | null;
 }
 
 const dateFormatter = new Intl.DateTimeFormat('es-CL', {
@@ -71,6 +76,12 @@ export default function EncounterAuditTimeline({ encounterId }: { encounterId: s
             <p className="text-xs font-medium text-ink">{entry.label}</p>
             {entry.sectionLabel && (
               <p className="text-[11px] text-ink-secondary">{entry.sectionLabel}</p>
+            )}
+            {entry.diffSummary && entry.diffSummary.changedFieldCount > 0 && (
+              <p className="mt-0.5 text-[11px] text-ink-secondary">
+                Cambios: {entry.diffSummary.changedTopLevelKeys.slice(0, 4).join(', ')}
+                {entry.diffSummary.changedFieldCount > 4 ? ` +${entry.diffSummary.changedFieldCount - 4}` : ''}
+              </p>
             )}
             <p className="mt-0.5 text-[11px] text-ink-secondary">
               {entry.userName} · {dateFormatter.format(new Date(entry.timestamp))}

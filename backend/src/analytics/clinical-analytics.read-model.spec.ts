@@ -15,6 +15,7 @@ describe('clinical-analytics.read-model', () => {
               edad: 26,
               sexo: 'F',
               prevision: 'FONASA',
+              processingObjections: null,
             },
             sections: [
               {
@@ -42,6 +43,7 @@ describe('clinical-analytics.read-model', () => {
               edad: 40,
               sexo: 'M',
               prevision: 'ISAPRE',
+              processingObjections: null,
             },
             sections: [
               {
@@ -132,6 +134,7 @@ describe('clinical-analytics.read-model', () => {
               edad: 34,
               sexo: 'F',
               prevision: 'FONASA',
+              processingObjections: null,
             },
             sections: [],
             diagnoses: [
@@ -162,6 +165,7 @@ describe('clinical-analytics.read-model', () => {
               edad: 34,
               sexo: 'F',
               prevision: 'FONASA',
+              processingObjections: null,
             },
             sections: [],
             diagnoses: [],
@@ -207,5 +211,83 @@ describe('clinical-analytics.read-model', () => {
     expect(result.summary.matchedEncounters).toBe(1);
     expect(result.summary.reconsultWithinWindowCount).toBe(1);
     expect(result.summary.reconsultWithinWindowRate).toBe(1);
+  });
+
+  it('excludes patients with active analytics objection from summary cohorts and follow-up lookups', async () => {
+    const prisma = {
+      encounter: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'enc-included',
+            patientId: 'pat-included',
+            createdAt: new Date('2026-04-10T12:00:00.000Z'),
+            patient: {
+              id: 'pat-included',
+              fechaNacimiento: null,
+              edad: 30,
+              sexo: 'F',
+              prevision: 'FONASA',
+              processingObjections: null,
+            },
+            sections: [],
+            diagnoses: [],
+            treatments: [],
+          },
+          {
+            id: 'enc-opt-out',
+            patientId: 'pat-opt-out',
+            createdAt: new Date('2026-04-11T12:00:00.000Z'),
+            patient: {
+              id: 'pat-opt-out',
+              fechaNacimiento: null,
+              edad: 45,
+              sexo: 'M',
+              prevision: 'ISAPRE',
+              processingObjections: { ANALITICA_INTERNA: true },
+            },
+            sections: [],
+            diagnoses: [],
+            treatments: [],
+          },
+        ]),
+      },
+      patientProblem: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      clinicalAlert: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+
+    const result = await getClinicalAnalyticsSummaryReadModel({
+      prisma: prisma as never,
+      user: {
+        id: 'med-1',
+        email: 'medico@test.com',
+        nombre: 'Medico Demo',
+        role: 'MEDICO',
+        isAdmin: false,
+      },
+      query: {
+        source: 'ANY',
+        fromDate: '2026-04-01',
+        toDate: '2026-04-20',
+        followUpDays: 30,
+        limit: 10,
+      },
+    });
+
+    expect(result.summary.matchedPatients).toBe(1);
+    expect(result.summary.matchedEncounters).toBe(1);
+    expect(prisma.patientProblem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ patientId: { in: ['pat-included'] } }),
+      }),
+    );
+    expect(prisma.clinicalAlert.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ patientId: { in: ['pat-included'] } }),
+      }),
+    );
   });
 });

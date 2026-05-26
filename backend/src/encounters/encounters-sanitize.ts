@@ -156,17 +156,57 @@ export function sanitizeSectionPayload(sectionKey: SectionKey, data: Record<stri
 
 // ─── Audit helpers ───────────────────────────────────────────────────────────
 
-export function summarizeSectionAuditData(sectionKey: SectionKey, data: unknown, completed?: boolean) {
-  const topLevelKeys =
-    typeof data === 'object' && data !== null && !Array.isArray(data)
-      ? Object.keys(data as Record<string, unknown>)
-      : [];
+function collectTopLevelKeys(data: unknown) {
+  return typeof data === 'object' && data !== null && !Array.isArray(data)
+    ? Object.keys(data as Record<string, unknown>)
+    : [];
+}
+
+function normalizeAuditComparableValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+
+  return JSON.stringify(value);
+}
+
+function getChangedTopLevelKeys(previousData: unknown, nextData: unknown) {
+  const previous = typeof previousData === 'object' && previousData !== null && !Array.isArray(previousData)
+    ? previousData as Record<string, unknown>
+    : {};
+  const next = typeof nextData === 'object' && nextData !== null && !Array.isArray(nextData)
+    ? nextData as Record<string, unknown>
+    : {};
+
+  return [...new Set([...Object.keys(previous), ...Object.keys(next)])].filter(
+    (key) => normalizeAuditComparableValue(previous[key]) !== normalizeAuditComparableValue(next[key]),
+  );
+}
+
+export function summarizeSectionAuditData(
+  sectionKey: SectionKey,
+  data: unknown,
+  completed?: boolean,
+  previousData?: unknown,
+) {
+  const topLevelKeys = collectTopLevelKeys(data);
+  const changedTopLevelKeys = previousData === undefined ? topLevelKeys : getChangedTopLevelKeys(previousData, data);
 
   return {
     sectionKey,
     schemaVersion: getEncounterSectionSchemaVersion(sectionKey),
     completed,
     topLevelKeys,
+    changedTopLevelKeys,
+    changedFieldCount: changedTopLevelKeys.length,
     fieldCount: topLevelKeys.length,
     redacted: true,
   };

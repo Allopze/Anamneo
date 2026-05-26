@@ -187,4 +187,21 @@ describe('PacientesPage', () => {
       expect(apiPostMock).toHaveBeenCalledWith('/patients/patient-1/restore', {});
     });
   });
+
+  it('includes the RUT exemption filter from the URL and lets the user change it', async () => {
+    currentSearchParams = new URLSearchParams('rutExempt=true');
+
+    render(<PacientesPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(apiGetMock).toHaveBeenCalledWith(
+        '/patients?page=1&limit=10&rutExempt=true&sortBy=createdAt&sortOrder=desc',
+      );
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /Filtros avanzados/i }));
+    await userEvent.selectOptions(screen.getByLabelText('RUT'), 'false');
+
+    expect(pushMock).toHaveBeenCalledWith('/pacientes?rutExempt=false');
+  });
 });

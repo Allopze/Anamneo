@@ -19,6 +19,16 @@ import { resolvePatientIdentifiers } from '../patients/patients-identifiers';
 const ANALYTICS_STATUSES = ['COMPLETADO', 'FIRMADO'] as const;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
+function hasAnalyticsOptOut(patient: { processingObjections?: unknown } | null | undefined) {
+  const objections = patient?.processingObjections;
+  return Boolean(
+    objections
+      && typeof objections === 'object'
+      && !Array.isArray(objections)
+      && (objections as Record<string, unknown>).ANALITICA_INTERNA === true,
+  );
+}
+
 function resolveDefaultFromDate(reference = new Date()) {
   return extractDateOnlyIso(new Date(reference.getTime() - 89 * DAY_IN_MS));
 }
@@ -90,6 +100,7 @@ export async function getClinicalAnalyticsCasesReadModel(params: {
           edad: true,
           sexo: true,
           prevision: true,
+          processingObjections: true,
         },
       },
       sections: {
@@ -151,6 +162,7 @@ export async function getClinicalAnalyticsCasesReadModel(params: {
   const normalizedFocusValue = query.focusValue ? normalizeConditionName(query.focusValue) : '';
 
   const matchedEncounters = rawEncounters
+    .filter((rawEncounter) => !hasAnalyticsOptOut(rawEncounter.patient))
     .map((rawEncounter) => ({
       rawEncounter,
       parsedEncounter: buildClinicalAnalyticsEncounterFromPersistence(rawEncounter as any),

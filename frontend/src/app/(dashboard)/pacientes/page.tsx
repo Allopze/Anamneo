@@ -82,6 +82,7 @@ function PacientesContent() {
     archived: searchParams.get('archived') || '',
     sexo: searchParams.get('sexo') || '',
     prevision: searchParams.get('prevision') || '',
+    rutExempt: searchParams.get('rutExempt') || '',
     completenessStatus: searchParams.get('completenessStatus') || '',
     taskWindow: searchParams.get('taskWindow') || '',
     edadMin: searchParams.get('edadMin') || '',
@@ -123,6 +124,7 @@ function PacientesContent() {
         archived: '',
         sexo: '',
         prevision: '',
+        rutExempt: '',
         completenessStatus: '',
         taskWindow: '',
         edadMin: '',
@@ -144,6 +146,7 @@ function PacientesContent() {
       params.set('limit', '10');
       if (filters.sexo) params.set('sexo', filters.sexo);
       if (filters.prevision) params.set('prevision', filters.prevision);
+      if (filters.rutExempt) params.set('rutExempt', filters.rutExempt);
       if (filters.archived) params.set('archived', filters.archived);
       if (filters.completenessStatus) params.set('completenessStatus', filters.completenessStatus);
       if (filters.taskWindow) params.set('taskWindow', filters.taskWindow);

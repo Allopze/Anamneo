@@ -4,6 +4,30 @@ import { SectionKey } from '../common/types';
 import { ENCOUNTER_SECTION_LABELS as SECTION_LABELS } from '../common/utils/encounter-section-meta';
 import { PrismaService } from '../prisma/prisma.service';
 
+function getSectionDiffSummary(diff: unknown) {
+  if (!diff || typeof diff !== 'object' || Array.isArray(diff)) {
+    return null;
+  }
+
+  const record = diff as Record<string, unknown>;
+  const changedTopLevelKeys = Array.isArray(record.changedTopLevelKeys)
+    ? record.changedTopLevelKeys.filter((key): key is string => typeof key === 'string')
+    : [];
+
+  if (changedTopLevelKeys.length === 0) {
+    return null;
+  }
+
+  return {
+    changedTopLevelKeys,
+    changedFieldCount:
+      typeof record.changedFieldCount === 'number'
+        ? record.changedFieldCount
+        : changedTopLevelKeys.length,
+    redacted: record.redacted === true,
+  };
+}
+
 interface EncounterAuditHistoryReadModelParams {
   prisma: PrismaService;
   encounterId: string;
@@ -63,6 +87,7 @@ export async function getEncounterAuditHistoryReadModel(params: EncounterAuditHi
       userName: userMap.get(log.userId) ?? 'Sistema',
       sectionKey,
       sectionLabel: sectionKey ? (SECTION_LABELS[sectionKey as SectionKey] ?? sectionKey) : null,
+      diffSummary: getSectionDiffSummary(log.diff),
     };
   });
 }

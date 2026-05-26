@@ -26,6 +26,9 @@ El backlog se basa en lo que **ya existe en el código** del proyecto (módulos 
 - Timeline de atenciones en ficha de paciente con acciones rápidas.
 - Catálogo de afecciones con importación CSV global (admin) y catálogo local por instancia (médico/asistente).
 - Rol administrador disponible solo en primer registro (bootstrap).
+- Analítica clínica respeta `Patient.processingObjections.ANALITICA_INTERNA` tanto en resumen como en drill-down de casos.
+- Lista de pacientes agrega filtro operativo por RUT exento/con RUT.
+- Historial de cambios de la atención muestra diff redacted por campos de sección modificados.
 - Corte 2026-05-22: se reconciliaron estados contra código existente; plantillas, adjuntos con preview, búsqueda avanzada, alertas, seguimientos, reset admin y permisos base ya no quedan como backlog pendiente.
 
 ---
@@ -36,11 +39,11 @@ El backlog se basa en lo que **ya existe en el código** del proyecto (módulos 
 2. **Cierre de atención con bloqueo** — Al “Completar”, bloquear edición de secciones salvo rol permitido y registrar responsable/fecha de cierre. **Estado:** [YA]
 3. **Historial del paciente en línea de tiempo** — Ver atenciones + adjuntos + cambios de antecedentes en una sola vista cronológica. **Estado:** [YA]
 4. **Sugeridor de afecciones en contexto** — Mejorar el sugeridor (resaltar coincidencias, explicar “por qué sugirió”, permitir “fijar” diagnóstico elegido). **Estado:** [YA]
-5. **Diagnóstico elegido como dato clínico del encuentro** — Guardar el diagnóstico “final” dentro de la atención (no solo log de sugerencias). **Estado:** [BE]
-6. **Vista “Ficha” de encuentro exportable** — Exportar/Imprimir ficha clínica consistente (PDF o HTML imprimible) desde la vista existente. **Estado:** [QW]
+5. **Diagnóstico elegido como dato clínico del encuentro** — Guardar el diagnóstico estructurado dentro de la atención (no solo log de sugerencias). **Estado:** [YA]
+6. **Vista “Ficha” de encuentro exportable** — Exportar/Imprimir ficha clínica consistente (PDF o HTML imprimible) desde la vista existente. **Estado:** [YA]
 7. **Atajos y plantillas de texto (SOAP, control crónico, etc.)** — Plantillas reutilizables por médico para acelerar documentación. **Estado:** [YA]
 8. **Adjuntos con previsualización segura** — Previsualizar imágenes/PDF desde la atención, con control de acceso estricto y expiración de links. **Estado:** [YA]
-9. **Comparación entre versiones de una sección** — Ver “qué cambió” entre guardados de una sección (útil para auditoría clínica). **Estado:** [BE]
+9. **Comparación entre versiones de una sección** — Ver “qué cambió” entre guardados de una sección (diff redacted por campos, sin exponer PHI en auditoría). **Estado:** [YA]
 10. **Búsqueda avanzada de pacientes** — Filtros por edad/sexo/previsión/fecha última atención y ordenamientos clínicos. **Estado:** [YA]
 11. **Alertas clínicas suaves** — Recordatorios no intrusivos (ej. alergias, hábitos, antecedentes relevantes) visibles al abrir una atención. **Estado:** [YA]
 12. **Panel de pendientes** — Atenciones abiertas, secciones incompletas, adjuntos sin revisar, sugerencias sin confirmar. **Estado:** [YA]
@@ -54,7 +57,7 @@ El backlog se basa en lo que **ya existe en el código** del proyecto (módulos 
 3. **Carga de antecedentes (flujo guiado)** — Un flujo de antecedentes con checklist y validaciones para evitar campos incompletos. **Estado:** [YA]
 4. **Creación de atención “preparada” para el médico** — Crear atención en estado en progreso, cargar adjuntos y dejar lista para completar. **Estado:** [QW]
 5. **Clasificación de adjuntos** — Etiquetar adjuntos (tipo, fecha del examen, origen) y ordenarlos en la atención. **Estado:** [YA]
-6. **Búsqueda por criterios administrativos** — Buscar por previsión, rango etario, estado RUT exento, etc. **Estado:** [BE]
+6. **Búsqueda por criterios administrativos** — Buscar por previsión, rango etario, estado RUT exento, etc. **Estado:** [YA]
 7. **Marcado de tareas del paciente** — “Falta documento”, “traer examen”, “pendiente firma consentimiento”. **Estado:** [YA]
 8. **Derivación interna / reasignación de médico** — Cambiar médico responsable del paciente con motivo y registro. **Estado:** [BE]
 9. **Checklist pre-consulta** — Confirmación de datos + adjuntos + antecedentes antes de pasar a consulta. **Estado:** [NEW]
@@ -83,7 +86,7 @@ El backlog se basa en lo que **ya existe en el código** del proyecto (módulos 
 1. **Ruta de edición de paciente en UI** — Falta una pantalla dedicada de edición (ya hay intención de link). **Estado:** [YA]
 2. **Mensajes de error consistentes** — Normalizar errores de API (validación/403/404) y mostrarlos con UX consistente. **Estado:** [YA]
 3. **Mejoras de permisos en frontend** — Ocultar/mostrar acciones según `isMedico/isAdmin` y capacidades reales. **Estado:** [YA]
-4. **Acciones rápidas** — Botones “Nueva atención”, “Adjuntar archivo”, “Ver ficha imprimible” en vistas clave. **Estado:** [QW]
+4. **Acciones rápidas** — Botones “Nueva atención”, “Adjuntar archivo”, “Ver ficha imprimible” en vistas clave. **Estado:** [YA]
 
 ---
 
@@ -91,4 +94,4 @@ El backlog se basa en lo que **ya existe en el código** del proyecto (módulos 
 
 - El sistema ya tiene módulos claros: pacientes, atenciones (encounters), catálogo de afecciones (conditions), adjuntos (attachments), usuarios/auth y auditoría.
 - Muchas mejoras pueden implementarse como **pulido de flujo/UI** apoyándose en endpoints existentes; las marcadas [BE]/[NEW] requieren acordar reglas de negocio antes.
-- Pendientes v1 reales a priorizar con la clínica: diagnóstico final como dato clínico estructurado, comparación de versiones de secciones, derivación interna/reasignación de médico, checklist pre-consulta, permisos finos por acción y configuración flexible de secciones.
+- Pendientes v1 reales a priorizar con la clínica: derivación interna/reasignación de médico, checklist pre-consulta, permisos finos por acción, herramientas admin de saneamiento seguras, exportación operativa por rango/médico y configuración flexible de secciones.

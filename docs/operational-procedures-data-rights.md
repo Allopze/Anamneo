@@ -60,7 +60,7 @@ El cron interno (`DataRequestSlaService.markExpiredRequests`) corre cada hora y 
 
 1. Verificar identidad.
 2. Si la base legal del tratamiento es **consentimiento** o **interés legítimo**, registrar la oposición en `Patient.processingObjections` (clave por finalidad).
-3. El módulo de analítica debe respetar este flag (pendiente refactor — Ola 3).
+3. El módulo de analítica respeta `ANALITICA_INTERNA=true` y excluye al paciente de resumen y drill-down de casos.
 4. Marcar `RESUELTA_ACEPTADA`.
 
 ### 3.5 Portabilidad (Art 9)

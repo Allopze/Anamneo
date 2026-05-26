@@ -648,14 +648,9 @@ export class MailService {
     detectedAt: Date;
     scope: string;
     measuresTaken: string;
-    // Campos nuevos (5 elementos faltantes):
-    // - responsableName: identificacion del responsable del tratamiento (clinica usuaria)
-    // - dpoName + dpoEmail: contacto del DPO
-    // - dataCategoriesAffected: categorias de datos comprometidas
-    // - possibleConsequences: posibles consecuencias para el titular
-    // - recommendedActions: medidas recomendadas al titular
-    // - consultationChannels: canales disponibles para consulta
-    // - followUpInfo: cuando y como se actualizara al titular
+    // Elementos operativos adicionales que completan la notificacion al titular:
+    // responsable, contacto DPO, categorias afectadas, consecuencias,
+    // acciones recomendadas, canales de consulta y seguimiento.
     responsableName?: string;
     dpoName?: string;
     dpoEmail?: string;
