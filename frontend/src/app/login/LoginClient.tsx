@@ -43,8 +43,8 @@ type RegistrationMode = 'loading' | 'bootstrap-open' | 'invitation-only';
 const LOGIN_CHIPS = [
   {
     icon: <FiShield className="h-7 w-7" aria-hidden="true" />,
-    label: 'Trazabilidad y permisos activos',
-    description: 'Acceso protegido con registro de actividad habilitado.',
+    label: 'Trazabilidad clínica',
+    description: 'Cada acceso queda registrado para auditoría.',
   },
 ];
 
@@ -210,8 +210,8 @@ function LoginContent() {
         <div className="auth-help">
           <FiLock className="h-7 w-7" aria-hidden="true" />
           <span>
-            <span className="auth-help-title">Acceso protegido</span>
-            <span className="auth-help-copy">Sesiones resguardadas para equipos clínicos.</span>
+            <span className="auth-help-title">Cifrado de extremo a extremo</span>
+            <span className="auth-help-copy">Tus datos viajan y se almacenan cifrados.</span>
           </span>
         </div>
       }
@@ -370,7 +370,7 @@ function LoginContent() {
                 autoCapitalize="none"
                 spellCheck={false}
                 className={`form-input pl-10 ${errors.email ? 'form-input-error' : ''}`}
-                placeholder="nombre@clinica.cl…"
+                placeholder="nombre@clinica.cl"
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? 'email-error' : undefined}
                 {...register('email')}

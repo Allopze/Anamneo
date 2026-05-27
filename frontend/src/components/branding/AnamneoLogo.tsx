@@ -65,7 +65,7 @@ const INLINE_SVG = `
       </span>
       <span
         className={clsx(
-          'font-sans text-2xl font-semibold tracking-tight text-ink-primary',
+          'anamneo-wordmark text-2xl text-ink-primary',
           textClassName
         )}
       >

@@ -17,19 +17,25 @@ export default function RegisterRoleField({
   isLoadingRoles,
   disabled,
 }: RegisterRoleFieldProps) {
+  const onlyOneRole = availableRoles.length === 1;
+
   return (
     <div>
       <label className="form-label">Rol</label>
       {isLoadingRoles ? (
         <p className="text-micro text-ink-muted">Cargando opciones disponibles…</p>
-      ) : isInvitationMode && availableRoles.length === 1 ? (
+      ) : onlyOneRole ? (
         <>
           <input type="hidden" value={availableRoles[0]} {...register('role')} />
           <div className="auth-role-pill">
             <FiLock className="auth-role-pill-icon" aria-hidden="true" />
             {ROLE_OPTIONS[availableRoles[0]].label}
           </div>
-          <p className="mt-2 text-micro text-ink-muted">Rol fijado por invitación.</p>
+          <p className="mt-2 text-micro text-ink-muted">
+            {isInvitationMode
+              ? 'Rol fijado por invitación.'
+              : 'Solo esta alta inicial habilita la cuenta administradora base.'}
+          </p>
         </>
       ) : (
         <>
@@ -37,8 +43,8 @@ export default function RegisterRoleField({
             {availableRoles.map((role) => (
               <label key={role} className="relative">
                 <input type="radio" value={role} {...register('role')} disabled={disabled} className="peer sr-only" />
-                <div className="auth-role-card peer-checked:border-accent peer-checked:bg-accent/10">
-                  <div className="auth-role-indicator peer-checked:border-accent peer-checked:bg-accent" aria-hidden="true" />
+                <div className="auth-role-card peer-checked:border-[#2f6f68] peer-checked:bg-[#2f6f68]/[0.06]">
+                  <div className="auth-role-indicator peer-checked:border-[#2f6f68] peer-checked:bg-[#2f6f68]" aria-hidden="true" />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-ink-primary">{ROLE_OPTIONS[role].label}</p>
                     <p className="mt-1 text-xs text-ink-secondary">{ROLE_OPTIONS[role].description}</p>
@@ -47,9 +53,6 @@ export default function RegisterRoleField({
               </label>
             ))}
           </div>
-          <p className="mt-2 text-micro text-ink-muted">
-            Solo esta alta inicial habilita la cuenta administradora base.
-          </p>
         </>
       )}
     </div>

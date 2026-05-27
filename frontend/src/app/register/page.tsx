@@ -276,6 +276,7 @@ function RegisterContent() {
 
   return (
     <AuthFrame
+      variant="loginCompact"
       eyebrow={isInvitationMode ? 'Invitación' : 'Configuración Inicial'}
       title={
         isInvitationMode

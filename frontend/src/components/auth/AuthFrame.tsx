@@ -49,8 +49,16 @@ export function AuthFrame({
         <div className="auth-hero-panel">
           <AnamneoLogo
             className="mb-6 hidden lg:flex"
-            iconClassName={clsx('h-12 w-12 text-white', logoIconClassName)}
-            textClassName={clsx('auth-logo-text-on-dark text-2xl font-bold', logoTextClassName)}
+            iconClassName={clsx(
+              'h-12 w-12',
+              variant === 'loginCompact' ? 'text-ink-primary' : 'text-white',
+              logoIconClassName,
+            )}
+            textClassName={clsx(
+              variant === 'loginCompact' ? 'auth-logo-text-on-light' : 'auth-logo-text-on-dark',
+              'text-2xl',
+              logoTextClassName,
+            )}
             priority
             inlineIcon
           />
@@ -81,7 +89,7 @@ export function AuthFrame({
             <AnamneoLogo
               className="justify-center lg:hidden"
               iconClassName={clsx('h-12 w-12 text-ink-primary', logoIconClassName)}
-              textClassName={clsx('auth-logo-text-on-light text-2xl font-bold', logoTextClassName)}
+              textClassName={clsx('auth-logo-text-on-light text-2xl', logoTextClassName)}
               priority
               inlineIcon
             />

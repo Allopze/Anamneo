@@ -429,6 +429,14 @@ body {
     @apply relative z-[1] mx-auto w-full max-w-xl lg:-mt-5;
   }
 
+  .anamneo-wordmark {
+    font-family: var(--font-fraunces), Georgia, serif;
+    font-weight: 500;
+    font-optical-sizing: auto;
+    letter-spacing: -0.015em;
+    font-variation-settings: 'SOFT' 50, 'opsz' 36;
+  }
+
   .auth-logo-text-on-dark {
     color: #ffffff !important;
   }
@@ -701,7 +709,8 @@ body {
 
   .auth-shell-login-compact .auth-hero {
     @apply px-5 py-5 sm:px-8 sm:py-9 lg:px-14;
-    background: #253430;
+    background: #e8e4d8;
+    color: #1e2826;
   }
 
   .auth-shell-login-compact .auth-hero-panel {
@@ -710,16 +719,17 @@ body {
 
   .auth-shell-login-compact .auth-kicker {
     @apply mb-5 rounded-none border-0 bg-transparent px-0 py-0 text-[0.72rem] tracking-[0.16em];
-    color: #9fc6bd;
+    color: #2f6f68;
   }
 
   .auth-shell-login-compact .auth-headline {
     @apply text-[1.65rem] font-bold sm:text-[2.45rem];
+    color: #1e2826;
   }
 
   .auth-shell-login-compact .auth-hero-description {
     @apply mt-4 hidden max-w-md text-[0.96rem] leading-7 sm:block;
-    color: rgba(255, 255, 255, 0.78);
+    color: #4e5b58;
   }
 
   .auth-shell-login-compact .auth-chip-band {
@@ -728,41 +738,42 @@ body {
 
   .auth-shell-login-compact .auth-chip {
     @apply rounded-2xl border px-4 py-4;
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(159, 198, 189, 0.24);
-    color: rgba(255, 255, 255, 0.82);
+    background: rgba(255, 255, 255, 0.55);
+    border-color: rgba(31, 79, 74, 0.14);
+    color: #1e2826;
   }
 
   .auth-shell-login-compact .auth-chip-icon {
     @apply h-10 w-10 rounded-full;
-    background: rgba(159, 198, 189, 0.12);
-    color: #9fc6bd;
+    background: rgba(47, 111, 104, 0.12);
+    color: #2f6f68;
   }
 
   .auth-shell-login-compact .auth-chip-title {
     @apply text-sm;
+    color: #1e2826;
   }
 
   .auth-shell-login-compact .auth-chip-copy {
-    color: rgba(255, 255, 255, 0.7);
+    color: #4e5b58;
   }
 
   .auth-shell-login-compact .auth-hero-footer {
     @apply mt-5 max-w-md border-t pt-5;
-    border-color: rgba(159, 198, 189, 0.2);
+    border-color: rgba(31, 79, 74, 0.16);
   }
 
   .auth-shell-login-compact .auth-help {
-    color: #9fc6bd;
+    color: #2f6f68;
   }
 
   .auth-shell-login-compact .auth-help-title,
   .auth-shell-login-compact .auth-help-copy {
-    color: rgba(255, 255, 255, 0.72);
+    color: #4e5b58;
   }
 
   .auth-shell-login-compact .auth-panel {
-    @apply items-center justify-center px-5 py-4 sm:px-8 sm:py-7 lg:justify-start lg:px-20;
+    @apply items-center justify-center px-5 py-4 sm:px-8 sm:py-7 lg:px-12;
   }
 
   .auth-shell-login-compact .auth-card {
@@ -879,15 +890,44 @@ body {
     background: rgba(47, 111, 104, 0.08);
   }
 
+  .legal-checkbox {
+    @apply h-[18px] w-[18px] shrink-0 cursor-pointer appearance-none rounded-full bg-white transition-colors;
+    border: 1.5px solid rgba(47, 111, 104, 0.45);
+  }
+
+  .legal-checkbox:hover:not(:disabled):not(:checked) {
+    border-color: #2f6f68;
+  }
+
+  .legal-checkbox:checked {
+    background-color: #2f6f68;
+    border-color: #2f6f68;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='none' stroke='%23ffffff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.4l3 3 6-6.4'/></svg>");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 12px;
+  }
+
+  .legal-checkbox:focus-visible {
+    outline: 2px solid rgba(47, 111, 104, 0.35);
+    outline-offset: 2px;
+  }
+
+  .legal-checkbox:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
   .auth-role-pill {
-    @apply inline-flex items-center gap-2 rounded-pill px-4 py-2 text-sm font-semibold text-accent-text;
-    border: 1px solid rgba(234, 248, 50, 0.3);
-    background: rgba(234, 248, 50, 0.1);
+    @apply inline-flex items-center gap-2 rounded-pill px-4 py-2 text-sm font-semibold;
+    border: 1px solid rgba(47, 111, 104, 0.25);
+    background: rgba(47, 111, 104, 0.08);
+    color: #1c4944;
   }
 
   .auth-role-pill-icon {
     @apply h-4 w-4;
-    color: rgba(43, 43, 43, 0.7);
+    color: #2f6f68;
   }
 
   .auth-banner {
