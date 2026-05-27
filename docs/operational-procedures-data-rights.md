@@ -75,7 +75,14 @@ El cron interno (`DataRequestSlaService.markExpiredRequests`) corre cada hora y 
 1. Verificar identidad rápidamente (plazo del responsable: **2 días hábiles**).
 2. Setear `Patient.blockedAt = now()` + `blockedReason` desde la admin UI.
 3. El `PatientNotBlockedGuard` impedirá nuevas mutaciones clínicas mientras el bloqueo esté activo.
-4. Una vez resuelta la causa que motivó el bloqueo (típicamente otra solicitud), levantar el bloqueo seteando `blockedAt = null`.
+4. Durante el bloqueo, permitir sólo excepciones admin/regulatorias:
+   revisión de solicitudes de derechos, evidencia administrativa,
+   export regulatorio, rectificaciones estrictamente necesarias para
+   resolver la solicitud, auditoría/verificación de integridad,
+   conservación/custodia y respuesta a autoridad competente.
+5. Registrar cada excepción en `AuditLog` con motivo, usuario, paciente,
+   solicitud asociada cuando exista y alcance exacto de la acción.
+6. Una vez resuelta la causa que motivó el bloqueo (típicamente otra solicitud), levantar el bloqueo seteando `blockedAt = null`.
 
 ## 4. Verificación de identidad
 

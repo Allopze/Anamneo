@@ -12,10 +12,9 @@ Archivos productivos por encima del umbral recomendado de 300 lineas. No quedan 
 
 | Prioridad | Lineas | Archivo | Split sugerido |
 | --- | ---: | --- | --- |
-| P1 | 490 | `frontend/src/components/PatientDataProcessingConsents.tsx` | formulario/captura, historial, estado legal y helpers de evidencia |
-| P1 | 484 | `frontend/src/app/(dashboard)/pacientes/[id]/page.tsx` | layout de ficha, acciones/exportes, secciones legales/clinicas |
+| P1 | 462 | `frontend/src/app/register/page.tsx` | pasos, validacion, llamadas API, estado del wizard; `RegisterPasswordFields` ya extraido |
+| P1 | 431 | `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts` | persistencia local/remota, rehidratacion y eventos de estado |
 | P2 | 476 | `backend/src/patient-portal/patient-portal.service.ts` | auth portal, solicitudes, descargas y consentimiento; auditoria ya extraida |
-| P2 | 462 | `frontend/src/app/register/page.tsx` | pasos, validacion, llamadas API, estado del wizard; `RegisterPasswordFields` ya extraido |
 | P2 | 460 | `backend/src/patients/patients-merge-mutation.helpers.ts` | validaciones/merge de identificadores, auditoria y payloads |
 | P2 | 450 | `frontend/src/app/(dashboard)/pacientes/page.tsx` | filtros, tabla/lista, acciones y estados vacios |
 | P2 | 447 | `frontend/src/app/(dashboard)/atenciones/page.tsx` | filtros/lista, acciones y componentes de estado |
@@ -91,7 +90,7 @@ Archivos productivos por encima del umbral recomendado de 300 lineas. No quedan 
 - [x] frontend/src/app/(dashboard)/agenda/page.tsx (bajo de 500; modales y tipos extraidos, pendiente seguir bajando hacia 300)
 - [x] frontend/src/app/(dashboard)/page.tsx
 - [ ] frontend/src/app/(dashboard)/pacientes/[id]/editar/EditarPacienteFormSections.tsx
-- [ ] frontend/src/app/(dashboard)/pacientes/[id]/page.tsx
+- [x] frontend/src/app/(dashboard)/pacientes/[id]/page.tsx (bajo a 123; header/acciones extraidos a `PatientDetailHeader`, columna lateral a `PatientDetailSidebar`)
 - [ ] frontend/src/app/(dashboard)/pacientes/[id]/usePatientDetail.tsx
 - [ ] frontend/src/app/(dashboard)/pacientes/nuevo/page.tsx
 - [ ] frontend/src/app/(dashboard)/pacientes/page.tsx
@@ -99,6 +98,7 @@ Archivos productivos por encima del umbral recomendado de 300 lineas. No quedan 
 - [ ] frontend/src/app/login/page.tsx
 - [ ] frontend/src/app/register/page.tsx (bajo de 500; pendiente seguir bajando hacia 300)
 - [x] frontend/src/components/EncounterDrawer.tsx
+- [x] frontend/src/components/PatientDataProcessingConsents.tsx (bajo a 208; formulario, historial, modal de revocacion y constantes/tipos extraidos)
 - [x] frontend/src/components/layout/DashboardLayout.tsx
 - [x] frontend/src/components/layout/DashboardSidebar.tsx
 - [ ] frontend/src/components/sections/RespuestaTratamientoSection.tsx

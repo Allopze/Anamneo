@@ -204,6 +204,22 @@ está aplicado en las superficies clínicas principales (`encounters` y
 con razón obligatoria. Nuevas mutaciones clínicas deben incorporar el guard
 antes de salir a producción.
 
+Politica de producto durante bloqueo:
+
+- **Bloqueado:** crear/editar atenciones, adjuntos, antecedentes,
+  alertas, problemas, seguimientos, consentimientos clinicos y cualquier
+  otra mutacion asistencial ordinaria.
+- **Permitido para admin/DPO:** revisar solicitudes de derechos,
+  registrar evidencia administrativa del caso, export regulatorio,
+  correcciones estrictamente necesarias para resolver rectificacion,
+  levantamiento del bloqueo y auditoria/verificacion de integridad.
+- **Permitido por obligacion sanitaria/regulatoria:** conservacion,
+  custodia, trazabilidad, respuesta a autoridad competente y medidas
+  necesarias para formular, ejercer o defender reclamaciones.
+- **Regla de minima intervencion:** toda excepcion debe quedar registrada
+  en `AuditLog` con motivo, usuario, paciente, solicitud asociada cuando
+  exista y alcance exacto de la accion.
+
 ### 5.6 Portabilidad (Art 9)
 
 Entregar el archivo JSON+adjuntos generado por el procedimiento §5.1.
