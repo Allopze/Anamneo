@@ -8,27 +8,32 @@ Convención:
 
 ## Snapshot prioritario 2026-05-26
 
-Archivos productivos por encima del umbral recomendado de 300 lineas. No quedan archivos productivos de `backend/src`, `frontend/src` o `shared` sobre 500 lineas en este snapshot; quedan tests frontend heredados sobre 500 listados mas abajo como deuda separada.
+Archivos productivos por encima del umbral recomendado de 300 lineas. No quedan archivos productivos de `backend/src`, `frontend/src` o `shared` sobre 500 lineas en este snapshot; quedan tests heredados sobre 500 listados mas abajo como deuda separada.
 
 | Prioridad | Lineas | Archivo | Split sugerido |
 | --- | ---: | --- | --- |
-| P2 | 478 | `backend/src/audit/audit.service.ts` | retencion/consultas restantes; integridad ya extraida a `audit-integrity.ts` |
-| P2 | 475 | `backend/src/mail/mail.service.ts` | seguir bajando hacia 300; templates extraidos a helpers |
-| P2 | 464 | `backend/src/legal/legal.service.ts` | seguir bajando hacia 300; helpers internos extraidos |
+| P1 | 490 | `frontend/src/components/PatientDataProcessingConsents.tsx` | formulario/captura, historial, estado legal y helpers de evidencia |
+| P1 | 484 | `frontend/src/app/(dashboard)/pacientes/[id]/page.tsx` | layout de ficha, acciones/exportes, secciones legales/clinicas |
+| P2 | 476 | `backend/src/patient-portal/patient-portal.service.ts` | auth portal, solicitudes, descargas y consentimiento; auditoria ya extraida |
 | P2 | 462 | `frontend/src/app/register/page.tsx` | pasos, validacion, llamadas API, estado del wizard; `RegisterPasswordFields` ya extraido |
-| P2 | ~270 | `frontend/src/app/(dashboard)/pacientes/nuevo/page.tsx` | forma + draft hook extraido a `usePatientFormDraft.ts`; pendiente split de secciones |
-| P2 | 489 | `frontend/src/app/(dashboard)/ajustes/ProfileSecurityTab.tsx` | perfil, seguridad, sesiones, privacidad local |
-| P2 | 471 | `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts` | reducer/maquina de estados de guardado |
-| P2 | 466 | `backend/src/patient-portal/patient-portal.service.ts` | auth portal, solicitudes, descargas, consentimiento |
-| P2 | 478 | `frontend/src/app/(dashboard)/pacientes/[id]/page.tsx` | estado legal, resumen clinico, acciones/exportes; `PatientLegalStatusSummary` ya extraido |
-| P2 | 353 | `frontend/src/app/(dashboard)/ajustes/SystemTab.tsx` | seguir partiendo paneles de sistema; mantenimiento y secciones ya extraidos |
+| P2 | 460 | `backend/src/patients/patients-merge-mutation.helpers.ts` | validaciones/merge de identificadores, auditoria y payloads |
+| P2 | 450 | `frontend/src/app/(dashboard)/pacientes/page.tsx` | filtros, tabla/lista, acciones y estados vacios |
+| P2 | 447 | `frontend/src/app/(dashboard)/atenciones/page.tsx` | filtros/lista, acciones y componentes de estado |
+| P2 | 445 | `frontend/src/app/(dashboard)/pacientes/[id]/editar/EditarPacienteFormSections.tsx` | secciones demograficas, contacto, representante, validaciones |
+| P2 | 445 | `frontend/src/app/(dashboard)/admin/solicitudes/page.tsx` | filtros, detalle, acciones y estados DSAR |
+| P2 | 442 | `frontend/src/app/login/LoginClient.tsx` | credenciales, 2FA, reset y errores |
+| P2 | 389 | `backend/src/legal/legal.service.ts` | seguir bajando hacia 300; helpers internos extraidos |
+| P2 | 387 | `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts` | reducer/maquina de estados de guardado |
+| P2 | 378 | `backend/src/mail/mail.service.ts` | seguir bajando hacia 300; templates extraidos a helpers |
+| P2 | 376 | `frontend/src/app/(dashboard)/agenda/page.tsx` | grid semanal y queries; modales/tipos ya extraidos |
+| P2 | 311 | `backend/src/audit/audit.service.ts` | retencion/consultas restantes; integridad ya extraida a `audit-integrity.ts` |
 
 ## Backend
 
 - [x] backend/src/audit/audit.service.ts (bajo de 500; integridad extraida a `audit-integrity.ts`, pendiente seguir bajando hacia 300)
 - [x] backend/src/legal/legal.service.ts (bajo de 500; helpers extraidos a `legal-service-helpers.ts`, pendiente seguir bajando hacia 300)
 - [x] backend/src/mail/mail.service.ts (bajo de 500; templates extraidos a `mail-auth-templates.ts` y `mail-notification-templates.ts`, pendiente seguir bajando hacia 300)
-- [ ] backend/src/patient-portal/patient-portal.service.ts
+- [x] backend/src/patient-portal/patient-portal.service.ts (bajo de 500; auditoria portal extraida a `patient-portal-audit-log.service.ts`, pendiente seguir bajando hacia 300)
 - [x] backend/src/alerts/alerts.service.ts
 - [x] backend/src/analytics/clinical-analytics-summary.ts
 - [x] backend/src/analytics/clinical-analytics.helpers.spec.ts
@@ -83,6 +88,7 @@ Archivos productivos por encima del umbral recomendado de 300 lineas. No quedan 
 - [ ] frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts
 - [ ] frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizardDerived.ts
 - [ ] frontend/src/app/(dashboard)/atenciones/page.tsx
+- [x] frontend/src/app/(dashboard)/agenda/page.tsx (bajo de 500; modales y tipos extraidos, pendiente seguir bajando hacia 300)
 - [x] frontend/src/app/(dashboard)/page.tsx
 - [ ] frontend/src/app/(dashboard)/pacientes/[id]/editar/EditarPacienteFormSections.tsx
 - [ ] frontend/src/app/(dashboard)/pacientes/[id]/page.tsx

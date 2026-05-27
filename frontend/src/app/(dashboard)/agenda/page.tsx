@@ -12,80 +12,29 @@ import {
   addDays,
   isSameDay,
   parseISO,
-  setHours,
-  setMinutes,
   differenceInMinutes,
 } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { FiChevronLeft, FiChevronRight, FiPlus, FiX, FiCalendar } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiPlus } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthUser } from '@/stores/auth-store';
 import toast from 'react-hot-toast';
-
-const HOUR_START = 8;
-const HOUR_END = 20;
-const SLOT_MINUTES = 30;
-const SLOTS_PER_HOUR = 60 / SLOT_MINUTES;
-const TOTAL_SLOTS = (HOUR_END - HOUR_START) * SLOTS_PER_HOUR;
-const SLOT_HEIGHT_PX = 48;
-
-type AppointmentStatus = 'PROGRAMADA' | 'CONFIRMADA' | 'NO_SHOW' | 'ATENDIDA' | 'CANCELADA';
-
-interface Appointment {
-  id: string;
-  medicoId: string;
-  patientId: string | null;
-  startAt: string;
-  endAt: string;
-  status: AppointmentStatus;
-  title: string | null;
-  notes: string | null;
-  patient: { id: string; nombre: string | null; rut?: string | null } | null;
-}
-
-interface PatientSearchResult {
-  id: string;
-  nombre: string;
-  rut?: string | null;
-  rutExempt?: boolean;
-  rutExemptReason?: string | null;
-}
-
-const STATUS_COLORS: Record<AppointmentStatus, string> = {
-  PROGRAMADA: 'bg-accent/20 border-accent/40 text-accent-text',
-  CONFIRMADA: 'bg-status-green/20 border-status-green/40 text-status-green-text',
-  NO_SHOW:    'bg-status-red/15 border-status-red/30 text-status-red',
-  ATENDIDA:   'bg-surface-muted/50 border-surface-muted text-ink-muted',
-  CANCELADA:  'bg-surface-muted/30 border-surface-muted/50 text-ink-muted line-through',
-};
-
-const STATUS_LABELS: Record<AppointmentStatus, string> = {
-  PROGRAMADA: 'Programada',
-  CONFIRMADA: 'Confirmada',
-  NO_SHOW: 'No asistió',
-  ATENDIDA: 'Atendida',
-  CANCELADA: 'Cancelada',
-};
-
-interface AppointmentForm {
-  patientName: string;
-  startDate: string;
-  startTime: string;
-  endTime: string;
-  title: string;
-  notes: string;
-  status: AppointmentStatus;
-}
-
-const DEFAULT_FORM: AppointmentForm = {
-  patientName: '',
-  startDate: format(new Date(), 'yyyy-MM-dd'),
-  startTime: '09:00',
-  endTime: '09:30',
-  title: '',
-  notes: '',
-  status: 'PROGRAMADA',
-};
+import {
+  DEFAULT_FORM,
+  HOUR_START,
+  HOUR_END,
+  SLOT_HEIGHT_PX,
+  SLOT_MINUTES,
+  SLOTS_PER_HOUR,
+  STATUS_COLORS,
+  TOTAL_SLOTS,
+  type Appointment,
+  type AppointmentForm,
+  type AppointmentStatus,
+  type PatientSearchResult,
+} from './agenda-types';
+import { CreateAppointmentModal } from './AgendaCreateModal';
+import { AppointmentDetailModal } from './AgendaDetailModal';
 
 export default function AgendaPage() {
   const router = useRouter();
@@ -393,220 +342,34 @@ export default function AgendaPage() {
         )}
       </div>
 
-      {/* Create form modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-card border border-surface-muted/40 bg-surface-elevated p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-bold text-ink">Nueva cita</h2>
-              <button type="button" onClick={() => setShowForm(false)} className="rounded p-1 hover:bg-surface-muted/30">
-                <FiX className="h-4 w-4 text-ink-muted" />
-              </button>
-            </div>
-            <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }} className="space-y-3">
-              <div>
-                <label className="form-label text-xs">Paciente (opcional)</label>
-                <input
-                  value={selectedPatient ? selectedPatient.nombre : patientSearch}
-                  onChange={(e) => {
-                    setSelectedPatient(null);
-                    setPatientSearch(e.target.value);
-                  }}
-                  className="form-input mt-0.5"
-                  placeholder="Buscar por nombre o RUT"
-                />
-                {selectedPatient && (
-                  <p className="mt-1 text-xs text-ink-muted">
-                    Vinculado a {selectedPatient.nombre}
-                    {selectedPatient.rut ? ` · ${selectedPatient.rut}` : ''}
-                  </p>
-                )}
-                {!selectedPatient && normalizedPatientSearch.length >= 2 && (
-                  <div className="mt-1 max-h-36 overflow-y-auto rounded-input border border-surface-muted/30 bg-surface-base text-sm">
-                    {isSearchingPatients ? (
-                      <p className="px-3 py-2 text-xs text-ink-muted">Buscando pacientes…</p>
-                    ) : patientOptions.length === 0 ? (
-                      <p className="px-3 py-2 text-xs text-ink-muted">Sin coincidencias</p>
-                    ) : patientOptions.map((patient) => (
-                      <button
-                        key={patient.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedPatient(patient);
-                          setPatientSearch(patient.nombre);
-                        }}
-                        className="block w-full px-3 py-2 text-left hover:bg-surface-muted/30"
-                      >
-                        <span className="block font-medium text-ink">{patient.nombre}</span>
-                        <span className="text-xs text-ink-muted">
-                          {patient.rut || (patient.rutExempt ? `Sin RUT: ${patient.rutExemptReason || 'exento'}` : 'RUT pendiente')}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="form-label text-xs">Fecha</label>
-                <input
-                  type="date"
-                  value={form.startDate}
-                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                  className="form-input mt-0.5"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="form-label text-xs">Hora inicio</label>
-                  <input
-                    type="time"
-                    value={form.startTime}
-                    onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-                    className="form-input mt-0.5"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="form-label text-xs">Hora fin</label>
-                  <input
-                    type="time"
-                    value={form.endTime}
-                    onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-                    className="form-input mt-0.5"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="form-label text-xs">Título / motivo (opcional)</label>
-                <input
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className="form-input mt-0.5"
-                  placeholder="Ej: Consulta de control, Procedimiento…"
-                  maxLength={200}
-                />
-              </div>
-              <div>
-                <label className="form-label text-xs">Notas (opcional)</label>
-                <textarea
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  className="form-input mt-0.5 resize-none"
-                  rows={2}
-                  placeholder="Observaciones adicionales"
-                  maxLength={1000}
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary text-sm">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={createMutation.isPending} className="btn btn-primary text-sm">
-                  {createMutation.isPending ? 'Creando…' : 'Crear cita'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <CreateAppointmentModal
+          form={form}
+          setForm={setForm}
+          selectedPatient={selectedPatient}
+          setSelectedPatient={setSelectedPatient}
+          patientSearch={patientSearch}
+          setPatientSearch={setPatientSearch}
+          normalizedPatientSearch={normalizedPatientSearch}
+          patientOptions={patientOptions}
+          isSearchingPatients={isSearchingPatients}
+          isCreating={createMutation.isPending}
+          onClose={() => setShowForm(false)}
+          onSubmit={() => createMutation.mutate()}
+        />
       )}
 
-      {/* Appointment detail modal */}
       {selectedAppt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-sm rounded-card border border-surface-muted/40 bg-surface-elevated p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FiCalendar className="h-4 w-4 text-ink-muted" />
-                <h2 className="text-base font-bold text-ink">Detalle de cita</h2>
-              </div>
-              <button type="button" onClick={() => setSelectedAppt(null)} className="rounded p-1 hover:bg-surface-muted/30">
-                <FiX className="h-4 w-4 text-ink-muted" />
-              </button>
-            </div>
-
-            <dl className="space-y-2 text-sm">
-              <div>
-                <dt className="text-xs text-ink-muted">Fecha y hora</dt>
-                <dd className="font-medium">
-                  {format(parseISO(selectedAppt.startAt), "EEEE d 'de' MMMM, HH:mm", { locale: es })} –{' '}
-                  {format(parseISO(selectedAppt.endAt), 'HH:mm')}
-                </dd>
-              </div>
-              {selectedAppt.title && (
-                <div>
-                  <dt className="text-xs text-ink-muted">Motivo</dt>
-                  <dd className="font-medium">{selectedAppt.title}</dd>
-                </div>
-              )}
-              {selectedAppt.patient && (
-                <div>
-                  <dt className="text-xs text-ink-muted">Paciente</dt>
-                  <dd className="font-medium">
-                    {selectedAppt.patient.nombre}
-                    {selectedAppt.patient.rut ? ` · ${selectedAppt.patient.rut}` : ''}
-                  </dd>
-                </div>
-              )}
-              <div>
-                <dt className="text-xs text-ink-muted">Estado</dt>
-                <dd>
-                  <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_COLORS[selectedAppt.status] ?? ''}`}>
-                    {STATUS_LABELS[selectedAppt.status] ?? selectedAppt.status}
-                  </span>
-                </dd>
-              </div>
-              {selectedAppt.notes && (
-                <div>
-                  <dt className="text-xs text-ink-muted">Notas</dt>
-                  <dd>{selectedAppt.notes}</dd>
-                </div>
-              )}
-            </dl>
-
-            {selectedAppt.status !== 'CANCELADA' && selectedAppt.status !== 'ATENDIDA' && (
-              <div className="mt-5 space-y-2">
-                <p className="text-xs font-medium text-ink-muted">Cambiar estado:</p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedAppt.patientId && (
-                    <button
-                      type="button"
-                      onClick={() => attendMutation.mutate(selectedAppt)}
-                      disabled={attendMutation.isPending}
-                      className="rounded-full border border-accent/40 bg-accent px-2.5 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-80 disabled:opacity-50"
-                    >
-                      {attendMutation.isPending ? 'Abriendo…' : 'Atender'}
-                    </button>
-                  )}
-                  {(['PROGRAMADA', 'CONFIRMADA', 'NO_SHOW', 'ATENDIDA'] as AppointmentStatus[])
-                    .filter((s) => s !== selectedAppt.status)
-                    .map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => updateMutation.mutate({ id: selectedAppt.id, status: s })}
-                        disabled={updateMutation.isPending}
-                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50 ${STATUS_COLORS[s]}`}
-                      >
-                        {STATUS_LABELS[s]}
-                      </button>
-                    ))}
-                </div>
-                <div className="mt-3 border-t border-surface-muted/30 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => cancelMutation.mutate(selectedAppt.id)}
-                    disabled={cancelMutation.isPending}
-                    className="text-xs text-status-red hover:underline disabled:opacity-50"
-                  >
-                    {cancelMutation.isPending ? 'Cancelando…' : 'Cancelar cita'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <AppointmentDetailModal
+          selectedAppt={selectedAppt}
+          isUpdating={updateMutation.isPending}
+          isAttending={attendMutation.isPending}
+          isCanceling={cancelMutation.isPending}
+          onClose={() => setSelectedAppt(null)}
+          onAttend={(appointment) => attendMutation.mutate(appointment)}
+          onUpdateStatus={(payload) => updateMutation.mutate(payload)}
+          onCancel={(id) => cancelMutation.mutate(id)}
+        />
       )}
     </div>
   );

@@ -6,6 +6,7 @@ import { AuditModule } from '../audit/audit.module';
 import { MailModule } from '../mail/mail.module';
 import { EncountersModule } from '../encounters/encounters.module';
 import { PatientPortalController } from './patient-portal.controller';
+import { PatientPortalAuditLogService } from './patient-portal-audit-log.service';
 import { PatientPortalService } from './patient-portal.service';
 import { PatientPortalAuthGuard } from './patient-portal-auth.guard';
 
@@ -26,7 +27,7 @@ import { PatientPortalAuthGuard } from './patient-portal-auth.guard';
     }),
   ],
   controllers: [PatientPortalController],
-  providers: [PatientPortalService, PatientPortalAuthGuard],
+  providers: [PatientPortalService, PatientPortalAuditLogService, PatientPortalAuthGuard],
   exports: [PatientPortalService],
 })
 export class PatientPortalModule {}

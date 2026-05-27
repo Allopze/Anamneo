@@ -24,6 +24,7 @@ import {
   PortalRequestPasswordResetDto,
   PortalResetPasswordDto,
 } from './dto/patient-portal.dto';
+import { PatientPortalAuditLogService } from './patient-portal-audit-log.service';
 import type { PatientPortalJwtPayload, PatientPortalRequestUser } from './patient-portal.types';
 
 const PORTAL_ACTIVATION_TTL_HOURS = 7 * 24;
@@ -47,6 +48,7 @@ export class PatientPortalService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly encountersPdf: EncountersPdfService,
+    private readonly portalAuditLog: PatientPortalAuditLogService,
   ) {}
 
   async invitePatient(patientId: string, dto: PortalInviteDto, admin: CurrentUserData) {
@@ -446,98 +448,11 @@ export class PatientPortalService {
   }
 
   async getAuditLog(portalUser: PatientPortalRequestUser, page: number, pageSize = 30) {
-    const patientId = portalUser.patientId;
-    const skip = (page - 1) * pageSize;
-
-    const encounterIds = await this.prisma.encounter.findMany({
-      where: { patientId },
-      select: { id: true },
-    }).then((rows) => rows.map((r) => r.id));
-
-    const relevantEntityTypes = [
-      'Patient', 'PatientHistory', 'PatientAllergy',
-      'ClinicalConsent', 'PatientDataProcessingConsent',
-      'PatientDataRequest', 'Attachment',
-    ];
-
-    const [logs, total] = await Promise.all([
-      this.prisma.auditLog.findMany({
-        where: {
-          OR: [
-            { entityType: { in: relevantEntityTypes }, entityId: patientId },
-            { entityType: 'Encounter', entityId: { in: encounterIds } },
-          ],
-        },
-        orderBy: { timestamp: 'desc' },
-        take: pageSize,
-        skip,
-        select: {
-          id: true,
-          entityType: true,
-          entityId: true,
-          action: true,
-          reason: true,
-          result: true,
-          timestamp: true,
-          userId: true,
-        },
-      }),
-      this.prisma.auditLog.count({
-        where: {
-          OR: [
-            { entityType: { in: relevantEntityTypes }, entityId: patientId },
-            { entityType: 'Encounter', entityId: { in: encounterIds } },
-          ],
-        },
-      }),
-    ]);
-
-    const userIds = [...new Set(logs.map((l) => l.userId))];
-    const users = await this.prisma.user.findMany({
-      where: { id: { in: userIds } },
-      select: { id: true, nombre: true, role: true },
-    });
-    const userMap = new Map(users.map((u) => [u.id, u]));
-
-    const enriched = logs.map((log) => {
-      const actor = userMap.get(log.userId);
-      const initials = actor
-        ? actor.nombre.split(' ').slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('')
-        : '?';
-      return {
-        id: log.id,
-        entityType: log.entityType,
-        action: log.action,
-        reason: log.reason,
-        result: log.result,
-        timestamp: log.timestamp,
-        actorRole: actor?.role ?? 'DESCONOCIDO',
-        actorInitials: initials,
-      };
-    });
-
-    return { items: enriched, total, page, pageSize };
+    return this.portalAuditLog.getAuditLog(portalUser, page, pageSize);
   }
 
   async exportAuditLogCsv(portalUser: PatientPortalRequestUser) {
-    const { items } = await this.getAuditLog(portalUser, 1, 1000);
-    const csvCell = (value: unknown) => {
-      const text = String(value ?? '');
-      return `"${text.replace(/"/g, '""')}"`;
-    };
-    const rows = [
-      ['fecha_hora', 'seccion', 'accion', 'motivo', 'resultado', 'rol_actor', 'iniciales_actor'],
-      ...items.map((item) => [
-        item.timestamp.toISOString(),
-        item.entityType,
-        item.action,
-        item.reason ?? '',
-        item.result,
-        item.actorRole,
-        item.actorInitials,
-      ]),
-    ];
-    return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+    return this.portalAuditLog.exportAuditLogCsv(portalUser);
   }
 
   private buildPortalUrl(pathname: string) {

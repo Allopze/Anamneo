@@ -6,7 +6,7 @@ Metodo: revision estatica profunda de documentacion, rutas, componentes, stores,
 
 ## Estado de remediacion
 
-Actualizacion: 2026-05-24.
+Actualizacion: 2026-05-24. Revision contrastada con codigo y remediacion adicional: 2026-05-26.
 
 Correcciones aplicadas en esta ronda:
 
@@ -44,6 +44,10 @@ Correcciones aplicadas en esta ronda:
 - Agregado caveat de cohorte pequena en analitica clinica cuando el filtro devuelve menos de 10 pacientes.
 - Actualizado `docs/technical-debt/files-over-300-lines.md` con snapshot priorizado de archivos grandes.
 - Relajado el throttling de endpoints sensibles solo en `NODE_ENV=test` para evitar falsos `429` durante Playwright; limites productivos se mantienen.
+- Contrastado el estado de la auditoria contra el codigo actual: `patient-consents`, `PatientNotBlockedGuard`, CSP/Sentry, dictado, PHI local cifrada, columnas plaintext legacy y guardrails estaticos estan implementados.
+- Reducido `backend/src/patient-portal/patient-portal.service.ts` bajo el limite duro de 500 lineas extrayendo `PatientPortalAuditLogService`.
+- Reducido `frontend/src/app/(dashboard)/agenda/page.tsx` bajo el limite duro de 500 lineas extrayendo modales de creacion/detalle y tipos/constantes de agenda.
+- Actualizado el backlog de archivos grandes con conteo real post-refactor.
 
 Validaciones ejecutadas:
 
@@ -75,6 +79,8 @@ Validaciones ejecutadas:
 - `npm --prefix frontend run test:e2e -- accessibility.spec.ts` (6 tests pass)
 - `npm --prefix frontend run test:e2e` (20 tests pass)
 - `PLAYWRIGHT_DATABASE_URL=postgresql://postgres:***@localhost:5432/anamneo_playwright_headers?... npm --prefix frontend run test:e2e:security-headers` (1 test pass)
+- `npm --prefix backend run typecheck` (post-refactor portal paciente)
+- `npm --prefix frontend run typecheck` (post-refactor agenda)
 
 Pendiente fuera del alcance de esta ronda, por requerir validacion externa, migracion operativa o nueva funcionalidad:
 
@@ -83,7 +89,7 @@ Pendiente fuera del alcance de esta ronda, por requerir validacion externa, migr
 - Revalidacion de politica de PHI local si Anamneo pasa de uso personal/controlado a uso clinico real con equipos compartidos.
 - Validacion staging del modo `NEXT_PUBLIC_STRICT_CSP=true`; el soporte opt-in ya existe, pero no debe activarse por defecto sin smoke real.
 - Despliegue operativo de las migraciones destructivas en staging/produccion con el mismo checklist de backup, backfill, verificacion SQL y rollback ya probado en local.
-- Refactor estructural de archivos grandes restantes; `register/page.tsx` y `audit.service.ts` estan bajo 500 lineas, pero legal/mail y otras pantallas siguen en backlog.
+- Refactor estructural de archivos grandes restantes hacia el umbral recomendado de 300 lineas. En el snapshot 2026-05-26 no quedan archivos productivos de `backend/src`, `frontend/src` o `shared` sobre 500 lineas; si quedan varios archivos productivos entre 300 y 500, y tests heredados sobre 500.
 
 ## Resumen ejecutivo
 
@@ -245,35 +251,35 @@ Recomendacion concreta:
 - Reducir TTL o hacerlo configurable por organizacion.
 - Purgar drafts al expirar sesion, cambiar usuario o cerrar atencion.
 
-### 6. Archivos core superan el limite de mantenibilidad del repo
+### 6. Archivos core sobre el umbral recomendado de mantenibilidad
 
 Modulo afectado: legal, mail, audit, registro y flujos clinicos frontend.  
-Archivos principales:
+Archivos principales post-remediacion local 2026-05-26:
 
 | Archivo | Lineas |
 | --- | ---: |
-| `backend/src/legal/legal.service.ts` | 746 |
-| `backend/src/mail/mail.service.ts` | 739 |
-| `backend/src/audit/audit.service.ts` | 478 |
+| `frontend/src/components/PatientDataProcessingConsents.tsx` | 490 |
+| `frontend/src/app/(dashboard)/pacientes/[id]/page.tsx` | 484 |
+| `backend/src/patient-portal/patient-portal.service.ts` | 476 |
 | `frontend/src/app/register/page.tsx` | 462 |
-| `frontend/src/app/(dashboard)/pacientes/nuevo/page.tsx` | 493 |
-| `frontend/src/app/(dashboard)/ajustes/ProfileSecurityTab.tsx` | 489 |
-| `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts` | 471 |
-| `backend/src/patient-portal/patient-portal.service.ts` | 466 |
-| `frontend/src/app/(dashboard)/pacientes/[id]/page.tsx` | 465 |
+| `backend/src/patients/patients-merge-mutation.helpers.ts` | 460 |
+| `frontend/src/app/(dashboard)/pacientes/page.tsx` | 450 |
+| `frontend/src/app/(dashboard)/atenciones/page.tsx` | 447 |
+| `frontend/src/app/(dashboard)/pacientes/[id]/editar/EditarPacienteFormSections.tsx` | 445 |
+| `frontend/src/app/(dashboard)/admin/solicitudes/page.tsx` | 445 |
+| `frontend/src/app/login/LoginClient.tsx` | 442 |
 
-Problema: varios archivos manuales superan el umbral recomendado de 300 lineas y `legal.service.ts`/`mail.service.ts` siguen superando el limite duro de 500 mencionado en `AGENTS.md`. `register/page.tsx` y `audit.service.ts` ya bajaron del limite duro, pero continuan siendo candidatos a seguir separando hooks/componentes o casos de uso.
+Problema: ya no quedan archivos productivos de `backend/src`, `frontend/src` o `shared` sobre el limite duro de 500 lineas, pero varios archivos manuales siguen sobre el umbral recomendado de 300. Los casos que estaban sobre 500 durante la revision (`legal.service.ts`, `mail.service.ts`, portal paciente y agenda) fueron reducidos o ya estaban reducidos al contrastar con codigo actual. Persisten tests heredados sobre 500 lineas como deuda separada.
 
 Impacto: mayor riesgo de cambios inseguros en modulos de alto impacto: legal, auditoria, emails, registro, detalle de paciente y autosave de atenciones.
 
-Severidad: alta para mantenibilidad; media-alta para riesgo de bugs.
+Severidad residual: media para mantenibilidad; media-alta en pantallas/flujos clinicos o legales que concentran muchas decisiones.
 
 Recomendacion concreta:
 
-- Dividir `legal.service.ts` en publicacion/versionado, aceptacion, lectura publica y utilidades de difusion.
-- Dividir `mail.service.ts` en SMTP/renderer/templates por dominio.
-- Continuar reduciendo `audit.service.ts`; la cadena hash/verificacion ya fue extraida a `audit-integrity.ts`.
-- Extraer `register/page.tsx` a componentes y hooks de pasos.
+- Seguir bajando archivos productivos hacia 300 lineas con extracciones por caso de uso, no por estetica.
+- Priorizar `PatientDataProcessingConsents`, detalle de paciente, portal paciente, registro y hooks de atencion.
+- Mantener `legal.service.ts`, `mail.service.ts`, `audit.service.ts`, portal paciente y agenda fuera del limite duro de 500 con guardrail periodico.
 - Actualizar el documento de deuda tecnica y convertirlo en backlog con owners.
 
 ### 7. Columnas plaintext sensibles eliminadas localmente; pendiente despliegue operativo
@@ -642,7 +648,7 @@ Deuda o riesgos:
 | --- | --- | --- |
 | `patient-consents` sin scope de paciente | Cerrado con guard, scope service y e2e de aislamiento | Cerrado |
 | Bloqueo temporal no uniforme | Cerrado para matriz tecnica prioritaria; falta definicion fina admin/regulatoria | P1 producto |
-| Servicios legal/mail enormes; audit aun grande pero bajo 500 | Mantenibilidad y errores en cambios | P1 |
+| Archivos productivos entre 300 y 500 lineas | Mantenibilidad y errores en cambios; sin incumplimiento del limite duro post-refactor | P2 |
 | Campos plaintext legacy | Drops destructivos aplicados localmente; pendiente rollout staging/prod con checklist | P1 operativo |
 | Estados clinicos como strings dispersos | Bugs por valores invalidos | P2 |
 | Reglas legales repartidas | Mitigado con `legalStatus` compartido para bloqueo, consentimiento, evidencia/version legal y DSAR activas navegables; faltan excepciones admin/regulatorias completas | P2 |
@@ -650,7 +656,7 @@ Deuda o riesgos:
 Refactors priorizados:
 
 1. Ampliar la capa de politica de paciente iniciada con `legalStatus`: excepciones regulatorias/admin y permisos de mutacion.
-2. Dividir servicios >500 lineas en servicios de caso de uso.
+2. Seguir dividiendo archivos productivos >300 lineas en casos de uso/componentes acotados.
 3. Desplegar migraciones de eliminacion de plaintext legacy en staging/produccion.
 4. Tipar estados clinicos con enums o contratos compartidos mas estrictos.
 5. Agregar tests de autorizacion por dominio, no solo tests felices de flujo.
@@ -743,12 +749,13 @@ Pruebas recomendadas:
 5. Cerrado para contexto actual: decision de PHI local documentada y aplicada con recuperacion tras cierre de navegador.
 6. Cerrado parcial: estado legal compartido expuesto en ficha de paciente con bloqueo, consentimiento de tratamiento, evidencia/version legal y solicitudes DSAR activas navegables.
 7. Cerrado local: drops destructivos de plaintext legacy aplicados tras backup/backfill/verificacion y guardrail `audit:legacy-plaintext` actualizado para evitar regresiones.
+8. Cerrado local: `patient-portal.service.ts` y `agenda/page.tsx` quedaron bajo 500 lineas mediante extracciones focalizadas.
 
 ### 1 a 2 semanas
 
 1. Completar politica central de paciente sobre el `legalStatus` compartido: excepciones regulatorias/admin y permisos de mutacion por caso regulatorio.
 2. Ejecutar migraciones destructivas de columnas plaintext en staging/produccion con checklist operativo.
-3. Refactorizar `legal.service.ts`, `mail.service.ts` y continuar bajando `audit.service.ts` hacia 300 lineas.
+3. Continuar bajando archivos productivos >300 lineas hacia componentes/casos de uso mas pequenos, priorizando consentimientos de datos, detalle de paciente, registro y persistencia de atencion.
 4. Rehacer componentes legales de ficha paciente con sistema visual consistente.
 5. Revalidar la politica de almacenamiento local de PHI solo si Anamneo pasa a uso clinico real, multiusuario o equipos compartidos.
 
