@@ -2,6 +2,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RequestUser } from '../common/utils/medico-id';
 import { buildEncounterTaskScopeWhere, buildPatientProblemScopeWhere } from '../common/utils/patient-access';
 import { buildClinicalSummary, formatEncounterTimelineItem } from './patients-format';
+import type { EncounterSectionConfig } from '../../../shared/encounter-section-config';
 
 interface EncounterTimelineParams {
   prisma: PrismaService;
@@ -9,10 +10,11 @@ interface EncounterTimelineParams {
   effectiveMedicoId: string;
   page: number;
   limit: number;
+  sectionConfig?: EncounterSectionConfig;
 }
 
 export async function getEncounterTimelineReadModel(params: EncounterTimelineParams) {
-  const { prisma, patientId, effectiveMedicoId, page, limit } = params;
+  const { prisma, patientId, effectiveMedicoId, page, limit, sectionConfig } = params;
   const skip = (page - 1) * limit;
   const where = {
     patientId,
@@ -64,7 +66,7 @@ export async function getEncounterTimelineReadModel(params: EncounterTimelinePar
   ]);
 
   return {
-    data: encounters.map((encounter) => formatEncounterTimelineItem(encounter)),
+    data: encounters.map((encounter) => formatEncounterTimelineItem(encounter, sectionConfig)),
     pagination: {
       page,
       limit,

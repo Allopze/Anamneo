@@ -7,6 +7,10 @@ import { ENCOUNTER_SECTION_LABELS, ENCOUNTER_SECTION_ORDER } from '../common/uti
 import { SectionKey } from '../common/types';
 import { formatEncounterSectionForRead } from '../common/utils/encounter-section-compat';
 import {
+  getEnabledEncounterSectionKeys,
+  type EncounterSectionConfig,
+} from '../../../shared/encounter-section-config';
+import {
   formatTask,
 } from './patients-presenters';
 
@@ -78,13 +82,17 @@ function getEncounterSectionData<T extends Record<string, unknown>>(encounter: a
   return formatEncounterSectionForRead(section).data as T;
 }
 
-export function formatEncounterTimelineItem(encounter: any) {
+export function formatEncounterTimelineItem(encounter: any, sectionConfig?: EncounterSectionConfig) {
+  const enabledSectionKeys = sectionConfig ? new Set(getEnabledEncounterSectionKeys(sectionConfig)) : null;
   const sortedSections = [...(encounter.sections || [])].sort((a: any, b: any) => {
     return (
       ENCOUNTER_SECTION_ORDER.indexOf(a.sectionKey as SectionKey) -
       ENCOUNTER_SECTION_ORDER.indexOf(b.sectionKey as SectionKey)
     );
   });
+  const visibleSections = enabledSectionKeys
+    ? sortedSections.filter((section: any) => enabledSectionKeys.has(section.sectionKey))
+    : sortedSections;
 
   return {
     id: encounter.id,
@@ -105,10 +113,10 @@ export function formatEncounterTimelineItem(encounter: any) {
     completedBy: encounter.completedBy,
     tasks: (encounter.tasks || []).map((task: any) => formatTask(task)),
     progress: {
-      completed: sortedSections.filter((section) => section.completed).length,
-      total: ENCOUNTER_SECTION_ORDER.length,
+      completed: visibleSections.filter((section) => section.completed).length,
+      total: visibleSections.length,
     },
-    sections: sortedSections.map((section: any) => ({
+    sections: visibleSections.map((section: any) => ({
       ...formatEncounterSectionForRead({
         ...section,
         data: parseStoredJson(section.data, {}),

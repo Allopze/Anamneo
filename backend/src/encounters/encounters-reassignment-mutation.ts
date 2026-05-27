@@ -1,10 +1,10 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { getEffectiveMedicoId, RequestUser } from '../common/utils/medico-id';
 import { PrismaService } from '../prisma/prisma.service';
 import { canAccessEncounter } from './encounter-policy';
 import { ReassignEncounterDto } from './dto/reassign-encounter.dto';
-import { roleHasFineGrainedAction } from '../../../shared/fine-grained-permission-contract';
+import { assertFineGrainedAction } from '../common/utils/fine-grained-permissions';
 
 interface ReassignEncounterParams {
   prisma: PrismaService;
@@ -60,9 +60,7 @@ export async function reassignEncounterMutation(params: ReassignEncounterParams)
     throw new BadRequestException('Solo se pueden reasignar atenciones en progreso');
   }
 
-  if (!roleHasFineGrainedAction(user.role as any, 'encounter.reassign')) {
-    throw new ForbiddenException('Solo el medico responsable o admin puede reasignar una atencion');
-  }
+  assertFineGrainedAction(user, 'encounter.reassign', 'Solo el medico responsable o admin puede reasignar una atencion');
 
   return prisma.$transaction(async (tx) => {
     const updatedEncounter = await tx.encounter.update({

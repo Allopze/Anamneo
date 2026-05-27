@@ -241,6 +241,7 @@ export class SettingsService {
 
     const validKeys = new Set<string>(ENCOUNTER_SECTION_KEYS);
     const seen = new Set<string>();
+    const seenOrders = new Set<number>();
     for (const section of input.sections) {
       if (!section || typeof section !== 'object') {
         throw new BadRequestException('Cada seccion debe ser un objeto valido');
@@ -252,9 +253,37 @@ export class SettingsService {
         throw new BadRequestException(`Seccion duplicada: ${section.key}`);
       }
       seen.add(section.key);
+
+      if (!Number.isFinite(Number(section.order))) {
+        throw new BadRequestException(`Orden invalido para la seccion ${section.key}`);
+      }
+      const order = Number(section.order);
+      if (seenOrders.has(order)) {
+        throw new BadRequestException(`Orden duplicado para secciones de atencion: ${order}`);
+      }
+      seenOrders.add(order);
+
+      if (section.key === 'IDENTIFICACION' && section.enabled === false) {
+        throw new BadRequestException('La seccion IDENTIFICACION no se puede deshabilitar');
+      }
+      if (section.key === 'IDENTIFICACION' && section.requiredForCompletion === false) {
+        throw new BadRequestException('La seccion IDENTIFICACION debe ser requerida para cierre');
+      }
+      if (section.enabled === false && section.requiredForCompletion === true) {
+        throw new BadRequestException(`La seccion ${section.key} no puede ser requerida si esta deshabilitada`);
+      }
     }
 
-    return normalizeEncounterSectionConfig(input);
+    const normalized = normalizeEncounterSectionConfig(input);
+    const normalizedOrders = new Set<number>();
+    for (const section of normalized.sections) {
+      if (normalizedOrders.has(section.order)) {
+        throw new BadRequestException(`Orden duplicado para secciones de atencion: ${section.order}`);
+      }
+      normalizedOrders.add(section.order);
+    }
+
+    return normalized;
   }
 
   async updateEncounterSectionConfig(input: EncounterSectionConfig, userId: string, auditService: AuditService) {

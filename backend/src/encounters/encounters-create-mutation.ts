@@ -20,6 +20,10 @@ import {
 } from './encounters-sanitize';
 import { formatEncounterResponse } from './encounters-presenters';
 import { withPatientIdentifiers } from '../patients/patients-identifiers';
+import {
+  getEnabledEncounterSectionKeys,
+  type EncounterSectionConfig,
+} from '../../../shared/encounter-section-config';
 
 interface CreateEncounterMutationParams {
   prisma: PrismaService;
@@ -27,6 +31,7 @@ interface CreateEncounterMutationParams {
   patientId: string;
   createDto: CreateEncounterDto;
   user: RequestUser;
+  sectionConfig?: EncounterSectionConfig;
 }
 
 type FormattedEncounter = ReturnType<typeof formatEncounterResponse>;
@@ -79,8 +84,12 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
     patientId,
     createDto,
     user,
+    sectionConfig,
   } = params;
   const duplicateFromEncounterId = createDto.duplicateFromEncounterId?.trim();
+  const sectionKeys = sectionConfig
+    ? getEnabledEncounterSectionKeys(sectionConfig) as SectionKey[]
+    : SECTION_ORDER;
 
   let result: (FormattedEncounter & { reused: boolean }) | undefined;
 
@@ -188,7 +197,7 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               createdById: user.id,
               status: 'EN_PROGRESO',
               sections: {
-                create: SECTION_ORDER.map((key) => {
+                create: sectionKeys.map((key) => {
                   const sectionData = buildInitialEncounterSectionData(key, patient);
 
                   return {

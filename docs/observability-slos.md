@@ -138,7 +138,6 @@ arrancar `docker compose up -d prometheus`.
 
 ## 7. Pendientes conocidos
 
-- Si se requiere notificacion externa para todas las alertas Prometheus, agregar
-  Alertmanager o Grafana contact points hacia Slack/Discord/email.
-- Cuando se migre a PostgreSQL (F-07), agregar metricas de pool, latencia de
-  query y replication lag.
+- Si se requiere notificacion externa para todas las alertas Prometheus, configurar Alertmanager o Grafana contact points hacia Slack/Discord/email y registrar el canal responsable.
+- PostgreSQL ya es runtime soportado: mantener visibles en dashboard conexiones/pool, locks, latencia de operaciones criticas, edad de backup y errores de cadena de auditoria.
+- Si se agrega replica administrada, sumar `replication lag` y alerta de atraso antes de declarar alta disponibilidad.

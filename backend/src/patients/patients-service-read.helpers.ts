@@ -8,6 +8,7 @@ import { getPatientAdminSummaryReadModel } from './patients-read-side';
 import { getPatientOperationalHistoryReadModel } from './patients-operational-history-read-model';
 import { getClinicalSummaryReadModel, getEncounterTimelineReadModel } from './patients-clinical-read-model';
 import { findPatientTasksReadModel, PatientTaskInboxFilters } from './patients-task-read-model';
+import type { EncounterSectionConfig } from '../../../shared/encounter-section-config';
 import {
   exportOperationalEncountersCsvReadModel,
   OperationalEncountersExportFilters,
@@ -107,6 +108,7 @@ export async function findEncounterTimeline(
   patientId: string,
   page = 1,
   limit = 10,
+  sectionConfig?: EncounterSectionConfig,
 ) {
   const effectiveMedicoId = getEffectiveMedicoId(user);
   return getEncounterTimelineReadModel({
@@ -115,6 +117,7 @@ export async function findEncounterTimeline(
     effectiveMedicoId,
     page,
     limit,
+    sectionConfig,
   });
 }
 

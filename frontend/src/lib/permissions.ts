@@ -41,15 +41,24 @@ export function hasAssignedMedico(user: PermissionUser | null | undefined) {
 }
 
 export function canCreatePatient(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
+  return Boolean(
+    canPerformFineGrainedAction(user, 'patient.create')
+    && (!isAssistantUser(user) || hasAssignedMedico(user)),
+  );
 }
 
 export function canCreateEncounter(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
+  return Boolean(
+    canPerformFineGrainedAction(user, 'encounter.create')
+    && (!isAssistantUser(user) || hasAssignedMedico(user)),
+  );
 }
 
 export function canEditPatientAdmin(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
+  return Boolean(
+    canPerformFineGrainedAction(user, 'patient.editAdministrative')
+    && (!isAssistantUser(user) || hasAssignedMedico(user)),
+  );
 }
 
 export function canUploadAttachments(
@@ -60,7 +69,10 @@ export function canUploadAttachments(
     return false;
   }
 
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
+  return Boolean(
+    canPerformFineGrainedAction(user, 'attachment.upload')
+    && (!isAssistantUser(user) || hasAssignedMedico(user)),
+  );
 }
 
 export function canImportConditionsCsv(user: PermissionUser | null | undefined) {
@@ -95,19 +107,28 @@ export function canManageSettings(user: PermissionUser | null | undefined) {
 }
 
 export function canEditAntecedentes(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
+  return Boolean(
+    canPerformFineGrainedAction(user, 'patient.editClinical')
+    || (canPerformFineGrainedAction(user, 'patient.editAdministrative') && hasAssignedMedico(user)),
+  );
 }
 
 export function canCreatePatientTask(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
+  return Boolean(
+    canPerformFineGrainedAction(user, 'patientTask.manage')
+    && (!isAssistantUser(user) || hasAssignedMedico(user)),
+  );
 }
 
 export function canRegisterClinicalConsent(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user) || hasAssignedMedico(user));
+  return Boolean(
+    canPerformFineGrainedAction(user, 'clinicalConsent.create')
+    && (!isAssistantUser(user) || hasAssignedMedico(user)),
+  );
 }
 
 export function canRevokeClinicalConsent(user: PermissionUser | null | undefined) {
-  return Boolean(isMedicoUser(user));
+  return canPerformFineGrainedAction(user, 'clinicalConsent.revoke');
 }
 
 export function canViewMedicoOnlySections(user: PermissionUser | null | undefined) {

@@ -213,6 +213,51 @@ describe('encounters-section-mutations', () => {
     expect(prisma.encounterSection.update).not.toHaveBeenCalled();
   });
 
+  it('rejects updates for administratively disabled sections', async () => {
+    const prisma = {
+      encounter: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'enc-1',
+          medicoId: 'med-1',
+          status: 'EN_PROGRESO',
+          createdById: 'med-1',
+          patientId: 'pat-1',
+          patient: { id: 'pat-1' },
+          sections: [{ id: 'sec-1', sectionKey: 'OBSERVACIONES' }],
+        }),
+        update: jest.fn(),
+      },
+      encounterSection: {
+        update: jest.fn(),
+      },
+    };
+
+    await expect(
+      updateEncounterSectionMutation({
+        prisma: prisma as never,
+        auditService: auditService as never,
+        alertsService: { checkVitalSigns: jest.fn() } as never,
+        logger: { error: jest.fn() },
+        encounterId: 'enc-1',
+        sectionKey: 'OBSERVACIONES',
+        dto: { data: { resumenClinico: 'Nota' } },
+        user: {
+          id: 'med-1',
+          role: 'MEDICO',
+          isAdmin: false,
+        },
+        sectionConfig: {
+          sections: [
+            { key: 'IDENTIFICACION', enabled: true, requiredForCompletion: true, order: 10, label: 'Identificación' },
+            { key: 'OBSERVACIONES', enabled: false, requiredForCompletion: false, order: 20, label: 'Observaciones' },
+          ],
+        },
+      }),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(prisma.encounterSection.update).not.toHaveBeenCalled();
+  });
+
   it('returns warning when vital-sign alert generation fails but section saves', async () => {
     const prisma = {
       encounter: {

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { gotoApp } from './helpers/navigation';
 
 async function mockLoginApis(page: Page) {
   await page.route('**/api/auth/bootstrap', async (route) => {
@@ -53,7 +54,7 @@ test.describe('login responsive safeguards', () => {
   test('keeps credential and 2FA actions visible on a small mobile viewport', async ({ page }) => {
     await mockLoginApis(page);
 
-    await page.goto('/login');
+    await gotoApp(page, '/login');
     await expect(page.getByLabel('Correo electrónico')).toBeVisible();
     await expectNoHorizontalOverflow(page);
     await expectVisibleWithinViewport(page, 'Iniciar sesión');

@@ -15,10 +15,11 @@ interface FindEncountersReadModelParams {
   reviewStatus?: string;
   page: number;
   limit: number;
+  sectionConfig?: EncounterSectionConfig;
 }
 
 export async function findEncountersReadModel(params: FindEncountersReadModelParams) {
-  const { prisma, effectiveMedicoId, status, search, reviewStatus, page, limit } = params;
+  const { prisma, effectiveMedicoId, status, search, reviewStatus, page, limit, sectionConfig } = params;
   const skip = (page - 1) * limit;
 
   const where: Record<string, unknown> = {
@@ -68,7 +69,7 @@ export async function findEncountersReadModel(params: FindEncountersReadModelPar
           select: { id: true, nombre: true },
         },
         sections: {
-          select: { completed: true },
+          select: { sectionKey: true, completed: true },
         },
       },
     }),
@@ -82,7 +83,7 @@ export async function findEncountersReadModel(params: FindEncountersReadModelPar
   const resolvedTotal = trimmedSearch ? filteredEncounters.length : total;
 
   return {
-    data: pageEncounters.map((encounter) => formatEncounterForList(encounter)),
+    data: pageEncounters.map((encounter) => formatEncounterForList(encounter, { sectionConfig })),
     pagination: {
       page,
       limit,
@@ -258,10 +259,11 @@ interface FindEncountersByPatientReadModelParams {
   prisma: PrismaService;
   patientId: string;
   effectiveMedicoId: string;
+  sectionConfig?: EncounterSectionConfig;
 }
 
 export async function findEncountersByPatientReadModel(params: FindEncountersByPatientReadModelParams) {
-  const { prisma, patientId, effectiveMedicoId } = params;
+  const { prisma, patientId, effectiveMedicoId, sectionConfig } = params;
 
   const encounters = await prisma.encounter.findMany({
     where: {
@@ -301,5 +303,5 @@ export async function findEncountersByPatientReadModel(params: FindEncountersByP
     },
   });
 
-  return encounters.map((encounter) => formatEncounterForPatientList(encounter));
+  return encounters.map((encounter) => formatEncounterForPatientList(encounter, { sectionConfig }));
 }

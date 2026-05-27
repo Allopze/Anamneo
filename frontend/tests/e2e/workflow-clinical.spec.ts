@@ -1,6 +1,7 @@
 import path from 'path';
 import { test, expect, type BrowserContext, type ConsoleMessage, type Page } from '@playwright/test';
 import { ADMIN_EMAIL, ADMIN_NOMBRE, ADMIN_PASSWORD, BOOTSTRAP_TOKEN, MEDICO_PASSWORD, RUN_ID } from './e2e-identities';
+import { gotoApp } from './helpers/navigation';
 
 /**
  * Clinical workflow E2E: patient → encounter → section editing.
@@ -55,7 +56,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     const needsBootstrapRegistration = !bootstrapState.hasAdmin;
 
     if (needsBootstrapRegistration) {
-      await adminPage.goto('/register');
+      await gotoApp(adminPage, '/register');
       const bootstrapTokenInput = adminPage.getByLabel('Token de instalación');
       await adminPage.getByLabel('Nombre completo').fill(ADMIN_NOMBRE);
       await adminPage.getByLabel('Correo electrónico').fill(ADMIN_EMAIL);
@@ -72,7 +73,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
       expect(registerResp.status(), 'Admin registration should return 201').toBe(201);
       await adminPage.waitForURL((url) => !url.toString().includes('/register'), { timeout: 20000 });
     } else {
-      await adminPage.goto('/login');
+      await gotoApp(adminPage, '/login');
       await adminPage.getByLabel('Correo electrónico').fill(ADMIN_EMAIL);
       await adminPage.getByLabel('Contraseña').fill(ADMIN_PASSWORD);
       await adminPage.getByRole('button', { name: 'Iniciar sesión' }).click();
@@ -91,7 +92,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     const medicoCtx = await browser.newContext();
     const medicoPage = await medicoCtx.newPage();
 
-    await medicoPage.goto(`/register?token=${inviteToken}`);
+    await gotoApp(medicoPage, `/register?token=${inviteToken}`);
     // Wait for invitation validation to complete (form loads async)
     await expect(medicoPage.getByText(/Invitación validada/i)).toBeVisible({ timeout: 15000 });
     await medicoPage.getByLabel('Nombre completo').fill('Dra. Prueba E2E');
@@ -119,13 +120,13 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
   async function loginAsMedico(page: Page) {
     expect(medicoAuthCookies, 'Medico auth cookies should be available from beforeAll setup').not.toHaveLength(0);
     await page.context().addCookies(medicoAuthCookies);
-    await page.goto('/');
+    await gotoApp(page, '/');
     await expect(sidebar(page)).toBeVisible({ timeout: 15000 });
   }
 
   async function openEncounter(page: Page) {
     expect(encounterPath, 'Encounter path should be captured by the encounter creation test').toBeTruthy();
-    await page.goto(encounterPath);
+    await gotoApp(page, encounterPath);
     await expect(page).toHaveURL(/\/atenciones\/[a-zA-Z0-9-]+/);
     await expect(
       page.getByRole('heading', { name: /identificación del paciente|anamnesis próxima|motivo de consulta/i }).first(),
@@ -176,7 +177,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     test.setTimeout(60_000);
     await loginAsMedico(page);
 
-    await page.goto('/pacientes/nuevo');
+    await gotoApp(page, '/pacientes/nuevo');
     await expect(
       page.getByRole('heading', { name: /nuevo paciente/i }),
     ).toBeVisible({ timeout: 15000 });
@@ -201,7 +202,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     test.setTimeout(30_000);
     await loginAsMedico(page);
 
-    await page.goto('/pacientes');
+    await gotoApp(page, '/pacientes');
     await page.getByText('María Eugenia Flores Tapia').first().click();
     await expect(
       page.getByRole('heading', { name: 'María Eugenia Flores Tapia' }),
@@ -221,7 +222,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     test.setTimeout(30_000);
     await loginAsMedico(page);
 
-    await page.goto('/pacientes');
+    await gotoApp(page, '/pacientes');
     await expect(
       page.getByRole('heading', { name: 'Pacientes' }),
     ).toBeVisible({ timeout: 15000 });
@@ -237,7 +238,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     await loginAsMedico(page);
 
     // Navigate to patient detail
-    await page.goto('/pacientes');
+    await gotoApp(page, '/pacientes');
     await page.getByText('María Eugenia Flores Tapia').first().click();
     await expect(
       page.getByRole('heading', { name: 'María Eugenia Flores Tapia' }),
@@ -333,7 +334,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     await loginAsMedico(page);
 
     expect(encounterPath, 'Encounter path should be available before validating focused documents').toBeTruthy();
-    await page.goto(`${encounterPath}/ficha`);
+    await gotoApp(page, `${encounterPath}/ficha`);
     await expect(page).toHaveURL(/\/atenciones\/[a-zA-Z0-9-]+\/ficha$/, { timeout: 15000 });
 
     await page.getByRole('button', { name: 'Exportar documentos' }).click();
@@ -404,7 +405,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
       await secondContext.addCookies(medicoAuthCookies);
       const secondPage = await secondContext.newPage();
 
-      await secondPage.goto(encounterPath);
+      await gotoApp(secondPage, encounterPath);
       await expect(secondPage).toHaveURL(/\/atenciones\/[a-zA-Z0-9-]+/);
       await goToSection(secondPage, 'Observaciones');
 

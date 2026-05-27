@@ -54,12 +54,14 @@ export class EncountersService {
     // Ley 21.719 Art 12 + Art 16 lit e - exige consentimiento del titular
     // antes de iniciar una nueva atencion. En modo `soft` solo loggea.
     await this.policyCompliance.assertConsentFor(patientId, 'ATENCION_CLINICA');
+    const sectionConfig = await this.settingsService.getEncounterSectionConfig();
     return createEncounterMutation({
       prisma: this.prisma,
       auditService: this.auditService,
       patientId,
       createDto,
       user,
+      sectionConfig,
     });
   }
 
@@ -74,6 +76,7 @@ export class EncountersService {
     limit = 15,
   ) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
+    const sectionConfig = await this.settingsService.getEncounterSectionConfig();
     return findEncountersReadModel({
       prisma: this.prisma,
       effectiveMedicoId,
@@ -82,6 +85,7 @@ export class EncountersService {
       reviewStatus,
       page,
       limit,
+      sectionConfig,
     });
   }
 
@@ -130,10 +134,12 @@ export class EncountersService {
 
   async findByPatient(patientId: string, user: RequestUser) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
+    const sectionConfig = await this.settingsService.getEncounterSectionConfig();
     const timeline = await findEncountersByPatientReadModel({
       prisma: this.prisma,
       patientId,
       effectiveMedicoId,
+      sectionConfig,
     });
     await this.auditService.log({
       entityType: 'Encounter',
@@ -175,6 +181,7 @@ export class EncountersService {
   }
 
   async updateSection(encounterId: string, sectionKey: SectionKey, dto: any, user: RequestUser) {
+    const sectionConfig = await this.settingsService.getEncounterSectionConfig();
     return updateEncounterSectionMutation({
       prisma: this.prisma,
       auditService: this.auditService,
@@ -184,6 +191,7 @@ export class EncountersService {
       sectionKey,
       dto,
       user,
+      sectionConfig,
     });
   }
 

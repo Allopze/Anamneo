@@ -22,4 +22,12 @@ Esta nota deja fuera del alcance de implementacion tecnica actual las decisiones
 2. El consentimiento historico necesario este backfilled o se haya definido un plan de recaptura.
 3. Legal confirme que el texto, la evidencia y el flujo cumplen el criterio aplicable.
 
+## Checklist verificable antes de hard enforcement
+
+- Politica de privacidad v1.0 publicada, con version exacta registrada en `LegalDocument`.
+- Backfill o recaptura de consentimientos de pacientes preexistentes completado, con muestreo documentado.
+- RAT, DPIA, designacion DPO y DPAs de Cloudflare/Sentry/SMTP firmados o aprobados formalmente.
+- Drill de brecha ejecutado con tiempos, decisiones de notificacion y post-mortem registrados.
+- Responsable operativo confirma por escrito el cambio de `REGULATORY_CONSENT_ENFORCEMENT=soft` a `hard`.
+
 No modificar textos legales sustantivos ni semillas legales para cerrar estos puntos sin revision legal externa.

@@ -35,6 +35,7 @@ import {
   summarizeSectionAuditData,
 } from './encounters-sanitize';
 import { isMedicoOnlySection } from './encounter-access-policy';
+import type { EncounterSectionConfig } from '../../../shared/encounter-section-config';
 
 async function touchEncounterUpdatedAt(prisma: PrismaService, encounterId: string) {
   await prisma.encounter.update({
@@ -65,6 +66,7 @@ interface UpdateEncounterSectionMutationParams {
   sectionKey: SectionKey;
   dto: UpdateSectionDto;
   user: RequestUser;
+  sectionConfig?: EncounterSectionConfig;
 }
 
 export async function reconcileEncounterIdentificationSection(params: ReconcileEncounterIdentificationSectionParams) {
@@ -126,7 +128,7 @@ export async function reconcileEncounterIdentificationSection(params: ReconcileE
 }
 
 export async function updateEncounterSectionMutation(params: UpdateEncounterSectionMutationParams) {
-  const { prisma, auditService, alertsService, logger, encounterId, sectionKey, dto, user } = params;
+  const { prisma, auditService, alertsService, logger, encounterId, sectionKey, dto, user, sectionConfig } = params;
 
   const encounter = await prisma.encounter.findUnique({
     where: { id: encounterId },
@@ -160,6 +162,11 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
     throw new NotFoundException('Sección no encontrada');
   }
 
+  const configuredSection = sectionConfig?.sections.find((item) => item.key === sectionKey);
+  if (configuredSection?.enabled === false) {
+    throw new BadRequestException('Esta sección está deshabilitada por configuración administrativa');
+  }
+
   if (user.role !== 'MEDICO' && isMedicoOnlySection(sectionKey)) {
     throw new ForbiddenException('Solo un médico puede editar esta sección clínica');
   }
@@ -173,7 +180,11 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
     );
   }
 
-  if (dto.notApplicable && (sectionKey === 'IDENTIFICACION' || REQUIRED_SEMANTIC_SECTIONS.includes(sectionKey))) {
+  const isRequiredSection = configuredSection
+    ? configuredSection.requiredForCompletion
+    : sectionKey === 'IDENTIFICACION' || REQUIRED_SEMANTIC_SECTIONS.includes(sectionKey);
+
+  if (dto.notApplicable && isRequiredSection) {
     throw new BadRequestException('Esta sección es obligatoria y no se puede marcar como "No aplica"');
   }
 

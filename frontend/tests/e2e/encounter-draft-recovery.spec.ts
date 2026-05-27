@@ -1,5 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { ADMIN_EMAIL, ADMIN_NOMBRE, ADMIN_PASSWORD, BOOTSTRAP_TOKEN, MEDICO_PASSWORD, RUN_ID } from './e2e-identities';
+import { gotoApp } from './helpers/navigation';
 
 /**
  * E2E: draft recovery with real Playwright session.
@@ -24,7 +25,7 @@ const MEDICO_EMAIL = `medico+draft-recovery+${RUN_ID}@e2e-test.local`;
 async function loginAsMedico(page: Page, cookies: Awaited<ReturnType<BrowserContext['cookies']>>) {
   expect(cookies.length, 'Medico auth cookies should be available from beforeAll setup').toBeGreaterThan(0);
   await page.context().addCookies(cookies);
-  await page.goto('/');
+  await gotoApp(page, '/');
   await expect(sidebar(page)).toBeVisible({ timeout: 20_000 });
 }
 
@@ -49,7 +50,7 @@ test.describe('Draft recovery with real Playwright session', () => {
     const needsBootstrapRegistration = !bootstrapState.hasAdmin;
 
     if (needsBootstrapRegistration) {
-      await adminPage.goto('/register');
+      await gotoApp(adminPage, '/register');
       const bootstrapTokenInput = adminPage.getByLabel('Token de instalación');
       await adminPage.getByLabel('Nombre completo').fill(ADMIN_NOMBRE);
       await adminPage.getByLabel('Correo electrónico').fill(ADMIN_EMAIL);
@@ -66,7 +67,7 @@ test.describe('Draft recovery with real Playwright session', () => {
       expect(registerResp.status(), 'Admin registration should return 201').toBe(201);
       await adminPage.waitForURL((url) => !url.toString().includes('/register'), { timeout: 20_000 });
     } else {
-      await adminPage.goto('/login');
+      await gotoApp(adminPage, '/login');
       await adminPage.getByLabel('Correo electrónico').fill(ADMIN_EMAIL);
       await adminPage.getByLabel('Contraseña').fill(ADMIN_PASSWORD);
       await adminPage.getByRole('button', { name: 'Iniciar sesión' }).click();
@@ -85,7 +86,7 @@ test.describe('Draft recovery with real Playwright session', () => {
     const medicoCtx = await browser.newContext();
     const medicoPage = await medicoCtx.newPage();
 
-    await medicoPage.goto(`/register?token=${inviteToken}`);
+    await gotoApp(medicoPage, `/register?token=${inviteToken}`);
     await expect(medicoPage.getByText(/Invitación validada/i)).toBeVisible({ timeout: 15_000 });
     await medicoPage.getByLabel('Nombre completo').fill('Dra. Prueba E2E');
     await medicoPage.getByLabel('Contraseña', { exact: true }).fill(MEDICO_PASSWORD);
@@ -114,7 +115,7 @@ test.describe('Draft recovery with real Playwright session', () => {
     await loginAsMedico(sessionPage, medicoAuthCookies);
 
     // 2. Create patient via UI (same pattern as workflow-clinical.spec.ts)
-    await sessionPage.goto('/pacientes/nuevo');
+    await gotoApp(sessionPage, '/pacientes/nuevo');
     await expect(
       sessionPage.getByRole('heading', { name: /nuevo paciente/i }),
     ).toBeVisible({ timeout: 15_000 });
@@ -179,13 +180,13 @@ test.describe('Draft recovery with real Playwright session', () => {
     //    localStorage persists across navigations in the same browser context,
     //    which is the real-world scenario for draft recovery (tab close/reopen,
     //    browser crash, or navigating away and returning).
-    await sessionPage.goto('/pacientes');
+    await gotoApp(sessionPage, '/pacientes');
     await expect(
       sessionPage.getByRole('heading', { name: 'Pacientes' }),
     ).toBeVisible({ timeout: 10_000 });
 
     // 8. Navigate back to the same encounter — draft should be recovered
-    await sessionPage.goto(`/atenciones/${encounterId}`);
+    await gotoApp(sessionPage, `/atenciones/${encounterId}`);
     // The encounter page loads; navigate to Motivo de consulta if not already there
     await expect(
       sessionPage.getByRole('heading', { name: /identificación del paciente|motivo de consulta/i }).first(),

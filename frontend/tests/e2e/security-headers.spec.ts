@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { gotoApp } from './helpers/navigation';
 
 test('frontend emits security headers compatible with active browser features', async ({ page }) => {
-  const response = await page.goto('/login');
+  const response = await gotoApp(page, '/login');
   expect(response).not.toBeNull();
 
   const headers = response!.headers();

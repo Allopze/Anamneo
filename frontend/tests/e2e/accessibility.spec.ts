@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { ADMIN_EMAIL, ADMIN_NOMBRE, ADMIN_PASSWORD, BOOTSTRAP_TOKEN, MEDICO_PASSWORD, RUN_ID } from './e2e-identities';
+import { gotoApp } from './helpers/navigation';
 
 const PUBLIC_ROUTES = [
   '/login',
@@ -24,6 +25,13 @@ async function waitForRouteReady(page: Page, route: string) {
   }
 
   if (route === '/') {
+    await expect(sidebar(page)).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('main')).toBeVisible({ timeout: 15000 });
+    return;
+  }
+
+  if (['/pacientes', '/atenciones', '/seguimientos', '/plantillas', '/catalogo', '/ajustes'].includes(route)) {
+    await expect(sidebar(page)).toBeVisible({ timeout: 15000 });
     await expect(page.locator('main')).toBeVisible({ timeout: 15000 });
     return;
   }
@@ -33,7 +41,7 @@ async function waitForRouteReady(page: Page, route: string) {
     return;
   }
 
-  await expect(page.getByRole('heading').first()).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('main')).toBeVisible({ timeout: 15000 });
 }
 
 async function expectNoCriticalA11yViolations(page: Page) {
@@ -117,7 +125,7 @@ test.describe('Accessibility gate', () => {
   });
 
   async function loginAsMedico(page: Page) {
-    await page.goto('/login');
+    await gotoApp(page, '/login');
     const appUrl = new URL(page.url()).origin;
     const loginResp = await page.request.post('/api/auth/login', {
       data: { email: MEDICO_EMAIL, password: MEDICO_PASSWORD },
@@ -148,7 +156,7 @@ test.describe('Accessibility gate', () => {
 
   for (const route of PUBLIC_ROUTES) {
     test(`${route} has no serious automated axe violations`, async ({ page }) => {
-      await page.goto(route);
+      await gotoApp(page, route);
       await waitForRouteReady(page, route);
       await expectNoCriticalA11yViolations(page);
     });
@@ -170,7 +178,7 @@ test.describe('Accessibility gate', () => {
 
     await loginAsMedico(page);
     for (const route of authenticatedRoutes) {
-      await page.goto(route);
+      await gotoApp(page, route);
       await waitForRouteReady(page, route);
       await expectNoCriticalA11yViolations(page);
     }
@@ -179,7 +187,7 @@ test.describe('Accessibility gate', () => {
   test('authenticated shell exposes keyboard focus on primary navigation and content actions', async ({ page }) => {
     test.setTimeout(120_000);
     await loginAsMedico(page);
-    await page.goto('/pacientes');
+    await gotoApp(page, '/pacientes');
     await waitForRouteReady(page, '/pacientes');
 
     const visitedFocusTargets: string[] = [];

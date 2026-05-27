@@ -9,6 +9,7 @@ Anamneo tiene tres superficies de pruebas principales: Jest backend, Jest fronte
 | Backend unit/integration | `npm --prefix backend run test` | Jest sobre `src/**/*.spec.ts` |
 | Backend coverage | `npm --prefix backend run test:cov` | Coverage backend |
 | Backend e2e | `npm --prefix backend run test:e2e` | Usa `backend/test/jest-e2e.json` |
+| Backend audit concurrency | `TEST_DATABASE_URL=postgresql://... npm --prefix backend run test:audit-concurrency` | Falla si no hay PostgreSQL real y CLI `psql`, `createdb`, `dropdb` |
 | Frontend unit | `npm --prefix frontend run test` | Jest con `next/jest` |
 | Frontend watch | `npm --prefix frontend run test:watch` | Loop de desarrollo |
 | Frontend e2e | `npm --prefix frontend run test:e2e` | Playwright sobre `frontend/tests/e2e` |
@@ -30,6 +31,7 @@ Anamneo tiene tres superficies de pruebas principales: Jest backend, Jest fronte
 - `npm --prefix backend run test:e2e` ejecuta `jest --config ./test/jest-e2e.json`.
 - Antes corre `prisma generate` via `pretest:e2e`.
 - El archivo `backend/test/app.e2e-spec.ts` es secuencial y comparte estado entre tests.
+- La suite `audit.service.concurrency.spec.ts` se salta en Jest normal si no hay `TEST_DATABASE_URL` PostgreSQL usable. Para release/staging debe correrse con `npm --prefix backend run test:audit-concurrency`; ese comando exige `TEST_DATABASE_URL` y las herramientas CLI `psql`, `createdb` y `dropdb`.
 
 Consecuencia importante:
 

@@ -26,6 +26,9 @@ describe('AdminMaintenanceService', () => {
   const configService = {
     get: jest.fn((_key: string, fallback: number) => fallback),
   };
+  const authPasswordResetService = {
+    purgeExpiredTokens: jest.fn(),
+  };
 
   let service: AdminMaintenanceService;
 
@@ -36,6 +39,7 @@ describe('AdminMaintenanceService', () => {
       auditService as never,
       attachmentsService as never,
       configService as never,
+      authPasswordResetService as never,
     );
   });
 
@@ -58,7 +62,7 @@ describe('AdminMaintenanceService', () => {
   });
 
   it('purges expired password reset tokens and writes an audit summary', async () => {
-    prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 3 });
+    authPasswordResetService.purgeExpiredTokens.mockResolvedValue(3);
 
     const result = await service.purgeExpiredPasswordResetTokens(user, {
       confirmation: 'PURGAR TOKENS RESET EXPIRADOS',
@@ -71,6 +75,7 @@ describe('AdminMaintenanceService', () => {
       retentionDays: 7,
       cutoff: expect.any(String),
     });
+    expect(authPasswordResetService.purgeExpiredTokens).toHaveBeenCalledWith(7 * 24 * 60 * 60 * 1000);
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         entityType: 'AdminMaintenance',

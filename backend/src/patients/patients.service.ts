@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PolicyComplianceService } from '../patient-consents/policy-compliance.service';
+import { SettingsService } from '../settings/settings.service';
 import type { AuditReason } from '../common/types';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreatePatientQuickDto } from './dto/create-patient-quick.dto';
@@ -52,6 +53,7 @@ export class PatientsService {
     private prisma: PrismaService,
     private auditService: AuditService,
     private policyCompliance: PolicyComplianceService,
+    private settingsService: SettingsService,
   ) {}
 
   private async logPatientReadEvent(params: {
@@ -191,7 +193,8 @@ export class PatientsService {
 
   async findEncounterTimeline(user: RequestUser, patientId: string, page = 1, limit = 10) {
     await this.assertPatientAccess(user, patientId);
-    const timeline = await findEncounterTimeline(this.prisma, user, patientId, page, limit);
+    const sectionConfig = await this.settingsService.getEncounterSectionConfig();
+    const timeline = await findEncounterTimeline(this.prisma, user, patientId, page, limit, sectionConfig);
 
     await this.logPatientReadEvent({
       user,

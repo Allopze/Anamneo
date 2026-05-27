@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { BadRequestException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { SettingsService } from './settings.service';
 import { decryptSettingValue, encryptSettingValue } from './settings-encryption';
@@ -169,5 +170,33 @@ describe('SettingsService', () => {
       minMinutes: 5,
       maxMinutes: 240,
     });
+  });
+
+  it('rejects invalid encounter section configuration invariants', () => {
+    expect(() =>
+      service.validateEncounterSectionConfig({
+        sections: [
+          { key: 'IDENTIFICACION', enabled: false, requiredForCompletion: true, order: 10, label: 'Identificación' },
+        ],
+      }),
+    ).toThrow(BadRequestException);
+
+    expect(() =>
+      service.validateEncounterSectionConfig({
+        sections: [
+          { key: 'IDENTIFICACION', enabled: true, requiredForCompletion: true, order: 10, label: 'Identificación' },
+          { key: 'MOTIVO_CONSULTA', enabled: false, requiredForCompletion: true, order: 20, label: 'Motivo' },
+        ],
+      }),
+    ).toThrow(BadRequestException);
+
+    expect(() =>
+      service.validateEncounterSectionConfig({
+        sections: [
+          { key: 'IDENTIFICACION', enabled: true, requiredForCompletion: true, order: 10, label: 'Identificación' },
+          { key: 'MOTIVO_CONSULTA', enabled: true, requiredForCompletion: true, order: 10, label: 'Motivo' },
+        ],
+      }),
+    ).toThrow(BadRequestException);
   });
 });

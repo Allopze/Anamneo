@@ -138,4 +138,46 @@ describe('encounters-create-mutation', () => {
     expect(tx.encounter.create).not.toHaveBeenCalled();
     expect(auditService.log).not.toHaveBeenCalled();
   });
+
+  it('creates only enabled encounter sections from administrative config', async () => {
+    const createdEncounter = {
+      id: 'enc-new',
+      status: 'EN_PROGRESO',
+      sections: [],
+      patient: { id: 'pat-1' },
+      createdBy: { id: 'med-1', nombre: 'Medico' },
+    };
+    const tx = {
+      patient: {
+        findUnique: jest.fn().mockResolvedValue(basePatient),
+      },
+      encounter: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn(),
+        create: jest.fn().mockResolvedValue(createdEncounter),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn().mockImplementation(async (callback) => callback(tx)),
+    };
+    const auditService = { log: jest.fn().mockResolvedValue(undefined) };
+
+    await createEncounterMutation({
+      prisma: prisma as never,
+      auditService: auditService as never,
+      patientId: 'pat-1',
+      createDto: {},
+      user: baseUser as never,
+      sectionConfig: {
+        sections: [
+          { key: 'IDENTIFICACION', enabled: true, requiredForCompletion: true, order: 10, label: 'Identificación' },
+          { key: 'MOTIVO_CONSULTA', enabled: true, requiredForCompletion: true, order: 20, label: 'Motivo' },
+          { key: 'EXAMEN_FISICO', enabled: false, requiredForCompletion: false, order: 30, label: 'Examen' },
+        ],
+      },
+    });
+
+    expect(tx.encounter.create.mock.calls[0][0].data.sections.create.map((section: any) => section.sectionKey))
+      .toEqual(['IDENTIFICACION', 'MOTIVO_CONSULTA']);
+  });
 });

@@ -7,6 +7,7 @@ import {
   ENCOUNTER_SECTION_ORDER as SECTION_ORDER,
 } from '../common/utils/encounter-section-meta';
 import type { EncounterSectionConfig } from '../../../shared/encounter-section-config';
+import { getEnabledEncounterSectionKeys } from '../../../shared/encounter-section-config';
 import {
   getEncounterClinicalOutputBlock,
   getPatientDemographicsMissingFields,
@@ -24,10 +25,17 @@ interface FormatEncounterResponseOptions {
   sectionConfig?: EncounterSectionConfig;
 }
 
-function formatProgress(sections: Array<{ completed: boolean }>) {
+function formatProgress(
+  sections: Array<{ completed: boolean; sectionKey?: string }>,
+  sectionConfig?: EncounterSectionConfig,
+) {
+  const enabledKeys = sectionConfig ? new Set(getEnabledEncounterSectionKeys(sectionConfig)) : null;
+  const visibleSections = enabledKeys
+    ? sections.filter((section) => section.sectionKey && enabledKeys.has(section.sectionKey as any))
+    : sections;
   return {
-    completed: sections.filter((section) => section.completed).length,
-    total: sections.length,
+    completed: visibleSections.filter((section) => section.completed).length,
+    total: visibleSections.length,
   };
 }
 
@@ -46,7 +54,7 @@ function formatEpisodeSummary(episode: any) {
   };
 }
 
-export function formatEncounterForList(encounter: any) {
+export function formatEncounterForList(encounter: any, options: FormatEncounterResponseOptions = {}) {
   const patientIdentifiers = encounter.patient ? resolvePatientIdentifiers(encounter.patient) : null;
   const patientForCompleteness = encounter.patient ? { ...encounter.patient, ...patientIdentifiers } : null;
 
@@ -82,11 +90,11 @@ export function formatEncounterForList(encounter: any) {
     reviewedBy: encounter.reviewedBy,
     completedBy: encounter.completedBy,
     episode: formatEpisodeSummary(encounter.episode),
-    progress: formatProgress(encounter.sections),
+    progress: formatProgress(encounter.sections, options.sectionConfig),
   };
 }
 
-export function formatEncounterForPatientList(encounter: any) {
+export function formatEncounterForPatientList(encounter: any, options: FormatEncounterResponseOptions = {}) {
   return {
     id: encounter.id,
     patientId: encounter.patientId,
@@ -105,7 +113,7 @@ export function formatEncounterForPatientList(encounter: any) {
     reviewedBy: encounter.reviewedBy,
     completedBy: encounter.completedBy,
     episode: formatEpisodeSummary(encounter.episode),
-    progress: formatProgress(encounter.sections),
+    progress: formatProgress(encounter.sections, options.sectionConfig),
   };
 }
 
