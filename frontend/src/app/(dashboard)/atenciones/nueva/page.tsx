@@ -195,7 +195,17 @@ export default function NuevaAtencionPage() {
 
         <div className="border border-surface-muted/30 rounded-card divide-y divide-surface-muted/30">
           {isLoading ? (
-            <div className="p-4 text-center text-ink-muted">Cargando pacientes...</div>
+            <div className="divide-y divide-surface-muted/20">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="flex items-center gap-3 p-4">
+                  <div className="h-9 w-9 shrink-0 rounded-full skeleton" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-40 rounded skeleton" />
+                    <div className="h-3 w-24 rounded skeleton" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : patients && patients.length > 0 ? (
             patients.map((patient) => (
               (() => {

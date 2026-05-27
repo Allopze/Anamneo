@@ -33,11 +33,21 @@ export default function RegisterLegalAcceptance({
         />
         <span>
           Acepto los{' '}
-          <Link href="/terminos-y-condiciones" className="auth-inline-link" target="_blank" rel="noreferrer">
+          <Link
+            href="/terminos-y-condiciones"
+            className="font-semibold text-ink underline decoration-ink/25 underline-offset-2 transition-colors hover:text-frame hover:decoration-frame"
+            target="_blank"
+            rel="noreferrer"
+          >
             Términos y Condiciones
           </Link>{' '}
           y la{' '}
-          <Link href="/politica-de-privacidad" className="auth-inline-link" target="_blank" rel="noreferrer">
+          <Link
+            href="/politica-de-privacidad"
+            className="font-semibold text-ink underline decoration-ink/25 underline-offset-2 transition-colors hover:text-frame hover:decoration-frame"
+            target="_blank"
+            rel="noreferrer"
+          >
             Política de Privacidad
           </Link>{' '}
           vigentes de Anamneo.

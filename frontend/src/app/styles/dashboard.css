@@ -1,0 +1,194 @@
+/* ── Header Clinical Cockpit ───────────────────────────────────────── */
+@layer components {
+
+  /* ── Tooltip ────────────────────── */
+  .tooltip-bubble {
+    @apply px-2.5 py-1.5 text-[11px] font-medium leading-tight tracking-wide
+           rounded-lg bg-frame-dark text-ink-onDark shadow-dropdown
+           pointer-events-none select-none;
+    animation: tooltip-in 0.12s ease-out;
+  }
+
+  @keyframes tooltip-in {
+    0%   { opacity: 0; transform: translateY(2px) scale(0.97); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* ── Header Shell ───────────────── */
+  .header-shell {
+    @apply sticky top-0 z-40 overflow-hidden;
+    background: var(--surface-elevated);
+    box-shadow: 0 2px 12px rgba(43,43,43,0.04);
+    border-radius: 0 0 2rem 2rem;
+  }
+
+  /* ── Dark Rail (Level 1) ────────── */
+  .header-rail {
+    @apply flex items-center justify-between px-4 lg:px-6;
+    height: 54px;
+    background: var(--frame);
+  }
+
+  /* ── Nav Items ──────────────────── */
+  .header-nav-item {
+    @apply inline-flex items-center justify-center rounded-pill
+           transition-colors duration-200 outline-none
+           focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-frame;
+  }
+
+  .header-nav-item-primary {
+    @apply w-10 h-10 text-ink-onDark/55
+           hover:text-ink-onDark hover:bg-white/10;
+  }
+
+  .header-nav-item-active {
+    @apply bg-accent text-accent-text
+           hover:bg-accent-bright hover:text-accent-text
+           shadow-soft;
+  }
+
+  .header-nav-item-secondary {
+    @apply w-8 h-8 text-ink-onDark/40
+           hover:text-ink-onDark/70 hover:bg-white/[0.08];
+  }
+
+  .header-nav-item-secondary-active {
+    @apply bg-white/[0.15] text-ink-onDark
+           hover:bg-white/[0.20];
+  }
+
+  .header-nav-divider {
+    @apply w-px h-5 bg-white/[0.12] mx-1;
+  }
+
+  /* ── Smart Header Bar ────────────── */
+  .smart-header-sticky-shell {
+    @apply sticky top-0 z-20;
+  }
+
+  .smart-header-bar {
+    @apply mx-3 mt-4 mb-2 flex items-center gap-3 rounded-card px-4 py-1.5 lg:mx-6 lg:px-5 lg:py-1.5;
+    background: color-mix(in srgb, var(--surface-elevated) 90%, transparent);
+    border: 1px solid rgba(0,0,0,0.05);
+    box-shadow: 0 1px 2px rgba(43,43,43,0.03), 0 8px 24px rgba(43,43,43,0.04);
+    backdrop-filter: saturate(160%) blur(10px);
+    -webkit-backdrop-filter: saturate(160%) blur(10px);
+  }
+
+  .smart-header-chip {
+    @apply inline-flex items-center gap-1.5 rounded-pill px-3 py-1
+           text-xs font-bold text-ink transition-colors duration-150
+           hover:bg-surface-inset;
+  }
+
+  .smart-header-chip-active {
+    @apply bg-accent/15 text-accent-text;
+  }
+
+  .smart-header-chip-value {
+    @apply text-sm font-extrabold leading-none tracking-tight text-ink;
+  }
+
+  .smart-header-chip-label {
+    @apply hidden lg:inline text-[11px] font-medium text-ink-muted leading-none;
+  }
+
+  .smart-header-chip-mobile {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1
+           text-xs font-bold text-ink transition-colors duration-150
+           hover:bg-surface-inset whitespace-nowrap;
+  }
+
+  .smart-header-actions {
+    @apply flex items-center gap-1 shrink-0;
+  }
+
+  .smart-header-context-slot {
+    @apply flex min-w-0 flex-1 items-center justify-end;
+  }
+
+  .smart-header-action-btn {
+    @apply inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1.5
+           text-ink-secondary transition-colors duration-150
+           hover:bg-surface-inset hover:text-ink;
+  }
+
+  .smart-header-dropdown {
+    @apply absolute right-0 top-full mt-1.5 z-50
+           w-52 rounded-card bg-surface-elevated py-1
+           shadow-dropdown border border-black/[0.06];
+    animation: fadeIn 0.12s ease-out;
+  }
+
+  .smart-header-dropdown-item {
+    @apply flex items-center gap-2.5 px-4 py-2.5
+           text-sm font-medium text-ink
+           transition-colors hover:bg-surface-inset
+           focus:outline-none focus:bg-surface-inset;
+  }
+
+  .smart-header-alert-badge {
+    @apply absolute -top-1 -right-1 min-w-[18px] h-[18px]
+           flex items-center justify-center rounded-full
+           bg-status-red text-white text-[10px] font-bold leading-none
+           px-1;
+  }
+
+  .smart-header-alert-popover {
+    @apply absolute right-0 top-full mt-1.5 z-50
+           w-80 rounded-card bg-surface-elevated
+           shadow-dropdown border border-black/[0.06];
+    animation: fadeIn 0.12s ease-out;
+  }
+
+  .smart-header-alert-item {
+    @apply block px-4 py-2.5
+           transition-colors hover:bg-surface-inset
+           focus:outline-none focus:bg-surface-inset;
+  }
+
+  .header-module-title {
+    @apply text-[1.35rem] font-extrabold tracking-tight text-ink leading-tight;
+  }
+
+  /* ── Ficha Clínica ─────── */
+  .ficha-section-heading {
+    @apply mb-3 text-[15px] font-semibold leading-6 text-ink-primary;
+  }
+
+  .ficha-empty {
+    @apply text-sm text-ink-muted;
+  }
+
+  .ficha-empty-section {
+    @apply mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1;
+  }
+
+  .ficha-empty-section .ficha-section-heading {
+    @apply mb-0;
+  }
+
+  .ficha-readable-block {
+    @apply border-l border-surface-muted/70 pl-4 text-sm leading-6 text-ink-primary;
+  }
+
+  /* ── Mobile Header ─────────────── */
+  .header-mobile-nav {
+    @apply lg:hidden px-4 pb-3 pt-2 border-t border-white/[0.08];
+    background: var(--frame);
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .header-mobile-item {
+    @apply flex items-center gap-3 px-3.5 py-2.5 rounded-pill text-sm font-medium
+           transition-colors duration-200;
+  }
+
+  .header-mobile-item-active {
+    @apply bg-accent text-accent-text;
+  }
+
+  .header-mobile-item-inactive {
+    @apply text-ink-onDark/60 hover:bg-white/[0.08] hover:text-ink-onDark;
+  }
+}

@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { rebuildPatientClinicalSearchProjection } from '../patients/patient-clinical-search-projection';
 import { AdminMaintenanceDto } from './dto/admin-maintenance.dto';
 import { assertFineGrainedAction } from '../common/utils/fine-grained-permissions';
+import { IS_TEST_RUNTIME } from '../common/utils/runtime';
 
 export const ADMIN_MAINTENANCE_CONFIRMATIONS = {
   purgeExpiredPasswordResetTokens: 'PURGAR TOKENS RESET EXPIRADOS',
@@ -39,7 +40,7 @@ export class AdminMaintenanceService {
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM, {
-    disabled: process.env.NODE_ENV === 'test' || process.env.ADMIN_MAINTENANCE_CRON_DISABLED === 'true',
+    disabled: IS_TEST_RUNTIME || process.env.ADMIN_MAINTENANCE_CRON_DISABLED === 'true',
   })
   async purgeExpiredPasswordResetTokensCron() {
     const { retentionDays, maxAgeMs } = this.getPasswordResetTokenRetention();

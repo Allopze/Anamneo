@@ -32,6 +32,7 @@ export class AppointmentsService {
       throw new BadRequestException('Fechas inválidas');
     }
 
+    const APPOINTMENT_RANGE_LIMIT = 500;
     const appointments = await this.prisma.appointment.findMany({
       where: {
         medicoId,
@@ -40,6 +41,7 @@ export class AppointmentsService {
         cancelledAt: null,
       },
       orderBy: { startAt: 'asc' },
+      take: APPOINTMENT_RANGE_LIMIT,
       select: {
         id: true,
         medicoId: true,
@@ -57,7 +59,10 @@ export class AppointmentsService {
         medico: { select: { id: true, nombre: true } },
       },
     });
-    return appointments.map(formatAppointment);
+    return {
+      appointments: appointments.map(formatAppointment),
+      truncated: appointments.length === APPOINTMENT_RANGE_LIMIT,
+    };
   }
 
   async create(dto: CreateAppointmentDto, user: RequestUser) {

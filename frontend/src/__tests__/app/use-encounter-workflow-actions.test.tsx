@@ -28,6 +28,11 @@ jest.mock('@/lib/query-invalidation', () => ({
   invalidateTaskOverviewQueries: jest.fn().mockResolvedValue(undefined),
 }));
 
+const getSuggestedFollowupMock = jest.fn(() => null);
+jest.mock('@/lib/diagnosis-followup-map', () => ({
+  getSuggestedFollowup: (...args: any[]) => getSuggestedFollowupMock(...args),
+}));
+
 jest.mock('react-hot-toast', () => ({
   __esModule: true,
   default: Object.assign(jest.fn(), {
@@ -141,5 +146,125 @@ describe('useEncounterWorkflowActions', () => {
     expect(ensureActiveSectionSaved).not.toHaveBeenCalled();
     expect(apiPutMock).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith('La nota de revisión debe tener al menos 10 caracteres');
+  });
+
+  it('handleComplete aborts without saving when active section save fails', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const ensureActiveSectionSaved = jest.fn().mockResolvedValue(false);
+
+    const { result } = renderHook(
+      () =>
+        useEncounterWorkflowActions({
+          canEdit: true,
+          canCreateFollowupTask: false,
+          canRequestMedicalReview: false,
+          canMarkReviewedByDoctor: false,
+          encounter: { id: 'enc-1', patientId: 'p-1', status: 'EN_PROGRESO', sections: [] } as any,
+          ensureActiveSectionSaved,
+          id: 'enc-1',
+          navigate: jest.fn(),
+          queryClient,
+          userId: 'med-1',
+        }),
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    act(() => {
+      result.current.setClosureNote('Nota de cierre válida para completar la atención');
+    });
+
+    await act(async () => {
+      await result.current.handleComplete();
+    });
+
+    expect(ensureActiveSectionSaved).toHaveBeenCalledTimes(1);
+    expect(result.current.showCompleteConfirm).toBe(false);
+    expect(apiPostMock).not.toHaveBeenCalled();
+  });
+
+  it('handleComplete shows confirmation dialog when all checks pass', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const ensureActiveSectionSaved = jest.fn().mockResolvedValue(true);
+
+    const { result } = renderHook(
+      () =>
+        useEncounterWorkflowActions({
+          canEdit: true,
+          canCreateFollowupTask: false,
+          canRequestMedicalReview: false,
+          canMarkReviewedByDoctor: false,
+          encounter: { id: 'enc-1', patientId: 'p-1', status: 'EN_PROGRESO', sections: [] } as any,
+          ensureActiveSectionSaved,
+          id: 'enc-1',
+          navigate: jest.fn(),
+          queryClient,
+          userId: 'med-1',
+        }),
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    act(() => {
+      result.current.setClosureNote('Nota de cierre válida para completar la atención');
+    });
+
+    await act(async () => {
+      await result.current.handleComplete();
+    });
+
+    expect(ensureActiveSectionSaved).toHaveBeenCalledTimes(1);
+    expect(result.current.showCompleteConfirm).toBe(true);
+  });
+
+  it('handleFollowupSkip navigates using pendingNavRef and clears the suggestion', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const navigateMock = jest.fn();
+    getSuggestedFollowupMock.mockReturnValue({
+      diagnosisText: 'Hipertensión',
+      suggestedDate: '2026-06-10',
+    });
+
+    const { result } = renderHook(
+      () =>
+        useEncounterWorkflowActions({
+          canEdit: true,
+          canCreateFollowupTask: false,
+          canRequestMedicalReview: false,
+          canMarkReviewedByDoctor: false,
+          encounter: { id: 'enc-1', patientId: 'p-1', status: 'EN_PROGRESO', sections: [] } as any,
+          ensureActiveSectionSaved: jest.fn().mockResolvedValue(true),
+          id: 'enc-1',
+          navigate: navigateMock,
+          queryClient,
+          userId: 'med-1',
+        }),
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    act(() => {
+      result.current.setClosureNote('Nota de cierre válida para completar la atención');
+    });
+
+    await act(async () => {
+      await result.current.handleComplete();
+    });
+
+    act(() => result.current.confirmComplete());
+
+    await waitFor(() => {
+      expect(result.current.followupSuggestion).not.toBeNull();
+    });
+
+    act(() => {
+      result.current.handleFollowupSkip();
+    });
+
+    expect(result.current.followupSuggestion).toBeNull();
+    expect(navigateMock).toHaveBeenCalledWith('/atenciones/enc-1/ficha');
   });
 });

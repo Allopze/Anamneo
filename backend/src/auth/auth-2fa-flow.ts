@@ -20,24 +20,21 @@ type IssueTokensFn = (
   sessionContext?: SessionContext,
 ) => Promise<AuthTokens>;
 
+interface JtiStore {
+  hasUsed(jti: string): Promise<boolean>;
+  markUsed(jti: string, expiresAt: Date): Promise<void>;
+}
+
 interface Verify2FALoginFlowParams {
   jwtService: JwtService;
   prisma: PrismaService;
-  usedTempTokenJtis: Map<string, number>;
+  jtiStore: JtiStore;
   tempTokenTtlMs: number;
   tempToken: string;
   code: string;
   sessionContext?: SessionContext;
   issueTokens: IssueTokensFn;
   resolveTotpSecret: (storedSecret: string) => string;
-}
-
-function purgeExpiredTempTokenJtis(usedTempTokenJtis: Map<string, number>, now: number) {
-  for (const [jti, expiresAt] of usedTempTokenJtis) {
-    if (expiresAt <= now) {
-      usedTempTokenJtis.delete(jti);
-    }
-  }
 }
 
 function isTotpToken(code: string) {
@@ -50,7 +47,7 @@ export async function verify2FALoginFlow(
   const {
     jwtService,
     prisma,
-    usedTempTokenJtis,
+    jtiStore,
     tempTokenTtlMs,
     tempToken,
     code,
@@ -59,8 +56,6 @@ export async function verify2FALoginFlow(
     resolveTotpSecret,
   } = params;
   const now = Date.now();
-
-  purgeExpiredTempTokenJtis(usedTempTokenJtis, now);
 
   let payload: { sub: string; purpose: string; jti?: string };
   try {
@@ -74,7 +69,7 @@ export async function verify2FALoginFlow(
   }
 
   if (payload.jti) {
-    if (usedTempTokenJtis.has(payload.jti)) {
+    if (await jtiStore.hasUsed(payload.jti)) {
       throw new UnauthorizedException('Token temporal ya utilizado');
     }
   }
@@ -113,7 +108,7 @@ export async function verify2FALoginFlow(
   }
 
   if (payload.jti) {
-    usedTempTokenJtis.set(payload.jti, now + tempTokenTtlMs);
+    await jtiStore.markUsed(payload.jti, new Date(now + tempTokenTtlMs));
   }
 
   return {

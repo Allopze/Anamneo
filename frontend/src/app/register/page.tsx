@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
@@ -9,7 +9,8 @@ import { api, getErrorMessage } from '@/lib/api';
 import { useAuthLogin } from '@/stores/auth-store';
 import { stashAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
 import { AuthFrame } from '@/components/auth/AuthFrame';
-import { FiLock, FiMail, FiShield, FiUser, FiUserPlus } from 'react-icons/fi';
+import { ErrorAlert } from '@/components/common/ErrorAlert';
+import { FiAlertCircle, FiLock, FiMail, FiShield, FiUser, FiUserPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import {
   getLegalDocumentByType,
@@ -24,23 +25,28 @@ import {
   type RegisterRole,
 } from './register.constants';
 import RegisterFooter from './RegisterFooter';
+import { RegisterFallback } from './RegisterFallback';
 import RegisterLegalAcceptance from './RegisterLegalAcceptance';
 import RegisterPasswordFields from './RegisterPasswordFields';
 import RegisterRoleField from './RegisterRoleField';
 
 export default function RegisterPage() {
-  return <RegisterContent />;
+  return (
+    <Suspense fallback={<RegisterFallback />}>
+      <RegisterContent />
+    </Suspense>
+  );
 }
 
 function RegisterContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const login = useAuthLogin();
-  const [invitationTokenFromQuery, setInvitationTokenFromQuery] = useState<string | null>(null);
-  const [hasLoadedRegistrationQuery, setHasLoadedRegistrationQuery] = useState(false);
+  const invitationTokenFromQuery = searchParams.get('token')?.trim() || null;
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [availableRoles, setAvailableRoles] = useState<RegisterRole[]>(['ADMIN']);
-  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const [invitationToken, setInvitationToken] = useState<string | null>(null);
   const [invitationEmail, setInvitationEmail] = useState<string | null>(null);
   const [invitationError, setInvitationError] = useState<string | null>(null);
@@ -48,6 +54,21 @@ function RegisterContent() {
   const [requiresBootstrapToken, setRequiresBootstrapToken] = useState(false);
   const registerDraftWriteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRegisterDraftRef = useRef<string | null>(null);
+  const bootstrapQuery = useQuery({
+    queryKey: ['auth', 'bootstrap'],
+    queryFn: () => api.get('/auth/bootstrap').then((r) => r.data as { hasAdmin: boolean; requiresBootstrapToken?: boolean }),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const invitationQuery = useQuery({
+    queryKey: ['auth', 'invitation', invitationTokenFromQuery],
+    queryFn: () => api.get(`/auth/invitations/${invitationTokenFromQuery}`).then((r) => r.data as { role: RegisterRole; email: string }),
+    enabled: Boolean(bootstrapQuery.data?.hasAdmin && invitationTokenFromQuery),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const legalDocumentsQuery = useQuery({
     queryKey: ['legal-documents', 'current'],
     queryFn: async () => {
@@ -74,15 +95,6 @@ function RegisterContent() {
     },
   });
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const token = new URLSearchParams(window.location.search).get('token')?.trim() || null;
-    setInvitationTokenFromQuery(token);
-    setHasLoadedRegistrationQuery(true);
-  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -145,87 +157,74 @@ function RegisterContent() {
     };
   }, [watch]);
 
+  // Sync derived registration state from query results
   useEffect(() => {
-    if (!hasLoadedRegistrationQuery) {
+    if (bootstrapQuery.isLoading) return;
+
+    if (bootstrapQuery.isError) {
+      setInvitationError('No fue posible cargar el estado de registro.');
       return;
     }
 
-    let cancelled = false;
+    const hasAdmin = bootstrapQuery.data?.hasAdmin;
 
-    const loadBootstrapState = async () => {
-      try {
-        const response = await api.get('/auth/bootstrap');
-        if (cancelled) {
-          return;
-        }
+    if (hasAdmin) {
+      setIsInvitationMode(true);
+      setRequiresBootstrapToken(false);
 
-        if (response.data?.hasAdmin) {
-          setIsInvitationMode(true);
-          setRequiresBootstrapToken(false);
-
-          if (!invitationTokenFromQuery) {
-            setInvitationError('Necesita una invitación válida para crear una cuenta.');
-            setAvailableRoles([]);
-            return;
-          }
-
-          try {
-            const invitationResponse = await api.get(`/auth/invitations/${invitationTokenFromQuery}`);
-            if (cancelled) {
-              return;
-            }
-
-            const role = invitationResponse.data.role as RegisterRole;
-            const email = invitationResponse.data.email as string;
-
-            setInvitationToken(invitationTokenFromQuery);
-            setInvitationEmail(email);
-            setAvailableRoles([role]);
-            setValue('role', role, { shouldValidate: false, shouldDirty: false });
-            setValue('email', email, { shouldValidate: false, shouldDirty: false });
-            setInvitationError(null);
-          } catch {
-            if (!cancelled) {
-              setAvailableRoles([]);
-              setInvitationError('La invitación es inválida o expiró.');
-            }
-          }
-
-          return;
-        }
-
-        setIsInvitationMode(false);
-        setRequiresBootstrapToken(Boolean(response.data?.requiresBootstrapToken));
-        setInvitationToken(null);
-        setInvitationEmail(null);
-        setAvailableRoles(['ADMIN']);
-        setValue('role', 'ADMIN', { shouldValidate: false, shouldDirty: false });
-        setInvitationError(null);
-      } catch {
-        if (!cancelled) {
-          setInvitationError('No fue posible cargar el estado de registro.');
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingRoles(false);
-        }
+      if (!invitationTokenFromQuery) {
+        setInvitationError('Necesita una invitación válida para crear una cuenta.');
+        setAvailableRoles([]);
+        return;
       }
-    };
 
-    void loadBootstrapState();
+      if (invitationQuery.isLoading) return;
 
-    return () => {
-      cancelled = true;
-    };
-  }, [hasLoadedRegistrationQuery, invitationTokenFromQuery, setValue]);
+      if (invitationQuery.isError) {
+        setAvailableRoles([]);
+        setInvitationError('La invitación es inválida o expiró.');
+        return;
+      }
+
+      if (invitationQuery.data) {
+        const { role, email } = invitationQuery.data;
+        setInvitationToken(invitationTokenFromQuery);
+        setInvitationEmail(email);
+        setAvailableRoles([role]);
+        setValue('role', role, { shouldValidate: false, shouldDirty: false });
+        setValue('email', email, { shouldValidate: false, shouldDirty: false });
+        setInvitationError(null);
+      }
+    } else {
+      setIsInvitationMode(false);
+      setRequiresBootstrapToken(Boolean(bootstrapQuery.data?.requiresBootstrapToken));
+      setInvitationToken(null);
+      setInvitationEmail(null);
+      setAvailableRoles(['ADMIN']);
+      setValue('role', 'ADMIN', { shouldValidate: false, shouldDirty: false });
+      setInvitationError(null);
+    }
+  }, [
+    bootstrapQuery.isLoading,
+    bootstrapQuery.isError,
+    bootstrapQuery.data,
+    invitationQuery.isLoading,
+    invitationQuery.isError,
+    invitationQuery.data,
+    invitationTokenFromQuery,
+    setValue,
+  ]);
 
   const termsDocument = getLegalDocumentByType(legalDocumentsQuery.data, 'TERMS');
   const privacyDocument = getLegalDocumentByType(legalDocumentsQuery.data, 'PRIVACY');
   const legalDocumentsReady = Boolean(termsDocument?.version && privacyDocument?.version);
+  const isLoadingRoles = bootstrapQuery.isLoading || invitationQuery.isLoading;
   const isFormBusy = isSubmitting || isLoadingRoles || legalDocumentsQuery.isLoading;
   const registerChips = isInvitationMode ? REGISTER_INVITATION_CHIPS : REGISTER_BOOTSTRAP_CHIPS;
 
   const onSubmit = async (data: RegisterForm) => {
+    setSubmitError(null);
+
     if (!termsDocument || !privacyDocument) {
       toast.error('No hay documentos legales vigentes publicados para completar el registro.');
       return;
@@ -270,9 +269,13 @@ function RegisterContent() {
       toast.success('¡Cuenta creada exitosamente!');
       router.push('/');
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      setSubmitError(getErrorMessage(err));
     }
   };
+
+  if (isLoadingRoles || legalDocumentsQuery.isLoading) {
+    return <RegisterFallback />;
+  }
 
   return (
     <AuthFrame
@@ -283,10 +286,26 @@ function RegisterContent() {
           ? 'Activa tu cuenta para operar.'
           : 'Primera cuenta del espacio clínico.'
       }
+      description={
+        isInvitationMode
+          ? 'Completa tus datos para activar el acceso asignado por el administrador.'
+          : 'Crea la cuenta administradora inicial para habilitar el espacio clínico.'
+      }
       chips={registerChips}
+      heroFooter={
+        <div className="auth-help">
+          <FiLock className="h-7 w-7" aria-hidden="true" />
+          <span>
+            <span className="auth-help-title">Cifrado de extremo a extremo</span>
+            <span className="auth-help-copy">Tus datos viajan y se almacenan cifrados.</span>
+          </span>
+        </div>
+      }
       cardEyebrow="Registro"
       cardTitle="Crear cuenta"
       cardDescription="Completa los datos para habilitar el acceso."
+      logoIconClassName="!h-14 !w-14 lg:!h-20 lg:!w-20"
+      logoTextClassName="!text-3xl lg:!text-4xl"
       footer={<RegisterFooter />}
     >
       {isInvitationMode && (
@@ -296,28 +315,22 @@ function RegisterContent() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {submitError ? (
+          <ErrorAlert message={submitError} />
+        ) : null}
+
         {invitationError ? (
-          <div className="auth-banner auth-banner-warning" aria-live="polite">
-            {invitationError}
-          </div>
-        ) : null}
-
-        {isLoadingRoles ? (
-          <div className="auth-banner auth-banner-muted" aria-live="polite">
-            Validando si este registro requiere invitación…
-          </div>
-        ) : null}
-
-        {legalDocumentsQuery.isLoading ? (
-          <div className="auth-banner auth-banner-muted" aria-live="polite">
-            Cargando documentos legales vigentes…
+          <div className="auth-banner auth-banner-warning flex items-start gap-2" aria-live="polite">
+            <FiAlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{invitationError}</span>
           </div>
         ) : null}
 
         {legalDocumentsQuery.isError || !legalDocumentsReady ? (
-          <div className="auth-banner auth-banner-warning" aria-live="polite">
-            No hay documentos legales vigentes disponibles. Un administrador debe publicar términos y privacidad.
+          <div className="auth-banner auth-banner-warning flex items-start gap-2" aria-live="polite">
+            <FiAlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>No hay documentos legales vigentes disponibles. Un administrador debe publicar términos y privacidad.</span>
           </div>
         ) : null}
 
@@ -446,7 +459,7 @@ function RegisterContent() {
           className="btn btn-accent w-full gap-2 py-3"
         >
           {isSubmitting ? (
-            <span className="flex items-center gap-2" aria-live="polite">
+            <span className="flex items-center justify-center gap-2" aria-live="polite">
               <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
               Creando cuenta…
             </span>

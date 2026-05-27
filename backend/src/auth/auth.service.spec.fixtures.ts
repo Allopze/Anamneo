@@ -62,6 +62,11 @@ export function createMockServices() {
       update: jest.fn(),
       deleteMany: jest.fn(),
     },
+    usedTempTokenJti: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      upsert: jest.fn().mockResolvedValue(undefined),
+      deleteMany: jest.fn().mockResolvedValue(undefined),
+    },
   };
 
   const jwtService = {

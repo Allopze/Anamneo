@@ -20,6 +20,12 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly, m
   const [cie10Results, setCie10Results] = useState<Record<string, Array<{ code: string; description: string }>>>({});
   const cie10TimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+  useEffect(() => {
+    return () => {
+      Object.values(cie10TimerRef.current).forEach(clearTimeout);
+    };
+  }, []);
+
   const searchCie10 = useCallback(async (sospechaId: string, query: string) => {
     setCie10Query((prev) => ({ ...prev, [sospechaId]: query }));
     if (cie10TimerRef.current[sospechaId]) clearTimeout(cie10TimerRef.current[sospechaId]);

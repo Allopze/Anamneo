@@ -8,7 +8,7 @@ export type RegisterRole = 'ADMIN' | 'MEDICO' | 'ASISTENTE';
 export const ROLE_OPTIONS: Record<RegisterRole, { label: string; description: string }> = {
   ADMIN: {
     label: 'Administrador',
-    description: 'Acceso administrativo completo del sistema',
+    description: 'Gestiona usuarios, roles y configuración del espacio clínico.',
   },
   MEDICO: {
     label: 'Médico',
@@ -44,13 +44,13 @@ export const registerSchema = z.object({
 export type RegisterForm = z.infer<typeof registerSchema>;
 
 export const REGISTER_BOOTSTRAP_CHIPS = [
-  { icon: <FiShield className="h-3.5 w-3.5" />, label: 'Admin inicial' },
-  { icon: <FiUsers className="h-3.5 w-3.5" />, label: 'Gestión de equipo' },
-  { icon: <FiClipboard className="h-3.5 w-3.5" />, label: 'Flujo clínico' },
+  { icon: <FiShield className="h-3.5 w-3.5" />, label: 'Admin inicial', description: 'Cuenta con acceso completo al sistema.' },
+  { icon: <FiUsers className="h-3.5 w-3.5" />, label: 'Gestión de equipo', description: 'Invita médicos y asistentes al espacio.' },
+  { icon: <FiClipboard className="h-3.5 w-3.5" />, label: 'Flujo clínico', description: 'Configura atenciones y pacientes.' },
 ];
 
 export const REGISTER_INVITATION_CHIPS = [
-  { icon: <FiUserPlus className="h-3.5 w-3.5" />, label: 'Invitación' },
-  { icon: <FiShield className="h-3.5 w-3.5" />, label: 'Rol asignado' },
-  { icon: <FiFileText className="h-3.5 w-3.5" />, label: 'Trazabilidad' },
+  { icon: <FiUserPlus className="h-3.5 w-3.5" />, label: 'Invitación', description: 'Rol y permisos asignados por el admin.' },
+  { icon: <FiShield className="h-3.5 w-3.5" />, label: 'Rol asignado', description: 'Tu nivel de acceso está predefinido.' },
+  { icon: <FiFileText className="h-3.5 w-3.5" />, label: 'Trazabilidad', description: 'Cada acción queda registrada.' },
 ];

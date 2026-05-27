@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface p-4">
+    <div className="min-h-screen flex items-center justify-center bg-surface-base p-4">
       <div className="card max-w-md w-full space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-ink-primary">¿Olvidaste tu contraseña?</h1>

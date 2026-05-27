@@ -94,6 +94,11 @@ export default function ReportesPage() {
         </div>
       ) : data ? (
         <>
+          {data.summary.appointmentsTotal === 0 && data.summary.encountersTotal === 0 && (
+            <div className="rounded-card border border-surface-muted/30 bg-surface-elevated p-5 text-sm text-ink-secondary">
+              No se registró actividad clínica para este día. Si esto te parece incorrecto, verifica que las citas y atenciones estén asociadas a esta fecha.
+            </div>
+          )}
           <div className="grid gap-4 md:grid-cols-4">
             <MetricTile label="Citas programadas" value={data.summary.scheduledAppointments} icon={FiCalendar} />
             <MetricTile label="Atenciones" value={data.summary.encountersTotal} icon={FiClipboard} />

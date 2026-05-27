@@ -43,8 +43,8 @@ export default function RegisterRoleField({
             {availableRoles.map((role) => (
               <label key={role} className="relative">
                 <input type="radio" value={role} {...register('role')} disabled={disabled} className="peer sr-only" />
-                <div className="auth-role-card peer-checked:border-[#2f6f68] peer-checked:bg-[#2f6f68]/[0.06]">
-                  <div className="auth-role-indicator peer-checked:border-[#2f6f68] peer-checked:bg-[#2f6f68]" aria-hidden="true" />
+                <div className="auth-role-card peer-checked:border-auth-teal peer-checked:bg-auth-teal/[0.06]">
+                  <div className="auth-role-indicator peer-checked:border-auth-teal peer-checked:bg-auth-teal" aria-hidden="true" />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-ink-primary">{ROLE_OPTIONS[role].label}</p>
                     <p className="mt-1 text-xs text-ink-secondary">{ROLE_OPTIONS[role].description}</p>

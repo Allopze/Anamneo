@@ -117,6 +117,11 @@ describe('AuthService sessions', () => {
         totpSecret: 'SECRET',
       });
 
+      // First call: jti is not yet used. Second call: jti is marked as used.
+      (prismaService.usedTempTokenJti.findUnique as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ jti: 'temp-jti-1', expiresAt: new Date(Date.now() + 300_000) });
+
       const verifySpy = jest.spyOn(authenticator, 'verify').mockReturnValue(true);
 
       const first = await service.verify2FALogin('temp-token', '123456');

@@ -188,6 +188,8 @@ export function buildClinicalSummary(
         imc: signos.imc ? Number(signos.imc) : null,
         temperatura: signos.temperatura ? Number(signos.temperatura) : null,
         saturacionOxigeno: signos.saturacionOxigeno ? Number(signos.saturacionOxigeno) : null,
+        frecuenciaCardiaca: signos.frecuenciaCardiaca ? Number(signos.frecuenciaCardiaca) : null,
+        frecuenciaRespiratoria: signos.frecuenciaRespiratoria ? Number(signos.frecuenciaRespiratoria) : null,
       };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
@@ -197,7 +199,9 @@ export function buildClinicalSummary(
         item.peso !== null ||
         item.imc !== null ||
         item.temperatura !== null ||
-        item.saturacionOxigeno !== null,
+        item.saturacionOxigeno !== null ||
+        item.frecuenciaCardiaca !== null ||
+        item.frecuenciaRespiratoria !== null,
     );
   if (!options?.fullVitals) {
     vitalTrend = vitalTrend.slice(0, 6);

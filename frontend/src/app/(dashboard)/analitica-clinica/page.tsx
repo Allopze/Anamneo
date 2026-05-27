@@ -321,6 +321,16 @@ export default function AnaliticaClinicaPage() {
         </div>
       ) : data ? (
         <>
+          {data.summary.matchedPatients === 0 && (
+            <div className="rounded-card border border-surface-muted/30 bg-surface-elevated p-6 text-center">
+              <FiBarChart2 className="mx-auto mb-3 h-10 w-10 text-ink-muted/40" />
+              <p className="font-semibold text-ink">Sin atenciones para esta búsqueda</p>
+              <p className="mt-1 text-sm text-ink-secondary">
+                No hay atenciones completadas que coincidan con los filtros aplicados.
+                Intenta ampliar el rango de fechas o buscar por un término más general.
+              </p>
+            </div>
+          )}
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <MetricCard title="Pacientes" value={String(data.summary.matchedPatients)} icon={<FiUsers className="h-5 w-5" />} detail={`Edad promedio: ${data.summary.demographics.averageAge !== null ? Math.round(data.summary.demographics.averageAge) : '—'} años`} />
             <MetricCard title="Atenciones" value={String(data.summary.matchedEncounters)} icon={<FiBarChart2 className="h-5 w-5" />} detail={`Fuente: ${data.filters.source === 'ANY' ? 'mixta' : data.filters.source.toLowerCase().replace(/_/g, ' ')}`} />

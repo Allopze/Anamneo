@@ -41,6 +41,7 @@ export interface PatientLegalStatus {
 
 export interface Patient {
   id: string;
+  /** Decrypted from rutEnc (Ley 21.719 Art 14 quinquies). Server-side PII — never persist client-side. */
   rut: string | null;
   rutExempt: boolean;
   rutExemptReason: string | null;
@@ -167,6 +168,8 @@ export interface PatientClinicalSummary {
     imc: number | null;
     temperatura: number | null;
     saturacionOxigeno: number | null;
+    frecuenciaCardiaca: number | null;
+    frecuenciaRespiratoria: number | null;
   }>;
   recentDiagnoses: Array<{
     label: string;

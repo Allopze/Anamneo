@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { IS_TEST_RUNTIME } from './common/utils/runtime';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -48,7 +49,7 @@ import { HealthController } from './health.controller';
 
     // Rate limiting (relaxed in test mode to avoid flaky E2E tests)
     ThrottlerModule.forRoot(
-      process.env.NODE_ENV === 'test'
+      IS_TEST_RUNTIME
         ? [
             { name: 'short', ttl: 1000, limit: 100 },
             { name: 'medium', ttl: 10000, limit: 500 },

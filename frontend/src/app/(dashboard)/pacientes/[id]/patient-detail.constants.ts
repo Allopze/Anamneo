@@ -30,5 +30,7 @@ export const VITAL_CHART_CONFIG = [
   { key: 'imc' as const, label: 'IMC', unit: '', stroke: '#7c3aed' },
   { key: 'temperatura' as const, label: 'T°', unit: '°C', stroke: '#ea580c' },
   { key: 'saturacionOxigeno' as const, label: 'SatO₂', unit: '%', stroke: '#2563eb' },
+  { key: 'frecuenciaCardiaca' as const, label: 'FC', unit: 'lpm', stroke: '#dc2626' },
+  { key: 'frecuenciaRespiratoria' as const, label: 'FR', unit: 'rpm', stroke: '#0891b2' },
 ] as const;
 export type VitalKey = (typeof VITAL_CHART_CONFIG)[number]['key'];

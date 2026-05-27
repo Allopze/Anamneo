@@ -117,6 +117,17 @@ api.interceptors.response.use(
       await clearSessionAndRedirectToLogin();
     }
 
+    // Consent enforcement redirect (Ley 21.719 Art 12)
+    const consentData = error.response?.data as { code?: string; patientId?: string } | undefined;
+    if (
+      error.response?.status === 403 &&
+      consentData?.code === 'PATIENT_CONSENT_REQUIRED' &&
+      consentData?.patientId &&
+      typeof window !== 'undefined'
+    ) {
+      window.location.assign(`/pacientes/${consentData.patientId}`);
+    }
+
     return Promise.reject(error);
   }
 );

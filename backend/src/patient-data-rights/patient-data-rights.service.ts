@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
 import { RequestUser } from '../common/utils/medico-id';
+import { IS_TEST_RUNTIME } from '../common/utils/runtime';
 import {
   AdminUpdateDataRequestDto,
   CreateDataRequestExportLinkDto,
@@ -41,7 +42,7 @@ export class PatientDataRightsService {
    * `@nestjs/schedule`, que se integra al lifecycle de Nest y permite
    * disabling automatico en `NODE_ENV=test`.
    */
-  @Cron(CronExpression.EVERY_HOUR, { disabled: process.env.NODE_ENV === 'test' })
+  @Cron(CronExpression.EVERY_HOUR, { disabled: IS_TEST_RUNTIME })
   async runSlaCheck(): Promise<void> {
     try {
       await Promise.all([this.markExpiredRequests(), this.markExpiredDownloads()]);

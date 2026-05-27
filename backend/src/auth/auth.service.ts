@@ -54,8 +54,6 @@ const TEMP_TOKEN_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 @Injectable()
 export class AuthService {
-  private usedTempTokenJtis = new Map<string, number>();
-
   constructor(
     private prisma: PrismaService,
     private usersService: UsersService,
@@ -248,7 +246,23 @@ export class AuthService {
     return verify2FALoginFlow({
       jwtService: this.jwtService,
       prisma: this.prisma,
-      usedTempTokenJtis: this.usedTempTokenJtis,
+      jtiStore: {
+        hasUsed: async (jti) => {
+          const row = await this.prisma.usedTempTokenJti.findUnique({ where: { jti } });
+          return row !== null && row.expiresAt > new Date();
+        },
+        markUsed: async (jti, expiresAt) => {
+          await this.prisma.usedTempTokenJti.upsert({
+            where: { jti },
+            create: { jti, expiresAt },
+            update: { expiresAt },
+          });
+          // Best-effort cleanup of stale entries (fire-and-forget)
+          void this.prisma.usedTempTokenJti.deleteMany({
+            where: { expiresAt: { lt: new Date() } },
+          });
+        },
+      },
       tempTokenTtlMs: TEMP_TOKEN_TTL_MS,
       tempToken,
       code,

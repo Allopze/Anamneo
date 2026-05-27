@@ -1,24 +1,10 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  startOfWeek,
-  endOfWeek,
-  addWeeks,
-  subWeeks,
-  format,
-  addDays,
-  isSameDay,
-  parseISO,
-  differenceInMinutes,
-} from 'date-fns';
+import { format, isSameDay, parseISO, differenceInMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { FiChevronLeft, FiChevronRight, FiPlus } from 'react-icons/fi';
-import { api, getErrorMessage } from '@/lib/api';
+import { FiCalendar, FiChevronLeft, FiChevronRight, FiPlus } from 'react-icons/fi';
 import { useAuthUser } from '@/stores/auth-store';
-import toast from 'react-hot-toast';
 import {
   DEFAULT_FORM,
   HOUR_START,
@@ -30,137 +16,46 @@ import {
   TOTAL_SLOTS,
   type Appointment,
   type AppointmentForm,
-  type AppointmentStatus,
-  type PatientSearchResult,
 } from './agenda-types';
 import { CreateAppointmentModal } from './AgendaCreateModal';
 import { AppointmentDetailModal } from './AgendaDetailModal';
+import { useAgendaWeek } from './useAgendaWeek';
+import { useAgendaAppointments } from './useAgendaAppointments';
+import { useAgendaPatientSearch } from './useAgendaPatientSearch';
 
 export default function AgendaPage() {
-  const router = useRouter();
   const user = useAuthUser();
-  const queryClient = useQueryClient();
-  const [weekOffset, setWeekOffset] = useState(0);
+  const medicoId = user?.role === 'MEDICO' ? user.id : user?.medicoId ?? '';
+
+  const { weekOffset, setWeekOffset, weekStart, weekEnd, weekDays } = useAgendaWeek();
+
   const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<AppointmentForm>(DEFAULT_FORM);
-  const [patientSearch, setPatientSearch] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState<PatientSearchResult | null>(null);
 
-  const weekStart = useMemo(
-    () => startOfWeek(addWeeks(new Date(), weekOffset), { weekStartsOn: 1 }),
-    [weekOffset],
-  );
-  const weekEnd = useMemo(() => endOfWeek(weekStart, { weekStartsOn: 1 }), [weekStart]);
-
-  const weekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
-    [weekStart],
-  );
-
-  const medicoId = user?.role === 'MEDICO' ? user.id : user?.medicoId ?? '';
-
-  const { data: appointments = [], isLoading } = useQuery({
-    queryKey: ['appointments', medicoId, weekStart.toISOString()],
-    queryFn: async () => {
-      const res = await api.get<Appointment[]>('/appointments', {
-        params: {
-          medicoId,
-          startDate: weekStart.toISOString(),
-          endDate: weekEnd.toISOString(),
-        },
-      });
-      return res.data;
-    },
-    enabled: Boolean(medicoId),
-    staleTime: 30_000,
-  });
+  const {
+    patientSearch, setPatientSearch,
+    selectedPatient, setSelectedPatient,
+    patientOptions, isSearchingPatients,
+  } = useAgendaPatientSearch(showForm);
 
   const normalizedPatientSearch = patientSearch.trim();
-  const { data: patientOptions = [], isFetching: isSearchingPatients } = useQuery({
-    queryKey: ['agenda-patient-search', normalizedPatientSearch],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      params.set('limit', '8');
-      params.set('sortBy', 'updatedAt');
-      params.set('sortOrder', 'desc');
-      params.set('search', normalizedPatientSearch);
-      const res = await api.get(`/patients?${params.toString()}`);
-      return res.data.data as PatientSearchResult[];
-    },
-    enabled: showForm && normalizedPatientSearch.length >= 2,
-    staleTime: 30_000,
-  });
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ['appointments', medicoId, weekStart.toISOString()] });
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const start = new Date(`${form.startDate}T${form.startTime}:00`);
-      const end = new Date(`${form.startDate}T${form.endTime}:00`);
-      await api.post('/appointments', {
-        medicoId,
-        patientId: selectedPatient?.id,
-        startAt: start.toISOString(),
-        endAt: end.toISOString(),
-        title: form.title.trim() || undefined,
-        notes: form.notes.trim() || undefined,
-      });
-    },
-    onSuccess: () => {
-      toast.success('Cita creada');
-      setShowForm(false);
-      setForm(DEFAULT_FORM);
-      setPatientSearch('');
-      setSelectedPatient(null);
-      void invalidate();
-    },
-    onError: (err) => toast.error(getErrorMessage(err)),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: AppointmentStatus }) => {
-      await api.put(`/appointments/${id}`, { status });
-    },
-    onSuccess: () => {
-      toast.success('Estado actualizado');
-      setSelectedAppt(null);
-      void invalidate();
-    },
-    onError: (err) => toast.error(getErrorMessage(err)),
-  });
-
-  const attendMutation = useMutation({
-    mutationFn: async (appt: Appointment) => {
-      if (!appt.patientId) {
-        throw new Error('La cita debe estar vinculada a un paciente antes de atender');
-      }
-      const response = await api.post(`/encounters/patient/${appt.patientId}`, {
-        appointmentId: appt.id,
-      });
-      return response.data as { id: string; reused?: boolean };
-    },
-    onSuccess: async (encounter) => {
-      toast.success(encounter.reused ? 'Atención en curso asociada a la cita' : 'Atención creada desde la cita');
-      setSelectedAppt(null);
-      await invalidate();
-      router.push(`/atenciones/${encounter.id}`);
-    },
-    onError: (err) => toast.error(getErrorMessage(err)),
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/appointments/${id}`, { data: {} });
-    },
-    onSuccess: () => {
-      toast.success('Cita cancelada');
-      setSelectedAppt(null);
-      void invalidate();
-    },
-    onError: (err) => toast.error(getErrorMessage(err)),
-  });
+  const { appointments, isLoading, truncated, createMutation, updateMutation, attendMutation, cancelMutation } =
+    useAgendaAppointments({
+      medicoId,
+      weekStart,
+      weekEnd,
+      form,
+      selectedPatientId: selectedPatient?.id,
+      onCreateSuccess: () => {
+        setShowForm(false);
+        setForm(DEFAULT_FORM);
+        setPatientSearch('');
+        setSelectedPatient(null);
+      },
+      onMutationSuccess: () => setSelectedAppt(null),
+    });
 
   const openCreateForm = (day: Date, slotIndex: number) => {
     const hour = HOUR_START + Math.floor(slotIndex / SLOTS_PER_HOUR);
@@ -201,6 +96,18 @@ export default function AgendaPage() {
 
   const today = new Date();
   const totalGridHeight = TOTAL_SLOTS * SLOT_HEIGHT_PX;
+
+  if (!medicoId) {
+    return (
+      <div className="animate-fade-in flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
+        <FiCalendar className="h-12 w-12 text-ink-muted/50" aria-hidden="true" />
+        <h2 className="text-xl font-bold text-ink">Sin médico asignado</h2>
+        <p className="max-w-sm text-sm text-ink-secondary">
+          Tu cuenta de asistente no tiene un médico asignado. Solicita al administrador que configure la asignación en los ajustes del sistema.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in">
@@ -254,6 +161,12 @@ export default function AgendaPage() {
           </button>
         </div>
       </div>
+
+      {truncated && (
+        <div className="mb-4 rounded-card border border-status-yellow/30 bg-status-yellow/10 px-4 py-3 text-sm text-ink-secondary">
+          Mostrando los primeros 500 turnos de la semana. Si esto ocurre con frecuencia, reduce el rango de fechas o filtra por médico.
+        </div>
+      )}
 
       {/* Calendar grid */}
       <div className="overflow-x-auto rounded-card border border-surface-muted/30 bg-surface-elevated shadow-soft">

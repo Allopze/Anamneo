@@ -20,16 +20,16 @@ import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.
 import { UsersService } from '../users/users.service';
 import { ConfigService } from '@nestjs/config';
 import { isMobileClient } from '../common/utils/mobile-client';
+import { IS_TEST_RUNTIME } from '../common/utils/runtime';
 
 const AUTH_THROTTLE_TTL_MS = 60_000;
-const isTestRuntime = process.env.NODE_ENV === 'test';
 const authThrottleLimits = {
-  register: isTestRuntime ? 30 : 3,
-  login: isTestRuntime ? 60 : 5,
-  forgotPassword: isTestRuntime ? 30 : 2,
-  forgotPasswordCheck: isTestRuntime ? 60 : 10,
-  forgotPasswordConfirm: isTestRuntime ? 30 : 5,
-  verify2FA: isTestRuntime ? 60 : 5,
+  register: IS_TEST_RUNTIME ? 30 : 3,
+  login: IS_TEST_RUNTIME ? 60 : 5,
+  forgotPassword: IS_TEST_RUNTIME ? 30 : 2,
+  forgotPasswordCheck: IS_TEST_RUNTIME ? 60 : 10,
+  forgotPasswordConfirm: IS_TEST_RUNTIME ? 30 : 5,
+  verify2FA: IS_TEST_RUNTIME ? 60 : 5,
 };
 
 // Cookie configuration helper

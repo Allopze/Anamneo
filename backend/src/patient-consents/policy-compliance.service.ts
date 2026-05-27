@@ -37,7 +37,7 @@ export class PolicyComplianceService {
       `finalidad ${purpose} sobre la politica de privacidad publicada ` +
       `(Ley 21.719 Art 12).`;
     if (this.mode === 'hard') {
-      throw new ForbiddenException(msg);
+      throw new ForbiddenException({ code: 'PATIENT_CONSENT_REQUIRED', patientId, purpose, message: msg });
     }
     this.logger.warn(`[policy-compliance:soft] ${msg}`);
   }

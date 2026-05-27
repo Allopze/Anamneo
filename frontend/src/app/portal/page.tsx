@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { FiDownload, FiFileText } from 'react-icons/fi';
 import { portalApi, getErrorMessage } from '@/lib/portal-api';
 
@@ -24,21 +24,25 @@ type PortalEncounter = {
 };
 
 export default function PortalHomePage() {
-  const [patient, setPatient] = useState<PortalPatient | null>(null);
-  const [encounters, setEncounters] = useState<PortalEncounter[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [patientQuery, encountersQuery] = useQueries({
+    queries: [
+      {
+        queryKey: ['portal', 'patient'],
+        queryFn: async () => (await portalApi.get<PortalPatient>('/portal/patient')).data,
+        retry: false,
+      },
+      {
+        queryKey: ['portal', 'encounters'],
+        queryFn: async () => (await portalApi.get<PortalEncounter[]>('/portal/encounters')).data,
+        retry: false,
+      },
+    ],
+  });
 
-  useEffect(() => {
-    Promise.all([
-      portalApi.get<PortalPatient>('/portal/patient'),
-      portalApi.get<PortalEncounter[]>('/portal/encounters'),
-    ])
-      .then(([patientRes, encountersRes]) => {
-        setPatient(patientRes.data);
-        setEncounters(encountersRes.data);
-      })
-      .catch((err) => setError(getErrorMessage(err)));
-  }, []);
+  const isLoading = patientQuery.isLoading || encountersQuery.isLoading;
+  const error = patientQuery.error ?? encountersQuery.error;
+  const patient = patientQuery.data ?? null;
+  const encounters = encountersQuery.data ?? [];
 
   const handleLogout = async () => {
     await portalApi.post('/portal/auth/logout', {});
@@ -48,10 +52,20 @@ export default function PortalHomePage() {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8">
       <div className="mx-auto max-w-5xl space-y-6">
+        {isLoading && (
+          <div className="flex min-h-[40vh] items-center justify-center" aria-busy="true" aria-label="Cargando tu información">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-700" />
+              <p className="text-sm text-slate-500">Cargando tu información…</p>
+            </div>
+          </div>
+        )}
+        {!isLoading && (
+        <>
         <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">Portal paciente</h1>
-            <p className="text-sm text-slate-600">{patient ? patient.nombre : 'Cargando ficha...'}</p>
+            <p className="text-sm text-slate-600">{patient ? patient.nombre : '—'}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/portal/solicitudes" className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">
@@ -66,7 +80,7 @@ export default function PortalHomePage() {
           </div>
         </header>
 
-        {error && <div className="rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
+        {error && <div className="rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{getErrorMessage(error)}</div>}
 
         {patient && (
           <section className="rounded-lg border border-slate-200 bg-white p-5">
@@ -100,6 +114,8 @@ export default function PortalHomePage() {
             {encounters.length === 0 && <p className="py-6 text-center text-sm text-slate-500">No hay atenciones finalizadas disponibles.</p>}
           </div>
         </section>
+        </>
+        )}
       </div>
     </main>
   );

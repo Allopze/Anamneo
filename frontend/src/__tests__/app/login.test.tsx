@@ -1,6 +1,15 @@
+import type { ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import LoginPage from '@/app/login/page';
+
+function renderWithQuery(ui: ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
 
 // Mock next/navigation
 const pushMock = jest.fn();
@@ -53,7 +62,7 @@ beforeEach(() => {
 });
 
 async function renderLoginPage() {
-  render(<LoginPage />);
+  renderWithQuery(<LoginPage />);
   await waitFor(() => {
     expect(apiGetMock).toHaveBeenCalledWith('/auth/bootstrap');
   });

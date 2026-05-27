@@ -28,28 +28,29 @@ import { EncounterClosureWorkspace, EncounterWorkspacePanel } from './EncounterW
 export default function EncounterWizardPage() {
   const wiz = useEncounterWizard();
 
+  const { canEdit, hasUnsavedChanges, saveCurrentSection, handleNavigate } = wiz;
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key === 's') {
         e.preventDefault();
-        if (wiz.canEdit && wiz.hasUnsavedChanges) {
-          void wiz.saveCurrentSection();
+        if (canEdit && hasUnsavedChanges) {
+          void saveCurrentSection();
         }
         return;
       }
       if (e.altKey && e.key === 'ArrowRight') {
         e.preventDefault();
-        wiz.handleNavigate('next');
+        handleNavigate('next');
         return;
       }
       if (e.altKey && e.key === 'ArrowLeft') {
         e.preventDefault();
-        wiz.handleNavigate('prev');
+        handleNavigate('prev');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [wiz.canEdit, wiz.hasUnsavedChanges, wiz.saveCurrentSection, wiz.handleNavigate]);
+  }, [canEdit, hasUnsavedChanges, saveCurrentSection, handleNavigate]);
 
   if (wiz.isOperationalAdmin) {
     return (
@@ -337,7 +338,7 @@ export default function EncounterWizardPage() {
                 disabled={wiz.createFollowupTaskMutation.isPending}
                 className="btn btn-secondary text-sm"
               >
-                Omitir
+                Ahora no
               </button>
               <button
                 type="button"

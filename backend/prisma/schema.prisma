@@ -1039,3 +1039,12 @@ model Appointment {
   @@index([patientId])
   @@map("appointments")
 }
+
+// Single-use 2FA temp token replay protection (persisted for multi-instance safety)
+model UsedTempTokenJti {
+  jti       String   @id
+  expiresAt DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("used_temp_token_jtis")
+}

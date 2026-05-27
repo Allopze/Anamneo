@@ -61,6 +61,7 @@ module.exports = {
           900: '#111111',
           950: '#0a0a0a',
         },
+        'auth-teal': 'var(--auth-teal)',
         clinical: {
           50:  '#f0faf1',
           100: '#d1f4e0',

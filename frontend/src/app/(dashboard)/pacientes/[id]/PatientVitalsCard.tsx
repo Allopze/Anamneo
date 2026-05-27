@@ -27,6 +27,8 @@ export default function PatientVitalsCard({
     imc: 'IMC',
     temperatura: 'Temperatura (°C)',
     saturacionOxigeno: 'Saturación O₂ (%)',
+    frecuenciaCardiaca: 'Frec. cardíaca (lpm)',
+    frecuenciaRespiratoria: 'Frec. respiratoria (rpm)',
   };
 
   return (
@@ -124,7 +126,9 @@ export default function PatientVitalsCard({
                 {item.peso !== null && <span>Peso {item.peso} kg</span>}
                 {item.imc !== null && <span>IMC {item.imc}</span>}
                 {item.temperatura !== null && <span>T° {item.temperatura}</span>}
-                {item.saturacionOxigeno !== null && <span>SatO2 {item.saturacionOxigeno}%</span>}
+                {item.saturacionOxigeno !== null && <span>SatO₂ {item.saturacionOxigeno}%</span>}
+                {item.frecuenciaCardiaca !== null && <span>FC {item.frecuenciaCardiaca} lpm</span>}
+                {item.frecuenciaRespiratoria !== null && <span>FR {item.frecuenciaRespiratoria} rpm</span>}
               </div>
             </div>
           ))}

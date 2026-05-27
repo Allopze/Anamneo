@@ -1,7 +1,8 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -65,7 +66,6 @@ function LoginContent() {
   const [step, setStep] = useState<'credentials' | '2fa'>('credentials');
   const [tempToken, setTempToken] = useState<string | null>(null);
   const [verificationMethod, setVerificationMethod] = useState<VerificationMethod>('totp');
-  const [registrationMode, setRegistrationMode] = useState<RegistrationMode>('loading');
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -85,31 +85,18 @@ function LoginContent() {
     resolver: zodResolver(verificationSchema),
   });
 
-  useEffect(() => {
-    let cancelled = false;
+  const bootstrapQuery = useQuery({
+    queryKey: ['auth', 'bootstrap'],
+    queryFn: () => api.get('/auth/bootstrap').then((r) => r.data as { hasAdmin: boolean }),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
 
-    const loadBootstrapState = async () => {
-      try {
-        const response = await api.get('/auth/bootstrap');
-        if (cancelled) {
-          return;
-        }
-
-        setRegistrationMode(response.data?.hasAdmin ? 'invitation-only' : 'bootstrap-open');
-      } catch {
-        if (!cancelled) {
-          // Keep the bootstrap path reachable if the status probe fails.
-          setRegistrationMode('bootstrap-open');
-        }
-      }
-    };
-
-    void loadBootstrapState();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const registrationMode: RegistrationMode = bootstrapQuery.isLoading
+    ? 'loading'
+    : bootstrapQuery.data?.hasAdmin
+      ? 'invitation-only'
+      : 'bootstrap-open';
 
   const registrationFooter =
     registrationMode === 'invitation-only' ? (
@@ -369,6 +356,7 @@ function LoginContent() {
                 inputMode="email"
                 autoCapitalize="none"
                 spellCheck={false}
+                disabled={isLoading}
                 className={`form-input pl-10 ${errors.email ? 'form-input-error' : ''}`}
                 placeholder="nombre@clinica.cl"
                 aria-invalid={!!errors.email}
@@ -395,6 +383,7 @@ function LoginContent() {
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
+                disabled={isLoading}
                 className={`form-input pl-10 pr-12 ${errors.password ? 'form-input-error' : ''}`}
                 placeholder="Tu contraseña"
                 aria-invalid={!!errors.password}
@@ -424,7 +413,7 @@ function LoginContent() {
             className="btn btn-accent w-full py-3"
           >
             {isLoading ? (
-              <span className="flex items-center gap-2" aria-live="polite">
+              <span className="flex items-center justify-center gap-2" aria-live="polite">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 Iniciando sesión…
               </span>

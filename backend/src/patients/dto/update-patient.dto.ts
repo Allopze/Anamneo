@@ -6,6 +6,7 @@ import {
 	IsInt,
 	IsOptional,
 	IsString,
+	Matches,
 	Max,
 	MaxLength,
 	Min,
@@ -35,6 +36,9 @@ import {
 export class UpdatePatientDto {
 	@IsString()
 	@MaxLength(PATIENT_RUT_MAX_LENGTH, { message: `El RUT no puede exceder ${PATIENT_RUT_MAX_LENGTH} caracteres` })
+	@Matches(/^[\d]{1,2}\.?[\d]{3}\.?[\d]{3}-[\dkK]$/, {
+		message: 'El RUT tiene un formato inválido. Use el formato 12.345.678-9 o 12345678-9',
+	})
 	@IsOptional()
 	rut?: string | null;
 

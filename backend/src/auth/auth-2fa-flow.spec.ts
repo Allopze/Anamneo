@@ -8,7 +8,7 @@ describe('verify2FALoginFlow', () => {
   let jwtService: any;
   let prisma: any;
   let issueTokens: jest.Mock;
-  let usedTempTokenJtis: Map<string, number>;
+  let jtiStore: { hasUsed: jest.Mock; markUsed: jest.Mock };
 
   beforeEach(() => {
     jwtService = {
@@ -27,7 +27,10 @@ describe('verify2FALoginFlow', () => {
       refreshToken: 'refresh-token',
     });
 
-    usedTempTokenJtis = new Map<string, number>();
+    jtiStore = {
+      hasUsed: jest.fn().mockResolvedValue(false),
+      markUsed: jest.fn().mockResolvedValue(undefined),
+    };
   });
 
   afterEach(() => {
@@ -43,7 +46,7 @@ describe('verify2FALoginFlow', () => {
       verify2FALoginFlow({
         jwtService,
         prisma,
-        usedTempTokenJtis,
+        jtiStore,
         tempTokenTtlMs: 300_000,
         tempToken: 'bad-token',
         code: '123456',
@@ -60,7 +63,7 @@ describe('verify2FALoginFlow', () => {
       verify2FALoginFlow({
         jwtService,
         prisma,
-        usedTempTokenJtis,
+        jtiStore,
         tempTokenTtlMs: 300_000,
         tempToken: 'temp-token',
         code: '123456',
@@ -71,14 +74,14 @@ describe('verify2FALoginFlow', () => {
   });
 
   it('throws UnauthorizedException when temp token jti was already consumed', async () => {
-    usedTempTokenJtis.set('temp-jti', Date.now() + 300_000);
+    jtiStore.hasUsed.mockResolvedValue(true);
     jwtService.verify.mockReturnValue({ sub: 'user-1', purpose: '2fa', jti: 'temp-jti' });
 
     await expect(
       verify2FALoginFlow({
         jwtService,
         prisma,
-        usedTempTokenJtis,
+        jtiStore,
         tempTokenTtlMs: 300_000,
         tempToken: 'temp-token',
         code: '123456',
@@ -86,6 +89,7 @@ describe('verify2FALoginFlow', () => {
         resolveTotpSecret: (secret) => secret,
       }),
     ).rejects.toThrow('Token temporal ya utilizado');
+    expect(jtiStore.hasUsed).toHaveBeenCalledWith('temp-jti');
   });
 
   it('throws UnauthorizedException when user is missing or 2FA is not configured', async () => {
@@ -96,7 +100,7 @@ describe('verify2FALoginFlow', () => {
       verify2FALoginFlow({
         jwtService,
         prisma,
-        usedTempTokenJtis,
+        jtiStore,
         tempTokenTtlMs: 300_000,
         tempToken: 'temp-token',
         code: '123456',
@@ -106,7 +110,7 @@ describe('verify2FALoginFlow', () => {
     ).rejects.toThrow('Usuario no encontrado o 2FA no configurado');
   });
 
-  it('throws UnauthorizedException when TOTP code is invalid', async () => {
+  it('throws UnauthorizedException when TOTP code is invalid and does not consume jti', async () => {
     jwtService.verify.mockReturnValue({ sub: 'user-1', purpose: '2fa', jti: 'temp-jti-invalid' });
     prisma.user.findUnique.mockResolvedValue({
       id: 'user-1',
@@ -123,7 +127,7 @@ describe('verify2FALoginFlow', () => {
       verify2FALoginFlow({
         jwtService,
         prisma,
-        usedTempTokenJtis,
+        jtiStore,
         tempTokenTtlMs: 300_000,
         tempToken: 'temp-token',
         code: '123456',
@@ -131,10 +135,10 @@ describe('verify2FALoginFlow', () => {
         resolveTotpSecret: (secret) => secret,
       }),
     ).rejects.toThrow('Código de verificación inválido');
-    expect(usedTempTokenJtis.has('temp-jti-invalid')).toBe(false);
+    expect(jtiStore.markUsed).not.toHaveBeenCalled();
   });
 
-  it('accepts a valid recovery code and consumes it after login', async () => {
+  it('accepts a valid recovery code, consumes it, and marks jti used', async () => {
     jwtService.verify.mockReturnValue({ sub: 'user-1', purpose: '2fa', jti: 'temp-jti-recovery' });
     prisma.user.findUnique.mockResolvedValue({
       id: 'user-1',
@@ -153,7 +157,7 @@ describe('verify2FALoginFlow', () => {
     const result = await verify2FALoginFlow({
       jwtService,
       prisma,
-      usedTempTokenJtis,
+      jtiStore,
       tempTokenTtlMs: 300_000,
       tempToken: 'temp-token',
       code: 'ABCD-1234',
@@ -162,22 +166,17 @@ describe('verify2FALoginFlow', () => {
     });
 
     expect(result).toEqual({
-      tokens: {
-        accessToken: 'access-token',
-        refreshToken: 'refresh-token',
-      },
+      tokens: { accessToken: 'access-token', refreshToken: 'refresh-token' },
       userId: 'user-1',
     });
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-1' },
-      data: {
-        totpRecoveryCodes: JSON.stringify(['hash:WXYZ5678']),
-      },
+      data: { totpRecoveryCodes: JSON.stringify(['hash:WXYZ5678']) },
     });
-    expect(usedTempTokenJtis.has('temp-jti-recovery')).toBe(true);
+    expect(jtiStore.markUsed).toHaveBeenCalledWith('temp-jti-recovery', expect.any(Date));
   });
 
-  it('returns auth tokens, userId and consumes jti on valid 2FA verification', async () => {
+  it('returns auth tokens and marks jti used on valid TOTP verification', async () => {
     jwtService.verify.mockReturnValue({ sub: 'user-1', purpose: '2fa', jti: 'temp-jti-1' });
     prisma.user.findUnique.mockResolvedValue({
       id: 'user-1',
@@ -193,7 +192,7 @@ describe('verify2FALoginFlow', () => {
     const result = await verify2FALoginFlow({
       jwtService,
       prisma,
-      usedTempTokenJtis,
+      jtiStore,
       tempTokenTtlMs: 300_000,
       tempToken: 'temp-token',
       code: '123456',
@@ -203,45 +202,13 @@ describe('verify2FALoginFlow', () => {
     });
 
     expect(result).toEqual({
-      tokens: {
-        accessToken: 'access-token',
-        refreshToken: 'refresh-token',
-      },
+      tokens: { accessToken: 'access-token', refreshToken: 'refresh-token' },
       userId: 'user-1',
     });
     expect(issueTokens).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'user-1', email: 'medico@test.com', role: 'MEDICO' }),
       { ipAddress: '127.0.0.1' },
     );
-    expect(usedTempTokenJtis.has('temp-jti-1')).toBe(true);
-  });
-
-  it('purges expired consumed jtis before validating a new temp token', async () => {
-    usedTempTokenJtis.set('expired-jti', Date.now() - 1);
-    jwtService.verify.mockReturnValue({ sub: 'user-1', purpose: '2fa', jti: 'temp-jti-2' });
-    prisma.user.findUnique.mockResolvedValue({
-      id: 'user-1',
-      email: 'medico@test.com',
-      role: 'MEDICO',
-      active: true,
-      totpEnabled: true,
-      totpSecret: 'SECRET',
-      totpRecoveryCodes: null,
-    });
-    jest.spyOn(authenticator, 'verify').mockReturnValue(true);
-
-    await verify2FALoginFlow({
-      jwtService,
-      prisma,
-      usedTempTokenJtis,
-      tempTokenTtlMs: 300_000,
-      tempToken: 'temp-token',
-      code: '123456',
-      issueTokens,
-      resolveTotpSecret: (secret) => secret,
-    });
-
-    expect(usedTempTokenJtis.has('expired-jti')).toBe(false);
-    expect(usedTempTokenJtis.has('temp-jti-2')).toBe(true);
+    expect(jtiStore.markUsed).toHaveBeenCalledWith('temp-jti-1', expect.any(Date));
   });
 });
