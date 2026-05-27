@@ -1,8 +1,9 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import clsx from 'clsx';
-import { FiAlertCircle } from 'react-icons/fi';
+import { FiAlertCircle, FiCalendar } from 'react-icons/fi';
 
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SignEncounterModal from '@/components/common/SignEncounterModal';
@@ -26,6 +27,29 @@ import { EncounterClosureWorkspace, EncounterWorkspacePanel } from './EncounterW
 
 export default function EncounterWizardPage() {
   const wiz = useEncounterWizard();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key === 's') {
+        e.preventDefault();
+        if (wiz.canEdit && wiz.hasUnsavedChanges) {
+          void wiz.saveCurrentSection();
+        }
+        return;
+      }
+      if (e.altKey && e.key === 'ArrowRight') {
+        e.preventDefault();
+        wiz.handleNavigate('next');
+        return;
+      }
+      if (e.altKey && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        wiz.handleNavigate('prev');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [wiz.canEdit, wiz.hasUnsavedChanges, wiz.saveCurrentSection, wiz.handleNavigate]);
 
   if (wiz.isOperationalAdmin) {
     return (
@@ -280,6 +304,53 @@ export default function EncounterWizardPage() {
         onClose={() => wiz.setShowNotApplicableModal(false)}
         onConfirm={wiz.handleConfirmNotApplicable}
       />
+
+      {wiz.followupSuggestion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="followup-modal-title">
+          <div className="w-full max-w-sm rounded-card border border-surface-muted/40 bg-surface-elevated p-6 shadow-xl">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/15">
+                <FiCalendar className="h-4 w-4 text-accent-text" />
+              </div>
+              <h2 id="followup-modal-title" className="text-base font-bold text-ink">
+                Crear próximo control
+              </h2>
+            </div>
+            <p className="mb-4 text-sm text-ink-secondary">
+              El diagnóstico <strong className="text-ink">{wiz.followupSuggestion.diagnosisText}</strong> sugiere un control en{' '}
+              {wiz.followupSuggestion.days} días. ¿Deseas crear un seguimiento?
+            </p>
+            <div className="mb-5">
+              <label className="form-label text-xs">Fecha del control</label>
+              <input
+                type="date"
+                value={wiz.followupDate}
+                onChange={(e) => wiz.setFollowupDate(e.target.value)}
+                className="form-input mt-0.5"
+                min={new Date().toISOString().slice(0, 10)}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={wiz.handleFollowupSkip}
+                disabled={wiz.createFollowupTaskMutation.isPending}
+                className="btn btn-secondary text-sm"
+              >
+                Omitir
+              </button>
+              <button
+                type="button"
+                onClick={wiz.handleFollowupConfirm}
+                disabled={wiz.createFollowupTaskMutation.isPending || !wiz.followupDate}
+                className="btn btn-primary text-sm"
+              >
+                {wiz.createFollowupTaskMutation.isPending ? 'Creando…' : 'Crear control'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

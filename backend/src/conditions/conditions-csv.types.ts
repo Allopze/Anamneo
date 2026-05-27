@@ -1,6 +1,7 @@
 export interface ParsedConditionCsvRow {
   rowNumber: number;
   name: string;
+  cieCode?: string | null;
   synonyms: string[];
   tags: string[];
   active?: boolean;
@@ -25,6 +26,7 @@ export interface ConditionCsvInvalidRow {
 export interface ConditionCsvPreviewItem {
   rowNumber: number;
   name: string;
+  cieCode?: string | null;
   synonyms: string[];
   tags: string[];
   active?: boolean;

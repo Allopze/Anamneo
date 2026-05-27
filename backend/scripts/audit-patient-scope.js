@@ -35,6 +35,11 @@ const DOMAIN_REQUIREMENTS = [
     evidence: ['patient-portal/patient-portal.controller.ts'],
     required: ['AdminGuard'],
   },
+  {
+    controller: 'allergies/allergies.controller.ts',
+    evidence: ['allergies/allergies.service.ts'],
+    required: ['assertPatientAccess'],
+  },
 ];
 
 function read(relativePath) {

@@ -9,6 +9,7 @@ import { ClinicalAnalyticsCasesQueryDto } from './dto/clinical-analytics-cases-q
 import { exportClinicalAnalyticsCasesCsvReadModel } from './clinical-analytics.cases.export';
 import { exportClinicalAnalyticsSummaryCsvReadModel } from './clinical-analytics.summary.export';
 import { exportClinicalAnalyticsSummaryMarkdownReadModel } from './clinical-analytics.summary.report';
+import { getOperationalDailySummaryReadModel } from './operational-daily-summary.read-model';
 
 @Injectable()
 export class AnalyticsService {
@@ -30,6 +31,12 @@ export class AnalyticsService {
       toDate: query.toDate,
       followUpDays: query.followUpDays,
     };
+  }
+
+  private assertOperationalAnalyticsAccess(user: CurrentUserData) {
+    if (!['MEDICO', 'ASISTENTE'].includes(user.role) || user.isAdmin) {
+      throw new ForbiddenException('Los reportes operacionales requieren una cuenta clínica no administrativa');
+    }
   }
 
   async getClinicalSummary(user: CurrentUserData, query: ClinicalAnalyticsQueryDto) {
@@ -105,5 +112,22 @@ export class AnalyticsService {
       user,
       query,
     });
+  }
+
+  async getOperationalDailySummary(user: CurrentUserData, date?: string) {
+    this.assertOperationalAnalyticsAccess(user);
+    const summary = await getOperationalDailySummaryReadModel({
+      prisma: this.prisma,
+      user,
+      date,
+    });
+    await this.auditService.log({
+      entityType: 'OperationalDailySummary',
+      entityId: user.id,
+      userId: user.id,
+      action: 'READ',
+      diff: { scope: 'OPERATIONAL_DAILY_SUMMARY', date: summary.date },
+    });
+    return summary;
   }
 }

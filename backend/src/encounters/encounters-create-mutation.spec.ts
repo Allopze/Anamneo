@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { createEncounterMutation } from './encounters-create-mutation';
 import { formatEncounterResponse } from './encounters-presenters';
 import { parseSectionData } from './encounters-sanitize';
@@ -179,5 +179,103 @@ describe('encounters-create-mutation', () => {
 
     expect(tx.encounter.create.mock.calls[0][0].data.sections.create.map((section: any) => section.sectionKey))
       .toEqual(['IDENTIFICACION', 'MOTIVO_CONSULTA']);
+  });
+
+  it('links an appointment when creating an encounter from agenda', async () => {
+    const createdEncounter = {
+      id: 'enc-from-appt',
+      status: 'EN_PROGRESO',
+      sections: [],
+      patient: { id: 'pat-1' },
+      createdBy: { id: 'med-1', nombre: 'Medico' },
+    };
+    const tx = {
+      patient: { findUnique: jest.fn().mockResolvedValue(basePatient) },
+      appointment: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'appt-1',
+          patientId: 'pat-1',
+          medicoId: 'med-1',
+          cancelledAt: null,
+          encounter: null,
+        }),
+        update: jest.fn().mockResolvedValue(undefined),
+      },
+      encounter: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn(),
+        create: jest.fn().mockResolvedValue(createdEncounter),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn().mockImplementation(async (callback) => callback(tx)),
+    };
+    const auditService = { log: jest.fn().mockResolvedValue(undefined) };
+
+    const result = await createEncounterMutation({
+      prisma: prisma as never,
+      auditService: auditService as never,
+      patientId: 'pat-1',
+      createDto: { appointmentId: 'appt-1' },
+      user: baseUser as never,
+    });
+
+    expect(tx.encounter.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          appointmentId: 'appt-1',
+        }),
+      }),
+    );
+    expect(tx.appointment.update).toHaveBeenCalledWith({
+      where: { id: 'appt-1' },
+      data: { status: 'ATENDIDA' },
+    });
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: 'Appointment',
+        entityId: 'appt-1',
+        action: 'UPDATE',
+        diff: expect.objectContaining({ encounterId: 'enc-from-appt' }),
+      }),
+      tx,
+    );
+    expect(result).toEqual({ ...createdEncounter, reused: false });
+  });
+
+  it('rejects agenda appointments already associated with an encounter', async () => {
+    const tx = {
+      patient: { findUnique: jest.fn().mockResolvedValue(basePatient) },
+      appointment: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'appt-1',
+          patientId: 'pat-1',
+          medicoId: 'med-1',
+          cancelledAt: null,
+          encounter: { id: 'enc-existing' },
+        }),
+      },
+      encounter: {
+        findMany: jest.fn(),
+        findFirst: jest.fn(),
+        create: jest.fn(),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn().mockImplementation(async (callback) => callback(tx)),
+    };
+    const auditService = { log: jest.fn().mockResolvedValue(undefined) };
+
+    await expect(
+      createEncounterMutation({
+        prisma: prisma as never,
+        auditService: auditService as never,
+        patientId: 'pat-1',
+        createDto: { appointmentId: 'appt-1' },
+        user: baseUser as never,
+      }),
+    ).rejects.toThrow(ConflictException);
+
+    expect(tx.encounter.create).not.toHaveBeenCalled();
   });
 });

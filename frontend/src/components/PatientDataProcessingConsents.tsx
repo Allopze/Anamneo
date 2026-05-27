@@ -6,6 +6,7 @@ import { api, getErrorMessage } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { FiAlertTriangle, FiX } from 'react-icons/fi';
 
 /**
  * Consentimiento del titular para el TRATAMIENTO DE DATOS PERSONALES
@@ -40,6 +41,15 @@ const SIGNER_RELATIONSHIPS = [
   { value: 'REPRESENTANTE', label: 'Otro representante legal' },
 ] as const;
 
+const REVOKE_CHANNELS = [
+  { value: 'PRESENCIAL', label: 'Presencial' },
+  { value: 'WEB_TITULAR', label: 'Web (titular)' },
+  { value: 'EMAIL', label: 'Email' },
+  { value: 'DPO', label: 'Vía DPO' },
+] as const;
+
+const MIN_REVOKE_REASON_LENGTH = 20;
+
 interface LegalDocument {
   id: string;
   type: string;
@@ -69,14 +79,21 @@ interface Props {
   patientAgeYears?: number | null;
 }
 
+function purposeLabel(value: string): string {
+  return PURPOSES.find((p) => p.value === value)?.label ?? value;
+}
+
+function fmtDate(d: string) {
+  return format(new Date(d), 'dd/MM/yyyy HH:mm', { locale: es });
+}
+
 export default function PatientDataProcessingConsents({ patientId, patientAgeYears }: Props) {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const [revokeId, setRevokeId] = useState<string | null>(null);
+  const [revokeConsent, setRevokeConsent] = useState<DataProcessingConsent | null>(null);
   const [revokeReason, setRevokeReason] = useState('');
-  const [revokeChannel, setRevokeChannel] = useState<'WEB_TITULAR' | 'PRESENCIAL' | 'EMAIL' | 'DPO'>('PRESENCIAL');
+  const [revokeChannel, setRevokeChannel] = useState<typeof REVOKE_CHANNELS[number]['value']>('PRESENCIAL');
 
-  // Sugerencia automatica del signerRelationship segun edad del paciente.
   const isMinor16 = patientAgeYears != null && patientAgeYears < 16;
   const isMinor14 = patientAgeYears != null && patientAgeYears < 14;
 
@@ -136,8 +153,8 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
 
   const revokeMutation = useMutation({
     mutationFn: async () => {
-      if (!revokeId) return;
-      return api.post(`/patient-consents/${revokeId}/revoke`, {
+      if (!revokeConsent) return;
+      return api.post(`/patient-consents/${revokeConsent.id}/revoke`, {
         reason: revokeReason.trim(),
         channel: revokeChannel,
       });
@@ -145,23 +162,37 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
     onSuccess: () => {
       toast.success('Consentimiento revocado');
       queryClient.invalidateQueries({ queryKey: ['patient-data-processing-consents', patientId] });
-      setRevokeId(null);
+      setRevokeConsent(null);
       setRevokeReason('');
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
+  const handleCloseRevoke = () => {
+    if (revokeMutation.isPending) return;
+    setRevokeConsent(null);
+    setRevokeReason('');
+  };
+
+  const handleConfirmRevoke = () => {
+    if (revokeReason.trim().length < MIN_REVOKE_REASON_LENGTH) {
+      toast.error(`El motivo debe tener al menos ${MIN_REVOKE_REASON_LENGTH} caracteres`);
+      return;
+    }
+    revokeMutation.mutate();
+  };
+
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6">
+    <section className="rounded-card border border-surface-muted/30 bg-surface-elevated p-6">
       <header className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-teal-700">
+          <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">
             Ley 21.719 — Art 12
           </p>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-ink-primary">
             Consentimiento del titular para tratamiento de datos personales
           </h2>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-ink-secondary">
             Distinto del consentimiento clínico (procedimientos, intervenciones).
             Este consentimiento autoriza el tratamiento de los datos personales
             bajo la política de privacidad vigente.
@@ -176,7 +207,7 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
                 setForm((f) => ({ ...f, signerRelationship: 'PADRE' }));
               }
             }}
-            className="rounded-md bg-teal-700 px-3 py-1 text-sm text-white hover:bg-teal-800"
+            className="btn btn-primary text-sm"
           >
             + Capturar consentimiento
           </button>
@@ -184,7 +215,7 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
       </header>
 
       {isMinor16 && (
-        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+        <div className="mb-4 rounded-card border border-status-yellow/65 bg-status-yellow/20 p-3 text-xs text-accent-text">
           ⚠ Paciente menor de 16 años. El consentimiento sobre datos sensibles
           debe ser otorgado por <strong>padre, madre, tutor o representante legal</strong>.
           {isMinor14 && ' Para menores de 14 años esto aplica también a datos no sensibles.'}
@@ -201,31 +232,31 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
             }
             grantMutation.mutate();
           }}
-          className="mb-6 space-y-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm"
+          className="mb-6 space-y-3 rounded-card border border-surface-muted/30 bg-surface-base/40 p-4 text-sm"
         >
           <div>
-            <label className="block text-xs font-medium text-slate-700">Política de privacidad vigente</label>
-            <div className="mt-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs">
+            <label className="form-label text-xs">Política de privacidad vigente</label>
+            <div className="mt-1 rounded-input border border-surface-muted/30 bg-surface-elevated px-2 py-1 text-xs text-ink-secondary">
               {activeLegal ? `${activeLegal.title} (v${activeLegal.version})` : 'Cargando…'}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-700">Finalidad</label>
+              <label className="form-label text-xs">Finalidad</label>
               <select
                 value={form.purpose}
                 onChange={(e) => setForm({ ...form, purpose: e.target.value as typeof form.purpose })}
-                className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                className="form-input mt-1 text-xs"
               >
                 {PURPOSES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700">Método de captura</label>
+              <label className="form-label text-xs">Método de captura</label>
               <select
                 value={form.method}
                 onChange={(e) => setForm({ ...form, method: e.target.value as typeof form.method })}
-                className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                className="form-input mt-1 text-xs"
               >
                 {METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
@@ -233,30 +264,30 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-700">Nombre del firmante</label>
+              <label className="form-label text-xs">Nombre del firmante</label>
               <input
                 value={form.signerName}
                 onChange={(e) => setForm({ ...form, signerName: e.target.value })}
-                className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                className="form-input mt-1 text-xs"
                 placeholder="Quien firma el consentimiento"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700">RUT del firmante (opcional)</label>
+              <label className="form-label text-xs">RUT del firmante (opcional)</label>
               <input
                 value={form.signerRut}
                 onChange={(e) => setForm({ ...form, signerRut: e.target.value })}
-                className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                className="form-input mt-1 text-xs"
                 placeholder="12.345.678-9"
               />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-700">Relación del firmante con el titular</label>
+            <label className="form-label text-xs">Relación del firmante con el titular</label>
             <select
               value={form.signerRelationship}
               onChange={(e) => setForm({ ...form, signerRelationship: e.target.value as typeof form.signerRelationship })}
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-xs"
+              className="form-input mt-1 text-xs"
             >
               {SIGNER_RELATIONSHIPS.map((r) => (
                 <option key={r.value} value={r.value} disabled={isMinor16 && r.value === 'TITULAR'}>
@@ -266,13 +297,13 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
             </select>
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={() => setShowForm(false)} className="text-xs text-slate-600 underline">
+            <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary text-xs">
               Cancelar
             </button>
             <button
               type="submit"
               disabled={grantMutation.isPending}
-              className="rounded bg-teal-700 px-3 py-1 text-xs text-white disabled:opacity-50"
+              className="btn btn-primary text-xs"
             >
               {grantMutation.isPending ? 'Guardando…' : 'Registrar consentimiento'}
             </button>
@@ -281,9 +312,9 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
       )}
 
       {isLoading ? (
-        <p className="text-xs text-slate-500">Cargando consentimientos…</p>
+        <p className="text-xs text-ink-muted">Cargando consentimientos…</p>
       ) : consents.length === 0 ? (
-        <p className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-xs text-slate-500">
+        <p className="rounded-card border border-dashed border-surface-muted/50 bg-surface-base/30 p-4 text-xs text-ink-muted">
           No hay consentimientos de tratamiento de datos personales registrados para este paciente.
         </p>
       ) : (
@@ -291,35 +322,33 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
           {consents.map((c) => (
             <li
               key={c.id}
-              className={`rounded border p-3 ${c.revokedAt ? 'border-rose-200 bg-rose-50' : 'border-emerald-200 bg-emerald-50'}`}
+              className={`rounded-card border p-3 ${c.revokedAt ? 'border-status-red/20 bg-status-red/10' : 'border-status-green/30 bg-status-green/10'}`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold text-slate-800">
-                    {PURPOSES.find((p) => p.value === c.purpose)?.label ?? c.purpose}
+                <div className="space-y-0.5">
+                  <p className="text-xs font-semibold text-ink-primary">
+                    {purposeLabel(c.purpose)}
                     {c.revokedAt ? ' — REVOCADO' : ' — Vigente'}
                   </p>
-                  <p className="text-xs text-slate-600">
+                  <p className="text-xs text-ink-secondary">
                     Firmante: {c.signerName} ({c.signerRelationship}) · método {c.method}
                   </p>
-                  <p className="text-xs text-slate-500">
-                    Otorgado: {format(new Date(c.grantedAt), "d MMM yyyy HH:mm", { locale: es })}
-                    {c.revokedAt
-                      ? ` · Revocado: ${format(new Date(c.revokedAt), 'd MMM yyyy HH:mm', { locale: es })}`
-                      : ''}
+                  <p className="text-xs text-ink-muted">
+                    Otorgado: {fmtDate(c.grantedAt)} hrs
+                    {c.revokedAt ? ` · Revocado: ${fmtDate(c.revokedAt)} hrs` : ''}
                   </p>
                   {c.legalDocument && (
-                    <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-ink-muted">
                       Política: {c.legalDocument.title} v{c.legalDocument.version}
                     </p>
                   )}
-                  <p className="text-[10px] font-mono text-slate-400">hash: {c.evidenceHash.slice(0, 16)}…</p>
+                  <p className="font-mono text-[10px] text-ink-muted">hash: {c.evidenceHash.slice(0, 16)}…</p>
                 </div>
                 {!c.revokedAt && (
                   <button
                     type="button"
-                    onClick={() => setRevokeId(c.id)}
-                    className="text-xs text-rose-700 underline"
+                    onClick={() => setRevokeConsent(c)}
+                    className="text-xs text-status-red underline hover:no-underline"
                   >
                     Revocar
                   </button>
@@ -330,55 +359,131 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
         </ul>
       )}
 
-      {revokeId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-semibold">Revocar consentimiento</h3>
-            <p className="mt-1 text-xs text-slate-500">
-              La revocación detiene el tratamiento basado en consentimiento.
-              No implica supresión automática cuando exista obligación legal de
-              conservación (ej. ficha clínica sanitaria).
-            </p>
-            <label className="mt-3 block text-xs font-medium text-slate-700">Motivo</label>
-            <textarea
-              value={revokeReason}
-              onChange={(e) => setRevokeReason(e.target.value)}
-              rows={3}
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
-              placeholder="Indique el motivo de la revocación"
-            />
-            <label className="mt-2 block text-xs font-medium text-slate-700">Canal de revocación</label>
-            <select
-              value={revokeChannel}
-              onChange={(e) => setRevokeChannel(e.target.value as typeof revokeChannel)}
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-xs"
+      {revokeConsent && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-ink-primary/50 backdrop-blur-sm"
+            onClick={handleCloseRevoke}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="w-full max-w-lg rounded-card border border-surface-muted/30 bg-surface-elevated shadow-dropdown"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="revoke-modal-title"
+              aria-describedby="revoke-modal-desc"
             >
-              <option value="PRESENCIAL">Presencial</option>
-              <option value="WEB_TITULAR">Web (titular)</option>
-              <option value="EMAIL">Email</option>
-              <option value="DPO">Vía DPO</option>
-            </select>
-            <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={() => setRevokeId(null)} className="text-xs text-slate-600 underline">
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (revokeReason.trim().length < 2) {
-                    toast.error('Motivo requerido');
-                    return;
-                  }
-                  revokeMutation.mutate();
-                }}
-                disabled={revokeMutation.isPending}
-                className="rounded bg-rose-700 px-3 py-1 text-xs text-white disabled:opacity-50"
-              >
-                {revokeMutation.isPending ? 'Revocando…' : 'Revocar'}
-              </button>
+              <div className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-status-red/20 text-status-red">
+                    <FiAlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 id="revoke-modal-title" className="text-lg font-semibold text-ink-primary">
+                      Revocar consentimiento
+                    </h3>
+                    <p id="revoke-modal-desc" className="mt-1 text-sm text-ink-secondary">
+                      La revocación detiene el tratamiento basado en este consentimiento.
+                      No implica supresión automática cuando exista obligación legal de
+                      conservación (ej. ficha clínica sanitaria).
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleCloseRevoke}
+                    disabled={revokeMutation.isPending}
+                    className="rounded-input p-2 text-ink-muted transition-colors hover:bg-surface-base/65 hover:text-ink-secondary"
+                    aria-label="Cerrar"
+                  >
+                    <FiX className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* Evidence preview — shows what is being revoked */}
+                <div className="mt-4 rounded-card border border-status-red/20 bg-status-red/5 p-3 text-xs space-y-1">
+                  <p className="font-semibold text-[11px] uppercase tracking-wide text-status-red">
+                    Acto legal que se revoca
+                  </p>
+                  <p className="text-ink-primary">
+                    <span className="font-medium">Finalidad:</span> {purposeLabel(revokeConsent.purpose)}
+                  </p>
+                  <p className="text-ink-secondary">
+                    <span className="font-medium">Firmante:</span> {revokeConsent.signerName}
+                    {revokeConsent.signerRut ? ` · RUT ${revokeConsent.signerRut}` : ''}
+                    {' '}({revokeConsent.signerRelationship})
+                  </p>
+                  <p className="text-ink-secondary">
+                    <span className="font-medium">Otorgado:</span> {fmtDate(revokeConsent.grantedAt)} hrs
+                  </p>
+                  {revokeConsent.legalDocument && (
+                    <p className="text-ink-muted">
+                      <span className="font-medium">Política:</span> {revokeConsent.legalDocument.title} v{revokeConsent.legalDocument.version}
+                    </p>
+                  )}
+                  <p className="font-mono text-[10px] text-ink-muted">
+                    Hash de evidencia: {revokeConsent.evidenceHash.slice(0, 24)}…
+                  </p>
+                </div>
+
+                <label className="mt-4 block text-sm font-medium text-ink-primary" htmlFor="revoke-reason">
+                  Motivo de revocación (mínimo {MIN_REVOKE_REASON_LENGTH} caracteres)
+                </label>
+                <textarea
+                  id="revoke-reason"
+                  value={revokeReason}
+                  onChange={(e) => setRevokeReason(e.target.value)}
+                  rows={3}
+                  className="form-input mt-1 w-full text-sm"
+                  placeholder="Documente el motivo completo para auditoría regulatoria"
+                  disabled={revokeMutation.isPending}
+                />
+                <p className="mt-0.5 text-right text-[10px] text-ink-muted">
+                  {revokeReason.trim().length}/{MIN_REVOKE_REASON_LENGTH} caracteres mín.
+                </p>
+
+                <div className="mt-2">
+                  <label className="form-label text-sm" htmlFor="revoke-channel">Canal de revocación</label>
+                  <select
+                    id="revoke-channel"
+                    value={revokeChannel}
+                    onChange={(e) => setRevokeChannel(e.target.value as typeof revokeChannel)}
+                    disabled={revokeMutation.isPending}
+                    className="form-input mt-1 text-sm"
+                  >
+                    {REVOKE_CHANNELS.map((ch) => (
+                      <option key={ch.value} value={ch.value}>{ch.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 rounded-b-card border-t border-surface-muted/30 bg-surface-base/40 px-6 py-4">
+                <button
+                  type="button"
+                  onClick={handleCloseRevoke}
+                  disabled={revokeMutation.isPending}
+                  className="btn btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmRevoke}
+                  disabled={revokeMutation.isPending}
+                  className="btn btn-danger"
+                >
+                  {revokeMutation.isPending ? (
+                    <span className="flex items-center gap-2">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Revocando…
+                    </span>
+                  ) : (
+                    'Confirmar revocación'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </section>
   );

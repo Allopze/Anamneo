@@ -187,7 +187,7 @@ export default function AnaliticaClinicaPage() {
     actionLabel: 'Ver casos',
   }));
   const suppressedEmptyMessage = data?.privacy?.smallCohortSuppressed
-    ? `Desglose oculto: la cohorte tiene menos de ${data.privacy.smallCohortThreshold} pacientes.`
+    ? `Desglose oculto: cohorte de ${data.summary?.matchedPatients ?? '?'} pacientes (mínimo para desglose: ${data.privacy.smallCohortThreshold}).`
     : undefined;
 
   const handleDownloadCsv = async () => {

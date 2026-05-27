@@ -7,7 +7,6 @@ import { assertPatientAccess } from '../common/utils/patient-access';
 import { getClinicalAlertMessages } from '../../../shared/vital-sign-alerts';
 import {
   assertEncounterMatchesPatient,
-  attachUserNames,
   buildPatientLevelOwnershipWhere,
   isPatientLevelAlertInMedicoScope,
   sortAlertsByPriority,
@@ -92,11 +91,14 @@ export class AlertsService {
         : {}),
     };
 
+    const userSelect = { select: { id: true, nombre: true } };
+
     const activeAlerts = await this.prisma.clinicalAlert.findMany({
       where: {
         ...scopeWhere,
         acknowledgedAt: null,
       },
+      include: { createdBy: userSelect, acknowledgedBy: userSelect },
     });
 
     const acknowledgedLimit = Number.isFinite(options.acknowledgedLimit)
@@ -112,6 +114,7 @@ export class AlertsService {
           },
           orderBy: { acknowledgedAt: 'desc' },
           ...(acknowledgedTake === undefined ? {} : { take: acknowledgedTake }),
+          include: { createdBy: userSelect, acknowledgedBy: userSelect },
         })
       : [];
     const acknowledgedHasMore = acknowledgedLimit !== undefined && rawAcknowledgedAlerts.length > acknowledgedLimit;
@@ -119,11 +122,10 @@ export class AlertsService {
       ? rawAcknowledgedAlerts.slice(0, acknowledgedLimit)
       : rawAcknowledgedAlerts;
 
-    const sortedAlerts = [
+    const alerts = [
       ...sortAlertsByPriority(activeAlerts),
       ...acknowledgedAlerts,
     ];
-    const alerts = await attachUserNames(this.prisma, sortedAlerts);
     await this.audit.log({
       entityType: 'ClinicalAlert',
       entityId: patientId,

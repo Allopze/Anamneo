@@ -135,6 +135,7 @@ export interface Attachment {
 export interface Condition {
   id: string;
   name: string;
+  cieCode?: string | null;
   synonyms: string[];
   tags: string[];
   active: boolean;

@@ -51,13 +51,14 @@ export function parseStringArray(value: unknown): string[] {
 }
 
 export function toConditionResponse(
-  condition: { id: string; name: string; synonyms?: unknown; tags?: unknown; active: boolean },
+  condition: { id: string; name: string; cieCode?: string | null; synonyms?: unknown; tags?: unknown; active: boolean },
   scope: 'GLOBAL' | 'LOCAL',
   baseConditionId?: string | null,
 ) {
   return {
     id: condition.id,
     name: condition.name,
+    cieCode: condition.cieCode ?? null,
     synonyms: parseStringArray(condition.synonyms),
     tags: parseStringArray(condition.tags),
     active: condition.active,

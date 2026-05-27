@@ -181,7 +181,9 @@ export default function ConditionSelector({
                 className="dropdown-item justify-between py-3"
               >
                 <div>
-                  <p className="font-medium text-ink-primary">{condition.name}</p>
+                  <p className="font-medium text-ink-primary">
+                    {condition.cieCode ? `${condition.cieCode} · ` : ''}{condition.name}
+                  </p>
                   {condition.tags?.length > 0 && (
                     <div className="mt-0.5 flex gap-1">
                       {parseJsonArray(condition.tags).map((tag: string) => (

@@ -57,6 +57,12 @@ Escenarios documentados ahi:
 
 Esto no reemplaza el enforcement backend, pero si reduce drift entre frontend y backend al reutilizar la misma regla en ambos lados para la superficie mas sensible del flujo clinico y de sus salidas oficiales.
 
+## AdminGuard y dualidad `isAdmin` / `role`
+
+`AdminGuard` (`backend/src/common/guards/admin.guard.ts`) requiere AMBAS condiciones: `user.isAdmin === true` **y** `user.role === 'ADMIN'`. La fuente de verdad para acceso administrativo es `role`; `isAdmin` es un flag de bootstrap que solo sirve para que el primer usuario registrado obtenga privilegios admin sin que exista un admin previo que lo invite. Un usuario con `role: 'MEDICO'` y `isAdmin: true` es rechazado por `AdminGuard`.
+
+Documentado en `shared/permission-contract.ts`. Actualizado: 2026-05-26.
+
 ## Cifrado de Settings
 
 - `Setting` persiste pares `key/value`.

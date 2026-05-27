@@ -18,11 +18,13 @@ import { useSessionTimeout } from '@/lib/useSessionTimeout';
 import toast from 'react-hot-toast';
 import {
   FiActivity,
+  FiCalendar,
   FiHome,
   FiUsers,
   FiFileText,
   FiClipboard,
   FiList,
+  FiPieChart,
   FiSettings,
   FiShield,
   FiBookmark,
@@ -40,8 +42,10 @@ interface DashboardLayoutProps {
 const primaryNavigation: NavItem[] = [
   { name: 'Inicio', href: '/', icon: FiHome, exact: true },
   { name: 'Pacientes', href: '/pacientes', icon: FiUsers },
+  { name: 'Agenda', href: '/agenda', icon: FiCalendar },
   { name: 'Atenciones', href: '/atenciones', icon: FiFileText },
   { name: 'Seguimientos', href: '/seguimientos', icon: FiClipboard },
+  { name: 'Reportes', href: '/reportes', icon: FiPieChart },
 ];
 
 const clinicalAnalyticsNavigation: NavItem = {

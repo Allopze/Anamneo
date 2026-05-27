@@ -83,6 +83,7 @@ export class ConditionsCsvService {
           where: { id: existingCondition.id },
           data: {
             name: row.name,
+            cieCode: row.cieCode ?? null,
             normalizedName: row.normalizedName,
             synonyms: JSON.stringify(nextSynonyms),
             tags: JSON.stringify(nextTags),
@@ -95,6 +96,7 @@ export class ConditionsCsvService {
       return this.prisma.conditionCatalog.create({
         data: {
           name: row.name,
+          cieCode: row.cieCode ?? null,
           normalizedName: row.normalizedName,
           synonyms: JSON.stringify(row.synonyms),
           tags: JSON.stringify(row.tags),
@@ -177,6 +179,7 @@ export class ConditionsCsvService {
       return {
         rowNumber: row.rowNumber,
         name: row.name,
+        cieCode: row.cieCode ?? null,
         synonyms: row.synonyms,
         tags: row.tags,
         active: row.active,

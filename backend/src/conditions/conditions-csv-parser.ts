@@ -7,7 +7,7 @@ import type {
   ParsedConditionCsvRow,
 } from './conditions-csv.types';
 
-const CSV_HEADERS = ['name', 'synonyms', 'tags', 'active', 'activo', 'enabled'] as const;
+const CSV_HEADERS = ['name', 'cie_code', 'cie10', 'code', 'synonyms', 'tags', 'active', 'activo', 'enabled'] as const;
 const CSV_HEADER_SET = new Set<string>(CSV_HEADERS);
 const MIN_NAME_LENGTH = 2;
 const MAX_NAME_LENGTH = 300;
@@ -138,6 +138,11 @@ function parseHeaderRecord(
   return {
     rowNumber,
     name,
+    cieCode: parseCieCode(
+      getRecordValue(record, headerIndexes, 'cie_code')
+        || getRecordValue(record, headerIndexes, 'cie10')
+        || getRecordValue(record, headerIndexes, 'code'),
+    ),
     synonyms: parseList(getRecordValue(record, headerIndexes, 'synonyms')),
     tags: parseList(getRecordValue(record, headerIndexes, 'tags')),
     active,
@@ -166,11 +171,17 @@ function parseLegacyRecord(
   return {
     rowNumber,
     name,
+    cieCode: null,
     synonyms: [],
     tags: [],
     active: undefined,
     normalizedName: normalizeConditionName(name),
   };
+}
+
+function parseCieCode(value: string) {
+  const normalized = value.trim().toUpperCase();
+  return normalized || null;
 }
 
 function getRecordValue(

@@ -366,7 +366,7 @@ function AtencionesListContent() {
                       {encounter.patient?.rut ? <span>{encounter.patient.rut}</span> : null}
                       <span className="flex items-center gap-1">
                         <FiCalendar className="h-3 w-3" aria-hidden="true" />
-                        {format(new Date(encounter.createdAt), "d MMM yyyy, HH:mm", { locale: es })}
+                        {format(new Date(encounter.createdAt), "dd/MM/yyyy HH:mm", { locale: es })} hrs
                       </span>
                       {encounter.createdBy?.nombre ? (
                         <span className="flex items-center gap-1">

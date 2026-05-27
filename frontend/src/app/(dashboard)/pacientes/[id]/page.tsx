@@ -36,6 +36,8 @@ import PatientEncounterTimeline from './PatientEncounterTimeline';
 import PatientLongitudinalSummaryCard from './PatientLongitudinalSummaryCard';
 import PatientOperationalHistoryCard from './PatientOperationalHistoryCard';
 import PatientLegalStatusSummary from './PatientLegalStatusSummary';
+import PatientAllergiesList from '@/components/PatientAllergiesList';
+import PatientCompletenessWidget from '@/components/PatientCompletenessWidget';
 
 export default function PatientDetailPage() {
   const pd = usePatientDetail();
@@ -253,6 +255,8 @@ export default function PatientDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column */}
         <div className="lg:col-span-1 space-y-6">
+          <PatientCompletenessWidget patient={patient} />
+
           {/* Personal info */}
           <div className="card">
             <h2 className="text-lg font-bold text-ink mb-4">Información personal</h2>
@@ -377,6 +381,8 @@ export default function PatientDetailPage() {
               </div>
             </div>
           )}
+
+          <PatientAllergiesList patientId={patient.id} />
 
           <PatientProblemsCard
             problems={patient.problems || []}

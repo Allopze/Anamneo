@@ -16,7 +16,7 @@ Archivos productivos por encima del umbral recomendado de 300 lineas. No quedan 
 | P2 | 475 | `backend/src/mail/mail.service.ts` | seguir bajando hacia 300; templates extraidos a helpers |
 | P2 | 464 | `backend/src/legal/legal.service.ts` | seguir bajando hacia 300; helpers internos extraidos |
 | P2 | 462 | `frontend/src/app/register/page.tsx` | pasos, validacion, llamadas API, estado del wizard; `RegisterPasswordFields` ya extraido |
-| P2 | 494 | `frontend/src/app/(dashboard)/pacientes/nuevo/page.tsx` | secciones de formulario, hooks de submit, helpers de duplicados |
+| P2 | ~270 | `frontend/src/app/(dashboard)/pacientes/nuevo/page.tsx` | forma + draft hook extraido a `usePatientFormDraft.ts`; pendiente split de secciones |
 | P2 | 489 | `frontend/src/app/(dashboard)/ajustes/ProfileSecurityTab.tsx` | perfil, seguridad, sesiones, privacidad local |
 | P2 | 471 | `frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts` | reducer/maquina de estados de guardado |
 | P2 | 466 | `backend/src/patient-portal/patient-portal.service.ts` | auth portal, solicitudes, descargas, consentimiento |

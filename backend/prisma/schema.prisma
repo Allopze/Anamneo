@@ -55,6 +55,9 @@ model User {
   createdPatientPortalAccounts PatientPortalAccount[] @relation("PatientPortalAccountCreatedBy")
   createdClinicalAlerts ClinicalAlert[]   @relation("ClinicalAlertCreatedBy")
   acknowledgedAlerts    ClinicalAlert[]   @relation("ClinicalAlertAcknowledgedBy")
+  createdAllergies      PatientAllergy[]  @relation("PatientAllergyCreatedBy")
+  medicoAppointments    Appointment[]     @relation("AppointmentMedico")
+  createdAppointments   Appointment[]     @relation("AppointmentCreatedBy")
   legalAcceptances       UserLegalAcceptance[]
   passwordResetTokens    PasswordResetToken[]
   onboardingProgresses   UserOnboardingProgress[]
@@ -138,6 +141,9 @@ model Patient {
   portalAccounts         PatientPortalAccount[]
   alerts     ClinicalAlert[]
   clinicalSearches PatientClinicalSearch[]
+  allergies        PatientAllergy[]
+  appointments     Appointment[]
+  vitalSigns        EncounterVitalSigns[]
 
   @@index([archivedAt])
   @@index([blockedAt])
@@ -160,6 +166,28 @@ model PatientClinicalSearch {
   @@index([medicoId])
   @@index([patientId])
   @@map("patient_clinical_search")
+}
+
+// Severity enum: LEVE | MODERADA | GRAVE | FATAL
+// deletedAt enables soft-delete (allergy marked inactive, not purged).
+model PatientAllergy {
+  id            String    @id @default(uuid())
+  patientId     String    @map("patient_id")
+  allergen      String
+  severity      String    @default("MODERADA")
+  reactionType  String?   @map("reaction_type")
+  onsetDate     DateTime? @map("onset_date")
+  notes         String?
+  deletedAt     DateTime? @map("deleted_at")
+  createdById   String    @map("created_by_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("PatientAllergyCreatedBy", fields: [createdById], references: [id])
+
+  @@index([patientId, deletedAt])
+  @@map("patient_allergies")
 }
 
 model PatientHistory {
@@ -187,6 +215,7 @@ model Encounter {
   patientId         String    @map("patient_id")
   medicoId          String    @map("medico_id")
   createdById       String    @map("created_by_id")
+  appointmentId     String?   @unique @map("appointment_id")
   status            String    @default("EN_PROGRESO")
   reviewStatus      String    @default("NO_REQUIERE_REVISION") @map("review_status")
   reviewRequestedAt DateTime? @map("review_requested_at")
@@ -204,6 +233,7 @@ model Encounter {
   patient     Patient                  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   medico      User                     @relation("EncounterMedico", fields: [medicoId], references: [id])
   createdBy   User                     @relation(fields: [createdById], references: [id])
+  appointment Appointment?             @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   reviewRequestedBy User?              @relation("EncounterReviewRequestedBy", fields: [reviewRequestedById], references: [id])
   reviewedBy  User?                    @relation("EncounterReviewedBy", fields: [reviewedById], references: [id])
   completedBy User?                    @relation("EncounterCompletedBy", fields: [completedById], references: [id])
@@ -218,11 +248,13 @@ model Encounter {
   problems    PatientProblem[]
   diagnoses  EncounterDiagnosis[]
   treatments EncounterTreatment[]
+  vitalSigns EncounterVitalSigns?
 
   @@index([medicoId])
   @@index([medicoId, status, createdAt])
   @@index([medicoId, reviewStatus, createdAt])
   @@index([patientId, medicoId, createdAt])
+  @@index([appointmentId])
   @@index([updatedAt])
   @@map("encounters")
 }
@@ -280,6 +312,30 @@ model EncounterSection {
 
   @@unique([encounterId, sectionKey])
   @@map("encounter_sections")
+}
+
+model EncounterVitalSigns {
+  id                    String   @id @default(uuid())
+  encounterId           String   @unique @map("encounter_id")
+  patientId             String   @map("patient_id")
+  measuredAt            DateTime @default(now()) @map("measured_at")
+  bloodPressureSystolic Int?     @map("blood_pressure_systolic")
+  bloodPressureDiastolic Int?    @map("blood_pressure_diastolic")
+  heartRate             Int?     @map("heart_rate")
+  respiratoryRate       Int?     @map("respiratory_rate")
+  temperatureCelsius    Decimal? @map("temperature_celsius") @db.Decimal(4, 1)
+  oxygenSaturation      Int?     @map("oxygen_saturation")
+  weightKg              Decimal? @map("weight_kg") @db.Decimal(5, 2)
+  heightCm              Decimal? @map("height_cm") @db.Decimal(5, 2)
+  bmi                   Decimal? @db.Decimal(4, 1)
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  patient   Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, measuredAt])
+  @@map("encounter_vital_signs")
 }
 
 model EncounterDiagnosis {
@@ -348,6 +404,7 @@ model EncounterTreatmentOutcome {
 model ConditionCatalog {
   id        String   @id @default(uuid())
   name      String
+  cieCode   String?  @map("cie_code")
   normalizedName String @default("") @map("normalized_name")
   synonyms  String   @default("[]")
   tags      String   @default("[]")
@@ -358,6 +415,7 @@ model ConditionCatalog {
   localOverrides ConditionCatalogLocal[]
 
   @@unique([normalizedName])
+  @@index([cieCode])
   @@map("condition_catalog")
 }
 
@@ -954,4 +1012,30 @@ model Setting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("settings")
+}
+
+model Appointment {
+  id             String    @id @default(uuid())
+  medicoId       String    @map("medico_id")
+  patientId      String?   @map("patient_id")
+  startAt        DateTime  @map("start_at")
+  endAt          DateTime  @map("end_at")
+  status         String    @default("PROGRAMADA")
+  title          String?
+  notes          String?
+  cancelledAt    DateTime? @map("cancelled_at")
+  cancelReason   String?   @map("cancel_reason")
+  createdById    String    @map("created_by_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  medico    User     @relation("AppointmentMedico", fields: [medicoId], references: [id])
+  patient   Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  createdBy User     @relation("AppointmentCreatedBy", fields: [createdById], references: [id])
+  encounter Encounter?
+
+  @@index([medicoId, startAt])
+  @@index([medicoId, startAt, endAt])
+  @@index([patientId])
+  @@map("appointments")
 }

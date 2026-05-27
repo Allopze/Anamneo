@@ -77,7 +77,7 @@ export function FichaClinicalRecord({
           <div>
             <h1 className="text-2xl font-semibold text-ink-primary">Ficha Clínica</h1>
             <p className="mt-2 text-sm text-ink-secondary">
-              {statusLabel} · {format(new Date(encounter.createdAt), "d 'de' MMMM 'de' yyyy, HH:mm", { locale: es })}
+              {statusLabel} · {format(new Date(encounter.createdAt), "d 'de' MMMM 'de' yyyy, HH:mm", { locale: es })} hrs
             </p>
             {encounter.createdBy?.nombre ? (
               <p className="mt-0.5 text-sm text-ink-muted">{encounter.createdBy.nombre}</p>

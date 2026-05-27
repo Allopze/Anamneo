@@ -237,7 +237,9 @@ export default function ConditionsCatalogSection() {
                   <FiTag className="h-5 w-5 text-status-green" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-medium text-ink-primary">{condition.name}</h3>
+                  <h3 className="font-medium text-ink-primary">
+                    {condition.cieCode ? `${condition.cieCode} · ` : ''}{condition.name}
+                  </h3>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     {condition.synonyms.slice(0, 3).map((synonym, index) => (
                       <span

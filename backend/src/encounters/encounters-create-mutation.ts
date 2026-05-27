@@ -87,6 +87,7 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
     sectionConfig,
   } = params;
   const duplicateFromEncounterId = createDto.duplicateFromEncounterId?.trim();
+  const appointmentId = createDto.appointmentId?.trim();
   const sectionKeys = sectionConfig
     ? getEnabledEncounterSectionKeys(sectionConfig) as SectionKey[]
     : SECTION_ORDER;
@@ -130,6 +131,35 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
             }
           }
 
+          const appointment = appointmentId
+            ? await tx.appointment.findUnique({
+                where: { id: appointmentId },
+                select: {
+                  id: true,
+                  patientId: true,
+                  medicoId: true,
+                  cancelledAt: true,
+                  encounter: { select: { id: true } },
+                },
+              })
+            : null;
+
+          if (appointmentId && !appointment) {
+            throw new NotFoundException('Cita no encontrada');
+          }
+
+          if (appointment) {
+            if (appointment.cancelledAt) {
+              throw new BadRequestException('No se puede crear una atención desde una cita cancelada');
+            }
+            if (appointment.medicoId !== effectiveMedicoId || appointment.patientId !== patientId) {
+              throw new NotFoundException('Cita no encontrada para este paciente');
+            }
+            if (appointment.encounter) {
+              throw new ConflictException('Esta cita ya tiene una atención asociada');
+            }
+          }
+
           const inProgress = await tx.encounter.findMany({
             where: {
               patientId,
@@ -145,6 +175,36 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
           });
 
           if (inProgress.length === 1) {
+            if (appointment && !inProgress[0].appointmentId) {
+              const linkedEncounter = await tx.encounter.update({
+                where: { id: inProgress[0].id },
+                data: { appointmentId: appointment.id },
+                include: {
+                  sections: { select: { completed: true } },
+                  patient: true,
+                  createdBy: { select: { id: true, nombre: true, email: true } },
+                },
+              });
+              await tx.appointment.update({
+                where: { id: appointment.id },
+                data: { status: 'ATENDIDA' },
+              });
+              await auditService.log(
+                {
+                  entityType: 'Appointment',
+                  entityId: appointment.id,
+                  userId: user.id,
+                  action: 'UPDATE',
+                  reason: 'APPOINTMENT_UPDATED',
+                  diff: { status: 'ATENDIDA', encounterId: linkedEncounter.id, reusedEncounter: true },
+                },
+                tx,
+              );
+              return {
+                ...formatEncounterResponse(linkedEncounter, { viewerRole: user.role }),
+                reused: true,
+              };
+            }
             return {
               ...formatEncounterResponse(inProgress[0], { viewerRole: user.role }),
               reused: true,
@@ -195,6 +255,7 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               patientId,
               medicoId: effectiveMedicoId,
               createdById: user.id,
+              appointmentId: appointment?.id ?? null,
               status: 'EN_PROGRESO',
               sections: {
                 create: sectionKeys.map((key) => {
@@ -240,10 +301,29 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
                 patientId,
                 status: 'EN_PROGRESO',
                 duplicatedFromEncounterId: duplicateFromEncounterId ?? null,
+                appointmentId: appointment?.id ?? null,
               },
             },
             tx,
           );
+
+          if (appointment) {
+            await tx.appointment.update({
+              where: { id: appointment.id },
+              data: { status: 'ATENDIDA' },
+            });
+            await auditService.log(
+              {
+                entityType: 'Appointment',
+                entityId: appointment.id,
+                userId: user.id,
+                action: 'UPDATE',
+                reason: 'APPOINTMENT_UPDATED',
+                diff: { status: 'ATENDIDA', encounterId: encounter.id },
+              },
+              tx,
+            );
+          }
 
           return {
             ...formatEncounterResponse(encounter, { viewerRole: user.role }),

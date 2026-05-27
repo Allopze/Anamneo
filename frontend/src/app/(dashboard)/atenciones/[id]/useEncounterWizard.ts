@@ -213,6 +213,9 @@ export function useEncounterWizard() {
     setShowCompleteConfirm: workflow.setShowCompleteConfirm,
     showSignModal: workflow.showSignModal,
     setShowSignModal: workflow.setShowSignModal,
+    followupSuggestion: workflow.followupSuggestion,
+    followupDate: workflow.followupDate,
+    setFollowupDate: workflow.setFollowupDate,
     showDeleteAttachment: attachmentsState.showDeleteAttachment,
     setShowDeleteAttachment: attachmentsState.setShowDeleteAttachment,
     showNotApplicableModal: sectionActions.showNotApplicableModal,
@@ -258,6 +261,7 @@ export function useEncounterWizard() {
     deleteMutation: attachmentsState.deleteMutation,
     reviewStatusMutation: workflow.reviewStatusMutation,
     createTaskMutation: workflow.createTaskMutation,
+    createFollowupTaskMutation: workflow.createFollowupTaskMutation,
     duplicateEncounterMutation: duplicateAction.duplicateEncounterMutation,
     saveCurrentSection: persistence.saveCurrentSection,
     persistSection: persistence.persistSection,
@@ -281,6 +285,8 @@ export function useEncounterWizard() {
     handleSaveGeneratedSummary,
     handleQuickNotesSave: persistence.handleQuickNotesSave,
     handleViewFicha: workflow.handleViewFicha,
+    handleFollowupConfirm: workflow.handleFollowupConfirm,
+    handleFollowupSkip: workflow.handleFollowupSkip,
     handleReassignmentSuccess: () => queryClient.invalidateQueries({ queryKey: ['encounter', id] }),
   };
 }

@@ -110,6 +110,12 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   DATA_BREACH_ASSESSED: 'Evaluación de riesgo razonable de vulneración registrada (Ley 21.719 Art 14 sexies)',
   DATA_BREACH_LIST_VIEWED: 'Consulta de listado de vulneraciones',
   DATA_BREACH_VIEWED: 'Consulta de detalle de vulneración',
+  ALLERGY_CREATED: 'Registro de alergia estructurada',
+  ALLERGY_UPDATED: 'Actualización de alergia',
+  ALLERGY_REMOVED: 'Eliminación (soft-delete) de alergia',
+  APPOINTMENT_CREATED: 'Creación de cita/agenda',
+  APPOINTMENT_UPDATED: 'Actualización de cita/agenda',
+  APPOINTMENT_CANCELLED: 'Cancelación de cita/agenda',
   AUDIT_UNSPECIFIED: 'Evento no catalogado',
 };
 

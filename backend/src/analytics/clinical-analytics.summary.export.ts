@@ -113,6 +113,7 @@ export async function exportClinicalAnalyticsSummaryCsvReadModel(params: {
 
   const header = Object.keys(row).map((key) => toCsvCell(key)).join(',');
   const values = Object.values(row).map((value) => toCsvCell(value)).join(',');
+  const disclaimer = 'AVISO: Este an\u00E1lisis es observacional y descriptivo. No establece causalidad ni reemplaza el juicio cl\u00EDnico. Los desenlaces son proxies indirectos registrados en la ficha; su interpretaci\u00F3n requiere contexto cl\u00EDnico.';
 
-  return '\uFEFF' + header + '\n' + values;
+  return '\uFEFF' + header + '\n' + values + '\n\n' + toCsvCell(disclaimer);
 }

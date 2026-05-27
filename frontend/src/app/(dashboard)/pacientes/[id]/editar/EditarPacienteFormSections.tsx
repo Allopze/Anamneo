@@ -6,6 +6,7 @@ import { ErrorAlert } from '@/components/common/ErrorAlert';
 import PossiblePatientDuplicatesNotice from '@/components/common/PossiblePatientDuplicatesNotice';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import { todayLocalDateString } from '@/lib/date';
+import { formatRut } from '@/lib/rut';
 import type { EditForm } from './editar.constants';
 
 interface EditarPacienteFormSectionsProps {
@@ -177,7 +178,15 @@ export function EditarPacienteFormSections({
                   placeholder="Ej: 12.345.678-9"
                   autoComplete="off"
                   spellCheck={false}
-                  {...editForm.register('rut')}
+                  {...editForm.register('rut', {
+                    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                      const raw = e.target.value;
+                      const cleaned = raw.replace(/[.\-\s]/g, '');
+                      if (cleaned.length >= 2) {
+                        e.target.value = formatRut(raw);
+                      }
+                    },
+                  })}
                 />
                 {editForm.formState.errors.rut ? (
                   <p className="form-error">{String(editForm.formState.errors.rut.message || '')}</p>

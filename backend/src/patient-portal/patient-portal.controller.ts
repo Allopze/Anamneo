@@ -5,8 +5,10 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -180,6 +182,29 @@ export class PatientPortalController {
     @Body() dto: PortalDataRequestDto,
   ) {
     return this.service.createDataRequest(user, dto);
+  }
+
+  @Get('portal/audit-log')
+  @UseGuards(PatientPortalAuthGuard)
+  getAuditLog(
+    @CurrentPatientPortalUser() user: PatientPortalRequestUser,
+    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
+  ) {
+    return this.service.getAuditLog(user, Math.max(1, page));
+  }
+
+  @Get('portal/audit-log.csv')
+  @UseGuards(PatientPortalAuthGuard)
+  async exportAuditLogCsv(
+    @CurrentPatientPortalUser() user: PatientPortalRequestUser,
+    @Res() res: Response,
+  ) {
+    const csv = await this.service.exportAuditLogCsv(user);
+    const buffer = Buffer.from(csv, 'utf8');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="historial-acceso.csv"');
+    res.setHeader('Content-Length', buffer.length);
+    res.end(buffer);
   }
 
   private setPortalCookies(res: Response, tokens: { accessToken: string; refreshToken: string }) {

@@ -11,11 +11,12 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import PossiblePatientDuplicatesNotice from '@/components/common/PossiblePatientDuplicatesNotice';
-import { validateRut } from '@/lib/rut';
+import { validateRut, formatRut } from '@/lib/rut';
 import { calculateAgeFromBirthDate, todayLocalDateString } from '@/lib/date';
 import { basePatientSchema, fullPatientSchema, PatientForm } from './nuevo.constants';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 import NuevoPacienteDoctorFields from './NuevoPacienteDoctorFields';
+import { usePatientFormDraft, clearPatientFormDraft } from './usePatientFormDraft';
 
 export default function NuevoPacientePage() {
   const router = useRouter();
@@ -24,12 +25,7 @@ export default function NuevoPacientePage() {
   const canCreate = useAuthCanCreatePatient();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm<PatientForm>({
+  const form = useForm<PatientForm>({
     resolver: zodResolver(isDoctor ? fullPatientSchema : basePatientSchema),
     defaultValues: {
       sexo: '' as any,
@@ -37,6 +33,9 @@ export default function NuevoPacientePage() {
       rutExempt: false,
     },
   });
+  const { register, handleSubmit, watch, formState: { errors, isDirty } } = form;
+
+  usePatientFormDraft(form, user?.id, isDirty);
 
   const rutExempt = watch('rutExempt');
   const nombre = watch('nombre');
@@ -118,6 +117,7 @@ export default function NuevoPacientePage() {
       const endpoint = isDoctor ? '/patients' : '/patients/quick';
       const response = await api.post(endpoint, payload);
       toast.success('Paciente creado correctamente');
+      if (user?.id) clearPatientFormDraft(user.id);
       router.push(`/pacientes/${response.data.id}`);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -185,7 +185,15 @@ export default function NuevoPacientePage() {
               disabled={rutExempt}
               className={`form-input ${errors.rut ? 'form-input-error' : ''}`}
               placeholder="Ej: 12.345.678-9"
-              {...register('rut')}
+              {...register('rut', {
+                onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                  const raw = e.target.value;
+                  const cleaned = raw.replace(/[.\-\s]/g, '');
+                  if (cleaned.length >= 2) {
+                    e.target.value = formatRut(raw);
+                  }
+                },
+              })}
             />
             <label className="flex items-center gap-2">
               <input

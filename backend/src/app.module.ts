@@ -23,6 +23,8 @@ import { PatientDataRightsModule } from './patient-data-rights/patient-data-righ
 import { PatientPortalModule } from './patient-portal/patient-portal.module';
 import { DataBreachModule } from './data-breach/data-breach.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { AllergiesModule } from './allergies/allergies.module';
+import { AppointmentsModule } from './appointments/appointments.module';
 import { Cie10Module } from './cie10/cie10.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { LegalModule } from './legal/legal.module';
@@ -83,6 +85,8 @@ import { HealthController } from './health.controller';
     PatientPortalModule,
     DataBreachModule,
     AlertsModule,
+    AllergiesModule,
+    AppointmentsModule,
     Cie10Module,
     AnalyticsModule,
     LegalModule,

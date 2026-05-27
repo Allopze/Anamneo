@@ -104,6 +104,7 @@ export function DashboardSidebarSearch({
             aria-autocomplete="list"
             aria-activedescendant={searchActiveIndex >= 0 && searchResults[searchActiveIndex] ? `search-result-${searchResults[searchActiveIndex].id}` : undefined}
             aria-label="Buscar pacientes y atenciones"
+            aria-busy={searchLoading}
             className="w-full rounded-pill border border-white/[0.1] bg-white/[0.08] py-2.5 pl-10 pr-4 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-accent/50 focus:bg-white/[0.12]"
           />
 

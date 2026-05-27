@@ -13,6 +13,15 @@ import { ClinicalAnalyticsCasesQueryDto } from './dto/clinical-analytics-cases-q
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
+  @Get('operational/daily-summary')
+  @Roles('MEDICO', 'ASISTENTE')
+  getOperationalDailySummary(
+    @CurrentUser() user: CurrentUserData,
+    @Query('date') date?: string,
+  ) {
+    return this.analyticsService.getOperationalDailySummary(user, date);
+  }
+
   @Get('clinical/summary')
   @Roles('MEDICO')
   getClinicalSummary(

@@ -338,6 +338,88 @@ describe('encounters-section-mutations', () => {
     expect(result.warnings).toEqual([VITAL_SIGNS_ALERT_GENERATION_WARNING]);
   });
 
+  it('persists structured vital signs when physical exam is saved', async () => {
+    const tx = {
+      encounterSection: {
+        update: jest.fn().mockResolvedValue({
+          id: 'sec-1',
+          encounterId: 'enc-1',
+          sectionKey: 'EXAMEN_FISICO',
+          completed: true,
+          notApplicable: false,
+          notApplicableReason: null,
+          updatedAt: new Date('2026-04-16T01:00:00.000Z'),
+          schemaVersion: 1,
+          data: '{"signosVitales":{"presionArterial":"142/91"}}',
+        }),
+      },
+      encounter: { update: jest.fn().mockResolvedValue(undefined) },
+      encounterVitalSigns: { upsert: jest.fn().mockResolvedValue(undefined), deleteMany: jest.fn() },
+    };
+    const prisma = {
+      encounter: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'enc-1',
+          medicoId: 'med-1',
+          status: 'EN_PROGRESO',
+          createdById: 'med-1',
+          patientId: 'pat-1',
+          patient: { id: 'pat-1' },
+          sections: [{ id: 'sec-1', sectionKey: 'EXAMEN_FISICO' }],
+        }),
+      },
+      $transaction: jest.fn().mockImplementation(async (callback) => callback(tx)),
+    };
+    const alertsService = { checkVitalSigns: jest.fn().mockResolvedValue(0) };
+
+    await updateEncounterSectionMutation({
+      prisma: prisma as never,
+      auditService: auditService as never,
+      alertsService: alertsService as never,
+      logger: { error: jest.fn() },
+      encounterId: 'enc-1',
+      sectionKey: 'EXAMEN_FISICO',
+      dto: {
+        completed: true,
+        data: {
+          signosVitales: {
+            presionArterial: '142/91',
+            frecuenciaCardiaca: '82',
+            frecuenciaRespiratoria: '16',
+            temperatura: '37.2',
+            saturacionOxigeno: '97',
+            peso: '70.5',
+            talla: '170',
+            imc: '24.4',
+          },
+        },
+      },
+      user: { id: 'med-1', role: 'MEDICO', isAdmin: false },
+    });
+
+    expect(tx.encounterVitalSigns.upsert).toHaveBeenCalledWith({
+      where: { encounterId: 'enc-1' },
+      create: expect.objectContaining({
+        encounterId: 'enc-1',
+        patientId: 'pat-1',
+        bloodPressureSystolic: 142,
+        bloodPressureDiastolic: 91,
+        heartRate: 82,
+        respiratoryRate: 16,
+        temperatureCelsius: '37.2',
+        oxygenSaturation: 97,
+        weightKg: '70.5',
+        heightCm: '170',
+        bmi: '24.4',
+      }),
+      update: expect.objectContaining({
+        patientId: 'pat-1',
+        bloodPressureSystolic: 142,
+        bloodPressureDiastolic: 91,
+      }),
+    });
+  });
+
   it('syncs clinical structures for treatment section updates', async () => {
     const prisma = {
       encounter: {

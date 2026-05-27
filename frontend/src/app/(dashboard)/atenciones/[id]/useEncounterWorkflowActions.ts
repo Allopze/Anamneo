@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AxiosResponse } from 'axios';
 import { useMutation, type QueryClient, type UseMutationResult } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
@@ -11,6 +11,7 @@ import {
 import { clearEncounterDraft } from '@/lib/encounter-draft';
 import { getEncounterClinicalOutputBlockReason } from '@/lib/clinical-output';
 import { invalidateDashboardOverviewQueries, invalidateTaskOverviewQueries } from '@/lib/query-invalidation';
+import { getSuggestedFollowup, type FollowupSuggestion } from '@/lib/diagnosis-followup-map';
 import type { Encounter, SignEncounterResponse } from '@/types';
 import toast from 'react-hot-toast';
 import type { CompleteEncounterPayload } from './encounter-wizard.constants';
@@ -46,6 +47,9 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
   const [closureNote, setClosureNote] = useState('');
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
+  const [followupSuggestion, setFollowupSuggestion] = useState<FollowupSuggestion | null>(null);
+  const [followupDate, setFollowupDate] = useState('');
+  const pendingNavRef = useRef<string | null>(null);
 
   useEffect(() => {
     setReviewActionNote(encounter?.reviewNote || '');
@@ -64,10 +68,57 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
         invalidateDashboardOverviewQueries(queryClient),
         invalidateTaskOverviewQueries(queryClient),
       ]);
-      navigate(`/atenciones/${id}/ficha`);
+      const suggestion = getSuggestedFollowup(encounter?.sections ?? []);
+      if (suggestion) {
+        pendingNavRef.current = `/atenciones/${id}/ficha`;
+        setFollowupSuggestion(suggestion);
+        setFollowupDate(suggestion.suggestedDate);
+      } else {
+        navigate(`/atenciones/${id}/ficha`);
+      }
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
+
+  const createFollowupTaskMutation = useMutation({
+    mutationFn: async () => {
+      await api.post(`/patients/${encounter?.patientId}/tasks`, {
+        title: `Control: ${followupSuggestion?.diagnosisText ?? 'Seguimiento'}`,
+        type: 'SEGUIMIENTO',
+        dueDate: followupDate || undefined,
+        encounterId: id,
+      });
+    },
+    onSuccess: async () => {
+      toast.success('Control de seguimiento creado');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['patient', encounter?.patientId] }),
+        invalidateTaskOverviewQueries(queryClient),
+      ]);
+      setFollowupSuggestion(null);
+      const dest = pendingNavRef.current;
+      pendingNavRef.current = null;
+      if (dest) navigate(dest);
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error));
+      setFollowupSuggestion(null);
+      const dest = pendingNavRef.current;
+      pendingNavRef.current = null;
+      if (dest) navigate(dest);
+    },
+  });
+
+  const handleFollowupConfirm = useCallback(() => {
+    createFollowupTaskMutation.mutate();
+  }, [createFollowupTaskMutation]);
+
+  const handleFollowupSkip = useCallback(() => {
+    setFollowupSuggestion(null);
+    const dest = pendingNavRef.current;
+    pendingNavRef.current = null;
+    if (dest) navigate(dest);
+  }, [navigate]);
 
   const signMutation = useMutation<SignEncounterResponse, unknown, string>({
     mutationFn: async (password) => {
@@ -207,14 +258,20 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
     setShowCompleteConfirm,
     showSignModal,
     setShowSignModal,
+    followupSuggestion,
+    followupDate,
+    setFollowupDate,
     completeMutation,
     signMutation,
     reviewStatusMutation,
     createTaskMutation,
+    createFollowupTaskMutation,
     handleComplete,
     confirmComplete,
     handleReviewStatusChange,
     handleCreateTask,
     handleViewFicha,
+    handleFollowupConfirm,
+    handleFollowupSkip,
   };
 }

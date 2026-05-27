@@ -137,7 +137,7 @@ function PacientesContent() {
     );
   };
 
-  const { data, isLoading, error } = useQuery<PatientsResponse>({
+  const { data, isLoading, isFetching, error } = useQuery<PatientsResponse>({
     queryKey: ['patients', search, page, filters],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -407,17 +407,17 @@ function PacientesContent() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
+                    disabled={page === 1 || isFetching}
                     className="btn btn-secondary text-sm"
                   >
                     Anterior
                   </button>
                   <button
                     onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                    disabled={page === pagination.totalPages}
+                    disabled={page === pagination.totalPages || isFetching}
                     className="btn btn-secondary text-sm"
                   >
-                    Siguiente
+                    {isFetching ? 'Cargando…' : 'Siguiente'}
                   </button>
                 </div>
               </div>
