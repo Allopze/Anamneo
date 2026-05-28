@@ -28,9 +28,11 @@ jest.mock('@/lib/query-invalidation', () => ({
   invalidateTaskOverviewQueries: jest.fn().mockResolvedValue(undefined),
 }));
 
-const getSuggestedFollowupMock = jest.fn(() => null);
+import type { FollowupSuggestion } from '@/lib/diagnosis-followup-map';
+
+const getSuggestedFollowupMock = jest.fn<FollowupSuggestion | null, [unknown]>(() => null);
 jest.mock('@/lib/diagnosis-followup-map', () => ({
-  getSuggestedFollowup: (...args: any[]) => getSuggestedFollowupMock(...args),
+  getSuggestedFollowup: (arg: unknown) => getSuggestedFollowupMock(arg),
 }));
 
 jest.mock('react-hot-toast', () => ({
@@ -225,6 +227,7 @@ describe('useEncounterWorkflowActions', () => {
     });
     const navigateMock = jest.fn();
     getSuggestedFollowupMock.mockReturnValue({
+      days: 30,
       diagnosisText: 'Hipertensión',
       suggestedDate: '2026-06-10',
     });
