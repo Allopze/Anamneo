@@ -76,8 +76,8 @@ export class AttachmentsScanService {
     // está disponible. Si no, conectamos al socket TCP de clamd con protocolo
     // INSTREAM (mínimo). Para mantener este modulo libre de dependencias,
     // implementamos INSTREAM directamente sobre net.Socket.
-    return new Promise<ScanResult>(async (resolve, reject) => {
-      const net = await import('node:net');
+    const net = await import('node:net');
+    return new Promise<ScanResult>((resolve, reject) => {
       const socket = new net.Socket();
       let response = '';
 

@@ -126,6 +126,8 @@ export class AttachmentsService {
         return createdAttachment;
       });
 
+      this.scanService.enqueueScan(attachment.id, resolvedStoragePath, normalizedMime);
+
       return {
         id: attachment.id,
         originalName: attachment.originalName,

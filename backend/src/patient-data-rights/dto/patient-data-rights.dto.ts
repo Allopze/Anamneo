@@ -7,7 +7,6 @@ import {
   IsUUID,
   MaxLength,
   MinLength,
-  ValidateNested,
 } from 'class-validator';
 
 export const PATIENT_DATA_REQUEST_TYPES = [

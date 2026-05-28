@@ -26,6 +26,7 @@ const integrations: Integration[] = [];
 
 if (process.env.SENTRY_DSN) {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const profiling = require('@sentry/profiling-node') as typeof import('@sentry/profiling-node');
     integrations.push(profiling.nodeProfilingIntegration());
   } catch (error) {

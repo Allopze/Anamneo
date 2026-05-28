@@ -1,6 +1,4 @@
-@layer components {
-
-  /* ── Auth Screens ─────────────── */
+/* ── Auth Screens ─────────────── */
   .auth-shell {
     @apply relative min-h-[100dvh] overflow-hidden lg:grid lg:grid-cols-[0.94fr,1.06fr];
     background:
@@ -738,7 +736,6 @@
     @apply min-h-screen flex items-center justify-center bg-surface-base;
   }
 
-  .loading-card {
-    @apply w-full max-w-xl rounded-shell bg-surface-elevated p-6 shadow-soft;
-  }
+.loading-card {
+  @apply w-full max-w-xl rounded-shell bg-surface-elevated p-6 shadow-soft;
 }

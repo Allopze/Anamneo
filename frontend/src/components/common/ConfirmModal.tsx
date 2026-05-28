@@ -41,13 +41,13 @@ export default function ConfirmModal({
   variant = 'danger',
   loading = false,
 }: ConfirmModalProps) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const styles = variantStyles[variant];
 
   useEffect(() => {
     if (isOpen) {
-      // Focus the cancel button by default for destructive actions
-      setTimeout(() => confirmRef.current?.focus(), 50);
+      setTimeout(() => cancelRef.current?.focus(), 50);
     }
   }, [isOpen]);
 
@@ -97,7 +97,7 @@ export default function ConfirmModal({
             </div>
           </div>
           <div className="flex items-center justify-end gap-3 rounded-b-card border-t border-surface-muted/30 bg-surface-base/40 px-6 py-4">
-            <button onClick={onClose} className="btn btn-secondary" disabled={loading}>
+            <button ref={cancelRef} onClick={onClose} className="btn btn-secondary" disabled={loading}>
               {cancelLabel}
             </button>
             <button

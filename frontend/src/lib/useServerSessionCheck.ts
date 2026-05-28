@@ -5,7 +5,10 @@ const POLL_INTERVAL_MS = 60_000;
 
 export function useServerSessionCheck(onExpired: () => void) {
   const callbackRef = useRef(onExpired);
-  callbackRef.current = onExpired;
+
+  useEffect(() => {
+    callbackRef.current = onExpired;
+  }, [onExpired]);
 
   useEffect(() => {
     const interval = setInterval(async () => {

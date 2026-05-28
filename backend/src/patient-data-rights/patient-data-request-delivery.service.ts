@@ -20,7 +20,7 @@ import { RequestUser } from '../common/utils/medico-id';
 import { MailService } from '../mail/mail.service';
 import { PatientsRegulatoryExportService } from '../patients/patients-regulatory-export.service';
 import { computeRutLookupHash, resolvePatientIdentifiers } from '../patients/patients-identifiers';
-import { decryptField, encryptField } from '../common/utils/field-crypto';
+import { decryptField } from '../common/utils/field-crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateDataRequestExportLinkDto,
@@ -313,6 +313,3 @@ function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-function normalizeRut(value: string): string {
-  return value.replace(/[^0-9kK]/g, '').toUpperCase();
-}

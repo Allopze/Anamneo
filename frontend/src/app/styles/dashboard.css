@@ -1,7 +1,6 @@
 /* ── Header Clinical Cockpit ───────────────────────────────────────── */
-@layer components {
 
-  /* ── Tooltip ────────────────────── */
+/* ── Tooltip ────────────────────── */
   .tooltip-bubble {
     @apply px-2.5 py-1.5 text-[11px] font-medium leading-tight tracking-wide
            rounded-lg bg-frame-dark text-ink-onDark shadow-dropdown
@@ -188,7 +187,6 @@
     @apply bg-accent text-accent-text;
   }
 
-  .header-mobile-item-inactive {
-    @apply text-ink-onDark/60 hover:bg-white/[0.08] hover:text-ink-onDark;
-  }
+.header-mobile-item-inactive {
+  @apply text-ink-onDark/60 hover:bg-white/[0.08] hover:text-ink-onDark;
 }

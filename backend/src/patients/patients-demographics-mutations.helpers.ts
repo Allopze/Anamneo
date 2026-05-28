@@ -2,7 +2,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { isDateOnlyAfterToday, calculateAgeFromBirthDate, parseDateOnlyToStoredUtcDate } from '../common/utils/local-date';
-import { normalizeNullableEmail, normalizeNullableString } from './patients-format';
+import { normalizeNullableString } from './patients-format';
 import { computeRutLookupHash } from './patients-identifiers';
 
 export async function findDuplicateRut(prisma: PrismaService, params: { rut: string; excludePatientId?: string }) {
@@ -40,11 +40,6 @@ export function applySharedDemographicFields(
     sexo,
     prevision,
     trabajo,
-    domicilio,
-    telefono,
-    email,
-    contactoEmergenciaNombre,
-    contactoEmergenciaTelefono,
     centroMedico,
   } = params;
 

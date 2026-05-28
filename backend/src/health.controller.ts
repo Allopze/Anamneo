@@ -18,11 +18,10 @@ export class HealthController {
       throw new ServiceUnavailableException({
         status: 'degraded',
         timestamp: new Date().toISOString(),
-        database,
       });
     }
 
-    return { status: 'ok', timestamp: new Date().toISOString(), database };
+    return { status: 'ok', timestamp: new Date().toISOString() };
   }
 
   @Get('database')

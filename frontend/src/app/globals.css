@@ -1,3 +1,6 @@
+@import './styles/auth.css';
+@import './styles/dashboard.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -401,9 +404,6 @@ body {
     @apply rounded-pill px-3 py-1 text-micro font-bold;
   }
 }
-
-@import './styles/auth.css';
-@import './styles/dashboard.css';
 
 /* ── Print ─────────────────────────────────────────────────────────── */
 @media print {

@@ -142,6 +142,7 @@ export default function EncounterAttachmentsModal({
                       id="attachment-file"
                       name="attachment_file"
                       type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.gif,application/pdf,image/jpeg,image/png,image/gif"
                       className="form-input"
                       onChange={(e) => {
                         setUploadError(null);

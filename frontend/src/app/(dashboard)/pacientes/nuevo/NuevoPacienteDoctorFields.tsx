@@ -17,7 +17,7 @@ export default function NuevoPacienteDoctorFields({
 }: Props) {
   return (
     <>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div>
           <label htmlFor="fechaNacimiento" className="form-label">
             Fecha de nacimiento *

@@ -214,9 +214,12 @@ describe('FichaClinicaPage clinical-output block', () => {
     expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Exportar documentos' }));
 
-    expect(screen.getByRole('menuitem', { name: 'Receta' })).toBeDisabled();
-    expect(screen.getByRole('menuitem', { name: 'Órdenes' })).toBeDisabled();
-    expect(screen.getByRole('menuitem', { name: 'Derivación' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Vista previa receta' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Descargar receta' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Vista previa órdenes' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Descargar órdenes' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Vista previa derivación' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Descargar derivación' })).toBeDisabled();
     expect(screen.getByRole('menuitem', { name: 'Descargar PDF' })).toBeDisabled();
     expect(screen.getByRole('menuitem', { name: 'Imprimir' })).toBeDisabled();
     expect(screen.getByText('Salidas clinicas bloqueadas')).toBeInTheDocument();
@@ -253,9 +256,12 @@ describe('FichaClinicaPage clinical-output block', () => {
     expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Exportar documentos' }));
 
-    expect(screen.getByRole('menuitem', { name: 'Receta' })).toBeEnabled();
-    expect(screen.getByRole('menuitem', { name: 'Órdenes' })).toBeEnabled();
-    expect(screen.getByRole('menuitem', { name: 'Derivación' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Vista previa receta' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Descargar receta' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Vista previa órdenes' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Descargar órdenes' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Vista previa derivación' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Descargar derivación' })).toBeEnabled();
     expect(screen.getByRole('menuitem', { name: 'Descargar PDF' })).toBeDisabled();
     expect(screen.getByRole('menuitem', { name: 'Imprimir' })).toBeDisabled();
     expect(screen.getByText('PDF clínico completo e impresión aún no disponibles')).toBeInTheDocument();
@@ -296,7 +302,7 @@ describe('FichaClinicaPage clinical-output block', () => {
 
     expect(await screen.findByRole('heading', { name: /ficha clínica/i })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Exportar documentos' }));
-    await user.click(screen.getByRole('menuitem', { name: 'Receta' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Descargar receta' }));
 
     await waitFor(() => {
       expect(apiGetMock).toHaveBeenCalledWith('/encounters/enc-1/export/document/receta', {
