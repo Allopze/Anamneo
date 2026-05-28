@@ -21,8 +21,9 @@ export default function SospechaDiagnosticaSection({ data, onChange, readOnly, m
   const cie10TimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
+    const timers = cie10TimerRef.current;
     return () => {
-      Object.values(cie10TimerRef.current).forEach(clearTimeout);
+      Object.values(timers).forEach(clearTimeout);
     };
   }, []);
 

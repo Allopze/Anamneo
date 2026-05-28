@@ -233,6 +233,49 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     ).toBeVisible({ timeout: 5000 });
   });
 
+  test('register GRAVE allergy and verify critical badge appears in header', async ({ page }) => {
+    test.setTimeout(45_000);
+    await loginAsMedico(page);
+
+    await gotoApp(page, '/pacientes');
+    await page.getByText('María Eugenia Flores Tapia').first().click();
+    await expect(
+      page.getByRole('heading', { name: 'María Eugenia Flores Tapia' }),
+    ).toBeVisible({ timeout: 10000 });
+
+    // No badge before registering a critical allergy
+    await expect(page.getByText(/alergia grave/i, { exact: false })).toHaveCount(0);
+
+    // Open the "Alergias" card and add a GRAVE allergy via the structured module
+    const allergiesCard = page.locator('.card').filter({ hasText: 'Alergias' }).first();
+    await allergiesCard.getByRole('button', { name: 'Agregar' }).click();
+
+    await page.getByPlaceholder('Ej: Penicilina, Mariscos, Látex').fill('Penicilina');
+    await page.getByLabel('Severidad').selectOption('GRAVE');
+    await page.getByPlaceholder('Ej: Urticaria, Anafilaxia, Edema').fill('Anafilaxia');
+
+    const saveResponsePromise = page.waitForResponse(
+      (r) => r.url().includes('/allergies') && r.request().method() === 'POST',
+    );
+    await page.getByRole('button', { name: 'Registrar alergia' }).click();
+    const saveResp = await saveResponsePromise;
+    expect(saveResp.status(), await saveResp.text()).toBe(201);
+
+    // Critical allergy badge must appear in the patient header
+    await expect(page.getByText(/alergia grave: penicilina/i)).toBeVisible({ timeout: 10000 });
+
+    // The structured allergy list should show the allergen
+    await expect(allergiesCard.getByText('Penicilina')).toBeVisible({ timeout: 5000 });
+    await expect(allergiesCard.getByText('Grave')).toBeVisible();
+
+    // The antecedentes history card should NOT be confused with the structured list
+    const historyCard = page.locator('.card').filter({ hasText: 'Antecedentes' }).first();
+    if (await historyCard.isVisible()) {
+      // The label "Alergias (antecedentes)" should be distinguishable from the structured list heading "Alergias"
+      await expect(historyCard.getByText('Alergias (antecedentes)')).toBeVisible();
+    }
+  });
+
   test('create encounter and fill motivo de consulta', async ({ page }) => {
     test.setTimeout(60_000);
     await loginAsMedico(page);

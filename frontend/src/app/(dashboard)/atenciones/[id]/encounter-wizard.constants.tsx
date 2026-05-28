@@ -140,7 +140,7 @@ export const INNER_PANEL_CLASS = 'rounded-lg border border-surface-muted/45 bg-s
 
 export const RAIL_PANEL_CLASS = 'w-full overflow-hidden border border-frame/10 bg-surface-elevated/90';
 
-export const WORKSPACE_STICKY_OFFSET_CLASS = 'top-[170px]';
+export const WORKSPACE_STICKY_OFFSET_CLASS = 'top-[24px]';
 
 // ─── Formatters ─────────────────────────────────────────────────
 

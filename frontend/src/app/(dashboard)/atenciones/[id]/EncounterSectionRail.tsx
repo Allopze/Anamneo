@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import { FiCheck, FiSlash, FiChevronDown, FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';
 import type { Encounter, SectionKey } from '@/types';
@@ -28,59 +27,7 @@ export default function EncounterSectionRail({
   moveToSection,
 }: Props) {
   const completedOrNACount = sections.filter((s) => s.completed || s.notApplicable).length;
-  const railPanelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const panel = railPanelRef.current;
-    if (!panel || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
-
-    let scrollParent: HTMLElement | Window = window;
-    let parent = panel.parentElement;
-    while (parent && parent !== document.body) {
-      const overflowY = window.getComputedStyle(parent).overflowY;
-      if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') {
-        scrollParent = parent;
-        break;
-      }
-      parent = parent.parentElement;
-    }
-
-    let animationFrame = 0;
-    let currentOffset = 0;
-    let targetOffset = 0;
-    const readScrollTop = () => (scrollParent === window ? window.scrollY : (scrollParent as HTMLElement).scrollTop);
-
-    const settle = () => {
-      currentOffset += (targetOffset - currentOffset) * 0.16;
-
-      if (Math.abs(targetOffset - currentOffset) < 0.1) {
-        currentOffset = targetOffset;
-      }
-
-      panel.style.setProperty('--section-rail-inertia-y', `${currentOffset.toFixed(2)}px`);
-      animationFrame = currentOffset === targetOffset ? 0 : window.requestAnimationFrame(settle);
-    };
-
-    const handleScroll = () => {
-      targetOffset = Math.min(28, Math.max(0, readScrollTop() * 0.05));
-
-      if (!animationFrame) {
-        animationFrame = window.requestAnimationFrame(settle);
-      }
-    };
-
-    handleScroll();
-    scrollParent.addEventListener('scroll', handleScroll, { passive: true });
-
-    return () => {
-      scrollParent.removeEventListener('scroll', handleScroll);
-      if (animationFrame) {
-        window.cancelAnimationFrame(animationFrame);
-      }
-    };
-  }, []);
 
   return (
     <aside
@@ -90,15 +37,11 @@ export default function EncounterSectionRail({
       )}
     >
       <div
-        ref={railPanelRef}
         className={clsx(
           RAIL_PANEL_CLASS,
           railCollapsed ? 'rounded-xl' : 'rounded-card',
-          'motion-safe:transition-[width,border-radius,border-color,background-color] motion-safe:duration-200 motion-safe:ease-out motion-reduce:transition-none will-change-transform',
+          'motion-safe:transition-[width,border-radius,border-color,background-color] motion-safe:duration-200 motion-safe:ease-out motion-reduce:transition-none',
         )}
-        style={{
-          transform: 'translateY(var(--section-rail-inertia-y, 0px))',
-        }}
       >
         {/* Header — hidden when collapsed */}
         {!railCollapsed && (
@@ -254,7 +197,7 @@ function renderSectionItems({
             <span className="flex size-7 items-center justify-center rounded-input border border-status-green/40 bg-status-green/14 text-status-green-text">
               <FiCheck className="h-3 w-3" />
             </span>
-            <span>{doneCount} completas</span>
+            <span>{collapsibleItems.length} completas</span>
             <FiChevronDown
               className={clsx(
                 'ml-auto h-3.5 w-3.5 transition-transform duration-200',

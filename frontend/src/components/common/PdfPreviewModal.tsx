@@ -74,8 +74,7 @@ export default function PdfPreviewModal({
     return () => {
       cancelled = true;
     };
-  // retryCount intentionally included so handleRetry re-triggers the fetch
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // retryCount in deps so handleRetry re-triggers the fetch
   }, [isOpen, endpoint, retryCount, revokeBlobUrl]);
 
   useEffect(() => {

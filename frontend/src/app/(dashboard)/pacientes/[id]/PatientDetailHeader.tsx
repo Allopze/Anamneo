@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import {
+  FiAlertTriangle,
   FiArrowLeft,
   FiDownload,
   FiEdit2,
@@ -9,10 +10,12 @@ import {
   FiTrash2,
   FiUser,
 } from 'react-icons/fi';
+import { useQuery } from '@tanstack/react-query';
 import {
   formatPatientAge,
   formatPatientSex,
 } from '@/lib/patient';
+import { api } from '@/lib/api';
 import { InProgressEncounterConflictModal } from '@/components/common/InProgressEncounterConflictModal';
 import PossiblePatientDuplicatesNotice from '@/components/common/PossiblePatientDuplicatesNotice';
 import ReassignmentCard from '@/components/ReassignmentCard';
@@ -26,7 +29,25 @@ interface Props {
   pd: PatientDetailHook;
 }
 
+type AllergyItem = { id: string; allergen: string; severity: string; deletedAt: string | null };
+
+function useCriticalAllergies(patientId: string) {
+  const { data: allergies = [] } = useQuery<AllergyItem[]>({
+    queryKey: ['patient-allergies', patientId],
+    queryFn: async () => {
+      const res = await api.get<AllergyItem[]>(`/allergies/patient/${patientId}`);
+      return res.data;
+    },
+    staleTime: 60_000,
+  });
+  return allergies.filter(
+    (a) => !a.deletedAt && (a.severity === 'GRAVE' || a.severity === 'FATAL'),
+  );
+}
+
 export default function PatientDetailHeader({ patient, pd }: Props) {
+  const criticalAllergies = useCriticalAllergies(patient.id);
+
   return (
     <>
       {pd.conflictEncounters && (
@@ -64,12 +85,23 @@ export default function PatientDetailHeader({ patient, pd }: Props) {
                 {patient.rut || 'Sin RUT'} • {formatPatientAge(patient.edad, patient.edadMeses)} •{' '}
                 {formatPatientSex(patient.sexo)}
               </p>
-              {pd.completenessMeta && (
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                  <span className={`list-chip ${pd.completenessMeta.badgeClassName}`}>{pd.completenessMeta.label}</span>
-                  <span className="list-chip bg-surface-inset text-ink-secondary">{pd.completenessMeta.registrationLabel}</span>
-                </div>
-              )}
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                {pd.completenessMeta && (
+                  <>
+                    <span className={`list-chip ${pd.completenessMeta.badgeClassName}`}>{pd.completenessMeta.label}</span>
+                    <span className="list-chip bg-surface-inset text-ink-secondary">{pd.completenessMeta.registrationLabel}</span>
+                  </>
+                )}
+                {criticalAllergies.length > 0 && (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full border border-status-red/40 bg-status-red/15 px-2 py-0.5 font-semibold text-status-red"
+                    title={criticalAllergies.map((a) => `${a.allergen} (${a.severity.toLowerCase()})`).join(', ')}
+                  >
+                    <FiAlertTriangle className="h-3 w-3" />
+                    Alergia{criticalAllergies.length > 1 ? 's' : ''} {criticalAllergies.length > 1 ? `graves (${criticalAllergies.length})` : `grave: ${criticalAllergies[0].allergen}`}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
