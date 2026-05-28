@@ -42,8 +42,9 @@ export default function AlertPopover({ isNonClinical }: AlertPopoverProps) {
       const res = await api.get('/alerts/unacknowledged-count');
       return res.data;
     },
-    staleTime: 60_000,
-    refetchInterval: 120_000,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
     retry: 2,
     enabled: !isNonClinical,
   });

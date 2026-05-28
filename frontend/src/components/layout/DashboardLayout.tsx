@@ -15,6 +15,7 @@ import {
 import { api } from '@/lib/api';
 import { shouldPreserveLocalSessionOnBootstrapError } from '@/lib/session-bootstrap';
 import { useSessionTimeout } from '@/lib/useSessionTimeout';
+import { useServerSessionCheck } from '@/lib/useServerSessionCheck';
 import toast from 'react-hot-toast';
 import {
   FiActivity,
@@ -134,6 +135,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     toast('Su sesión expirará pronto por inactividad', { icon: '⏱️' });
   }, inactivityTimeoutMs);
 
+  // ── Server-side session validity check (polls every 60s) ───────────
+  useServerSessionCheck(() => {
+    clearAuthSessionPrefill();
+    logout({ clearLocalState: true });
+    router.replace('/login?reason=session_expired');
+  });
+
   // ── Force password change redirect ─────────────────────────────────
   useEffect(() => {
     if (user?.mustChangePassword && pathname !== '/cambiar-contrasena') {
@@ -148,6 +156,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     : canAccessClinicalAnalytics
       ? [...primaryNavigation, clinicalAnalyticsNavigation]
       : primaryNavigation;
+
+  const auditIntegrityQuery = useQuery({
+    queryKey: ['audit-integrity-latest'],
+    queryFn: async () =>
+      (await api.get('/audit/integrity/latest')).data as { valid: boolean } | null,
+    enabled: !!user?.isAdmin,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const auditBadge: NavItem['badge'] = user?.isAdmin
+    ? auditIntegrityQuery.data == null
+      ? undefined
+      : auditIntegrityQuery.data.valid
+        ? { variant: 'green', label: 'OK' }
+        : { variant: 'red', label: '!' }
+    : undefined;
+
   const secondaryItems: NavItem[] = [
     ...(isOperationalAdmin
       ? secondaryNavigation.filter((item) => item.href !== '/plantillas')
@@ -155,7 +180,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     ...(user?.isAdmin
       ? [
           { name: 'Admin', href: '/admin/usuarios', icon: FiShield },
-          { name: 'Auditoría', href: '/admin/auditoria', icon: FiList },
+          { name: 'Auditoría', href: '/admin/auditoria', icon: FiList, badge: auditBadge },
         ] as NavItem[]
       : []),
   ];

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import clsx from 'clsx';
 import { FiCheck, FiChevronLeft, FiChevronRight, FiSlash } from 'react-icons/fi';
 import type {
@@ -13,6 +13,7 @@ import type {
 } from '@/types';
 import TemplateSelector from '@/components/TemplateSelector';
 import { getSectionData } from '@/lib/clinical';
+import type { TemplateVariableContext } from '@/lib/template-variables';
 import {
   REQUIRED_SEMANTIC_SECTIONS,
   SURFACE_PANEL_CLASS,
@@ -39,6 +40,16 @@ export default function EncounterActiveSectionCard({
 }: Props) {
   const activeSection = currentSection ?? sections[currentSectionIndex];
   const headingRef = useRef<HTMLHeadingElement>(null);
+
+  const templateContext = useMemo<TemplateVariableContext>(() => ({
+    patientName: wiz.identificationData?.nombre ?? encounter.patient?.nombre,
+    patientRut: wiz.identificationData?.rut ?? encounter.patient?.rut,
+    encounterDate: encounter.createdAt
+      ? new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(encounter.createdAt))
+      : undefined,
+    doctorName: encounter.createdBy?.nombre,
+    patientAge: wiz.identificationData?.edad ?? encounter.patient?.edad,
+  }), [encounter, wiz.identificationData]);
   const progressValue = sections.length > 0 ? ((currentSectionIndex + 1) / sections.length) * 100 : 0;
 
   useEffect(() => {
@@ -75,6 +86,7 @@ export default function EncounterActiveSectionCard({
           {wiz.canEdit && wiz.supportsTemplates && currentSection ? (
             <TemplateSelector
               sectionKey={currentSection.sectionKey}
+              context={templateContext}
               onInsert={wiz.insertTemplateIntoCurrentSection}
             />
           ) : null}

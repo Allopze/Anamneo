@@ -95,8 +95,9 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
   const { data, isLoading, isError } = useQuery<{ counts: DashboardCounts }>({
     queryKey: DASHBOARD_HEADER_COUNTS_QUERY_KEY,
     queryFn: fetchDashboardHeaderCounts<{ counts: DashboardCounts }>,
-    staleTime: 60_000,
-    refetchInterval: 120_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
     retry: 2,
     enabled: !shouldHideHeader && !isCatalogRoute,
   });

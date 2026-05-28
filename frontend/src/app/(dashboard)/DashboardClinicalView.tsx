@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import clsx from 'clsx';
@@ -14,6 +14,8 @@ import OverdueAlertSection from './OverdueAlertSection';
 import RecentActivitySection from './RecentActivitySection';
 import RecentPatientsSection from './RecentPatientsSection';
 import OnboardingPanel from '@/components/onboarding/OnboardingPanel';
+import OnboardingWelcomeModal from '@/components/onboarding/OnboardingWelcomeModal';
+import { useOnboarding } from '@/lib/onboarding';
 
 interface DashboardClinicalViewProps {
   user: { nombre?: string } | null;
@@ -27,6 +29,8 @@ interface DashboardClinicalViewProps {
   onDismissOverdueAlert: () => void;
 }
 
+const WELCOME_MODAL_SEEN_KEY = 'anamneo:onboarding-welcome-seen';
+
 export default function DashboardClinicalView({
   user,
   data,
@@ -38,6 +42,32 @@ export default function DashboardClinicalView({
   overdueTasks,
   onDismissOverdueAlert,
 }: DashboardClinicalViewProps) {
+  const { eligible, progress } = useOnboarding();
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+
+  useEffect(() => {
+    if (!eligible || !progress) return;
+    const alreadySeen = typeof window !== 'undefined' && localStorage.getItem(WELCOME_MODAL_SEEN_KEY) === '1';
+    if (alreadySeen) return;
+
+    const isFirstVisit =
+      progress.eligible &&
+      !progress.dismissedAt &&
+      !progress.isComplete &&
+      progress.completedStepIds.length === 0;
+
+    if (isFirstVisit) {
+      setShowWelcomeModal(true);
+    }
+  }, [eligible, progress]);
+
+  const handleCloseWelcomeModal = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(WELCOME_MODAL_SEEN_KEY, '1');
+    }
+    setShowWelcomeModal(false);
+  };
+
   const recentEncounters = useMemo(() => data?.recent ?? [], [data?.recent]);
   const activeEncounters = useMemo(() => data?.activeEncounters ?? [], [data?.activeEncounters]);
 
@@ -127,6 +157,8 @@ export default function DashboardClinicalView({
 
   return (
     <div className="space-y-4 pb-2">
+      {showWelcomeModal && <OnboardingWelcomeModal onClose={handleCloseWelcomeModal} />}
+
       <DashboardClinicalHero
         user={user}
         data={data}

@@ -5,9 +5,11 @@ import { useCallback } from 'react';
 import { FiShield } from 'react-icons/fi';
 import SignEncounterModal from '@/components/common/SignEncounterModal';
 import AttachmentPreviewModal from '@/components/common/AttachmentPreviewModal';
+import PdfPreviewModal from '@/components/common/PdfPreviewModal';
 import ReopenEncounterModal from '@/components/common/ReopenEncounterModal';
 import { useFichaClinica } from './useFichaClinica';
 import { FichaToolbar } from './FichaToolbar';
+import { fallbackPdfFilename } from './ficha.constants';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 import {
   FichaClinicalAlerts,
@@ -43,6 +45,9 @@ export default function FichaClinicaPage() {
     handleDownloadAttachment,
     handleDownloadDocument,
     handleDownloadPdf,
+    previewKind,
+    openPreview,
+    closePreview,
     sectionData,
     patientCompletenessMeta,
     linkedAttachmentsByOrderId,
@@ -100,6 +105,7 @@ export default function FichaClinicaPage() {
         duplicateIsPending={duplicateEncounterMutation.isPending}
         onDownloadDocument={handleDownloadDocument}
         onDownloadPdf={handleDownloadPdf}
+        onPreviewDocument={openPreview}
         onPrint={handlePrint}
         onSign={openSignModal}
         onReopen={openReopenModal}
@@ -150,6 +156,23 @@ export default function FichaClinicaPage() {
         isOpen={!!previewAttachment}
         onClose={() => setPreviewAttachment(null)}
         attachment={previewAttachment}
+      />
+
+      <PdfPreviewModal
+        isOpen={previewKind !== null}
+        onClose={closePreview}
+        endpoint={
+          previewKind === 'pdf'
+            ? `/encounters/${id}/export/pdf`
+            : `/encounters/${id}/export/document/${previewKind ?? 'receta'}`
+        }
+        fallbackFilename={previewKind ? fallbackPdfFilename(encounter, previewKind) : ''}
+        title={
+          previewKind === 'pdf' ? 'PDF completo' :
+          previewKind === 'receta' ? 'Receta' :
+          previewKind === 'ordenes' ? 'Órdenes' :
+          previewKind === 'derivacion' ? 'Derivación' : ''
+        }
       />
     </>
   );

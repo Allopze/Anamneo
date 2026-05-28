@@ -5,8 +5,14 @@ import Link from 'next/link';
 import { FiArrowRight, FiFileText, FiUser } from 'react-icons/fi';
 import clsx from 'clsx';
 import Tooltip from '@/components/common/Tooltip';
-import type { NavItem } from './DashboardSidebar';
+import type { NavItem, NavItemBadge } from './DashboardSidebar';
 import type { SearchResult } from './useDashboardSearch';
+
+const BADGE_COLORS: Record<NonNullable<NavItemBadge['variant']>, string> = {
+  green: 'bg-status-green text-white',
+  yellow: 'bg-status-yellow text-frame',
+  red: 'bg-status-red text-white',
+};
 
 export function SidebarNavItem({
   item,
@@ -36,16 +42,40 @@ export function SidebarNavItem({
       <span className={clsx(collapsed ? 'flex h-5 w-5 items-center justify-center' : 'mr-4 flex h-5 w-5 items-center justify-center')}>
         <item.icon className={clsx('h-5 w-5', isActive ? 'text-accent-text' : 'text-white/70')} />
       </span>
-      {!collapsed ? item.name : null}
+      {!collapsed ? (
+        <>
+          <span className="flex-1">{item.name}</span>
+          {item.badge && (
+            <span
+              className={clsx(
+                'ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-bold',
+                BADGE_COLORS[item.badge.variant],
+              )}
+            >
+              {item.badge.label}
+            </span>
+          )}
+        </>
+      ) : null}
     </Link>
   );
 
   if (collapsed) {
     return (
-      <div className="flex w-full justify-center">
+      <div className="relative flex w-full justify-center">
         <Tooltip label={item.name} side="right">
           {link}
         </Tooltip>
+        {item.badge && (
+          <span
+            className={clsx(
+              'absolute right-0 top-0 h-2.5 w-2.5 rounded-full border-2 border-frame',
+              item.badge.variant === 'green' ? 'bg-status-green' :
+              item.badge.variant === 'yellow' ? 'bg-status-yellow' : 'bg-status-red',
+            )}
+            aria-label={item.badge.label}
+          />
+        )}
       </div>
     );
   }

@@ -5,6 +5,7 @@ import {
   FiCopy,
   FiDownload,
   FiEdit3,
+  FiEye,
   FiMoreHorizontal,
   FiPrinter,
   FiShield,
@@ -28,6 +29,7 @@ interface FichaToolbarProps {
   duplicateIsPending: boolean;
   onDownloadDocument: (kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') => void;
   onDownloadPdf: () => void;
+  onPreviewDocument: (kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') => void;
   onPrint: () => void;
   onSign: () => void;
   onReopen: () => void;
@@ -48,6 +50,7 @@ export function FichaToolbar({
   duplicateIsPending,
   onDownloadDocument,
   onDownloadPdf,
+  onPreviewDocument,
   onPrint,
   onSign,
   onReopen,
@@ -62,28 +65,60 @@ export function FichaToolbar({
 
     const outputActions: ToolbarMenuItem[] = [
       {
+        key: 'preview-receta',
+        label: 'Vista previa receta',
+        icon: FiEye,
+        onSelect: () => onPreviewDocument('receta'),
+        disabled: Boolean(focusedDocumentBlockedReason),
+        title: focusedDocumentBlockedReason ?? 'Vista previa de receta',
+      },
+      {
         key: 'receta',
-        label: 'Receta',
+        label: 'Descargar receta',
         icon: FiDownload,
         onSelect: () => onDownloadDocument('receta'),
         disabled: Boolean(focusedDocumentBlockedReason),
         title: focusedDocumentBlockedReason ?? 'Descargar receta',
       },
       {
+        key: 'preview-ordenes',
+        label: 'Vista previa órdenes',
+        icon: FiEye,
+        onSelect: () => onPreviewDocument('ordenes'),
+        disabled: Boolean(focusedDocumentBlockedReason),
+        title: focusedDocumentBlockedReason ?? 'Vista previa de órdenes',
+      },
+      {
         key: 'ordenes',
-        label: 'Órdenes',
+        label: 'Descargar órdenes',
         icon: FiDownload,
         onSelect: () => onDownloadDocument('ordenes'),
         disabled: Boolean(focusedDocumentBlockedReason),
         title: focusedDocumentBlockedReason ?? 'Descargar órdenes',
       },
       {
+        key: 'preview-derivacion',
+        label: 'Vista previa derivación',
+        icon: FiEye,
+        onSelect: () => onPreviewDocument('derivacion'),
+        disabled: Boolean(focusedDocumentBlockedReason),
+        title: focusedDocumentBlockedReason ?? 'Vista previa de derivación',
+      },
+      {
         key: 'derivacion',
-        label: 'Derivación',
+        label: 'Descargar derivación',
         icon: FiDownload,
         onSelect: () => onDownloadDocument('derivacion'),
         disabled: Boolean(focusedDocumentBlockedReason),
         title: focusedDocumentBlockedReason ?? 'Descargar derivación',
+      },
+      {
+        key: 'preview-pdf',
+        label: 'Vista previa PDF completo',
+        icon: FiEye,
+        onSelect: () => onPreviewDocument('pdf'),
+        disabled: Boolean(pdfBlockedReason),
+        title: pdfBlockedReason ?? 'Vista previa del PDF completo',
       },
       {
         key: 'pdf',
@@ -178,8 +213,9 @@ export function FichaToolbar({
     focusedDocumentBlockedReason,
     pdfBlockedReason,
     onDownloadDocument,
-    onDuplicate,
     onDownloadPdf,
+    onPreviewDocument,
+    onDuplicate,
     onPrint,
     onSign,
     id,

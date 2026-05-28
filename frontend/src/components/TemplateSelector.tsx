@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { FiCheck, FiChevronDown, FiEye, FiFileText } from 'react-icons/fi';
+import { resolveTemplateVariables, type TemplateVariableContext } from '@/lib/template-variables';
 
 interface TemplateSelectorProps {
   sectionKey?: string;
+  context?: TemplateVariableContext;
   onInsert: (content: string) => void;
 }
 
@@ -34,7 +36,7 @@ const SECTION_LABELS: Record<string, string> = {
   OBSERVACIONES: 'Observaciones',
 };
 
-export default function TemplateSelector({ sectionKey, onInsert }: TemplateSelectorProps) {
+export default function TemplateSelector({ sectionKey, context, onInsert }: TemplateSelectorProps) {
   const [open, setOpen] = useState(false);
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
 
@@ -131,7 +133,7 @@ export default function TemplateSelector({ sectionKey, onInsert }: TemplateSelec
                   <button
                     type="button"
                     onClick={() => {
-                      onInsert(previewTemplate.content);
+                      onInsert(resolveTemplateVariables(previewTemplate.content, context));
                       setOpen(false);
                     }}
                     className="inline-flex items-center gap-2 rounded-xl bg-frame px-3 py-2 text-sm font-medium text-ink-onDark transition-colors hover:bg-frame-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/25"
@@ -143,7 +145,7 @@ export default function TemplateSelector({ sectionKey, onInsert }: TemplateSelec
 
                 <div className="overflow-y-auto rounded-xl border border-surface-muted/35 bg-surface-base/45 p-3">
                   <pre className="whitespace-pre-wrap break-words font-sans text-sm text-ink-secondary">
-                    {previewTemplate.content}
+                    {resolveTemplateVariables(previewTemplate.content, context)}
                   </pre>
                 </div>
               </div>

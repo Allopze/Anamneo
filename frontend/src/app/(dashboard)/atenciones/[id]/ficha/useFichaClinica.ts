@@ -41,6 +41,7 @@ export function useFichaClinica() {
   const [showSignModal, setShowSignModal] = useState(false);
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
+  const [previewKind, setPreviewKind] = useState<'pdf' | 'receta' | 'ordenes' | 'derivacion' | null>(null);
 
   const { data: encounter, isLoading } = useQuery({
     queryKey: ['encounter', id, 'ficha'],
@@ -173,6 +174,17 @@ export function useFichaClinica() {
     await handleDownloadDocument('pdf');
   }, [handleDownloadDocument]);
 
+  const openPreview = useCallback((kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') => {
+    const blockedReason = kind === 'pdf' ? pdfBlockedReason : focusedDocumentBlockedReason;
+    if (blockedReason) {
+      toast.error(blockedReason);
+      return;
+    }
+    setPreviewKind(kind);
+  }, [pdfBlockedReason, focusedDocumentBlockedReason]);
+
+  const closePreview = useCallback(() => setPreviewKind(null), []);
+
   const sectionData = useMemo(() => {
     const sections = encounter?.sections ?? [];
     const get = (key: string) => sections.find((s) => s.sectionKey === key)?.data || {};
@@ -232,6 +244,9 @@ export function useFichaClinica() {
     handleDownloadAttachment,
     handleDownloadDocument,
     handleDownloadPdf,
+    previewKind,
+    openPreview,
+    closePreview,
     sectionData,
     patientCompletenessMeta,
     linkedAttachmentsByOrderId,

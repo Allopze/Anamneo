@@ -11,11 +11,17 @@ import type { IconType } from 'react-icons';
 import { SidebarCollapseButton, SidebarNavItem } from './DashboardSidebarParts';
 import { DashboardSidebarSearch } from './DashboardSidebarSearch';
 
+export interface NavItemBadge {
+  variant: 'green' | 'yellow' | 'red';
+  label: string;
+}
+
 export interface NavItem {
   name: string;
   href: string;
   icon: IconType;
   exact?: boolean;
+  badge?: NavItemBadge;
 }
 
 interface DashboardSidebarProps {
