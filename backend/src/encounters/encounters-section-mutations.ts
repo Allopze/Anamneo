@@ -37,14 +37,6 @@ import {
 import { isMedicoOnlySection } from './encounter-access-policy';
 import type { EncounterSectionConfig } from '../../../shared/encounter-section-config';
 
-async function touchEncounterUpdatedAt(prisma: PrismaService, encounterId: string) {
-  await prisma.encounter.update({
-    where: { id: encounterId },
-    data: {
-      updatedAt: new Date(),
-    },
-  });
-}
 
 function parseDecimal(value: string | undefined): string | null {
   if (!value) return null;
@@ -158,23 +150,38 @@ export async function reconcileEncounterIdentificationSection(params: ReconcileE
 
   const snapshotData = buildIdentificationSnapshotFromPatient(encounter.patient);
 
-  const updatedSection = await prisma.encounterSection.update({
-    where: { id: section.id },
-    data: {
-      data: serializeSectionData(snapshotData),
-      schemaVersion: getEncounterSectionSchemaVersion('IDENTIFICACION'),
-    },
-  });
+  const runTx = async <T>(cb: (tx: typeof prisma) => Promise<T>) =>
+    typeof (prisma as any).$transaction === 'function'
+      ? (prisma as any).$transaction(cb)
+      : cb(prisma as any);
 
-  await touchEncounterUpdatedAt(prisma, encounterId);
+  const updatedSection = await runTx(async (tx) => {
+    const sectionUpdate = await tx.encounterSection.update({
+      where: { id: section.id },
+      data: {
+        data: serializeSectionData(snapshotData),
+        schemaVersion: getEncounterSectionSchemaVersion('IDENTIFICACION'),
+      },
+    });
 
-  await auditService.log({
-    entityType: 'EncounterSection',
-    entityId: section.id,
-    userId: user.id,
-    action: 'UPDATE',
-    reason: 'ENCOUNTER_SECTION_UPDATED',
-    diff: { reconciledFields: IDENTIFICATION_SNAPSHOT_FIELD_META.map(({ key }) => key) },
+    await tx.encounter.update({
+      where: { id: encounterId },
+      data: { updatedAt: new Date() },
+    });
+
+    await auditService.log(
+      {
+        entityType: 'EncounterSection',
+        entityId: section.id,
+        userId: user.id,
+        action: 'UPDATE',
+        reason: 'ENCOUNTER_SECTION_UPDATED',
+        diff: { reconciledFields: IDENTIFICATION_SNAPSHOT_FIELD_META.map(({ key }) => key) },
+      },
+      tx,
+    );
+
+    return sectionUpdate;
   });
 
   const formattedSection = formatEncounterSectionForRead(updatedSection);
@@ -315,15 +322,18 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
       });
     }
 
-    return sectionUpdate;
-  });
+    await auditService.log(
+      {
+        entityType: 'EncounterSection',
+        entityId: section.id,
+        userId: user.id,
+        action: 'UPDATE',
+        diff: summarizeSectionAuditData(sectionKey, sanitizedData, dto.completed, previousSectionData),
+      },
+      tx,
+    );
 
-  await auditService.log({
-    entityType: 'EncounterSection',
-    entityId: section.id,
-    userId: user.id,
-    action: 'UPDATE',
-    diff: summarizeSectionAuditData(sectionKey, sanitizedData, dto.completed, previousSectionData),
+    return sectionUpdate;
   });
 
   const vitalSigns =

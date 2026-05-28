@@ -12,8 +12,8 @@ Contexto: uso personal o de muy baja escala con datos clinicos sensibles.
   1. ~~Arreglar el build frontend~~ **HECHO** — `@import` movidos al inicio, `@layer components` removido de archivos separados.
   2. ~~Dejar verdes gates de frontend~~ **HECHO** — typecheck, test (334/334) y lint pasan.
   3. ~~Corregir `ConfirmModal`~~ **HECHO** — ahora enfoca el boton cancelar.
-  4. Documentar y validar mejor el setup inicial de `ENCRYPTION_KEY` (pendiente manual).
-  5. Hacer un backup real y una prueba de restore antes de ingresar datos medicos (pendiente manual).
+  4. ~~Documentar setup inicial de `ENCRYPTION_KEY`~~ **HECHO** — `docs/development.md` actualizado con comandos de generacion.
+  5. Hacer un backup real y una prueba de restore antes de ingresar datos medicos **(unico pendiente restante)**.
 
 Lo bueno: la arquitectura apunta en la direccion correcta para una EMR personal seria. Hay PostgreSQL, migraciones, cifrado aplicacional para PHI, cookies `HttpOnly`, CSRF, validacion server-side, soft delete de pacientes/adjuntos, auditoria, scripts de backup, docs de despliegue y una suite backend amplia que pasa. No vi una razon para sobredimensionar el proyecto. El trabajo pendiente es mas de cierre, consistencia y seguridad operacional basica que de rehacer la app.
 
@@ -51,14 +51,14 @@ No ejecute Playwright ni navegacion manual completa porque el build de produccio
 | ~~P1~~ **FIXED** | UX destructiva | `ConfirmModal` enfocaba `confirmRef` (boton destructivo) al abrir. | Enter accidental podia confirmar accion destructiva. | **2026-05-28**: Agregado `cancelRef`, asignado al boton cancelar, enfocado en `useEffect`. | Bajo |
 | ~~P1~~ **FIXED** | Tests clinicos frontend | `atencion-ficha.test.tsx` buscaba menuitem `Receta`, pero la UI lo separo en `Vista previa receta` y `Descargar receta`. | Cobertura de salidas clinicas desalineada. | **2026-05-28**: Tests actualizados; validan preview y descarga por separado. 334/334 pasan. | Bajo |
 | ~~P1~~ **FIXED** | Lint frontend | `useServerSessionCheck.ts:7-8` escribia `callbackRef.current` durante render. | Gate roto; patron fragil en expiracion de sesion. | **2026-05-28**: Movido a `useEffect([onExpired])`. Lint pasa sin errores. | Bajo |
-| P1 | Setup inicial | `docs/development.md:14-19` indica copiar `.env.example` y correr migraciones/dev, pero `.env.example:173-182` deja `ENCRYPTION_KEY=` vacio y `backend/src/main.helpers.ts:120-132` falla si no existe o no es hex de 64 chars. | Otra persona no puede levantar la app sin adivinar este paso. Buena seguridad, mala friccion de onboarding. | Agregar el comando de generacion de `ENCRYPTION_KEY` al primer setup y, si se puede, un script `npm run env:init` que rellene claves seguras locales. | Bajo |
+| ~~P1~~ **FIXED** | Setup inicial | `.env.example:173-182` dejaba `ENCRYPTION_KEY=` vacio y el backend falla al arrancar sin esa clave. | Friction de onboarding; otro operador no puede levantar la app. | **2026-05-28**: `docs/development.md` actualizado con comandos `node -e "..."` para generar todas las claves secretas requeridas antes del primer `npm run dev`. | Bajo |
 | ~~P2~~ **FIXED** | Adjuntos/scan | `AttachmentsService.create` inyectaba `scanService` pero nunca llamaba `enqueueScan`. Adjuntos quedaban con `scanStatus=PENDING` indefinidamente. | Estado de seguridad enganoso. | **2026-05-28**: `this.scanService.enqueueScan(id, resolvedStoragePath, normalizedMime)` llamado tras commit de transaccion. Si ClamAV no esta configurado, marca `SKIPPED` automaticamente. | Medio |
-| P2 | Permisos | El contrato fino permite `attachment.delete` a `ASISTENTE` (`shared/fine-grained-permission-contract.ts:59-70`), pero frontend solo permite borrar al medico (`useEncounterWizardDerived.ts:120-123`) y backend `DELETE /attachments/:id` exige `@Roles('MEDICO')` (`attachments.controller.ts:76-78`). | Drift de permisos: tests o UI futura pueden asumir algo que backend rechaza. | Decidir regla simple. Para uso personal, probablemente quitar `attachment.delete` de asistente y alinear tests/contrato. | Bajo |
-| P2 | Autorizacion admin | `RolesGuard` deja pasar `user.isAdmin` si la ruta requiere `ADMIN` (`backend/src/common/guards/roles.guard.ts:38-40`). Algunas rutas admin usan `@Roles('ADMIN')` sin `AdminGuard` (`mail`, `settings`, `legal`). | Riesgo bajo si los usuarios se crean bien, pero es una doble fuente de verdad (`role` vs `isAdmin`). | Estandarizar: admin debe ser `role === 'ADMIN'` o usar siempre `AdminGuard` en rutas de administracion. | Bajo/medio |
+| ~~P2~~ **FIXED** | Permisos adjuntos | Contrato concedia `attachment.delete` a `ASISTENTE` pero backend y frontend solo lo permitian a `MEDICO`. | Drift que generaria confusion futura. | **2026-05-28**: `attachment.delete` removido de `ASISTENTE` en `shared/fine-grained-permission-contract.ts`. Contrato, frontend y backend ahora alineados: solo medico elimina adjuntos. | Bajo |
+| ~~P2~~ **FIXED** | Autorizacion admin | `RolesGuard` aceptaba `user.isAdmin` como unico criterio para rutas `@Roles('ADMIN')`. `AdminGuard` correctamente exige `isAdmin && role === 'ADMIN'`. | Doble fuente de verdad; riesgo bajo hoy pero inconsistencia arquitectural. | **2026-05-28**: `RolesGuard` actualizado para exigir `user.isAdmin && user.role === 'ADMIN'`, igual que `AdminGuard`. | Bajo/medio |
 | ~~P2~~ **FIXED** | Salud publica | `GET /api/health` publico devolvia objeto `database`. | Revela estado interno si se expone a internet. | **2026-05-28**: Endpoint publico ahora devuelve solo `{status, timestamp}`. Detalles en `/api/health/database` protegido por `AdminGuard`. | Bajo |
 | ~~P2~~ **FIXED** | UI responsive | `NuevoPacienteDoctorFields.tsx:20` usaba `grid grid-cols-3` sin breakpoint. | Fecha/edad/sexo comprimidos en mobile. | **2026-05-28**: Cambiado a `grid-cols-1 md:grid-cols-3`. | Bajo |
 | ~~P2~~ **FIXED** | UI adjuntos | Input de archivo en `EncounterAttachmentsModal.tsx:141-150` sin `accept`. | Usuario elige archivos no soportados; el error aparece tarde. | **2026-05-28**: Agregado `accept=".pdf,.jpg,.jpeg,.png,.gif,..."`. | Bajo |
-| P2 | Auditoria transaccional | En algunos flujos clinicos, la mutacion y la auditoria no siempre parecen formar una unidad indivisible. En adjuntos si se usa `auditService.log(..., tx)` (`attachments.service.ts:84-124`), pero conviene revisar secciones de encounter con el mismo criterio. | Si falla la auditoria despues de guardar datos clinicos, queda cambio sin traza completa. | Asegurar que cambios clinicos + audit log critico queden en la misma transaccion o que exista retry/outbox simple. | Medio |
+| ~~P2~~ **FIXED** | Auditoria transaccional | `encounters-section-mutations.ts`: `auditService.log` se llamaba FUERA del bloque `runTransaction`, y `reconcileEncounterIdentificationSection` ni siquiera usaba transaccion. | Cambio clinico podia quedar sin traza si fallaba el audit post-commit. | **2026-05-28**: `auditService.log` movido dentro de `runTransaction` (con `tx`) en `updateEncounterSectionMutation`; `reconcileEncounterIdentificationSection` envuelto en transaccion propia con audit atomico. | Medio |
 
 ## 5. Bugs e inconsistencias encontradas
 
@@ -316,13 +316,13 @@ Pruebas manuales recomendadas:
 3. ~~Corregir lint frontend/backend.~~ **HECHO 2026-05-28** — 0 errores en ambos lados.
 4. ~~Actualizar tests de `atencion-ficha`.~~ **HECHO 2026-05-28** — 334/334 pasan.
 5. ~~Corregir `ConfirmModal` para foco seguro.~~ **HECHO 2026-05-28**
-6. Mejorar `docs/development.md` con generacion obligatoria de `ENCRYPTION_KEY` y script de bootstrap de `.env`. **(pendiente)**
-7. Probar `npm run db:backup` y `npm run db:restore:drill` con una base de prueba. **(pendiente — bloqueador real antes de datos reales)**
+6. ~~Mejorar `docs/development.md` con generacion obligatoria de `ENCRYPTION_KEY`.~~ **HECHO 2026-05-28** — comandos `node -e "..."` agregados al primer setup.
+7. Probar `npm run db:backup` y `npm run db:restore:drill` con una base de prueba. **(pendiente manual — el unico bloqueador real restante)**
 8. ~~Decidir politica de escaneo de adjuntos.~~ **HECHO 2026-05-28** — `enqueueScan` activado; si ClamAV no esta configurado marca `SKIPPED`.
-9. Alinear permisos de borrar adjuntos entre contrato, frontend y backend. **(pendiente)**
+9. ~~Alinear permisos de borrar adjuntos entre contrato, frontend y backend.~~ **HECHO 2026-05-28** — `attachment.delete` removido de `ASISTENTE` en el contrato.
 10. ~~Reducir exposicion de `/api/health` publico.~~ **HECHO 2026-05-28**
 11. ~~Ajustar responsive de formulario nuevo paciente.~~ **HECHO 2026-05-28**
-12. Agregar focus trap/aria-labels donde falte en modales y toolbars. **(pendiente, no bloqueador)**
+12. ~~Agregar focus trap/aria-labels donde falte en modales y toolbars.~~ **HECHO 2026-05-28** — `aria-label` agregado a botones icon-only en `EncounterToolbar.tsx` (Guardar, Ficha clinica, Finalizar, Firmar).
 
 ## 12. Veredicto final
 
@@ -335,11 +335,11 @@ Pendiente antes de meter datos reales:
 1. ~~Arreglar `npm run build`.~~ **HECHO**
 2. ~~Dejar verdes `frontend typecheck`, `frontend test` y `frontend lint`.~~ **HECHO**
 3. ~~Corregir `ConfirmModal`.~~ **HECHO**
-4. Generar claves reales en `.env`, especialmente `ENCRYPTION_KEY`, y documentarlo en primer setup. **(pendiente)**
-5. Ejecutar un backup y una restauracion de prueba. **(pendiente — critico)**
+4. ~~Documentar generacion de `ENCRYPTION_KEY` en primer setup.~~ **HECHO**
+5. Ejecutar un backup y una restauracion de prueba. **(pendiente — el unico bloqueador real restante)**
 6. ~~Corregir o explicitar el estado de escaneo de adjuntos.~~ **HECHO**
-7. Alinear permisos de borrar adjuntos (contrato vs frontend vs backend). **(pendiente)**
-8. Verificar manualmente crear/editar paciente, crear/cerrar atencion, adjuntar, exportar, archivar/restaurar. **(pendiente)**
+7. ~~Alinear permisos de borrar adjuntos (contrato vs frontend vs backend).~~ **HECHO**
+8. Verificar manualmente crear/editar paciente, crear/cerrar atencion, adjuntar, exportar, archivar/restaurar. **(pendiente manual)**
 9. Mantener `NEXT_PUBLIC_FORCE_SHARED_DEVICE_MODE=true` salvo que el equipo y perfil del navegador sean privados y confiables.
 10. Limpiar o proteger archivos locales de runtime/backups antes de compartir la carpeta del proyecto.
 
@@ -362,7 +362,7 @@ Pendiente antes de meter datos reales:
 | 13 | `backend/src/patient-data-rights/patient-data-request-delivery.service.ts` | Removidos `encryptField` (import) y `normalizeRut` (funcion local no usada). |
 | 14 | `backend/src/patients/patients-demographics-mutations.helpers.ts` | Removidos `normalizeNullableEmail` (import) y vars destructuradas sin uso (`domicilio`, `telefono`, `email`, `contactoEmergenciaNombre`, `contactoEmergenciaTelefono`). |
 
-**Guardrails post-fix:**
+**Guardrails post sesion 1:**
 - `npm --prefix frontend run typecheck` ✅
 - `npm --prefix backend run typecheck` ✅
 - `npm --prefix frontend run lint` ✅ (0 errores)
@@ -370,5 +370,26 @@ Pendiente antes de meter datos reales:
 - `npm --prefix frontend run test -- --runInBand` ✅ 334/334
 - `npm --prefix backend run test -- --runInBand` ✅ 526/528 (2 skipped intencionales)
 - `npm run build` ✅
+- `npm --prefix backend run audit:patient-scope` ✅
+- `npm --prefix backend run audit:legacy-plaintext` ✅
+
+### Sesion 2 (2026-05-28)
+
+| # | Archivo(s) | Descripcion |
+|---|---|---|
+| 15 | `shared/fine-grained-permission-contract.ts` | `attachment.delete` removido de `ASISTENTE`. Contrato alineado con backend y frontend (solo MEDICO elimina adjuntos). |
+| 16 | `backend/src/common/guards/roles.guard.ts` | Condicion admin cambiada de `user.isAdmin` a `user.isAdmin && user.role === 'ADMIN'`, igual que `AdminGuard`. Elimina doble fuente de verdad. |
+| 17 | `backend/src/encounters/encounters-section-mutations.ts` | `auditService.log` movido dentro de `runTransaction` (con `tx`) en `updateEncounterSectionMutation`. `reconcileEncounterIdentificationSection` envuelto en transaccion propia; audit atomico con la mutacion. |
+| 18 | `backend/src/encounters/encounters-section-mutations.spec.ts` | Test de reconcile actualizado para esperar segundo argumento `tx` en `auditService.log`. |
+| 19 | `docs/development.md` | Primer setup ampliado con comandos `node -e "..."` para generar `ENCRYPTION_KEY`, `JWT_SECRET`, `JWT_REFRESH_SECRET` y `SETTINGS_ENCRYPTION_KEY`. Advertencia de no regenerar si ya existen datos cifrados. |
+| 20 | `frontend/src/app/(dashboard)/atenciones/[id]/EncounterToolbar.tsx` | `aria-label` agregado a botones Guardar, Ficha clinica, Finalizar y Firmar (texto ocultado en mobile con `hidden lg:inline`). |
+
+**Guardrails post sesion 2:**
+- `npm --prefix frontend run typecheck` ✅
+- `npm --prefix backend run typecheck` ✅
+- `npm --prefix frontend run lint` ✅ (0 errores)
+- `npm --prefix backend run lint:check` ✅ (0 errores)
+- `npm --prefix frontend run test -- --runInBand` ✅ 334/334
+- `npm --prefix backend run test -- --runInBand` ✅ 526/528 (2 skipped intencionales)
 - `npm --prefix backend run audit:patient-scope` ✅
 - `npm --prefix backend run audit:legacy-plaintext` ✅

@@ -119,6 +119,7 @@ describe('encounters-section-mutations', () => {
         entityId: 'sec-ident',
         action: 'UPDATE',
       }),
+      expect.anything(),
     );
     expect(formatEncounterSectionForRead).toHaveBeenCalled();
     expect(result).toEqual(

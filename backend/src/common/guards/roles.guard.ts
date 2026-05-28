@@ -35,7 +35,7 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Usuario no autenticado');
     }
 
-    if (user.isAdmin && requiredRoles.includes('ADMIN')) {
+    if (user.isAdmin && user.role === 'ADMIN' && requiredRoles.includes('ADMIN')) {
       return true;
     }
 

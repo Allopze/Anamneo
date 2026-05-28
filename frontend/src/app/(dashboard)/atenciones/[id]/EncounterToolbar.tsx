@@ -173,6 +173,7 @@ export default function EncounterToolbar({
           <button
             onClick={saveCurrentSection}
             disabled={!hasUnsavedChanges || saveSectionMutation.isPending}
+            aria-label="Guardar ahora"
             className={clsx(
               hasUnsavedChanges ? COMPACT_BTN_PRIMARY : COMPACT_BTN,
               !hasUnsavedChanges && 'bg-surface-inset text-ink-muted hover:bg-surface-inset',
@@ -184,7 +185,7 @@ export default function EncounterToolbar({
         ) : null}
 
         {/* ── Navigation buttons ─ */}
-        <button onClick={handleViewFicha} className={COMPACT_BTN}>
+        <button onClick={handleViewFicha} aria-label="Ficha clínica" className={COMPACT_BTN}>
           <FiEye className="h-3.5 w-3.5" />
           <span className="hidden lg:inline">Ficha clínica</span>
         </button>
@@ -214,6 +215,7 @@ export default function EncounterToolbar({
           <button
             onClick={handleComplete}
             disabled={completeMutation.isPending || Boolean(completionBlockedReason)}
+            aria-label="Finalizar atención"
             className={COMPACT_BTN_SUCCESS}
             title={completionBlockedReason ?? undefined}
           >
@@ -226,6 +228,7 @@ export default function EncounterToolbar({
           <button
             onClick={() => setShowSignModal(true)}
             disabled={signMutation.isPending}
+            aria-label="Firmar atención"
             className={COMPACT_BTN_PRIMARY}
           >
             <FiShield className="h-3.5 w-3.5" />

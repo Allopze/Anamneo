@@ -14,6 +14,27 @@ Esta guia cubre el setup local, los comandos diarios y los tropiezos mas comunes
 ```bash
 npm install
 cp .env.example .env
+```
+
+**Paso obligatorio antes de continuar — generar claves secretas:**
+
+```bash
+# ENCRYPTION_KEY: cifrado at-rest de PHI (RUT, nombres, datos sensibles).
+# El backend no arranca sin esta clave. Debe ser exactamente 64 caracteres hex.
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# Copia el resultado y pega en .env como: ENCRYPTION_KEY=<resultado>
+
+# JWT_SECRET y JWT_REFRESH_SECRET (minimo 32 chars aleatorios cada uno):
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# SETTINGS_ENCRYPTION_KEY (32 chars hex):
+node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
+```
+
+Si `.env` ya tiene valores generados (por ejemplo desde una sesion anterior), no los regeneres — cambiar `ENCRYPTION_KEY` deja ilegibles los datos cifrados existentes.
+
+```bash
 npm run db:migrate
 npm run db:seed
 npm run dev
@@ -23,6 +44,7 @@ Que hace cada paso:
 
 - `npm install` instala dependencias del root y, via `postinstall`, tambien las de `backend/` y `frontend/`.
 - `cp .env.example .env` parte desde el set compartido del proyecto. Si ejecutas backend o frontend por separado, revisa tambien sus `.env` locales como overlays de desarrollo.
+- Los comandos `node -e "..."` generan claves criptograficamente seguras. Sin `ENCRYPTION_KEY` el backend falla con un error claro al arrancar.
 - `npm run db:migrate` ejecuta `prisma migrate dev` en backend.
 - `npm run db:seed` carga datos iniciales.
 - `npm run dev` arranca backend y frontend con un supervisor bash.

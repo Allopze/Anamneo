@@ -66,7 +66,6 @@ export const FINE_GRAINED_PERMISSION_CONTRACT: Record<PermissionRole, FineGraine
     'encounter.updateReview',
     'encounter.viewAudit',
     'attachment.upload',
-    'attachment.delete',
     'clinicalConsent.create',
     'patientTask.manage',
     'patientProblem.manage',
