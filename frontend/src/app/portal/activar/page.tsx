@@ -28,38 +28,38 @@ export default function PortalActivarPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10">
-      <section className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Activar portal paciente</h1>
-        <p className="mt-2 text-sm text-slate-600">Define una contraseña para acceder a tus fichas finalizadas.</p>
+    <main className="portal-page-auth">
+      <section className="portal-container-form portal-card-form">
+        <h1 className="portal-title">Activar portal paciente</h1>
+        <p className="portal-copy mt-2">Define una contraseña para acceder a tus fichas finalizadas.</p>
 
         {!token ? (
-          <div className="mt-4 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          <div className="portal-alert-error mt-4">
             El enlace no incluye token de activación.
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <label className="block text-sm text-slate-700">
+            <label className="portal-label">
               Contraseña
               <input
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 type="password"
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                className="portal-input"
                 autoComplete="new-password"
               />
             </label>
-            <label className="flex items-start gap-2 text-sm text-slate-700">
+            <label className="flex items-start gap-2 text-sm text-ink-secondary">
               <input type="checkbox" checked={acceptPrivacy} onChange={(e) => setAcceptPrivacy(e.target.checked)} />
               Acepto la política de privacidad vigente.
             </label>
-            <label className="flex items-start gap-2 text-sm text-slate-700">
+            <label className="flex items-start gap-2 text-sm text-ink-secondary">
               <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} />
               Acepto los términos y condiciones vigentes.
             </label>
-            {error && <div className="rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
+            {error && <div className="portal-alert-error">{error}</div>}
             <button
-              className="w-full rounded-md bg-teal-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="portal-button-primary w-full"
               disabled={loading || !acceptPrivacy || !acceptTerms}
             >
               {loading ? 'Activando...' : 'Activar cuenta'}

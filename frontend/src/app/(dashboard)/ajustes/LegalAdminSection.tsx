@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiEdit3, FiFileText, FiSend } from 'react-icons/fi';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { api, getErrorMessage } from '@/lib/api';
 import {
   LEGAL_DOCUMENT_LABELS,
@@ -113,9 +113,9 @@ export default function LegalAdminSection() {
     onSuccess: async (document) => {
       setSelectedDraftId(document.id);
       await refreshLegalQueries();
-      toast.success('Borrador legal creado.');
+      notify.success('Borrador legal creado.');
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => notify.error(getErrorMessage(error)),
   });
 
   const saveDraftMutation = useMutation({
@@ -138,9 +138,9 @@ export default function LegalAdminSection() {
     onSuccess: async (document) => {
       setSelectedDraftId(document.id);
       await refreshLegalQueries();
-      toast.success('Borrador legal guardado.');
+      notify.success('Borrador legal guardado.');
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => notify.error(getErrorMessage(error)),
   });
 
   const publishMutation = useMutation({
@@ -155,16 +155,16 @@ export default function LegalAdminSection() {
     onSuccess: async (document) => {
       setSelectedDraftId(null);
       await refreshLegalQueries();
-      toast.success(`${document.title} publicado.`);
+      notify.success(`${document.title} publicado.`);
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => notify.error(getErrorMessage(error)),
   });
 
   const handleSave = () => {
     try {
       JSON.parse(contentJsonText);
     } catch {
-      toast.error('El contenido JSON no es válido.');
+      notify.error('El contenido JSON no es válido.');
       return;
     }
 

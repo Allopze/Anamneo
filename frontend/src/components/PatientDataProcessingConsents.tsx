@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import ConsentHistoryList from './patient-data-processing-consents/ConsentHistoryList';
 import GrantConsentForm from './patient-data-processing-consents/GrantConsentForm';
 import RevokeConsentModal from './patient-data-processing-consents/RevokeConsentModal';
@@ -83,7 +83,7 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
       signerRelationship: form.signerRelationship,
     }),
     onSuccess: () => {
-      toast.success('Consentimiento registrado');
+      notify.success('Consentimiento registrado');
       queryClient.invalidateQueries({ queryKey });
       setShowForm(false);
       setForm((current) => ({
@@ -93,7 +93,7 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
         signerRelationship: isMinor16 ? 'PADRE' : 'TITULAR',
       }));
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const revokeMutation = useMutation({
@@ -105,12 +105,12 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
       });
     },
     onSuccess: () => {
-      toast.success('Consentimiento revocado');
+      notify.success('Consentimiento revocado');
       queryClient.invalidateQueries({ queryKey });
       setRevokeConsent(null);
       setRevokeReason('');
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const handleShowForm = () => {
@@ -122,7 +122,7 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
 
   const handleSubmitGrant = () => {
     if (!form.legalDocumentId || !form.signerName.trim()) {
-      toast.error('Selecciona política y nombre del firmante');
+      notify.error('Selecciona política y nombre del firmante');
       return;
     }
     grantMutation.mutate();
@@ -136,7 +136,7 @@ export default function PatientDataProcessingConsents({ patientId, patientAgeYea
 
   const handleConfirmRevoke = () => {
     if (revokeReason.trim().length < MIN_REVOKE_REASON_LENGTH) {
-      toast.error(`El motivo debe tener al menos ${MIN_REVOKE_REASON_LENGTH} caracteres`);
+      notify.error(`El motivo debe tener al menos ${MIN_REVOKE_REASON_LENGTH} caracteres`);
       return;
     }
     revokeMutation.mutate();

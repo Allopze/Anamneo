@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthSetUser, useAuthUser } from '@/stores/auth-store';
 import TwoFactorRecoveryCodesPanel from './TwoFactorRecoveryCodesPanel';
@@ -29,7 +29,7 @@ export default function TwoFactorSection() {
       setQrCodeDataUrl(data.qrCodeDataUrl ?? null);
       setError('');
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const enableMutation = useMutation({
@@ -38,7 +38,7 @@ export default function TwoFactorSection() {
       return res.data as { message: string; recoveryCodes?: string[] };
     },
     onSuccess: (data) => {
-      toast.success('Autenticación de dos factores activada');
+      notify.success('Autenticación de dos factores activada');
       if (user) setUser({ ...user, totpEnabled: true });
       setQrCodeDataUrl(null);
       setTotpCode('');
@@ -53,7 +53,7 @@ export default function TwoFactorSection() {
       await api.post('/auth/2fa/disable', { password });
     },
     onSuccess: () => {
-      toast.success('Autenticación de dos factores desactivada');
+      notify.success('Autenticación de dos factores desactivada');
       if (user) setUser({ ...user, totpEnabled: false });
       setDisablePassword('');
       setRecoveryPassword('');
@@ -69,7 +69,7 @@ export default function TwoFactorSection() {
       return res.data as { message: string; recoveryCodes?: string[] };
     },
     onSuccess: (data) => {
-      toast.success('Códigos de recuperación actualizados');
+      notify.success('Códigos de recuperación actualizados');
       setRecoveryCodes(data.recoveryCodes ?? []);
       setRecoveryPassword('');
       setError('');

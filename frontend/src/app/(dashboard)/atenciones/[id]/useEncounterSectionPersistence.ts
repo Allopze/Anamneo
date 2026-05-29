@@ -10,9 +10,9 @@ import {
   type EncounterDraft,
   type EncounterSectionConflictBackup,
 } from '@/lib/encounter-draft';
+import { notify } from '@/lib/notify';
 import type { Encounter, IdentificacionData, SectionKey } from '@/types';
 import { isSharedDeviceModeEnabled, usePrivacySettingsStore } from '@/stores/privacy-settings-store';
-import toast from 'react-hot-toast';
 import { useEncounterDraftSync } from './useEncounterDraftSync';
 import { useEncounterAutosave } from './useEncounterAutosave';
 import { useEncounterOfflineQueue } from './useEncounterOfflineQueue';
@@ -256,7 +256,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
     setDirtySectionKeys((current) => new Set(current).add(targetConflict.sectionKey as SectionKey));
     setHasUnsavedChanges(true);
     setSaveStatus('idle');
-    toast.success('Se restauró tu copia local para que puedas revisarla antes de guardar.');
+    notify.success('Se restauró tu copia local para que puedas revisarla antes de guardar.');
   }, [currentSectionIndex, recoverableConflict, recoverableConflicts, sections, setCurrentSectionIndex]);
 
   const handleDismissRecoverableConflict = useCallback((sectionKey?: string) => {
@@ -271,7 +271,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
       current?.sectionKey === targetConflict.sectionKey
         ? recoverableConflicts.find((conflict) => conflict.sectionKey !== targetConflict.sectionKey) ?? null
         : current);
-    toast.success('Se descartó la copia local en conflicto.');
+    notify.success('Se descartó la copia local en conflicto.');
   }, [id, recoverableConflict, recoverableConflicts, userId]);
 
   const handleRestoreIdentificationFromPatient = useCallback(async () => {
@@ -299,9 +299,9 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
         return next;
       });
       queryClient.invalidateQueries({ queryKey: ['encounter', id] });
-      toast.success('Se actualizó la identificación con datos de la ficha del paciente');
+      notify.success('Se actualizó la identificación con datos de la ficha del paciente');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
     }
   }, [encounter, handleSectionDataChange, id, queryClient]);
 
@@ -312,7 +312,7 @@ export function useEncounterSectionPersistence(params: UseEncounterSectionPersis
       handleSectionDataChange('OBSERVACIONES', updatedData);
       const result = await saveSection({ sectionKey: 'OBSERVACIONES', data: updatedData });
       if (result === 'saved') {
-        toast.success('Resumen longitudinal guardado');
+        notify.success('Resumen longitudinal guardado');
       }
     },
     [formData.OBSERVACIONES, handleSectionDataChange, saveSection],

@@ -491,7 +491,6 @@ describe('EncounterWizardPage closing workflow', () => {
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith(
         'La sección se guardó, pero no se pudo completar la verificación automática de alertas por signos vitales.',
-        { icon: '⚠️' },
       );
     });
 

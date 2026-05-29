@@ -76,8 +76,8 @@ module.exports = {
         },
       },
       borderRadius: {
-        'shell':  '2.5rem',
-        'card':   '2rem',
+        'shell':  '1.75rem',
+        'card':   '1rem',
         'input':  '999px',
         'pill':   '999px',
         'btn':    '999px',
@@ -91,9 +91,9 @@ module.exports = {
       },
       boxShadow: {
         'soft':     '0 1px 4px rgba(43,43,43,0.04)',
-        'card':     '0 8px 24px rgba(43,43,43,0.06)',
-        'elevated': '0 12px 30px rgba(43,43,43,0.08)',
-        'dropdown': '0 18px 40px rgba(43,43,43,0.12)',
+        'card':     '0 4px 14px rgba(43,43,43,0.05)',
+        'elevated': '0 8px 22px rgba(43,43,43,0.07)',
+        'dropdown': '0 14px 32px rgba(43,43,43,0.10)',
       },
       fontSize: {
         'hero':    ['2rem',    { lineHeight: '1.2', fontWeight: '800' }],

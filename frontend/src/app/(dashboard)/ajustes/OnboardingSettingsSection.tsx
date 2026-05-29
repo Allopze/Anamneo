@@ -1,4 +1,4 @@
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiRotateCcw } from 'react-icons/fi';
 import { getErrorMessage } from '@/lib/api';
 import { useOnboarding } from '@/lib/onboarding';
@@ -13,9 +13,9 @@ export default function OnboardingSettingsSection() {
   const handleReset = async () => {
     try {
       await resetOnboardingAsync();
-      toast.success('Guía inicial reiniciada');
+      notify.success('Guía inicial reiniciada');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
     }
   };
 

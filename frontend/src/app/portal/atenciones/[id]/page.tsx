@@ -46,52 +46,52 @@ export default function PortalEncounterPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
+    <main className="portal-page">
       <div className="mx-auto max-w-4xl space-y-6">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/portal" className="rounded-md border border-slate-300 p-2 text-slate-600">
+            <Link href="/portal" className="portal-icon-button" aria-label="Volver al portal">
               <FiArrowLeft className="h-4 w-4" />
             </Link>
             <div>
-              <h1 className="text-2xl font-semibold text-slate-900">Ficha de atención</h1>
-              <p className="text-sm text-slate-600">
+              <h1 className="portal-title">Ficha de atención</h1>
+              <p className="portal-copy">
                 {encounter ? new Date(encounter.fecha).toLocaleDateString('es-CL') : 'Cargando...'}
               </p>
             </div>
           </div>
-          <button onClick={handleDownloadPdf} className="flex items-center gap-2 rounded-md bg-teal-700 px-3 py-2 text-sm text-white">
+          <button onClick={handleDownloadPdf} className="portal-button-primary">
             <FiDownload className="h-4 w-4" />
             Descargar PDF
           </button>
         </header>
 
-        {error && <div className="rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
+        {error && <div className="portal-alert-error">{error}</div>}
 
         {encounter && (
-          <section className="rounded-lg border border-slate-200 bg-white p-5">
-            <h2 className="text-lg font-semibold text-slate-900">
+          <section className="portal-card">
+            <h2 className="text-lg font-semibold text-ink">
               {encounter.motivoConsulta || encounter.tipoAtencion || 'Atención clínica'}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">{encounter.medico?.nombre ?? 'Equipo clínico'} · {encounter.status}</p>
+            <p className="mt-1 text-sm text-ink-muted">{encounter.medico?.nombre ?? 'Equipo clínico'} · {encounter.status}</p>
             <div className="mt-5 space-y-4">
               {encounter.sections.map((section) => (
-                <article key={section.id} className="rounded-md border border-slate-200 p-3">
-                  <h3 className="text-sm font-semibold text-slate-900">{section.sectionKey.replaceAll('_', ' ')}</h3>
-                  <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-3 text-xs text-slate-700">
+                <article key={section.id} className="rounded-lg border border-surface-muted/70 p-3">
+                  <h3 className="text-sm font-semibold text-ink">{section.sectionKey.replaceAll('_', ' ')}</h3>
+                  <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-surface-inset p-3 text-xs text-ink-secondary">
                     {JSON.stringify(section.data, null, 2)}
                   </pre>
                 </article>
               ))}
             </div>
             {encounter.attachments.length > 0 && (
-              <div className="mt-5 rounded-md border border-slate-200 p-3">
-                <h3 className="text-sm font-semibold text-slate-900">Adjuntos asociados</h3>
-                <ul className="mt-2 space-y-2 text-sm text-slate-700">
+              <div className="mt-5 rounded-lg border border-surface-muted/70 p-3">
+                <h3 className="text-sm font-semibold text-ink">Adjuntos asociados</h3>
+                <ul className="mt-2 space-y-2 text-sm text-ink-secondary">
                   {encounter.attachments.map((attachment) => (
                     <li key={attachment.id} className="flex justify-between gap-3">
                       <span>{attachment.originalName}</span>
-                      <span className="text-xs text-slate-500">{attachment.mime}</span>
+                      <span className="text-xs text-ink-muted">{attachment.mime}</span>
                     </li>
                   ))}
                 </ul>

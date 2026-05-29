@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiSave } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
 import type { EncounterSectionConfig } from '../../../../../shared/encounter-section-config';
@@ -26,9 +26,9 @@ export default function EncounterSectionsSettingsCard() {
     onSuccess: async (response) => {
       setConfig(response.data as EncounterSectionConfig);
       await query.refetch();
-      toast.success('Secciones de atención actualizadas');
+      notify.success('Secciones de atención actualizadas');
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => notify.error(getErrorMessage(error)),
   });
 
   if (query.isLoading || !config) {

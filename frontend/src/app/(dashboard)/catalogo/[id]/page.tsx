@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthIsAdmin } from '@/stores/auth-store';
 import { Condition } from '@/types';
@@ -73,12 +73,12 @@ export default function EditarAfeccionPage() {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Afección actualizada');
+      notify.success('Afección actualizada');
       queryClient.invalidateQueries({ queryKey: ['conditions'] });
       queryClient.invalidateQueries({ queryKey: ['condition', id] });
       router.push('/catalogo?categoria=afecciones');
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   if (!isAdmin) return null;

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiEdit2, FiPlus, FiSearch, FiTag, FiUpload } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
 import { canImportConditionsCsv } from '@/lib/permissions';
@@ -57,13 +57,13 @@ export default function ConditionsCatalogSection() {
       return api.post('/conditions/local', payload.data);
     },
     onSuccess: () => {
-      toast.success('Afección guardada');
+      notify.success('Afección guardada');
       setFormMode(null);
       setEditingCondition(null);
       setLocalForm({ name: '', synonyms: '', tags: '' });
       queryClient.invalidateQueries({ queryKey: ['conditions'] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const deleteLocalMutation = useMutation({
@@ -74,10 +74,10 @@ export default function ConditionsCatalogSection() {
       return api.delete(`/conditions/local/${condition.id}`);
     },
     onSuccess: () => {
-      toast.success('Afección eliminada');
+      notify.success('Afección eliminada');
       queryClient.invalidateQueries({ queryKey: ['conditions'] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const openCreateForm = () => {

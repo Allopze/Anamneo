@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import type { Encounter } from '@/types';
 import {
   clearEncounterDraft,
@@ -87,10 +87,10 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
       setIsDraftHydrated(true);
 
       if (draftIsStale && storedDraft && hasEncounterDraftUnsavedChanges(storedDraft)) {
-        toast('Se descartó un borrador local porque la atención fue actualizada en otra sesión', { icon: '⚠️' });
+        notify.info('Se descartó un borrador local porque la atención fue actualizada en otra sesión');
         if (userId) clearEncounterDraft(encounter.id, userId);
       } else if (restoredDraft) {
-        toast.success('Se restauró un borrador local de esta atención');
+        notify.success('Se restauró un borrador local de esta atención');
       }
     }
 
@@ -147,7 +147,7 @@ export function useEncounterDraftSync(params: UseEncounterDraftSyncParams) {
 
     if (hasEncounterDraftUnsavedChanges(draft)) {
       void Promise.resolve(writeEncounterDraft(draft)).catch(() => {
-        toast.error('No se pudo cifrar el borrador local de esta atención');
+        notify.error('No se pudo cifrar el borrador local de esta atención');
       });
       return;
     }

@@ -50,68 +50,68 @@ export default function PortalHomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-5xl space-y-6">
+    <main className="portal-page">
+      <div className="portal-container">
         {isLoading && (
           <div className="flex min-h-[40vh] items-center justify-center" aria-busy="true" aria-label="Cargando tu información">
             <div className="flex flex-col items-center gap-3">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-700" />
-              <p className="text-sm text-slate-500">Cargando tu información…</p>
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-surface-muted border-t-frame" />
+              <p className="portal-muted">Cargando tu información…</p>
             </div>
           </div>
         )}
         {!isLoading && (
         <>
-        <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <header className="portal-header">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Portal paciente</h1>
-            <p className="text-sm text-slate-600">{patient ? patient.nombre : '—'}</p>
+            <h1 className="portal-title">Portal paciente</h1>
+            <p className="portal-copy">{patient ? patient.nombre : '—'}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/portal/solicitudes" className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">
+            <Link href="/portal/solicitudes" className="portal-button-secondary">
               Solicitudes
             </Link>
-            <Link href="/portal/historial-acceso" className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">
+            <Link href="/portal/historial-acceso" className="portal-button-secondary">
               Historial de accesos
             </Link>
-            <button onClick={handleLogout} className="rounded-md bg-slate-900 px-3 py-2 text-sm text-white">
+            <button onClick={handleLogout} className="portal-button-primary">
               Salir
             </button>
           </div>
         </header>
 
-        {error && <div className="rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{getErrorMessage(error)}</div>}
+        {error && <div className="portal-alert-error">{getErrorMessage(error)}</div>}
 
         {patient && (
-          <section className="rounded-lg border border-slate-200 bg-white p-5">
-            <h2 className="text-lg font-semibold text-slate-900">Datos generales</h2>
+          <section className="portal-card">
+            <h2 className="text-lg font-semibold text-ink">Datos generales</h2>
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-              <div><dt className="text-slate-500">RUT</dt><dd>{patient.rut ?? 'Sin RUT'}</dd></div>
-              <div><dt className="text-slate-500">Nacimiento</dt><dd>{patient.fechaNacimiento ? new Date(patient.fechaNacimiento).toLocaleDateString('es-CL') : '—'}</dd></div>
-              <div><dt className="text-slate-500">Sexo</dt><dd>{patient.sexo ?? '—'}</dd></div>
-              <div><dt className="text-slate-500">Previsión</dt><dd>{patient.prevision ?? '—'}</dd></div>
+              <div><dt className="text-ink-muted">RUT</dt><dd>{patient.rut ?? 'Sin RUT'}</dd></div>
+              <div><dt className="text-ink-muted">Nacimiento</dt><dd>{patient.fechaNacimiento ? new Date(patient.fechaNacimiento).toLocaleDateString('es-CL') : '—'}</dd></div>
+              <div><dt className="text-ink-muted">Sexo</dt><dd>{patient.sexo ?? '—'}</dd></div>
+              <div><dt className="text-ink-muted">Previsión</dt><dd>{patient.prevision ?? '—'}</dd></div>
             </dl>
           </section>
         )}
 
-        <section className="rounded-lg border border-slate-200 bg-white p-5">
+        <section className="portal-card">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">Atenciones finalizadas</h2>
-            <FiFileText className="h-5 w-5 text-slate-400" />
+            <h2 className="text-lg font-semibold text-ink">Atenciones finalizadas</h2>
+            <FiFileText className="h-5 w-5 text-ink-muted" />
           </div>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-surface-muted/70">
             {encounters.map((encounter) => (
-              <Link key={encounter.id} href={`/portal/atenciones/${encounter.id}`} className="flex items-center justify-between gap-4 py-3 hover:bg-slate-50">
+              <Link key={encounter.id} href={`/portal/atenciones/${encounter.id}`} className="flex items-center justify-between gap-4 rounded-lg py-3 transition-colors hover:bg-surface-inset">
                 <div>
-                  <p className="font-medium text-slate-900">{encounter.motivoConsulta || encounter.tipoAtencion || 'Atención clínica'}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="font-medium text-ink">{encounter.motivoConsulta || encounter.tipoAtencion || 'Atención clínica'}</p>
+                  <p className="text-xs text-ink-muted">
                     {new Date(encounter.fecha).toLocaleDateString('es-CL')} · {encounter.medico?.nombre ?? 'Equipo clínico'} · {encounter.status}
                   </p>
                 </div>
-                <FiDownload className="h-4 w-4 text-slate-400" />
+                <FiDownload className="h-4 w-4 text-ink-muted" />
               </Link>
             ))}
-            {encounters.length === 0 && <p className="py-6 text-center text-sm text-slate-500">No hay atenciones finalizadas disponibles.</p>}
+            {encounters.length === 0 && <p className="py-6 text-center text-sm text-ink-muted">No hay atenciones finalizadas disponibles.</p>}
           </div>
         </section>
         </>

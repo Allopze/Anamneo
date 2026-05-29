@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { useMutation } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { api } from '@/lib/api';
 import {
   getDefaultInvitationTemplateHtml,
@@ -161,10 +161,10 @@ export function useAjustesClinic({ settings, userEmail, queryClient }: Params) {
     mutationFn: () => api.put('/settings', buildSettingsPayload()),
     onSuccess: () => {
       setClinic((current) => ({ ...current, smtpPassword: '' }));
-      toast.success('Configuración guardada');
+      notify.success('Configuración guardada');
       queryClient.invalidateQueries({ queryKey: ['settings'] });
     },
-    onError: () => toast.error('Error al guardar configuración'),
+    onError: () => notify.error('Error al guardar configuración'),
   });
 
   const testInvitationMutation = useMutation({
@@ -187,14 +187,14 @@ export function useAjustesClinic({ settings, userEmail, queryClient }: Params) {
     },
     onSuccess: (result) => {
       if (result.sent) {
-        toast.success(`Correo de prueba enviado${result.subject ? `: ${result.subject}` : ''}`);
+        notify.success(`Correo de prueba enviado${result.subject ? `: ${result.subject}` : ''}`);
         return;
       }
-      toast.error(result.reason || 'No se pudo enviar el correo de prueba');
+      notify.error(result.reason || 'No se pudo enviar el correo de prueba');
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.message || 'No se pudo enviar el correo de prueba';
-      toast.error(typeof msg === 'string' ? msg : 'No se pudo enviar el correo de prueba');
+      notify.error(typeof msg === 'string' ? msg : 'No se pudo enviar el correo de prueba');
     },
   });
 

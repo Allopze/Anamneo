@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiAlertTriangle, FiPlus, FiTrash2, FiEdit2, FiX, FiCheck } from 'react-icons/fi';
 import { useAuthIsMedico } from '@/stores/auth-store';
 
@@ -65,14 +65,14 @@ export default function PatientAllergiesList({ patientId }: Props) {
         severity: form.severity,
         reactionType: form.reactionType.trim() || undefined,
         notes: form.notes.trim() || undefined,
-      }),
+    }),
     onSuccess: () => {
-      toast.success('Alergia registrada');
+      notify.success('Alergia registrada');
       setShowForm(false);
       setForm(DEFAULT_FORM);
       void invalidate();
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const updateMutation = useMutation({
@@ -82,22 +82,22 @@ export default function PatientAllergiesList({ patientId }: Props) {
         severity: form.severity,
         reactionType: form.reactionType.trim() || undefined,
         notes: form.notes.trim() || undefined,
-      }),
+    }),
     onSuccess: () => {
-      toast.success('Alergia actualizada');
+      notify.success('Alergia actualizada');
       setEditingId(null);
       void invalidate();
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const removeMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/allergies/${id}`),
     onSuccess: () => {
-      toast.success('Alergia eliminada');
+      notify.success('Alergia eliminada');
       void invalidate();
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const startEdit = (a: Allergy) => {

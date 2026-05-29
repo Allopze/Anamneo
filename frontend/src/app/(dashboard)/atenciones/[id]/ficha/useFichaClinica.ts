@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
 import type { AxiosResponse } from 'axios';
 import { api, getErrorMessage } from '@/lib/api';
 import {
@@ -28,6 +27,7 @@ import {
 import { groupAttachmentsByOrderId } from '@/lib/attachments';
 import { buildEncounterSignatureDiff, buildEncounterSignatureSummary } from '@/lib/encounter-completion';
 import { invalidateDashboardOverviewQueries } from '@/lib/query-invalidation';
+import { notify } from '@/lib/notify';
 import { fallbackPdfFilename, getFilenameFromDisposition } from './ficha.constants';
 import { type EncounterReopenReasonCode } from '../../../../../../../shared/encounter-reopen-reasons';
 import { useDuplicateEncounterAction } from '../useDuplicateEncounterAction';
@@ -85,11 +85,11 @@ export function useFichaClinica() {
     },
     onSuccess: () => {
       setShowSignModal(false);
-      toast.success('Atención firmada electrónicamente');
+      notify.success('Atención firmada electrónicamente');
       queryClient.invalidateQueries({ queryKey: ['encounter', id] });
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err));
+      notify.error(getErrorMessage(err));
     },
   });
 
@@ -100,7 +100,7 @@ export function useFichaClinica() {
     },
     onSuccess: async () => {
       setShowReopenModal(false);
-      toast.success('Atención reabierta');
+      notify.success('Atención reabierta');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['encounter', id] }),
         invalidateDashboardOverviewQueries(queryClient),
@@ -108,13 +108,13 @@ export function useFichaClinica() {
       router.push(`/atenciones/${id}`);
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err));
+      notify.error(getErrorMessage(err));
     },
   });
 
   const handlePrint = useCallback(() => {
     if (printBlockedReason) {
-      toast.error(printBlockedReason);
+      notify.error(printBlockedReason);
       return;
     }
 
@@ -136,7 +136,7 @@ export function useFichaClinica() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      toast.error('Error al descargar el adjunto');
+      notify.error('Error al descargar el adjunto');
     }
   }, []);
 
@@ -144,7 +144,7 @@ export function useFichaClinica() {
     const blockedReason = kind === 'pdf' ? pdfBlockedReason : focusedDocumentBlockedReason;
 
     if (blockedReason) {
-      toast.error(blockedReason);
+      notify.error(blockedReason);
       return;
     }
 
@@ -166,7 +166,7 @@ export function useFichaClinica() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
     }
   }, [encounter, focusedDocumentBlockedReason, id, pdfBlockedReason]);
 
@@ -177,7 +177,7 @@ export function useFichaClinica() {
   const openPreview = useCallback((kind: 'pdf' | 'receta' | 'ordenes' | 'derivacion') => {
     const blockedReason = kind === 'pdf' ? pdfBlockedReason : focusedDocumentBlockedReason;
     if (blockedReason) {
-      toast.error(blockedReason);
+      notify.error(blockedReason);
       return;
     }
     setPreviewKind(kind);

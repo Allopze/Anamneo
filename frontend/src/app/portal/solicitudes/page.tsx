@@ -38,29 +38,29 @@ export default function PortalSolicitudesPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
-      <section className="mx-auto max-w-2xl rounded-lg border border-slate-200 bg-white p-6">
-        <Link href="/portal" className="text-sm text-teal-700 underline">Volver al portal</Link>
-        <h1 className="mt-4 text-2xl font-semibold text-slate-900">Solicitudes sobre tus datos</h1>
-        <p className="mt-2 text-sm text-slate-600">Crea solicitudes de acceso, rectificación, oposición, portabilidad, supresión o bloqueo.</p>
+    <main className="portal-page">
+      <section className="portal-container-narrow portal-card">
+        <Link href="/portal" className="portal-link">Volver al portal</Link>
+        <h1 className="portal-title mt-4">Solicitudes sobre tus datos</h1>
+        <p className="portal-copy mt-2">Crea solicitudes de acceso, rectificación, oposición, portabilidad, supresión o bloqueo.</p>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <label className="block text-sm text-slate-700">
+          <label className="portal-label">
             Tipo de solicitud
-            <select value={requestType} onChange={(e) => setRequestType(e.target.value)} className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
+            <select value={requestType} onChange={(e) => setRequestType(e.target.value)} className="portal-input">
               {REQUEST_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
           </label>
-          <label className="block text-sm text-slate-700">
+          <label className="portal-label">
             RUT asociado
-            <input value={requesterRut} onChange={(e) => setRequesterRut(e.target.value)} className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+            <input value={requesterRut} onChange={(e) => setRequesterRut(e.target.value)} className="portal-input" />
           </label>
-          <label className="block text-sm text-slate-700">
+          <label className="portal-label">
             Detalle
-            <textarea value={payloadRequest} onChange={(e) => setPayloadRequest(e.target.value)} rows={5} className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+            <textarea value={payloadRequest} onChange={(e) => setPayloadRequest(e.target.value)} rows={5} className="portal-input" />
           </label>
-          {message && <div className="rounded border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900">{message}</div>}
-          {error && <div className="rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
-          <button className="w-full rounded-md bg-teal-700 px-4 py-2 text-sm font-medium text-white">
+          {message && <div className="portal-alert-success">{message}</div>}
+          {error && <div className="portal-alert-error">{error}</div>}
+          <button className="portal-button-primary w-full">
             Enviar solicitud
           </button>
         </form>

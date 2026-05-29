@@ -13,10 +13,10 @@ import {
   useAuthUser,
 } from '@/stores/auth-store';
 import { api } from '@/lib/api';
+import { feedbackCopy, notify } from '@/lib/notify';
 import { shouldPreserveLocalSessionOnBootstrapError } from '@/lib/session-bootstrap';
 import { useSessionTimeout } from '@/lib/useSessionTimeout';
 import { useServerSessionCheck } from '@/lib/useServerSessionCheck';
-import toast from 'react-hot-toast';
 import {
   FiActivity,
   FiCalendar,
@@ -132,7 +132,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   // ── Session inactivity timeout ─────────────────────────────────────
   useSessionTimeout(() => {
-    toast('Su sesión expirará pronto por inactividad', { icon: '⏱️' });
+    notify.info(feedbackCopy.sessionExpiresSoon);
   }, inactivityTimeoutMs);
 
   // ── Server-side session validity check (polls every 60s) ───────────
@@ -250,7 +250,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         if (shouldPreserveLocalSessionOnBootstrapError(error) && isAuthenticated) {
           if (!hasShownBootstrapWarningRef.current) {
             hasShownBootstrapWarningRef.current = true;
-            toast.error('No se pudo validar la sesión por un problema de red. Se conserva temporalmente la sesión local.');
+            notify.error('No se pudo validar la sesión por un problema de red. Se conserva temporalmente la sesión local.');
           }
         } else if (axios.isAxiosError(error) && error.response?.status === 401) {
           logout();

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthIsAdmin } from '@/stores/auth-store';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
@@ -41,11 +41,11 @@ export default function NuevaAfeccionPage() {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Afección creada');
+      notify.success('Afección creada');
       queryClient.invalidateQueries({ queryKey: ['conditions'] });
       router.push('/catalogo?categoria=afecciones');
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   if (!isAdmin) return null;

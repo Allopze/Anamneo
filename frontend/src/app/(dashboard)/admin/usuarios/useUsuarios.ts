@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthIsAdmin, useAuthUser } from '@/stores/auth-store';
 import {
@@ -142,18 +142,18 @@ export function useUsuarios() {
       queryClient.invalidateQueries({ queryKey: ['user-invitations'] });
 
       if (invitation.emailSent) {
-        toast.success('Invitación enviada por correo');
+        notify.success('Invitación enviada por correo');
         return;
       }
 
       try {
         await navigator.clipboard.writeText(inviteUrl);
-        toast.success('Invitación creada. Se copió el enlace manual');
+        notify.success('Invitación creada. Se copió el enlace manual');
       } catch {
-        toast.success('Invitación creada. Comparte el enlace manualmente');
+        notify.success('Invitación creada. Comparte el enlace manualmente');
       }
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const updateUserMutation = useMutation({
@@ -174,11 +174,11 @@ export function useUsuarios() {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Usuario actualizado');
+      notify.success('Usuario actualizado');
       setEditingUser(null);
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const [toggleConfirmUser, setToggleConfirmUser] = useState<AdminUserRow | null>(null);
@@ -196,7 +196,7 @@ export function useUsuarios() {
     },
     onError: (err) => {
       setToggleConfirmUser(null);
-      toast.error(getErrorMessage(err));
+      notify.error(getErrorMessage(err));
     },
   });
 
@@ -206,10 +206,10 @@ export function useUsuarios() {
       return response.data as { id: string; revokedAt: string };
     },
     onSuccess: () => {
-      toast.success('Invitación revocada');
+      notify.success('Invitación revocada');
       queryClient.invalidateQueries({ queryKey: ['user-invitations'] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const resetPasswordMutation = useMutation({
@@ -218,9 +218,9 @@ export function useUsuarios() {
       return response.data as { message: string };
     },
     onSuccess: (data) => {
-      toast.success(data.message);
+      notify.success(data.message);
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const startEdit = (target: AdminUserRow) => {

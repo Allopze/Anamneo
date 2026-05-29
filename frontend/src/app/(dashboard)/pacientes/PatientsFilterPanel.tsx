@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { FiFilter, FiChevronDown, FiDownload } from 'react-icons/fi';
 import { api } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { todayLocalDateString } from '@/lib/date';
 import PatientsOperationalExportPanel from './PatientsOperationalExportPanel';
 import {
@@ -211,9 +211,9 @@ export default function PatientsFilterPanel({
                     a.download = `pacientes_${todayLocalDateString()}.csv`;
                     a.click();
                     URL.revokeObjectURL(url);
-                    toast.success('CSV descargado');
+                    notify.success('CSV descargado');
                   } catch {
-                    toast.error('Error al exportar');
+                    notify.error('Error al exportar');
                   }
                 }}
               >

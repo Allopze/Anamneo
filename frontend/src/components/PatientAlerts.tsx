@@ -7,7 +7,7 @@ import { invalidateAlertOverviewQueries } from '@/lib/query-invalidation';
 import { useAuthUser } from '@/stores/auth-store';
 import { isMedicoUser } from '@/lib/permissions';
 import { FiAlertTriangle, FiCheck, FiBell } from 'react-icons/fi';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -72,13 +72,13 @@ export default function PatientAlerts({ patientId }: PatientAlertsProps) {
       await api.post(`/alerts/${id}/acknowledge`);
     },
     onSuccess: async () => {
-      toast.success('Alerta reconocida');
+      notify.success('Alerta reconocida');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['alerts', patientId] }),
         invalidateAlertOverviewQueries(queryClient),
       ]);
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const alerts = alertsResponse?.data ?? [];

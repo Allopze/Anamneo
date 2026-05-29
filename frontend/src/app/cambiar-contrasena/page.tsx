@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthHasHydrated, useAuthLogout, useAuthUser } from '@/stores/auth-store';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 
 function CambiarContrasenaContent() {
   const router = useRouter();
@@ -86,7 +86,7 @@ function CambiarContrasenaContent() {
     setIsLoading(true);
     try {
       await api.post('/auth/change-password', { currentPassword, newPassword });
-      toast.success('Contraseña actualizada. Inicie sesión nuevamente.');
+      notify.success('Contraseña actualizada. Inicie sesión nuevamente.');
       logout({ clearLocalState: true });
       router.replace('/login');
     } catch (err) {
@@ -120,7 +120,7 @@ function CambiarContrasenaContent() {
         newPassword,
         ...(requires2FA && totpCode.trim() ? { totpCode: totpCode.trim() } : {}),
       });
-      toast.success('Contraseña restablecida. Inicia sesión con la nueva contraseña.');
+      notify.success('Contraseña restablecida. Inicia sesión con la nueva contraseña.');
       router.replace('/login');
     } catch (err) {
       setError(getErrorMessage(err));

@@ -27,7 +27,7 @@ import {
   invalidateOperationalQueries,
   invalidateTaskOverviewQueries,
 } from '@/lib/query-invalidation';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { problemSchema, taskSchema, type ProblemForm, type TaskForm } from './patient-detail.constants';
 import { normalizeTaskUpdatePayload, type TaskUpdatePayload } from './patient-detail.helpers';
 import type { PossiblePatientDuplicate } from '@/components/common/PossiblePatientDuplicatesNotice';
@@ -130,7 +130,7 @@ export function usePatientCore() {
       const autoCancelledEncounterCount = Number(
         (response.data as { autoCancelledEncounterCount?: number })?.autoCancelledEncounterCount ?? 0,
       );
-      toast.success(
+      notify.success(
         autoCancelledEncounterCount > 0
           ? `Paciente archivado. Se cancelaron ${autoCancelledEncounterCount} atenciones en progreso.`
           : 'Paciente archivado',
@@ -138,7 +138,7 @@ export function usePatientCore() {
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       router.push('/pacientes');
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const createEncounterMutation = useMutation({
@@ -148,7 +148,7 @@ export function usePatientCore() {
       const reused = Boolean((response.data as any)?.reused);
       const createdFromPreviousEncounter = Boolean(payload?.duplicateFromEncounterId);
       await invalidateDashboardOverviewQueries(queryClient);
-      toast.success(
+      notify.success(
         reused
           ? 'Ya había una atención en curso. Abriendo…'
           : createdFromPreviousEncounter
@@ -163,21 +163,21 @@ export function usePatientCore() {
         setConflictEncounters(response.data.inProgressEncounters);
         return;
       }
-      toast.error(getErrorMessage(err));
+      notify.error(getErrorMessage(err));
     },
   });
 
   const verifyDemographicsMutation = useMutation({
     mutationFn: () => api.post(`/patients/${id}/verify-demographics`, {}),
     onSuccess: async () => {
-      toast.success('Ficha verificada');
+      notify.success('Ficha verificada');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['patient', id] }),
         queryClient.invalidateQueries({ queryKey: ['patient-admin-summary', id] }),
         invalidateDashboardOverviewQueries(queryClient),
       ]);
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const mergePatientMutation = useMutation({
@@ -194,42 +194,42 @@ export function usePatientCore() {
         queryClient.invalidateQueries({ queryKey: ['patients'] }),
         invalidateOperationalQueries(queryClient),
       ]);
-      toast.success(
+      notify.success(
         counts?.encountersMoved && counts.encountersMoved > 0
           ? `Ficha fusionada. Se movieron ${counts.encountersMoved} atenciones a este paciente.`
           : 'Ficha fusionada correctamente',
       );
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const createProblemMutation = useMutation({
     mutationFn: async (data: ProblemForm) => api.post(`/patients/${id}/problems`, data),
     onSuccess: () => {
-      toast.success('Problema agregado');
+      notify.success('Problema agregado');
       problemForm.reset();
       queryClient.invalidateQueries({ queryKey: ['patient', id] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const updateProblemMutation = useMutation({
     mutationFn: async ({ problemId, payload }: { problemId: string; payload: Partial<ProblemForm> }) =>
       api.put(`/patients/problems/${problemId}`, payload),
     onSuccess: () => {
-      toast.success('Problema actualizado');
+      notify.success('Problema actualizado');
       setEditingProblemId(null);
       problemForm.reset();
       queryClient.invalidateQueries({ queryKey: ['patient', id] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: TaskForm) =>
       api.post(`/patients/${id}/tasks`, { ...data, dueDate: data.dueDate || undefined }),
     onSuccess: async () => {
-      toast.success('Seguimiento creado');
+      notify.success('Seguimiento creado');
       taskForm.reset();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['patient', id] }),
@@ -237,14 +237,14 @@ export function usePatientCore() {
         invalidateDashboardOverviewQueries(queryClient),
       ]);
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, payload }: { taskId: string; payload: TaskUpdatePayload }) =>
       api.put(`/patients/tasks/${taskId}`, normalizeTaskUpdatePayload(payload)),
     onSuccess: async () => {
-      toast.success('Seguimiento actualizado');
+      notify.success('Seguimiento actualizado');
       setEditingTaskId(null);
       taskForm.reset();
       await Promise.all([
@@ -253,7 +253,7 @@ export function usePatientCore() {
         invalidateDashboardOverviewQueries(queryClient),
       ]);
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   return {

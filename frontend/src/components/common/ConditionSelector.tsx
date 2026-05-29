@@ -6,7 +6,7 @@ import { api, getErrorMessage } from '@/lib/api';
 import { Condition } from '@/types';
 import { parseJsonArray } from '@/lib/safe-json';
 import clsx from 'clsx';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 
 interface Props {
   selected: string[];
@@ -81,12 +81,12 @@ export default function ConditionSelector({
       try {
         const response = await api.post('/conditions/local', { name: trimmedName });
         if (response.data?.deduplicatedByName) {
-          toast.success('Afección reutilizada desde el catálogo local');
+          notify.success('Afección reutilizada desde el catálogo local');
         } else {
-          toast.success('Afección agregada al catálogo local');
+          notify.success('Afección agregada al catálogo local');
         }
       } catch (error) {
-        toast.error(getErrorMessage(error));
+        notify.error(getErrorMessage(error));
       } finally {
         setIsPersistingToCatalog(false);
       }

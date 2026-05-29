@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiArrowLeft, FiDownload, FiFileText, FiUsers } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
@@ -125,9 +125,9 @@ export default function ClinicalAnalyticsCasesPage() {
     setIsDownloadingCsv(true);
     try {
       await downloadClinicalAnalyticsCasesCsv(filters, activeFocus);
-      toast.success('CSV descargado');
+      notify.success('CSV descargado');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
     } finally {
       setIsDownloadingCsv(false);
     }

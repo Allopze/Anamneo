@@ -6,7 +6,7 @@ import { api, getErrorMessage } from '@/lib/api';
 import { useAuthUser } from '@/stores/auth-store';
 import { canRegisterClinicalConsent, canRevokeClinicalConsent, isAssistantUser } from '@/lib/permissions';
 import { FiFileText, FiPlus, FiXCircle } from 'react-icons/fi';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -74,12 +74,12 @@ export default function PatientConsents({ patientId, encounterId }: PatientConse
       });
     },
     onSuccess: () => {
-      toast.success('Consentimiento registrado');
+      notify.success('Consentimiento registrado');
       setShowForm(false);
       setForm({ type: 'TRATAMIENTO', description: '' });
       queryClient.invalidateQueries({ queryKey: ['consents', patientId] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const revokeMutation = useMutation({
@@ -87,12 +87,12 @@ export default function PatientConsents({ patientId, encounterId }: PatientConse
       await api.post(`/consents/${id}/revoke`, { reason: revokeReason });
     },
     onSuccess: () => {
-      toast.success('Consentimiento revocado');
+      notify.success('Consentimiento revocado');
       setRevokeId(null);
       setRevokeReason('');
       queryClient.invalidateQueries({ queryKey: ['consents', patientId] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const consents = consentsResponse?.data ?? [];

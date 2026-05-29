@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { type Appointment, type AppointmentForm, type AppointmentStatus } from './agenda-types';
 
 interface UseAgendaAppointmentsParams {
@@ -65,11 +65,11 @@ export function useAgendaAppointments({
       });
     },
     onSuccess: () => {
-      toast.success('Cita creada');
+      notify.success('Cita creada');
       onCreateSuccess();
       void invalidate();
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const updateMutation = useMutation({
@@ -77,11 +77,11 @@ export function useAgendaAppointments({
       await api.put(`/appointments/${id}`, { status });
     },
     onSuccess: () => {
-      toast.success('Estado actualizado');
+      notify.success('Estado actualizado');
       onMutationSuccess();
       void invalidate();
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const attendMutation = useMutation({
@@ -95,12 +95,12 @@ export function useAgendaAppointments({
       return response.data as { id: string; reused?: boolean };
     },
     onSuccess: async (encounter) => {
-      toast.success(encounter.reused ? 'Atención en curso asociada a la cita' : 'Atención creada desde la cita');
+      notify.success(encounter.reused ? 'Atención en curso asociada a la cita' : 'Atención creada desde la cita');
       onMutationSuccess();
       await invalidate();
       router.push(`/atenciones/${encounter.id}`);
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const cancelMutation = useMutation({
@@ -108,11 +108,11 @@ export function useAgendaAppointments({
       await api.delete(`/appointments/${id}`, { data: {} });
     },
     onSuccess: () => {
-      toast.success('Cita cancelada');
+      notify.success('Cita cancelada');
       onMutationSuccess();
       void invalidate();
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   return { appointments, isLoading, truncated, createMutation, updateMutation, attendMutation, cancelMutation };

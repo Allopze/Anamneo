@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiPlay, FiShield } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
 
@@ -43,9 +43,9 @@ export default function MaintenanceActionsCard() {
     },
     onSuccess: (data) => {
       setLastResult(JSON.stringify(data, null, 2));
-      toast.success('Acción de mantenimiento ejecutada');
+      notify.success('Acción de mantenimiento ejecutada');
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => notify.error(getErrorMessage(error)),
   });
 
   return (

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import type { Patient } from '@/types';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { downloadPatientExportBundle, downloadPatientHistoryPdf } from './patient-detail.helpers';
 
 export function usePatientDocuments(patient: Patient | null | undefined) {
@@ -17,7 +17,7 @@ export function usePatientDocuments(patient: Patient | null | undefined) {
     try {
       await downloadPatientHistoryPdf(id, patient);
     } catch {
-      toast.error('Error al exportar el historial clínico');
+      notify.error('Error al exportar el historial clínico');
     } finally {
       setExportingPdf(false);
     }
@@ -29,7 +29,7 @@ export function usePatientDocuments(patient: Patient | null | undefined) {
     try {
       await downloadPatientExportBundle(id, patient);
     } catch {
-      toast.error('Error al exportar el paquete clínico');
+      notify.error('Error al exportar el paquete clínico');
     } finally {
       setExportingBundle(false);
     }

@@ -10,7 +10,7 @@ import { useAuthCanCreateEncounter, useAuthIsMedico, useAuthUser } from '@/store
 import { Patient } from '@/types';
 import { InProgressEncounterConflictModal, InProgressEncounterSummary } from '@/components/common/InProgressEncounterConflictModal';
 import { FiAlertCircle, FiArrowLeft, FiCheckCircle, FiPlus, FiSearch, FiUser, FiX } from 'react-icons/fi';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { formatPatientAge, getPatientCompletenessMeta } from '@/lib/patient';
 
 export default function NuevaAtencionPage() {
@@ -25,7 +25,7 @@ export default function NuevaAtencionPage() {
   useEffect(() => {
     if (!user) return;
     if (canCreate) return;
-    toast.error('No tiene permisos para crear atenciones');
+    notify.error('No tiene permisos para crear atenciones');
     router.push('/pacientes');
   }, [user, canCreate, router]);
   const [conflictEncounters, setConflictEncounters] = useState<InProgressEncounterSummary[] | null>(null);
@@ -52,7 +52,7 @@ export default function NuevaAtencionPage() {
     onSuccess: async (response) => {
       const reused = Boolean((response.data as any)?.reused);
       await invalidateDashboardOverviewQueries(queryClient);
-      toast.success(reused ? 'Ya había una atención en curso. Abriendo…' : 'Atención creada');
+      notify.success(reused ? 'Ya había una atención en curso. Abriendo…' : 'Atención creada');
       router.push(`/atenciones/${response.data.id}`);
     },
     onError: (err) => {
@@ -65,7 +65,7 @@ export default function NuevaAtencionPage() {
         return;
       }
 
-      toast.error(getErrorMessage(err));
+      notify.error(getErrorMessage(err));
     },
   });
 

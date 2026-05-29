@@ -19,7 +19,7 @@ export function buildCsp(nonce: string, isProd: boolean): string {
   const sentryOrigin = resolveSentryOrigin();
   const connectSrc = [`'self'`, ...(sentryOrigin ? [sentryOrigin] : [])].join(' ');
 
-  return [
+  const directives = [
     `default-src 'self'`,
     `script-src ${scriptSrc}`,
     `style-src 'self' 'nonce-${nonce}'`,
@@ -31,8 +31,11 @@ export function buildCsp(nonce: string, isProd: boolean): string {
     `frame-ancestors 'none'`,
     `form-action 'self'`,
     `base-uri 'self'`,
-    `upgrade-insecure-requests`,
-  ].join('; ');
+  ];
+
+  if (isProd) directives.push(`upgrade-insecure-requests`);
+
+  return directives.join('; ');
 }
 
 export function buildPermissionsPolicy(): string {

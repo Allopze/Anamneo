@@ -11,49 +11,50 @@ Contexto relacionado:
 
 ```
 // Superficies
-surface-base:       #DFDFD5   // Fondo principal de la app
-surface-elevated:   #F1F2EF   // Cards y superficies elevadas
-surface-muted:      #C2C1BB   // Áreas inactivas, separadores tonales
-surface-inset:      #D5D5CB   // Inputs, campos de formulario
+surface-base:       #EBE9E4   // Fondo principal de la app
+surface-elevated:   #FDFCFB   // Cards y superficies elevadas
+surface-muted:      #E5E4E0   // Areas inactivas, separadores tonales
+surface-inset:      #F5F4F0   // Inputs, campos de formulario
 
 // Frame
-frame-dark:         #5D5D58   // Barra oscura, shell exterior
-frame-darker:       #4A4A45   // Hover en frame dark
+frame:              #404040   // Barra oscura, shell exterior
+frame-dark:         #2B2B2B   // Hover profundo y acciones primarias
 
 // Texto
-text-primary:       #1E1E1A   // Texto principal
-text-secondary:     #6E6E67   // Texto secundario
-text-muted:         #8A8A84   // Texto deshabilitado/sutil
-text-on-dark:       #F1F2EF   // Texto sobre fondos oscuros
+ink-primary:        #2B2B2B   // Texto principal
+ink-secondary:      #555555   // Texto secundario
+ink-muted:          #767676   // Texto deshabilitado/sutil
+ink-on-dark:        #FFFFFF   // Texto sobre fondos oscuros
 
 // Acento
-accent-lime:        #E9F34A   // Acento principal (hitos, highlights)
+accent-lime:        #EAF832   // Acento principal (hitos, highlights)
 accent-lime-bright: #F3FE48   // Hover/focus del acento
-accent-lime-text:   #3D4009   // Texto sobre fondo lime
+accent-lime-text:   #2B2B2B   // Texto sobre fondo lime
 
 // Chips y controles
-chip-dark:          #73756E   // Chips con fondo oscuro
-chip-dark-hover:    #5D5D58   // Hover de chip oscuro
-chart-gray:         #A2A29B   // Líneas y ejes de charts
+chip-dark:          #555555   // Chips con fondo oscuro
+chip-dark-hover:    #404040   // Hover de chip oscuro
+chart-gray:         #666666   // Lineas y ejes de charts
 
 // Estado
 status-red:         #D08C84   // Error / alertas suaves
 status-yellow:      #E5D86A   // Warning suave
 status-green:       #96B38A   // Éxito / positivo suave
-status-red-text:    #8B3A30   // Texto rojo para contraste
-status-green-text:  #2D5E1E   // Texto verde para contraste
+status-red-text:    #7F1D1D   // Texto rojo para contraste
+status-green-text:  #1A5D38   // Texto verde para contraste
+auth-teal:          #0D9488   // Acento operativo usado por auth y portal
 ```
 
 ## Radios de Borde
 
 ```
-radius-shell:    36px   // Shell exterior de la app
-radius-card:     24px   // Cards clínicas
-radius-input:    16px   // Inputs de formulario
+radius-shell:    28px   // Shell exterior de la app
+radius-card:     16px   // Cards clinicas, portal y estados
+radius-input:    999px  // Inputs de formulario actuales
 radius-pill:     999px  // Tabs, chips, botones pill
-radius-button:   14px   // Botones regulares
+radius-button:   999px  // Botones regulares actuales
 radius-icon-btn: 999px  // Botones circulares de icono
-radius-small:    12px   // Elementos pequeños (badges, tags)
+radius-small:    16px   // Elementos pequenos (badges, tags)
 ```
 
 ## Tipografía
@@ -89,16 +90,18 @@ space-4xl:  48px
 
 ```
 shadow-none:     none
-shadow-soft:     0 1px 3px rgba(30, 30, 26, 0.04)
-shadow-card:     0 2px 8px rgba(30, 30, 26, 0.06)
-shadow-elevated: 0 4px 16px rgba(30, 30, 26, 0.08)
-shadow-dropdown: 0 8px 24px rgba(30, 30, 26, 0.12)
+shadow-soft:     0 1px 4px rgba(43, 43, 43, 0.04)
+shadow-card:     0 4px 14px rgba(43, 43, 43, 0.05)
+shadow-elevated: 0 8px 22px rgba(43, 43, 43, 0.07)
+shadow-dropdown: 0 14px 32px rgba(43, 43, 43, 0.10)
 ```
 
 ## Transiciones
 
 ```
-transition-fast:   150ms ease
-transition-normal: 200ms ease
-transition-slow:   300ms ease-out
+ease-out:        cubic-bezier(0.23, 1, 0.32, 1)
+ease-in-out:     cubic-bezier(0.77, 0, 0.175, 1)
+transition-fast:   150ms var(--ease-out)
+transition-normal: 200ms var(--ease-out)
+transition-slow:   300ms var(--ease-out)
 ```

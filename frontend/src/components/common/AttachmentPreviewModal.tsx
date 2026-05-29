@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FiDownload, FiX } from 'react-icons/fi';
 import { api } from '@/lib/api';
 import type { Attachment } from '@/types';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 
 interface AttachmentPreviewModalProps {
   isOpen: boolean;
@@ -50,7 +50,7 @@ export default function AttachmentPreviewModal({
         setBlobUrl(url);
       })
       .catch(() => {
-        if (!cancelled) toast.error('Error al cargar el adjunto');
+        if (!cancelled) notify.error('Error al cargar el adjunto');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

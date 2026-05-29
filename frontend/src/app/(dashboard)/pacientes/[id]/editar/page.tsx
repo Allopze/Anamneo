@@ -11,7 +11,7 @@ import { Patient } from '@/types';
 import { useAuthCanEditPatientAdmin, useAuthIsMedico, useAuthUser } from '@/stores/auth-store';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { FiArrowLeft } from 'react-icons/fi';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { getPatientCompletenessMeta } from '@/lib/patient';
 import { calculateAgeFromBirthDate } from '@/lib/date';
 import { invalidateDashboardOverviewQueries } from '@/lib/query-invalidation';
@@ -103,7 +103,7 @@ export default function EditarPacientePage() {
   const updateAdminMutation = useMutation({
     mutationFn: (payload: UpdateAdminPayload) => api.put(`/patients/${id}/admin`, payload),
     onSuccess: async () => {
-      toast.success('Paciente actualizado');
+      notify.success('Paciente actualizado');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['patient', id] }),
         invalidateDashboardOverviewQueries(queryClient),
@@ -113,14 +113,14 @@ export default function EditarPacientePage() {
     onError: (err) => {
       const msg = getErrorMessage(err);
       setErrorMsg(msg);
-      toast.error(msg);
+      notify.error(msg);
     },
   });
 
   const updateFullMutation = useMutation({
     mutationFn: (payload: Partial<EditForm>) => api.put(`/patients/${id}`, payload),
     onSuccess: async () => {
-      toast.success('Paciente actualizado');
+      notify.success('Paciente actualizado');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['patient', id] }),
         invalidateDashboardOverviewQueries(queryClient),
@@ -130,7 +130,7 @@ export default function EditarPacientePage() {
     onError: (err) => {
       const msg = getErrorMessage(err);
       setErrorMsg(msg);
-      toast.error(msg);
+      notify.error(msg);
     },
   });
 

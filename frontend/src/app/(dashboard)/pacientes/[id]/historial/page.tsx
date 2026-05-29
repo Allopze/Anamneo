@@ -7,7 +7,7 @@ import { api, getErrorMessage } from '@/lib/api';
 import { Patient, PatientHistory } from '@/types';
 import { FiArrowLeft, FiSave, FiAlertCircle, FiClipboard } from 'react-icons/fi';
 import Link from 'next/link';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import ConditionSelector from '@/components/common/ConditionSelector';
 import { parseHistoryField } from '@/lib/utils';
 import { useAuthCanEditAntecedentes, useAuthUser } from '@/stores/auth-store';
@@ -93,14 +93,14 @@ export default function HistorialPacientePage() {
   const updateMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => api.put(`/patients/${id}/history`, data),
     onSuccess: () => {
-      toast.success('Historial actualizado correctamente');
+      notify.success('Historial actualizado correctamente');
       queryClient.invalidateQueries({ queryKey: ['patient', id] });
       router.push(`/pacientes/${id}`);
     },
     onError: (err) => {
       const msg = getErrorMessage(err);
       setErrorMsg(msg);
-      toast.error(msg);
+      notify.error(msg);
     },
   });
 

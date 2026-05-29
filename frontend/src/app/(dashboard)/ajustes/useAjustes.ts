@@ -3,7 +3,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { api } from '@/lib/api';
 import { useAuthLogout, useAuthSetUser, useAuthUser } from '@/stores/auth-store';
 import {
@@ -110,9 +110,9 @@ export function useAjustes() {
     onSuccess: (res) => {
       const updated = res.data;
       setUser({ ...user!, nombre: updated.nombre, email: updated.email });
-      toast.success('Perfil actualizado');
+      notify.success('Perfil actualizado');
     },
-    onError: () => toast.error('Error al actualizar perfil'),
+    onError: () => notify.error('Error al actualizar perfil'),
   });
 
   const passwordMutation = useMutation({
@@ -122,7 +122,7 @@ export function useAjustes() {
         newPassword: data.newPassword,
       }),
     onSuccess: () => {
-      toast.success('Contraseña actualizada');
+      notify.success('Contraseña actualizada');
       passwordForm.reset();
       queryClient.clear();
       logout({ clearLocalState: true });
@@ -130,7 +130,7 @@ export function useAjustes() {
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.message || 'Error al cambiar contraseña';
-      toast.error(msg);
+      notify.error(msg);
     },
   });
 

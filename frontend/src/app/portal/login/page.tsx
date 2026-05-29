@@ -60,60 +60,60 @@ export default function PortalLoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10">
-      <section className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Portal paciente</h1>
-        <p className="mt-2 text-sm text-slate-600">Accede a tus fichas clínicas finalizadas y solicitudes.</p>
+    <main className="portal-page-auth">
+      <section className="portal-container-form portal-card-form">
+        <h1 className="portal-title">Portal paciente</h1>
+        <p className="portal-copy mt-2">Accede a tus fichas clínicas finalizadas y solicitudes.</p>
 
         {resetToken ? (
           <form onSubmit={handleReset} className="mt-6 space-y-4">
-            <label className="block text-sm text-slate-700">
+            <label className="portal-label">
               Nueva contraseña
               <input
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 type="password"
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                className="portal-input"
               />
             </label>
-            <button className="w-full rounded-md bg-teal-700 px-4 py-2 text-sm font-medium text-white" disabled={loading}>
+            <button className="portal-button-primary w-full" disabled={loading}>
               Actualizar contraseña
             </button>
           </form>
         ) : (
           <form onSubmit={handleLogin} className="mt-6 space-y-4">
-            <label className="block text-sm text-slate-700">
+            <label className="portal-label">
               Email
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                className="portal-input"
                 autoComplete="email"
               />
             </label>
-            <label className="block text-sm text-slate-700">
+            <label className="portal-label">
               Contraseña
               <input
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 type="password"
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                className="portal-input"
                 autoComplete="current-password"
               />
             </label>
-            <button className="w-full rounded-md bg-teal-700 px-4 py-2 text-sm font-medium text-white" disabled={loading}>
+            <button className="portal-button-primary w-full" disabled={loading}>
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
-            <button type="button" onClick={handleForgot} className="w-full text-sm text-teal-700 underline">
+            <button type="button" onClick={handleForgot} className="portal-button-secondary w-full">
               Recuperar contraseña
             </button>
           </form>
         )}
 
-        {message && <div className="mt-4 rounded border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900">{message}</div>}
-        {error && <div className="mt-4 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
-        <Link href="/derechos" className="mt-6 block text-center text-xs text-slate-500 underline">
+        {message && <div className="portal-alert-success mt-4">{message}</div>}
+        {error && <div className="portal-alert-error mt-4">{error}</div>}
+        <Link href="/derechos" className="portal-link mt-6 block text-center text-xs">
           Solicitar copia sin cuenta portal
         </Link>
       </section>

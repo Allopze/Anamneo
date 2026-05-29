@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiAlertTriangle, FiX } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -46,13 +46,13 @@ export default function PatientBlockingControls({
     },
     onSuccess: () => {
       const verb = openModal === 'block' ? 'bloqueado' : 'desbloqueado';
-      toast.success(`Paciente ${verb}`);
+      notify.success(`Paciente ${verb}`);
       setOpenModal(null);
       setReason('');
       onChanged?.();
       queryClient.invalidateQueries({ queryKey: ['patient', patientId] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const handleClose = () => {
@@ -63,7 +63,7 @@ export default function PatientBlockingControls({
 
   const handleConfirm = () => {
     if (reason.trim().length < 10) {
-      toast.error('La razón debe tener al menos 10 caracteres');
+      notify.error('La razón debe tener al menos 10 caracteres');
       return;
     }
     mutation.mutate();

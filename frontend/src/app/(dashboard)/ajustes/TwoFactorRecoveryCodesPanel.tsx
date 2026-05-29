@@ -1,4 +1,4 @@
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 
 interface TwoFactorRecoveryCodesPanelProps {
   codes: string[];
@@ -11,15 +11,15 @@ export default function TwoFactorRecoveryCodesPanel({
 }: TwoFactorRecoveryCodesPanelProps) {
   const handleCopy = async () => {
     if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
-      toast.error('Este navegador no permite copiar los códigos automáticamente.');
+      notify.error('Este navegador no permite copiar los códigos automáticamente.');
       return;
     }
 
     try {
       await navigator.clipboard.writeText(codes.join('\n'));
-      toast.success('Códigos de recuperación copiados');
+      notify.success('Códigos de recuperación copiados');
     } catch {
-      toast.error('No se pudieron copiar los códigos de recuperación.');
+      notify.error('No se pudieron copiar los códigos de recuperación.');
     }
   };
 

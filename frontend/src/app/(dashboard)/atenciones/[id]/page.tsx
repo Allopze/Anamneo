@@ -24,6 +24,7 @@ import EncounterMobileSectionNav from './EncounterMobileSectionNav';
 import EncounterActiveSectionCard from './EncounterActiveSectionCard';
 import EncounterClinicalSummaryCard from './EncounterClinicalSummaryCard';
 import { EncounterClosureWorkspace, EncounterWorkspacePanel } from './EncounterWorkspaceTools';
+import EncounterWorkspaceStatusBanner from './EncounterWorkspaceStatusBanner';
 
 export default function EncounterWizardPage() {
   const wiz = useEncounterWizard();
@@ -184,6 +185,23 @@ export default function EncounterWizardPage() {
               wiz={wiz}
             />
 
+            <EncounterWorkspaceStatusBanner
+              conflict={wiz.recoverableConflict}
+              conflictLabel={sections[conflictSectionIndex]?.label}
+              isOnline={wiz.isOnline}
+              isViewingConflictSection={isViewingConflictSection}
+              onGoToConflict={() => {
+                if (conflictSectionIndex >= 0) {
+                  wiz.moveToSection(conflictSectionIndex);
+                }
+              }}
+              onRestoreConflict={() => wiz.handleRestoreRecoverableConflict(wiz.recoverableConflict?.sectionKey)}
+              onRetrySave={() => void wiz.saveCurrentSection()}
+              pendingSaveCount={wiz.pendingSaveCount}
+              saveStateLabel={wiz.saveStateLabel}
+              saveStatus={wiz.saveStatus}
+            />
+
             {wiz.localDraft || wiz.recoverableConflicts.length > 0 ? (
               <EncounterRecoveryPanel
                 currentSectionKey={currentSection?.sectionKey}
@@ -196,45 +214,6 @@ export default function EncounterWizardPage() {
                 onRestoreConflict={wiz.handleRestoreRecoverableConflict}
                 onDismissConflict={wiz.handleDismissRecoverableConflict}
               />
-            ) : null}
-
-            {wiz.recoverableConflict ? (
-              <section className="rounded-card border border-amber-300/80 bg-amber-50 px-4 py-4 text-sm text-amber-950 shadow-sm">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-1">
-                    <p className="font-semibold">La copia local quedó protegida y lista para comparar.</p>
-                    <p>
-                      La sección{' '}
-                      <strong>{sections[conflictSectionIndex]?.label ?? wiz.recoverableConflict.sectionKey}</strong> ya
-                      fue recargada con la versión del servidor. Puedes restaurar tu texto desde el panel de
-                      recuperación o seguir revisando la versión vigente.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {isViewingConflictSection ? (
-                      <button
-                        type="button"
-                        onClick={() => wiz.handleRestoreRecoverableConflict(wiz.recoverableConflict?.sectionKey)}
-                        className="rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-950"
-                      >
-                        Restaurar mi copia local
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (conflictSectionIndex >= 0) {
-                            wiz.moveToSection(conflictSectionIndex);
-                          }
-                        }}
-                        className="rounded-lg border border-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-950 transition-colors hover:bg-amber-100"
-                      >
-                        Ir a la sección en conflicto
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </section>
             ) : null}
 
             <EncounterActiveSectionCard

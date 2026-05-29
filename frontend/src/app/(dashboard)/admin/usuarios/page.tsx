@@ -1,6 +1,5 @@
 'use client';
 
-import toast from 'react-hot-toast';
 import { FiPlus, FiEdit2, FiCheck, FiUsers } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { getErrorMessage } from '@/lib/api';

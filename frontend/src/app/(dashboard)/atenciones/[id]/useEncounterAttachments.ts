@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, type QueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
+import { notify } from '@/lib/notify';
 import type { Attachment, SectionKey } from '@/types';
-import toast from 'react-hot-toast';
 
 interface UploadMetaState {
   category: string;
@@ -58,7 +58,7 @@ export function useEncounterAttachments(params: UseEncounterAttachmentsParams) {
       });
     },
     onSuccess: () => {
-      toast.success('Archivo adjuntado');
+      notify.success('Archivo adjuntado');
       setSelectedFile(null);
       setUploadMeta({ category: 'GENERAL', description: '', linkedOrderType: '', linkedOrderId: '' });
       queryClient.invalidateQueries({ queryKey: ['attachments', id] });
@@ -67,19 +67,19 @@ export function useEncounterAttachments(params: UseEncounterAttachmentsParams) {
     onError: (error) => {
       const message = getErrorMessage(error);
       setUploadError(message);
-      toast.error(message);
+      notify.error(message);
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (attachmentId: string) => api.delete(`/attachments/${attachmentId}`),
     onSuccess: () => {
-      toast.success('Archivo movido a papelera');
+      notify.success('Archivo movido a papelera');
       setShowDeleteAttachment(null);
       queryClient.invalidateQueries({ queryKey: ['attachments', id] });
       queryClient.invalidateQueries({ queryKey: ['encounter', id] });
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => notify.error(getErrorMessage(error)),
   });
 
   useEffect(() => {
@@ -103,7 +103,7 @@ export function useEncounterAttachments(params: UseEncounterAttachmentsParams) {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
     }
   };
 

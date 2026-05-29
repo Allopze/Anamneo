@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiPlus, FiEdit2, FiTrash2, FiFileText } from 'react-icons/fi';
 
 interface Template {
@@ -52,30 +52,30 @@ export default function PlantillasPage() {
       return api.post('/templates', payload);
     },
     onSuccess: () => {
-      toast.success(editingId ? 'Plantilla actualizada' : 'Plantilla creada');
+      notify.success(editingId ? 'Plantilla actualizada' : 'Plantilla creada');
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['templates'] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/templates/${id}`),
     onSuccess: () => {
-      toast.success('Plantilla eliminada');
+      notify.success('Plantilla eliminada');
       queryClient.invalidateQueries({ queryKey: ['templates'] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const installDefaultsMutation = useMutation({
     mutationFn: async () => api.post('/templates/install-defaults'),
     onSuccess: (response) => {
       const created = response.data?.created ?? 0;
-      toast.success(created > 0 ? `Se instalaron ${created} plantillas base` : 'Las plantillas base ya estaban instaladas');
+      notify.success(created > 0 ? `Se instalaron ${created} plantillas base` : 'Las plantillas base ya estaban instaladas');
       queryClient.invalidateQueries({ queryKey: ['templates'] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const resetForm = () => {

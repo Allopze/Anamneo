@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import { FiUpload } from 'react-icons/fi';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 
 interface CatalogImportInvalidRow {
   rowNumber: number;
@@ -65,11 +65,11 @@ export default function CatalogImportPanel() {
       if (data.reactivated > 0) {
         parts.push(`${data.reactivated} reactivadas`);
       }
-      toast.success(`Importadas: ${parts.join(', ')}`);
+      notify.success(`Importadas: ${parts.join(', ')}`);
       resetImport();
       queryClient.invalidateQueries({ queryKey: ['conditions'] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const previewMutation = useMutation({

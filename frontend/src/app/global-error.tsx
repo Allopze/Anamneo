@@ -32,12 +32,12 @@ export default function GlobalError({
       <body className="font-sans antialiased">
         <div className="status-shell">
           <div className="status-card">
-            <div className="status-icon bg-status-red/20">
-              <span className="text-3xl font-semibold text-status-red">!</span>
+            <div className="status-icon border border-status-red/30 bg-status-red/15">
+              <span className="text-2xl font-semibold text-status-red">!</span>
             </div>
-            <h1 className="text-2xl font-bold text-ink-primary mb-2">Algo salió mal</h1>
+            <h1 className="mb-2 text-2xl font-bold text-ink-primary">No se pudo cargar Anamneo</h1>
             <p className="text-ink-secondary mb-6 max-w-sm">
-              Ocurrió un error inesperado en la aplicación. El evento quedó registrado y puedes intentar cargar nuevamente.
+              Registramos el evento. Reintenta la carga para volver a tu sesión clínica.
             </p>
             <button onClick={handleRetry} className="btn btn-primary">
               Reintentar

@@ -17,7 +17,7 @@ import clsx from 'clsx';
 import { extractDateOnly, formatDateOnly } from '@/lib/date';
 import { useAuthUser } from '@/stores/auth-store';
 import { invalidateDashboardOverviewQueries, invalidateTaskOverviewQueries } from '@/lib/query-invalidation';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 
 const STATUS_OPTIONS = ['', 'PENDIENTE', 'EN_PROCESO', 'COMPLETADA', 'CANCELADA'] as const;
@@ -98,7 +98,7 @@ export default function SeguimientosPage() {
     mutationFn: async ({ taskId, dueDate }: { taskId: string; dueDate: string }) =>
       api.put(`/patients/tasks/${taskId}`, { dueDate }),
     onSuccess: async () => {
-      toast.success('Seguimiento reprogramado');
+      notify.success('Seguimiento reprogramado');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey }),
         invalidateTaskOverviewQueries(queryClient),
@@ -106,7 +106,7 @@ export default function SeguimientosPage() {
       ]);
     },
     onError: () => {
-      toast.error('No se pudo reprogramar el seguimiento');
+      notify.error('No se pudo reprogramar el seguimiento');
     },
   });
 
@@ -291,7 +291,7 @@ export default function SeguimientosPage() {
                       onClick={() => {
                         const selectedDate = rescheduleDrafts[task.id] ?? extractDateOnly(task.dueDate) ?? '';
                         if (!selectedDate) {
-                          toast.error('Debe elegir una fecha');
+                          notify.error('Debe elegir una fecha');
                           return;
                         }
                         rescheduleMutation.mutate({ taskId: task.id, dueDate: selectedDate });

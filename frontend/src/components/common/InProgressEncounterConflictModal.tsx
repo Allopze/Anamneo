@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { api, getErrorMessage } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 
 export type InProgressEncounterSummary = {
   id: string;
@@ -76,10 +76,10 @@ export function InProgressEncounterConflictModal(props: {
                       try {
                         setCancellingId(enc.id);
                         await api.post(`/encounters/${enc.id}/cancel`, {});
-                        toast.success('Atención cancelada');
+                        notify.success('Atención cancelada');
                         onCancelled?.(enc.id);
                       } catch (e) {
-                        toast.error(getErrorMessage(e));
+                        notify.error(getErrorMessage(e));
                       } finally {
                         setCancellingId(null);
                       }

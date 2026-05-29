@@ -12,8 +12,8 @@ import { clearEncounterDraft } from '@/lib/encounter-draft';
 import { getEncounterClinicalOutputBlockReason } from '@/lib/clinical-output';
 import { invalidateDashboardOverviewQueries, invalidateTaskOverviewQueries } from '@/lib/query-invalidation';
 import { getSuggestedFollowup, type FollowupSuggestion } from '@/lib/diagnosis-followup-map';
+import { notify } from '@/lib/notify';
 import type { Encounter, SignEncounterResponse } from '@/types';
-import toast from 'react-hot-toast';
 import type { CompleteEncounterPayload } from './encounter-wizard.constants';
 
 interface UseEncounterWorkflowActionsParams {
@@ -62,7 +62,7 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
     },
     onSuccess: async () => {
       if (userId) clearEncounterDraft(id, userId);
-      toast.success('Atención completada');
+      notify.success('Atención completada');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['encounter', id] }),
         invalidateDashboardOverviewQueries(queryClient),
@@ -77,7 +77,7 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
         navigate(`/atenciones/${id}/ficha`);
       }
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => notify.error(getErrorMessage(error)),
   });
 
   const createFollowupTaskMutation = useMutation({
@@ -90,7 +90,7 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
       });
     },
     onSuccess: async () => {
-      toast.success('Control de seguimiento creado');
+      notify.success('Control de seguimiento creado');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['patient', encounter?.patientId] }),
         invalidateTaskOverviewQueries(queryClient),
@@ -101,7 +101,7 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
       if (dest) navigate(dest);
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
       setFollowupSuggestion(null);
       const dest = pendingNavRef.current;
       pendingNavRef.current = null;
@@ -127,10 +127,10 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
     },
     onSuccess: () => {
       setShowSignModal(false);
-      toast.success('Atención firmada electrónicamente');
+      notify.success('Atención firmada electrónicamente');
       queryClient.invalidateQueries({ queryKey: ['encounter', id] });
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => notify.error(getErrorMessage(error)),
   });
 
   const reviewStatusMutation = useMutation({
@@ -142,14 +142,14 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
       note?: string;
     }) => api.put(`/encounters/${id}/review-status`, { reviewStatus, note }),
     onSuccess: async () => {
-      toast.success('Estado de revisión actualizado');
+      notify.success('Estado de revisión actualizado');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['encounter', id] }),
         queryClient.invalidateQueries({ queryKey: ['patient', encounter?.patientId] }),
         invalidateDashboardOverviewQueries(queryClient),
       ]);
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => notify.error(getErrorMessage(error)),
   });
 
   const createTaskMutation = useMutation({
@@ -160,7 +160,7 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
         dueDate: quickTask.dueDate || undefined,
       }),
     onSuccess: async () => {
-      toast.success('Seguimiento creado');
+      notify.success('Seguimiento creado');
       setQuickTask({ title: '', type: 'SEGUIMIENTO', dueDate: '' });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['encounter', id] }),
@@ -169,20 +169,20 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
         invalidateDashboardOverviewQueries(queryClient),
       ]);
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => notify.error(getErrorMessage(error)),
   });
 
   const handleComplete = useCallback(async () => {
     if (!canEdit) return;
 
     if (!hasRequiredWorkflowNote(closureNote)) {
-      toast.error(buildRequiredWorkflowNoteError('La nota de cierre'));
+      notify.error(buildRequiredWorkflowNoteError('La nota de cierre'));
       return;
     }
 
     const blockReason = getEncounterClinicalOutputBlockReason(encounter?.clinicalOutputBlock, 'COMPLETE_ENCOUNTER');
     if (blockReason) {
-      toast.error(blockReason);
+      notify.error(blockReason);
       return;
     }
 
@@ -194,7 +194,7 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
 
   const confirmComplete = useCallback(() => {
     if (!hasRequiredWorkflowNote(closureNote)) {
-      toast.error(buildRequiredWorkflowNoteError('La nota de cierre'));
+      notify.error(buildRequiredWorkflowNoteError('La nota de cierre'));
       return;
     }
 
@@ -212,7 +212,7 @@ export function useEncounterWorkflowActions(params: UseEncounterWorkflowActionsP
       }
 
       if (reviewStatus === 'REVISADA_POR_MEDICO' && !hasRequiredWorkflowNote(reviewActionNote)) {
-        toast.error(buildRequiredWorkflowNoteError('La nota de revisión'));
+        notify.error(buildRequiredWorkflowNoteError('La nota de revisión'));
         return;
       }
 

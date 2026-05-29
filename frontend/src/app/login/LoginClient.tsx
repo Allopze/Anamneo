@@ -23,7 +23,7 @@ import {
 } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { AuthFrame } from '@/components/auth/AuthFrame';
-import toast from 'react-hot-toast';
+import { feedbackCopy, notify } from '@/lib/notify';
 import { LoginFallback } from './LoginFallback';
 
 const loginSchema = z.object({
@@ -134,7 +134,7 @@ function LoginContent() {
       login(toAuthUser(sessionUser));
       stashAuthSessionPrefill(sessionUser);
 
-      toast.success('¡Bienvenido!');
+      notify.success(feedbackCopy.sessionStarted);
       router.push(sanitizeRedirectPath(searchParams.get('from'), '/'));
     } catch (err) {
       const apiMessage = getErrorMessage(err);
@@ -163,7 +163,7 @@ function LoginContent() {
       login(toAuthUser(sessionUser));
       stashAuthSessionPrefill(sessionUser);
 
-      toast.success('¡Bienvenido!');
+      notify.success(feedbackCopy.sessionStarted);
       router.push(sanitizeRedirectPath(searchParams.get('from'), '/'));
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {

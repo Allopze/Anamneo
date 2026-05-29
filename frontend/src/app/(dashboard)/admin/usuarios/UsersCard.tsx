@@ -1,4 +1,4 @@
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiUsers } from 'react-icons/fi';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { type AdminUserRow, ROLE_LABELS, getPasswordError } from './usuarios.constants';
@@ -89,7 +89,7 @@ export function UsersCard({
 
                         const temporaryPasswordError = getPasswordError(temporaryPassword.trim(), true);
                         if (temporaryPasswordError) {
-                          toast.error(temporaryPasswordError);
+                          notify.error(temporaryPasswordError);
                           return;
                         }
 

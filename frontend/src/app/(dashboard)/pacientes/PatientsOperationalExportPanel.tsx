@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FiDownload } from 'react-icons/fi';
 import { api } from '@/lib/api';
 import { todayLocalDateString } from '@/lib/date';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 
 export default function PatientsOperationalExportPanel() {
   const [fromDate, setFromDate] = useState(todayLocalDateString());
@@ -31,7 +31,7 @@ export default function PatientsOperationalExportPanel() {
 
   const exportOperationalEncounters = async () => {
     if (!fromDate || !toDate) {
-      toast.error('Selecciona el rango de fechas');
+      notify.error('Selecciona el rango de fechas');
       return;
     }
 
@@ -51,9 +51,9 @@ export default function PatientsOperationalExportPanel() {
       a.download = `atenciones_operativas_${fromDate}_${toDate}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success('Exportacion operativa descargada');
+      notify.success('Exportacion operativa descargada');
     } catch {
-      toast.error('Error al exportar atenciones');
+      notify.error('Error al exportar atenciones');
     } finally {
       setIsExporting(false);
     }

@@ -1,11 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
 import {
   canUseEncounterAsDuplicateSource,
   DUPLICATE_ENCOUNTER_CREATED_MESSAGE,
 } from '@/lib/encounter-duplicate';
+import { notify } from '@/lib/notify';
 import { invalidateDashboardOverviewQueries } from '@/lib/query-invalidation';
 import { useAuthCanCreateEncounter } from '@/stores/auth-store';
 import type { Encounter } from '@/types';
@@ -35,11 +35,11 @@ export function useDuplicateEncounterAction(encounter: Pick<Encounter, 'id' | 'p
         patientId ? queryClient.invalidateQueries({ queryKey: ['patient-clinical-summary', patientId] }) : Promise.resolve(),
       ]);
 
-      toast.success(response.reused ? 'Ya había una atención en curso. Abriendo…' : DUPLICATE_ENCOUNTER_CREATED_MESSAGE);
+      notify.success(response.reused ? 'Ya había una atención en curso. Abriendo…' : DUPLICATE_ENCOUNTER_CREATED_MESSAGE);
       router.push(`/atenciones/${response.id}`);
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
     },
   });
 

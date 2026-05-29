@@ -88,82 +88,82 @@ export default function PortalAuditLogPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
+    <main className="portal-page">
       <div className="mx-auto max-w-4xl space-y-6">
-        <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <header className="portal-header">
           <div className="flex items-center gap-3">
-            <Link href="/portal" className="rounded p-1.5 hover:bg-slate-100">
-              <FiArrowLeft className="h-4 w-4 text-slate-600" />
+            <Link href="/portal" className="portal-icon-button" aria-label="Volver al portal">
+              <FiArrowLeft className="h-4 w-4" />
             </Link>
             <div className="flex items-center gap-2">
-              <FiShield className="h-5 w-5 text-slate-400" />
-              <h1 className="text-xl font-semibold text-slate-900">Historial de accesos a mi ficha</h1>
+              <FiShield className="h-5 w-5 text-ink-muted" />
+              <h1 className="portal-title-sm">Historial de accesos a mi ficha</h1>
             </div>
           </div>
           <button
             type="button"
             onClick={handleExportCsv}
             disabled={exporting}
-            className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+            className="portal-button-secondary"
           >
             <FiDownload className="h-4 w-4" />
             {exporting ? 'Exportando…' : 'Exportar CSV'}
           </button>
         </header>
 
-        <p className="text-sm text-slate-600">
+        <p className="portal-copy">
           Aquí puedes ver quién accedió o modificó tu ficha clínica. Los actores se muestran solo con su rol e iniciales para proteger la privacidad del personal.
         </p>
 
         {error && (
-          <div className="rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>
+          <div className="portal-alert-error">{error}</div>
         )}
 
         {loading && (
-          <div className="py-12 text-center text-sm text-slate-500">Cargando historial…</div>
+          <div className="py-12 text-center text-sm text-ink-muted">Cargando historial…</div>
         )}
 
         {data && !loading && (
           <>
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+            <div className="portal-table-shell">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-left">
+                <thead className="bg-surface-inset text-left">
                   <tr>
-                    <th className="px-4 py-3 font-semibold text-slate-700">Fecha y hora</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700">Sección</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700">Acción</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700">Actor</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700">Resultado</th>
+                    <th className="px-4 py-3 font-semibold text-ink-secondary">Fecha y hora</th>
+                    <th className="px-4 py-3 font-semibold text-ink-secondary">Sección</th>
+                    <th className="px-4 py-3 font-semibold text-ink-secondary">Acción</th>
+                    <th className="px-4 py-3 font-semibold text-ink-secondary">Actor</th>
+                    <th className="px-4 py-3 font-semibold text-ink-secondary">Resultado</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-surface-muted/70">
                   {data.items.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="py-10 text-center text-slate-500">
+                      <td colSpan={5} className="py-10 text-center text-ink-muted">
                         No hay registros de acceso disponibles.
                       </td>
                     </tr>
                   )}
                   {data.items.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-slate-50">
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-900">
+                    <tr key={entry.id} className="hover:bg-surface-inset">
+                      <td className="whitespace-nowrap px-4 py-3 text-ink">
                         {new Date(entry.timestamp).toLocaleDateString('es-CL')}{' '}
-                        <span className="text-slate-500">
+                        <span className="text-ink-muted">
                           {new Date(entry.timestamp).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-slate-700">
+                      <td className="px-4 py-3 text-ink-secondary">
                         {ENTITY_LABELS[entry.entityType] ?? entry.entityType}
                       </td>
-                      <td className="px-4 py-3 text-slate-700">
+                      <td className="px-4 py-3 text-ink-secondary">
                         {ACTION_LABELS[entry.action] ?? entry.action}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1.5">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-muted text-[10px] font-bold text-ink-secondary">
                             {entry.actorInitials}
                           </span>
-                          <span className="text-slate-600">
+                          <span className="text-ink-secondary">
                             {ROLE_LABELS[entry.actorRole] ?? entry.actorRole}
                           </span>
                         </span>
@@ -171,8 +171,8 @@ export default function PortalAuditLogPage() {
                       <td className="px-4 py-3">
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                           entry.result === 'SUCCESS'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-rose-100 text-rose-700'
+                            ? 'bg-status-green/20 text-status-green-text'
+                            : 'bg-status-red/15 text-status-red-text'
                         }`}>
                           {entry.result === 'SUCCESS' ? 'Exitoso' : 'Fallido'}
                         </span>
@@ -185,7 +185,7 @@ export default function PortalAuditLogPage() {
 
             {totalPages > 1 && (
               <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-ink-muted">
                   {data.total} registros · Página {page} de {totalPages}
                 </p>
                 <div className="flex gap-2">
@@ -193,7 +193,7 @@ export default function PortalAuditLogPage() {
                     type="button"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="rounded border border-slate-300 p-1.5 hover:bg-slate-100 disabled:opacity-40"
+                    className="portal-icon-button"
                     aria-label="Página anterior"
                   >
                     <FiChevronLeft className="h-4 w-4" />
@@ -202,7 +202,7 @@ export default function PortalAuditLogPage() {
                     type="button"
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    className="rounded border border-slate-300 p-1.5 hover:bg-slate-100 disabled:opacity-40"
+                    className="portal-icon-button"
                     aria-label="Página siguiente"
                   >
                     <FiChevronRight className="h-4 w-4" />

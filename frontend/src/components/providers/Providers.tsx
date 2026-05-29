@@ -21,25 +21,34 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       {children}
       <Toaster
-        position="top-right"
+        position="top-center"
+        containerStyle={{
+          top: 14,
+          left: 16,
+          right: 16,
+        }}
         toastOptions={{
-          duration: 4000,
+          duration: 3500,
           ariaProps: {
             role: 'status',
             'aria-live': 'polite',
           },
           style: {
-            background: 'var(--frame-dark)',
-            color: '#ffffff',
-            borderRadius: '9999px',
+            background: 'var(--surface-elevated)',
+            color: 'var(--ink)',
+            border: '1px solid rgba(64, 64, 64, 0.12)',
+            borderRadius: '16px',
             fontSize: '0.875rem',
             fontWeight: 600,
-            boxShadow: '0 4px 12px rgba(43,43,43,0.15)',
+            lineHeight: 1.45,
+            maxWidth: 'min(420px, calc(100vw - 2rem))',
+            padding: '0.875rem 1rem',
+            boxShadow: '0 18px 45px rgba(43, 43, 43, 0.12)',
           },
           success: {
             iconTheme: {
-              primary: '#22c55e',
-              secondary: '#f8fafc',
+              primary: 'var(--auth-teal)',
+              secondary: 'var(--surface-elevated)',
             },
           },
           error: {
@@ -48,8 +57,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
               'aria-live': 'assertive',
             },
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#f8fafc',
+              primary: 'var(--status-red)',
+              secondary: 'var(--surface-elevated)',
             },
           },
         }}

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiEdit2, FiPackage, FiPlus, FiSearch, FiUpload } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
 import { formatMedicationCatalogDefaults } from '@/lib/medication-catalog';
@@ -40,10 +40,10 @@ export default function MedicationsCatalogSection() {
   const deleteMutation = useMutation({
     mutationFn: async (medicationId: string) => api.delete(`/medications/${medicationId}`),
     onSuccess: () => {
-      toast.success('Medicamento eliminado');
+      notify.success('Medicamento eliminado');
       queryClient.invalidateQueries({ queryKey: ['medications'] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   return (

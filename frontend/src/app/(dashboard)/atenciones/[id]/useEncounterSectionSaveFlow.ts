@@ -8,10 +8,10 @@ import {
   type EncounterSectionConflictBackup,
 } from '@/lib/encounter-draft';
 import { isNetworkError } from '@/lib/offline-queue';
+import { notify } from '@/lib/notify';
 import { invalidateAlertOverviewQueries } from '@/lib/query-invalidation';
 import { isSharedDeviceModeEnabled } from '@/stores/privacy-settings-store';
 import type { Encounter, SectionKey } from '@/types';
-import toast from 'react-hot-toast';
 import type { SaveSectionResponse } from './encounter-wizard.constants';
 import {
   buildSectionUpdatedAtSnapshot,
@@ -192,7 +192,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       setSaveStatus('saved');
       setLastSavedAt(new Date());
       setLastSaveOrigin('direct');
-      response.data.warnings?.forEach((warning) => toast(warning, { icon: '⚠️' }));
+      response.data.warnings?.forEach((warning) => notify.info(warning));
 
       if (variables.sectionKey === 'EXAMEN_FISICO') {
         await invalidateAlertOverviewQueries(queryClient);
@@ -211,7 +211,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
         if (isSharedDeviceModeEnabled()) {
           setErrorSectionKey(variables.sectionKey);
           setSaveStatus('error');
-          toast.error('Sin conexión. El modo equipo compartido desactiva borradores y cola offline local; reconecte antes de continuar.');
+          notify.error('Sin conexión. El modo equipo compartido desactiva borradores y cola offline local; reconecte antes de continuar.');
           return;
         }
 
@@ -228,11 +228,11 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
         }).catch(() => {
           setErrorSectionKey(variables.sectionKey);
           setSaveStatus('error');
-          toast.error('No se pudo encolar el guardado offline. Reintente manualmente.');
+          notify.error('No se pudo encolar el guardado offline. Reintente manualmente.');
         });
         setErrorSectionKey(null);
         setSaveStatus('queued');
-        toast('Sin conexión — guardado en cola local', { icon: '📡' });
+        notify.info('Sin conexión. Guardado en cola local.');
         return;
       }
 
@@ -248,15 +248,15 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
 
         void refreshSectionFromServer(variables.sectionKey, localConflictData)
           .then(() => {
-            toast.error('La sección cambió en otra sesión. Se guardó tu copia local para que puedas recuperarla.');
+            notify.error('La sección cambió en otra sesión. Se guardó tu copia local para que puedas recuperarla.');
           })
           .catch(() => {
             void queryClient.invalidateQueries({ queryKey: ['encounter', id] });
-            toast.error('La sección cambió en otra sesión. Recargue la atención y revise antes de reintentar.');
+            notify.error('La sección cambió en otra sesión. Recargue la atención y revise antes de reintentar.');
           });
         return;
       }
-      toast.error('Error al guardar: ' + getErrorMessage(error));
+      notify.error('Error al guardar: ' + getErrorMessage(error));
     },
   });
 

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import type { SectionKey } from '@/types';
 import { TEMPLATE_FIELD_BY_SECTION } from './encounter-wizard.constants';
 
@@ -49,7 +49,7 @@ export function useEncounterWizardSectionActions(params: UseEncounterWizardSecti
         ...currentData,
         [targetField]: nextValue,
       });
-      toast.success('Plantilla insertada en la sección actual');
+      notify.success('Plantilla insertada en la sección actual');
     },
     [canEdit, currentSection, formData, handleSectionDataChange],
   );
@@ -65,7 +65,7 @@ export function useEncounterWizardSectionActions(params: UseEncounterWizardSecti
     ];
 
     if (requiredSections.includes(currentSection.sectionKey)) {
-      toast.error('Esta sección es obligatoria y no se puede marcar como "No aplica"');
+      notify.error('Esta sección es obligatoria y no se puede marcar como "No aplica"');
       return;
     }
 
@@ -77,7 +77,7 @@ export function useEncounterWizardSectionActions(params: UseEncounterWizardSecti
     if (!currentSection) return;
 
     if (notApplicableReason.trim().length < 10) {
-      toast.error('El motivo debe tener al menos 10 caracteres');
+      notify.error('El motivo debe tener al menos 10 caracteres');
       return;
     }
 
@@ -95,7 +95,7 @@ export function useEncounterWizardSectionActions(params: UseEncounterWizardSecti
 
       setShowNotApplicableModal(false);
       if (result === 'saved') {
-        toast.success('Sección marcada como no aplica');
+        notify.success('Sección marcada como no aplica');
       }
     } catch {
       // onError handler already surfaces UI feedback

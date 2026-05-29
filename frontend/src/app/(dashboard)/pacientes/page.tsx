@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
+import { notify } from '@/lib/notify';
 import { Patient, PATIENT_COMPLETENESS_STATUS_LABELS, PatientCompletenessStatus } from '@/types';
 import {
   useAuthCanCreateEncounter,
@@ -164,14 +164,14 @@ function PacientesContent() {
     mutationFn: async (patientId: string) => api.post(`/patients/${patientId}/restore`, {}),
     onSuccess: async (response) => {
       const restoredEncounterCount = Number((response.data as { restoredEncounterCount?: number })?.restoredEncounterCount ?? 0);
-      toast.success(
+      notify.success(
         restoredEncounterCount > 0
           ? `Paciente restaurado. Se reabrieron ${restoredEncounterCount} atenciones.`
           : 'Paciente restaurado',
       );
       await queryClient.invalidateQueries({ queryKey: ['patients'] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const patients = data?.data ?? [];

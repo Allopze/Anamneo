@@ -175,6 +175,11 @@ describe('proxy security headers', () => {
     expect(buildCsp('nonce-test', true)).toContain("script-src 'self' 'unsafe-inline'");
   });
 
+  it('keeps insecure request upgrades out of local development CSP', () => {
+    expect(buildCsp('nonce-test', false)).not.toContain('upgrade-insecure-requests');
+    expect(buildCsp('nonce-test', true)).toContain('upgrade-insecure-requests');
+  });
+
   it('can emit strict nonce-based script policy for staging validation', () => {
     process.env.NEXT_PUBLIC_STRICT_CSP = 'true';
     const csp = buildCsp('nonce-test', true);

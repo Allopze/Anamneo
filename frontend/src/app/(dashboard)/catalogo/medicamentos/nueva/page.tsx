@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
 import { MEDICATION_ROUTE_OPTIONS } from '@/lib/medication-catalog';
@@ -38,11 +38,11 @@ export default function NuevoMedicamentoPage() {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Medicamento creado');
+      notify.success('Medicamento creado');
       queryClient.invalidateQueries({ queryKey: ['medications'] });
       router.push('/catalogo?categoria=medicamentos');
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   if (!isAdmin) {

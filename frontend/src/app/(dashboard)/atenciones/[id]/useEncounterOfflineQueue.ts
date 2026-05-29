@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { writeEncounterSectionConflict, type EncounterSectionConflictBackup } from '@/lib/encounter-draft';
+import { notify } from '@/lib/notify';
 import {
   countPendingSavesForUser,
   enqueueSave,
@@ -115,7 +115,7 @@ export function useEncounterOfflineQueue(params: UseEncounterOfflineQueueParams)
                   userId: activeUserId,
                 });
               } catch {
-                // Ignore backup refresh failures; the main conflict remains user-visible via toast.
+                // Ignore backup refresh failures; the main conflict remains user-visible.
               }
               await removePendingSave(save.id!);
               conflicts++;
@@ -133,11 +133,11 @@ export function useEncounterOfflineQueue(params: UseEncounterOfflineQueueParams)
         setPendingSaveCount(remaining);
         if (synced > 0) {
           const syncedAt = new Date();
-          toast.success(`${synced} cambio${synced > 1 ? 's' : ''} sincronizado${synced > 1 ? 's' : ''}`);
+          notify.success(`${synced} cambio${synced > 1 ? 's' : ''} sincronizado${synced > 1 ? 's' : ''}`);
           onEncounterSavesSynced?.({ encounterIds: [...syncedEncounterIds], syncedAt });
         }
         if (conflicts > 0) {
-          toast.error(
+          notify.error(
             `${conflicts} guardado${conflicts > 1 ? 's' : ''} offline entr${conflicts > 1 ? 'aron' : 'ó'} en conflicto. Se conservó una copia local recuperable.`,
           );
         }

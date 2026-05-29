@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiRefreshCw, FiUserCheck } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
 
@@ -60,14 +60,14 @@ export default function ReassignmentCard({
     },
     onSuccess: async (response) => {
       const assignedMedicoName = (response.data as { assignedMedicoName?: string }).assignedMedicoName;
-      toast.success(assignedMedicoName ? `Reasignado a ${assignedMedicoName}` : 'Reasignación completada');
+      notify.success(assignedMedicoName ? `Reasignado a ${assignedMedicoName}` : 'Reasignación completada');
       setTargetMedicoId('');
       setReason('');
       setIncludeOpenEncounters(false);
       setAllowClosedOverride(false);
       await onSuccess?.();
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => notify.error(getErrorMessage(error)),
   });
 
   const canSubmit = targetMedicoId.trim().length > 0 && reason.trim().length >= 10;

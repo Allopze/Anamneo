@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -51,18 +51,18 @@ export default function SessionManagementSection() {
       return sessionId;
     },
     onSuccess: async () => {
-      toast.success('Sesión remota cerrada');
+      notify.success('Sesión remota cerrada');
       await queryClient.invalidateQueries({ queryKey: sessionsQueryKey });
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
     },
   });
 
   const revokeOtherSessionsMutation = useMutation({
     mutationFn: async () => (await api.delete('/auth/sessions/others')).data as { revokedCount: number },
     onSuccess: async (data) => {
-      toast.success(
+      notify.success(
         data.revokedCount > 0
           ? `Se cerraron ${data.revokedCount} sesión${data.revokedCount === 1 ? '' : 'es'}`
           : 'No había otras sesiones activas',
@@ -70,7 +70,7 @@ export default function SessionManagementSection() {
       await queryClient.invalidateQueries({ queryKey: sessionsQueryKey });
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
     },
   });
 

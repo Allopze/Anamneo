@@ -11,15 +11,13 @@ import { stashAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
 import { AuthFrame } from '@/components/auth/AuthFrame';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { FiAlertCircle, FiLock, FiMail, FiShield, FiUser, FiUserPlus } from 'react-icons/fi';
-import toast from 'react-hot-toast';
+import { feedbackCopy, notify } from '@/lib/notify';
 import {
   getLegalDocumentByType,
   type CurrentLegalDocumentsResponse,
 } from '@/lib/legal-content';
 import {
   REGISTER_DRAFT_KEY,
-  REGISTER_BOOTSTRAP_CHIPS,
-  REGISTER_INVITATION_CHIPS,
   registerSchema,
   type RegisterForm,
   type RegisterRole,
@@ -29,6 +27,14 @@ import { RegisterFallback } from './RegisterFallback';
 import RegisterLegalAcceptance from './RegisterLegalAcceptance';
 import RegisterPasswordFields from './RegisterPasswordFields';
 import RegisterRoleField from './RegisterRoleField';
+
+const AUTH_HERO_CHIPS = [
+  {
+    icon: <FiShield className="h-7 w-7" aria-hidden="true" />,
+    label: 'Trazabilidad clínica',
+    description: 'Cada acceso queda registrado para auditoría.',
+  },
+];
 
 export default function RegisterPage() {
   return (
@@ -220,13 +226,12 @@ function RegisterContent() {
   const legalDocumentsReady = Boolean(termsDocument?.version && privacyDocument?.version);
   const isLoadingRoles = bootstrapQuery.isLoading || invitationQuery.isLoading;
   const isFormBusy = isSubmitting || isLoadingRoles || legalDocumentsQuery.isLoading;
-  const registerChips = isInvitationMode ? REGISTER_INVITATION_CHIPS : REGISTER_BOOTSTRAP_CHIPS;
 
   const onSubmit = async (data: RegisterForm) => {
     setSubmitError(null);
 
     if (!termsDocument || !privacyDocument) {
-      toast.error('No hay documentos legales vigentes publicados para completar el registro.');
+      notify.error('No hay documentos legales vigentes publicados para completar el registro.');
       return;
     }
 
@@ -266,7 +271,7 @@ function RegisterContent() {
         window.sessionStorage.removeItem(REGISTER_DRAFT_KEY);
       }
 
-      toast.success('¡Cuenta creada exitosamente!');
+      notify.success(feedbackCopy.accountCreated);
       router.push('/');
     } catch (err) {
       setSubmitError(getErrorMessage(err));
@@ -280,18 +285,10 @@ function RegisterContent() {
   return (
     <AuthFrame
       variant="loginCompact"
-      eyebrow={isInvitationMode ? 'Invitación' : 'Configuración Inicial'}
-      title={
-        isInvitationMode
-          ? 'Activa tu cuenta para operar.'
-          : 'Primera cuenta del espacio clínico.'
-      }
-      description={
-        isInvitationMode
-          ? 'Completa tus datos para activar el acceso asignado por el administrador.'
-          : 'Crea la cuenta administradora inicial para habilitar el espacio clínico.'
-      }
-      chips={registerChips}
+      eyebrow="Acceso clínico"
+      title="Acceso seguro a tu espacio clínico."
+      description="Consulta y gestiona información clínica con trazabilidad y permisos activos."
+      chips={AUTH_HERO_CHIPS}
       heroFooter={
         <div className="auth-help">
           <FiLock className="h-7 w-7" aria-hidden="true" />

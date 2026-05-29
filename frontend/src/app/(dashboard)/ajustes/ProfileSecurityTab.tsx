@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { clearEncounterLocalStateForUser } from '@/lib/encounter-draft';
 import { clearPendingSavesForUser } from '@/lib/offline-queue';
 import { useAuthUser } from '@/stores/auth-store';
@@ -55,7 +55,7 @@ export default function ProfileSecurityTab({
       }
     }
 
-    toast.success(
+    notify.success(
       enabled
         ? 'Modo equipo compartido activado. Se deshabilitó la persistencia local clínica en este navegador.'
         : 'Modo equipo compartido desactivado. Los borradores locales vuelven a estar disponibles en este navegador.',

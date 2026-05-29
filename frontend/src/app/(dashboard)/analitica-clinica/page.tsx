@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiAlertTriangle, FiBarChart2, FiFileText, FiFilter, FiRefreshCw, FiUsers } from 'react-icons/fi';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
@@ -194,9 +194,9 @@ export default function AnaliticaClinicaPage() {
     setIsDownloadingCsv(true);
     try {
       await downloadClinicalAnalyticsSummaryCsv(appliedFilters);
-      toast.success('CSV descargado');
+      notify.success('CSV descargado');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
     } finally {
       setIsDownloadingCsv(false);
     }
@@ -206,9 +206,9 @@ export default function AnaliticaClinicaPage() {
     setIsDownloadingMarkdown(true);
     try {
       await downloadClinicalAnalyticsSummaryMarkdown(appliedFilters);
-      toast.success('Reporte descargado');
+      notify.success('Reporte descargado');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
     } finally {
       setIsDownloadingMarkdown(false);
     }

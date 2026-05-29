@@ -1,6 +1,6 @@
 /* ── Auth Screens ─────────────── */
   .auth-shell {
-    @apply relative min-h-[100dvh] overflow-hidden lg:grid lg:grid-cols-[0.94fr,1.06fr];
+    @apply relative min-h-[100dvh] w-full max-w-full overflow-x-hidden overflow-y-auto lg:grid lg:grid-cols-[0.94fr,1.06fr];
     background:
       linear-gradient(180deg, rgba(253, 252, 251, 0.96), rgba(239, 237, 232, 0.98));
   }
@@ -14,11 +14,12 @@
       linear-gradient(rgba(64, 64, 64, 0.035) 1px, transparent 1px),
       linear-gradient(90deg, rgba(64, 64, 64, 0.035) 1px, transparent 1px);
     background-size: 32px 32px;
+    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.42), transparent 78%);
     mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.42), transparent 78%);
   }
 
   .auth-hero {
-    @apply relative flex flex-col justify-center border-b border-frame/10 bg-frame px-5 py-7 text-white sm:px-6 sm:py-10 lg:min-h-[100dvh] lg:border-b-0 lg:px-14 lg:py-14;
+    @apply relative flex min-w-0 flex-col justify-center border-b border-frame/10 bg-frame px-5 py-7 text-white sm:px-6 sm:py-10 lg:sticky lg:top-0 lg:h-[100dvh] lg:self-start lg:border-b-0 lg:px-14 lg:py-14;
     background:
       linear-gradient(155deg, rgba(36, 36, 34, 0.99), rgba(48, 49, 45, 0.99));
   }
@@ -113,7 +114,7 @@
   }
 
   .auth-panel {
-    @apply relative z-[1] flex items-center justify-center px-4 py-6 sm:px-6 lg:px-8 lg:py-10;
+    @apply relative z-[1] flex min-w-0 items-center justify-center px-4 py-6 sm:px-6 lg:px-8 lg:py-10;
   }
 
   .auth-card {
@@ -298,10 +299,17 @@
     background: #f6f7f4;
   }
 
+  @media (min-width: 1024px) {
+    .auth-shell-login-compact {
+      background: linear-gradient(90deg, #e8e4d8 0 38%, #f6f7f4 38% 100%);
+    }
+  }
+
   .auth-shell-login-compact::before {
     background-image:
       linear-gradient(rgba(31, 79, 74, 0.04) 1px, transparent 1px),
       linear-gradient(90deg, rgba(31, 79, 74, 0.04) 1px, transparent 1px);
+    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.32), transparent 72%);
     mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.32), transparent 72%);
   }
 
@@ -725,11 +733,15 @@
   }
 
   .status-card {
-    @apply w-full max-w-md rounded-shell bg-surface-elevated p-8 text-center shadow-elevated;
+    @apply w-full max-w-md rounded-card border border-surface-muted/35 bg-surface-elevated p-8 text-center shadow-soft;
+  }
+
+  .status-card-quiet {
+    @apply shadow-none;
   }
 
   .status-icon {
-    @apply mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-card;
+    @apply mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-lg;
   }
 
   .loading-shell {
@@ -737,5 +749,5 @@
   }
 
 .loading-card {
-  @apply w-full max-w-xl rounded-shell bg-surface-elevated p-6 shadow-soft;
+  @apply w-full max-w-xl rounded-card border border-surface-muted/35 bg-surface-elevated p-6 shadow-soft;
 }

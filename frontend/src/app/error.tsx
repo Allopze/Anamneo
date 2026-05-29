@@ -10,12 +10,12 @@ export default function Error({
   return (
     <div className="status-shell">
       <div className="status-card">
-        <div className="status-icon bg-status-red/20">
-          <span className="text-3xl font-semibold text-status-red">!</span>
+        <div className="status-icon border border-status-red/30 bg-status-red/15">
+          <span className="text-2xl font-semibold text-status-red">!</span>
         </div>
-        <h1 className="text-2xl font-bold text-ink-primary mb-2">Algo salió mal</h1>
+        <h1 className="mb-2 text-2xl font-bold text-ink-primary">No se pudo cargar la app</h1>
         <p className="text-ink-secondary mb-6">
-          Ocurrió un error inesperado. Intenta nuevamente.
+          Reintenta la carga. Si el problema continúa, conserva el contexto y vuelve a iniciar sesión.
         </p>
         <button onClick={reset} className="btn btn-primary">
           Reintentar

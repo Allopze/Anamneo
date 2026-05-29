@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { notify } from '@/lib/notify';
 import { FiUpload } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
 import { formatMedicationCatalogDefaults } from '@/lib/medication-catalog';
@@ -68,11 +68,11 @@ export default function MedicationImportPanel() {
       if (data.reactivated > 0) {
         parts.push(`${data.reactivated} reactivados`);
       }
-      toast.success(`Importados: ${parts.join(', ')}`);
+      notify.success(`Importados: ${parts.join(', ')}`);
       resetImport();
       queryClient.invalidateQueries({ queryKey: ['medications'] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => notify.error(getErrorMessage(err)),
   });
 
   const previewMutation = useMutation({
