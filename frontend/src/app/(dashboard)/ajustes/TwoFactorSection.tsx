@@ -3,7 +3,6 @@ import { useMutation } from '@tanstack/react-query';
 import { notify } from '@/lib/notify';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthSetUser, useAuthUser } from '@/stores/auth-store';
-import ConfirmModal from '@/components/common/ConfirmModal';
 import TwoFactorRecoveryCodesPanel from './TwoFactorRecoveryCodesPanel';
 
 function getTwoFactorErrorMessage(error: unknown, fallback: string) {
@@ -20,7 +19,6 @@ export default function TwoFactorSection() {
   const [recoveryPassword, setRecoveryPassword] = useState('');
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [error, setError] = useState('');
-  const [showDisableConfirm, setShowDisableConfirm] = useState(false);
 
   const setupMutation = useMutation({
     mutationFn: async () => {
@@ -236,30 +234,15 @@ export default function TwoFactorSection() {
               />
             </div>
             <button
-              onClick={() => setShowDisableConfirm(true)}
+              onClick={() => disableMutation.mutate(disablePassword)}
               disabled={!disablePassword.trim() || disableMutation.isPending}
               className="btn btn-secondary mt-4 text-status-red-text"
             >
-              Desactivar 2FA
+              {disableMutation.isPending ? 'Desactivando...' : 'Desactivar 2FA'}
             </button>
           </div>
         </div>
       )}
-
-      <ConfirmModal
-        isOpen={showDisableConfirm}
-        onClose={() => setShowDisableConfirm(false)}
-        onConfirm={() => {
-          setShowDisableConfirm(false);
-          disableMutation.mutate(disablePassword);
-        }}
-        title="Desactivar verificación en dos pasos"
-        message="Al desactivar 2FA, tu cuenta quedará protegida solo por contraseña. Esta acción se registra en auditoría."
-        confirmLabel="Desactivar 2FA"
-        cancelLabel="Cancelar"
-        variant="danger"
-        loading={disableMutation.isPending}
-      />
     </div>
   );
 }

@@ -8,9 +8,8 @@ export interface DialogProps {
   isOpen: boolean;
   onClose: () => void;
   /**
-   * Accessible title for the dialog. Used for `aria-labelledby`.
-   * If provided, a `<h2>` heading is rendered inside the panel; the consumer
-   * can also pass their own heading inside `children` and leave this unset.
+   * Accessible title for the dialog. Sets `aria-label` on the panel.
+   * The consumer is responsible for rendering a visible heading inside `children`.
    */
   title?: string;
   /**
@@ -37,7 +36,7 @@ export interface DialogProps {
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl';
   className?: string;
   /** Extra inline styles applied to the panel container. */
-  panelStyle?: React.CSSProperties;
+  panelStyle?: CSSProperties;
   children: ReactNode;
 }
 
@@ -61,7 +60,7 @@ const MAX_WIDTH_CLASSES: Record<NonNullable<DialogProps['maxWidth']>, string> = 
  * - Focus restoration to the trigger element on close
  * - Scroll-lock on `<body>` while open
  * - Backdrop click to close (unless `disableBackdropClose` or `loading`)
- * - Proper ARIA attributes (role, aria-modal, aria-labelledby, aria-describedby)
+ * - Proper ARIA attributes (role, aria-modal, aria-label, aria-describedby)
  *
  * The consumer is responsible for all visual content (header, body, footer).
  * This component only provides the overlay, panel container, and a11y wiring.

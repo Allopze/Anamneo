@@ -528,27 +528,51 @@ Criterios de aceptacion:
 | 9 | Audit iconografico y radios | Medio | Medio |
 | 10 | QA visual y accesibilidad final | Bajo | Alto |
 
-## Pendientes tras la tercera pasada
+## Registro de remediacion ejecutada — cuarta pasada (2026-05-29)
 
-Faltante real, despues de la remediacion ejecutada el 2026-05-29:
+### Items cerrados
 
-1. QA visual real: Playwright sigue bloqueado por `libnspr4.so` en este entorno. Hay que capturar login, register, dashboard, atencion, paciente, portal, derechos, descarga de ficha y admin solicitudes en desktop/mobile/Safari.
-2. Empty states secundarios: migrar componentes de detalle de paciente, auditoria, alertas, consentimientos y adjuntos a `EmptyState` cuando no haya datos.
-3. Spinners restantes: mantenerlos solo en botones o acciones muy cortas; revisar modales de PDF/adjuntos, busquedas internas y componentes secundarios.
-4. Iconografia: auditar `react-icons/fi` y decidir que metaforas siguen como affordance estandar y cuales deben pasar a iconos propios/variantes para seguridad, estados criticos e identidad clinica.
-5. All-caps y radios: reducir all-caps decorativo en labels compactos, revisar chips/segmentos especificos y bajar dependencia de `rounded-pill` en acciones estructurales.
-6. Admin/ajustes: reorganizar cards por riesgo/frecuencia y evitar modulos demasiado similares, especialmente mantenimiento, seguridad, auditoria y solicitudes legales.
-7. Confirmaciones destructivas restantes: ya no hay prompts/alerts productivos, pero quedan modales de riesgo por revisar con copy/foco/jerarquia consistente.
-8. Codigos de error de dominio: cuando backend exponga codigos consistentes, mapearlos a mensajes recuperables en `getErrorMessage` o helpers de dominio.
-9. QA de teclado: verificar foco inicial, Escape, tab order y retorno de foco en los modales nuevos de solicitudes legales y restablecimiento de clave.
+2. **Empty states secundarios**: migrados a `EmptyState` o patron inline consistente en `PatientEncounterTimeline`, `PatientAlerts`, `ConsentHistoryList`, `EncounterAttachmentsModal` y `auditoria/page` (full EmptyState); y con icono inline en `PatientProblemsCard`, `PatientTasksCard`, `PatientVitalsCard`, `PatientDetailSidebar` y `PatientLongitudinalSummaryCard`.
 
-Siguientes pasos naturales:
+3. **Spinners de contenido**: `PdfPreviewModal`, `AttachmentPreviewModal`, `CommandPalette`, `MobileSearchOverlay` y `DashboardSidebarParts` pasan de spinner a skeletons con forma real.
 
-1. Habilitar dependencias Playwright o ejecutar QA visual en una maquina con Chromium/Safari disponibles.
-2. Hacer QA de teclado sobre los modales nuevos y ajustar retorno de foco si aparece friccion.
-3. Migrar los empty states secundarios usando la nueva primitiva antes de tocar mas estilos de cards.
-4. Hacer una pasada de all-caps/radios/iconografia en dashboard y ajustes con screenshots antes/despues.
-5. Revisar modales de PDF/adjuntos y busquedas internas para reemplazar spinners persistentes por skeleton o estado textual.
+4. **Iconografia**: nuevo doc `docs/iconography.md`. Set de identidad en `frontend/src/components/icons/` (ShieldIcon, LockIcon, ActivityIcon). Cableados en login, register, SignEncounterModal y admin dashboard cards (auditoria/solicitudes). Politica de uso documentada.
+
+5. **All-caps y radios**: reduccion dirigida en `PatientVitalsCard`, `atenciones/page`, `AuditDetailModal`, `AuditIntegrityCard`, `SystemTab`, `ProfileSecurityTab`. Botones estructurales (Retomar atencion, Nueva atencion, Crear seguimiento) dePillados en `DashboardClinicalView`.
+
+6. **Admin/ajustes IA**: `ADMIN_CARD_SECTIONS` reemplaza `ADMIN_CARDS` en `dashboard.constants.ts`, con grupos "Operacion diaria" y "Gobernanza y configuracion". Se agrega card faltante de `/admin/solicitudes`. `DashboardAdminView.tsx` renderiza encabezados de seccion. `SystemTab.tsx` divide en secciones (Salud del sistema, Documentos legales, Secciones de atencion, Mantenimiento, Politica de sesion) con Mantenimiento visualmente aislado como zona de riesgo.
+
+7. **Modales destructivos y QA de teclado (items 7+9)**: nueva primitiva `Dialog` (`frontend/src/components/common/Dialog.tsx`) y hook `useFocusTrap` (`frontend/src/hooks/useFocusTrap.ts`). Implementa focus trap real, initial focus configurable, Escape, y restore de foco al cerrar. Migrados: `ConfirmModal`, `SignEncounterModal`, `ReopenEncounterModal`, `InProgressEncounterConflictModal`, `AttachmentPreviewModal`, `PdfPreviewModal`, `OnboardingWelcomeModal`, `RevokeConsentModal`, `admin/solicitudes/page` (modales selected y pendingDecision), `admin/usuarios/UsersCard` (password reset — ahora con foco inicial en el input de contrasena, no en Cancel).
+
+### Items bloqueados (condicion de desbloqueo documentada)
+
+1. **QA visual real** (item 1): bloqueado por `libnspr4.so` en este entorno. Para desbloquear: en una maquina con `sudo` ejecutar `sudo npx --prefix frontend playwright install-deps chromium webkit` o instalar manualmente las librerias del sistema. Playwright webkit en Linux cubre el riesgo "Safari" sin macOS. Pantallas a capturar: login, register, dashboard, atencion, paciente, portal, derechos, descarga de ficha y admin solicitudes en desktop/mobile.
+
+8. **Codigos de error de dominio** (item 8): bloqueado hasta que el backend exponga un campo `code` estable en el body de error. Para desbloquear: (1) backend incluye `code: "PATIENT_BLOCKED"` etc. en la respuesta; (2) catalogo de codigos y significados. Con eso se mapean en `frontend/src/lib/api.ts` (`getErrorMessage`) siguiendo la tabla de microcopy de este documento.
+
+### Validacion ejecutada
+
+```bash
+npm --prefix frontend run typecheck
+npm --prefix frontend run test -- --runInBand
+npm --prefix frontend run build
+git diff --check
+grep -RIn "window.prompt\|alert(" frontend/src --include='*.tsx' --include='*.ts'
+grep -RIn "animate-spin rounded-full h-12\|animate-spin rounded-full.*border-4" frontend/src --include='*.tsx' --include='*.ts'
+```
+
+Resultado: typecheck limpio, suite completa pasando 72 suites/349 tests, build exitoso, diff check limpio y sin hallazgos de spinners grandes ni prompts en `frontend/src`.
+
+## Pendientes post-cuarta pasada
+
+1. QA visual real (bloqueado — ver condicion arriba).
+8. Codigos de error de dominio (bloqueado — ver condicion arriba).
+
+Pendientes opcionales de menor prioridad:
+- Migrar empty states ad hoc restantes en componentes secundarios (analitica, agenda, reportes).
+- Reemplazar `FiClipboard` en cabeceras de atencion y `FiFileText` en ficha por iconos propios si se decide ampliar el set de identidad.
+- QA de teclado manual en modales migrados para confirmar que el retorno de foco se siente correcto en cada caso.
+- Reducir all-caps adicional en componentes de analitica y agenda (baja prioridad).
 
 ## Validacion recomendada
 
