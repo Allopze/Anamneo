@@ -46,37 +46,37 @@ export default function AuditDetailModal({ log, usersMap, onClose }: AuditDetail
         </div>
         <div className="grid gap-4 p-5 md:grid-cols-2">
           <div>
-            <p className="text-xs uppercase tracking-wide text-ink-muted">Usuario</p>
+            <p className="text-xs font-medium text-ink-muted">Usuario</p>
             <p className="text-sm text-ink-secondary">
               {usersMap.get(log.userId)?.nombre || log.userId}
             </p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-ink-muted">Fecha</p>
+            <p className="text-xs font-medium text-ink-muted">Fecha</p>
             <p className="text-sm text-ink-secondary">
               {format(new Date(log.timestamp), 'dd MMM yyyy HH:mm:ss', { locale: es })}
             </p>
           </div>
           <div className="md:col-span-2">
-            <p className="text-xs uppercase tracking-wide text-ink-muted">Request ID</p>
+            <p className="text-xs font-medium text-ink-muted">Request ID</p>
             <p className="text-sm font-mono text-ink-secondary">
               {log.requestId || 'No disponible'}
             </p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-ink-muted">Motivo</p>
+            <p className="text-xs font-medium text-ink-muted">Motivo</p>
             <p className="text-sm text-ink-secondary">
               {REASON_LABELS[log.reason || 'AUDIT_UNSPECIFIED'] || log.reason || 'Sin clasificar'}
             </p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-ink-muted">Resultado</p>
+            <p className="text-xs font-medium text-ink-muted">Resultado</p>
             <p className="text-sm text-ink-secondary">
               {(RESULT_LABELS[log.result] || RESULT_LABELS.SUCCESS).label}
             </p>
           </div>
           <div className="md:col-span-2">
-            <p className="text-xs uppercase tracking-wide text-ink-muted">Diff redactado</p>
+            <p className="text-xs font-medium text-ink-muted">Diff redactado</p>
             <pre className="mt-2 max-h-[24rem] overflow-auto rounded-card border border-surface-muted/30 bg-surface-inset/40 p-4 text-xs text-ink-secondary">
               {diffText || 'Sin diff disponible'}
             </pre>

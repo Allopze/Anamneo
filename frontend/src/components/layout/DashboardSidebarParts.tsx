@@ -104,8 +104,16 @@ export function SearchResultsDropdown({
   return (
     <div id="search-results-listbox" role="listbox" aria-label="Resultados de búsqueda" className="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-card border border-surface-muted/30 bg-surface-elevated shadow-dropdown animate-fade-in">
       {loading ? (
-        <div className="flex items-center justify-center py-6">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+        <div className="space-y-0.5 py-1.5 px-2" aria-busy="true" aria-label="Buscando">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex items-center gap-2.5 rounded-card px-2 py-2">
+              <div className="h-7 w-7 shrink-0 skeleton rounded-full" />
+              <div className="flex-1 space-y-1">
+                <div className="h-3 skeleton rounded w-2/5" />
+                <div className="h-2.5 skeleton rounded w-3/5" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : null}
       {!loading && results.length === 0 ? (

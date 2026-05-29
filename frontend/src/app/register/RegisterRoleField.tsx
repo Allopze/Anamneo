@@ -1,5 +1,5 @@
 import type { UseFormRegister } from 'react-hook-form';
-import { FiLock } from 'react-icons/fi';
+import { LockIcon } from '@/components/icons';
 import { ROLE_OPTIONS, type RegisterForm, type RegisterRole } from './register.constants';
 
 interface RegisterRoleFieldProps {
@@ -28,7 +28,7 @@ export default function RegisterRoleField({
         <>
           <input type="hidden" value={availableRoles[0]} {...register('role')} />
           <div className="auth-role-pill">
-            <FiLock className="auth-role-pill-icon" aria-hidden="true" />
+            <LockIcon className="auth-role-pill-icon" aria-hidden="true" />
             {ROLE_OPTIONS[availableRoles[0]].label}
           </div>
           <p className="mt-2 text-micro text-ink-muted">

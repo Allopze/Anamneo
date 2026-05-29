@@ -9,6 +9,7 @@ import {
   FiFileText,
   FiPlus,
 } from 'react-icons/fi';
+import { EmptyState } from '@/components/common/EmptyState';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Encounter } from '@/types';
@@ -203,19 +204,19 @@ export default function PatientEncounterTimeline({
             ))}
           </div>
         ) : (
-          <div className="py-8 text-center">
-            <div className="w-16 h-16 bg-surface-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <FiCalendar className="w-8 h-8 text-ink-muted" />
-            </div>
-            <h3 className="font-medium text-ink-primary mb-1">Sin atenciones</h3>
-            <p className="text-ink-muted mb-4">No hay atenciones registradas para este paciente</p>
-            {canCreateEncounterAllowed && (
-              <button onClick={() => createEncounterMutation.mutate({})} className="btn btn-primary">
-                <FiPlus className="w-4 h-4 mr-2" />
-                Crear primera atención
-              </button>
-            )}
-          </div>
+          <EmptyState
+            icon={<FiCalendar className="h-6 w-6" aria-hidden="true" />}
+            title="Sin atenciones"
+            description="No hay atenciones registradas para este paciente."
+            action={
+              canCreateEncounterAllowed ? (
+                <button onClick={() => createEncounterMutation.mutate({})} className="btn btn-primary">
+                  <FiPlus className="w-4 h-4 mr-2" aria-hidden="true" />
+                  Crear primera atención
+                </button>
+              ) : undefined
+            }
+          />
         )}
       </div>
     </div>

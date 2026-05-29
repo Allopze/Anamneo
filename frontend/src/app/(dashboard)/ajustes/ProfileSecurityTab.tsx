@@ -108,7 +108,7 @@ export default function ProfileSecurityTab({
               )}
             </div>
             <div className="flex items-center gap-3 pt-1">
-              <span className="inline-flex items-center rounded-pill bg-surface-inset px-3 py-1 text-xs font-bold text-ink-secondary tracking-wide uppercase">
+              <span className="inline-flex items-center rounded-pill bg-surface-inset px-3 py-1 text-xs font-bold text-ink-secondary">
                 {userRole}
               </span>
             </div>

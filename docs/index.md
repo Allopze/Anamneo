@@ -30,6 +30,7 @@ Este directorio concentra la documentacion viva del proyecto. Si un tema aparece
 | `account-recovery-runbook.md` | Operacion / Soporte | Recuperacion de cuentas, reset de admin de emergencia y password reset self-service |
 | `observability-slos.md` | Operacion | SLOs, metricas Prometheus, busqueda en logs, alertas recomendadas |
 | `design-tokens-anamneo.md` | Frontend | Contrato visual activo del frontend |
+| `iconography.md` | Frontend | Politica de iconografia, set de identidad propio y reglas de uso |
 | `ui-ux-audit-remediation.md` | Frontend / Producto | Auditoria UI/UX viva, remediacion ejecutada y pendientes visuales |
 
 ## Regla Simple

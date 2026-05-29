@@ -1,4 +1,5 @@
 import clsx from 'clsx';
+import { FiInbox } from 'react-icons/fi';
 import {
   TASK_PRIORITY_LABELS,
   TASK_RECURRENCE_LABELS,
@@ -87,7 +88,10 @@ export default function PatientTasksCard({
             </div>
           ))
         ) : (
-          <p className="text-sm text-ink-muted">No hay seguimientos registrados.</p>
+          <div className="flex items-center gap-2 py-3 text-sm text-ink-muted">
+            <FiInbox className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>No hay seguimientos registrados.</span>
+          </div>
         )}
       </div>
 

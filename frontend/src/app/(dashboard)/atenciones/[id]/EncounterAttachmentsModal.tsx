@@ -1,4 +1,5 @@
-import { FiX, FiDownload, FiTrash2 } from 'react-icons/fi';
+import { FiX, FiDownload, FiPaperclip, FiTrash2 } from 'react-icons/fi';
+import { EmptyState } from '@/components/common/EmptyState';
 import type { Attachment } from '@/types';
 import type { EncounterWizardHook } from './useEncounterWizard';
 import {
@@ -248,22 +249,32 @@ export default function EncounterAttachmentsModal({
 
           {uploadError && <p className="mt-4 text-sm text-status-red-text">{uploadError}</p>}
 
-          <div className="mt-5 overflow-hidden rounded-card border border-surface-muted/35">
+          <div className="mt-5">
             {attachmentsQuery.isLoading ? (
-              <div className="p-4 text-sm text-ink-muted">Cargando adjuntos…</div>
+              <div className="space-y-2">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="h-10 skeleton rounded-card" />
+                ))}
+              </div>
             ) : attachmentsQuery.error ? (
-              <div className="p-4 text-sm text-status-red-text">
+              <div className="rounded-card border border-surface-muted/35 p-4 text-sm text-status-red-text">
                 {String((attachmentsQuery.error as any)?.message ?? 'Error al cargar adjuntos')}
               </div>
             ) : attachments.length === 0 ? (
-              <div className="p-4 text-sm text-ink-muted">No hay archivos adjuntos.</div>
-            ) : (
-              <AttachmentList
-                attachments={attachments}
-                canDelete={canDeleteAttachments}
-                onDeleteClick={(attachmentId) => setShowDeleteAttachment(attachmentId)}
-                onDownload={handleDownload}
+              <EmptyState
+                icon={<FiPaperclip className="h-6 w-6" aria-hidden="true" />}
+                title="Sin archivos adjuntos"
+                description="Esta atención no tiene archivos adjuntos."
               />
+            ) : (
+              <div className="overflow-hidden rounded-card border border-surface-muted/35">
+                <AttachmentList
+                  attachments={attachments}
+                  canDelete={canDeleteAttachments}
+                  onDeleteClick={(attachmentId) => setShowDeleteAttachment(attachmentId)}
+                  onDownload={handleDownload}
+                />
+              </div>
             )}
           </div>
         </div>

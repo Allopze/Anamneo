@@ -17,10 +17,9 @@ import {
   FiCheck,
   FiEye,
   FiEyeOff,
-  FiLock,
   FiMail,
-  FiShield,
 } from 'react-icons/fi';
+import { ShieldIcon, LockIcon } from '@/components/icons';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { AuthFrame } from '@/components/auth/AuthFrame';
 import { feedbackCopy, notify } from '@/lib/notify';
@@ -43,7 +42,7 @@ type RegistrationMode = 'loading' | 'bootstrap-open' | 'invitation-only';
 
 const LOGIN_CHIPS = [
   {
-    icon: <FiShield className="h-7 w-7" aria-hidden="true" />,
+    icon: <ShieldIcon className="h-7 w-7" aria-hidden="true" />,
     label: 'Trazabilidad clínica',
     description: 'Cada acceso queda registrado para auditoría.',
   },
@@ -195,7 +194,7 @@ function LoginContent() {
       logoTextClassName="!text-3xl lg:!text-4xl"
       heroFooter={
         <div className="auth-help">
-          <FiLock className="h-7 w-7" aria-hidden="true" />
+          <LockIcon className="h-7 w-7" aria-hidden="true" />
           <span>
             <span className="auth-help-title">Cifrado de extremo a extremo</span>
             <span className="auth-help-copy">Tus datos viajan y se almacenan cifrados.</span>
@@ -221,12 +220,12 @@ function LoginContent() {
         <>
           <div className="auth-step-bar">
             <span className="auth-step auth-step-done"><FiCheck className="h-3.5 w-3.5" aria-hidden="true" /> Credenciales</span>
-            <span className="auth-step auth-step-active"><FiShield className="h-3.5 w-3.5" aria-hidden="true" /> Verificación</span>
+            <span className="auth-step auth-step-active"><ShieldIcon className="h-3.5 w-3.5" aria-hidden="true" /> Verificación</span>
           </div>
           <div className="auth-note">
-            <span className="auth-badge-accent"><FiShield className="h-3.5 w-3.5" aria-hidden="true" /> 2FA activo</span>
+            <span className="auth-badge-accent"><ShieldIcon className="h-3.5 w-3.5" aria-hidden="true" /> 2FA activo</span>
             <span className="auth-badge">
-              <FiLock className="h-3.5 w-3.5" aria-hidden="true" />
+              <LockIcon className="h-3.5 w-3.5" aria-hidden="true" />
               {verificationMethod === 'totp' ? ' Código de 6 dígitos' : ' Código de recuperación'}
             </span>
           </div>
@@ -271,7 +270,7 @@ function LoginContent() {
               {verificationMethod === 'totp' ? 'Código de verificación' : 'Código de recuperación'}
             </label>
             <div className="relative">
-              <FiShield className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
+              <ShieldIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
               {(() => {
                 const verificationField = registerVerification('code');
 
@@ -378,7 +377,7 @@ function LoginContent() {
               </label>
             </div>
             <div className="relative">
-              <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
+              <LockIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" aria-hidden="true" />
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}

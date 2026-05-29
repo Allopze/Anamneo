@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { FiUsers } from 'react-icons/fi';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import { Dialog } from '@/components/common/Dialog';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { type AdminUserRow, ROLE_LABELS, getPasswordError } from './usuarios.constants';
@@ -36,13 +37,7 @@ export function UsersCard({
   const [resetPasswordUser, setResetPasswordUser] = useState<AdminUserRow | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState('');
   const [temporaryPasswordError, setTemporaryPasswordError] = useState<string | null>(null);
-  const cancelResetRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (resetPasswordUser) {
-      setTimeout(() => cancelResetRef.current?.focus(), 50);
-    }
-  }, [resetPasswordUser]);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const openResetPassword = (user: AdminUserRow) => {
     setResetPasswordUser(user);
@@ -172,20 +167,21 @@ export function UsersCard({
         loading={toggleActiveMutation.isPending}
       />
 
-      {resetPasswordUser ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink-primary/55 p-4">
-          <section
-            className="w-full max-w-md rounded-card border border-surface-muted/50 bg-surface-elevated p-6 shadow-dropdown"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="reset-password-title"
-            aria-describedby="reset-password-description"
-          >
+      <Dialog
+        isOpen={resetPasswordUser !== null}
+        onClose={closeResetPassword}
+        role="alertdialog"
+        title="Restablecer clave"
+        description={resetPasswordUser ? `Define una contraseña temporal para ${resetPasswordUser.nombre}. El usuario deberá cambiarla al iniciar sesión.` : ''}
+        initialFocusRef={passwordInputRef}
+        loading={resetPasswordMutation.isPending}
+        maxWidth="md"
+      >
+        {resetPasswordUser && (
+          <div className="p-6">
             <p className="text-sm font-semibold text-auth-teal">Acceso de usuario</p>
-            <h2 id="reset-password-title" className="mt-1 text-lg font-semibold text-ink">
-              Restablecer clave
-            </h2>
-            <p id="reset-password-description" className="mt-2 text-sm leading-6 text-ink-secondary">
+            <h2 className="mt-1 text-lg font-semibold text-ink">Restablecer clave</h2>
+            <p className="mt-2 text-sm leading-6 text-ink-secondary">
               Define una contraseña temporal para {resetPasswordUser.nombre}. El usuario deberá cambiarla al iniciar sesión.
             </p>
 
@@ -193,6 +189,7 @@ export function UsersCard({
               Contraseña temporal
             </label>
             <input
+              ref={passwordInputRef}
               id="temporary-password"
               type="text"
               className="form-input mt-1 font-mono"
@@ -211,7 +208,6 @@ export function UsersCard({
 
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
-                ref={cancelResetRef}
                 type="button"
                 className="btn btn-secondary"
                 onClick={closeResetPassword}
@@ -228,9 +224,9 @@ export function UsersCard({
                 {resetPasswordMutation.isPending ? 'Guardando...' : 'Restablecer clave'}
               </button>
             </div>
-          </section>
-        </div>
-      ) : null}
+          </div>
+        )}
+      </Dialog>
     </>
   );
 }

@@ -108,15 +108,15 @@ export default function AuditIntegrityCard() {
 
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl border border-surface-muted/30 bg-white/70 p-3">
-          <p className="text-xs uppercase tracking-[0.14em] text-ink-muted">Entradas verificadas</p>
+          <p className="text-xs font-medium text-ink-muted">Entradas verificadas</p>
           <p className="mt-2 text-2xl font-semibold text-ink-primary">{checked}</p>
         </div>
         <div className="rounded-2xl border border-surface-muted/30 bg-white/70 p-3">
-          <p className="text-xs uppercase tracking-[0.14em] text-ink-muted">Total registrado</p>
+          <p className="text-xs font-medium text-ink-muted">Total registrado</p>
           <p className="mt-2 text-2xl font-semibold text-ink-primary">{total}</p>
         </div>
         <div className="rounded-2xl border border-surface-muted/30 bg-white/70 p-3">
-          <p className="text-xs uppercase tracking-[0.14em] text-ink-muted">Estado</p>
+          <p className="text-xs font-medium text-ink-muted">Estado</p>
           <p className="mt-2 text-sm font-semibold text-ink-primary">
             {valid ? 'Sin inconsistencias detectadas' : `Quiebre en ${brokenAt || 'entrada desconocida'}`}
           </p>

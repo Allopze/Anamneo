@@ -165,7 +165,9 @@ export default function SystemTab({
   const warningMessages = operational.warnings.map((warning) => WARNING_LABELS[warning] || warning);
 
   return (
-    <div role="tabpanel" id="tabpanel-sistema" aria-labelledby="tab-sistema" className="card space-y-4">
+    <div role="tabpanel" id="tabpanel-sistema" aria-labelledby="tab-sistema" className="card space-y-8">
+      {/* ── Salud del sistema ── */}
+      <section>
       <div className="panel-header">
         <div>
           <h2 className="panel-title">Información del sistema</h2>
@@ -184,7 +186,7 @@ export default function SystemTab({
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-surface-muted/40 bg-surface-elevated p-4">
-          <p className="text-xs uppercase tracking-[0.18em] text-ink-muted">Base</p>
+          <p className="text-xs font-medium text-ink-muted">Base</p>
           <p className="mt-2 text-lg font-semibold text-ink-primary">PostgreSQL</p>
           <p className="mt-1 text-sm text-ink-secondary">Estado DB: {systemQuery.data.database.status}</p>
           <p className="mt-3 text-sm text-ink-secondary">Tamaño: {formatBytes(operational.sizeBytes)}</p>
@@ -197,7 +199,7 @@ export default function SystemTab({
         </div>
 
         <div className="rounded-2xl border border-surface-muted/40 bg-surface-elevated p-4">
-          <p className="text-xs uppercase tracking-[0.18em] text-ink-muted">Backup reciente</p>
+          <p className="text-xs font-medium text-ink-muted">Backup reciente</p>
           <p className="mt-2 text-lg font-semibold text-ink-primary">
             {operational.backups.latestBackupAt ? formatDateTime(operational.backups.latestBackupAt) : 'Sin backup'}
           </p>
@@ -215,7 +217,7 @@ export default function SystemTab({
         </div>
 
         <div className="rounded-2xl border border-surface-muted/40 bg-surface-elevated p-4">
-          <p className="text-xs uppercase tracking-[0.18em] text-ink-muted">Última prueba de restauración</p>
+          <p className="text-xs font-medium text-ink-muted">Última prueba de restauración</p>
           <p className="mt-2 text-lg font-semibold text-ink-primary">
             {formatDateTime(operational.restoreDrill.lastRestoreDrillAt)}
           </p>
@@ -241,13 +243,32 @@ export default function SystemTab({
           <strong>API:</strong> {process.env.NEXT_PUBLIC_API_URL || 'No configurada'}
         </p>
       </div>
+      </section>
 
-      <LegalAdminSection />
+      {/* ── Documentos legales ── */}
+      <section>
+        <h3 className="mb-3 text-sm font-semibold text-ink-muted">Documentos legales</h3>
+        <LegalAdminSection />
+      </section>
 
-      <EncounterSectionsSettingsCard />
+      {/* ── Secciones de atención ── */}
+      <section>
+        <h3 className="mb-3 text-sm font-semibold text-ink-muted">Secciones de atención</h3>
+        <EncounterSectionsSettingsCard />
+      </section>
 
-      <MaintenanceActionsCard />
+      {/* ── Mantenimiento (acciones destructivas) ── */}
+      <section className="rounded-card border border-status-yellow/40 bg-status-yellow/10 p-4">
+        <h3 className="mb-1 text-sm font-semibold text-accent-text">Mantenimiento del sistema</h3>
+        <p className="mb-4 text-xs text-ink-muted">
+          Las acciones de mantenimiento son irreversibles y requieren confirmación tipeada. Ejecutar solo si eres responsable técnico.
+        </p>
+        <MaintenanceActionsCard />
+      </section>
 
+      {/* ── Sesión ── */}
+      <section>
+        <h3 className="mb-3 text-sm font-semibold text-ink-muted">Política de sesión</h3>
       <div className="rounded-2xl border border-surface-muted/40 bg-surface-elevated p-4 text-sm text-ink-secondary">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -302,6 +323,7 @@ export default function SystemTab({
           </p>
         ) : null}
       </div>
+      </section>
 
       {warningMessages.length > 0 && (
         <div className="rounded-2xl border border-status-yellow/70 bg-status-yellow/20 p-4 text-sm text-accent-text">
@@ -338,7 +360,7 @@ export default function SystemTab({
         </ol>
 
         <div className="mt-4 rounded-xl border border-surface-muted/30 bg-surface-inset/60 px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-ink-muted">Comandos útiles</p>
+          <p className="text-xs font-medium text-ink-muted">Comandos útiles</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {RUNBOOK_COMMANDS.map((command) => (
               <span key={command} className="rounded-full border border-surface-muted/40 bg-white/80 px-3 py-1 font-mono text-xs text-ink-primary">

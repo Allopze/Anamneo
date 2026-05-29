@@ -196,7 +196,7 @@ function AtencionesListContent() {
             href="/atenciones?status=EN_PROGRESO"
             className="rounded-card bg-surface-elevated px-4 py-4 shadow-soft transition-colors hover:bg-surface-inset/40"
           >
-            <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">En curso</p>
+            <p className="text-sm font-bold text-ink-muted">En curso</p>
             <p className="mt-3 text-3xl font-extrabold tracking-tight text-ink">{operationalData.counts.enProgreso}</p>
             <p className="mt-2 text-sm text-ink-secondary">Atenciones abiertas dentro del circuito activo.</p>
           </Link>
@@ -204,7 +204,7 @@ function AtencionesListContent() {
             href="/atenciones?reviewStatus=LISTA_PARA_REVISION"
             className="rounded-card bg-surface-elevated px-4 py-4 shadow-soft transition-colors hover:bg-surface-inset/40"
           >
-            <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">Pendientes de revisión</p>
+            <p className="text-sm font-bold text-ink-muted">Pendientes de revisión</p>
             <p className="mt-3 text-3xl font-extrabold tracking-tight text-ink">{operationalData.counts.pendingReview}</p>
             <p className="mt-2 text-sm text-ink-secondary">Casos listos para revisión o cierre médico.</p>
           </Link>
@@ -212,7 +212,7 @@ function AtencionesListContent() {
             href="/pacientes?completenessStatus=PENDIENTE_VERIFICACION"
             className="rounded-card bg-surface-elevated px-4 py-4 shadow-soft transition-colors hover:bg-surface-inset/40"
           >
-            <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">Fichas por validar</p>
+            <p className="text-sm font-bold text-ink-muted">Fichas por validar</p>
             <p className="mt-3 text-3xl font-extrabold tracking-tight text-ink">{operationalData.counts.patientPendingVerification}</p>
             <p className="mt-2 text-sm text-ink-secondary">Recepción completó datos y espera validación médica.</p>
           </Link>

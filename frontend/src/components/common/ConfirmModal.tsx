@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { FiAlertTriangle, FiX } from 'react-icons/fi';
+import { Dialog } from './Dialog';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -42,82 +43,57 @@ export default function ConfirmModal({
   loading = false,
 }: ConfirmModalProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const confirmRef = useRef<HTMLButtonElement>(null);
   const styles = variantStyles[variant];
 
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => cancelRef.current?.focus(), 50);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !loading) onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, loading]);
-
-  if (!isOpen) return null;
-
   return (
-    <>
-      <div className="fixed inset-0 z-50 bg-ink-primary/50 backdrop-blur-sm" onClick={loading ? undefined : onClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div
-          className="w-full max-w-md rounded-card border border-surface-muted/30 bg-surface-elevated shadow-dropdown"
-          role="alertdialog"
-          aria-modal="true"
-          aria-labelledby="confirm-title"
-          aria-describedby="confirm-message"
-        >
-          <div className="p-6">
-            <div className="flex items-start gap-4">
-              <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${styles.icon}`}>
-                <FiAlertTriangle className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <h3 id="confirm-title" className="text-lg font-semibold text-ink-primary">
-                  {title}
-                </h3>
-                <p id="confirm-message" className="mt-2 text-sm text-ink-secondary">
-                  {message}
-                </p>
-              </div>
-              <button
-                onClick={onClose}
-                className="rounded-input p-2 text-ink-muted transition-colors hover:bg-surface-base/65 hover:text-ink-secondary"
-                aria-label="Cerrar"
-                disabled={loading}
-              >
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      role="alertdialog"
+      title={title}
+      description={message}
+      initialFocusRef={cancelRef}
+      loading={loading}
+      maxWidth="md"
+    >
+      <div className="p-6">
+        <div className="flex items-start gap-4">
+          <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${styles.icon}`}>
+            <FiAlertTriangle className="w-5 h-5" aria-hidden="true" />
           </div>
-          <div className="flex items-center justify-end gap-3 rounded-b-card border-t border-surface-muted/30 bg-surface-base/40 px-6 py-4">
-            <button ref={cancelRef} onClick={onClose} className="btn btn-secondary" disabled={loading}>
-              {cancelLabel}
-            </button>
-            <button
-              ref={confirmRef}
-              onClick={onConfirm}
-              className={styles.button}
-              disabled={loading}
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                  Procesando…
-                </span>
-              ) : (
-                confirmLabel
-              )}
-            </button>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-ink-primary">{title}</h3>
+            <p className="mt-2 text-sm text-ink-secondary">{message}</p>
           </div>
+          <button
+            onClick={onClose}
+            className="rounded-input p-2 text-ink-muted transition-colors hover:bg-surface-base/65 hover:text-ink-secondary"
+            aria-label="Cerrar"
+            disabled={loading}
+          >
+            <FiX className="w-5 h-5" aria-hidden="true" />
+          </button>
         </div>
       </div>
-    </>
+      <div className="flex items-center justify-end gap-3 rounded-b-card border-t border-surface-muted/30 bg-surface-base/40 px-6 py-4">
+        <button ref={cancelRef} onClick={onClose} className="btn btn-secondary" disabled={loading}>
+          {cancelLabel}
+        </button>
+        <button
+          onClick={onConfirm}
+          className={styles.button}
+          disabled={loading}
+        >
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" aria-hidden="true" />
+              Procesando…
+            </span>
+          ) : (
+            confirmLabel
+          )}
+        </button>
+      </div>
+    </Dialog>
   );
 }

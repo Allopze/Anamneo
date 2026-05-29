@@ -70,8 +70,16 @@ export default function MobileSearchOverlay({
         {searchQuery.trim() && (
           <div className="border-t border-surface-muted/30 max-h-[60vh] overflow-y-auto">
             {searchLoading && (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-accent border-t-transparent" />
+              <div className="space-y-1 p-2" aria-busy="true" aria-label="Buscando">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 px-3 py-2">
+                    <div className="h-8 w-8 shrink-0 skeleton rounded-full" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3.5 skeleton rounded w-2/5" />
+                      <div className="h-3 skeleton rounded w-3/5" />
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
             {!searchLoading && searchResults.length === 0 && (

@@ -7,6 +7,7 @@ import { invalidateAlertOverviewQueries } from '@/lib/query-invalidation';
 import { useAuthUser } from '@/stores/auth-store';
 import { isMedicoUser } from '@/lib/permissions';
 import { FiAlertTriangle, FiCheck, FiBell } from 'react-icons/fi';
+import { EmptyState } from '@/components/common/EmptyState';
 import { notify } from '@/lib/notify';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -101,10 +102,11 @@ export default function PatientAlerts({ patientId }: PatientAlertsProps) {
       {isLoading ? (
         <div className="text-sm text-ink-muted py-4 text-center">Cargando...</div>
       ) : alerts.length === 0 ? (
-        <div className="text-sm text-ink-muted py-4 text-center">
-          <FiBell className="mx-auto h-8 w-8 mb-2 text-ink-muted/50" />
-          No hay alertas clínicas
-        </div>
+        <EmptyState
+          icon={<FiBell className="h-6 w-6" aria-hidden="true" />}
+          title="Sin alertas clínicas"
+          description="Este paciente no tiene alertas clínicas activas."
+        />
       ) : (
         <div className="space-y-3">
           {activeAlerts.map((alert) => {

@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { FiCheckCircle } from 'react-icons/fi';
+import { FiCheckCircle, FiInbox } from 'react-icons/fi';
 import { PROBLEM_STATUS_LABELS, type PatientProblem } from '@/types';
 import type { PatientDetailHook } from './usePatientDetail';
 
@@ -73,7 +73,10 @@ export default function PatientProblemsCard({
             </div>
           ))
         ) : (
-          <p className="text-sm text-ink-muted">No hay problemas clínicos registrados.</p>
+          <div className="flex items-center gap-2 py-3 text-sm text-ink-muted">
+            <FiInbox className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>No hay problemas clínicos registrados.</span>
+          </div>
         )}
       </div>
 

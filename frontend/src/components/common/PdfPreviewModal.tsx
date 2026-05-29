@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FiDownload, FiX } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
+import { Dialog } from './Dialog';
 
 interface PdfPreviewModalProps {
   isOpen: boolean;
@@ -77,15 +78,6 @@ export default function PdfPreviewModal({
   // retryCount in deps so handleRetry re-triggers the fetch
   }, [isOpen, endpoint, retryCount, revokeBlobUrl]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
   useEffect(() => revokeBlobUrl, [revokeBlobUrl]);
 
   const handleDownload = useCallback(() => {
@@ -98,77 +90,79 @@ export default function PdfPreviewModal({
     link.remove();
   }, [blobUrl, resolvedFilename, fallbackFilename]);
 
-  if (!isOpen) return null;
-
   return (
-    <>
-      <div
-        className="fixed inset-0 z-50 bg-ink-primary/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div
-          className="flex w-full max-w-4xl flex-col overflow-hidden rounded-card border border-surface-muted/30 bg-surface-elevated shadow-dropdown"
-          style={{ maxHeight: '90vh' }}
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Vista previa: ${title}`}
-        >
-          <div className="flex items-center justify-between border-b border-surface-muted/30 px-5 py-3">
-            <p className="truncate text-sm font-semibold text-ink-primary">{title}</p>
-            <div className="flex items-center gap-2 pl-4">
-              <button
-                type="button"
-                onClick={handleDownload}
-                disabled={!blobUrl}
-                className="inline-flex items-center gap-1.5 rounded-input px-3 py-1.5 text-xs font-medium text-accent-text transition-colors hover:bg-surface-base/65 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <FiDownload className="h-3.5 w-3.5" />
-                Descargar
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-input p-2 text-ink-muted transition-colors hover:bg-surface-base/65 hover:text-ink-secondary"
-                aria-label="Cerrar"
-              >
-                <FiX className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-1 items-center justify-center overflow-auto bg-surface-base/40 p-4">
-            {loading && (
-              <div className="flex flex-col items-center gap-3">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-                <span className="text-sm text-ink-muted">Generando vista previa…</span>
-              </div>
-            )}
-
-            {!loading && error && (
-              <div className="flex flex-col items-center gap-3 text-center">
-                <p className="text-sm text-ink-secondary">{error}</p>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setRetryCount((n) => n + 1)}
-                >
-                  Reintentar
-                </button>
-              </div>
-            )}
-
-            {!loading && !error && blobUrl && (
-              <iframe
-                src={blobUrl}
-                title={title}
-                className="h-full w-full rounded"
-                style={{ minHeight: '70vh' }}
-              />
-            )}
-          </div>
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      role="dialog"
+      title={`Vista previa: ${title}`}
+      maxWidth="4xl"
+      className="flex flex-col overflow-hidden"
+      panelStyle={{ maxHeight: '90vh' }}
+    >
+      <div className="flex items-center justify-between border-b border-surface-muted/30 px-5 py-3">
+        <p className="truncate text-sm font-semibold text-ink-primary">{title}</p>
+        <div className="flex items-center gap-2 pl-4">
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={!blobUrl}
+            className="inline-flex items-center gap-1.5 rounded-input px-3 py-1.5 text-xs font-medium text-accent-text transition-colors hover:bg-surface-base/65 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <FiDownload className="h-3.5 w-3.5" aria-hidden="true" />
+            Descargar
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-input p-2 text-ink-muted transition-colors hover:bg-surface-base/65 hover:text-ink-secondary"
+            aria-label="Cerrar"
+          >
+            <FiX className="h-5 w-5" aria-hidden="true" />
+          </button>
         </div>
       </div>
-    </>
+
+      <div className="flex flex-1 items-center justify-center overflow-auto bg-surface-base/40 p-4">
+        {loading && (
+          <div className="w-full max-w-lg space-y-3" aria-busy="true" aria-label="Generando vista previa">
+            <div className="h-6 skeleton rounded-card" />
+            <div className="h-4 skeleton rounded-card w-3/4" />
+            <div className="mt-4 space-y-2">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className={`h-3 skeleton rounded-card ${i % 3 === 2 ? 'w-2/3' : 'w-full'}`} />
+              ))}
+            </div>
+            <div className="mt-4 space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className={`h-3 skeleton rounded-card ${i === 4 ? 'w-1/2' : 'w-full'}`} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="flex flex-col items-center gap-3 text-center">
+            <p className="text-sm text-ink-secondary">{error}</p>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setRetryCount((n) => n + 1)}
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && blobUrl && (
+          <iframe
+            src={blobUrl}
+            title={title}
+            className="h-full w-full rounded"
+            style={{ minHeight: '70vh' }}
+          />
+        )}
+      </div>
+    </Dialog>
   );
 }

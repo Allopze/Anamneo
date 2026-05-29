@@ -280,12 +280,15 @@ export default function PatientVitalsCard({
           )}
         </>
       ) : (
-        <p className="text-sm text-ink-muted">Aún no hay signos vitales suficientes para mostrar tendencias.</p>
+        <div className="flex items-center gap-2 py-3 text-sm text-ink-muted">
+          <FiActivity className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>Aún no hay signos vitales suficientes para mostrar tendencias.</span>
+        </div>
       )}
 
       {clinicalSummary?.latestEncounterSummary?.lines?.length ? (
         <div className="mt-4 rounded-card border border-surface-muted/30 bg-surface-base/40 p-3">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-muted">Último resumen longitudinal</p>
+          <p className="mb-2 text-xs font-medium text-ink-muted">Último resumen longitudinal</p>
           <div className="space-y-1 text-sm text-ink-secondary">
             {clinicalSummary.latestEncounterSummary.lines.map((line) => (
               <p key={line}>{line}</p>

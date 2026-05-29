@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import clsx from 'clsx';
+import { FiInbox } from 'react-icons/fi';
 import { parseHistoryField } from '@/lib/utils';
 import { formatDateOnly } from '@/lib/date';
 import {
@@ -167,7 +168,12 @@ function HistoryCard({ patient, pd }: Props) {
             </div>
           );
         })}
-        {!pd.historyHasContent && <p className="text-ink-muted italic">No hay antecedentes registrados</p>}
+        {!pd.historyHasContent && (
+          <div className="flex items-center gap-2 py-2 text-sm text-ink-muted">
+            <FiInbox className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>No hay antecedentes registrados.</span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api, getErrorMessage, PaginatedResponse } from '@/lib/api';
 import { useAuthIsAdmin } from '@/stores/auth-store';
 import { FiChevronLeft, FiChevronRight, FiFilter, FiShield } from 'react-icons/fi';
+import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -360,13 +361,11 @@ export default function AuditoriaPage() {
             )}
           </>
         ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <FiShield className="w-10 h-10 text-accent-text" />
-            </div>
-            <h3 className="empty-state-title">Sin registros de auditoría</h3>
-            <p className="empty-state-description">No hay movimientos que coincidan con los filtros actuales.</p>
-          </div>
+          <EmptyState
+            icon={<FiShield className="h-6 w-6" aria-hidden="true" />}
+            title="Sin registros de auditoría"
+            description="No hay movimientos que coincidan con los filtros actuales."
+          />
         )}
       </div>
 

@@ -237,7 +237,7 @@ export default function DashboardClinicalView({
                         </p>
                       </div>
                     </div>
-                    <span className="inline-flex h-10 items-center justify-center rounded-pill border border-frame-dark bg-frame-dark px-4 text-sm font-semibold text-white transition-colors group-hover:bg-ink">
+                    <span className="inline-flex h-10 items-center justify-center rounded-card border border-frame-dark bg-frame-dark px-4 text-sm font-semibold text-white transition-colors group-hover:bg-ink">
                       Retomar atención
                     </span>
                     <div className="min-w-0">
@@ -261,7 +261,7 @@ export default function DashboardClinicalView({
               {canNewEncounter && (
                 <Link
                   href="/atenciones/nueva"
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-pill border border-frame-dark bg-frame-dark px-3.5 text-sm font-semibold text-white transition-colors hover:bg-ink"
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-card border border-frame-dark bg-frame-dark px-3.5 text-sm font-semibold text-white transition-colors hover:bg-ink"
                 >
                   <FiPlus className="h-4 w-4" />
                   Nueva atención
@@ -337,7 +337,7 @@ export default function DashboardClinicalView({
                     </p>
                     <Link
                       href="/seguimientos"
-                      className="mt-3 inline-flex h-9 items-center justify-center rounded-pill border border-surface-muted/60 bg-surface-elevated px-3.5 text-sm font-semibold text-ink-secondary transition-colors hover:border-frame/25 hover:text-ink"
+                      className="mt-3 inline-flex h-9 items-center justify-center rounded-card border border-surface-muted/60 bg-surface-elevated px-3.5 text-sm font-semibold text-ink-secondary transition-colors hover:border-frame/25 hover:text-ink"
                     >
                       Crear seguimiento
                     </Link>

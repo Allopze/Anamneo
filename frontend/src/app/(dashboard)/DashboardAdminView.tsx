@@ -1,12 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { FiChevronRight, FiPlus, FiUsers } from 'react-icons/fi';
+import { FiChevronRight } from 'react-icons/fi';
 import { getFirstName } from '@/lib/utils';
 import DashboardOperationalChecks from './DashboardOperationalChecks';
 import {
-  ADMIN_CARDS,
-  type DashboardData,
+  ADMIN_CARD_SECTIONS,
   getGreeting,
   sectionAnimation,
 } from './dashboard.constants';
@@ -34,27 +33,31 @@ export default function DashboardAdminView({ user }: DashboardAdminViewProps) {
         <DashboardOperationalChecks />
       </section>
 
-      <section
-        className="animate-fade-in grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
-        style={sectionAnimation(60)}
-      >
-        {ADMIN_CARDS.map((card) => (
-          <Link
-            key={card.href}
-            href={card.href}
-            className="group flex items-start gap-4 rounded-card bg-surface-elevated p-5 shadow-soft transition-[background-color,box-shadow] hover:bg-surface-inset/50 hover:shadow-md"
-          >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-inset text-ink-secondary transition-colors group-hover:bg-accent/20 group-hover:text-accent-text">
-              <card.icon className="h-5 w-5" />
+      <div className="animate-fade-in space-y-8" style={sectionAnimation(60)}>
+        {ADMIN_CARD_SECTIONS.map((section) => (
+          <section key={section.heading}>
+            <h2 className="mb-3 text-sm font-semibold text-ink-muted">{section.heading}</h2>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {section.cards.map((card) => (
+                <Link
+                  key={card.href}
+                  href={card.href}
+                  className="group flex items-start gap-4 rounded-card bg-surface-elevated p-5 shadow-soft transition-[background-color,box-shadow] hover:bg-surface-inset/50 hover:shadow-md"
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-inset text-ink-secondary transition-colors group-hover:bg-accent/20 group-hover:text-accent-text">
+                    <card.icon className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-ink">{card.label}</h3>
+                    <p className="mt-1 text-sm text-ink-secondary">{card.description}</p>
+                  </div>
+                  <FiChevronRight className="mt-1 h-4 w-4 shrink-0 text-ink-muted transition-colors group-hover:text-ink" aria-hidden="true" />
+                </Link>
+              ))}
             </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="font-bold text-ink">{card.label}</h2>
-              <p className="mt-1 text-sm text-ink-secondary">{card.description}</p>
-            </div>
-            <FiChevronRight className="mt-1 h-4 w-4 shrink-0 text-ink-muted transition-colors group-hover:text-ink" />
-          </Link>
+          </section>
         ))}
-      </section>
+      </div>
     </div>
   );
 }

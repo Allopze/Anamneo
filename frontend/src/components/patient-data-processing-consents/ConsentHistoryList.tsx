@@ -1,5 +1,7 @@
 'use client';
 
+import { FiFileText } from 'react-icons/fi';
+import { EmptyState } from '@/components/common/EmptyState';
 import { DataProcessingConsent } from './types';
 import { formatConsentDate, purposeLabel } from './utils';
 
@@ -16,9 +18,11 @@ export default function ConsentHistoryList({ consents, isLoading, onRevoke }: Pr
 
   if (consents.length === 0) {
     return (
-      <p className="rounded-card border border-dashed border-surface-muted/50 bg-surface-base/30 p-4 text-xs text-ink-muted">
-        No hay consentimientos de tratamiento de datos personales registrados para este paciente.
-      </p>
+      <EmptyState
+        icon={<FiFileText className="h-6 w-6" aria-hidden="true" />}
+        title="Sin consentimientos registrados"
+        description="No hay consentimientos de tratamiento de datos personales registrados para este paciente."
+      />
     );
   }
 

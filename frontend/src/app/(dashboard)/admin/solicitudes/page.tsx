@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertBanner } from '@/components/common/AlertBanner';
 import { EmptyState } from '@/components/common/EmptyState';
+import { Dialog } from '@/components/common/Dialog';
 import { api, getErrorMessage } from '@/lib/api';
 import { notify } from '@/lib/notify';
 
@@ -76,13 +77,8 @@ export default function SolicitudesAdminPage() {
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [decisionSubmitting, setDecisionSubmitting] = useState(false);
   const decisionCancelRef = useRef<HTMLButtonElement>(null);
+  const selectedCloseRef = useRef<HTMLButtonElement>(null);
   const selectedExportDelivery = selected ? getExportDelivery(selected.payloadResponse) : null;
-
-  useEffect(() => {
-    if (pendingDecision) {
-      setTimeout(() => decisionCancelRef.current?.focus(), 50);
-    }
-  }, [pendingDecision]);
 
   const load = async (filterStatus?: string) => {
     setLoading(true);
@@ -317,9 +313,18 @@ export default function SolicitudesAdminPage() {
         </div>
       )}
 
-      {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-primary/50 p-4">
-          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-card border border-surface-muted/50 bg-surface-elevated p-6 shadow-dropdown">
+      <Dialog
+        isOpen={selected !== null}
+        onClose={() => setSelected(null)}
+        role="dialog"
+        title={selected ? `Solicitud ${selected.requestType}` : ''}
+        initialFocusRef={selectedCloseRef}
+        maxWidth="xl"
+        className="overflow-y-auto"
+        panelStyle={{ maxHeight: '90vh' }}
+      >
+        {selected && (
+          <div className="p-6">
             <header className="mb-4 flex items-start justify-between">
               <div>
                 <p className="text-sm font-semibold text-auth-teal">
@@ -329,6 +334,7 @@ export default function SolicitudesAdminPage() {
                 <p className="text-sm text-ink-muted">{selected.requesterEmail}</p>
               </div>
               <button
+                ref={selectedCloseRef}
                 className="portal-icon-button"
                 onClick={() => setSelected(null)}
                 aria-label="Cerrar detalle"
@@ -509,24 +515,33 @@ export default function SolicitudesAdminPage() {
                 </div>
               )}
           </div>
-        </div>
-      )}
+        )}
+      </Dialog>
 
-      {pendingDecision && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink-primary/55 p-4">
-          <section
-            className="w-full max-w-lg rounded-card border border-surface-muted/50 bg-surface-elevated p-6 shadow-dropdown"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="data-request-decision-title"
-            aria-describedby="data-request-decision-description"
-          >
+      <Dialog
+        isOpen={pendingDecision !== null}
+        onClose={() => {
+          if (!decisionSubmitting) {
+            setPendingDecision(null);
+            setDecisionNote('');
+            setDecisionError(null);
+          }
+        }}
+        role="alertdialog"
+        title={pendingDecision?.title ?? ''}
+        description={pendingDecision?.description}
+        initialFocusRef={decisionCancelRef}
+        loading={decisionSubmitting}
+        maxWidth="lg"
+      >
+        {pendingDecision && (
+          <div className="p-6">
             <div>
               <p className="text-sm font-semibold text-auth-teal">Decisión auditada</p>
-              <h2 id="data-request-decision-title" className="mt-1 text-lg font-semibold text-ink">
+              <h2 className="mt-1 text-lg font-semibold text-ink">
                 {pendingDecision.title}
               </h2>
-              <p id="data-request-decision-description" className="mt-2 text-sm leading-6 text-ink-secondary">
+              <p className="mt-2 text-sm leading-6 text-ink-secondary">
                 {pendingDecision.description}
               </p>
             </div>
@@ -577,9 +592,9 @@ export default function SolicitudesAdminPage() {
                 {decisionSubmitting ? 'Guardando...' : pendingDecision.confirmLabel}
               </button>
             </div>
-          </section>
-        </div>
-      )}
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 }

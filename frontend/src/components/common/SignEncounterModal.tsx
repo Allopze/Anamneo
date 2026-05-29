@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { FiLock, FiShield, FiX } from 'react-icons/fi';
+import { useRef, useState } from 'react';
+import { FiX } from 'react-icons/fi';
+import { ShieldIcon, LockIcon } from '@/components/icons';
+import { Dialog } from './Dialog';
 
 interface SignEncounterModalProps {
   open: boolean;
@@ -13,10 +15,7 @@ interface SignEncounterModalProps {
 export default function SignEncounterModal({ open, loading, onConfirm, onClose }: SignEncounterModalProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const titleId = 'sign-encounter-modal-title';
-  const descriptionId = 'sign-encounter-modal-description';
-
-  if (!open) return null;
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,31 +35,35 @@ export default function SignEncounterModal({ open, loading, onConfirm, onClose }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={handleClose}>
-      <div
-        className="relative mx-4 w-full max-w-md rounded-card border border-frame/10 bg-surface-elevated p-6 shadow-xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog
+      isOpen={open}
+      onClose={handleClose}
+      role="dialog"
+      title="Firma Electrónica Simple"
+      description="Confirme su identidad para firmar la atención"
+      initialFocusRef={passwordRef}
+      loading={loading}
+      disableBackdropClose={loading}
+      maxWidth="md"
+    >
+      <div className="p-6">
         <button
           type="button"
           onClick={handleClose}
           disabled={loading}
           className="absolute right-4 top-4 rounded-md p-1 text-ink-muted transition-colors hover:text-ink"
+          aria-label="Cerrar"
         >
-          <FiX className="h-5 w-5" />
+          <FiX className="h-5 w-5" aria-hidden="true" />
         </button>
 
         <div className="mb-6 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10">
-            <FiShield className="h-5 w-5 text-accent" />
+            <ShieldIcon className="h-5 w-5 text-accent" aria-hidden="true" />
           </div>
           <div>
-            <h2 id={titleId} className="text-lg font-semibold text-ink">Firma Electrónica Simple</h2>
-            <p id={descriptionId} className="text-sm text-ink-secondary">Confirme su identidad para firmar</p>
+            <h2 className="text-lg font-semibold text-ink">Firma Electrónica Simple</h2>
+            <p className="text-sm text-ink-secondary">Confirme su identidad para firmar</p>
           </div>
         </div>
 
@@ -76,8 +79,9 @@ export default function SignEncounterModal({ open, loading, onConfirm, onClose }
             Contraseña de su cuenta
           </label>
           <div className="relative">
-            <FiLock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" />
+            <LockIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
             <input
+              ref={passwordRef}
               id="sign-password"
               type="password"
               autoComplete="current-password"
@@ -89,7 +93,6 @@ export default function SignEncounterModal({ open, loading, onConfirm, onClose }
               disabled={loading}
               placeholder="Ingrese su contraseña"
               className={`form-input pl-10 ${error ? 'form-input-error' : ''}`}
-              autoFocus
             />
           </div>
           {error && (
@@ -112,12 +115,12 @@ export default function SignEncounterModal({ open, loading, onConfirm, onClose }
             >
               {loading ? (
                 <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden="true" />
                   Firmando…
                 </>
               ) : (
                 <>
-                  <FiShield className="h-4 w-4" />
+                  <ShieldIcon className="h-4 w-4" aria-hidden="true" />
                   Firmar Atención
                 </>
               )}
@@ -125,6 +128,6 @@ export default function SignEncounterModal({ open, loading, onConfirm, onClose }
           </div>
         </form>
       </div>
-    </div>
+    </Dialog>
   );
 }
