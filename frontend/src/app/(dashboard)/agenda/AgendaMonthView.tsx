@@ -46,8 +46,18 @@ export default function AgendaMonthView({
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-24 text-sm text-ink-muted">
-          Cargando agenda…
+        <div className="divide-y divide-surface-muted/20" aria-busy="true" aria-label="Cargando agenda">
+          {[...Array(5)].map((_, weekIdx) => (
+            <div key={weekIdx} className="grid grid-cols-7 divide-x divide-surface-muted/20">
+              {[...Array(7)].map((_, dayIdx) => (
+                <div key={dayIdx} className="min-h-[80px] p-2">
+                  <div className="h-4 w-6 skeleton rounded mb-2" />
+                  <div className="h-3 skeleton rounded mb-1" />
+                  <div className="h-3 skeleton rounded w-3/4" />
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
       ) : (
         <div className="divide-y divide-surface-muted/20">

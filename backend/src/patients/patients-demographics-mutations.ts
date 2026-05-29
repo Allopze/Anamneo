@@ -246,7 +246,7 @@ export async function updatePatientDemographicsMutation(params: UpdatePatientDem
       });
 
       if (duplicateRut) {
-        throw new ConflictException('Ya existe un paciente con este RUT');
+        throw new ConflictException({ code: 'DUPLICATE_RUT_CONFLICT', message: 'Ya existe un paciente registrado con este RUT.' });
       }
 
       identifierUpdates.rut = validatedRut;

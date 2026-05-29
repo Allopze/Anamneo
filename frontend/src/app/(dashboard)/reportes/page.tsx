@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FiActivity, FiCalendar, FiClipboard, FiUsers } from 'react-icons/fi';
+import { EmptyState } from '@/components/common/EmptyState';
 import { api } from '@/lib/api';
 import { todayLocalDateString } from '@/lib/date';
 
@@ -42,7 +43,7 @@ function MetricTile({
       <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-input bg-accent/10 text-accent">
         <Icon className="h-4 w-4" />
       </div>
-      <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">{label}</p>
+      <p className="text-xs font-medium text-ink-muted">{label}</p>
       <p className="mt-1 text-2xl font-bold text-ink-primary">{value}</p>
     </div>
   );
@@ -95,9 +96,11 @@ export default function ReportesPage() {
       ) : data ? (
         <>
           {data.summary.appointmentsTotal === 0 && data.summary.encountersTotal === 0 && (
-            <div className="rounded-card border border-surface-muted/30 bg-surface-elevated p-5 text-sm text-ink-secondary">
-              No se registró actividad clínica para este día. Si esto te parece incorrecto, verifica que las citas y atenciones estén asociadas a esta fecha.
-            </div>
+            <EmptyState
+              icon={<FiCalendar className="h-6 w-6" aria-hidden="true" />}
+              title="Sin actividad registrada"
+              description="No se registró actividad clínica para este día. Si esto te parece incorrecto, verifica que las citas y atenciones estén asociadas a esta fecha."
+            />
           )}
           <div className="grid gap-4 md:grid-cols-4">
             <MetricTile label="Citas programadas" value={data.summary.scheduledAppointments} icon={FiCalendar} />

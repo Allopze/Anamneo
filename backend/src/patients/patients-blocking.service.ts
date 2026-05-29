@@ -32,7 +32,7 @@ export class PatientsBlockingService {
     });
     if (!patient) throw new NotFoundException('Paciente no encontrado');
     if (patient.blockedAt) {
-      throw new BadRequestException('El paciente ya esta bloqueado');
+      throw new BadRequestException({ code: 'PATIENT_ALREADY_BLOCKED', message: 'El paciente ya está bloqueado.' });
     }
     const now = new Date();
     const updated = await this.prisma.patient.update({
@@ -68,7 +68,7 @@ export class PatientsBlockingService {
     });
     if (!patient) throw new NotFoundException('Paciente no encontrado');
     if (!patient.blockedAt) {
-      throw new BadRequestException('El paciente no esta bloqueado');
+      throw new BadRequestException({ code: 'PATIENT_NOT_BLOCKED', message: 'El paciente no está bloqueado.' });
     }
     const updated = await this.prisma.patient.update({
       where: { id: patientId },

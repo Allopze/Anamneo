@@ -149,10 +149,48 @@ export interface PaginatedResponse<T> {
   };
 }
 
+/**
+ * Frontend messages for known domain error codes.
+ * Takes precedence over the backend message string and HTTP-status fallbacks.
+ * Add an entry here whenever the backend adds a new `code` to a domain throw.
+ */
+const DOMAIN_CODE_MESSAGES: Record<string, string> = {
+  // Encounter creation conflicts
+  APPOINTMENT_ENCOUNTER_EXISTS:
+    'Esta cita ya tiene una atención registrada. Abre la atención existente para continuar.',
+  ENCOUNTER_MULTIPLE_IN_PROGRESS:
+    'Hay varias atenciones en progreso para este paciente. Selecciona cuál abrir.',
+  // Concurrent edit conflict
+  ENCOUNTER_SECTION_STALE:
+    'Esta sección fue modificada en otra sesión. Recarga la atención y revisa los cambios antes de guardar.',
+  // Patient blocking idempotency
+  PATIENT_ALREADY_BLOCKED:
+    'El paciente ya está bloqueado. No es necesario bloquearlo nuevamente.',
+  PATIENT_NOT_BLOCKED:
+    'El paciente no está bloqueado. Verifica el estado antes de desbloquear.',
+  // Patient RUT uniqueness
+  DUPLICATE_RUT_CONFLICT:
+    'Ya existe un paciente registrado con este RUT. Busca el paciente existente antes de crear uno nuevo.',
+  // Auth registration
+  USER_EMAIL_ALREADY_EXISTS:
+    'Ya existe una cuenta con este correo. Si olvidaste tu contraseña, usa la opción de recuperación.',
+  REGISTRATION_REQUIRES_INVITATION:
+    'El registro requiere una invitación válida. Solicita al administrador que te invite.',
+  // Consent redirect (handled by interceptor; message here as fallback)
+  PATIENT_CONSENT_REQUIRED:
+    'Se requiere registrar el consentimiento del paciente antes de continuar.',
+};
+
 // Extract error message from API response
 export function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as any;
+
+    // Domain error codes take precedence — precise, recoverable messages per situation.
+    if (data && typeof data.code === 'string') {
+      const codeMessage = DOMAIN_CODE_MESSAGES[data.code];
+      if (codeMessage) return codeMessage;
+    }
 
     // NestJS ValidationPipe can return: { message: string[], error: 'Bad Request', statusCode: 400 }
     if (data) {

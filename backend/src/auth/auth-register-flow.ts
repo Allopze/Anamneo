@@ -93,7 +93,7 @@ export async function registerWithInvitationFlow(
 
   const existingUser = await usersService.findByEmail(normalizedEmail);
   if (existingUser) {
-    throw new ConflictException('Ya existe un usuario con este email');
+    throw new ConflictException({ code: 'USER_EMAIL_ALREADY_EXISTS', message: 'Ya existe una cuenta con este correo electrónico.' });
   }
 
   const requestedRole: Role = registerDto.role || 'ASISTENTE';
@@ -107,7 +107,7 @@ export async function registerWithInvitationFlow(
 
   if (hasAdmin) {
     if (!invitationToken) {
-      throw new ForbiddenException('El registro público está deshabilitado. Debe usar una invitación válida');
+      throw new ForbiddenException({ code: 'REGISTRATION_REQUIRES_INVITATION', message: 'El registro requiere una invitación válida. Solicita al administrador que te invite.' });
     }
 
     invitation = await invitationService.findInvitationByToken(invitationToken);

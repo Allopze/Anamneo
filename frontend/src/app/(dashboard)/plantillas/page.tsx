@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import { notify } from '@/lib/notify';
 import { FiPlus, FiEdit2, FiTrash2, FiFileText } from 'react-icons/fi';
+import { EmptyState } from '@/components/common/EmptyState';
 
 interface Template {
   id: string;
@@ -218,17 +219,17 @@ export default function PlantillasPage() {
             ))}
           </div>
         ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <FiFileText className="w-10 h-10 text-accent-text" />
-            </div>
-            <h3 className="empty-state-title">Sin plantillas todavía</h3>
-            <p className="empty-state-description">Crea una plantilla o instala el pack base para acelerar tus atenciones.</p>
-            <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-              <FiPlus className="w-4 h-4 mr-2" />
-              Crear primera plantilla
-            </button>
-          </div>
+          <EmptyState
+            icon={<FiFileText className="h-6 w-6" aria-hidden="true" />}
+            title="Sin plantillas todavía"
+            description="Crea una plantilla o instala el pack base para acelerar tus atenciones."
+            action={
+              <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+                <FiPlus className="w-4 h-4 mr-2" aria-hidden="true" />
+                Crear primera plantilla
+              </button>
+            }
+          />
         )}
       </div>
     </div>

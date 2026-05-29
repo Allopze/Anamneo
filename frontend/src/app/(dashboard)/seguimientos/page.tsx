@@ -250,7 +250,7 @@ export default function SeguimientosPage() {
                 </Link>
 
                 <div className="flex flex-col gap-2 rounded-card border border-surface-muted/25 bg-surface-inset/40 p-3 md:w-72">
-                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-ink-muted">Reprogramación rápida</p>
+                  <p className="text-xs font-medium text-ink-muted">Reprogramación rápida</p>
                   <div className="flex gap-2">
                     <button
                       type="button"

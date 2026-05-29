@@ -563,16 +563,55 @@ grep -RIn "animate-spin rounded-full h-12\|animate-spin rounded-full.*border-4" 
 
 Resultado: typecheck limpio, suite completa pasando 72 suites/349 tests, build exitoso, diff check limpio y sin hallazgos de spinners grandes ni prompts en `frontend/src`.
 
-## Pendientes post-cuarta pasada
+## Registro de remediacion ejecutada — quinta pasada (2026-05-29)
 
-1. QA visual real (bloqueado — ver condicion arriba).
-8. Codigos de error de dominio (bloqueado — ver condicion arriba).
+### Items cerrados
 
-Pendientes opcionales de menor prioridad:
-- Migrar empty states ad hoc restantes en componentes secundarios (analitica, agenda, reportes).
-- Reemplazar `FiClipboard` en cabeceras de atencion y `FiFileText` en ficha por iconos propios si se decide ampliar el set de identidad.
-- QA de teclado manual en modales migrados para confirmar que el retorno de foco se siente correcto en cada caso.
-- Reducir all-caps adicional en componentes de analitica y agenda (baja prioridad).
+Empty states opcionales:
+- `plantillas/page.tsx` — CSS class `.empty-state` migrada a primitiva `EmptyState` con accion "Crear primera plantilla".
+- `analitica-clinica/casos/page.tsx` — seccion card sin datos migrada a `EmptyState` (icono FiFilter).
+- `reportes/page.tsx` — aviso de dia sin actividad migrado a `EmptyState` (icono FiCalendar).
+
+All-caps opcionales (analitica, reportes, seguimientos) — 8 instancias reducidas a sentence case:
+- `analitica-clinica/casos/page.tsx` — labels "Atenciones", "Pagina", "Foco actual".
+- `analitica-clinica/casos/AnalyticsCasesTable.tsx` — labels "Lectura rapida" y `{label}` dinamico en `CaseList`.
+- `analitica-clinica/page.tsx` — label `{title}` en `MetricCard`.
+- `reportes/page.tsx` — label `{label}` en `MetricTile`.
+- `seguimientos/page.tsx` — label "Reprogramacion rapida".
+- Conservados en uppercase (convencion estandar): weekday headers de calendario (`agenda/page.tsx`, `AgendaMonthView.tsx`) y rank badge en `AnalyticsRankedTable.tsx`.
+
+Loading text a skeletons en agenda:
+- `agenda/AgendaMonthView.tsx` — "Cargando agenda..." reemplazado por skeleton de grid mensual (5 filas x 7 columnas).
+- `agenda/page.tsx` — "Cargando agenda..." en time-grid semanal reemplazado por skeleton de columnas de dia con slots de hora.
+
+### Validacion ejecutada
+
+```bash
+npm --prefix frontend run typecheck
+npm --prefix frontend run test -- --runInBand
+npm --prefix frontend run build
+git diff --check
+```
+
+Resultado: typecheck limpio, 72 suites / 349 tests, build exitoso, diff-check limpio.
+
+## Pendientes finales (2026-05-29)
+
+**Bloqueados — sin codigo posible hasta desbloquear:**
+
+1. **QA visual real**: bloqueado por `libnspr4.so`. Desbloquear con `sudo npx --prefix frontend playwright install-deps chromium webkit` en una maquina con sudo o en CI. Pantallas a capturar: login, register, dashboard, atencion, paciente, portal, derechos, descarga de ficha, admin/solicitudes — desktop/mobile/webkit.
+
+8. **Codigos de error de dominio**: bloqueado hasta que el backend exponga campo `code` estable en el body de error. Con catalogo de codigos, mapear en `frontend/src/lib/api.ts` (`getErrorMessage`) segun tabla de microcopy de este documento.
+
+**Opcionales de segunda iteracion (requieren decision de diseno antes de codificar):**
+
+- Ampliar set de iconos de identidad: reemplazar `FiClipboard` en cabeceras de atencion y `FiFileText` en ficha clinica por iconos propios. Requiere crear 2 nuevos SVG y decidir el nivel de identidad deseado.
+- Decidir si `FiAlertTriangle` en alertas clinicas criticas tiene variante propia con gradiente visual de severidad. Requiere decision de diseno.
+
+**Manual (no codeable):**
+
+- QA de teclado en modales migrados: verificar foco inicial, Tab/Shift-Tab, Escape y retorno de foco en cada modal migrado a la nueva primitiva Dialog. Especialmente: admin/solicitudes (modal selected + pendingDecision), admin/usuarios (password reset), SignEncounterModal.
+- Empty states compactos en tablas (`AnalyticsRankedTable`, `AnalyticsOutcomeTable`) — `<p>` inline con `emptyMessage` prop, aceptables en contexto de tabla.
 
 ## Validacion recomendada
 

@@ -69,7 +69,7 @@ export function AnalyticsCasesTable({ rows }: AnalyticsCasesTableProps) {
               <CaseList label="Medicamentos" values={row.medications} />
               <CaseList label="Síntomas" values={row.symptoms} />
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Lectura rápida</p>
+                <p className="text-xs font-semibold text-ink-muted">Lectura rápida</p>
                 <p className="mt-2 text-sm text-ink-secondary">Relación con comida: {row.foodRelation}</p>
                 <p className="mt-1 text-sm text-ink-secondary">
                   Ajuste terapéutico: {row.hasTreatmentAdjustment ? 'Sí' : 'No'}
@@ -110,7 +110,7 @@ export function AnalyticsCasesTable({ rows }: AnalyticsCasesTableProps) {
 function CaseList({ label, values }: { label: string; values: string[] }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{label}</p>
+      <p className="text-xs font-semibold text-ink-muted">{label}</p>
       {values.length > 0 ? (
         <div className="mt-2 flex flex-wrap gap-2">
           {values.map((value) => (

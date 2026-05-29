@@ -9,8 +9,28 @@ const e2eWorkspace = path.join(backendRoot, '.playwright-e2e', e2eRunId);
 fs.mkdirSync(e2eWorkspace, { recursive: true });
 
 const testDbName = `anamneo_playwright_${e2eRunId.replace(/[^a-zA-Z0-9_]/g, '_')}`;
-const testDbUrl = process.env.PLAYWRIGHT_DATABASE_URL
-  || `postgresql://anamneo_owner:anamneo_owner@localhost:5432/${testDbName}?schema=public`;
+
+// Read DB credentials from backend/.env so we don't hardcode them here.
+// Override entirely with PLAYWRIGHT_DATABASE_URL if needed.
+function resolveTestDbUrl(): string {
+  if (process.env.PLAYWRIGHT_DATABASE_URL) return process.env.PLAYWRIGHT_DATABASE_URL;
+  let dbUser = process.env.PLAYWRIGHT_DB_USER || 'postgres';
+  let dbPassword = process.env.PLAYWRIGHT_DB_PASSWORD || 'postgres';
+  const backendEnvPath = path.resolve(__dirname, '../backend/.env');
+  if (fs.existsSync(backendEnvPath)) {
+    const content = fs.readFileSync(backendEnvPath, 'utf-8');
+    const m = content.match(/^DATABASE_URL\s*=\s*["']?(postgresql:\/\/[^?\s"'\r\n]+)/m);
+    if (m) {
+      try {
+        const u = new URL(m[1]);
+        if (u.username) dbUser = decodeURIComponent(u.username);
+        if (u.password) dbPassword = decodeURIComponent(u.password);
+      } catch { /* keep defaults */ }
+    }
+  }
+  return `postgresql://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword)}@localhost:5432/${testDbName}?schema=public`;
+}
+const testDbUrl = resolveTestDbUrl();
 const testUploadDir = path.join(e2eWorkspace, 'uploads');
 const host = process.env.PLAYWRIGHT_HOST || '127.0.0.1';
 const frontendPort = process.env.PLAYWRIGHT_FRONTEND_PORT || '5556';

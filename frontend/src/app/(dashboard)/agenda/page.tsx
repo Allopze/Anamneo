@@ -251,8 +251,19 @@ export default function AgendaPage() {
 
           {/* Time grid */}
           {isLoading ? (
-            <div className="flex items-center justify-center py-24 text-sm text-ink-muted">
-              Cargando agenda…
+            <div className="grid grid-cols-[56px_repeat(7,1fr)]" aria-busy="true" aria-label="Cargando agenda">
+              <div className="border-r border-surface-muted/20 space-y-4 py-4 px-2">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="h-3 skeleton rounded w-8" />
+                ))}
+              </div>
+              {[...Array(7)].map((_, dayIdx) => (
+                <div key={dayIdx} className="border-l border-surface-muted/20 space-y-3 p-2">
+                  {[...Array(4)].map((_, slotIdx) => (
+                    <div key={slotIdx} className={`h-10 skeleton rounded-card ${slotIdx % 3 === 1 ? 'opacity-60' : ''}`} />
+                  ))}
+                </div>
+              ))}
             </div>
           ) : (
             <div className="grid grid-cols-[56px_repeat(7,1fr)]" style={{ height: `${totalGridHeight}px` }}>

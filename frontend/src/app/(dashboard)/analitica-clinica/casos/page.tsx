@@ -5,7 +5,8 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { notify } from '@/lib/notify';
-import { FiArrowLeft, FiDownload, FiFileText, FiUsers } from 'react-icons/fi';
+import { FiArrowLeft, FiDownload, FiFileText, FiFilter, FiUsers } from 'react-icons/fi';
+import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 import { api, getErrorMessage } from '@/lib/api';
@@ -180,7 +181,7 @@ export default function ClinicalAnalyticsCasesPage() {
                 <FiFileText className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">Atenciones</p>
+                <p className="text-sm font-bold text-ink-muted">Atenciones</p>
                 <p className="mt-2 text-3xl font-extrabold tracking-tight text-ink">{data.pagination.total}</p>
                 <p className="mt-2 text-sm text-ink-secondary">Casos clínicos coincidentes con filtros y foco actual.</p>
               </div>
@@ -191,7 +192,7 @@ export default function ClinicalAnalyticsCasesPage() {
                 <FiUsers className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">Página</p>
+                <p className="text-sm font-bold text-ink-muted">Página</p>
                 <p className="mt-2 text-3xl font-extrabold tracking-tight text-ink">{data.pagination.page}</p>
                 <p className="mt-2 text-sm text-ink-secondary">{data.pagination.pageSize} filas por página.</p>
               </div>
@@ -202,7 +203,7 @@ export default function ClinicalAnalyticsCasesPage() {
                 <FiFileText className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">Foco actual</p>
+                <p className="text-sm font-bold text-ink-muted">Foco actual</p>
                 <p className="mt-2 text-lg font-extrabold tracking-tight text-ink">{data.focus.value || data.filters.condition || 'Cohorte filtrada'}</p>
                 <p className="mt-2 text-sm text-ink-secondary">Fuente: {data.filters.source === 'ANY' ? 'mixta' : data.filters.source.toLowerCase().replace(/_/g, ' ')}</p>
               </div>
@@ -235,12 +236,11 @@ export default function ClinicalAnalyticsCasesPage() {
               </div>
             </>
           ) : (
-            <section className="card">
-              <h2 className="text-lg font-bold text-ink">Sin casos</h2>
-              <p className="mt-2 text-sm text-ink-secondary">
-                No hay atenciones que coincidan con este foco dentro de la ventana seleccionada.
-              </p>
-            </section>
+            <EmptyState
+              icon={<FiFilter className="h-6 w-6" aria-hidden="true" />}
+              title="Sin casos para este foco"
+              description="No hay atenciones que coincidan con este foco dentro de la ventana seleccionada."
+            />
           )}
         </>
       ) : null}

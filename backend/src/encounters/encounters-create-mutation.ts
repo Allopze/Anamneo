@@ -156,7 +156,7 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               throw new NotFoundException('Cita no encontrada para este paciente');
             }
             if (appointment.encounter) {
-              throw new ConflictException('Esta cita ya tiene una atención asociada');
+              throw new ConflictException({ code: 'APPOINTMENT_ENCOUNTER_EXISTS', message: 'Esta cita ya tiene una atención asociada.' });
             }
           }
 
@@ -213,6 +213,7 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
 
           if (inProgress.length > 1) {
             throw new ConflictException({
+              code: 'ENCOUNTER_MULTIPLE_IN_PROGRESS',
               message: 'Hay múltiples atenciones en progreso para este paciente. Selecciona cuál abrir.',
               inProgressEncounters: inProgress.map((enc) => ({
                 id: enc.id,

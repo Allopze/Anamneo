@@ -270,9 +270,10 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
     }
 
     if (section.updatedAt.getTime() !== baseUpdatedAt.getTime()) {
-      throw new ConflictException(
-        'Esta sección cambió en otra sesión. Recargue la atención y revise antes de sobrescribir.',
-      );
+      throw new ConflictException({
+        code: 'ENCOUNTER_SECTION_STALE',
+        message: 'Esta sección cambió en otra sesión. Recargue la atención y revise antes de sobrescribir.',
+      });
     }
   }
 

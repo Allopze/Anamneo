@@ -26,6 +26,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let message: string | string[] = 'Error interno del servidor';
     let error = 'Internal Server Error';
 
+    let code: string | undefined;
+
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
@@ -36,6 +38,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         const resp = exceptionResponse as Record<string, any>;
         message = resp.message || message;
         error = resp.error || error;
+        if (typeof resp.code === 'string') code = resp.code;
       }
     } else {
       // Non-HTTP exceptions: log full details server-side
@@ -68,6 +71,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       message,
       error,
+      ...(code ? { code } : {}),
       timestamp: new Date().toISOString(),
       path: sanitizeRequestPath(request.originalUrl),
     });

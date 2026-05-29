@@ -394,7 +394,7 @@ function MetricCard({ title, value, detail, icon }: { title: string; value: stri
     <div className="metric-card flex items-start gap-3">
       <div className="rounded-full bg-surface-inset p-3 text-ink-secondary">{icon}</div>
       <div>
-        <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">{title}</p>
+        <p className="text-sm font-bold text-ink-muted">{title}</p>
         <p className="mt-2 text-3xl font-extrabold tracking-tight text-ink">{value}</p>
         <p className="mt-2 text-sm text-ink-secondary">{detail}</p>
       </div>
