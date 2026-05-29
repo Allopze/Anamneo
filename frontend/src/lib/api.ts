@@ -177,14 +177,20 @@ export function getErrorMessage(error: unknown): string {
 
     // Human-friendly fallbacks by status
     const status = error.response?.status;
-    if (status === 403) return 'No tiene permisos para realizar esta acción';
-    if (status === 404) return 'Recurso no encontrado';
-    if (status === 429) return 'Demasiados intentos. Por favor espere un momento antes de reintentar.';
+    if (!error.response) return 'No se pudo conectar. Revisa tu conexión e intenta nuevamente.';
+    if (status === 400) return 'Revisa los datos ingresados e intenta nuevamente.';
+    if (status === 401) return 'Tu sesión no está activa. Inicia sesión para continuar.';
+    if (status === 403) return 'No tienes permisos para realizar esta acción.';
+    if (status === 404) return 'No encontramos el recurso solicitado. Actualiza la vista e intenta nuevamente.';
+    if (status === 409) return 'Hay cambios en conflicto. Actualiza la información antes de continuar.';
+    if (status === 422) return 'Hay datos que necesitan revisión antes de continuar.';
+    if (status === 429) return 'Hay demasiados intentos. Espera un momento antes de reintentar.';
+    if (status && status >= 500) return 'El servidor no pudo completar la acción. Intenta nuevamente en unos minutos.';
 
-    return error.message || 'Error desconocido';
+    return error.message || 'No se pudo completar la acción. Intenta nuevamente.';
   }
   if (error instanceof Error) {
     return error.message;
   }
-  return 'Error desconocido';
+  return 'No se pudo completar la acción. Intenta nuevamente.';
 }

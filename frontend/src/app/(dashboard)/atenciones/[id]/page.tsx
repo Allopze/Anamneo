@@ -26,6 +26,26 @@ import EncounterClinicalSummaryCard from './EncounterClinicalSummaryCard';
 import { EncounterClosureWorkspace, EncounterWorkspacePanel } from './EncounterWorkspaceTools';
 import EncounterWorkspaceStatusBanner from './EncounterWorkspaceStatusBanner';
 
+function EncounterWorkspaceSkeleton() {
+  return (
+    <div className="min-h-screen bg-surface-base p-4" aria-busy="true" aria-label="Cargando atención">
+      <div className="mb-4 h-16 rounded-card bg-surface-elevated shadow-soft" />
+      <div className="mb-5 h-28 rounded-card bg-surface-elevated shadow-soft" />
+      <div className="grid gap-5 xl:grid-cols-[264px_minmax(0,1fr)]">
+        <div className="hidden space-y-3 rounded-card border border-surface-muted/35 bg-surface-elevated p-4 xl:block">
+          {[...Array(7)].map((_, index) => (
+            <div key={index} className="h-10 w-full skeleton" />
+          ))}
+        </div>
+        <div className="space-y-4">
+          <div className="h-20 rounded-card bg-surface-elevated shadow-soft" />
+          <div className="h-[28rem] rounded-card bg-surface-elevated shadow-soft" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function EncounterWizardPage() {
   const wiz = useEncounterWizard();
 
@@ -66,11 +86,7 @@ export default function EncounterWizardPage() {
   }
 
   if (wiz.isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-accent border-t-transparent" />
-      </div>
-    );
+    return <EncounterWorkspaceSkeleton />;
   }
 
   if (wiz.error || !wiz.encounter) {

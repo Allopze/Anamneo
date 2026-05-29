@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { notify } from '@/lib/notify';
 import { FiEdit2, FiPackage, FiPlus, FiSearch, FiUpload } from 'react-icons/fi';
+import { EmptyState } from '@/components/common/EmptyState';
 import { api, getErrorMessage } from '@/lib/api';
 import { formatMedicationCatalogDefaults } from '@/lib/medication-catalog';
 import { canImportMedicationsCsv } from '@/lib/permissions';
@@ -107,7 +108,7 @@ export default function MedicationsCatalogSection() {
 
                 return (
                   <div key={medication.id} className="group list-row cursor-pointer">
-                    <div className="list-row-icon bg-sky-100 text-sky-700">
+                    <div className="list-row-icon border border-surface-muted/50 bg-surface-inset text-ink-secondary">
                       <FiPackage className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -149,15 +150,15 @@ export default function MedicationsCatalogSection() {
             ))}
           </div>
         ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <FiPackage className="h-10 w-10 text-accent" />
-            </div>
-            <h3 className="empty-state-title">Sin medicamentos cargados</h3>
-            <p className="empty-state-description">
-              No hay medicamentos disponibles para esta búsqueda.
-            </p>
-          </div>
+          <EmptyState
+            icon={<FiPackage className="h-6 w-6" aria-hidden="true" />}
+            title={search ? 'Sin medicamentos para esta búsqueda' : 'Sin medicamentos cargados'}
+            description={
+              search
+                ? 'Ajusta el nombre o principio activo para recuperar resultados del catálogo.'
+                : 'Cuando el catálogo tenga medicamentos, aparecerán aquí con su principio activo y sugerencias habituales.'
+            }
+          />
         )}
       </div>
     </div>

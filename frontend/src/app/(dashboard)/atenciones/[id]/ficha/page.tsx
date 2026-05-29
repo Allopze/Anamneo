@@ -17,6 +17,25 @@ import {
   FichaSignaturePanel,
 } from './FichaContentBlocks';
 
+function FichaClinicaSkeleton() {
+  return (
+    <div className="min-h-screen bg-surface-base p-4" aria-busy="true" aria-label="Cargando ficha clínica">
+      <div className="mb-5 h-16 rounded-card bg-surface-elevated shadow-soft" />
+      <div className="mx-auto max-w-5xl space-y-4">
+        <div className="h-24 rounded-card bg-surface-elevated shadow-soft" />
+        <div className="rounded-card border border-surface-muted/35 bg-surface-elevated p-5">
+          <div className="mb-4 h-7 w-56 skeleton" />
+          <div className="space-y-3">
+            {[...Array(6)].map((_, index) => (
+              <div key={index} className="h-12 w-full skeleton" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FichaClinicaPage() {
   const {
     id,
@@ -74,11 +93,7 @@ export default function FichaClinicaPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-accent border-t-transparent" />
-      </div>
-    );
+    return <FichaClinicaSkeleton />;
   }
 
   if (!encounter) {

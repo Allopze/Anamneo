@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { FiDownload, FiShield } from 'react-icons/fi';
+import { AlertBanner } from '@/components/common/AlertBanner';
 import { api, getErrorMessage } from '@/lib/api';
 
 export default function DescargarFichaPage() {
@@ -39,48 +40,48 @@ export default function DescargarFichaPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10">
-      <section className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+    <main className="min-h-screen bg-surface-base px-4 py-10 text-ink">
+      <section className="mx-auto max-w-xl rounded-card border border-surface-muted/70 bg-surface-elevated p-6 shadow-card sm:p-8">
         <div className="mb-6 flex items-start gap-3">
-          <div className="rounded-full bg-teal-50 p-3 text-teal-700">
+          <div className="rounded-full border border-surface-muted/60 bg-surface-inset p-3 text-auth-teal">
             <FiShield className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Descarga segura de ficha clínica</h1>
-            <p className="mt-2 text-sm text-slate-600">
+            <h1 className="text-2xl font-semibold text-ink">Descarga segura de ficha clínica</h1>
+            <p className="mt-2 text-sm leading-6 text-ink-secondary">
               Ingresa el RUT asociado a la solicitud. El enlace es temporal, tiene un máximo de descargas y queda auditado.
             </p>
           </div>
         </div>
 
         {!token ? (
-          <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-            El enlace no incluye token de descarga.
-          </div>
+          <AlertBanner
+            variant="error"
+            title="Enlace incompleto"
+            message="El enlace no incluye token de descarga. Solicita un nuevo enlace al equipo clínico."
+          />
         ) : (
           <form onSubmit={handleDownload} className="space-y-4">
-            <label className="block text-sm font-medium text-slate-700">
+            <label className="form-label">
               RUT
               <input
                 value={rut}
                 onChange={(event) => setRut(event.target.value)}
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                className="form-input mt-1"
                 placeholder="12.345.678-9"
                 autoComplete="off"
               />
             </label>
             {error && (
-              <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                {error}
-              </div>
+              <AlertBanner variant="error" message={error} />
             )}
             <button
               type="submit"
               disabled={loading || rut.trim().length < 3}
-              className="flex w-full items-center justify-center gap-2 rounded-md bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-50"
+              className="btn btn-primary w-full"
             >
               <FiDownload className="h-4 w-4" />
-              {loading ? 'Preparando descarga...' : 'Descargar ZIP'}
+              {loading ? 'Preparando descarga...' : 'Descargar archivo ZIP'}
             </button>
           </form>
         )}

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { notify } from '@/lib/notify';
 import { FiEdit2, FiPlus, FiSearch, FiTag, FiUpload } from 'react-icons/fi';
+import { EmptyState } from '@/components/common/EmptyState';
 import { api, getErrorMessage } from '@/lib/api';
 import { canImportConditionsCsv } from '@/lib/permissions';
 import { useAuthIsAdmin, useAuthUser } from '@/stores/auth-store';
@@ -286,15 +287,15 @@ export default function ConditionsCatalogSection() {
             ))}
           </div>
         ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <FiTag className="h-10 w-10 text-accent" />
-            </div>
-            <h3 className="empty-state-title">Sin afecciones cargadas</h3>
-            <p className="empty-state-description">
-              No hay afecciones disponibles en el catálogo para esta búsqueda.
-            </p>
-          </div>
+          <EmptyState
+            icon={<FiTag className="h-6 w-6" aria-hidden="true" />}
+            title={search ? 'Sin afecciones para esta búsqueda' : 'Sin afecciones cargadas'}
+            description={
+              search
+                ? 'Ajusta el término de búsqueda o limpia el campo para revisar el catálogo completo.'
+                : 'Cuando el catálogo tenga afecciones globales o locales, aparecerán aquí para apoyar el registro clínico.'
+            }
+          />
         )}
       </div>
     </div>

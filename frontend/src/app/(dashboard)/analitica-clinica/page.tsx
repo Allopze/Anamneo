@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { notify } from '@/lib/notify';
 import { FiAlertTriangle, FiBarChart2, FiFileText, FiFilter, FiRefreshCw, FiUsers } from 'react-icons/fi';
+import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 import { api, getErrorMessage } from '@/lib/api';
@@ -322,14 +323,11 @@ export default function AnaliticaClinicaPage() {
       ) : data ? (
         <>
           {data.summary.matchedPatients === 0 && (
-            <div className="rounded-card border border-surface-muted/30 bg-surface-elevated p-6 text-center">
-              <FiBarChart2 className="mx-auto mb-3 h-10 w-10 text-ink-muted/40" />
-              <p className="font-semibold text-ink">Sin atenciones para esta búsqueda</p>
-              <p className="mt-1 text-sm text-ink-secondary">
-                No hay atenciones completadas que coincidan con los filtros aplicados.
-                Intenta ampliar el rango de fechas o buscar por un término más general.
-              </p>
-            </div>
+            <EmptyState
+              icon={<FiBarChart2 className="h-6 w-6" aria-hidden="true" />}
+              title="Sin atenciones para esta búsqueda"
+              description="No hay atenciones completadas que coincidan con los filtros aplicados. Amplía el rango de fechas o usa un término más general."
+            />
           )}
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <MetricCard title="Pacientes" value={String(data.summary.matchedPatients)} icon={<FiUsers className="h-5 w-5" />} detail={`Edad promedio: ${data.summary.demographics.averageAge !== null ? Math.round(data.summary.demographics.averageAge) : '—'} años`} />

@@ -19,6 +19,8 @@ import {
   FiUser,
 } from 'react-icons/fi';
 import { api } from '@/lib/api';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { DASHBOARD_STATS_QUERY_KEY, fetchDashboardStats } from '@/lib/dashboard-stats';
 import { Encounter, REVIEW_STATUS_LABELS, STATUS_LABELS } from '@/types';
 import { useAuthStore } from '@/stores/auth-store';
@@ -313,8 +315,11 @@ function AtencionesListContent() {
       </div>
 
       {error ? (
-        <div className="card mb-6 rounded-card border border-status-red/30 bg-status-red/10 p-4 text-body text-status-red-text">
-          Error al cargar atenciones. Intenta recargar la página.
+        <div className="mb-6">
+          <ErrorAlert
+            title="No se pudieron cargar las atenciones"
+            message="Revisa tu conexión o intenta recargar la página."
+          />
         </div>
       ) : null}
 
@@ -416,30 +421,30 @@ function AtencionesListContent() {
             ) : null}
           </>
         ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <FiFileText className="h-10 w-10 text-accent-text" aria-hidden="true" />
-            </div>
-            <h3 className="empty-state-title">
-              {hasActiveCriteria ? 'No encontramos atenciones para este criterio' : 'No hay atenciones registradas'}
-            </h3>
-            <p className="empty-state-description">
-              {hasActiveCriteria
+          <EmptyState
+            icon={<FiFileText className="h-6 w-6" aria-hidden="true" />}
+            title={hasActiveCriteria ? 'Sin atenciones para este criterio' : 'Sin atenciones registradas'}
+            description={
+              hasActiveCriteria
                 ? 'Prueba limpiando filtros o ajustando la búsqueda para recuperar resultados.'
-                : 'Cuando registres la primera atención, aparecerá aquí junto con su estado clínico y progreso por secciones.'}
-            </p>
-            {hasAdvancedFilters ? (
-              <button type="button" onClick={clearFilters} className="btn btn-secondary mb-3">
-                Limpiar filtros
-              </button>
-            ) : null}
-            {showEmptyCreateEncounterCta ? (
-              <Link href="/atenciones/nueva" className="empty-state-cta">
-                <FiPlus className="mr-2 h-5 w-5" aria-hidden="true" />
-                Registrar primera atención
-              </Link>
-            ) : null}
-          </div>
+                : 'Cuando registres la primera atención, aparecerá aquí junto con su estado clínico y progreso por secciones.'
+            }
+            action={(hasAdvancedFilters || showEmptyCreateEncounterCta) ? (
+              <div className="flex flex-wrap justify-center gap-2">
+                {hasAdvancedFilters ? (
+                  <button type="button" onClick={clearFilters} className="btn btn-secondary">
+                    Limpiar filtros
+                  </button>
+                ) : null}
+                {showEmptyCreateEncounterCta ? (
+                  <Link href="/atenciones/nueva" className="empty-state-cta">
+                    <FiPlus className="mr-2 h-5 w-5" aria-hidden="true" />
+                    Registrar primera atención
+                  </Link>
+                ) : null}
+              </div>
+            ) : undefined}
+          />
         )}
       </div>
     </div>

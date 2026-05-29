@@ -8,6 +8,26 @@ import { useAuthHasHydrated, useAuthLogout, useAuthUser } from '@/stores/auth-st
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { notify } from '@/lib/notify';
 
+function PasswordPageSkeleton() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-surface-base p-4" aria-busy="true" aria-label="Preparando cambio de contraseña">
+      <div className="card w-full max-w-md space-y-5">
+        <div className="space-y-2">
+          <div className="h-7 w-64 skeleton" />
+          <div className="h-4 w-full skeleton" />
+          <div className="h-4 w-3/4 skeleton" />
+        </div>
+        <div className="space-y-4">
+          <div className="h-11 w-full skeleton" />
+          <div className="h-11 w-full skeleton" />
+          <div className="h-11 w-full skeleton" />
+        </div>
+        <div className="h-11 w-full skeleton" />
+      </div>
+    </div>
+  );
+}
+
 function CambiarContrasenaContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -59,11 +79,7 @@ function CambiarContrasenaContent() {
   }, [hasHydrated, router, user?.mustChangePassword, isResetMode]);
 
   if (!isResetMode && !hasHydrated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface p-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-frame border-t-transparent" />
-      </div>
-    );
+    return <PasswordPageSkeleton />;
   }
 
   if (!isResetMode && !user?.mustChangePassword) {
@@ -130,16 +146,12 @@ function CambiarContrasenaContent() {
   };
 
   if (isResetMode && tokenState === 'checking') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface p-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-frame border-t-transparent" />
-      </div>
-    );
+    return <PasswordPageSkeleton />;
   }
 
   if (isResetMode && tokenState === 'invalid') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface p-4">
+      <div className="min-h-screen flex items-center justify-center bg-surface-base p-4">
         <div className="card max-w-md w-full space-y-4">
           <h1 className="text-2xl font-bold text-ink-primary">Enlace no válido</h1>
           <p className="text-ink-secondary">
@@ -156,7 +168,7 @@ function CambiarContrasenaContent() {
 
   if (isResetMode) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface p-4">
+      <div className="min-h-screen flex items-center justify-center bg-surface-base p-4">
         <div className="card max-w-md w-full space-y-6">
           <div>
             <h1 className="text-2xl font-bold text-ink-primary">Restablecer contraseña</h1>
@@ -230,7 +242,7 @@ function CambiarContrasenaContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface p-4">
+    <div className="min-h-screen flex items-center justify-center bg-surface-base p-4">
       <div className="card max-w-md w-full space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-ink-primary">Cambio de contraseña obligatorio</h1>
@@ -288,7 +300,7 @@ function CambiarContrasenaContent() {
 
 export default function CambiarContrasenaPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PasswordPageSkeleton />}>
       <CambiarContrasenaContent />
     </Suspense>
   );

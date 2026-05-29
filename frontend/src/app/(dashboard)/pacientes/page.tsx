@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { api, getErrorMessage } from '@/lib/api';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { notify } from '@/lib/notify';
 import { Patient, PATIENT_COMPLETENESS_STATUS_LABELS, PatientCompletenessStatus } from '@/types';
 import {
@@ -303,8 +305,8 @@ function PacientesContent() {
       />
 
       {error && (
-        <div className="card mb-6 p-4 bg-status-red/10 text-status-red-text text-body rounded-card">
-          Error al cargar pacientes. Intente recargar la página.
+        <div className="mb-6">
+          <ErrorAlert message={getErrorMessage(error)} title="No se pudieron cargar los pacientes" />
         </div>
       )}
 
@@ -424,25 +426,23 @@ function PacientesContent() {
             )}
           </>
         ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <FiUser className="w-10 h-10 text-ink-muted" />
-            </div>
-            <h3 className="empty-state-title">No hay pacientes</h3>
-            <p className="empty-state-description">
-              {search
-                ? 'No se encontraron pacientes que coincidan con tu búsqueda.'
+          <EmptyState
+            icon={<FiUser className="h-6 w-6" aria-hidden="true" />}
+            title={search || filters.archived === 'ARCHIVED' ? 'Sin pacientes para este criterio' : 'Sin pacientes registrados'}
+            description={
+              search
+                ? 'No encontramos pacientes que coincidan con tu búsqueda. Ajusta el texto o limpia los filtros para ampliar la lista.'
                 : filters.archived === 'ARCHIVED'
                   ? 'No hay pacientes archivados dentro de tu alcance visible.'
-                  : 'Aún no has registrado ningún paciente. Comienza agregando uno para gestionar su historial médico.'}
-            </p>
-            {showEmptyCreatePatientCta && (
+                  : 'Cuando registres el primer paciente, aparecerá aquí con su estado de ficha y continuidad clínica.'
+            }
+            action={showEmptyCreatePatientCta ? (
               <Link href="/pacientes/nuevo" className="empty-state-cta">
                 <FiPlus className="w-5 h-5 mr-2" />
                 Registrar primer paciente
               </Link>
-            )}
-          </div>
+            ) : undefined}
+          />
         )}
       </div>
     </div>

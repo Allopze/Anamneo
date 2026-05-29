@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useQueries } from '@tanstack/react-query';
 import { FiDownload, FiFileText } from 'react-icons/fi';
+import { AlertBanner } from '@/components/common/AlertBanner';
+import { EmptyState } from '@/components/common/EmptyState';
 import { portalApi, getErrorMessage } from '@/lib/portal-api';
 
 type PortalPatient = {
@@ -53,10 +55,23 @@ export default function PortalHomePage() {
     <main className="portal-page">
       <div className="portal-container">
         {isLoading && (
-          <div className="flex min-h-[40vh] items-center justify-center" aria-busy="true" aria-label="Cargando tu información">
-            <div className="flex flex-col items-center gap-3">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-surface-muted border-t-frame" />
-              <p className="portal-muted">Cargando tu información…</p>
+          <div className="space-y-6" aria-busy="true" aria-label="Cargando tu información">
+            <div className="portal-card space-y-4">
+              <div className="h-7 w-44 skeleton" />
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {[...Array(4)].map((_, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="h-3 w-16 skeleton" />
+                    <div className="h-5 w-24 skeleton" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="portal-card space-y-3">
+              <div className="h-6 w-52 skeleton" />
+              {[...Array(3)].map((_, index) => (
+                <div key={index} className="h-14 rounded-lg bg-surface-inset/70" />
+              ))}
             </div>
           </div>
         )}
@@ -80,7 +95,7 @@ export default function PortalHomePage() {
           </div>
         </header>
 
-        {error && <div className="portal-alert-error">{getErrorMessage(error)}</div>}
+        {error && <AlertBanner variant="error" message={getErrorMessage(error)} />}
 
         {patient && (
           <section className="portal-card">
@@ -111,7 +126,14 @@ export default function PortalHomePage() {
                 <FiDownload className="h-4 w-4 text-ink-muted" />
               </Link>
             ))}
-            {encounters.length === 0 && <p className="py-6 text-center text-sm text-ink-muted">No hay atenciones finalizadas disponibles.</p>}
+            {encounters.length === 0 && (
+              <EmptyState
+                className="my-4"
+                icon={<FiFileText className="h-6 w-6" aria-hidden="true" />}
+                title="Sin atenciones finalizadas"
+                description="Cuando el equipo clínico cierre una atención, podrás revisarla y descargarla desde aquí."
+              />
+            )}
           </div>
         </section>
         </>

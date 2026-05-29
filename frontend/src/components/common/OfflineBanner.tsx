@@ -84,9 +84,9 @@ export default function OfflineBanner() {
       <div
         role="status"
         aria-live="polite"
-        className="fixed inset-x-0 top-0 z-[100] flex items-center justify-center gap-2 bg-accent py-2 text-center text-sm font-medium text-white shadow-md"
+        className="fixed inset-x-0 top-0 z-[100] flex items-center justify-center gap-2 bg-accent py-2 text-center text-sm font-medium text-accent-text shadow-soft"
       >
-        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden="true" />
+        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent-text/35 border-t-accent-text" aria-hidden="true" />
         {pendingCount > 0
           ? `Sincronizando ${pendingCount} ${pendingCount === 1 ? 'cambio pendiente' : 'cambios pendientes'}…`
           : 'Sincronizando cambios pendientes…'}

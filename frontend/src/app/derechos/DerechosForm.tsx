@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { AlertBanner } from '@/components/common/AlertBanner';
 import { api, getErrorMessage } from '@/lib/api';
 
 const REQUEST_TYPES = [
@@ -69,66 +70,70 @@ export function DerechosForm() {
 
   if (submitted) {
     return (
-      <div className="rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm text-teal-900">
-        <p className="font-semibold">Solicitud recibida</p>
-        <p className="mt-2">
-          Tu número de seguimiento es <code className="rounded bg-white px-1">{submitted.id}</code>.
-        </p>
-        <p className="mt-1">
-          Plazo legal máximo de respuesta:{' '}
-          <strong>{new Date(submitted.dueDate).toLocaleDateString('es-CL')}</strong>.
-        </p>
-        <p className="mt-2 text-xs text-teal-800">
-          Recibirás un correo de acuse de recibo. Verificaremos tu identidad y
-          responderemos dentro del plazo.
-        </p>
-      </div>
+      <AlertBanner
+        variant="success"
+        title="Solicitud recibida"
+        message={(
+          <>
+            <p>
+              Tu número de seguimiento es <code className="rounded bg-surface-elevated px-1">{submitted.id}</code>.
+            </p>
+            <p className="mt-1">
+              Plazo legal máximo de respuesta:{' '}
+              <strong>{new Date(submitted.dueDate).toLocaleDateString('es-CL')}</strong>.
+            </p>
+            <p className="mt-2 text-xs leading-5">
+              Recibirás un correo de acuse de recibo. Verificaremos tu identidad y responderemos dentro del plazo.
+            </p>
+          </>
+        )}
+      />
     );
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-slate-700">Nombre completo</label>
+        <label className="form-label">Nombre completo</label>
         <input
           {...register('requesterName')}
-          className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="form-input mt-1"
           autoComplete="name"
         />
         {errors.requesterName && (
-          <p className="mt-1 text-xs text-rose-600">{errors.requesterName.message}</p>
+          <p className="form-error">{errors.requesterName.message}</p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700">
+        <label className="form-label">
           RUT (opcional, ayuda a localizar tu ficha)
         </label>
         <input
           {...register('requesterRut')}
-          className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="form-input mt-1"
           placeholder="12.345.678-9"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700">Email de contacto</label>
+        <label className="form-label">Email de contacto</label>
         <input
           {...register('requesterEmail')}
           type="email"
-          className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="form-input mt-1"
           autoComplete="email"
         />
         {errors.requesterEmail && (
-          <p className="mt-1 text-xs text-rose-600">{errors.requesterEmail.message}</p>
+          <p className="form-error">{errors.requesterEmail.message}</p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700">Tipo de solicitud</label>
+        <label className="form-label">Tipo de solicitud</label>
         <select
           {...register('requestType')}
-          className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="form-input mt-1"
         >
           {REQUEST_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -139,33 +144,31 @@ export function DerechosForm() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700">Describe tu solicitud</label>
+        <label className="form-label">Describe tu solicitud</label>
         <textarea
           {...register('payloadRequest')}
           rows={5}
-          className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="form-textarea form-input mt-1"
           placeholder="Indica si necesitas copia completa de tu ficha clínica, portabilidad u otro derecho específico."
         />
         {errors.payloadRequest && (
-          <p className="mt-1 text-xs text-rose-600">{errors.payloadRequest.message}</p>
+          <p className="form-error">{errors.payloadRequest.message}</p>
         )}
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-slate-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" {...register('submittedAsRepresentative')} />
         Actúo como representante legal (padre, madre, tutor) del titular.
       </label>
 
       {error && (
-        <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-          {error}
-        </div>
+        <AlertBanner variant="error" message={error} />
       )}
 
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full rounded-md bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-50"
+        className="btn btn-primary w-full"
       >
         {isSubmitting ? 'Enviando…' : 'Enviar solicitud'}
       </button>

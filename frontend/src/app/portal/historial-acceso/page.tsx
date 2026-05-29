@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { FiArrowLeft, FiChevronLeft, FiChevronRight, FiDownload, FiShield } from 'react-icons/fi';
+import { AlertBanner } from '@/components/common/AlertBanner';
 import { portalApi, getErrorMessage } from '@/lib/portal-api';
 
 const ACTION_LABELS: Record<string, string> = {
@@ -116,11 +117,21 @@ export default function PortalAuditLogPage() {
         </p>
 
         {error && (
-          <div className="portal-alert-error">{error}</div>
+          <AlertBanner variant="error" message={error} />
         )}
 
         {loading && (
-          <div className="py-12 text-center text-sm text-ink-muted">Cargando historial…</div>
+          <div className="portal-table-shell space-y-0 p-4" aria-busy="true" aria-label="Cargando historial">
+            {[...Array(5)].map((_, index) => (
+              <div key={index} className="grid gap-3 border-b border-surface-muted/60 py-3 last:border-b-0 sm:grid-cols-5">
+                <div className="h-4 w-28 skeleton" />
+                <div className="h-4 w-32 skeleton" />
+                <div className="h-4 w-24 skeleton" />
+                <div className="h-4 w-20 skeleton" />
+                <div className="h-4 w-16 skeleton" />
+              </div>
+            ))}
+          </div>
         )}
 
         {data && !loading && (
@@ -140,7 +151,7 @@ export default function PortalAuditLogPage() {
                   {data.items.length === 0 && (
                     <tr>
                       <td colSpan={5} className="py-10 text-center text-ink-muted">
-                        No hay registros de acceso disponibles.
+                        Todavía no hay registros de acceso disponibles.
                       </td>
                     </tr>
                   )}

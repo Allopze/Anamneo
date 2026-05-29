@@ -1,7 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { AlertBanner } from '@/components/common/AlertBanner';
+import { EmptyState } from '@/components/common/EmptyState';
 import { api, getErrorMessage } from '@/lib/api';
+import { notify } from '@/lib/notify';
 
 interface DataRequest {
   id: string;
@@ -38,6 +41,19 @@ interface ExportDelivery {
   fileSha256?: string;
 }
 
+type DecisionKind = 'resolve-accept' | 'resolve-reject' | 'extend' | 'revoke';
+
+interface PendingDecision {
+  kind: DecisionKind;
+  title: string;
+  description: string;
+  fieldLabel: string;
+  placeholder: string;
+  confirmLabel: string;
+  minLength: number;
+  downloadId?: string;
+}
+
 function getExportDelivery(payload: unknown): ExportDelivery | null {
   if (!payload || typeof payload !== 'object' || !('exportDelivery' in payload)) return null;
   const delivery = (payload as { exportDelivery?: unknown }).exportDelivery;
@@ -55,7 +71,18 @@ export default function SolicitudesAdminPage() {
   const [identityVerificationMethod, setIdentityVerificationMethod] = useState('PRESENCIAL');
   const [identityEvidence, setIdentityEvidence] = useState('');
   const [exportLink, setExportLink] = useState<string | null>(null);
+  const [pendingDecision, setPendingDecision] = useState<PendingDecision | null>(null);
+  const [decisionNote, setDecisionNote] = useState('');
+  const [decisionError, setDecisionError] = useState<string | null>(null);
+  const [decisionSubmitting, setDecisionSubmitting] = useState(false);
+  const decisionCancelRef = useRef<HTMLButtonElement>(null);
   const selectedExportDelivery = selected ? getExportDelivery(selected.payloadResponse) : null;
+
+  useEffect(() => {
+    if (pendingDecision) {
+      setTimeout(() => decisionCancelRef.current?.focus(), 50);
+    }
+  }, [pendingDecision]);
 
   const load = async (filterStatus?: string) => {
     setLoading(true);
@@ -76,40 +103,10 @@ export default function SolicitudesAdminPage() {
     void load(status);
   }, [status]);
 
-  const handleResolve = async (id: string, decision: 'RESUELTA_ACEPTADA' | 'RESUELTA_RECHAZADA') => {
-    const note = window.prompt(
-      decision === 'RESUELTA_ACEPTADA'
-        ? 'Resumen breve para el titular (qué se entregó/realizó):'
-        : 'Motivo fundado del rechazo (requerido por Ley 21.719 Art 11):',
-    );
-    if (!note || note.trim().length < 10) {
-      alert('La justificación debe tener al menos 10 caracteres');
-      return;
-    }
-    try {
-      await api.post(`/admin/data-requests/${id}/resolve`, {
-        status: decision,
-        resolutionNote: note.trim(),
-      });
-      setSelected(null);
-      await load(status);
-    } catch (err) {
-      alert(getErrorMessage(err));
-    }
-  };
-
-  const handleExtend = async (id: string) => {
-    const reason = window.prompt('Motivo de la prórroga (30 días adicionales, Art 11):');
-    if (!reason || reason.trim().length < 10) {
-      alert('El motivo debe tener al menos 10 caracteres');
-      return;
-    }
-    try {
-      await api.post(`/admin/data-requests/${id}/extend`, { reason: reason.trim() });
-      await load(status);
-    } catch (err) {
-      alert(getErrorMessage(err));
-    }
+  const openDecision = (decision: PendingDecision) => {
+    setPendingDecision(decision);
+    setDecisionNote('');
+    setDecisionError(null);
   };
 
   const handleMarkInReview = async (id: string) => {
@@ -117,14 +114,14 @@ export default function SolicitudesAdminPage() {
       await api.patch(`/admin/data-requests/${id}`, { status: 'EN_REVISION' });
       await load(status);
     } catch (err) {
-      alert(getErrorMessage(err));
+      notify.error(getErrorMessage(err));
     }
   };
 
   const handleSaveVerification = async () => {
     if (!selected) return;
     if (!patientId.trim()) {
-      alert('Debes ingresar el ID del paciente');
+      notify.error('Ingresa el ID del paciente antes de guardar la verificación.');
       return;
     }
     try {
@@ -140,7 +137,7 @@ export default function SolicitudesAdminPage() {
       setSelected(res.data);
       await load(status);
     } catch (err) {
-      alert(getErrorMessage(err));
+      notify.error(getErrorMessage(err));
     }
   };
 
@@ -170,26 +167,50 @@ export default function SolicitudesAdminPage() {
       });
       await load(status);
       if (!res.data.mail.sent) {
-        alert(`Enlace generado, pero no se pudo enviar correo: ${res.data.mail.reason ?? 'SMTP no configurado'}`);
+        notify.info(`Enlace generado, pero no se pudo enviar correo: ${res.data.mail.reason ?? 'SMTP no configurado'}`);
       }
     } catch (err) {
-      alert(getErrorMessage(err));
+      notify.error(getErrorMessage(err));
     }
   };
 
-  const handleRevokeExportLink = async (downloadId: string) => {
-    const reason = window.prompt('Motivo de revocación del enlace:');
-    if (!reason || reason.trim().length < 5) {
-      alert('Indica un motivo breve para auditar la revocación');
+  const handleSubmitDecision = async () => {
+    if (!selected || !pendingDecision) return;
+
+    const note = decisionNote.trim();
+    if (note.length < pendingDecision.minLength) {
+      setDecisionError(`Ingresa al menos ${pendingDecision.minLength} caracteres para auditar la decisión.`);
       return;
     }
+
+    setDecisionSubmitting(true);
+    setDecisionError(null);
     try {
-      await api.post(`/admin/data-request-downloads/${downloadId}/revoke`, { reason: reason.trim() });
-      setExportLink(null);
+      if (pendingDecision.kind === 'resolve-accept' || pendingDecision.kind === 'resolve-reject') {
+        await api.post(`/admin/data-requests/${selected.id}/resolve`, {
+          status: pendingDecision.kind === 'resolve-accept' ? 'RESUELTA_ACEPTADA' : 'RESUELTA_RECHAZADA',
+          resolutionNote: note,
+        });
+        setSelected(null);
+      }
+
+      if (pendingDecision.kind === 'extend') {
+        await api.post(`/admin/data-requests/${selected.id}/extend`, { reason: note });
+      }
+
+      if (pendingDecision.kind === 'revoke' && pendingDecision.downloadId) {
+        await api.post(`/admin/data-request-downloads/${pendingDecision.downloadId}/revoke`, { reason: note });
+        setExportLink(null);
+        notify.success('Enlace revocado');
+      }
+
+      setPendingDecision(null);
+      setDecisionNote('');
       await load(status);
-      alert('Enlace revocado');
     } catch (err) {
-      alert(getErrorMessage(err));
+      setDecisionError(getErrorMessage(err));
+    } finally {
+      setDecisionSubmitting(false);
     }
   };
 
@@ -197,17 +218,17 @@ export default function SolicitudesAdminPage() {
     <div className="space-y-6 p-6">
       <header className="flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-wide text-teal-700">
-            Ley 21.719 — Art 4 a 11
+          <p className="text-sm font-semibold text-auth-teal">
+            Ley 21.719, artículos 4 a 11
           </p>
-          <h1 className="text-2xl font-semibold text-slate-900">
+          <h1 className="text-2xl font-semibold text-ink">
             Solicitudes de derechos de titulares
           </h1>
         </div>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="rounded border border-slate-300 px-3 py-1 text-sm"
+          className="form-input w-auto min-w-52 py-2"
         >
           {STATUS_FILTERS.map((f) => (
             <option key={f.value} value={f.value}>
@@ -218,136 +239,151 @@ export default function SolicitudesAdminPage() {
       </header>
 
       {error && (
-        <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-          {error}
-        </div>
+        <AlertBanner variant="error" message={error} />
       )}
 
       {loading ? (
-        <p className="text-sm text-slate-500">Cargando solicitudes…</p>
+        <div className="portal-table-shell space-y-3 p-4" aria-busy="true" aria-label="Cargando solicitudes">
+          {[...Array(5)].map((_, index) => (
+            <div key={index} className="grid gap-3 border-b border-surface-muted/60 py-3 last:border-b-0 md:grid-cols-7">
+              <div className="h-4 w-16 skeleton" />
+              <div className="h-4 w-20 skeleton" />
+              <div className="h-4 w-28 skeleton md:col-span-2" />
+              <div className="h-4 w-24 skeleton" />
+              <div className="h-4 w-20 skeleton" />
+              <div className="h-4 w-16 skeleton" />
+            </div>
+          ))}
+        </div>
       ) : (
-        <table className="w-full table-fixed text-left text-sm">
-          <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
-            <tr>
-              <th className="w-1/12 py-2">Tipo</th>
-              <th className="w-1/12 py-2">Estado</th>
-              <th className="w-2/12 py-2">Solicitante</th>
-              <th className="w-2/12 py-2">Email</th>
-              <th className="w-1/12 py-2">Recibida</th>
-              <th className="w-1/12 py-2">Vence</th>
-              <th className="w-2/12 py-2">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it) => {
-              const due = it.prorrogaDueDate ?? it.dueDate;
-              const overdue = new Date(due) < new Date();
-              return (
-                <tr key={it.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="py-2 text-xs">{it.requestType}</td>
-                  <td className="py-2 text-xs">{it.status}</td>
-                  <td className="py-2">{it.requesterName}</td>
-                  <td className="py-2 text-xs">{it.requesterEmail}</td>
-                  <td className="py-2 text-xs">
-                    {new Date(it.submittedAt).toLocaleDateString('es-CL')}
-                  </td>
-                  <td className={`py-2 text-xs ${overdue ? 'text-rose-600 font-semibold' : ''}`}>
-                    {new Date(due).toLocaleDateString('es-CL')}
-                  </td>
-                  <td className="py-2 text-xs">
-                    <button
-                      className="mr-2 text-teal-700 underline"
-                      onClick={() => {
-                        setSelected(it);
-                        setPatientId(it.patientId ?? '');
-                        setIdentityVerificationMethod(it.identityVerificationMethod ?? 'PRESENCIAL');
-                        setIdentityEvidence('');
-                        setExportLink(null);
-                      }}
-                    >
-                      Ver
-                    </button>
+        <div className="portal-table-shell">
+          <table className="w-full table-fixed text-left text-sm">
+            <thead className="border-b border-surface-muted/70 bg-surface-inset text-xs text-ink-muted">
+              <tr>
+                <th className="w-1/12 px-3 py-3 font-semibold">Tipo</th>
+                <th className="w-1/12 px-3 py-3 font-semibold">Estado</th>
+                <th className="w-2/12 px-3 py-3 font-semibold">Solicitante</th>
+                <th className="w-2/12 px-3 py-3 font-semibold">Email</th>
+                <th className="w-1/12 px-3 py-3 font-semibold">Recibida</th>
+                <th className="w-1/12 px-3 py-3 font-semibold">Vence</th>
+                <th className="w-2/12 px-3 py-3 font-semibold">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-muted/60">
+              {items.map((it) => {
+                const due = it.prorrogaDueDate ?? it.dueDate;
+                const overdue = new Date(due) < new Date();
+                return (
+                  <tr key={it.id} className="hover:bg-surface-inset/70">
+                    <td className="px-3 py-3 text-xs text-ink-secondary">{it.requestType}</td>
+                    <td className="px-3 py-3 text-xs text-ink-secondary">{it.status}</td>
+                    <td className="px-3 py-3 text-ink">{it.requesterName}</td>
+                    <td className="px-3 py-3 text-xs text-ink-secondary">{it.requesterEmail}</td>
+                    <td className="px-3 py-3 text-xs text-ink-secondary">
+                      {new Date(it.submittedAt).toLocaleDateString('es-CL')}
+                    </td>
+                    <td className={`px-3 py-3 text-xs ${overdue ? 'font-semibold text-status-red-text' : 'text-ink-secondary'}`}>
+                      {new Date(due).toLocaleDateString('es-CL')}
+                    </td>
+                    <td className="px-3 py-3 text-xs">
+                      <button
+                        className="font-semibold text-auth-teal underline-offset-4 hover:underline"
+                        onClick={() => {
+                          setSelected(it);
+                          setPatientId(it.patientId ?? '');
+                          setIdentityVerificationMethod(it.identityVerificationMethod ?? 'PRESENCIAL');
+                          setIdentityEvidence('');
+                          setExportLink(null);
+                        }}
+                      >
+                        Ver detalle
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-3 py-8">
+                    <EmptyState
+                      title="Sin solicitudes para este filtro"
+                      description="Cambia el estado seleccionado para revisar solicitudes recibidas, en revisión, resueltas o vencidas."
+                    />
                   </td>
                 </tr>
-              );
-            })}
-            {items.length === 0 && (
-              <tr>
-                <td colSpan={7} className="py-4 text-center text-xs text-slate-400">
-                  No hay solicitudes con este filtro.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-primary/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-card border border-surface-muted/50 bg-surface-elevated p-6 shadow-dropdown">
             <header className="mb-4 flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase text-teal-700">
-                  Solicitud {selected.requestType} — {selected.status}
+                <p className="text-sm font-semibold text-auth-teal">
+                  Solicitud {selected.requestType}, {selected.status}
                 </p>
                 <h2 className="text-lg font-semibold">{selected.requesterName}</h2>
-                <p className="text-sm text-slate-500">{selected.requesterEmail}</p>
+                <p className="text-sm text-ink-muted">{selected.requesterEmail}</p>
               </div>
               <button
-                className="text-slate-400 hover:text-slate-700"
+                className="portal-icon-button"
                 onClick={() => setSelected(null)}
+                aria-label="Cerrar detalle"
               >
-                ×
+                Cerrar
               </button>
             </header>
             <dl className="space-y-2 text-sm">
               <div>
-                <dt className="text-xs uppercase text-slate-500">RUT</dt>
+                <dt className="text-xs font-semibold text-ink-muted">RUT</dt>
                 <dd>{selected.requesterRut ?? '—'}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase text-slate-500">Paciente vinculado</dt>
+                <dt className="text-xs font-semibold text-ink-muted">Paciente vinculado</dt>
                 <dd>{selected.patientId ?? 'Sin vincular'}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase text-slate-500">Vence</dt>
+                <dt className="text-xs font-semibold text-ink-muted">Vence</dt>
                 <dd>
                   {new Date(selected.prorrogaDueDate ?? selected.dueDate).toLocaleString('es-CL')}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs uppercase text-slate-500">Descripción del titular</dt>
-                <dd className="whitespace-pre-line rounded bg-slate-50 p-2">
+                <dt className="text-xs font-semibold text-ink-muted">Descripción del titular</dt>
+                <dd className="whitespace-pre-line rounded-lg bg-surface-inset p-3">
                   {selected.payloadRequest}
                 </dd>
               </div>
               {selected.resolutionNote && (
                 <div>
-                  <dt className="text-xs uppercase text-slate-500">Nota de resolución</dt>
-                  <dd className="whitespace-pre-line rounded bg-slate-50 p-2">
+                  <dt className="text-xs font-semibold text-ink-muted">Nota de resolución</dt>
+                  <dd className="whitespace-pre-line rounded-lg bg-surface-inset p-3">
                     {selected.resolutionNote}
                   </dd>
                 </div>
               )}
             </dl>
-            <div className="mt-4 rounded-lg border border-slate-200 p-3">
+            <div className="mt-4 rounded-card border border-surface-muted/60 bg-surface-inset/50 p-4">
               <p className="mb-3 text-sm font-medium">Verificación y vínculo clínico</p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="text-xs text-slate-600">
+                <label className="form-label">
                   ID paciente
                   <input
                     value={patientId}
                     onChange={(e) => setPatientId(e.target.value)}
-                    className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                    className="form-input mt-1"
                     placeholder="UUID del paciente"
                   />
                 </label>
-                <label className="text-xs text-slate-600">
+                <label className="form-label">
                   Método de verificación
                   <select
                     value={identityVerificationMethod}
                     onChange={(e) => setIdentityVerificationMethod(e.target.value)}
-                    className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                    className="form-input mt-1"
                   >
                     <option value="PRESENCIAL">Presencial</option>
                     <option value="CEDULA_FOTO">Cédula + foto</option>
@@ -356,32 +392,34 @@ export default function SolicitudesAdminPage() {
                   </select>
                 </label>
               </div>
-              <label className="mt-3 block text-xs text-slate-600">
+              <label className="form-label mt-3">
                 Evidencia / nota interna
                 <textarea
                   value={identityEvidence}
                   onChange={(e) => setIdentityEvidence(e.target.value)}
                   rows={2}
-                  className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                  className="form-textarea form-input mt-1"
                   placeholder="Documento revisado, canal usado, responsable, etc."
                 />
               </label>
               <button
                 onClick={handleSaveVerification}
-                className="mt-3 rounded bg-slate-800 px-3 py-1 text-xs text-white"
+                className="btn btn-primary mt-3"
               >
                 Guardar verificación
               </button>
             </div>
             {exportLink && (
-              <div className="mt-4 rounded border border-teal-200 bg-teal-50 p-3 text-xs text-teal-900">
-                Enlace generado y enviado si SMTP está configurado:
-                <p className="mt-1 break-all font-mono">{exportLink}</p>
-              </div>
+              <AlertBanner
+                className="mt-4"
+                variant="success"
+                title="Enlace generado"
+                message={<p className="break-all font-mono text-xs">{exportLink}</p>}
+              />
             )}
             {selectedExportDelivery?.downloadId && (
-              <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-                <p className="font-medium text-slate-900">Entrega registrada</p>
+              <div className="mt-4 rounded-card border border-surface-muted/60 bg-surface-inset p-3 text-xs text-ink-secondary">
+                <p className="font-medium text-ink">Entrega registrada</p>
                 {selectedExportDelivery.expiresAt && (
                   <p>Vence: {new Date(selectedExportDelivery.expiresAt).toLocaleString('es-CL')}</p>
                 )}
@@ -389,8 +427,17 @@ export default function SolicitudesAdminPage() {
                   <p className="break-all font-mono">SHA-256: {selectedExportDelivery.fileSha256}</p>
                 )}
                 <button
-                  onClick={() => handleRevokeExportLink(selectedExportDelivery.downloadId!)}
-                  className="mt-2 rounded bg-rose-700 px-3 py-1 text-xs text-white"
+                  onClick={() => openDecision({
+                    kind: 'revoke',
+                    title: 'Revocar enlace de descarga',
+                    description: 'Esta acción invalida el enlace vigente. La razón queda registrada para auditoría.',
+                    fieldLabel: 'Motivo de revocación',
+                    placeholder: 'Ejemplo: solicitud duplicada, enlace enviado por error o verificación pendiente.',
+                    confirmLabel: 'Revocar enlace',
+                    minLength: 5,
+                    downloadId: selectedExportDelivery.downloadId,
+                  })}
+                  className="btn btn-danger mt-2 min-h-0 px-3 py-1.5 text-xs"
                 >
                   Revocar enlace
                 </button>
@@ -402,42 +449,135 @@ export default function SolicitudesAdminPage() {
                   {selected.status === 'RECIBIDA' && (
                     <button
                       onClick={() => handleMarkInReview(selected.id)}
-                      className="rounded bg-slate-200 px-3 py-1 text-xs"
+                      className="btn btn-secondary min-h-0 px-3 py-1.5 text-xs"
                     >
                       Marcar en revisión
                     </button>
                   )}
                   {!selected.prorrogaDueDate && (
                     <button
-                      onClick={() => handleExtend(selected.id)}
-                      className="rounded bg-slate-200 px-3 py-1 text-xs"
+                      onClick={() => openDecision({
+                        kind: 'extend',
+                        title: 'Aplicar prórroga legal',
+                        description: 'Registra el motivo de la prórroga de 30 días adicionales según el artículo 11.',
+                        fieldLabel: 'Motivo de la prórroga',
+                        placeholder: 'Ejemplo: verificación de identidad pendiente o recopilación de antecedentes clínicos.',
+                        confirmLabel: 'Aplicar prórroga',
+                        minLength: 10,
+                      })}
+                      className="btn btn-secondary min-h-0 px-3 py-1.5 text-xs"
                     >
                       Aplicar prórroga (+30 días)
                     </button>
                   )}
                   <button
-                    onClick={() => handleResolve(selected.id, 'RESUELTA_ACEPTADA')}
-                    className="rounded bg-teal-700 px-3 py-1 text-xs text-white"
+                    onClick={() => openDecision({
+                      kind: 'resolve-accept',
+                      title: 'Resolver solicitud aceptada',
+                      description: 'Resume qué se entregó o realizó para que el titular tenga trazabilidad clara.',
+                      fieldLabel: 'Resumen para el titular',
+                      placeholder: 'Ejemplo: se entrega copia de ficha clínica en archivo ZIP protegido.',
+                      confirmLabel: 'Aceptar solicitud',
+                      minLength: 10,
+                    })}
+                    className="btn btn-success min-h-0 px-3 py-1.5 text-xs"
                   >
-                    Resolver — aceptar
+                    Resolver, aceptar
                   </button>
                   {['ACCESO', 'PORTABILIDAD'].includes(selected.requestType) && (
                     <button
                       onClick={handleGenerateExportLink}
-                      className="rounded bg-cyan-700 px-3 py-1 text-xs text-white"
+                      className="btn btn-primary min-h-0 px-3 py-1.5 text-xs"
                     >
                       Generar enlace de descarga
                     </button>
                   )}
                   <button
-                    onClick={() => handleResolve(selected.id, 'RESUELTA_RECHAZADA')}
-                    className="rounded bg-rose-700 px-3 py-1 text-xs text-white"
+                    onClick={() => openDecision({
+                      kind: 'resolve-reject',
+                      title: 'Resolver solicitud rechazada',
+                      description: 'Registra el motivo fundado del rechazo. Esta explicación queda asociada al expediente.',
+                      fieldLabel: 'Motivo fundado del rechazo',
+                      placeholder: 'Ejemplo: no fue posible verificar identidad con los antecedentes entregados.',
+                      confirmLabel: 'Rechazar solicitud',
+                      minLength: 10,
+                    })}
+                    className="btn btn-danger min-h-0 px-3 py-1.5 text-xs"
                   >
-                    Resolver — rechazar fundado
+                    Resolver, rechazar fundado
                   </button>
                 </div>
               )}
           </div>
+        </div>
+      )}
+
+      {pendingDecision && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink-primary/55 p-4">
+          <section
+            className="w-full max-w-lg rounded-card border border-surface-muted/50 bg-surface-elevated p-6 shadow-dropdown"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="data-request-decision-title"
+            aria-describedby="data-request-decision-description"
+          >
+            <div>
+              <p className="text-sm font-semibold text-auth-teal">Decisión auditada</p>
+              <h2 id="data-request-decision-title" className="mt-1 text-lg font-semibold text-ink">
+                {pendingDecision.title}
+              </h2>
+              <p id="data-request-decision-description" className="mt-2 text-sm leading-6 text-ink-secondary">
+                {pendingDecision.description}
+              </p>
+            </div>
+
+            <label className="form-label mt-5" htmlFor="data-request-decision-note">
+              {pendingDecision.fieldLabel}
+            </label>
+            <textarea
+              id="data-request-decision-note"
+              className="form-textarea form-input mt-1"
+              rows={4}
+              value={decisionNote}
+              onChange={(event) => {
+                setDecisionNote(event.target.value);
+                setDecisionError(null);
+              }}
+              placeholder={pendingDecision.placeholder}
+              disabled={decisionSubmitting}
+            />
+            <p className="mt-2 text-xs text-ink-muted">
+              Mínimo {pendingDecision.minLength} caracteres. Este texto queda disponible para trazabilidad y auditoría.
+            </p>
+
+            {decisionError ? (
+              <AlertBanner className="mt-4" variant="error" message={decisionError} />
+            ) : null}
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                ref={decisionCancelRef}
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setPendingDecision(null);
+                  setDecisionNote('');
+                  setDecisionError(null);
+                }}
+                disabled={decisionSubmitting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className={pendingDecision.kind === 'resolve-reject' || pendingDecision.kind === 'revoke' ? 'btn btn-danger' : 'btn btn-primary'}
+                onClick={handleSubmitDecision}
+                disabled={decisionSubmitting}
+              >
+                {decisionSubmitting ? 'Guardando...' : pendingDecision.confirmLabel}
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </div>

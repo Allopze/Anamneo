@@ -39,10 +39,13 @@ Actualizado: 2026-05-29
 
 - `frontend/src/components/providers/Providers.tsx`: el toast global paso de `top-right` con pildora oscura a `top-center`, superficie clara, borde suave, radio de 16px y sombra menos dominante.
 - `frontend/src/lib/notify.ts`: se agrego `notify` y `feedbackCopy` para centralizar el contrato de mensajes.
+- `frontend/src/lib/api.ts`: los fallbacks de `getErrorMessage` ahora clasifican red, validacion, sesion, permisos, no encontrado, conflicto, limite de intentos y servidor con siguiente accion recuperable.
+- `frontend/src/app/(dashboard)/admin/solicitudes/page.tsx`: se eliminaron `alert()` del navegador en errores, validaciones, revocacion y avisos de correo; el flujo usa `notify` y copy sobrio.
+- `frontend/src/app/(dashboard)/pacientes/[id]/administrativo/page.tsx`: invitacion al portal dejo de usar `alert()` y reporta validacion/error mediante `notify`.
 - Auth, dashboard, atenciones, pacientes, ajustes, admin, agenda, analitica, catalogo, plantillas, seguimientos, cambio de contrasena y componentes comunes dejaron de llamar `react-hot-toast` directamente.
 - Login/2FA usa `Sesion iniciada`, registro usa `Cuenta creada` y los avisos de inactividad quedan sin icono decorativo.
 
-Estado: no quedan imports productivos directos de `react-hot-toast`; solo permanecen `Toaster`, `notify.ts` y tests que mockean el paquete.
+Estado: no quedan imports productivos directos de `react-hot-toast`; solo permanecen `Toaster`, `notify.ts` y tests que mockean el paquete. Tampoco quedan `window.prompt` ni `alert()` productivos en `frontend/src`.
 
 ### Fase 3 parcial: auth y navegacion
 
@@ -65,6 +68,18 @@ Estado: atenciones ya no depende solo de toast para offline/conflicto/error de g
 
 ### Fase 2 parcial: sistema visual compartido
 
+- `frontend/src/components/common/AlertBanner.tsx`: nueva primitiva compartida para error, warning, info, success y offline con roles `alert/status`, aria-live y variantes basadas en tokens.
+- `frontend/src/components/common/EmptyState.tsx`: nueva primitiva compartida para estados vacios accionables, con icono, titulo, descripcion y accion opcional.
+- `frontend/src/components/common/ErrorAlert.tsx`: queda como wrapper de `AlertBanner` para no duplicar estilos de error.
+- `frontend/src/app/descargar-ficha/page.tsx` y `frontend/src/app/derechos/*`: las superficies publicas legales migraron fuera de `slate-*`/`teal-*` hardcoded hacia `surface-*`, `ink-*`, `auth-teal`, `form-input`, `btn` y `AlertBanner`.
+- `frontend/src/app/(dashboard)/admin/solicitudes/page.tsx`: la vista de solicitudes legales migro fuera de `slate-*`, incorporo `AlertBanner`, `EmptyState`, skeletons de tabla, botones/tabs tokenizados y labels en sentence case.
+- `frontend/src/app/(dashboard)/admin/usuarios/UsersCard.tsx`: el restablecimiento de clave paso de `confirm()` + `window.prompt()` a panel modal controlado con contraseña temporal visible, validacion inline y copy de consecuencia.
+- `frontend/src/app/(dashboard)/pacientes/page.tsx`, `frontend/src/app/(dashboard)/atenciones/page.tsx`, `frontend/src/app/(dashboard)/seguimientos/page.tsx`, `frontend/src/app/(dashboard)/catalogo/*` y `frontend/src/app/(dashboard)/analitica-clinica/page.tsx`: estados vacios migraron a `EmptyState` con explicacion contextual y accion cuando aplica.
+- `frontend/src/app/cambiar-contrasena/page.tsx`, `frontend/src/app/(dashboard)/atenciones/[id]/page.tsx` y `frontend/src/app/(dashboard)/atenciones/[id]/ficha/page.tsx`: spinners de pantalla completa se reemplazaron por skeletons con forma de la vista final.
+- `frontend/src/app/portal/page.tsx` y `frontend/src/app/portal/historial-acceso/page.tsx`: loading paso de spinner/texto generico a skeletons con forma real, errores usan `AlertBanner` y estados vacios explican la siguiente condicion visible.
+- `frontend/src/components/common/ConfirmModal.tsx` y `frontend/src/components/common/OfflineBanner.tsx`: se corrigio texto blanco sobre fondos amarillos/lime para mejorar contraste.
+- `frontend/src/app/globals.css`: `toolbar-btn`, `toolbar-btn-primary`, `toolbar-btn-success` y `section-icon-button` suben a target minimo de 44px y agregan feedback `active:scale(0.97)` con `--ease-out`.
+- `frontend/src/app/globals.css`: `stepper-item-active` dejo de usar side-stripe (`border-l-4`) y paso a ring completo para mantener jerarquia sin acento lateral grueso.
 - `docs/design-tokens-anamneo.md`: tokens de superficies, texto, sombras, radios y motion se reconciliaron con `globals.css` y `tailwind.config.js`.
 - `frontend/src/app/styles/portal.css`: se creo una capa de portal con superficies, botones, inputs, alertas y tabla basados en tokens Anamneo.
 - `frontend/src/app/portal/*`: las pantallas del portal migraron fuera de `slate-*` y usan `portal-*`, `surface-*`, `ink-*` y estados semanticos.
@@ -72,8 +87,9 @@ Estado: atenciones ya no depende solo de toast para offline/conflicto/error de g
 - `frontend/src/app/loading.tsx`, `frontend/src/app/(dashboard)/loading.tsx`, `error.tsx`, `global-error.tsx` y `not-found.tsx`: estados globales migraron de spinner/card generica a skeletons, copy recuperable y superficies mas sobrias.
 - `frontend/tailwind.config.js` y `docs/design-tokens-anamneo.md`: radios `shell/card` y sombras `card/elevated/dropdown` bajaron de intensidad para reducir jerarquia falsa.
 - `docs/index.md`: la auditoria UI/UX quedo enlazada en el mapa de documentacion activa.
+- `PRODUCT.md` y `DESIGN.md`: se agrego contexto formal para `impeccable`, con registro `product`, principios, tono, anti-referencias, componentes y reglas de motion/copy.
 
-Estado: mitigado el drift mas visible de portal, tokens, motion, estados globales y chrome del header. Sigue pendiente iconografia, QA visual y microcopy formal.
+Estado: mitigado el drift mas visible de portal, tokens, motion, estados globales, estados vacios obvios y chrome del header. Sigue pendiente iconografia, QA visual y reducir all-caps/radios en zonas densas.
 
 ### Validacion ejecutada
 
@@ -85,6 +101,53 @@ npm --prefix frontend run build
 ```
 
 Resultado: typecheck limpio, build exitoso, prueba enfocada pasando 6 suites/49 tests, suite completa pasando 72 suites/349 tests y diff check limpio. QA visual Playwright intentada contra frontend build, bloqueada por dependencia nativa faltante `libnspr4.so` y sudo no disponible para `playwright install-deps chromium`.
+
+Validacion adicional ejecutada en la segunda pasada:
+
+```bash
+npm --prefix frontend run typecheck
+npm --prefix frontend run test -- --runInBand
+npm --prefix frontend run build
+```
+
+Resultado: typecheck limpio, suite completa pasando 72 suites/349 tests y build exitoso. La suite emitio warnings preexistentes de fake timers en `sospecha-diagnostica-section.test.tsx`, sin fallar tests.
+
+Validacion adicional ejecutada en la tercera pasada:
+
+```bash
+npm --prefix frontend run typecheck
+npm --prefix frontend run test -- --runInBand
+npm --prefix frontend run build
+git diff --check
+grep -RIn "window.prompt\|alert(" frontend/src --include='*.tsx' --include='*.ts'
+grep -RIn "animate-spin rounded-full h-12\|animate-spin rounded-full.*border-4" frontend/src --include='*.tsx' --include='*.ts'
+```
+
+Resultado: typecheck limpio, suite completa pasando 72 suites/349 tests, build exitoso, diff check limpio y sin hallazgos de `window.prompt`, `alert()` o spinners grandes de pantalla completa en `frontend/src`.
+
+## Guia formal de microcopy de feedback
+
+| Dominio | Severidad | Patron | Ejemplo aprobado |
+|---|---|---|---|
+| Sesion | Success | Accion completada, sin celebracion | `Sesion iniciada` |
+| Sesion | Warning | Condicion temporal y accion esperada | `Tu sesion expirara pronto por inactividad` |
+| Registro | Success | Resultado directo | `Cuenta creada` |
+| Red | Error | Que fallo y recuperacion | `No se pudo conectar. Revisa tu conexion e intenta nuevamente.` |
+| Validacion | Error | Que revisar antes de continuar | `Revisa los datos ingresados e intenta nuevamente.` |
+| Permisos | Error | Limite de acceso, sin detalle tecnico | `No tienes permisos para realizar esta accion.` |
+| Conflicto | Warning/Error | Estado concurrente y siguiente accion | `Hay cambios en conflicto. Actualiza la informacion antes de continuar.` |
+| Offline | Warning persistente | Estado actual y garantia | `Sin conexion. Los cambios de secciones se encolan localmente y se sincronizaran al reconectar.` |
+| Guardado clinico | Success/Status | Estado observable | `Cambios sincronizados correctamente.` |
+| Legal | Info/Success | Resultado y trazabilidad | `Enlace generado` |
+| Legal | Error | Decision bloqueada y requisito | `Ingresa al menos 10 caracteres para auditar la decision.` |
+| Adjuntos/PDF | Error | Accion fallida y recuperacion | `No se pudo preparar el archivo. Intenta nuevamente en unos minutos.` |
+
+Reglas de uso:
+
+- Toast solo para eventos efimeros y confirmaciones secundarias.
+- `AlertBanner` para estados persistentes, decisiones legales, error recuperable y condiciones que el usuario debe resolver.
+- `EmptyState` para listas sin resultados o primer uso; siempre explicar por que no hay contenido o que lo hara aparecer.
+- Evitar signos de exclamacion, emojis, stack traces, nombres de excepciones y `Error al...` sin accion.
 
 ## Hallazgos por severidad
 
@@ -106,7 +169,7 @@ Resultado: typecheck limpio, build exitoso, prueba enfocada pasando 6 suites/49 
 - Impacto: El usuario recibe mensajes con tonos distintos: algunos celebran, otros son tecnicos, otros usan emojis, otros dicen "Error al..." sin indicar recuperacion. Esto reduce confianza en acciones clinicas sensibles.
 - Ejemplos originales: bienvenida enfatica, cuenta creada con tono celebratorio, `Error al guardar: ...`, `Sin conexion - guardado en cola local`, aviso de inactividad con icono decorativo.
 - Recomendacion: crear una guia de microcopy para feedback. Evitar exclamaciones. Usar estructura: accion completada, que paso, siguiente paso si aplica. Ejemplos: "Sesion iniciada", "Cuenta creada", "No se pudo guardar. Revisa tu conexion e intenta de nuevo.".
-- Estado: mitigado en integracion tecnica. Sigue pendiente una tabla formal de microcopy por dominio y severidad.
+- Estado: mitigado. Existe tabla formal de microcopy por dominio/severidad y fallbacks de errores comunes.
 - Esfuerzo: M.
 - Fase: 1.
 
@@ -125,6 +188,7 @@ Resultado: typecheck limpio, build exitoso, prueba enfocada pasando 6 suites/49 
 - Categoria: Theming, consistencia.
 - Impacto: El portal usa clases `slate-*`, cards blancas genericas y una estetica mas default que el dashboard. Para pacientes, esto puede sentirse como otra aplicacion o una zona menos confiable.
 - Recomendacion: migrar portal a tokens Anamneo: `surface-*`, `ink-*`, `status-*`, radios y botones compartidos. Mantener una variante mas simple para pacientes, pero reconocible.
+- Estado: mitigado. Portal, paginas publicas legales, descarga de ficha y admin de solicitudes legales ya usan tokens principales en las superficies tocadas. Persisten hardcoded colors en emails y zonas no legales del dashboard.
 - Esfuerzo: M.
 - Fase: 2.
 
@@ -148,6 +212,7 @@ Resultado: typecheck limpio, build exitoso, prueba enfocada pasando 6 suites/49 
   - pill solo para filtros/chips pequenos;
   - botones primarios con radio consistente menor que pills cuando sean acciones estructurales;
   - sombras solo cuando haya superposicion real.
+- Estado: mitigado parcialmente. Ya existen `AlertBanner` y `EmptyState`, toolbar/icon buttons tienen target minimo y `stepper-item-active` dejo el side-stripe. Sigue pendiente reducir all-caps, radios pill heredados y cards similares en admin/ajustes.
 - Esfuerzo: M.
 - Fase: 2.
 
@@ -195,6 +260,7 @@ Resultado: typecheck limpio, build exitoso, prueba enfocada pasando 6 suites/49 
 - Categoria: Performance perceptual.
 - Impacto: El spinner no dice que esta pasando ni cuanto falta. En acciones clinicas, un skeleton o estado textual reduce ansiedad.
 - Recomendacion: usar spinners solo para acciones cortas dentro de botones. Para cargas de contenido, usar skeletons con forma real. Para guardados, usar estado textual persistente.
+- Estado: mitigado parcialmente. Portal home, portal historial, admin solicitudes, cambio de contrasena, workspace de atencion y ficha clinica usan skeletons contextuales. Persisten spinners aceptables en botones y algunos modales/busquedas internas.
 - Esfuerzo: M.
 - Fase: 2 y 4.
 
@@ -213,6 +279,7 @@ Resultado: typecheck limpio, build exitoso, prueba enfocada pasando 6 suites/49 
 - Categoria: Accesibilidad, responsive.
 - Impacto: Algunos controles se acercan o quedan bajo los 44px recomendados para touch. En mobile/tablet clinico, esto aumenta errores.
 - Recomendacion: crear regla minima: controles interactivos tactiles `min-height: 44px`, icon buttons `44x44`, chips clickables con padding suficiente. Mantener excepciones solo para informacion no interactiva.
+- Estado: mitigado parcialmente. `.btn`, `.toolbar-btn*`, `.section-icon-button` y botones portal cumplen 44px; quedan chips/segmentos especificos por auditar en tablas, analitica, catalogo y header secundario.
 - Esfuerzo: M.
 - Fase: 3.
 
@@ -222,6 +289,7 @@ Resultado: typecheck limpio, build exitoso, prueba enfocada pasando 6 suites/49 
 - Categoria: UX writing, soporte.
 - Impacto: Algunos mensajes explican el error, otros solo nombran el fallo. Falta consistencia sobre si el usuario debe reintentar, revisar conexion, recargar o contactar soporte.
 - Recomendacion: clasificar errores: validacion, red, permisos, conflicto, servidor. Cada clase debe tener copy y accion recomendada.
+- Estado: mitigado parcialmente en `getErrorMessage`, con fallbacks por red, validacion, sesion, permisos, 404, conflicto, 422, rate limit y servidor. Falta mapear codigos de dominio clinico cuando el backend los exponga.
 - Esfuerzo: M.
 - Fase: 1 y 4.
 
@@ -231,6 +299,7 @@ Resultado: typecheck limpio, build exitoso, prueba enfocada pasando 6 suites/49 
 - Categoria: Onboarding, orientacion.
 - Impacto: Varios estados dicen que no hay datos, pero no siempre sugieren la accion siguiente o explican por que la vista esta vacia.
 - Recomendacion: estandarizar empty states por contexto: titulo claro, una frase, accion principal si el rol puede ejecutarla, enlace secundario a ayuda o filtros.
+- Estado: mitigado parcialmente. Existe `EmptyState` y ya se usa en portal home, admin solicitudes, pacientes, atenciones, seguimientos, catalogo y analitica. Persisten estados vacios ad hoc en componentes secundarios y detalle de paciente.
 - Esfuerzo: M.
 - Fase: 4.
 
@@ -276,14 +345,14 @@ Resultado: typecheck limpio, build exitoso, prueba enfocada pasando 6 suites/49 
 
 Estado actual:
 
-- Feedback centralizado con `react-hot-toast`.
-- Estilo global fuerte, oscuro, pill y top-right.
-- Mensajes de exito y error definidos en muchos componentes sin guia comun.
+- Feedback efimero centralizado con `notify` sobre `react-hot-toast`.
+- Estilo global sobrio, claro y `top-center`; estados persistentes empiezan a migrar a banners.
+- Mensajes frecuentes y fallbacks de error ya tienen tono recuperable, pero falta guia formal por dominio.
 
 Mejoras:
 
-- Crear un `notify` wrapper o helper de copy para normalizar mensajes.
-- Cambiar success de login/register a tono neutro: "Sesion iniciada" y "Cuenta creada".
+- Ampliar `feedbackCopy` a una tabla formal por dominio y severidad.
+- Mantener success de login/register en tono neutro: "Sesion iniciada" y "Cuenta creada".
 - Evitar emojis en mensajes operativos o reservarlos para estados no clinicos.
 - Usar banners persistentes para offline, conflicto, permisos y acciones que requieren decision.
 
@@ -351,14 +420,15 @@ Mejoras:
 Estado actual:
 
 - Hay tokens y paleta definida.
-- Hay drift entre docs, Tailwind y CSS.
-- Muchas variantes se resuelven con clases ad hoc.
+- Drift principal entre docs, Tailwind y CSS mitigado.
+- Ya existen primitivas compartidas para banners y empty states.
+- Persisten variantes ad hoc en modales, emails, iconografia, analitica, catalogo y algunas cards de ajustes/admin.
 
 Mejoras:
 
-- Reconciliar `docs/design-tokens-anamneo.md`, `tailwind.config.js` y `globals.css`.
+- Mantener sincronizados `docs/design-tokens-anamneo.md`, `tailwind.config.js` y `globals.css` cuando cambien tokens.
 - Definir reglas de uso para radios, sombras, cards, pills y banners.
-- Crear componentes primitivos para alert/banners, empty states, toasts y section headers.
+- Extender componentes primitivos para toasts enriquecidos, section headers y confirmaciones destructivas.
 
 ## Plan de remediacion
 
@@ -458,6 +528,28 @@ Criterios de aceptacion:
 | 9 | Audit iconografico y radios | Medio | Medio |
 | 10 | QA visual y accesibilidad final | Bajo | Alto |
 
+## Pendientes tras la tercera pasada
+
+Faltante real, despues de la remediacion ejecutada el 2026-05-29:
+
+1. QA visual real: Playwright sigue bloqueado por `libnspr4.so` en este entorno. Hay que capturar login, register, dashboard, atencion, paciente, portal, derechos, descarga de ficha y admin solicitudes en desktop/mobile/Safari.
+2. Empty states secundarios: migrar componentes de detalle de paciente, auditoria, alertas, consentimientos y adjuntos a `EmptyState` cuando no haya datos.
+3. Spinners restantes: mantenerlos solo en botones o acciones muy cortas; revisar modales de PDF/adjuntos, busquedas internas y componentes secundarios.
+4. Iconografia: auditar `react-icons/fi` y decidir que metaforas siguen como affordance estandar y cuales deben pasar a iconos propios/variantes para seguridad, estados criticos e identidad clinica.
+5. All-caps y radios: reducir all-caps decorativo en labels compactos, revisar chips/segmentos especificos y bajar dependencia de `rounded-pill` en acciones estructurales.
+6. Admin/ajustes: reorganizar cards por riesgo/frecuencia y evitar modulos demasiado similares, especialmente mantenimiento, seguridad, auditoria y solicitudes legales.
+7. Confirmaciones destructivas restantes: ya no hay prompts/alerts productivos, pero quedan modales de riesgo por revisar con copy/foco/jerarquia consistente.
+8. Codigos de error de dominio: cuando backend exponga codigos consistentes, mapearlos a mensajes recuperables en `getErrorMessage` o helpers de dominio.
+9. QA de teclado: verificar foco inicial, Escape, tab order y retorno de foco en los modales nuevos de solicitudes legales y restablecimiento de clave.
+
+Siguientes pasos naturales:
+
+1. Habilitar dependencias Playwright o ejecutar QA visual en una maquina con Chromium/Safari disponibles.
+2. Hacer QA de teclado sobre los modales nuevos y ajustar retorno de foco si aparece friccion.
+3. Migrar los empty states secundarios usando la nueva primitiva antes de tocar mas estilos de cards.
+4. Hacer una pasada de all-caps/radios/iconografia en dashboard y ajustes con screenshots antes/despues.
+5. Revisar modales de PDF/adjuntos y busquedas internas para reemplazar spinners persistentes por skeleton o estado textual.
+
 ## Validacion recomendada
 
 Comandos base:
@@ -493,7 +585,6 @@ Validacion de accesibilidad:
 ## Fuera de alcance de este documento
 
 - Cambios de API, backend, base de datos o permisos.
-- Implementacion directa de componentes.
 - Redisenar la marca desde cero.
 - Incorporar librerias nuevas de UI.
 - Leer o exponer secretos de entorno.

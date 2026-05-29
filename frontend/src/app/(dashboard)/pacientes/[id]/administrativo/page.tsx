@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
+import { notify } from '@/lib/notify';
 import { PatientAdminSummary } from '@/types';
 import { useAuthUser } from '@/stores/auth-store';
 import {
@@ -109,7 +110,7 @@ export default function PatientAdministrativeDetailPage() {
 
   const handlePortalInvite = async () => {
     if (!portalInviteEmail) {
-      alert('El paciente no tiene correo registrado. Ingresa un correo para invitarlo.');
+      notify.error('Ingresa un correo para enviar la invitación al portal.');
       return;
     }
     setInviteLoading(true);
@@ -121,7 +122,7 @@ export default function PatientAdministrativeDetailPage() {
       });
       setInviteResult(`Invitación enviada a ${portalInviteEmail}`);
     } catch (err) {
-      alert(getErrorMessage(err));
+      notify.error(getErrorMessage(err));
     } finally {
       setInviteLoading(false);
     }

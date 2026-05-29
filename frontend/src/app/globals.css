@@ -197,30 +197,33 @@ body {
 
   /* ── Toolbar Buttons ─────────── */
   .toolbar-btn {
-    @apply inline-flex min-h-10 touch-manipulation items-center justify-center gap-2
+    @apply inline-flex min-h-11 touch-manipulation items-center justify-center gap-2
            rounded-lg border border-frame/15 bg-surface-elevated px-3 py-2
-           text-sm font-medium text-ink shadow-none transition-colors
+           text-sm font-medium text-ink shadow-none transition-[background-color,border-color,color,transform]
            hover:border-frame/30 hover:bg-surface-base
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20
-           disabled:cursor-not-allowed disabled:opacity-50;
+           active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+    transition-timing-function: var(--ease-out);
   }
 
   .toolbar-btn-primary {
-    @apply inline-flex min-h-10 touch-manipulation items-center justify-center gap-2
+    @apply inline-flex min-h-11 touch-manipulation items-center justify-center gap-2
            rounded-lg border border-accent/70 bg-accent px-3 py-2
-           text-sm font-semibold text-accent-text shadow-none transition-colors
+           text-sm font-semibold text-accent-text shadow-none transition-[background-color,border-color,color,transform]
            hover:bg-accent-bright
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45
-           disabled:cursor-not-allowed disabled:opacity-50;
+           active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+    transition-timing-function: var(--ease-out);
   }
 
   .toolbar-btn-success {
-    @apply inline-flex min-h-10 touch-manipulation items-center justify-center gap-2
+    @apply inline-flex min-h-11 touch-manipulation items-center justify-center gap-2
            rounded-lg bg-status-green px-3 py-2
-           text-sm font-medium text-status-green-text transition-colors
+           text-sm font-medium text-status-green-text transition-[filter,transform]
            hover:brightness-95
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-green/40
-           disabled:cursor-not-allowed disabled:opacity-50;
+           active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+    transition-timing-function: var(--ease-out);
   }
 
   /* ── Cards ────────────────────── */
@@ -286,7 +289,8 @@ body {
   }
 
   .section-icon-button {
-    @apply inline-flex items-center justify-center rounded-icon p-2 text-ink-muted transition-colors hover:bg-surface-base hover:text-ink disabled:opacity-30;
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center rounded-icon p-2 text-ink-muted transition-[background-color,color,transform] hover:bg-surface-base hover:text-ink active:scale-[0.97] disabled:opacity-30;
+    transition-timing-function: var(--ease-out);
   }
 
   .section-icon-button-danger {
@@ -299,7 +303,7 @@ body {
   }
 
   .stepper-item-active {
-    @apply bg-accent/20 border-l-4 border-accent text-ink;
+    @apply bg-accent/20 ring-1 ring-accent/70 text-ink;
   }
 
   .stepper-item-completed {

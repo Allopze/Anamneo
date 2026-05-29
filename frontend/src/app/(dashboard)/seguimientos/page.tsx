@@ -18,6 +18,8 @@ import { extractDateOnly, formatDateOnly } from '@/lib/date';
 import { useAuthUser } from '@/stores/auth-store';
 import { invalidateDashboardOverviewQueries, invalidateTaskOverviewQueries } from '@/lib/query-invalidation';
 import { notify } from '@/lib/notify';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 
 const STATUS_OPTIONS = ['', 'PENDIENTE', 'EN_PROCESO', 'COMPLETADA', 'CANCELADA'] as const;
@@ -196,7 +198,7 @@ export default function SeguimientosPage() {
             ))}
           </div>
         ) : error ? (
-          <div className="p-6 text-sm text-status-red">Error al cargar seguimientos.</div>
+          <ErrorAlert title="No se pudieron cargar los seguimientos" message="Revisa tu conexión o intenta nuevamente." />
         ) : tasks.length > 0 ? (
           <div className="divide-y divide-surface-muted/30">
             {tasks.map((task) => (
@@ -307,13 +309,11 @@ export default function SeguimientosPage() {
             ))}
           </div>
         ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <FiClipboard className="h-10 w-10 text-accent-text" />
-            </div>
-            <h3 className="empty-state-title">Sin seguimientos visibles</h3>
-            <p className="empty-state-description">No hay seguimientos que coincidan con los filtros actuales.</p>
-          </div>
+          <EmptyState
+            icon={<FiClipboard className="h-6 w-6" aria-hidden="true" />}
+            title="Sin seguimientos visibles"
+            description="No hay tareas que coincidan con los filtros actuales. Ajusta estado, tipo o prioridad para revisar otros pendientes."
+          />
         )}
       </div>
     </div>

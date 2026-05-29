@@ -1,6 +1,8 @@
-import { notify } from '@/lib/notify';
+import { useEffect, useRef, useState } from 'react';
 import { FiUsers } from 'react-icons/fi';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { type AdminUserRow, ROLE_LABELS, getPasswordError } from './usuarios.constants';
 
 interface UsersCardProps {
@@ -31,6 +33,49 @@ export function UsersCard({
   generateTemporaryPassword,
   startEdit,
 }: UsersCardProps) {
+  const [resetPasswordUser, setResetPasswordUser] = useState<AdminUserRow | null>(null);
+  const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [temporaryPasswordError, setTemporaryPasswordError] = useState<string | null>(null);
+  const cancelResetRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (resetPasswordUser) {
+      setTimeout(() => cancelResetRef.current?.focus(), 50);
+    }
+  }, [resetPasswordUser]);
+
+  const openResetPassword = (user: AdminUserRow) => {
+    setResetPasswordUser(user);
+    setTemporaryPassword(generateTemporaryPassword());
+    setTemporaryPasswordError(null);
+  };
+
+  const closeResetPassword = () => {
+    if (resetPasswordMutation.isPending) return;
+    setResetPasswordUser(null);
+    setTemporaryPassword('');
+    setTemporaryPasswordError(null);
+  };
+
+  const confirmResetPassword = () => {
+    if (!resetPasswordUser) return;
+
+    const trimmedPassword = temporaryPassword.trim();
+    const passwordError = getPasswordError(trimmedPassword, true);
+    if (passwordError) {
+      setTemporaryPasswordError(passwordError);
+      return;
+    }
+
+    resetPasswordMutation.mutate({
+      userId: resetPasswordUser.id,
+      temporaryPassword: trimmedPassword,
+    });
+    setResetPasswordUser(null);
+    setTemporaryPassword('');
+    setTemporaryPasswordError(null);
+  };
+
   return (
     <>
       <div className="card">
@@ -77,28 +122,7 @@ export function UsersCard({
                   </button>
                   <button
                     className="btn btn-secondary"
-                    onClick={() => {
-                      if (confirm(`¿Restablecer la contraseña de ${u.nombre}?`)) {
-                        const temporaryPassword = window.prompt(
-                          `Ingresa una contraseña temporal para ${u.nombre}`,
-                          generateTemporaryPassword(),
-                        );
-                        if (!temporaryPassword) {
-                          return;
-                        }
-
-                        const temporaryPasswordError = getPasswordError(temporaryPassword.trim(), true);
-                        if (temporaryPasswordError) {
-                          notify.error(temporaryPasswordError);
-                          return;
-                        }
-
-                        resetPasswordMutation.mutate({
-                          userId: u.id,
-                          temporaryPassword: temporaryPassword.trim(),
-                        });
-                      }
-                    }}
+                    onClick={() => openResetPassword(u)}
                     disabled={resetPasswordMutation.isPending}
                   >
                     Restablecer clave
@@ -123,13 +147,11 @@ export function UsersCard({
             ))}
           </div>
         ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <FiUsers className="h-10 w-10 text-accent-text" />
-            </div>
-            <h3 className="empty-state-title">Sin usuarios cargados</h3>
-            <p className="empty-state-description">No hay usuarios registrados todavía en esta instancia.</p>
-          </div>
+          <EmptyState
+            icon={<FiUsers className="h-6 w-6" aria-hidden="true" />}
+            title="Sin usuarios cargados"
+            description="Cuando se registren usuarios de la clínica, aparecerán aquí con su rol, estado y acciones administrativas."
+          />
         )}
       </div>
 
@@ -149,6 +171,66 @@ export function UsersCard({
         variant={toggleConfirmUser?.active ? 'danger' : 'info'}
         loading={toggleActiveMutation.isPending}
       />
+
+      {resetPasswordUser ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink-primary/55 p-4">
+          <section
+            className="w-full max-w-md rounded-card border border-surface-muted/50 bg-surface-elevated p-6 shadow-dropdown"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="reset-password-title"
+            aria-describedby="reset-password-description"
+          >
+            <p className="text-sm font-semibold text-auth-teal">Acceso de usuario</p>
+            <h2 id="reset-password-title" className="mt-1 text-lg font-semibold text-ink">
+              Restablecer clave
+            </h2>
+            <p id="reset-password-description" className="mt-2 text-sm leading-6 text-ink-secondary">
+              Define una contraseña temporal para {resetPasswordUser.nombre}. El usuario deberá cambiarla al iniciar sesión.
+            </p>
+
+            <label htmlFor="temporary-password" className="form-label mt-5">
+              Contraseña temporal
+            </label>
+            <input
+              id="temporary-password"
+              type="text"
+              className="form-input mt-1 font-mono"
+              value={temporaryPassword}
+              onChange={(event) => {
+                setTemporaryPassword(event.target.value);
+                setTemporaryPasswordError(null);
+              }}
+              disabled={resetPasswordMutation.isPending}
+            />
+            {temporaryPasswordError ? (
+              <div className="mt-4">
+                <ErrorAlert message={temporaryPasswordError} />
+              </div>
+            ) : null}
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                ref={cancelResetRef}
+                type="button"
+                className="btn btn-secondary"
+                onClick={closeResetPassword}
+                disabled={resetPasswordMutation.isPending}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={confirmResetPassword}
+                disabled={resetPasswordMutation.isPending}
+              >
+                {resetPasswordMutation.isPending ? 'Guardando...' : 'Restablecer clave'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </>
   );
 }
