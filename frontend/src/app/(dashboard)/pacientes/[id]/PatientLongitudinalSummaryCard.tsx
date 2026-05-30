@@ -22,7 +22,7 @@ export default function PatientLongitudinalSummaryCard({
   const pendingTasks = clinicalSummary?.pendingTasks ?? [];
 
   return (
-    <section className="card mb-6">
+    <section className="mb-6 rounded-card border border-surface-muted/30 bg-surface-elevated p-6 shadow-soft">
       <div className="flex flex-col gap-1 border-b border-surface-muted/20 pb-4">
         <h2 className="text-lg font-bold text-ink">Resumen longitudinal</h2>
         <p className="text-sm text-ink-secondary">Lectura rápida del estado clínico acumulado del paciente.</p>

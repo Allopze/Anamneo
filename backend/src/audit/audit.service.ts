@@ -22,6 +22,7 @@ import {
   supportsRawUnsafe,
   supportsRootTransactions,
 } from './audit-integrity';
+const AUDIT_SERIALIZATION_RETRY_ATTEMPTS = 3;
 @Injectable()
 export class AuditService {
   private auditWriteQueue: Promise<void> = Promise.resolve();
@@ -38,10 +39,24 @@ export class AuditService {
     return queuedOperation;
   }
   private async writeLog(input: LogInput, client: AuditLogClient) {
-    if (supportsRootTransactions(client)) {
-      return client.$transaction(async (tx) => this.appendLog(input, tx));
+    for (let attempt = 1; attempt <= AUDIT_SERIALIZATION_RETRY_ATTEMPTS; attempt += 1) {
+      try {
+        if (supportsRootTransactions(client)) {
+          return await client.$transaction(async (tx) => this.appendLog(input, tx));
+        }
+        return await this.appendLog(input, client);
+      } catch (error) {
+        if (attempt >= AUDIT_SERIALIZATION_RETRY_ATTEMPTS || !this.isSerializationFailure(error)) {
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, attempt * 25));
+      }
     }
-    return this.appendLog(input, client);
+  }
+  private isSerializationFailure(error: unknown) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+    const metaCode = typeof error.meta?.code === 'string' ? error.meta.code : undefined;
+    return error.code === 'P2034' || metaCode === '40001' || error.message.includes('could not serialize access');
   }
   private async appendLog(input: LogInput, client: Prisma.TransactionClient) {
     const sanitizedDiff = sanitizeDiff(input.entityType, input.diff);

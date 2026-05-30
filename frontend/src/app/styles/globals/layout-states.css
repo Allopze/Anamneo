@@ -1,4 +1,3 @@
-@layer components {
   /* ── Stepper ──────────────────── */
   .stepper-item {
     @apply flex items-center gap-3 px-4 py-3 rounded-card transition-colors duration-200;
@@ -50,7 +49,8 @@
   }
 
   .empty-state-cta {
-    @apply btn btn-primary;
+    @apply inline-flex min-h-11 items-center justify-center rounded-pill bg-frame-dark px-5 py-3 text-sm font-bold text-white shadow-soft transition-[background-color,border-color,color,box-shadow,transform] duration-200 hover:bg-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base active:scale-[0.97];
+    transition-timing-function: var(--ease-out);
   }
 
   /* ── Page Header ──────────────── */
@@ -68,7 +68,7 @@
 
   /* ── Filters ──────────────────── */
   .filter-surface {
-    @apply card mb-6 p-4 bg-surface-inset;
+    @apply mb-6 rounded-card border border-surface-muted/30 bg-surface-inset p-4 shadow-soft;
   }
 
   /* ── Metrics ──────────────────── */
@@ -113,4 +113,3 @@
   .list-chip {
     @apply rounded-pill px-3 py-1 text-micro font-bold;
   }
-}

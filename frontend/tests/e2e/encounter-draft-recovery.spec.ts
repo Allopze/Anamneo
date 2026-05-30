@@ -164,9 +164,19 @@ test.describe('Draft recovery with real Playwright session', () => {
 
     // 6. Verify draft is persisted in localStorage with the real userId
     const draftStored = await sessionPage.evaluate(
-      ([encId, uid]) => {
+      async ([encId, uid]) => {
         const raw = window.localStorage.getItem(`anamneo:encounter-draft:v2:${uid}:${encId}`);
-        return raw ? JSON.parse(raw) : null;
+        const rawKey = window.localStorage.getItem('anamneo:phi-browser-key:v2');
+        if (!raw || !rawKey) return null;
+        const envelope = JSON.parse(raw) as { iv: string; ciphertext: string };
+        const toBytes = (value: string) => Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+        const key = await crypto.subtle.importKey('raw', toBytes(rawKey), 'AES-GCM', false, ['decrypt']);
+        const plaintext = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: toBytes(envelope.iv) },
+          key,
+          toBytes(envelope.ciphertext),
+        );
+        return JSON.parse(new TextDecoder().decode(plaintext));
       },
       [encounterId, realUserId] as unknown as [string, string],
     );

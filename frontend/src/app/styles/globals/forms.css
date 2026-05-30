@@ -1,4 +1,3 @@
-@layer components {
   /* ── Forms ────────────────────── */
   .form-input,
   .input {
@@ -109,4 +108,3 @@
   .form-error {
     @apply text-micro text-status-red-text mt-1;
   }
-}

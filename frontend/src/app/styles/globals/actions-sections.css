@@ -1,4 +1,3 @@
-@layer components {
   /* ── Buttons ──────────────────── */
   .btn {
     @apply inline-flex items-center justify-center rounded-pill px-5 py-3
@@ -139,5 +138,3 @@
   .section-icon-button-danger {
     @apply text-status-red hover:bg-status-red/10 hover:text-status-red-text;
   }
-
-}

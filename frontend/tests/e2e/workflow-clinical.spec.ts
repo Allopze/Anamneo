@@ -270,7 +270,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
 
     // The antecedentes history card should NOT be confused with the structured list
     const historyCard = page.locator('.card').filter({ hasText: 'Antecedentes' }).first();
-    if (await historyCard.isVisible()) {
+    if (await historyCard.getByText('Alergias (antecedentes)').isVisible().catch(() => false)) {
       // The label "Alergias (antecedentes)" should be distinguishable from the structured list heading "Alergias"
       await expect(historyCard.getByText('Alergias (antecedentes)')).toBeVisible();
     }
@@ -381,9 +381,9 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     await expect(page).toHaveURL(/\/atenciones\/[a-zA-Z0-9-]+\/ficha$/, { timeout: 15000 });
 
     await page.getByRole('button', { name: 'Exportar documentos' }).click();
-    await expect(page.getByRole('menuitem', { name: 'Receta' })).toBeEnabled({ timeout: 10000 });
-    await expect(page.getByRole('menuitem', { name: 'Órdenes' })).toBeEnabled();
-    await expect(page.getByRole('menuitem', { name: 'Derivación' })).toBeEnabled();
+    await expect(page.getByRole('menuitem', { name: 'Descargar receta' })).toBeEnabled({ timeout: 10000 });
+    await expect(page.getByRole('menuitem', { name: 'Descargar órdenes' })).toBeEnabled();
+    await expect(page.getByRole('menuitem', { name: 'Descargar derivación' })).toBeEnabled();
     await expect(page.getByRole('menuitem', { name: 'Descargar PDF' })).toBeDisabled();
     await expect(page.getByRole('menuitem', { name: 'Imprimir' })).toBeDisabled();
     await expect(page.getByText(/PDF clínico completo e impresión aún no disponibles/i)).toBeVisible();
@@ -394,7 +394,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
         && response.url().includes('/export/document/receta')
         && response.request().method() === 'GET',
     );
-    await page.getByRole('menuitem', { name: 'Receta' }).click();
+    await page.getByRole('menuitem', { name: 'Descargar receta' }).click();
     const recetaResponse = await recetaResponsePromise;
     expect(recetaResponse.status(), await recetaResponse.text()).toBe(200);
   });
@@ -426,7 +426,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     expect(deleteResponse.status(), await deleteResponse.text()).toBe(200);
 
     await expect(attachmentsDialog.getByText('resultado-laboratorio-e2e.pdf')).toHaveCount(0);
-    await expect(attachmentsDialog.getByText('No hay archivos adjuntos.')).toBeVisible({ timeout: 10000 });
+    await expect(attachmentsDialog.getByText('Esta atención no tiene archivos adjuntos.')).toBeVisible({ timeout: 10000 });
     await attachmentsDialog.getByRole('button', { name: 'Cerrar adjuntos' }).click({ force: true });
 
     await page.getByRole('button', { name: 'Ficha Clínica' }).click();
@@ -462,7 +462,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
       await firstTabNotes.fill('Observación local stale desde la primera pestaña.');
       await page.getByRole('button', { name: 'Guardar Ahora' }).click();
 
-      await expect(page.getByText('La copia local quedó protegida y lista para comparar.')).toBeVisible({
+      await expect(page.getByText(/La sección cambió en otra sesión\. Se guardó tu copia local/i)).toBeVisible({
         timeout: 10000,
       });
       await expect(firstTabNotes).toHaveValue('Observación persistida desde la segunda pestaña.', { timeout: 10000 });
@@ -484,7 +484,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
       await completeVisibleSection(page, 'Sospecha diagnóstica');
 
       await page.getByRole('button', { name: /agregar sospecha diagnóstica/i }).click();
-      const diagnosisInput = page.getByPlaceholder('Diagnóstico sospechado...');
+      const diagnosisInput = page.getByPlaceholder('Diagnóstico sospechado...').last();
       await diagnosisInput.fill('Apendicitis aguda probable');
       await completeVisibleSection(page, 'Tratamiento');
 

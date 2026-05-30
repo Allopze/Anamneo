@@ -222,6 +222,7 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
   const patientList = [...uniquePatients.values()];
   const suppressDetailedAnalytics =
     uniquePatients.size > 0 && uniquePatients.size < SMALL_COHORT_PATIENT_THRESHOLD;
+  const suppressRankings = suppressDetailedAnalytics && !normalizedCondition;
   const demographics = {
     averageAge: calculateAverageAge(matchedEncounters),
     bySex: patientList.reduce<Record<string, number>>((accumulator, patient) => {
@@ -263,28 +264,26 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
       adverseEventRate: ratio(adverseEventCount, matchedEncounters.length),
       demographics,
     },
-    topConditions: suppressDetailedAnalytics
-      ? []
-      : buildConditionRanking(normalizedCondition ? matchedEncounters : baseEncounters, query),
+    topConditions: suppressRankings ? [] : buildConditionRanking(normalizedCondition ? matchedEncounters : baseEncounters, query),
     cohortBreakdown: {
-      associatedSymptoms: suppressDetailedAnalytics
+      associatedSymptoms: suppressRankings
         ? []
         : buildSymptomRanking(matchedEncounters, normalizedCondition, limit),
-      foodRelation: suppressDetailedAnalytics ? [] : buildFoodRelationRanking(matchedEncounters),
+      foodRelation: suppressRankings ? [] : buildFoodRelationRanking(matchedEncounters),
     },
     treatmentPatterns: {
-      medications: suppressDetailedAnalytics ? [] : buildTreatmentRanking(matchedEncounters, 'medications', limit),
-      exams: suppressDetailedAnalytics ? [] : buildTreatmentRanking(matchedEncounters, 'exams', limit),
-      referrals: suppressDetailedAnalytics ? [] : buildTreatmentRanking(matchedEncounters, 'referrals', limit),
+      medications: suppressRankings ? [] : buildTreatmentRanking(matchedEncounters, 'medications', limit),
+      exams: suppressRankings ? [] : buildTreatmentRanking(matchedEncounters, 'exams', limit),
+      referrals: suppressRankings ? [] : buildTreatmentRanking(matchedEncounters, 'referrals', limit),
     },
     treatmentOutcomeProxies: {
-      medications: suppressDetailedAnalytics
+      medications: suppressRankings
         ? []
         : buildTreatmentOutcomeRanking(matchedEncounters, evaluationByEncounterId, 'medications', limit),
-      exams: suppressDetailedAnalytics
+      exams: suppressRankings
         ? []
         : buildTreatmentOutcomeRanking(matchedEncounters, evaluationByEncounterId, 'exams', limit),
-      referrals: suppressDetailedAnalytics
+      referrals: suppressRankings
         ? []
         : buildTreatmentOutcomeRanking(matchedEncounters, evaluationByEncounterId, 'referrals', limit),
     },

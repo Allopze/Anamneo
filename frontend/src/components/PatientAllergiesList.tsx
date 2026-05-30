@@ -163,8 +163,9 @@ export default function PatientAllergiesList({ patientId }: Props) {
               />
             </div>
             <div>
-              <label className="form-label text-xs">Severidad</label>
+              <label htmlFor="patient-allergy-severity" className="form-label text-xs">Severidad</label>
               <select
+                id="patient-allergy-severity"
                 value={form.severity}
                 onChange={(e) => setForm({ ...form, severity: e.target.value as Severity })}
                 className="form-input mt-0.5 text-xs"

@@ -131,7 +131,7 @@ export class PatientDataRightsService {
       userId: user.id,
       action: 'READ',
     });
-    return item;
+    return { ...item, ...this.decryptRequesterContact(item) };
   }
 
   async adminUpdate(id: string, dto: AdminUpdateDataRequestDto, user: RequestUser) {
