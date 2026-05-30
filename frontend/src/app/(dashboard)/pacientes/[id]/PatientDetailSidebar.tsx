@@ -15,7 +15,9 @@ import PatientAlerts from '@/components/PatientAlerts';
 import PatientConsents from '@/components/PatientConsents';
 import PatientDataProcessingConsents from '@/components/PatientDataProcessingConsents';
 import PatientBlockingControls from '@/components/PatientBlockingControls';
+import PatientRegulatoryActions from '@/components/PatientRegulatoryActions';
 import PatientAllergiesList from '@/components/PatientAllergiesList';
+import PatientMedicationsList from '@/components/PatientMedicationsList';
 import PatientCompletenessWidget from '@/components/PatientCompletenessWidget';
 import PatientProblemsCard from './PatientProblemsCard';
 import PatientTasksCard from './PatientTasksCard';
@@ -51,6 +53,7 @@ export default function PatientDetailSidebar({ patient, pd }: Props) {
       {patient.history && <HistoryCard patient={patient} pd={pd} />}
 
       <PatientAllergiesList patientId={patient.id} />
+      <PatientMedicationsList patientId={patient.id} />
       <PatientProblemsCard
         problems={patient.problems || []}
         editingProblemId={pd.editingProblemId}
@@ -89,6 +92,10 @@ export default function PatientDetailSidebar({ patient, pd }: Props) {
         blockedAt={patient.blockedAt ?? null}
         blockedReason={patient.blockedReason ?? null}
         blockedById={patient.blockedById ?? null}
+        isAdmin={Boolean(pd.isAdmin)}
+      />
+      <PatientRegulatoryActions
+        patient={patient}
         isAdmin={Boolean(pd.isAdmin)}
       />
     </div>

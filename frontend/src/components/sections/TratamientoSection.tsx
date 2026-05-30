@@ -2,17 +2,14 @@
 
 import { Attachment, HistoryFieldValue, SospechaDiagnosticaData, TratamientoData } from '@/types';
 import VoiceDictationButton from '@/components/common/VoiceDictationButton';
-import { FiEye, FiPaperclip, FiPlus, FiTrash2 } from 'react-icons/fi';
 import {
-  SectionAddButton,
   SectionBlock,
   SectionCallout,
   SectionFieldHeader,
-  SectionIconButton,
 } from '@/components/sections/SectionPrimitives';
-import LinkedAttachmentBlock from '@/components/sections/LinkedAttachmentBlock';
 import StructuredMedicationsEditor from '@/components/sections/StructuredMedicationsEditor';
 import TreatmentDiagnosisSelect, { type TreatmentDiagnosisOption } from '@/components/sections/TreatmentDiagnosisSelect';
+import { StructuredOrderBlock } from './TratamientoSection.parts';
 
 interface Props {
   data: TratamientoData;
@@ -47,46 +44,39 @@ export default function TratamientoSection({
   const medicamentos = data.medicamentosEstructurados || [];
   const examenes = data.examenesEstructurados || [];
   const derivaciones = data.derivacionesEstructuradas || [];
+
   const diagnosticOptions: TreatmentDiagnosisOption[] = (diagnosticData?.sospechas || [])
     .map((entry) => {
-      const sourceLabel = entry.diagnostico?.trim() || entry.descripcionCie10?.trim() || entry.codigoCie10?.trim();
-      if (!entry.id || !sourceLabel) {
-        return null;
-      }
-
+      const sourceLabel =
+        entry.diagnostico?.trim() ||
+        entry.descripcionCie10?.trim() ||
+        entry.codigoCie10?.trim();
+      if (!entry.id || !sourceLabel) return null;
       const codeSuffix = entry.codigoCie10?.trim() ? ` (${entry.codigoCie10.trim()})` : '';
-
-      return {
-        id: entry.id,
-        label: `${entry.prioridad}. ${sourceLabel}${codeSuffix}`,
-      };
+      return { id: entry.id, label: `${entry.prioridad}. ${sourceLabel}${codeSuffix}` };
     })
     .filter((entry): entry is TreatmentDiagnosisOption => Boolean(entry));
-  const planText = typeof data.plan === 'string'
-    ? data.plan
-    : typeof data.indicaciones === 'string'
-    ? data.indicaciones
-    : '';
+
+  const planText =
+    typeof data.plan === 'string'
+      ? data.plan
+      : typeof data.indicaciones === 'string'
+        ? data.indicaciones
+        : '';
 
   const appendDictation = (field: keyof TratamientoData, transcript: string) => {
-    const previous = field === 'plan'
-      ? planText
-      : typeof data[field] === 'string'
-      ? data[field]
-      : '';
+    const previous =
+      field === 'plan'
+        ? planText
+        : typeof data[field] === 'string'
+          ? data[field]
+          : '';
     handleChange(field, `${previous ? `${previous} ` : ''}${transcript}`.trim());
   };
 
   const handlePlanChange = (value: string) => {
     const { indicaciones: _legacyIndicaciones, ...rest } = data;
-    onChange({
-      ...rest,
-      plan: value,
-    });
-  };
-
-  const updateList = (field: 'medicamentosEstructurados' | 'examenesEstructurados' | 'derivacionesEstructuradas', next: any[]) => {
-    handleChange(field, next);
+    onChange({ ...rest, plan: value });
   };
 
   return (
@@ -96,7 +86,13 @@ export default function TratamientoSection({
           <div>
             <SectionFieldHeader
               label="Plan de tratamiento e indicaciones"
-              action={!readOnly ? <VoiceDictationButton onTranscript={(text) => appendDictation('plan', text)} /> : undefined}
+              action={
+                !readOnly ? (
+                  <VoiceDictationButton
+                    onTranscript={(text) => appendDictation('plan', text)}
+                  />
+                ) : undefined
+              }
             />
             <textarea
               value={planText}
@@ -113,7 +109,7 @@ export default function TratamientoSection({
       <SectionBlock title="Medicamentos">
         <StructuredMedicationsEditor
           medications={medicamentos}
-          onChange={(next) => updateList('medicamentosEstructurados', next)}
+          onChange={(next) => handleChange('medicamentosEstructurados', next)}
           readOnly={readOnly}
           allergyData={allergyData}
           diagnosticOptions={diagnosticOptions}
@@ -121,9 +117,15 @@ export default function TratamientoSection({
         <div className="mt-4">
           <SectionFieldHeader
             label="Notas adicionales de receta (texto libre)"
-            action={!readOnly ? <VoiceDictationButton onTranscript={(text) => appendDictation('receta', text)} /> : undefined}
+            action={
+              !readOnly ? (
+                <VoiceDictationButton
+                  onTranscript={(text) => appendDictation('receta', text)}
+                />
+              ) : undefined
+            }
           />
-            <textarea
+          <textarea
             value={data.receta || ''}
             onChange={(e) => handleChange('receta', e.target.value)}
             disabled={readOnly}
@@ -135,207 +137,49 @@ export default function TratamientoSection({
       </SectionBlock>
 
       <SectionBlock title="Exámenes solicitados">
-        <SectionFieldHeader
-          label="Exámenes solicitados"
-          action={!readOnly ? <VoiceDictationButton onTranscript={(text) => appendDictation('examenes', text)} /> : undefined}
+        <StructuredOrderBlock
+          title="Exámenes solicitados"
+          freeTextLabel="Exámenes solicitados"
+          freeTextPlaceholder="Hemograma, perfil bioquímico, radiografía..."
+          addLabel="Agregar examen estructurado"
+          namePlaceholder="Examen"
+          indicacionPlaceholder="Indicación"
+          orderType="EXAMEN"
+          items={examenes}
+          freeTextValue={data.examenes || ''}
+          readOnly={readOnly}
+          linkedAttachmentsByOrderId={linkedAttachmentsByOrderId}
+          diagnosticOptions={diagnosticOptions}
+          createId={createId}
+          onFreeTextChange={(value) => handleChange('examenes', value)}
+          onDictation={(text) => appendDictation('examenes', text)}
+          onChange={(next) => handleChange('examenesEstructurados', next)}
+          onRequestAttachToOrder={onRequestAttachToOrder}
+          onPreviewAttachment={onPreviewAttachment}
         />
-        <textarea
-          value={data.examenes || ''}
-          onChange={(e) => handleChange('examenes', e.target.value)}
-          disabled={readOnly}
-          rows={2}
-          className="form-input form-textarea"
-          placeholder="Hemograma, perfil bioquímico, radiografía..."
-        />
-        <div className="mt-3 space-y-2">
-          {examenes.map((orden, index) => (
-            <div key={orden.id} className="section-item-card grid grid-cols-1 gap-2 md:grid-cols-5">
-              <input
-                className="form-input"
-                placeholder="Examen"
-                value={orden.nombre || ''}
-                disabled={readOnly}
-                onChange={(e) => {
-                  const next = [...examenes];
-                  next[index] = { ...next[index], nombre: e.target.value };
-                  updateList('examenesEstructurados', next);
-                }}
-              />
-              <input
-                className="form-input"
-                placeholder="Indicación"
-                value={orden.indicacion || ''}
-                disabled={readOnly}
-                onChange={(e) => {
-                  const next = [...examenes];
-                  next[index] = { ...next[index], indicacion: e.target.value };
-                  updateList('examenesEstructurados', next);
-                }}
-              />
-              <select
-                className="form-input"
-                value={orden.estado || 'PENDIENTE'}
-                disabled={readOnly}
-                onChange={(e) => {
-                  const next = [...examenes];
-                  next[index] = { ...next[index], estado: e.target.value as 'PENDIENTE' | 'RECIBIDO' | 'REVISADO' };
-                  updateList('examenesEstructurados', next);
-                }}
-              >
-                <option value="PENDIENTE">Pendiente</option>
-                <option value="RECIBIDO">Recibido</option>
-                <option value="REVISADO">Revisado</option>
-              </select>
-              {diagnosticOptions.length > 0 ? (
-                <TreatmentDiagnosisSelect
-                  options={diagnosticOptions}
-                  value={orden.sospechaId}
-                  disabled={readOnly}
-                  ariaLabel="Diagnóstico asociado del examen"
-                  onChange={(value) => {
-                    const next = [...examenes];
-                    next[index] = { ...next[index], sospechaId: value || undefined };
-                    updateList('examenesEstructurados', next);
-                  }}
-                />
-              ) : null}
-              {!readOnly && (
-                <SectionIconButton
-                  onClick={() => updateList('examenesEstructurados', examenes.filter((item) => item.id !== orden.id))}
-                  tone="danger"
-                  ariaLabel="Eliminar examen"
-                >
-                  <FiTrash2 className="h-4 w-4" />
-                </SectionIconButton>
-              )}
-              {orden.id && (
-                <LinkedAttachmentBlock
-                  orderId={orden.id}
-                  type="EXAMEN"
-                  linkedAttachmentsByOrderId={linkedAttachmentsByOrderId}
-                  readOnly={readOnly}
-                  onRequestAttachToOrder={onRequestAttachToOrder}
-                  onPreviewAttachment={onPreviewAttachment}
-                />
-              )}
-            </div>
-          ))}
-          {!readOnly && (
-            <SectionAddButton
-              onClick={() =>
-                updateList('examenesEstructurados', [
-                  ...examenes,
-                  { id: createId(), nombre: '', indicacion: '', estado: 'PENDIENTE', resultado: '' },
-                ])
-              }
-            >
-              <FiPlus className="h-4 w-4" />
-              Agregar examen estructurado
-            </SectionAddButton>
-          )}
-        </div>
       </SectionBlock>
 
       <SectionBlock title="Derivaciones">
-        <SectionFieldHeader
-          label="Derivaciones"
-          action={!readOnly ? <VoiceDictationButton onTranscript={(text) => appendDictation('derivaciones', text)} /> : undefined}
+        <StructuredOrderBlock
+          title="Derivaciones"
+          freeTextLabel="Derivaciones"
+          freeTextPlaceholder="Especialista, motivo de derivación..."
+          addLabel="Agregar derivación estructurada"
+          namePlaceholder="Destino"
+          indicacionPlaceholder="Motivo"
+          orderType="DERIVACION"
+          items={derivaciones}
+          freeTextValue={data.derivaciones || ''}
+          readOnly={readOnly}
+          linkedAttachmentsByOrderId={linkedAttachmentsByOrderId}
+          diagnosticOptions={diagnosticOptions}
+          createId={createId}
+          onFreeTextChange={(value) => handleChange('derivaciones', value)}
+          onDictation={(text) => appendDictation('derivaciones', text)}
+          onChange={(next) => handleChange('derivacionesEstructuradas', next)}
+          onRequestAttachToOrder={onRequestAttachToOrder}
+          onPreviewAttachment={onPreviewAttachment}
         />
-        <textarea
-          value={data.derivaciones || ''}
-          onChange={(e) => handleChange('derivaciones', e.target.value)}
-          disabled={readOnly}
-          rows={2}
-          className="form-input form-textarea"
-          placeholder="Especialista, motivo de derivación..."
-        />
-        <div className="mt-3 space-y-2">
-          {derivaciones.map((orden, index) => (
-            <div key={orden.id} className="section-item-card grid grid-cols-1 gap-2 md:grid-cols-5">
-              <input
-                className="form-input"
-                placeholder="Destino"
-                value={orden.nombre || ''}
-                disabled={readOnly}
-                onChange={(e) => {
-                  const next = [...derivaciones];
-                  next[index] = { ...next[index], nombre: e.target.value };
-                  updateList('derivacionesEstructuradas', next);
-                }}
-              />
-              <input
-                className="form-input"
-                placeholder="Motivo"
-                value={orden.indicacion || ''}
-                disabled={readOnly}
-                onChange={(e) => {
-                  const next = [...derivaciones];
-                  next[index] = { ...next[index], indicacion: e.target.value };
-                  updateList('derivacionesEstructuradas', next);
-                }}
-              />
-              <select
-                className="form-input"
-                value={orden.estado || 'PENDIENTE'}
-                disabled={readOnly}
-                onChange={(e) => {
-                  const next = [...derivaciones];
-                  next[index] = { ...next[index], estado: e.target.value as 'PENDIENTE' | 'RECIBIDO' | 'REVISADO' };
-                  updateList('derivacionesEstructuradas', next);
-                }}
-              >
-                <option value="PENDIENTE">Pendiente</option>
-                <option value="RECIBIDO">Recibido</option>
-                <option value="REVISADO">Revisado</option>
-              </select>
-              {diagnosticOptions.length > 0 ? (
-                <TreatmentDiagnosisSelect
-                  options={diagnosticOptions}
-                  value={orden.sospechaId}
-                  disabled={readOnly}
-                  ariaLabel="Diagnóstico asociado de la derivación"
-                  onChange={(value) => {
-                    const next = [...derivaciones];
-                    next[index] = { ...next[index], sospechaId: value || undefined };
-                    updateList('derivacionesEstructuradas', next);
-                  }}
-                />
-              ) : null}
-              {!readOnly && (
-                <SectionIconButton
-                  onClick={() => updateList('derivacionesEstructuradas', derivaciones.filter((item) => item.id !== orden.id))}
-                  tone="danger"
-                  ariaLabel="Eliminar derivación"
-                >
-                  <FiTrash2 className="h-4 w-4" />
-                </SectionIconButton>
-              )}
-              {orden.id && (
-                <LinkedAttachmentBlock
-                  orderId={orden.id}
-                  type="DERIVACION"
-                  linkedAttachmentsByOrderId={linkedAttachmentsByOrderId}
-                  readOnly={readOnly}
-                  onRequestAttachToOrder={onRequestAttachToOrder}
-                  onPreviewAttachment={onPreviewAttachment}
-                />
-              )}
-            </div>
-          ))}
-          {!readOnly && (
-            <SectionAddButton
-              onClick={() =>
-                updateList('derivacionesEstructuradas', [
-                  ...derivaciones,
-                  { id: createId(), nombre: '', indicacion: '', estado: 'PENDIENTE', resultado: '' },
-                ])
-              }
-            >
-              <FiPlus className="h-4 w-4" />
-              Agregar derivación estructurada
-            </SectionAddButton>
-          )}
-        </div>
       </SectionBlock>
     </div>
   );

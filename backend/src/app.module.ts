@@ -25,6 +25,7 @@ import { PatientPortalModule } from './patient-portal/patient-portal.module';
 import { DataBreachModule } from './data-breach/data-breach.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { AllergiesModule } from './allergies/allergies.module';
+import { PatientMedicationsModule } from './patient-medications/patient-medications.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { Cie10Module } from './cie10/cie10.module';
 import { AnalyticsModule } from './analytics/analytics.module';
@@ -87,6 +88,7 @@ import { HealthController } from './health.controller';
     DataBreachModule,
     AlertsModule,
     AllergiesModule,
+    PatientMedicationsModule,
     AppointmentsModule,
     Cie10Module,
     AnalyticsModule,

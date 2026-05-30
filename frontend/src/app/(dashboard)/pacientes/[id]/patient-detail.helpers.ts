@@ -71,3 +71,18 @@ export async function downloadPatientExportBundle(patientId: string, patient: Pa
   link.remove();
   window.URL.revokeObjectURL(url);
 }
+
+/** Ley 19.628 / Ley 21.719 — paquete regulatorio (admin-only). */
+export async function downloadPatientRegulatoryExport(patientId: string, patient: Patient) {
+  const response = await api.get(`/patients/${patientId}/export/regulatory`, { responseType: 'blob' });
+  const blob = new Blob([response.data], { type: 'application/zip' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = getFilenameFromDisposition(response.headers['content-disposition'])
+    || `${buildSafePatientName(patient)} - Regulatorio.zip`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}

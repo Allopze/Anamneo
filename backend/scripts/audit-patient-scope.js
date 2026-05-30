@@ -40,6 +40,11 @@ const DOMAIN_REQUIREMENTS = [
     evidence: ['allergies/allergies.service.ts'],
     required: ['assertPatientAccess'],
   },
+  {
+    controller: 'patient-medications/patient-medications.controller.ts',
+    evidence: ['patient-medications/patient-medications.service.ts'],
+    required: ['assertPatientAccess'],
+  },
 ];
 
 function read(relativePath) {

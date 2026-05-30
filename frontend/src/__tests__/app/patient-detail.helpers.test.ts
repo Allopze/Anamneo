@@ -1,5 +1,8 @@
 import type { Patient } from '@/types';
-import { downloadPatientExportBundle } from '@/app/(dashboard)/pacientes/[id]/patient-detail.helpers';
+import {
+  downloadPatientExportBundle,
+  downloadPatientRegulatoryExport,
+} from '@/app/(dashboard)/pacientes/[id]/patient-detail.helpers';
 
 const apiGetMock = jest.fn();
 
@@ -62,5 +65,42 @@ describe('patient detail export helpers', () => {
     expect(createObjectUrlSpy).toHaveBeenCalled();
     expect(clickSpy).toHaveBeenCalled();
     expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:bundle');
+  });
+
+  it('downloads the regulatory export ZIP using the backend content-disposition filename', async () => {
+    apiGetMock.mockResolvedValueOnce({
+      data: new Blob(['regulatory']),
+      headers: {
+        'content-disposition':
+          'attachment; filename="paciente-patient-1-regulatorio-2026-05-30.zip"',
+      },
+    });
+
+    await downloadPatientRegulatoryExport('patient-1', patient);
+
+    expect(apiGetMock).toHaveBeenCalledWith('/patients/patient-1/export/regulatory', { responseType: 'blob' });
+    expect(createObjectUrlSpy).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:bundle');
+  });
+
+  it('falls back to a safe patient name when regulatory export has no content-disposition', async () => {
+    apiGetMock.mockResolvedValueOnce({
+      data: new Blob(['regulatory']),
+      headers: {},
+    });
+
+    const linkEl = {
+      click: clickSpy,
+      remove: jest.fn(),
+      href: '',
+      download: '',
+    } as unknown as HTMLAnchorElement;
+
+    jest.spyOn(document, 'createElement').mockReturnValueOnce(linkEl);
+
+    await downloadPatientRegulatoryExport('patient-1', patient);
+
+    expect(linkEl.download).toBe('Maria Eugenia Flores Tapia - Regulatorio.zip');
   });
 });

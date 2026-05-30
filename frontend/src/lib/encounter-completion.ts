@@ -1,5 +1,14 @@
 import type { Encounter, SectionKey } from '@/types';
 import { getEncounterClinicalOutputBlockReason } from '@/lib/clinical-output';
+import {
+  REQUIRED_COMPLETION_SECTION_KEYS,
+  REQUIRED_SEMANTIC_SECTION_KEYS,
+  buildAttachmentSignatureLabel,
+  flattenMeaningfulValues,
+  formatDiffPathLabel,
+  formatSectionKeyList,
+  hasMeaningfulContent,
+} from './encounter-completion.helpers';
 
 export const WORKFLOW_NOTE_MIN_LENGTH = 10;
 
@@ -40,125 +49,6 @@ export interface EncounterSignatureDiff {
   attachmentChanges: EncounterSignatureAttachmentChange[];
 }
 
-const REQUIRED_COMPLETION_SECTION_KEYS: SectionKey[] = [
-  'IDENTIFICACION',
-  'MOTIVO_CONSULTA',
-  'EXAMEN_FISICO',
-  'SOSPECHA_DIAGNOSTICA',
-  'TRATAMIENTO',
-];
-
-const REQUIRED_SEMANTIC_SECTION_KEYS: SectionKey[] = [
-  'MOTIVO_CONSULTA',
-  'EXAMEN_FISICO',
-  'SOSPECHA_DIAGNOSTICA',
-  'TRATAMIENTO',
-];
-
-const ENCOUNTER_WORKFLOW_SECTION_LABELS: Record<SectionKey, string> = {
-  IDENTIFICACION: 'Identificación',
-  MOTIVO_CONSULTA: 'Motivo de consulta',
-  ANAMNESIS_PROXIMA: 'Anamnesis próxima',
-  ANAMNESIS_REMOTA: 'Anamnesis remota',
-  REVISION_SISTEMAS: 'Revisión por sistemas',
-  EXAMEN_FISICO: 'Examen físico',
-  SOSPECHA_DIAGNOSTICA: 'Sospecha diagnóstica',
-  TRATAMIENTO: 'Tratamiento',
-  RESPUESTA_TRATAMIENTO: 'Respuesta al tratamiento',
-  OBSERVACIONES: 'Observaciones',
-};
-
-function hasMeaningfulContent(value: unknown): boolean {
-  if (value === null || value === undefined) {
-    return false;
-  }
-
-  if (typeof value === 'string') {
-    return value.trim().length > 0;
-  }
-
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return true;
-  }
-
-  if (Array.isArray(value)) {
-    return value.some((item) => hasMeaningfulContent(item));
-  }
-
-  if (typeof value === 'object') {
-    return Object.values(value as Record<string, unknown>).some((item) => hasMeaningfulContent(item));
-  }
-
-  return false;
-}
-
-function formatSectionKeyList(sectionKeys: SectionKey[]) {
-  return sectionKeys.map((key) => ENCOUNTER_WORKFLOW_SECTION_LABELS[key]).join(', ');
-}
-
-function formatDiffPathLabel(path: string) {
-  return path
-    .split('.')
-    .map((segment) => {
-      if (/^\d+$/.test(segment)) {
-        return `#${segment}`;
-      }
-
-      const normalized = segment
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/_/g, ' ')
-        .trim();
-
-      return normalized.charAt(0).toUpperCase() + normalized.slice(1);
-    })
-    .join(' > ');
-}
-
-function flattenMeaningfulValues(value: unknown, prefix = '', output: Record<string, string> = {}) {
-  if (value === null || value === undefined) {
-    return output;
-  }
-
-  if (typeof value === 'string') {
-    const normalized = value.trim();
-    if (normalized) {
-      output[prefix || 'value'] = normalized;
-    }
-    return output;
-  }
-
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    output[prefix || 'value'] = String(value);
-    return output;
-  }
-
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => {
-      flattenMeaningfulValues(item, prefix ? `${prefix}.${index + 1}` : String(index + 1), output);
-    });
-    return output;
-  }
-
-  if (typeof value === 'object') {
-    Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .forEach(([key, nestedValue]) => {
-        flattenMeaningfulValues(nestedValue, prefix ? `${prefix}.${key}` : key, output);
-      });
-  }
-
-  return output;
-}
-
-function buildAttachmentSignatureLabel(attachment: NonNullable<Encounter['attachments']>[number]) {
-  return (
-    attachment.linkedOrderLabel?.trim()
-    || attachment.description?.trim()
-    || attachment.originalName?.trim()
-    || 'Adjunto sin nombre'
-  );
-}
-
 export function normalizeClosureNoteForCompletion(closureNote: string): string {
   return closureNote.trim();
 }
@@ -184,12 +74,19 @@ export function buildEncounterCompletionChecklist(
   const requiredCompletionKeys = sections.some((section) => section.requiredForCompletion !== undefined)
     ? sections.filter((section) => section.requiredForCompletion).map((section) => section.sectionKey)
     : REQUIRED_COMPLETION_SECTION_KEYS;
-  const requiredSemanticKeys = REQUIRED_SEMANTIC_SECTION_KEYS.filter((key) => requiredCompletionKeys.includes(key));
-  const incompleteSections = requiredCompletionKeys.filter((key) => !sectionByKey.get(key)?.completed);
+  const requiredSemanticKeys = REQUIRED_SEMANTIC_SECTION_KEYS.filter((key) =>
+    requiredCompletionKeys.includes(key),
+  );
+  const incompleteSections = requiredCompletionKeys.filter(
+    (key) => !sectionByKey.get(key)?.completed,
+  );
   const semanticallyIncompleteSections = requiredSemanticKeys.filter(
     (key) => !hasMeaningfulContent(sectionByKey.get(key)?.data),
   );
-  const blockReason = getEncounterClinicalOutputBlockReason(encounter?.clinicalOutputBlock, 'COMPLETE_ENCOUNTER');
+  const blockReason = getEncounterClinicalOutputBlockReason(
+    encounter?.clinicalOutputBlock,
+    'COMPLETE_ENCOUNTER',
+  );
   const closureNoteReady = hasRequiredWorkflowNote(closureNote);
 
   return [
@@ -223,14 +120,16 @@ export function buildEncounterCompletionChecklist(
       id: 'patient-record',
       label: 'Ficha del paciente lista para cierre',
       status: blockReason ? 'blocked' : 'ready',
-      detail: blockReason ?? 'La ficha del paciente permite cierre y documentos clínicos oficiales.',
+      detail:
+        blockReason ?? 'La ficha del paciente permite cierre y documentos clínicos oficiales.',
     },
   ];
 }
 
 export function buildEncounterSignatureSummary(encounter: Encounter | undefined) {
   const sectionTotal = encounter?.sections?.length ?? 0;
-  const completedSections = encounter?.sections?.filter((section) => section.completed).length ?? 0;
+  const completedSections =
+    encounter?.sections?.filter((section) => section.completed).length ?? 0;
   const attachmentCount = encounter?.attachments?.length ?? 0;
   const reviewStatus = encounter?.reviewStatus ?? 'NO_REQUIERE_REVISION';
 
@@ -258,7 +157,10 @@ export function buildEncounterSignatureSummary(encounter: Encounter | undefined)
     {
       id: 'attachments',
       label: 'Adjuntos incluidos',
-      value: attachmentCount === 0 ? 'Sin adjuntos' : `${attachmentCount} adjunto${attachmentCount === 1 ? '' : 's'}`,
+      value:
+        attachmentCount === 0
+          ? 'Sin adjuntos'
+          : `${attachmentCount} adjunto${attachmentCount === 1 ? '' : 's'}`,
     },
   ];
 }
@@ -266,16 +168,18 @@ export function buildEncounterSignatureSummary(encounter: Encounter | undefined)
 export function buildEncounterSignatureDiff(encounter: Encounter | undefined): EncounterSignatureDiff {
   const baseline = encounter?.signatureBaseline ?? null;
   const currentSections = encounter?.sections ?? [];
-  const baselineSectionByKey = new Map((baseline?.sections ?? []).map((section) => [section.sectionKey, section]));
+  const baselineSectionByKey = new Map(
+    (baseline?.sections ?? []).map((section) => [section.sectionKey, section]),
+  );
   const sections: EncounterSignatureDiffSection[] = [];
 
   for (const currentSection of currentSections) {
     const baselineSection = baselineSectionByKey.get(currentSection.sectionKey);
     const currentFlat = flattenMeaningfulValues(currentSection.data);
     const baselineFlat = flattenMeaningfulValues(baselineSection?.data);
-    const paths = [...new Set([...Object.keys(currentFlat), ...Object.keys(baselineFlat)])].sort((left, right) =>
-      left.localeCompare(right),
-    );
+    const paths = [
+      ...new Set([...Object.keys(currentFlat), ...Object.keys(baselineFlat)]),
+    ].sort((left, right) => left.localeCompare(right));
 
     const fieldChanges = paths
       .map((path) => {
@@ -330,7 +234,8 @@ export function buildEncounterSignatureDiff(encounter: Encounter | undefined): E
   }
 
   const totalChanges =
-    sections.reduce((sum, section) => sum + section.fieldChanges.length, 0) + attachmentChanges.length;
+    sections.reduce((sum, section) => sum + section.fieldChanges.length, 0) +
+    attachmentChanges.length;
 
   return {
     baselineEncounterId: baseline?.id ?? null,

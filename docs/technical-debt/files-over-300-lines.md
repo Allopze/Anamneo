@@ -83,7 +83,7 @@ Archivos productivos por encima del umbral recomendado de 300 lineas. No quedan 
 - [ ] frontend/src/app/(dashboard)/atenciones/[id]/EncounterAttachmentsModal.tsx
 - [ ] frontend/src/app/(dashboard)/atenciones/[id]/EncounterSectionRail.tsx
 - [ ] frontend/src/app/(dashboard)/atenciones/[id]/page.tsx
-- [ ] frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts
+- [x] frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionPersistence.ts (bajo a 258; conflicto extraido a `useEncounterConflictRecovery`, dirty tracking a `useEncounterDirtyTracker`, acciones a `useEncounterSectionActions`)
 - [ ] frontend/src/app/(dashboard)/atenciones/[id]/useEncounterSectionSaveFlow.ts
 - [ ] frontend/src/app/(dashboard)/atenciones/[id]/useEncounterWizardDerived.ts
 - [ ] frontend/src/app/(dashboard)/atenciones/page.tsx
@@ -103,9 +103,9 @@ Archivos productivos por encima del umbral recomendado de 300 lineas. No quedan 
 - [x] frontend/src/components/layout/DashboardSidebar.tsx
 - [ ] frontend/src/components/sections/RespuestaTratamientoSection.tsx
 - [x] frontend/src/components/sections/StructuredMedicationsEditor.tsx
-- [ ] frontend/src/components/sections/TratamientoSection.tsx
-- [ ] frontend/src/lib/encounter-completion.ts
-- [ ] frontend/src/types/encounter.types.ts
+- [x] frontend/src/components/sections/TratamientoSection.tsx (bajo a 186; ExamenesBlock/DerivacionesBlock extraidos a `TratamientoSection.parts.tsx`)
+- [x] frontend/src/lib/encounter-completion.ts (bajo a 248; helpers privados extraidos a `encounter-completion.helpers.ts`)
+- [x] frontend/src/types/encounter.types.ts (bajo a 222; tipos de sección-data extraidos a `encounter-section-data.types.ts`)
 - [ ] frontend/tests/e2e/encounter-draft-recovery.spec.ts
 - [ ] frontend/tests/e2e/workflow-clinical.spec.ts
 

@@ -56,6 +56,7 @@ model User {
   createdClinicalAlerts ClinicalAlert[]   @relation("ClinicalAlertCreatedBy")
   acknowledgedAlerts    ClinicalAlert[]   @relation("ClinicalAlertAcknowledgedBy")
   createdAllergies      PatientAllergy[]  @relation("PatientAllergyCreatedBy")
+  createdMedications    PatientMedication[] @relation("PatientMedicationCreatedBy")
   medicoAppointments    Appointment[]     @relation("AppointmentMedico")
   createdAppointments   Appointment[]     @relation("AppointmentCreatedBy")
   legalAcceptances       UserLegalAcceptance[]
@@ -142,6 +143,7 @@ model Patient {
   alerts     ClinicalAlert[]
   clinicalSearches PatientClinicalSearch[]
   allergies        PatientAllergy[]
+  medications      PatientMedication[]
   appointments     Appointment[]
   vitalSigns        EncounterVitalSigns[]
 
@@ -166,6 +168,30 @@ model PatientClinicalSearch {
   @@index([medicoId])
   @@index([patientId])
   @@map("patient_clinical_search")
+}
+
+// Status enum: ACTIVO | SUSPENDIDO
+// deletedAt enables soft-delete (medication marked inactive, not purged).
+model PatientMedication {
+  id          String    @id @default(uuid())
+  patientId   String    @map("patient_id")
+  drug        String
+  dose        String?
+  route       String?
+  frequency   String?
+  status      String    @default("ACTIVO")
+  startDate   DateTime? @map("start_date")
+  notes       String?
+  deletedAt   DateTime? @map("deleted_at")
+  createdById String    @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("PatientMedicationCreatedBy", fields: [createdById], references: [id])
+
+  @@index([patientId, deletedAt])
+  @@map("patient_medications")
 }
 
 // Severity enum: LEVE | MODERADA | GRAVE | FATAL
