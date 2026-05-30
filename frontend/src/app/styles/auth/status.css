@@ -1,0 +1,24 @@
+  /* ── Status Screens ───────────── */
+  .status-shell {
+    @apply min-h-screen flex items-center justify-center bg-surface-base px-6;
+  }
+
+  .status-card {
+    @apply w-full max-w-md rounded-card border border-surface-muted/35 bg-surface-elevated p-8 text-center shadow-soft;
+  }
+
+  .status-card-quiet {
+    @apply shadow-none;
+  }
+
+  .status-icon {
+    @apply mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-lg;
+  }
+
+  .loading-shell {
+    @apply min-h-screen flex items-center justify-center bg-surface-base;
+  }
+
+.loading-card {
+  @apply w-full max-w-xl rounded-card border border-surface-muted/35 bg-surface-elevated p-6 shadow-soft;
+}

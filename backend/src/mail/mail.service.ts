@@ -25,20 +25,16 @@ import {
   buildPatientPortalInviteEmail,
   buildPatientPortalPasswordResetEmail,
 } from './mail-notification-templates';
-
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-
   constructor(
     private readonly settingsService: SettingsService,
     private readonly configService: ConfigService,
   ) {}
-
   private async resolveMailSettings(overrides: MailSettingsOverrides = {}) {
     return resolveConfiguredMailSettings(this.settingsService, this.configService, overrides);
   }
-
   private async deliverInvitationEmail(
     payload: InvitationEmailPayload,
     overrides: MailSettingsOverrides = {},
@@ -48,7 +44,6 @@ export class MailService {
     const inviteUrl = settings.appPublicUrl
       ? `${settings.appPublicUrl}/register?token=${encodeURIComponent(payload.token)}`
       : null;
-
     if (!settings.canSend || !inviteUrl || !settings.host || !settings.port || !settings.fromEmail) {
       return {
         sent: false,
@@ -57,7 +52,6 @@ export class MailService {
         subject: null,
       };
     }
-
     const transporter = nodemailer.createTransport({
       host: settings.host,
       port: settings.port,
@@ -69,7 +63,6 @@ export class MailService {
           }
         : undefined,
     });
-
     const roleLabel = payload.role === 'MEDICO' ? 'medico' : payload.role === 'ADMIN' ? 'administrador' : 'asistente';
     const assignedMedicoLine = payload.assignedMedicoName
       ? `Medico asignado: ${payload.assignedMedicoName}`
@@ -96,7 +89,6 @@ export class MailService {
         year: String(new Date().getFullYear()),
       },
     );
-
     const textBody = [
       'Hola,',
       '',
@@ -109,7 +101,6 @@ export class MailService {
     ]
       .filter(Boolean)
       .join('\n');
-
     const htmlBody = settings.templateHtml
       ? renderTemplate(settings.templateHtml, {
           clinicName: escapeHtml(settings.clinicName),
@@ -130,7 +121,6 @@ export class MailService {
           assignedMedicoSection,
           logoUrl,
         });
-
     try {
       await transporter.sendMail({
         from: formatFromAddress(settings.fromEmail, settings.fromName),
@@ -139,7 +129,6 @@ export class MailService {
         text: textBody,
         html: htmlBody,
       });
-
       return {
         sent: true,
         reason: null,
@@ -150,7 +139,6 @@ export class MailService {
       const reason = scrubPhi(error instanceof Error ? error.message : 'No se pudo enviar el correo') ?? 'No se pudo enviar el correo';
       const recipient = scrubPhi(payload.email) ?? '[EMAIL]';
       this.logger.error(`No se pudo enviar la invitacion a ${recipient}: ${reason}`);
-
       return {
         sent: false,
         reason,
@@ -159,11 +147,9 @@ export class MailService {
       };
     }
   }
-
   async sendInvitationEmail(payload: InvitationEmailPayload): Promise<InvitationEmailResult> {
     return this.deliverInvitationEmail(payload);
   }
-
   async sendPasswordResetEmail(payload: {
     email: string;
     token: string;
@@ -174,7 +160,6 @@ export class MailService {
     const resetUrl = settings.appPublicUrl
       ? `${settings.appPublicUrl}/cambiar-contrasena?token=${encodeURIComponent(payload.token)}`
       : null;
-
     if (!settings.canSend || !resetUrl || !settings.host || !settings.port || !settings.fromEmail) {
       return {
         sent: false,
@@ -182,14 +167,12 @@ export class MailService {
         resetUrl,
       };
     }
-
     const transporter = nodemailer.createTransport({
       host: settings.host,
       port: settings.port,
       secure: settings.secure,
       auth: settings.user ? { user: settings.user, pass: settings.password ?? '' } : undefined,
     });
-
     const logoUrl = buildLogoUrl(settings.appPublicUrl);
     const rendered = buildPasswordResetEmail({
       clinicName: settings.clinicName,
@@ -198,7 +181,6 @@ export class MailService {
       recipientName: payload.recipientName,
       logoUrl,
     });
-
     try {
       await transporter.sendMail({
         from: formatFromAddress(settings.fromEmail, settings.fromName),
@@ -207,7 +189,6 @@ export class MailService {
         text: rendered.text,
         html: rendered.html,
       });
-
       return { sent: true, reason: null, resetUrl };
     } catch (error) {
       const reason = scrubPhi(error instanceof Error ? error.message : 'No se pudo enviar el correo') ?? 'No se pudo enviar el correo';
@@ -216,7 +197,6 @@ export class MailService {
       return { sent: false, reason, resetUrl };
     }
   }
-
   async sendTestInvitationEmail(
     email: string,
     overrides: MailSettingsOverrides = {},
@@ -233,12 +213,6 @@ export class MailService {
       { isTest: true },
     );
   }
-
-  // -----------------------------------------------------------------------
-  // Ley 21.719 — comunicaciones a titulares (solicitudes de derechos y
-  // notificaciones de brechas). Reutilizan SMTP del MailService existente.
-  // -----------------------------------------------------------------------
-
   private async sendPlainEmail(payload: {
     to: string;
     subject: string;
@@ -271,88 +245,34 @@ export class MailService {
       return { sent: false, reason };
     }
   }
-
-  async sendDataRequestAcknowledgement(payload: {
-    to: string;
-    requesterName: string;
-    requestId: string;
-    requestType: string;
-    dueDate: Date;
-  }) {
+  async sendDataRequestAcknowledgement(payload: { to: string; requesterName: string; requestId: string; requestType: string; dueDate: Date }) {
     const { subject, text, html } = buildDataRequestAcknowledgementEmail(payload);
     return this.sendPlainEmail({ to: payload.to, subject, text, html });
   }
-
-  async sendDataRequestResolved(payload: {
-    to: string;
-    requesterName: string;
-    requestId: string;
-    requestType: string;
-    resolutionNote: string;
-  }) {
+  async sendDataRequestResolved(payload: { to: string; requesterName: string; requestId: string; requestType: string; resolutionNote: string }) {
     const { subject, text, html } = buildDataRequestResolvedEmail(payload);
     return this.sendPlainEmail({ to: payload.to, subject, text, html });
   }
-
-  async sendDataRequestRejected(payload: {
-    to: string;
-    requesterName: string;
-    requestId: string;
-    requestType: string;
-    reason: string;
-  }) {
+  async sendDataRequestRejected(payload: { to: string; requesterName: string; requestId: string; requestType: string; reason: string }) {
     const { subject, text, html } = buildDataRequestRejectedEmail(payload);
     return this.sendPlainEmail({ to: payload.to, subject, text, html });
   }
-
-  async sendDataRequestExtended(payload: {
-    to: string;
-    requesterName: string;
-    requestId: string;
-    requestType: string;
-    newDueDate: Date;
-    reason: string;
-  }) {
+  async sendDataRequestExtended(payload: { to: string; requesterName: string; requestId: string; requestType: string; newDueDate: Date; reason: string }) {
     const { subject, text, html } = buildDataRequestExtendedEmail(payload);
     return this.sendPlainEmail({ to: payload.to, subject, text, html });
   }
-
-  async sendDataRequestExportLink(payload: {
-    to: string;
-    requesterName: string;
-    requestId: string;
-    downloadUrl: string;
-    expiresAt: Date;
-    maxDownloads: number;
-  }) {
+  async sendDataRequestExportLink(payload: { to: string; requesterName: string; requestId: string; downloadUrl: string; expiresAt: Date; maxDownloads: number }) {
     const { subject, text, html } = buildDataRequestExportLinkEmail(payload);
     return this.sendPlainEmail({ to: payload.to, subject, text, html });
   }
-
-  async sendPatientPortalInvite(payload: {
-    to: string;
-    patientName: string;
-    activationUrl: string;
-    expiresAt: Date;
-  }) {
+  async sendPatientPortalInvite(payload: { to: string; patientName: string; activationUrl: string; expiresAt: Date }) {
     const { subject, text, html } = buildPatientPortalInviteEmail(payload);
     return this.sendPlainEmail({ to: payload.to, subject, text, html });
   }
-
-  async sendPatientPortalPasswordReset(payload: {
-    to: string;
-    resetUrl: string;
-    expiresAt: Date;
-  }) {
+  async sendPatientPortalPasswordReset(payload: { to: string; resetUrl: string; expiresAt: Date }) {
     const { subject, text, html } = buildPatientPortalPasswordResetEmail(payload);
     return this.sendPlainEmail({ to: payload.to, subject, text, html });
   }
-
-  /**
-   * Ley 21.719 Art 14 sexies. Notificacion a titulares afectados.
-   * Cubre los 11 elementos minimos recomendados por asesor legal en
-   * docs/respuestas-borrador-ley21719.md §3.3.
-   */
   async sendBreachNotificationToSubject(payload: {
     to: string;
     subjectName: string;
@@ -360,9 +280,6 @@ export class MailService {
     detectedAt: Date;
     scope: string;
     measuresTaken: string;
-    // Elementos operativos adicionales que completan la notificacion al titular:
-    // responsable, contacto DPO, categorias afectadas, consecuencias,
-    // acciones recomendadas, canales de consulta y seguimiento.
     responsableName?: string;
     dpoName?: string;
     dpoEmail?: string;

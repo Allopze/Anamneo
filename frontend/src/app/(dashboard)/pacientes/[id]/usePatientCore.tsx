@@ -1,5 +1,4 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -31,7 +30,6 @@ import { notify } from '@/lib/notify';
 import { problemSchema, taskSchema, type ProblemForm, type TaskForm } from './patient-detail.constants';
 import { normalizeTaskUpdatePayload, type TaskUpdatePayload } from './patient-detail.helpers';
 import type { PossiblePatientDuplicate } from '@/components/common/PossiblePatientDuplicatesNotice';
-
 export function usePatientCore() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -42,16 +40,13 @@ export function usePatientCore() {
   const canEditAdminFields = useAuthCanEditPatientAdmin();
   const canCreateEncounterAllowed = useAuthCanCreateEncounter();
   const canReassignPatientAllowed = canReassignPatient(user);
-
   const isAdmin = Boolean(user?.isAdmin);
-
   const [conflictEncounters, setConflictEncounters] = useState<InProgressEncounterSummary[] | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [encounterPage, setEncounterPage] = useState(1);
   const [editingProblemId, setEditingProblemId] = useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [mergeCandidate, setMergeCandidate] = useState<PossiblePatientDuplicate | null>(null);
-
   const patientQuery = useQuery({
     queryKey: ['patient', id],
     queryFn: async () => {
@@ -60,7 +55,6 @@ export function usePatientCore() {
     },
     enabled: !isAdmin,
   });
-
   const encounterTimelineQuery = useQuery({
     queryKey: ['patient-encounters', id, encounterPage],
     queryFn: async () => {
@@ -70,7 +64,6 @@ export function usePatientCore() {
     placeholderData: keepPreviousData,
     enabled: !isAdmin,
   });
-
   const operationalHistoryQuery = useQuery({
     queryKey: ['patient-operational-history', id],
     queryFn: async () => {
@@ -79,10 +72,8 @@ export function usePatientCore() {
     },
     enabled: !isAdmin,
   });
-
   const patient = patientQuery.data;
   const headerBarSlot = useHeaderBarSlot();
-
   useEffect(() => {
     if (!headerBarSlot || !patient) return;
     headerBarSlot.setHeaderBarSlot(
@@ -100,18 +91,15 @@ export function usePatientCore() {
       headerBarSlot.setHeaderBarSlot(null);
     };
   }, [headerBarSlot, patient]);
-
   useEffect(() => {
     setEncounterPage(1);
     setEditingProblemId(null);
     setEditingTaskId(null);
   }, [id]);
-
   const problemForm = useForm<ProblemForm>({
     resolver: zodResolver(problemSchema),
     defaultValues: { label: '', notes: '', status: 'ACTIVO' },
   });
-
   const taskForm = useForm<TaskForm>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
@@ -123,7 +111,6 @@ export function usePatientCore() {
       dueDate: '',
     },
   });
-
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/patients/${id}`),
     onSuccess: (response) => {
@@ -140,7 +127,6 @@ export function usePatientCore() {
     },
     onError: (err) => notify.error(getErrorMessage(err)),
   });
-
   const createEncounterMutation = useMutation({
     mutationFn: (payload?: { duplicateFromEncounterId?: string }) =>
       api.post(`/encounters/patient/${id}`, payload || {}),
@@ -166,7 +152,6 @@ export function usePatientCore() {
       notify.error(getErrorMessage(err));
     },
   });
-
   const verifyDemographicsMutation = useMutation({
     mutationFn: () => api.post(`/patients/${id}/verify-demographics`, {}),
     onSuccess: async () => {
@@ -179,7 +164,6 @@ export function usePatientCore() {
     },
     onError: (err) => notify.error(getErrorMessage(err)),
   });
-
   const mergePatientMutation = useMutation({
     mutationFn: async (sourcePatientId: string) => api.post(`/patients/${id}/merge`, { sourcePatientId }),
     onSuccess: async (response) => {
@@ -202,7 +186,6 @@ export function usePatientCore() {
     },
     onError: (err) => notify.error(getErrorMessage(err)),
   });
-
   const createProblemMutation = useMutation({
     mutationFn: async (data: ProblemForm) => api.post(`/patients/${id}/problems`, data),
     onSuccess: () => {
@@ -212,7 +195,6 @@ export function usePatientCore() {
     },
     onError: (err) => notify.error(getErrorMessage(err)),
   });
-
   const updateProblemMutation = useMutation({
     mutationFn: async ({ problemId, payload }: { problemId: string; payload: Partial<ProblemForm> }) =>
       api.put(`/patients/problems/${problemId}`, payload),
@@ -224,7 +206,6 @@ export function usePatientCore() {
     },
     onError: (err) => notify.error(getErrorMessage(err)),
   });
-
   const createTaskMutation = useMutation({
     mutationFn: async (data: TaskForm) =>
       api.post(`/patients/${id}/tasks`, { ...data, dueDate: data.dueDate || undefined }),
@@ -239,7 +220,6 @@ export function usePatientCore() {
     },
     onError: (err) => notify.error(getErrorMessage(err)),
   });
-
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, payload }: { taskId: string; payload: TaskUpdatePayload }) =>
       api.put(`/patients/tasks/${taskId}`, normalizeTaskUpdatePayload(payload)),
@@ -255,7 +235,6 @@ export function usePatientCore() {
     },
     onError: (err) => notify.error(getErrorMessage(err)),
   });
-
   return {
     id,
     router,
@@ -272,7 +251,6 @@ export function usePatientCore() {
     canEditAntecedentes,
     historyHasContent: patientHistoryHasContent(patient?.history),
     completenessMeta: patient ? getPatientCompletenessMeta(patient) : null,
-
     encounterTimeline: encounterTimelineQuery.data,
     isTimelineLoading: encounterTimelineQuery.isLoading,
     isTimelinePlaceholderData: encounterTimelineQuery.isPlaceholderData,
@@ -280,22 +258,18 @@ export function usePatientCore() {
     isOperationalHistoryLoading: operationalHistoryQuery.isLoading,
     encounterPage,
     setEncounterPage,
-
     problemForm,
     taskForm,
-
     showDeleteConfirm,
     setShowDeleteConfirm,
     conflictEncounters,
     setConflictEncounters,
     mergeCandidate,
     setMergeCandidate,
-
     editingProblemId,
     setEditingProblemId,
     editingTaskId,
     setEditingTaskId,
-
     deleteMutation,
     createEncounterMutation,
     verifyDemographicsMutation,
@@ -304,7 +278,6 @@ export function usePatientCore() {
     updateProblemMutation,
     createTaskMutation,
     updateTaskMutation,
-
     handleReassignmentSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['patient', id] }),

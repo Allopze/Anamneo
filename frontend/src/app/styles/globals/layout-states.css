@@ -1,0 +1,116 @@
+@layer components {
+  /* ── Stepper ──────────────────── */
+  .stepper-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-card transition-colors duration-200;
+  }
+
+  .stepper-item-active {
+    @apply bg-accent/20 ring-1 ring-accent/70 text-ink;
+  }
+
+  .stepper-item-completed {
+    @apply text-status-green-text;
+  }
+
+  .stepper-item-pending {
+    @apply text-ink-muted hover:bg-surface-base/60;
+  }
+
+  .stepper-dot {
+    @apply w-6 h-6 rounded-full flex items-center justify-center text-micro font-medium;
+  }
+
+  .stepper-dot-active {
+    @apply bg-accent text-accent-text;
+  }
+
+  .stepper-dot-completed {
+    @apply bg-status-green text-white;
+  }
+
+  .stepper-dot-pending {
+    @apply bg-surface-muted text-ink-secondary;
+  }
+
+  /* ── Empty State ──────────────── */
+  .empty-state {
+    @apply p-12 text-center;
+  }
+
+  .empty-state-icon {
+    @apply w-20 h-20 rounded-full border border-status-yellow/60 bg-status-yellow/35 flex items-center justify-center mx-auto mb-6 transition-transform hover:scale-105;
+  }
+
+  .empty-state-title {
+    @apply text-heading text-ink mb-2;
+  }
+
+  .empty-state-description {
+    @apply text-body text-ink-muted mb-8 max-w-sm mx-auto;
+  }
+
+  .empty-state-cta {
+    @apply btn btn-primary;
+  }
+
+  /* ── Page Header ──────────────── */
+  .page-header {
+    @apply mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .page-header-title {
+    @apply text-hero text-ink font-extrabold;
+  }
+
+  .page-header-description {
+    @apply mt-1 text-body text-ink-secondary;
+  }
+
+  /* ── Filters ──────────────────── */
+  .filter-surface {
+    @apply card mb-6 p-4 bg-surface-inset;
+  }
+
+  /* ── Metrics ──────────────────── */
+  .metric-card {
+    @apply rounded-card bg-surface-elevated p-5 shadow-soft;
+  }
+
+  .metric-icon {
+    @apply flex h-10 w-10 items-center justify-center rounded-full;
+  }
+
+  .metric-value {
+    @apply text-metric text-ink font-extrabold;
+  }
+
+  .metric-label {
+    @apply text-label text-ink-secondary;
+  }
+
+  /* ── Panels ───────────────────── */
+  .panel-header {
+    @apply mb-4 flex items-center justify-between;
+  }
+
+  .panel-title {
+    @apply text-heading text-ink;
+  }
+
+  .panel-link {
+    @apply text-label font-medium text-ink-secondary hover:text-ink transition-colors;
+  }
+
+  /* ── List Rows ────────────────── */
+  .list-row {
+    @apply flex items-center gap-4 rounded-card px-4 py-3 transition-colors hover:bg-surface-inset/60;
+  }
+
+  .list-row-icon {
+    @apply flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full;
+  }
+
+  .list-chip {
+    @apply rounded-pill px-3 py-1 text-micro font-bold;
+  }
+}

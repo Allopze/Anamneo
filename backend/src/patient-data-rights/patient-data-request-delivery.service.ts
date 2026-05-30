@@ -26,14 +26,11 @@ import {
   CreateDataRequestExportLinkDto,
   DownloadDataRequestExportDto,
 } from './dto/patient-data-rights.dto';
-
 const EXPORT_LINK_DEFAULT_TTL_HOURS = 72;
 const EXPORT_LINK_MAX_DOWNLOADS = 3;
-
 @Injectable()
 export class PatientDataRequestDeliveryService {
   private readonly logger = new Logger(PatientDataRequestDeliveryService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -41,7 +38,6 @@ export class PatientDataRequestDeliveryService {
     private readonly configService: ConfigService,
     private readonly regulatoryExport: PatientsRegulatoryExportService,
   ) {}
-
   async createExportLink(id: string, dto: CreateDataRequestExportLinkDto, user: RequestUser) {
     const existing = await this.prisma.patientDataRequest.findUnique({
       where: { id },
@@ -61,7 +57,6 @@ export class PatientDataRequestDeliveryService {
     if (!existing.requesterRutLookupHash && !existingPatientIdentifiers.rut) {
       throw new BadRequestException('La descarga requiere RUT del solicitante o del paciente registrado');
     }
-
     const ttlHours = Number.isFinite(dto.ttlHours) && dto.ttlHours && dto.ttlHours > 0 && dto.ttlHours <= 168
       ? Math.floor(dto.ttlHours)
       : EXPORT_LINK_DEFAULT_TTL_HOURS;
@@ -84,7 +79,6 @@ export class PatientDataRequestDeliveryService {
       this.logger.warn('Data request export stored in CLEARTEXT because ENCRYPTION_KEY is not configured.');
       await fs.writeFile(filePath, buffer);
     }
-
     const created = await this.prisma.patientDataRequestDownload.create({
       data: {
         requestId: existing.id,
@@ -98,7 +92,6 @@ export class PatientDataRequestDeliveryService {
         createdById: user.id,
       },
     });
-
     await this.prisma.patientDataRequest.update({
       where: { id: existing.id },
       data: {
@@ -112,7 +105,6 @@ export class PatientDataRequestDeliveryService {
         },
       },
     });
-
     const downloadUrl = this.buildDownloadUrl(token);
     await this.audit.log({
       entityType: 'PatientDataRequestDownload',
@@ -128,7 +120,6 @@ export class PatientDataRequestDeliveryService {
         fileSha256,
       },
     });
-
     const requesterEmail = existing.requesterEmailEnc ? decryptField(existing.requesterEmailEnc) : '';
     const requesterName = existing.requesterNameEnc ? decryptField(existing.requesterNameEnc) : 'Titular';
     const mailResult = await this.mail.sendDataRequestExportLink({
@@ -139,7 +130,6 @@ export class PatientDataRequestDeliveryService {
       expiresAt,
       maxDownloads: EXPORT_LINK_MAX_DOWNLOADS,
     });
-
     return {
       id: created.id,
       expiresAt,
@@ -148,7 +138,6 @@ export class PatientDataRequestDeliveryService {
       mail: mailResult,
     };
   }
-
   async downloadExport(token: string, dto: DownloadDataRequestExportDto) {
     const tokenHash = hashToken(token);
     const download = await this.prisma.patientDataRequestDownload.findUnique({
@@ -171,7 +160,6 @@ export class PatientDataRequestDeliveryService {
     if (download.downloadCount >= download.maxDownloads) {
       throw new UnauthorizedException('El enlace alcanzó el máximo de descargas');
     }
-
     // Phase F-drop — verificar RUT por hash sin depender de columnas plaintext.
     const downloadPatientIdentifiers = resolvePatientIdentifiers(download.patient);
     const suppliedRutHash = computeRutLookupHash(dto.requesterRut);
@@ -181,7 +169,6 @@ export class PatientDataRequestDeliveryService {
     if (!suppliedRutHash || !allowedHashes.includes(suppliedRutHash)) {
       throw new UnauthorizedException('RUT no coincide con la solicitud');
     }
-
     const raw = await fs.readFile(download.filePath);
     const buffer = isEncryptionEnvelope(download.encryptionEnvelope)
       ? decryptBuffer(raw, download.encryptionEnvelope)
@@ -190,7 +177,6 @@ export class PatientDataRequestDeliveryService {
     if (fileSha256 !== download.fileSha256) {
       throw new BadRequestException('El archivo de entrega no pasó verificación de integridad');
     }
-
     await this.prisma.patientDataRequestDownload.update({
       where: { id: download.id },
       data: { downloadCount: { increment: 1 } },
@@ -207,13 +193,11 @@ export class PatientDataRequestDeliveryService {
         downloadCount: download.downloadCount + 1,
       },
     });
-
     return {
       buffer,
       filename: `ficha-clinica-${download.patientId}-${new Date().toISOString().slice(0, 10)}.zip`,
     };
   }
-
   async revokeExportLink(downloadId: string, reason: string, user: RequestUser) {
     const existing = await this.prisma.patientDataRequestDownload.findUnique({
       where: { id: downloadId },
@@ -229,7 +213,6 @@ export class PatientDataRequestDeliveryService {
     if (existing.revokedAt) {
       return { id: existing.id, revokedAt: existing.revokedAt, alreadyRevoked: true };
     }
-
     const revokedAt = new Date();
     const updated = await this.prisma.patientDataRequestDownload.update({
       where: { id: downloadId },
@@ -251,7 +234,6 @@ export class PatientDataRequestDeliveryService {
     });
     return updated;
   }
-
   async markExpiredDownloads() {
     const now = new Date();
     const expired = await this.prisma.patientDataRequestDownload.findMany({
@@ -268,7 +250,6 @@ export class PatientDataRequestDeliveryService {
       },
       take: 100,
     });
-
     for (const download of expired) {
       await this.prisma.patientDataRequestDownload.update({
         where: { id: download.id },
@@ -289,17 +270,14 @@ export class PatientDataRequestDeliveryService {
         },
       });
     }
-
     return expired.length;
   }
-
   private buildDownloadUrl(token: string) {
     const baseUrl = this.configService.get<string>('APP_PUBLIC_URL')
       || this.configService.get<string>('FRONTEND_PUBLIC_URL')
       || 'http://localhost:5555';
     return `${baseUrl.replace(/\/$/, '')}/descargar-ficha?token=${encodeURIComponent(token)}`;
   }
-
   private async removeDeliveryFile(filePath: string) {
     try {
       await fs.unlink(filePath);
@@ -308,8 +286,6 @@ export class PatientDataRequestDeliveryService {
     }
   }
 }
-
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
-

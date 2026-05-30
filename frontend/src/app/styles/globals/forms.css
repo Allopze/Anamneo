@@ -1,0 +1,112 @@
+@layer components {
+  /* ── Forms ────────────────────── */
+  .form-input,
+  .input {
+    @apply w-full rounded-lg border border-surface-muted bg-surface-inset px-4 py-3
+           text-ink placeholder:text-ink-muted shadow-soft
+           transition-[border-color,box-shadow,background-color] duration-200
+           focus:border-frame focus:outline-none focus:ring-2 focus:ring-frame/30;
+  }
+
+  .form-textarea,
+  textarea.form-input {
+    @apply min-h-[104px] rounded-lg px-4 py-3 leading-6;
+    resize: vertical;
+  }
+
+  .clinical-textarea {
+    @apply max-h-[18rem] overflow-y-auto;
+  }
+
+  .clinical-textarea-compact {
+    @apply min-h-[84px] max-h-[12rem];
+  }
+
+  .form-input:disabled,
+  .input:disabled {
+    @apply bg-surface-muted/50 text-ink-muted cursor-not-allowed;
+  }
+
+  select.form-input,
+  select.input,
+  select.form-select {
+    @apply appearance-none cursor-pointer pr-10;
+    background-image:
+      linear-gradient(45deg, transparent 50%, #8A8A84 50%),
+      linear-gradient(135deg, #8A8A84 50%, transparent 50%);
+    background-position:
+      calc(100% - 18px) calc(50% + 1px),
+      calc(100% - 13px) calc(50% + 1px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
+
+  select.form-input:focus,
+  select.input:focus,
+  select.form-select:focus {
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--ink) 50%),
+      linear-gradient(135deg, var(--ink) 50%, transparent 50%);
+  }
+
+  select.form-input:disabled,
+  select.input:disabled,
+  select.form-select:disabled {
+    @apply cursor-not-allowed;
+  }
+
+  /* ── Custom Checkbox ───────────── */
+  input[type="checkbox"] {
+    @apply h-4 w-4 rounded border border-surface-muted bg-white
+           accent-frame-dark
+           cursor-pointer transition-colors;
+  }
+
+  .dropdown-surface {
+    @apply bg-surface-elevated rounded-card border border-surface-muted/40 shadow-dropdown;
+    animation: dropdown-in 0.15s ease-out;
+    transform-origin: top right;
+  }
+
+  .dropdown-header {
+    @apply px-4 py-2.5 border-b border-surface-muted/40;
+  }
+
+  .dropdown-item {
+    @apply w-full flex items-center gap-2 px-4 py-2.5 text-body text-ink-secondary transition-colors;
+  }
+
+  .dropdown-item:hover {
+    @apply bg-surface-inset text-ink;
+  }
+
+  .dropdown-item-danger {
+    @apply text-status-red;
+  }
+
+  .dropdown-item-danger:hover {
+    @apply bg-status-red/10 text-status-red-text;
+  }
+
+  .form-input-error {
+    @apply border-status-red focus:ring-status-red focus:border-status-red;
+  }
+
+  /* Automatic error styling via aria-invalid */
+  .form-input[aria-invalid="true"],
+  .input[aria-invalid="true"] {
+    @apply border-status-red;
+  }
+  .form-input[aria-invalid="true"]:focus,
+  .input[aria-invalid="true"]:focus {
+    @apply ring-status-red/30 border-status-red;
+  }
+
+  .form-label {
+    @apply block text-label font-medium text-ink-secondary mb-1.5;
+  }
+
+  .form-error {
+    @apply text-micro text-status-red-text mt-1;
+  }
+}

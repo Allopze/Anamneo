@@ -6,7 +6,6 @@ import { canAccessEncounter } from './encounter-policy';
 import { formatEncounterForList, formatEncounterForPatientList, formatEncounterResponse } from './encounters-presenters';
 import { patientMatchesIdentifierSearch } from '../patients/patients-identifiers';
 import type { EncounterSectionConfig } from '../../../shared/encounter-section-config';
-
 interface FindEncountersReadModelParams {
   prisma: PrismaService;
   effectiveMedicoId: string;
@@ -17,28 +16,22 @@ interface FindEncountersReadModelParams {
   limit: number;
   sectionConfig?: EncounterSectionConfig;
 }
-
 export async function findEncountersReadModel(params: FindEncountersReadModelParams) {
   const { prisma, effectiveMedicoId, status, search, reviewStatus, page, limit, sectionConfig } = params;
   const skip = (page - 1) * limit;
-
   const where: Record<string, unknown> = {
     medicoId: effectiveMedicoId,
     patient: {
       archivedAt: null,
     },
   };
-
   if (status && ['EN_PROGRESO', 'COMPLETADO', 'FIRMADO', 'CANCELADO'].includes(status)) {
     where.status = status;
   }
-
   if (reviewStatus && ['NO_REQUIERE_REVISION', 'LISTA_PARA_REVISION', 'REVISADA_POR_MEDICO'].includes(reviewStatus)) {
     where.reviewStatus = reviewStatus;
   }
-
   const trimmedSearch = search?.trim();
-
   const [encounters, total] = await Promise.all([
     prisma.encounter.findMany({
       where,
@@ -75,13 +68,11 @@ export async function findEncountersReadModel(params: FindEncountersReadModelPar
     }),
     trimmedSearch ? Promise.resolve(0) : prisma.encounter.count({ where }),
   ]);
-
   const filteredEncounters = trimmedSearch
     ? encounters.filter((encounter) => patientMatchesIdentifierSearch(encounter.patient, trimmedSearch))
     : encounters;
   const pageEncounters = trimmedSearch ? filteredEncounters.slice(skip, skip + limit) : filteredEncounters;
   const resolvedTotal = trimmedSearch ? filteredEncounters.length : total;
-
   return {
     data: pageEncounters.map((encounter) => formatEncounterForList(encounter, { sectionConfig })),
     pagination: {
@@ -92,7 +83,6 @@ export async function findEncountersReadModel(params: FindEncountersReadModelPar
     },
   };
 }
-
 interface FindEncounterByIdReadModelParams {
   prisma: PrismaService;
   id: string;
@@ -106,7 +96,6 @@ interface FindEncounterByIdReadModelParams {
   includeSuggestions?: boolean;
   sectionConfig?: EncounterSectionConfig;
 }
-
 export async function findEncounterByIdReadModel(params: FindEncounterByIdReadModelParams) {
   const {
     prisma,
@@ -121,7 +110,6 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
     includeSuggestions = true,
     sectionConfig,
   } = params;
-
   const encounter = await prisma.encounter.findFirst({
     where: {
       id,
@@ -215,15 +203,12 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
         : {}),
     },
   });
-
   if (!encounter) {
     throw new NotFoundException('Atención no encontrada');
   }
-
   if (!canAccessEncounter(user, encounter.medicoId)) {
     throw new NotFoundException('Atención no encontrada');
   }
-
   const signatureBaseline = includeSignatureBaseline
     ? await prisma.encounter.findFirst({
         where: {
@@ -245,7 +230,6 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
         },
       })
     : null;
-
   return formatEncounterResponse(
     {
       ...encounter,
@@ -254,17 +238,14 @@ export async function findEncounterByIdReadModel(params: FindEncounterByIdReadMo
     { viewerRole: user.role, sectionConfig },
   );
 }
-
 interface FindEncountersByPatientReadModelParams {
   prisma: PrismaService;
   patientId: string;
   effectiveMedicoId: string;
   sectionConfig?: EncounterSectionConfig;
 }
-
 export async function findEncountersByPatientReadModel(params: FindEncountersByPatientReadModelParams) {
   const { prisma, patientId, effectiveMedicoId, sectionConfig } = params;
-
   const encounters = await prisma.encounter.findMany({
     where: {
       patientId,
@@ -302,6 +283,5 @@ export async function findEncountersByPatientReadModel(params: FindEncountersByP
       },
     },
   });
-
   return encounters.map((encounter) => formatEncounterForPatientList(encounter, { sectionConfig }));
 }

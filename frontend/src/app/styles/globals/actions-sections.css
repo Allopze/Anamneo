@@ -1,0 +1,143 @@
+@layer components {
+  /* ── Buttons ──────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-pill px-5 py-3
+           text-sm font-bold transition-[background-color,border-color,color,box-shadow,transform] duration-200
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base
+           active:scale-[0.97] min-h-11;
+    transition-timing-function: var(--ease-out);
+  }
+
+  .btn-primary {
+    @apply bg-frame-dark text-white hover:bg-ink
+           focus-visible:ring-frame shadow-soft;
+  }
+
+  .btn:disabled {
+    @apply opacity-40 cursor-not-allowed pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-ink-secondary border border-surface-muted
+           hover:bg-surface-inset hover:text-ink hover:border-ink-muted/40
+           focus-visible:ring-surface-muted;
+  }
+
+  .btn-accent {
+    @apply bg-accent text-accent-text hover:bg-accent-bright
+           focus-visible:ring-accent shadow-soft font-bold;
+  }
+
+  .btn-success {
+    @apply bg-status-green text-status-green-text hover:brightness-95
+           focus-visible:ring-status-green;
+  }
+
+  .btn-danger {
+    @apply bg-status-red-text text-white hover:brightness-110
+           focus-visible:ring-status-red-text;
+  }
+
+  /* ── Toolbar Buttons ─────────── */
+  .toolbar-btn {
+    @apply inline-flex min-h-11 touch-manipulation items-center justify-center gap-2
+           rounded-lg border border-frame/15 bg-surface-elevated px-3 py-2
+           text-sm font-medium text-ink shadow-none transition-[background-color,border-color,color,transform]
+           hover:border-frame/30 hover:bg-surface-base
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20
+           active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+    transition-timing-function: var(--ease-out);
+  }
+
+  .toolbar-btn-primary {
+    @apply inline-flex min-h-11 touch-manipulation items-center justify-center gap-2
+           rounded-lg border border-accent/70 bg-accent px-3 py-2
+           text-sm font-semibold text-accent-text shadow-none transition-[background-color,border-color,color,transform]
+           hover:bg-accent-bright
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45
+           active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+    transition-timing-function: var(--ease-out);
+  }
+
+  .toolbar-btn-success {
+    @apply inline-flex min-h-11 touch-manipulation items-center justify-center gap-2
+           rounded-lg bg-status-green px-3 py-2
+           text-sm font-medium text-status-green-text transition-[filter,transform]
+           hover:brightness-95
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-green/40
+           active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+    transition-timing-function: var(--ease-out);
+  }
+
+  /* ── Cards ────────────────────── */
+  .card {
+    @apply rounded-card border border-surface-muted/30 bg-surface-elevated p-6 shadow-soft;
+  }
+
+  .card-hover {
+    @apply hover:shadow-card cursor-pointer;
+  }
+
+  /* ── Sections ─────────────────── */
+  .section-intro {
+    @apply rounded-lg border border-surface-muted/35 bg-surface-inset/70 px-4 py-3 text-sm leading-6 text-ink-secondary;
+  }
+
+  .section-block {
+    @apply rounded-lg border border-surface-muted/35 bg-surface-elevated p-4 sm:p-5;
+  }
+
+  .section-block-muted {
+    @apply rounded-lg border border-surface-muted/30 bg-surface-inset/50 p-4 sm:p-5;
+  }
+
+  .section-block-title {
+    @apply text-sm font-semibold text-ink;
+  }
+
+  .section-block-description {
+    @apply mt-1 text-body text-ink-secondary;
+  }
+
+  .section-callout {
+    @apply rounded-card px-5 py-4;
+  }
+
+  .section-callout-info {
+    @apply bg-surface-base/80 text-ink border border-surface-muted/40;
+  }
+
+  .section-callout-warning {
+    @apply bg-status-yellow/40 text-accent-text border border-status-yellow/70;
+  }
+
+  .section-callout-success {
+    @apply bg-status-green/20 text-status-green-text border border-status-green/40;
+  }
+
+  .section-callout-subtle {
+    @apply bg-surface-base/40 text-ink-secondary border border-surface-muted/30;
+  }
+
+  .section-item-card {
+    @apply rounded-card border border-surface-muted/30 bg-surface-elevated p-4 transition-colors;
+  }
+
+  .section-item-card-selected {
+    @apply ring-2 ring-accent bg-accent/10;
+  }
+
+  .section-add-button {
+    @apply inline-flex w-full items-center justify-center gap-2 rounded-card border border-dashed border-surface-muted px-4 py-3 text-body font-medium text-ink-muted transition-colors hover:border-frame/30 hover:text-ink;
+  }
+
+  .section-icon-button {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center rounded-icon p-2 text-ink-muted transition-[background-color,color,transform] hover:bg-surface-base hover:text-ink active:scale-[0.97] disabled:opacity-30;
+    transition-timing-function: var(--ease-out);
+  }
+
+  .section-icon-button-danger {
+    @apply text-status-red hover:bg-status-red/10 hover:text-status-red-text;
+  }
+
+}

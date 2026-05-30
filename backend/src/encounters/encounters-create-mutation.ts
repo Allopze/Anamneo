@@ -14,17 +14,13 @@ import {
 } from '../common/utils/encounter-section-meta';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEncounterDto } from './dto/create-encounter.dto';
-import {
-  buildAnamnesisRemotaSnapshotFromHistory,
-  serializeSectionData,
-} from './encounters-sanitize';
+import { serializeSectionData } from './encounters-sanitize';
 import { formatEncounterResponse } from './encounters-presenters';
-import { withPatientIdentifiers } from '../patients/patients-identifiers';
 import {
   getEnabledEncounterSectionKeys,
   type EncounterSectionConfig,
 } from '../../../shared/encounter-section-config';
-
+import { buildInitialEncounterSectionData } from './encounters-initial-section-data';
 interface CreateEncounterMutationParams {
   prisma: PrismaService;
   auditService: AuditService;
@@ -33,50 +29,8 @@ interface CreateEncounterMutationParams {
   user: RequestUser;
   sectionConfig?: EncounterSectionConfig;
 }
-
 type FormattedEncounter = ReturnType<typeof formatEncounterResponse>;
-
 const DUPLICATE_SOURCE_ALLOWED_STATUSES = new Set(['COMPLETADO', 'FIRMADO']);
-
-function buildInitialEncounterSectionData(
-  key: SectionKey,
-  patient: {
-    nombreEnc?: string | null;
-    edad: number | null;
-    edadMeses: number | null;
-    sexo: string | null;
-    trabajo: string | null;
-    prevision: string | null;
-    domicilioEnc?: string | null;
-    rutEnc?: string | null;
-    rutExempt: boolean;
-    rutExemptReason: string | null;
-    history?: Record<string, unknown> | null;
-  },
-) {
-  if (key === 'IDENTIFICACION') {
-    const identifiers = withPatientIdentifiers(patient);
-    return {
-      nombre: identifiers.nombre,
-      edad: patient.edad,
-      edadMeses: patient.edadMeses ?? undefined,
-      sexo: patient.sexo,
-      trabajo: patient.trabajo || '',
-      prevision: patient.prevision,
-      domicilio: identifiers.domicilio || '',
-      rut: identifiers.rut || '',
-      rutExempt: patient.rutExempt,
-      rutExemptReason: patient.rutExemptReason || '',
-    };
-  }
-
-  if (key === 'ANAMNESIS_REMOTA' && patient.history) {
-    return buildAnamnesisRemotaSnapshotFromHistory(patient.history);
-  }
-
-  return {};
-}
-
 export async function createEncounterMutation(params: CreateEncounterMutationParams) {
   const {
     prisma,
@@ -91,9 +45,7 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
   const sectionKeys = sectionConfig
     ? getEnabledEncounterSectionKeys(sectionConfig) as SectionKey[]
     : SECTION_ORDER;
-
   let result: (FormattedEncounter & { reused: boolean }) | undefined;
-
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
       result = await prisma.$transaction(
@@ -108,15 +60,12 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               },
             },
           });
-
           if (!patient) {
             throw new NotFoundException('Paciente no encontrado');
           }
-
           if (patient.archivedAt) {
             throw new BadRequestException('No se puede crear una atención para un paciente archivado');
           }
-
           if (!user.isAdmin && !isPatientOwnedByMedico(patient, effectiveMedicoId)) {
             const hasEncounterAccess = await tx.encounter.findFirst({
               where: {
@@ -125,12 +74,10 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               },
               select: { id: true },
             });
-
             if (!hasEncounterAccess) {
               throw new NotFoundException('Paciente no encontrado');
             }
           }
-
           const appointment = appointmentId
             ? await tx.appointment.findUnique({
                 where: { id: appointmentId },
@@ -143,11 +90,9 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
                 },
               })
             : null;
-
           if (appointmentId && !appointment) {
             throw new NotFoundException('Cita no encontrada');
           }
-
           if (appointment) {
             if (appointment.cancelledAt) {
               throw new BadRequestException('No se puede crear una atención desde una cita cancelada');
@@ -159,7 +104,6 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               throw new ConflictException({ code: 'APPOINTMENT_ENCOUNTER_EXISTS', message: 'Esta cita ya tiene una atención asociada.' });
             }
           }
-
           const inProgress = await tx.encounter.findMany({
             where: {
               patientId,
@@ -173,7 +117,6 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               createdBy: { select: { id: true, nombre: true, email: true } },
             },
           });
-
           if (inProgress.length === 1) {
             if (appointment && !inProgress[0].appointmentId) {
               const linkedEncounter = await tx.encounter.update({
@@ -210,7 +153,6 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               reused: true,
             };
           }
-
           if (inProgress.length > 1) {
             throw new ConflictException({
               code: 'ENCOUNTER_MULTIPLE_IN_PROGRESS',
@@ -228,7 +170,6 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               })),
             });
           }
-
           const duplicateSource = duplicateFromEncounterId
             ? await tx.encounter.findFirst({
                 where: {
@@ -242,15 +183,12 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
                 },
               })
             : null;
-
           if (duplicateFromEncounterId && !duplicateSource) {
             throw new NotFoundException('La atención base para duplicar no existe o no corresponde al paciente');
           }
-
           if (duplicateSource && !DUPLICATE_SOURCE_ALLOWED_STATUSES.has(duplicateSource.status)) {
             throw new BadRequestException('Solo se pueden usar como base atenciones completadas o firmadas');
           }
-
           const encounter = await tx.encounter.create({
             data: {
               patientId,
@@ -261,7 +199,6 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               sections: {
                 create: sectionKeys.map((key) => {
                   const sectionData = buildInitialEncounterSectionData(key, patient);
-
                   return {
                     sectionKey: key,
                     data: typeof sectionData === 'string' ? sectionData : serializeSectionData(sectionData),
@@ -291,7 +228,6 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               },
             },
           });
-
           await auditService.log(
             {
               entityType: 'Encounter',
@@ -307,7 +243,6 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
             },
             tx,
           );
-
           if (appointment) {
             await tx.appointment.update({
               where: { id: appointment.id },
@@ -325,7 +260,6 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
               tx,
             );
           }
-
           return {
             ...formatEncounterResponse(encounter, { viewerRole: user.role }),
             reused: false,
@@ -335,7 +269,6 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
           isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
         },
       );
-
       break;
     } catch (error) {
       if (
@@ -348,10 +281,8 @@ export async function createEncounterMutation(params: CreateEncounterMutationPar
       throw error;
     }
   }
-
   if (!result) {
     throw new ConflictException('No se pudo crear la atención. Intente nuevamente.');
   }
-
   return result;
 }

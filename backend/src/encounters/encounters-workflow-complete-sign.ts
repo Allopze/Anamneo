@@ -28,7 +28,6 @@ import {
 } from '../../../shared/encounter-section-config';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
-
 interface CompleteEncounterParams {
   prisma: PrismaService;
   auditService: AuditService;
@@ -37,7 +36,6 @@ interface CompleteEncounterParams {
   closureNote?: string;
   sectionConfig?: EncounterSectionConfig;
 }
-
 interface SignEncounterParams {
   prisma: PrismaService;
   auditService: AuditService;
@@ -46,12 +44,10 @@ interface SignEncounterParams {
   password: string;
   context: { ipAddress?: string; userAgent?: string };
 }
-
 type SignatureSectionRecord = {
   sectionKey: string;
   data: string;
 };
-
 type SignatureAttachmentRecord = {
   id: string;
   originalName: string;
@@ -65,7 +61,6 @@ type SignatureAttachmentRecord = {
   linkedOrderId: string | null;
   linkedOrderLabel: string | null;
 };
-
 function buildEncounterSignatureContentPayload(encounter: {
   sections?: SignatureSectionRecord[];
   attachments?: SignatureAttachmentRecord[];
@@ -76,7 +71,6 @@ function buildEncounterSignatureContentPayload(encounter: {
       const plain = typeof section.data === 'string' && section.data.startsWith('enc:') ? decryptField(section.data) : section.data;
       return { key: section.sectionKey, data: plain };
     });
-
   const attachments = [...(encounter.attachments ?? [])]
     .sort((left, right) => {
       const uploadedDelta = left.uploadedAt.getTime() - right.uploadedAt.getTime();
@@ -95,47 +89,36 @@ function buildEncounterSignatureContentPayload(encounter: {
       linkedOrderId: attachment.linkedOrderId,
       linkedOrderLabel: attachment.linkedOrderLabel,
     }));
-
   return {
     sections,
     attachments,
   };
 }
-
 export async function completeEncounterWorkflowMutation(params: CompleteEncounterParams) {
   const { prisma, auditService, id, userId, closureNote, sectionConfig } = params;
-
   const encounter = await prisma.encounter.findUnique({
     where: { id },
     include: { sections: true, patient: true },
   });
-
   if (!encounter) {
     throw new NotFoundException('Atención no encontrada');
   }
-
   assertTreatingMedico(userId, encounter.medicoId, 'No tiene permisos para completar esta atención');
-
   if (encounter.status !== 'EN_PROGRESO') {
     throw new BadRequestException('Solo se pueden completar atenciones en progreso');
   }
-
   assertEncounterClinicalOutputAllowed(withPatientIdentifiers(encounter.patient), 'COMPLETE_ENCOUNTER');
-
   const sectionByKey = new Map(encounter.sections.map((section) => [section.sectionKey as SectionKey, section]));
-
   const requiredCompletionSections = sectionConfig
     ? getRequiredEncounterSectionKeys(sectionConfig) as SectionKey[]
     : REQUIRED_COMPLETION_SECTIONS;
   const requiredSemanticSections = sectionConfig
     ? REQUIRED_SEMANTIC_SECTIONS.filter((key) => requiredCompletionSections.includes(key))
     : REQUIRED_SEMANTIC_SECTIONS;
-
   const incompleteSections = requiredCompletionSections.filter((key) => {
     const section = sectionByKey.get(key);
     return !section || !section.completed;
   });
-
   if (incompleteSections.length > 0) {
     throw new BadRequestException(
       `Las siguientes secciones obligatorias no están completas: ${incompleteSections
@@ -143,16 +126,13 @@ export async function completeEncounterWorkflowMutation(params: CompleteEncounte
         .join(', ')}`,
     );
   }
-
   const semanticallyIncompleteSections = requiredSemanticSections.filter((key) => {
     const section = sectionByKey.get(key);
     if (!section) {
       return true;
     }
-
     return !hasMeaningfulContent(parseSectionData(section.data));
   });
-
   if (semanticallyIncompleteSections.length > 0) {
     throw new BadRequestException(
       `Las siguientes secciones obligatorias no tienen contenido clínico suficiente: ${semanticallyIncompleteSections
@@ -160,15 +140,12 @@ export async function completeEncounterWorkflowMutation(params: CompleteEncounte
         .join(', ')}`,
     );
   }
-
   const sanitizedClosureNote = sanitizeRequiredWorkflowNote(closureNote, 'La nota de cierre', REVIEW_NOTE_MIN_LENGTH, 1000);
-
   const updated = await prisma.$transaction(async (tx) => {
     await syncEncounterClinicalStructures({
       prisma: tx,
       encounterId: id,
     });
-
     const completedEncounter = await tx.encounter.update({
       where: { id },
       data: {
@@ -199,7 +176,6 @@ export async function completeEncounterWorkflowMutation(params: CompleteEncounte
         },
       },
     });
-
     await auditService.log(
       {
         entityType: 'Encounter',
@@ -213,16 +189,12 @@ export async function completeEncounterWorkflowMutation(params: CompleteEncounte
       },
       tx,
     );
-
     return completedEncounter;
   });
-
   return formatEncounterResponse(updated);
 }
-
 export async function signEncounterWorkflowMutation(params: SignEncounterParams) {
   const { prisma, auditService, id, userId, password, context } = params;
-
   const encounter = await prisma.encounter.findUnique({
     where: { id },
     include: {
@@ -245,30 +217,23 @@ export async function signEncounterWorkflowMutation(params: SignEncounterParams)
       },
     },
   });
-
   if (!encounter) {
     throw new NotFoundException('Atención no encontrada');
   }
-
   assertTreatingMedico(userId, encounter.medicoId, 'Solo el médico tratante puede firmar esta atención');
-
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || !user.active) {
     throw new ForbiddenException('Usuario no encontrado o inactivo');
   }
-
   const validPassword = await bcrypt.compare(password, user.passwordHash);
   if (!validPassword) {
     throw new BadRequestException('Contraseña incorrecta. La firma requiere autenticación');
   }
-
   if (encounter.status !== 'COMPLETADO') {
     throw new BadRequestException('Solo se pueden firmar atenciones completadas');
   }
-
   const contentPayload = buildEncounterSignatureContentPayload(encounter);
   const contentHash = crypto.createHash('sha256').update(JSON.stringify(contentPayload)).digest('hex');
-
   const signature = await prisma.$transaction(async (tx) => {
     const createdSignature = await tx.encounterSignature.create({
       data: {
@@ -280,12 +245,10 @@ export async function signEncounterWorkflowMutation(params: SignEncounterParams)
         userAgent: encryptNetMeta(context.userAgent ?? null),
       },
     });
-
     await tx.encounter.update({
       where: { id },
       data: { status: 'FIRMADO' },
     });
-
     await auditService.log(
       {
         entityType: 'Encounter',
@@ -300,9 +263,7 @@ export async function signEncounterWorkflowMutation(params: SignEncounterParams)
       },
       tx,
     );
-
     return createdSignature;
   });
-
   return { signatureId: signature.id, contentHash, signedAt: signature.signedAt };
 }

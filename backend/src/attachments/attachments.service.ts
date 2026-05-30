@@ -16,24 +16,20 @@ import { resolveLinkedOrder } from './attachments.linked-order';
 import { getAttachmentFile } from './attachments.file-operations';
 import { AttachmentsScanService } from './attachments-scan.service';
 import { encryptBuffer, isEncryptionEnabled } from '../common/utils/field-crypto';
-
 @Injectable()
 export class AttachmentsService {
   private readonly logger = new Logger(AttachmentsService.name);
-
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
     private auditService: AuditService,
     private scanService: AttachmentsScanService,
   ) {}
-
   private assertEncounterAllowsAttachmentMutation(status: string) {
     if (status !== 'EN_PROGRESO') {
       throw new BadRequestException('Solo se pueden modificar adjuntos de atenciones en progreso');
     }
   }
-
   async create(
     encounterId: string,
     file: Express.Multer.File,
@@ -41,30 +37,23 @@ export class AttachmentsService {
     metadata?: AttachmentMetadata,
   ) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
-
     const encounter = await this.prisma.encounter.findUnique({
       where: { id: encounterId },
       include: { patient: true },
     });
-
     if (!encounter) {
       throw new NotFoundException('Atención no encontrada');
     }
-
     if (encounter.medicoId !== effectiveMedicoId) {
       throw new ForbiddenException('No tiene permisos para adjuntar archivos a esta atención');
     }
-
     this.assertEncounterAllowsAttachmentMutation(encounter.status);
-
     const uploadsRoot = getUploadsRoot(this.configService.get<string>('UPLOAD_DEST'));
     const resolvedStoragePath = resolveStoragePath(file.path, uploadsRoot);
     const linkedOrder = await resolveLinkedOrder(this.prisma, encounterId, metadata);
-
     try {
       await fs.access(resolvedStoragePath);
       const normalizedMime = await validateFileContent(resolvedStoragePath, file.mimetype);
-
       // Ley 21.719 Art 14 quinquies lit a: cifrar at-rest a nivel app cuando
       // ENCRYPTION_KEY este configurada. La validacion magic-byte ya corrio
       // antes sobre plaintext.
@@ -80,7 +69,6 @@ export class AttachmentsService {
           'Ley 21.719 Art 14 quinquies requires cifrado.',
         );
       }
-
       const attachment = await this.prisma.$transaction(async (tx) => {
         const createdAttachment = await tx.attachment.create({
           data: {
@@ -99,7 +87,6 @@ export class AttachmentsService {
             encryptionEnvelope: encryptionEnvelopeJson as never,
           },
         });
-
         await this.auditService.log(
           {
             entityType: 'Attachment',
@@ -122,12 +109,9 @@ export class AttachmentsService {
           },
           tx,
         );
-
         return createdAttachment;
       });
-
       this.scanService.enqueueScan(attachment.id, resolvedStoragePath, normalizedMime);
-
       return {
         id: attachment.id,
         originalName: attachment.originalName,
@@ -145,19 +129,15 @@ export class AttachmentsService {
       throw error;
     }
   }
-
   async findByEncounter(encounterId: string, user: RequestUser) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
-
     const encounter = await this.prisma.encounter.findUnique({
       where: { id: encounterId },
       include: { patient: true },
     });
-
     if (!encounter || encounter.medicoId !== effectiveMedicoId) {
       throw new NotFoundException('Atención no encontrada');
     }
-
     const attachments = await this.prisma.attachment.findMany({
       where: { encounterId, deletedAt: null },
       select: {
@@ -187,42 +167,33 @@ export class AttachmentsService {
     });
     return attachments;
   }
-
   async getFile(id: string, user: RequestUser) {
     const uploadsRoot = getUploadsRoot(this.configService.get<string>('UPLOAD_DEST'));
     return getAttachmentFile(this.prisma, uploadsRoot, id, getEffectiveMedicoId(user));
   }
-
   async remove(id: string, user: RequestUser) {
     const effectiveMedicoId = getEffectiveMedicoId(user);
-
     const attachment = await this.prisma.attachment.findUnique({
       where: { id },
       include: {
         encounter: { include: { patient: true } },
       },
     });
-
     if (!attachment) {
       throw new NotFoundException('Archivo no encontrado');
     }
-
     if (attachment.encounter.medicoId !== effectiveMedicoId) {
       throw new ForbiddenException('No tiene permisos para eliminar este archivo');
     }
-
     if (attachment.deletedAt) {
       throw new NotFoundException('Archivo no encontrado');
     }
-
     this.assertEncounterAllowsAttachmentMutation(attachment.encounter.status);
-
     await this.prisma.$transaction(async (tx) => {
       await tx.attachment.update({
         where: { id },
         data: { deletedAt: new Date(), deletedById: user.id },
       });
-
       await this.auditService.log(
         {
           entityType: 'Attachment',
@@ -247,25 +218,20 @@ export class AttachmentsService {
         tx,
       );
     });
-
     return { message: 'Archivo movido a papelera' };
   }
-
   async purgeExpiredAttachments(retentionDays: number = 30): Promise<{ purged: number; errors: string[] }> {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - retentionDays);
     const uploadsRoot = getUploadsRoot(this.configService.get<string>('UPLOAD_DEST'));
-
     const expired = await this.prisma.attachment.findMany({
       where: {
         deletedAt: { not: null, lte: cutoff },
       },
       select: { id: true, storagePath: true, originalName: true },
     });
-
     let purged = 0;
     const errors: string[] = [];
-
     for (const att of expired) {
       try {
         const resolvedPath = resolveStoragePath(att.storagePath, uploadsRoot);
@@ -276,10 +242,8 @@ export class AttachmentsService {
         errors.push(`${att.id} (${att.originalName}): ${(err as Error).message}`);
       }
     }
-
     return { purged, errors };
   }
-
   async logDownload(id: string, userId: string) {
     const attachment = await this.prisma.attachment.findUnique({
       where: { id },
@@ -291,11 +255,9 @@ export class AttachmentsService {
         size: true,
       },
     });
-
     if (!attachment) {
       return;
     }
-
     await this.auditService.log({
       entityType: 'Attachment',
       entityId: attachment.id,

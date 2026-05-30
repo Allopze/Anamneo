@@ -1,5 +1,4 @@
 'use client';
-
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,7 +10,6 @@ import { canImportConditionsCsv } from '@/lib/permissions';
 import { useAuthIsAdmin, useAuthUser } from '@/stores/auth-store';
 import { Condition } from '@/types';
 import CatalogImportPanel from './CatalogImportPanel';
-
 export default function ConditionsCatalogSection() {
   const user = useAuthUser();
   const isAdminUser = useAuthIsAdmin();
@@ -22,12 +20,10 @@ export default function ConditionsCatalogSection() {
   const [localForm, setLocalForm] = useState({ name: '', synonyms: '', tags: '' });
   const canImportCsv = canImportConditionsCsv(user);
   const [debouncedSearch, setDebouncedSearch] = useState('');
-
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
-
   const { data: conditions, isLoading } = useQuery({
     queryKey: ['conditions', debouncedSearch],
     queryFn: async () => {
@@ -39,7 +35,6 @@ export default function ConditionsCatalogSection() {
       return response.data as Condition[];
     },
   });
-
   const saveLocalMutation = useMutation({
     mutationFn: async (payload: {
       mode: 'create' | 'edit' | 'override';
@@ -66,7 +61,6 @@ export default function ConditionsCatalogSection() {
     },
     onError: (err) => notify.error(getErrorMessage(err)),
   });
-
   const deleteLocalMutation = useMutation({
     mutationFn: async (condition: Condition) => {
       if (condition.scope === 'GLOBAL') {
@@ -80,13 +74,11 @@ export default function ConditionsCatalogSection() {
     },
     onError: (err) => notify.error(getErrorMessage(err)),
   });
-
   const openCreateForm = () => {
     setFormMode('create');
     setEditingCondition(null);
     setLocalForm({ name: '', synonyms: '', tags: '' });
   };
-
   const openEditForm = (condition: Condition) => {
     setEditingCondition(condition);
     setFormMode(condition.scope === 'GLOBAL' ? 'override' : 'edit');
@@ -96,12 +88,10 @@ export default function ConditionsCatalogSection() {
       tags: (condition.tags || []).join(', '),
     });
   };
-
   const handleSaveLocal = () => {
     if (!formMode) {
       return;
     }
-
     saveLocalMutation.mutate({
       mode: formMode,
       condition: editingCondition,
@@ -118,7 +108,6 @@ export default function ConditionsCatalogSection() {
       },
     });
   };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -148,9 +137,7 @@ export default function ConditionsCatalogSection() {
           </button>
         )}
       </div>
-
       {canImportCsv && <CatalogImportPanel />}
-
       {!isAdminUser && (
         <div className="card space-y-4">
           <div>
@@ -159,7 +146,6 @@ export default function ConditionsCatalogSection() {
               Agrega o personaliza afecciones solo para tu instancia.
             </p>
           </div>
-
           {formMode && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
@@ -209,7 +195,6 @@ export default function ConditionsCatalogSection() {
           )}
         </div>
       )}
-
       <div className="filter-surface">
         <div className="relative">
           <FiSearch className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" />
@@ -222,7 +207,6 @@ export default function ConditionsCatalogSection() {
           />
         </div>
       </div>
-
       <div className="card">
         {isLoading ? (
           <div className="space-y-4">

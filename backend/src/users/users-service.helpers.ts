@@ -8,7 +8,6 @@ import * as bcrypt from 'bcrypt';
 import {
   BCRYPT_ROUNDS,
   normalizeEmail,
-  validateTemporaryPassword,
 } from './users-helpers';
 
 export async function revokeUserSessions(
@@ -220,45 +219,7 @@ export async function updateUser(
   return updated;
 }
 
-export async function removeUser(
-  prisma: PrismaService,
-  auditService: AuditService,
-  id: string,
-) {
-  const user = await prisma.user.findUnique({ where: { id } });
-
-  if (!user) {
-    throw new NotFoundException('Usuario no encontrado');
-  }
-
-  await assertNotLeavingSystemWithoutAdmin(prisma, user, { active: false });
-
-  const removed = await prisma.user.update({
-    where: { id },
-    data: { active: false },
-    select: {
-      id: true,
-      email: true,
-      active: true,
-    },
-  });
-
-  await auditService.log({
-    entityType: 'User',
-    entityId: removed.id,
-    userId: id,
-    action: 'UPDATE',
-    diff: {
-      deactivated: {
-        id: removed.id,
-        email: removed.email,
-        active: removed.active,
-      },
-    },
-  });
-
-  return removed;
-}
+export { removeUser } from './users-lifecycle.helpers';
 
 export async function updateUserProfile(
   prisma: PrismaService,
@@ -318,88 +279,4 @@ export async function updateUserProfile(
   return updated;
 }
 
-export async function changeUserPassword(
-  prisma: PrismaService,
-  auditService: AuditService,
-  id: string,
-  currentPassword: string,
-  newPassword: string,
-) {
-  const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) {
-    throw new NotFoundException('Usuario no encontrado');
-  }
-
-  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
-  if (!valid) {
-    throw new ConflictException('La contraseña actual es incorrecta');
-  }
-
-  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-  await prisma.user.update({
-    where: { id },
-    data: { passwordHash, mustChangePassword: false },
-  });
-
-  await auditService.log({
-    entityType: 'User',
-    entityId: user.id,
-    userId: id,
-    action: 'PASSWORD_CHANGED',
-    diff: {
-      selfService: true,
-    },
-  });
-}
-
-export async function resetUserPassword(
-  prisma: PrismaService,
-  auditService: AuditService,
-  usersSessionService: UsersSessionService,
-  id: string,
-  temporaryPassword: string,
-  actorUserId: string,
-) {
-  const user = await prisma.user.findUnique({ where: { id } });
-
-  if (!user) {
-    throw new NotFoundException('Usuario no encontrado');
-  }
-
-  const normalizedPassword = temporaryPassword.trim();
-  const passwordError = validateTemporaryPassword(temporaryPassword);
-  if (passwordError) {
-    throw new ConflictException(passwordError);
-  }
-
-  const passwordHash = await bcrypt.hash(normalizedPassword, BCRYPT_ROUNDS);
-  const hadTotpEnrollment = !!user.totpEnabled || !!user.totpSecret || !!user.totpRecoveryCodes;
-  await prisma.user.update({
-    where: { id },
-    data: {
-      passwordHash,
-      mustChangePassword: true,
-      totpEnabled: false,
-      totpSecret: null,
-      totpRecoveryCodes: null,
-    },
-  });
-  await revokeUserSessions(usersSessionService, id);
-
-  await auditService.log({
-    entityType: 'User',
-    entityId: user.id,
-    userId: actorUserId,
-    action: 'PASSWORD_CHANGED',
-    diff: {
-      reset: {
-        id: user.id,
-        email: user.email,
-        temporary: true,
-        totpEnrollmentReset: hadTotpEnrollment,
-      },
-    },
-  });
-
-  return { message: 'Contraseña restablecida correctamente' };
-}
+export { changeUserPassword, resetUserPassword } from './users-password.helpers';

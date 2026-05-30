@@ -1,5 +1,4 @@
 'use client';
-
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -7,7 +6,6 @@ import { api, getErrorMessage } from '@/lib/api';
 import { useAuthHasHydrated, useAuthLogout, useAuthUser } from '@/stores/auth-store';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { notify } from '@/lib/notify';
-
 function PasswordPageSkeleton() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-base p-4" aria-busy="true" aria-label="Preparando cambio de contraseña">
@@ -27,17 +25,14 @@ function PasswordPageSkeleton() {
     </div>
   );
 }
-
 function CambiarContrasenaContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const user = useAuthUser();
   const logout = useAuthLogout();
   const hasHydrated = useAuthHasHydrated();
-
   const token = useMemo(() => searchParams?.get('token')?.trim() ?? null, [searchParams]);
   const isResetMode = !!token;
-
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -48,7 +43,6 @@ function CambiarContrasenaContent() {
     isResetMode ? 'checking' : 'idle',
   );
   const [requires2FA, setRequires2FA] = useState(false);
-
   useEffect(() => {
     if (!isResetMode) return;
     let cancelled = false;
@@ -69,7 +63,6 @@ function CambiarContrasenaContent() {
     })();
     return () => { cancelled = true; };
   }, [isResetMode, token]);
-
   useEffect(() => {
     if (isResetMode) return;
     if (!hasHydrated || user?.mustChangePassword) {
@@ -77,19 +70,15 @@ function CambiarContrasenaContent() {
     }
     router.replace('/');
   }, [hasHydrated, router, user?.mustChangePassword, isResetMode]);
-
   if (!isResetMode && !hasHydrated) {
     return <PasswordPageSkeleton />;
   }
-
   if (!isResetMode && !user?.mustChangePassword) {
     return null;
   }
-
   const onSubmitAuthed = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
     if (newPassword !== confirmPassword) {
       setError('Las contraseñas no coinciden');
       return;
@@ -98,7 +87,6 @@ function CambiarContrasenaContent() {
       setError('La nueva contraseña debe tener al menos 8 caracteres');
       return;
     }
-
     setIsLoading(true);
     try {
       await api.post('/auth/change-password', { currentPassword, newPassword });
@@ -111,11 +99,9 @@ function CambiarContrasenaContent() {
       setIsLoading(false);
     }
   };
-
   const onSubmitReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
     if (newPassword !== confirmPassword) {
       setError('Las contraseñas no coinciden');
       return;
@@ -128,7 +114,6 @@ function CambiarContrasenaContent() {
       setError('Ingresa tu código 2FA o un código de recuperación');
       return;
     }
-
     setIsLoading(true);
     try {
       await api.post('/auth/forgot-password/confirm', {
@@ -144,11 +129,9 @@ function CambiarContrasenaContent() {
       setIsLoading(false);
     }
   };
-
   if (isResetMode && tokenState === 'checking') {
     return <PasswordPageSkeleton />;
   }
-
   if (isResetMode && tokenState === 'invalid') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface-base p-4">
@@ -165,7 +148,6 @@ function CambiarContrasenaContent() {
       </div>
     );
   }
-
   if (isResetMode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface-base p-4">
@@ -176,9 +158,7 @@ function CambiarContrasenaContent() {
               Define una nueva contraseña para tu cuenta. Al confirmar, se cerrarán todas tus sesiones activas.
             </p>
           </div>
-
           {error && <ErrorAlert message={error} />}
-
           <form onSubmit={onSubmitReset} className="space-y-4">
             <div>
               <label htmlFor="newPassword" className="form-label">Nueva contraseña</label>
@@ -232,7 +212,6 @@ function CambiarContrasenaContent() {
               {isLoading ? 'Restableciendo…' : 'Restablecer contraseña'}
             </button>
           </form>
-
           <p className="text-center text-ink-secondary text-sm">
             <Link href="/login" className="auth-inline-link">Volver a inicio de sesión</Link>
           </p>
@@ -240,7 +219,6 @@ function CambiarContrasenaContent() {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-surface-base p-4">
       <div className="card max-w-md w-full space-y-6">
@@ -250,9 +228,7 @@ function CambiarContrasenaContent() {
             Su contraseña fue restablecida por un administrador. Debe crear una nueva contraseña para continuar.
           </p>
         </div>
-
         {error && <ErrorAlert message={error} />}
-
         <form onSubmit={onSubmitAuthed} className="space-y-4">
           <div>
             <label htmlFor="currentPassword" className="form-label">Contraseña temporal actual</label>
@@ -297,7 +273,6 @@ function CambiarContrasenaContent() {
     </div>
   );
 }
-
 export default function CambiarContrasenaPage() {
   return (
     <Suspense fallback={<PasswordPageSkeleton />}>

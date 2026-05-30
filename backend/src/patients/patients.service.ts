@@ -46,7 +46,6 @@ import {
   createTask,
   updateTaskStatus,
 } from './patients-service-write.helpers';
-
 @Injectable()
 export class PatientsService {
   constructor(
@@ -55,7 +54,6 @@ export class PatientsService {
     private policyCompliance: PolicyComplianceService,
     private settingsService: SettingsService,
   ) {}
-
   private async logPatientReadEvent(params: {
     user: RequestUser;
     entityType: string;
@@ -64,7 +62,6 @@ export class PatientsService {
     diff: Record<string, unknown>;
   }) {
     const { user, entityType, entityId, reason, diff } = params;
-
     await this.auditService.log({
       entityType,
       entityId,
@@ -74,21 +71,14 @@ export class PatientsService {
       diff,
     });
   }
-
-  private readonly assertPatientAccess = (user: RequestUser, patientId: string) => assertPatientAccessScope({
-    prisma: this.prisma,
-    user,
-    patientId,
-  });
-
+  private readonly assertPatientAccess = (user: RequestUser, patientId: string) =>
+    assertPatientAccessScope({ prisma: this.prisma, user, patientId });
   async create(createPatientDto: CreatePatientDto, userId: string) {
     return createPatient(this.prisma, this.auditService, createPatientDto, userId);
   }
-
   async createQuick(createPatientDto: CreatePatientQuickDto, user: RequestUser) {
     return createQuickPatient(this.prisma, this.auditService, createPatientDto, user);
   }
-
   async findAll(
     user: RequestUser,
     search?: string,
@@ -97,7 +87,6 @@ export class PatientsService {
     filters?: FindPatientsFilters,
   ) {
     const result = await findAllPatients(this.prisma, user, search, page, limit, filters);
-
     await this.logPatientReadEvent({
       user,
       entityType: 'PatientList',
@@ -112,10 +101,8 @@ export class PatientsService {
         returned: result.data.length,
       },
     });
-
     return result;
   }
-
   async findPossibleDuplicates(
     user: RequestUser,
     params: {
@@ -126,7 +113,6 @@ export class PatientsService {
     },
   ) {
     const duplicates = await findPossiblePatientDuplicates(this.prisma, user, params);
-
     await this.logPatientReadEvent({
       user,
       entityType: 'PatientDuplicatesSearch',
@@ -143,14 +129,11 @@ export class PatientsService {
         matchCount: duplicates.length,
       },
     });
-
     return duplicates;
   }
-
   async exportCsv(user: RequestUser) {
     return exportPatientsCsv(this.prisma, this.auditService, user);
   }
-
   async exportOperationalEncountersCsv(user: RequestUser, filters: {
     fromDate: string;
     toDate: string;
@@ -158,10 +141,8 @@ export class PatientsService {
   }) {
     return exportOperationalEncountersCsv(this.prisma, this.auditService, user, filters);
   }
-
   async getAdminSummary(user: RequestUser, id: string) {
     const summary = await getPatientAdminSummary(this.prisma, user, id);
-
     await this.logPatientReadEvent({
       user,
       entityType: 'PatientAdminSummary',
@@ -174,10 +155,8 @@ export class PatientsService {
         completenessStatus: summary.completenessStatus,
       },
     });
-
     return summary;
   }
-
   async findById(user: RequestUser, id: string) {
     const patient = await findPatientById(this.prisma, user, id);
     await this.auditService.log({
@@ -190,12 +169,10 @@ export class PatientsService {
     });
     return patient;
   }
-
   async findEncounterTimeline(user: RequestUser, patientId: string, page = 1, limit = 10) {
     await this.assertPatientAccess(user, patientId);
     const sectionConfig = await this.settingsService.getEncounterSectionConfig();
     const timeline = await findEncounterTimeline(this.prisma, user, patientId, page, limit, sectionConfig);
-
     await this.logPatientReadEvent({
       user,
       entityType: 'PatientTimeline',
@@ -209,14 +186,11 @@ export class PatientsService {
         returned: timeline.data.length,
       },
     });
-
     return timeline;
   }
-
   async findOperationalHistory(user: RequestUser, patientId: string, limit = 20) {
     await this.assertPatientAccess(user, patientId);
     const history = await findOperationalHistory(this.prisma, user, patientId, limit);
-
     await this.logPatientReadEvent({
       user,
       entityType: 'PatientOperationalHistory',
@@ -228,10 +202,8 @@ export class PatientsService {
         itemCount: history.length,
       },
     });
-
     return history;
   }
-
   async getClinicalSummary(
     user: RequestUser,
     patientId: string,
@@ -249,13 +221,11 @@ export class PatientsService {
     });
     return summary;
   }
-
   async findTasks(
     user: RequestUser,
     filters?: PatientTaskInboxFilters,
   ) {
     const taskInbox = await findTasks(this.prisma, user, filters);
-
     await this.logPatientReadEvent({
       user,
       entityType: 'PatientTaskInbox',
@@ -275,54 +245,42 @@ export class PatientsService {
         },
       },
     });
-
     return taskInbox;
   }
-
   async update(id: string, updatePatientDto: UpdatePatientDto, user: RequestUser) {
     // Ley 21.719 Art 12 - verifica consentimiento vigente para tratamiento clinico.
     // En modo `soft` (default) solo loggea; en `hard` (prod) rechaza.
     await this.policyCompliance.assertConsentFor(id, 'ATENCION_CLINICA');
     return updatePatient(this.prisma, this.auditService, id, updatePatientDto, user);
   }
-
   async updateAdminFields(user: RequestUser, patientId: string, dto: UpdatePatientAdminDto) {
     await this.policyCompliance.assertConsentFor(patientId, 'ATENCION_CLINICA');
     return updateAdminFields(this.prisma, this.auditService, user, patientId, dto, this.assertPatientAccess);
   }
-
   async verifyDemographics(user: RequestUser, patientId: string) {
     return verifyDemographics(this.prisma, this.auditService, user, patientId, this.assertPatientAccess);
   }
-
   async mergeIntoTarget(user: RequestUser, targetPatientId: string, dto: MergePatientDto) {
     return mergeIntoTarget(this.prisma, this.auditService, user, targetPatientId, dto, this.assertPatientAccess);
   }
-
   async updateHistory(user: RequestUser, patientId: string, dto: UpdatePatientHistoryDto) {
     return updateHistory(this.prisma, this.auditService, user, patientId, dto, this.assertPatientAccess);
   }
-
   async remove(id: string, user: RequestUser) {
     return removePatient(this.prisma, this.auditService, id, user);
   }
-
   async restore(id: string, user: RequestUser) {
     return restorePatient(this.prisma, this.auditService, id, user);
   }
-
   async reassignPatient(id: string, dto: ReassignPatientDto, user: RequestUser) {
     return reassignPatient(this.prisma, this.auditService, id, dto, user);
   }
-
   async createProblem(user: RequestUser, patientId: string, dto: UpsertPatientProblemDto) {
     return createProblem(this.prisma, this.auditService, user, patientId, dto, this.assertPatientAccess);
   }
-
   async updateProblem(user: RequestUser, problemId: string, dto: UpdatePatientProblemDto) {
     return updateProblem(this.prisma, this.auditService, user, problemId, dto, this.assertPatientAccess);
   }
-
   async createTask(
     user: RequestUser,
     patientId: string,
@@ -330,7 +288,6 @@ export class PatientsService {
   ) {
     return createTask(this.prisma, this.auditService, user, patientId, dto, this.assertPatientAccess);
   }
-
   async updateTaskStatus(
     user: RequestUser,
     taskId: string,

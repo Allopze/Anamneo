@@ -6,8 +6,6 @@ import {
   ENCOUNTER_SECTION_LABELS as SECTION_LABELS,
   ENCOUNTER_SECTION_ORDER as SECTION_ORDER,
 } from '../common/utils/encounter-section-meta';
-import type { EncounterSectionConfig } from '../../../shared/encounter-section-config';
-import { getEnabledEncounterSectionKeys } from '../../../shared/encounter-section-config';
 import {
   getEncounterClinicalOutputBlock,
   getPatientDemographicsMissingFields,
@@ -19,38 +17,20 @@ import {
 } from './encounters-sanitize';
 import { shouldHideEncounterSectionForRole } from './encounter-access-policy';
 import { resolvePatientIdentifiers, withPatientIdentifiers } from '../patients/patients-identifiers';
+import { formatEpisodeSummary, formatProgress, type FormatEncounterResponseOptions } from './encounters-presenter-common';
 
-interface FormatEncounterResponseOptions {
-  viewerRole?: string;
-  sectionConfig?: EncounterSectionConfig;
-}
-
-function formatProgress(
-  sections: Array<{ completed: boolean; sectionKey?: string }>,
-  sectionConfig?: EncounterSectionConfig,
-) {
-  const enabledKeys = sectionConfig ? new Set(getEnabledEncounterSectionKeys(sectionConfig)) : null;
-  const visibleSections = enabledKeys
-    ? sections.filter((section) => section.sectionKey && enabledKeys.has(section.sectionKey as any))
-    : sections;
+function formatAttachmentSummary(attachment: any) {
   return {
-    completed: visibleSections.filter((section) => section.completed).length,
-    total: visibleSections.length,
-  };
-}
-
-function formatEpisodeSummary(episode: any) {
-  if (!episode) {
-    return null;
-  }
-
-  return {
-    id: episode.id,
-    label: episode.label,
-    normalizedLabel: episode.normalizedLabel,
-    startDate: episode.startDate ?? null,
-    endDate: episode.endDate ?? null,
-    isActive: episode.isActive,
+    id: attachment.id,
+    originalName: attachment.originalName,
+    mime: attachment.mime,
+    size: attachment.size,
+    category: attachment.category ?? null,
+    description: attachment.description ?? null,
+    linkedOrderType: attachment.linkedOrderType ?? null,
+    linkedOrderId: attachment.linkedOrderId ?? null,
+    linkedOrderLabel: attachment.linkedOrderLabel ?? null,
+    uploadedAt: attachment.uploadedAt,
   };
 }
 
@@ -207,18 +187,7 @@ export function formatEncounterResponse(encounter: any, options: FormatEncounter
       revokedAt: signature.revokedAt ?? null,
       revokedReason: signature.revokedReason ?? null,
     })),
-    attachments: (encounter.attachments || []).map((attachment: any) => ({
-      id: attachment.id,
-      originalName: attachment.originalName,
-      mime: attachment.mime,
-      size: attachment.size,
-      category: attachment.category ?? null,
-      description: attachment.description ?? null,
-      linkedOrderType: attachment.linkedOrderType ?? null,
-      linkedOrderId: attachment.linkedOrderId ?? null,
-      linkedOrderLabel: attachment.linkedOrderLabel ?? null,
-      uploadedAt: attachment.uploadedAt,
-    })),
+    attachments: (encounter.attachments || []).map((attachment: any) => formatAttachmentSummary(attachment)),
     consents: (encounter.consents || []).map((consent: any) => ({
       id: consent.id,
       patientId: consent.patientId,
@@ -239,18 +208,9 @@ export function formatEncounterResponse(encounter: any, options: FormatEncounter
           status: encounter.signatureBaseline.status,
           createdAt: encounter.signatureBaseline.createdAt,
           closureNote: encounter.signatureBaseline.closureNote ?? null,
-          attachments: (encounter.signatureBaseline.attachments || []).map((attachment: any) => ({
-            id: attachment.id,
-            originalName: attachment.originalName,
-            mime: attachment.mime,
-            size: attachment.size,
-            category: attachment.category ?? null,
-            description: attachment.description ?? null,
-            linkedOrderType: attachment.linkedOrderType ?? null,
-            linkedOrderId: attachment.linkedOrderId ?? null,
-            linkedOrderLabel: attachment.linkedOrderLabel ?? null,
-            uploadedAt: attachment.uploadedAt,
-          })),
+          attachments: (encounter.signatureBaseline.attachments || []).map((attachment: any) =>
+            formatAttachmentSummary(attachment),
+          ),
           sections: (encounter.signatureBaseline.sections || []).map((section: any) => ({
             ...formatEncounterSectionForRead({
               ...section,

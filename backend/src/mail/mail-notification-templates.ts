@@ -1,32 +1,27 @@
 import { escapeHtml } from './mail-helpers';
-
 type RenderedEmail = {
   subject: string;
   text: string;
   html: string;
 };
-
 export type DataRequestAcknowledgementPayload = {
   requesterName: string;
   requestId: string;
   requestType: string;
   dueDate: Date;
 };
-
 export type DataRequestResolvedPayload = {
   requesterName: string;
   requestId: string;
   requestType: string;
   resolutionNote: string;
 };
-
 export type DataRequestRejectedPayload = {
   requesterName: string;
   requestId: string;
   requestType: string;
   reason: string;
 };
-
 export type DataRequestExtendedPayload = {
   requesterName: string;
   requestId: string;
@@ -34,7 +29,6 @@ export type DataRequestExtendedPayload = {
   newDueDate: Date;
   reason: string;
 };
-
 export type DataRequestExportLinkPayload = {
   requesterName: string;
   requestId: string;
@@ -42,18 +36,15 @@ export type DataRequestExportLinkPayload = {
   expiresAt: Date;
   maxDownloads: number;
 };
-
 export type PatientPortalInvitePayload = {
   patientName: string;
   activationUrl: string;
   expiresAt: Date;
 };
-
 export type PatientPortalPasswordResetPayload = {
   resetUrl: string;
   expiresAt: Date;
 };
-
 export type BreachNotificationPayload = {
   subjectName: string;
   breachId: string;
@@ -69,11 +60,9 @@ export type BreachNotificationPayload = {
   consultationChannels?: string;
   followUpInfo?: string;
 };
-
 function formatDateCL(date: Date): string {
   return date.toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
 }
-
 export function buildDataRequestAcknowledgementEmail(
   payload: DataRequestAcknowledgementPayload,
 ): RenderedEmail {
@@ -100,7 +89,6 @@ export function buildDataRequestAcknowledgementEmail(
   </div>`;
   return { subject, text, html };
 }
-
 export function buildDataRequestResolvedEmail(payload: DataRequestResolvedPayload): RenderedEmail {
   const subject = `Resolución de tu solicitud (Ley 21.719) #${payload.requestId.slice(0, 8)}`;
   const text = [
@@ -122,7 +110,6 @@ export function buildDataRequestResolvedEmail(payload: DataRequestResolvedPayloa
   </div>`;
   return { subject, text, html };
 }
-
 export function buildDataRequestRejectedEmail(payload: DataRequestRejectedPayload): RenderedEmail {
   const subject = `Resolución de tu solicitud (Ley 21.719) #${payload.requestId.slice(0, 8)}`;
   const text = [
@@ -145,7 +132,6 @@ export function buildDataRequestRejectedEmail(payload: DataRequestRejectedPayloa
   </div>`;
   return { subject, text, html };
 }
-
 export function buildDataRequestExtendedEmail(payload: DataRequestExtendedPayload): RenderedEmail {
   const subject = `Prórroga de plazo en tu solicitud (Ley 21.719) #${payload.requestId.slice(0, 8)}`;
   const text = [
@@ -166,7 +152,6 @@ export function buildDataRequestExtendedEmail(payload: DataRequestExtendedPayloa
   </div>`;
   return { subject, text, html };
 }
-
 export function buildDataRequestExportLinkEmail(payload: DataRequestExportLinkPayload): RenderedEmail {
   const subject = `Descarga segura de ficha clínica #${payload.requestId.slice(0, 8)}`;
   const text = [
@@ -192,7 +177,6 @@ export function buildDataRequestExportLinkEmail(payload: DataRequestExportLinkPa
   </div>`;
   return { subject, text, html };
 }
-
 export function buildPatientPortalInviteEmail(payload: PatientPortalInvitePayload): RenderedEmail {
   const subject = 'Invitación al portal paciente Anamneo';
   const text = [
@@ -214,7 +198,6 @@ export function buildPatientPortalInviteEmail(payload: PatientPortalInvitePayloa
   </div>`;
   return { subject, text, html };
 }
-
 export function buildPatientPortalPasswordResetEmail(
   payload: PatientPortalPasswordResetPayload,
 ): RenderedEmail {
@@ -237,7 +220,6 @@ export function buildPatientPortalPasswordResetEmail(
   </div>`;
   return { subject, text, html };
 }
-
 export function buildBreachNotificationEmail(payload: BreachNotificationPayload): RenderedEmail {
   const subject = `Notificación obligatoria — incidente de seguridad (Ley 21.719 Art 14 sexies) #${payload.breachId.slice(0, 8)}`;
   const responsableLine = payload.responsableName
@@ -261,7 +243,6 @@ export function buildBreachNotificationEmail(payload: BreachNotificationPayload)
   const followUpLine = payload.followUpInfo
     ? `Seguimiento: ${payload.followUpInfo}.`
     : 'Seguimiento: le mantendremos informado(a) si se identifican impactos adicionales o medidas correctivas relevantes.';
-
   const text = [
     `Estimado(a) ${payload.subjectName},`,
     '',
@@ -289,7 +270,6 @@ export function buildBreachNotificationEmail(payload: BreachNotificationPayload)
     '',
     followUpLine,
   ].join('\n');
-
   const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.55;">
     <h2 style="color:#b91c1c;">Notificación obligatoria — incidente de seguridad</h2>
     <p>Estimado(a) ${escapeHtml(payload.subjectName)},</p>
@@ -307,6 +287,5 @@ export function buildBreachNotificationEmail(payload: BreachNotificationPayload)
     <p style="color:#475569;font-size:13px;">Esta notificación se realiza en cumplimiento del Art 14 sexies de la Ley 21.719. Usted tiene derecho a reclamar ante la <strong>Agencia de Protección de Datos Personales</strong> si considera que sus derechos no fueron respetados (Art 41 Ley 21.719).</p>
     <p style="color:#475569;font-size:13px;">${escapeHtml(followUpLine)}</p>
   </div>`;
-
   return { subject, text, html };
 }

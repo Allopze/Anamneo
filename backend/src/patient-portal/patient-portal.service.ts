@@ -1,37 +1,25 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import type { StringValue } from 'ms';
-import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { MailService } from '../mail/mail.service';
-import { decryptField, encryptField, encryptNetMeta } from '../common/utils/field-crypto';
-import { EncountersPdfService } from '../encounters/encounters-pdf.service';
-import { computeRutLookupHash, resolvePatientIdentifiers, withPatientIdentifiers } from '../patients/patients-identifiers';
+import { encryptNetMeta } from '../common/utils/field-crypto';
 import type { CurrentUserData } from '../common/decorators/current-user.decorator';
-import {
-  PortalActivateDto,
-  PortalDataRequestDto,
-  PortalInviteDto,
-  PortalLoginDto,
-  PortalRequestPasswordResetDto,
-  PortalResetPasswordDto,
-} from './dto/patient-portal.dto';
+import { EncountersPdfService } from '../encounters/encounters-pdf.service';
+import { MailService } from '../mail/mail.service';
+import { resolvePatientIdentifiers } from '../patients/patients-identifiers';
+import { PrismaService } from '../prisma/prisma.service';
+import { PortalActivateDto, PortalDataRequestDto, PortalInviteDto, PortalLoginDto, PortalRequestPasswordResetDto, PortalResetPasswordDto } from './dto/patient-portal.dto';
 import { PatientPortalAuditLogService } from './patient-portal-audit-log.service';
+import { requestPatientPortalPasswordReset, resetPatientPortalPassword } from './patient-portal-password.helpers';
+import { createPortalDataRequest, exportPortalEncounterPdf, getPortalEncounter, getPortalPatient, listPortalEncounters } from './patient-portal-records.helpers';
 import type { PatientPortalJwtPayload, PatientPortalRequestUser } from './patient-portal.types';
 
 const PORTAL_ACTIVATION_TTL_HOURS = 7 * 24;
-const PORTAL_RESET_TTL_MINUTES = 30;
 const PORTAL_LOCK_ATTEMPTS = 5;
 const PORTAL_LOCK_MINUTES = 15;
-const DATA_REQUEST_SLA_DAYS = 30;
 
 type SessionContext = {
   userAgent?: string | null;
@@ -211,208 +199,26 @@ export class PatientPortalService {
   }
 
   async requestPasswordReset(dto: PortalRequestPasswordResetDto, context?: SessionContext) {
-    const account = await this.prisma.patientPortalAccount.findUnique({ where: { email: dto.email } });
-    if (!account?.active) return { message: 'Si el correo está registrado, recibirás instrucciones.' };
-    const token = randomBytes(32).toString('base64url');
-    const expiresAt = new Date(Date.now() + PORTAL_RESET_TTL_MINUTES * 60 * 1000);
-    await this.prisma.patientPortalPasswordResetToken.create({
-      data: {
-        accountId: account.id,
-        tokenHash: hashToken(token),
-        expiresAt,
-        ipAddress: encryptNetMeta(context?.ipAddress?.slice(0, 64)),
-        userAgent: encryptNetMeta(context?.userAgent?.slice(0, 255)),
-      },
-    });
-    await this.mail.sendPatientPortalPasswordReset({
-      to: account.email,
-      resetUrl: this.buildPortalUrl(`/portal/login?resetToken=${encodeURIComponent(token)}`),
-      expiresAt,
-    });
-    return { message: 'Si el correo está registrado, recibirás instrucciones.' };
+    return requestPatientPortalPasswordReset({ prisma: this.prisma, mail: this.mail, dto, context, buildPortalUrl: (pathname) => this.buildPortalUrl(pathname) });
   }
-
   async resetPassword(dto: PortalResetPasswordDto) {
-    const tokenHash = hashToken(dto.token);
-    const token = await this.prisma.patientPortalPasswordResetToken.findUnique({
-      where: { tokenHash },
-      include: { account: true },
-    });
-    if (!token || token.usedAt || token.expiresAt < new Date() || !token.account.active) {
-      throw new UnauthorizedException('Token inválido o expirado');
-    }
-    await this.prisma.$transaction([
-      this.prisma.patientPortalAccount.update({
-        where: { id: token.accountId },
-        data: {
-          passwordHash: await bcrypt.hash(dto.password, 12),
-          refreshTokenVersion: { increment: 1 },
-          failedAttempts: 0,
-          lockedUntil: null,
-        },
-      }),
-      this.prisma.patientPortalPasswordResetToken.update({
-        where: { id: token.id },
-        data: { usedAt: new Date() },
-      }),
-      this.prisma.patientPortalSession.updateMany({
-        where: { accountId: token.accountId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      }),
-    ]);
-    return { message: 'Contraseña actualizada' };
+    return resetPatientPortalPassword({ prisma: this.prisma, dto });
   }
-
   async getPatient(user: PatientPortalRequestUser) {
-    const patient = await this.prisma.patient.findUnique({
-      where: { id: user.patientId },
-      select: {
-        id: true,
-        rutEnc: true,
-        rutExempt: true,
-        nombreEnc: true,
-        fechaNacimiento: true,
-        edad: true,
-        edadMeses: true,
-        sexo: true,
-        prevision: true,
-        emailEnc: true,
-        telefonoEnc: true,
-        legalRepresentativeNameEnc: true,
-        legalRepresentativeRelationshipEnc: true,
-      },
-    });
-    if (!patient) throw new NotFoundException('Paciente no encontrado');
-    const patientWithIdentifiers = withPatientIdentifiers(patient);
-    await this.audit.log({
-      entityType: 'Patient',
-      entityId: patient.id,
-      userId: `portal:${user.id}`,
-      action: 'READ',
-      reason: 'PATIENT_PORTAL_RECORD_VIEWED',
-    });
-    return patientWithIdentifiers;
+    return getPortalPatient({ prisma: this.prisma, audit: this.audit, user });
   }
-
   async listEncounters(user: PatientPortalRequestUser) {
-    const encounters = await this.prisma.encounter.findMany({
-      where: { patientId: user.patientId, status: { in: ['COMPLETADO', 'FIRMADO'] } },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        createdAt: true,
-        status: true,
-        reviewStatus: true,
-        medico: { select: { nombre: true } },
-      },
-    });
-    return encounters.map((encounter) => ({
-      ...encounter,
-      fecha: encounter.createdAt,
-      tipoAtencion: null,
-      motivoConsulta: null,
-    }));
+    return listPortalEncounters(this.prisma, user);
   }
-
   async getEncounter(user: PatientPortalRequestUser, encounterId: string) {
-    const encounter = await this.prisma.encounter.findFirst({
-      where: { id: encounterId, patientId: user.patientId, status: { in: ['COMPLETADO', 'FIRMADO'] } },
-      include: {
-        sections: true,
-        attachments: {
-          where: { deletedAt: null },
-          select: { id: true, originalName: true, mime: true, size: true, category: true, uploadedAt: true },
-        },
-        medico: { select: { nombre: true } },
-      },
-    });
-    if (!encounter) throw new NotFoundException('Atención no encontrada');
-    await this.audit.log({
-      entityType: 'Encounter',
-      entityId: encounter.id,
-      userId: `portal:${user.id}`,
-      action: 'READ',
-      reason: 'PATIENT_PORTAL_ENCOUNTER_VIEWED',
-    });
-    return {
-      ...encounter,
-      fecha: encounter.createdAt,
-      tipoAtencion: null,
-      motivoConsulta: null,
-      sections: encounter.sections.map((section) => ({
-        id: section.id,
-        sectionKey: section.sectionKey,
-        completed: section.completed,
-        notApplicable: section.notApplicable,
-        data: parseSectionData(section.data),
-        updatedAt: section.updatedAt,
-      })),
-    };
+    return getPortalEncounter({ prisma: this.prisma, audit: this.audit, user, encounterId });
   }
-
   async exportEncounterPdf(user: PatientPortalRequestUser, encounterId: string) {
-    const encounter = await this.prisma.encounter.findFirst({
-      where: { id: encounterId, patientId: user.patientId, status: { in: ['COMPLETADO', 'FIRMADO'] } },
-      select: { id: true, medicoId: true },
-    });
-    if (!encounter) throw new NotFoundException('Atención no encontrada');
-    const syntheticUser = {
-      id: encounter.medicoId,
-      email: user.email,
-      nombre: 'Portal paciente',
-      role: 'MEDICO',
-      isAdmin: false,
-    };
-    const filename = await this.encountersPdf.getPdfFilename(encounterId, syntheticUser);
-    const buffer = await this.encountersPdf.generatePdf(encounterId, syntheticUser);
-    await this.audit.log({
-      entityType: 'Encounter',
-      entityId: encounterId,
-      userId: `portal:${user.id}`,
-      action: 'EXPORT',
-      reason: 'PATIENT_PORTAL_DOCUMENT_DOWNLOADED',
-      diff: { patientId: user.patientId },
-    });
-    return { filename, buffer };
+    return exportPortalEncounterPdf({ prisma: this.prisma, audit: this.audit, encountersPdf: this.encountersPdf, user, encounterId });
   }
-
   async createDataRequest(user: PatientPortalRequestUser, dto: PortalDataRequestDto) {
-    const patient = await this.prisma.patient.findUnique({ where: { id: user.patientId } });
-    if (!patient) throw new NotFoundException('Paciente no encontrado');
-    const patientIdentifiers = resolvePatientIdentifiers(patient);
-    const now = new Date();
-    const requesterRut = dto.requesterRut ?? patientIdentifiers.rut;
-    const created = await this.prisma.patientDataRequest.create({
-      data: {
-        patientId: user.patientId,
-        requestType: dto.requestType,
-        status: 'RECIBIDA',
-        submittedBy: user.relationship === 'TITULAR' ? 'TITULAR' : 'REPRESENTANTE',
-        requesterNameEnc: encryptField(patientIdentifiers.nombre),
-        requesterRutEnc: requesterRut ? encryptField(requesterRut) : null,
-        requesterRutLookupHash: computeRutLookupHash(requesterRut),
-        requesterEmailEnc: encryptField(user.email),
-        payloadRequest: dto.payloadRequest,
-        dueDate: new Date(now.getTime() + DATA_REQUEST_SLA_DAYS * 24 * 60 * 60 * 1000),
-        identityVerificationMethod: 'PORTAL',
-        identityVerificationEvidence: {
-          portalAccountId: user.id,
-          relationship: user.relationship,
-          submittedAt: now.toISOString(),
-        },
-      },
-    });
-    await this.audit.log({
-      entityType: 'PatientDataRequest',
-      entityId: created.id,
-      userId: `portal:${user.id}`,
-      action: 'CREATE',
-      reason: 'PATIENT_PORTAL_DATA_REQUEST_CREATED',
-      diff: { patientId: user.patientId, requestType: dto.requestType },
-    });
-    return created;
+    return createPortalDataRequest({ prisma: this.prisma, audit: this.audit, user, dto });
   }
-
   private async issueTokens(account: { id: string; email: string; patientId: string; relationship: string; refreshTokenVersion: number }, context?: SessionContext) {
     const session = await this.prisma.patientPortalSession.create({
       data: {
@@ -465,12 +271,4 @@ export class PatientPortalService {
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
-}
-
-function parseSectionData(raw: string): unknown {
-  try {
-    return JSON.parse(decryptField(raw));
-  } catch {
-    return { __unavailable: true };
-  }
 }

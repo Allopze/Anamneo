@@ -24,10 +24,8 @@ import {
   type ScopedProblem,
 } from './clinical-analytics-summary';
 import type { ClinicalAnalyticsQueryDto } from './dto/clinical-analytics-query.dto';
-
 const ANALYTICS_STATUSES = ['COMPLETADO', 'FIRMADO'] as const;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
-
 function hasAnalyticsOptOut(patient: { processingObjections?: unknown } | null | undefined) {
   const objections = patient?.processingObjections;
   return Boolean(
@@ -37,7 +35,6 @@ function hasAnalyticsOptOut(patient: { processingObjections?: unknown } | null |
       && (objections as Record<string, unknown>).ANALITICA_INTERNA === true,
   );
 }
-
 function buildPatientLevelAlertScopeWhere(effectiveMedicoId: string) {
   return {
     encounterId: null,
@@ -47,7 +44,6 @@ function buildPatientLevelAlertScopeWhere(effectiveMedicoId: string) {
     ],
   };
 }
-
 export async function getClinicalAnalyticsSummaryReadModel(params: {
   prisma: PrismaService;
   user: RequestUser;
@@ -61,11 +57,9 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
   const fromDate = extractDateOnlyIso(query.fromDate ?? resolveDefaultFromDate());
   const fromStart = startOfAppDayUtc(fromDate);
   const toEndExclusive = endOfAppDayUtcExclusive(toDate);
-
   if (fromStart >= toEndExclusive) {
     throw new BadRequestException('La fecha desde debe ser anterior o igual a la fecha hasta');
   }
-
   const extendedEnd = new Date(toEndExclusive.getTime() + followUpDays * DAY_IN_MS);
   const rawEncounters = await prisma.encounter.findMany({
     where: {
@@ -140,7 +134,6 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
       },
     },
   });
-
   const analyticsAllowedEncounters = rawEncounters.filter((rawEncounter) => !hasAnalyticsOptOut(rawEncounter.patient));
   const parsedEncounters = analyticsAllowedEncounters.map((rawEncounter) =>
     buildClinicalAnalyticsEncounterFromPersistence(rawEncounter as any),
@@ -149,7 +142,6 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
   const normalizedCondition = query.condition ? normalizeConditionName(query.condition) : '';
   const matchedEncounters = baseEncounters.filter((entry) => matchesAnalyticsQuery(entry, query.source, normalizedCondition));
   const patientIds = [...new Set(matchedEncounters.map((entry) => entry.patientId))];
-
   const [problems, alerts] = patientIds.length > 0
     ? await Promise.all([
         prisma.patientProblem.findMany({
@@ -179,39 +171,33 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
         }),
       ])
     : [[], []];
-
   const problemsByPatient = new Map<string, ScopedProblem[]>();
   for (const problem of problems) {
     const current = problemsByPatient.get(problem.patientId) || [];
     current.push(problem);
     problemsByPatient.set(problem.patientId, current);
   }
-
   const alertsByPatient = new Map<string, Date[]>();
   for (const alert of alerts) {
     const current = alertsByPatient.get(alert.patientId) || [];
     current.push(alert.createdAt);
     alertsByPatient.set(alert.patientId, current);
   }
-
   const encountersByPatient = new Map<string, ParsedClinicalAnalyticsEncounter[]>();
   for (const encounter of parsedEncounters) {
     const current = encountersByPatient.get(encounter.patientId) || [];
     current.push(encounter);
     encountersByPatient.set(encounter.patientId, current);
   }
-
   const encountersByEpisode = new Map<string, ParsedClinicalAnalyticsEncounter[]>();
   for (const encounter of parsedEncounters) {
     if (!encounter.episode) {
       continue;
     }
-
     const current = encountersByEpisode.get(encounter.episode.id) || [];
     current.push(encounter);
     encountersByEpisode.set(encounter.episode.id, current);
   }
-
   const evaluations = matchedEncounters.map((encounter) => evaluateEncounterOutcome({
     encounter,
     encountersByPatient,
@@ -229,16 +215,13 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
   const alertAfterIndexCount = evaluations.filter((entry) => entry.hasAlertAfterIndex).length;
   const adherenceDocumentedCount = matchedEncounters.filter((entry) => entry.hasDocumentedAdherence).length;
   const adverseEventCount = matchedEncounters.filter((entry) => entry.hasAdverseEvent).length;
-
   const uniquePatients = new Map<string, ParsedClinicalAnalyticsEncounter['patient']>();
   for (const encounter of matchedEncounters) {
     uniquePatients.set(encounter.patientId, encounter.patient);
   }
-
   const patientList = [...uniquePatients.values()];
   const suppressDetailedAnalytics =
     uniquePatients.size > 0 && uniquePatients.size < SMALL_COHORT_PATIENT_THRESHOLD;
-
   const demographics = {
     averageAge: calculateAverageAge(matchedEncounters),
     bySex: patientList.reduce<Record<string, number>>((accumulator, patient) => {
@@ -247,7 +230,6 @@ export async function getClinicalAnalyticsSummaryReadModel(params: {
       return accumulator;
     }, {}),
   };
-
   return {
     filters: {
       condition: query.condition?.trim() || null,

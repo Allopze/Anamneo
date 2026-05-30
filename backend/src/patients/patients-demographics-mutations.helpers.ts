@@ -3,7 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { isDateOnlyAfterToday, calculateAgeFromBirthDate, parseDateOnlyToStoredUtcDate } from '../common/utils/local-date';
 import { normalizeNullableString } from './patients-format';
-import { computeRutLookupHash } from './patients-identifiers';
+import { buildEncryptedPatientIdentifierFields, computeRutLookupHash } from './patients-identifiers';
 
 export async function findDuplicateRut(prisma: PrismaService, params: { rut: string; excludePatientId?: string }) {
   const { rut, excludePatientId } = params;
@@ -14,6 +14,53 @@ export async function findDuplicateRut(prisma: PrismaService, params: { rut: str
       ...(excludePatientId ? { id: { not: excludePatientId } } : {}),
     },
   });
+}
+
+export function assignEncryptedIdentifierUpdates(
+  updateData: Prisma.PatientUpdateInput,
+  input: {
+    rut?: string | null;
+    nombre?: string | null;
+    domicilio?: string | null;
+    telefono?: string | null;
+    email?: string | null;
+    contactoEmergenciaNombre?: string | null;
+    contactoEmergenciaTelefono?: string | null;
+    legalRepresentativeName?: string | null;
+    legalRepresentativeRut?: string | null;
+    legalRepresentativeRelationship?: string | null;
+    legalRepresentativeContact?: string | null;
+  },
+) {
+  const encrypted = buildEncryptedPatientIdentifierFields(input);
+
+  if (Object.prototype.hasOwnProperty.call(input, 'rut')) {
+    updateData.rutEnc = encrypted.rutEnc;
+    updateData.rutLookupHash = encrypted.rutLookupHash;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'nombre')) updateData.nombreEnc = encrypted.nombreEnc;
+  if (Object.prototype.hasOwnProperty.call(input, 'domicilio')) updateData.domicilioEnc = encrypted.domicilioEnc;
+  if (Object.prototype.hasOwnProperty.call(input, 'telefono')) updateData.telefonoEnc = encrypted.telefonoEnc;
+  if (Object.prototype.hasOwnProperty.call(input, 'email')) updateData.emailEnc = encrypted.emailEnc;
+  if (Object.prototype.hasOwnProperty.call(input, 'contactoEmergenciaNombre')) {
+    updateData.contactoEmergenciaNombreEnc = encrypted.contactoEmergenciaNombreEnc;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'contactoEmergenciaTelefono')) {
+    updateData.contactoEmergenciaTelefonoEnc = encrypted.contactoEmergenciaTelefonoEnc;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'legalRepresentativeName')) {
+    updateData.legalRepresentativeNameEnc = encrypted.legalRepresentativeNameEnc;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'legalRepresentativeRut')) {
+    updateData.legalRepresentativeRutEnc = encrypted.legalRepresentativeRutEnc;
+    updateData.legalRepresentativeRutLookupHash = encrypted.legalRepresentativeRutLookupHash;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'legalRepresentativeRelationship')) {
+    updateData.legalRepresentativeRelationshipEnc = encrypted.legalRepresentativeRelationshipEnc;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'legalRepresentativeContact')) {
+    updateData.legalRepresentativeContactEnc = encrypted.legalRepresentativeContactEnc;
+  }
 }
 
 export function applySharedDemographicFields(

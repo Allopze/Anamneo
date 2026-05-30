@@ -1,5 +1,4 @@
 'use client';
-
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -24,7 +23,6 @@ import {
   PatientCompletenessSummary,
   PatientListRow,
 } from './pacientes.parts';
-
 interface PatientsResponse {
   data: Patient[];
   summary: {
@@ -42,7 +40,6 @@ interface PatientsResponse {
     clinicalSearchCapped?: boolean;
   };
 }
-
 export default function PacientesPage() {
   return (
     <Suspense
@@ -63,7 +60,6 @@ export default function PacientesPage() {
     </Suspense>
   );
 }
-
 function PacientesContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -75,7 +71,6 @@ function PacientesContent() {
   const search = searchParams.get('search') || '';
   const [searchInput, setSearchInput] = useState(search);
   const page = Number(searchParams.get('page') || '1');
-
   const filters: PatientFilters = {
     archived: searchParams.get('archived') || '',
     sexo: searchParams.get('sexo') || '',
@@ -89,7 +84,6 @@ function PacientesContent() {
     sortBy: searchParams.get('sortBy') || 'createdAt',
     sortOrder: searchParams.get('sortOrder') || 'desc',
   };
-
   const buildUrl = (overrides: Record<string, string>) => {
     const next = new URLSearchParams();
     const merged = { search, ...filters, page: String(page), ...overrides };
@@ -100,20 +94,16 @@ function PacientesContent() {
     const qs = next.toString();
     return `/pacientes${qs ? `?${qs}` : ''}`;
   };
-
   const setPage = (p: number | ((prev: number) => number)) => {
     const nextPage = typeof p === 'function' ? p(page) : p;
     router.push(buildUrl({ page: String(nextPage) }));
   };
-
   const setFilter = (key: string, value: string) => {
     router.push(buildUrl({ [key]: value, page: '1' }));
   };
-
   const clearFilters = () => {
     router.push(buildUrl({ archived: '', sexo: '', prevision: '', rutExempt: '', completenessStatus: '', taskWindow: '', edadMin: '', edadMax: '', clinicalSearch: '', sortBy: 'createdAt', sortOrder: 'desc', page: '1' }));
   };
-
   const { data, isLoading, isFetching, error } = useQuery<PatientsResponse>({
     queryKey: ['patients', search, page, filters],
     queryFn: async () => {
@@ -130,7 +120,6 @@ function PacientesContent() {
       return response.data;
     },
   });
-
   const restoreMutation = useMutation({
     mutationFn: async (patientId: string) => api.post(`/patients/${patientId}/restore`, {}),
     onSuccess: async (response) => {
@@ -140,7 +129,6 @@ function PacientesContent() {
     },
     onError: (err) => notify.error(getErrorMessage(err)),
   });
-
   const patients = data?.data ?? [];
   const pagination = data?.pagination;
   const hasPatients = patients.length > 0;
@@ -158,12 +146,10 @@ function PacientesContent() {
         { status: 'VERIFICADA' as const, label: 'Verificadas', value: data.summary.verified, description: 'Listas para continuidad clínica sin bloqueo.' },
       ]
     : [];
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     router.push(buildUrl({ search: searchInput.trim(), page: '1' }));
   };
-
   return (
     <div className="animate-fade-in">
       <div className="page-header">
@@ -192,7 +178,6 @@ function PacientesContent() {
           </div>
         )}
       </div>
-
       {!isLoading && data?.summary ? (
         <section className="mb-5">
           <PatientCompletenessSummary
@@ -215,7 +200,6 @@ function PacientesContent() {
           </p>
         </section>
       ) : null}
-
       <form onSubmit={handleSearch} className="mb-4">
         <div className="relative">
           <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
@@ -228,21 +212,17 @@ function PacientesContent() {
           />
         </div>
       </form>
-
       <PatientsFilterPanel filters={filters} isAdmin={!!user?.isAdmin} onFilterChange={setFilter} onClearFilters={clearFilters} />
-
       {error && (
         <div className="mb-6">
           <ErrorAlert message={getErrorMessage(error)} title="No se pudieron cargar los pacientes" />
         </div>
       )}
-
       {pagination?.clinicalSearchCapped && (
         <div className="card mb-4 border-status-yellow/35 bg-status-yellow/10 p-4 text-sm text-accent-text">
           La búsqueda clínica se acotó a los primeros 500 pacientes visibles. Si falta un resultado, reduce filtros o busca por nombre o RUT.
         </div>
       )}
-
       <div className="card">
         {isLoading ? (
           <div className="space-y-4">
@@ -270,7 +250,6 @@ function PacientesContent() {
                 />
               ))}
             </div>
-
             {pagination && pagination.totalPages > 1 && (
               <div className="flex items-center justify-between p-4 border-t border-surface-muted/30">
                 <p className="text-body text-ink-secondary">

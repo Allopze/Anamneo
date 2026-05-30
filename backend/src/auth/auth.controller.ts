@@ -21,7 +21,6 @@ import { UsersService } from '../users/users.service';
 import { ConfigService } from '@nestjs/config';
 import { isMobileClient } from '../common/utils/mobile-client';
 import { IS_TEST_RUNTIME } from '../common/utils/runtime';
-
 const AUTH_THROTTLE_TTL_MS = 60_000;
 const authThrottleLimits = {
   register: IS_TEST_RUNTIME ? 30 : 3,
@@ -31,7 +30,6 @@ const authThrottleLimits = {
   forgotPasswordConfirm: IS_TEST_RUNTIME ? 30 : 5,
   verify2FA: IS_TEST_RUNTIME ? 60 : 5,
 };
-
 // Cookie configuration helper
 function getCookieOptions(maxAge: number, isProduction: boolean) {
   return {
@@ -42,13 +40,11 @@ function getCookieOptions(maxAge: number, isProduction: boolean) {
     maxAge,
   };
 }
-
 @Controller('auth')
 export class AuthController {
   private readonly isProduction: boolean;
   private readonly accessMaxAge: number;
   private readonly refreshMaxAge: number;
-
   constructor(
     private authService: AuthService,
     private authTotpService: AuthTotpService,
@@ -61,7 +57,6 @@ export class AuthController {
     this.accessMaxAge = this.parseExpiry(configService.get<string>('JWT_EXPIRES_IN', '15m'));
     this.refreshMaxAge = this.parseExpiry(configService.get<string>('JWT_REFRESH_EXPIRES_IN', '7d'));
   }
-
   private parseExpiry(value: string): number {
     const match = value.match(/^(\d+)(s|m|h|d)$/);
     if (!match) return 15 * 60 * 1000; // default 15m
@@ -70,12 +65,10 @@ export class AuthController {
     const multipliers: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 };
     return num * (multipliers[unit] || 60_000);
   }
-
   private setAuthCookies(res: Response, tokens: { accessToken: string; refreshToken: string }) {
     res.cookie('access_token', tokens.accessToken, getCookieOptions(this.accessMaxAge, this.isProduction));
     res.cookie('refresh_token', tokens.refreshToken, getCookieOptions(this.refreshMaxAge, this.isProduction));
   }
-
   // Apps nativas no pueden leer cookies httpOnly, así que cuando el cliente se
   // identifica como móvil devolvemos los tokens también en el body. El cliente
   // los almacenará en almacenamiento seguro (Keychain/Keystore) y los enviará
@@ -86,36 +79,30 @@ export class AuthController {
   ): { tokens?: { accessToken: string; refreshToken: string } } {
     return isMobileClient(req) ? { tokens } : {};
   }
-
   private clearAuthCookies(res: Response) {
     const opts = { httpOnly: true, secure: this.isProduction, sameSite: 'strict' as const, path: '/' };
     res.clearCookie('access_token', opts);
     res.clearCookie('refresh_token', opts);
   }
-
   private getSessionContext(req: Request) {
     return {
       userAgent: req.get('user-agent') ?? null,
       ipAddress: req.ip ?? null,
     };
   }
-
   @Get('me')
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: CurrentUserData) {
     return user;
   }
-
   @Get('bootstrap')
   async bootstrap() {
     return this.authService.getBootstrapState();
   }
-
   @Get('invitations/:token')
   async getInvitation(@Param('token') token: string) {
     return this.authService.getInvitationPreview(token);
   }
-
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @Throttle({ short: { limit: authThrottleLimits.register, ttl: AUTH_THROTTLE_TTL_MS } })
@@ -127,7 +114,6 @@ export class AuthController {
     const user = await this.authService.getSessionUserByEmail(registerDto.email);
     return { message: 'Registro exitoso', user, ...this.maybeMobileTokens(req, result) };
   }
-
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: authThrottleLimits.login, ttl: AUTH_THROTTLE_TTL_MS } })
@@ -135,16 +121,13 @@ export class AuthController {
     const req = res.req as Request;
     const sessionContext = this.getSessionContext(req);
     const result = await this.authService.login(loginDto, sessionContext);
-
     if ('requires2FA' in result) {
       return { requires2FA: true, tempToken: result.tempToken };
     }
-
     this.setAuthCookies(res, result);
     const user = await this.authService.getSessionUserByEmail(loginDto.email);
     return { message: 'Inicio de sesión exitoso', user, ...this.maybeMobileTokens(req, result) };
   }
-
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(
@@ -168,13 +151,11 @@ export class AuthController {
       throw err;
     }
   }
-
   @Patch('profile')
   @UseGuards(JwtAuthGuard)
   async updateProfile(@CurrentUser() user: CurrentUserData, @Body() dto: UpdateProfileDto) {
     return this.usersService.updateProfile(user.id, dto);
   }
-
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
@@ -188,7 +169,6 @@ export class AuthController {
     this.clearAuthCookies(res);
     return { message: 'Contraseña actualizada correctamente' };
   }
-
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout(
@@ -197,17 +177,13 @@ export class AuthController {
   ) {
     const req = res.req as Request & { cookies?: Record<string, string> };
     const refreshToken = req.cookies?.refresh_token ?? body?.refreshToken;
-
     if (refreshToken) {
       await this.authService.revokeByRefreshToken(refreshToken);
     }
-
     this.clearAuthCookies(res);
     return { message: 'Sesión cerrada' };
   }
-
   // ── Password reset (publico, anti-enumeration) ─────────────────────
-
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: authThrottleLimits.forgotPassword, ttl: AUTH_THROTTLE_TTL_MS } })
@@ -216,14 +192,12 @@ export class AuthController {
     await this.authPasswordResetService.requestReset(dto.email, sessionContext);
     return { message: 'Si el correo está registrado, recibirás un enlace para restablecer la contraseña.' };
   }
-
   @Get('forgot-password/:token')
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: authThrottleLimits.forgotPasswordCheck, ttl: AUTH_THROTTLE_TTL_MS } })
   async checkForgotPasswordToken(@Param('token') token: string) {
     return this.authPasswordResetService.validateToken(token);
   }
-
   @Post('forgot-password/confirm')
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: authThrottleLimits.forgotPasswordConfirm, ttl: AUTH_THROTTLE_TTL_MS } })
@@ -241,20 +215,17 @@ export class AuthController {
     this.clearAuthCookies(res);
     return { message: 'Contraseña restablecida correctamente. Inicia sesión con la nueva contraseña.' };
   }
-
   @Get('sessions')
   @UseGuards(JwtAuthGuard)
   async listSessions(@CurrentUser() user: CurrentUserData) {
     return this.authService.listUserSessions(user.id, user.sessionId);
   }
-
   @Delete('sessions/:id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async revokeSession(@CurrentUser() user: CurrentUserData, @Param('id') id: string) {
     return this.authService.revokeUserSession(user.id, id, user.sessionId);
   }
-
   @Delete('sessions/others')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
@@ -268,29 +239,24 @@ export class AuthController {
           : 'No había otras sesiones activas para cerrar',
     };
   }
-
   // ── 2FA / TOTP ──────────────────────────────────────────────────────
-
   @Post('2fa/setup')
   @UseGuards(JwtAuthGuard)
   async setup2FA(@CurrentUser() user: CurrentUserData) {
     return this.authTotpService.setup2FA(user.id);
   }
-
   @Post('2fa/enable')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async enable2FA(@CurrentUser() user: CurrentUserData, @Body() dto: VerifyTotpDto) {
     return this.authTotpService.enable2FA(user.id, dto.code);
   }
-
   @Post('2fa/disable')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async disable2FA(@CurrentUser() user: CurrentUserData, @Body() dto: DisableTotpDto) {
     return this.authTotpService.disable2FA(user.id, dto.password);
   }
-
   @Post('2fa/recovery-codes/regenerate')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
@@ -300,7 +266,6 @@ export class AuthController {
   ) {
     return this.authTotpService.regenerateRecoveryCodes(user.id, dto.password);
   }
-
   @Post('2fa/verify')
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: authThrottleLimits.verify2FA, ttl: AUTH_THROTTLE_TTL_MS } })

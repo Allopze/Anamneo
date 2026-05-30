@@ -36,83 +36,16 @@ import {
 } from './encounters-sanitize';
 import { isMedicoOnlySection } from './encounter-access-policy';
 import type { EncounterSectionConfig } from '../../../shared/encounter-section-config';
-
-
-function parseDecimal(value: string | undefined): string | null {
-  if (!value) return null;
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed.toString() : null;
-}
-
-function parseInteger(value: string | undefined): number | null {
-  if (!value) return null;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function parseBloodPressure(value: string | undefined): { systolic: number | null; diastolic: number | null } {
-  if (!value) return { systolic: null, diastolic: null };
-  const match = value.match(/^(\d{2,3})\s*\/\s*(\d{2,3})$/);
-  if (!match) return { systolic: null, diastolic: null };
-  return {
-    systolic: parseInteger(match[1]),
-    diastolic: parseInteger(match[2]),
-  };
-}
-
-async function syncEncounterVitalSigns(
-  prisma: PrismaService,
-  params: {
-    encounterId: string;
-    patientId: string;
-    vitalSigns?: Record<string, string>;
-  },
-) {
-  const { encounterId, patientId, vitalSigns } = params;
-  if (!(prisma as any).encounterVitalSigns) {
-    return;
-  }
-  if (!vitalSigns || Object.keys(vitalSigns).length === 0) {
-    await prisma.encounterVitalSigns.deleteMany({ where: { encounterId } });
-    return;
-  }
-
-  const pressure = parseBloodPressure(vitalSigns.presionArterial);
-  const data = {
-    patientId,
-    measuredAt: new Date(),
-    bloodPressureSystolic: pressure.systolic,
-    bloodPressureDiastolic: pressure.diastolic,
-    heartRate: parseInteger(vitalSigns.frecuenciaCardiaca),
-    respiratoryRate: parseInteger(vitalSigns.frecuenciaRespiratoria),
-    temperatureCelsius: parseDecimal(vitalSigns.temperatura),
-    oxygenSaturation: parseInteger(vitalSigns.saturacionOxigeno),
-    weightKg: parseDecimal(vitalSigns.peso),
-    heightCm: parseDecimal(vitalSigns.talla),
-    bmi: parseDecimal(vitalSigns.imc),
-  };
-
-  await prisma.encounterVitalSigns.upsert({
-    where: { encounterId },
-    create: {
-      encounterId,
-      ...data,
-    },
-    update: data,
-  });
-}
-
+import { syncEncounterVitalSigns } from './encounters-vital-signs-sync';
 interface LoggerLike {
   error(message: string, trace?: string): void;
 }
-
 interface ReconcileEncounterIdentificationSectionParams {
   prisma: PrismaService;
   auditService: AuditService;
   encounterId: string;
   user: RequestUser;
 }
-
 interface UpdateEncounterSectionMutationParams {
   prisma: PrismaService;
   auditService: AuditService;
@@ -124,37 +57,28 @@ interface UpdateEncounterSectionMutationParams {
   user: RequestUser;
   sectionConfig?: EncounterSectionConfig;
 }
-
 export async function reconcileEncounterIdentificationSection(params: ReconcileEncounterIdentificationSectionParams) {
   const { prisma, auditService, encounterId, user } = params;
-
   const encounter = await prisma.encounter.findUnique({
     where: { id: encounterId },
     include: { sections: true, patient: true },
   });
-
   if (!encounter) {
     throw new NotFoundException('Atención no encontrada');
   }
-
   assertEncounterAccess(user, encounter.medicoId, 'No tiene permisos para editar esta atención');
-
   if (encounter.status !== 'EN_PROGRESO') {
     throw new BadRequestException('Solo se puede reconciliar la identificación de atenciones en progreso');
   }
-
   const section = encounter.sections.find((currentSection) => currentSection.sectionKey === 'IDENTIFICACION');
   if (!section) {
     throw new NotFoundException('Sección de identificación no encontrada');
   }
-
   const snapshotData = buildIdentificationSnapshotFromPatient(encounter.patient);
-
   const runTx = async <T>(cb: (tx: typeof prisma) => Promise<T>) =>
     typeof (prisma as any).$transaction === 'function'
       ? (prisma as any).$transaction(cb)
       : cb(prisma as any);
-
   const updatedSection = await runTx(async (tx) => {
     const sectionUpdate = await tx.encounterSection.update({
       where: { id: section.id },
@@ -163,12 +87,10 @@ export async function reconcileEncounterIdentificationSection(params: ReconcileE
         schemaVersion: getEncounterSectionSchemaVersion('IDENTIFICACION'),
       },
     });
-
     await tx.encounter.update({
       where: { id: encounterId },
       data: { updatedAt: new Date() },
     });
-
     await auditService.log(
       {
         entityType: 'EncounterSection',
@@ -180,12 +102,9 @@ export async function reconcileEncounterIdentificationSection(params: ReconcileE
       },
       tx,
     );
-
     return sectionUpdate;
   });
-
   const formattedSection = formatEncounterSectionForRead(updatedSection);
-
   return {
     id: updatedSection.id,
     encounterId: updatedSection.encounterId,
@@ -197,78 +116,60 @@ export async function reconcileEncounterIdentificationSection(params: ReconcileE
     schemaVersion: formattedSection.schemaVersion,
   };
 }
-
 export async function updateEncounterSectionMutation(params: UpdateEncounterSectionMutationParams) {
   const { prisma, auditService, alertsService, logger, encounterId, sectionKey, dto, user, sectionConfig } = params;
-
   const encounter = await prisma.encounter.findUnique({
     where: { id: encounterId },
     include: { sections: true, patient: true },
   });
-
   if (!encounter) {
     throw new NotFoundException('Atención no encontrada');
   }
-
   assertEncounterAccess(user, encounter.medicoId, 'No tiene permisos para editar esta atención');
-
   if (encounter.status === 'FIRMADO') {
     throw new BadRequestException('No se puede editar una atención firmada. Los registros firmados son inmutables');
   }
-
   if (encounter.status === 'COMPLETADO') {
     throw new BadRequestException('No se puede editar una atención completada');
   }
-
   if (encounter.status === 'CANCELADO') {
     throw new BadRequestException('No se puede editar una atención cancelada');
   }
-
   if (!canEditEncounterCreatedBy(user, encounter.createdById)) {
     throw new ForbiddenException('No tiene permisos para editar esta atención');
   }
-
   const section = encounter.sections.find((currentSection) => currentSection.sectionKey === sectionKey);
   if (!section) {
     throw new NotFoundException('Sección no encontrada');
   }
-
   const configuredSection = sectionConfig?.sections.find((item) => item.key === sectionKey);
   if (configuredSection?.enabled === false) {
     throw new BadRequestException('Esta sección está deshabilitada por configuración administrativa');
   }
-
   if (user.role !== 'MEDICO' && isMedicoOnlySection(sectionKey)) {
     throw new ForbiddenException('Solo un médico puede editar esta sección clínica');
   }
-
   const sanitizedData = sanitizeSectionPayload(sectionKey, dto.data);
   const previousSectionData = formatEncounterSectionForRead(section).data ?? {};
-
   if (sectionKey === 'IDENTIFICACION' && !matchesCurrentPatientSnapshot(encounter, sanitizedData)) {
     throw new BadRequestException(
       'La identificación de la atención es un snapshot de solo lectura. Edite la ficha del paciente o restaure desde la ficha maestra.',
     );
   }
-
   const isRequiredSection = configuredSection
     ? configuredSection.requiredForCompletion
     : sectionKey === 'IDENTIFICACION' || REQUIRED_SEMANTIC_SECTIONS.includes(sectionKey);
-
   if (dto.notApplicable && isRequiredSection) {
     throw new BadRequestException('Esta sección es obligatoria y no se puede marcar como "No aplica"');
   }
-
   if (dto.notApplicable && !dto.notApplicableReason) {
     throw new BadRequestException('Debe indicar un motivo al marcar la sección como "No aplica"');
   }
-
   if (dto.baseUpdatedAt) {
     const baseUpdatedAt = new Date(dto.baseUpdatedAt);
     if (Number.isNaN(baseUpdatedAt.getTime())) {
       throw new BadRequestException('La versión base de la sección no es válida');
     }
-
     if (section.updatedAt.getTime() !== baseUpdatedAt.getTime()) {
       throw new ConflictException({
         code: 'ENCOUNTER_SECTION_STALE',
@@ -276,15 +177,12 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
       });
     }
   }
-
   const runTransaction = async <T>(callback: (tx: typeof prisma) => Promise<T>) => {
     if (typeof (prisma as any).$transaction === 'function') {
       return await (prisma as any).$transaction(callback);
     }
-
     return await callback(prisma as any);
   };
-
   const updatedSection = await runTransaction(async (tx) => {
     const sectionUpdate = await tx.encounterSection.update({
       where: { id: section.id },
@@ -296,18 +194,15 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
         notApplicableReason: dto.notApplicable ? (dto.notApplicableReason ?? section.notApplicableReason) : null,
       },
     });
-
     await tx.encounter.update({
       where: { id: encounterId },
       data: {
         updatedAt: new Date(),
       },
     });
-
     if (shouldSyncEncounterClinicalStructures(sectionKey)) {
       await syncEncounterClinicalStructures({ prisma: tx, encounterId });
     }
-
     if (sectionKey === 'EXAMEN_FISICO') {
       await syncEncounterVitalSigns(tx, {
         encounterId,
@@ -315,14 +210,12 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
         vitalSigns: (sanitizedData as { signosVitales?: Record<string, string> }).signosVitales,
       });
     }
-
     if (shouldSyncPatientClinicalSearch(sectionKey)) {
       await rebuildPatientClinicalSearchProjection(tx, {
         patientId: encounter.patientId,
         medicoId: encounter.medicoId,
       });
     }
-
     await auditService.log(
       {
         entityType: 'EncounterSection',
@@ -333,17 +226,13 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
       },
       tx,
     );
-
     return sectionUpdate;
   });
-
   const vitalSigns =
     sectionKey === 'EXAMEN_FISICO'
       ? (sanitizedData as { signosVitales?: Record<string, string> }).signosVitales
       : undefined;
-
   let warnings: string[] | undefined;
-
   if (vitalSigns) {
     try {
       await alertsService.checkVitalSigns(encounter.patientId, encounterId, vitalSigns, user.id);
@@ -355,9 +244,7 @@ export async function updateEncounterSectionMutation(params: UpdateEncounterSect
       warnings = [VITAL_SIGNS_ALERT_GENERATION_WARNING];
     }
   }
-
   const formattedSection = formatEncounterSectionForRead(updatedSection);
-
   return {
     id: updatedSection.id,
     encounterId: updatedSection.encounterId,

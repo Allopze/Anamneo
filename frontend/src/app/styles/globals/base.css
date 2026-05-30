@@ -1,0 +1,35 @@
+/* ── Anamneo Visual System ────────────────────────────────────────── */
+
+:root {
+  --surface-base: #ebe9e4;
+  --surface-elevated: #fdfcfb;
+  --surface-muted: #e5e4e0;
+  --surface-inset: #f5f4f0;
+  --frame: #404040;
+  --frame-dark: #2b2b2b;
+  --accent: #eaf832;
+  --accent-bright: #f3fe48;
+  --ink: #2b2b2b;
+  --ink-secondary: #555555;
+  --ink-muted: #767676;
+  --ink-on-dark: #ffffff;
+  --chip: #555555;
+  --status-red: #D08C84;
+  --status-yellow: #E5D86A;
+  --status-green: #96B38A;
+  --auth-teal: #0d9488;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+body {
+  color: var(--ink);
+  background: var(--surface-base);
+  min-height: 100vh;
+}
+
+/* ── Custom scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface-muted); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }

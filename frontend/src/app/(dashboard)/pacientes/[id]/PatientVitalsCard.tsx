@@ -8,18 +8,14 @@ import type { PatientClinicalSummary } from '@/types';
 import { VITAL_CHART_CONFIG, type VitalKey } from './patient-detail.constants';
 import type { PatientDetailHook } from './usePatientDetail';
 import { assessVitalSigns } from '../../../../../../shared/vital-sign-alerts';
-
 type VitalTrendItem = PatientClinicalSummary['vitalTrend'][number];
-
 type Props = Pick<
   PatientDetailHook,
   'vitalTrend' | 'showFullVitals' | 'setShowFullVitals' | 'selectedVitalKey' | 'setSelectedVitalKey'
 > & {
   clinicalSummary: PatientClinicalSummary | undefined;
 };
-
 type ViewMode = 'chart' | 'table';
-
 function vitalToStrings(item: VitalTrendItem): Record<string, string | undefined> {
   return {
     presionArterial: item.presionArterial ?? undefined,
@@ -29,7 +25,6 @@ function vitalToStrings(item: VitalTrendItem): Record<string, string | undefined
     saturacionOxigeno: item.saturacionOxigeno !== null ? String(item.saturacionOxigeno) : undefined,
   };
 }
-
 const VITAL_COLUMNS: Array<{ key: keyof VitalTrendItem | 'presionArterial'; label: string; unit: string }> = [
   { key: 'presionArterial', label: 'PA', unit: 'mmHg' },
   { key: 'frecuenciaCardiaca', label: 'FC', unit: 'lpm' },
@@ -39,29 +34,24 @@ const VITAL_COLUMNS: Array<{ key: keyof VitalTrendItem | 'presionArterial'; labe
   { key: 'peso', label: 'Peso', unit: 'kg' },
   { key: 'imc', label: 'IMC', unit: '' },
 ];
-
 function VitalCell({ value, field }: { value: string | number | null; field: string }) {
   if (value === null || value === undefined) {
     return <span className="text-ink-muted">—</span>;
   }
-
   const strVal = String(value);
   const assessments = assessVitalSigns({ [field]: strVal });
   const assessment = assessments[field as keyof typeof assessments];
-
   const cellClass = assessment
     ? assessment.severity === 'critical'
       ? 'bg-status-red/12 text-status-red-text font-semibold rounded px-1'
       : 'bg-status-yellow/12 text-accent-text rounded px-1'
     : '';
-
   return (
     <span className={cellClass} title={assessment?.summary}>
       {strVal}
     </span>
   );
 }
-
 export default function PatientVitalsCard({
   clinicalSummary,
   vitalTrend,
@@ -80,9 +70,7 @@ export default function PatientVitalsCard({
     frecuenciaCardiaca: 'Frec. cardíaca (lpm)',
     frecuenciaRespiratoria: 'Frec. respiratoria (rpm)',
   };
-
   const displayedItems = vitalTrend.slice(0, showFullVitals ? 24 : 6);
-
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-4">
@@ -124,7 +112,6 @@ export default function PatientVitalsCard({
           </div>
         )}
       </div>
-
       {clinicalSummary?.recentDiagnoses?.length ? (
         <div className="mb-4 flex flex-wrap gap-2">
           {clinicalSummary.recentDiagnoses.map((diagnosis) => (
@@ -137,7 +124,6 @@ export default function PatientVitalsCard({
           ))}
         </div>
       ) : null}
-
       {vitalTrend.length > 0 ? (
         <>
           {viewMode === 'table' ? (
@@ -226,7 +212,6 @@ export default function PatientVitalsCard({
                   ))}
                 </div>
               )}
-
               {showFullVitals ? (
                 <div>
                   <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-muted">
@@ -259,7 +244,6 @@ export default function PatientVitalsCard({
                   </div>
                 </div>
               )}
-
               {displayedItems.map((item) => (
                 <div key={item.encounterId} className="rounded-card border border-surface-muted/30 p-3 text-sm">
                   <div className="font-medium text-ink-primary">
@@ -285,7 +269,6 @@ export default function PatientVitalsCard({
           <span>Aún no hay signos vitales suficientes para mostrar tendencias.</span>
         </div>
       )}
-
       {clinicalSummary?.latestEncounterSummary?.lines?.length ? (
         <div className="mt-4 rounded-card border border-surface-muted/30 bg-surface-base/40 p-3">
           <p className="mb-2 text-xs font-medium text-ink-muted">Último resumen longitudinal</p>
