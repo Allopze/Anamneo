@@ -4,29 +4,26 @@ import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import clsx from 'clsx';
 import { api, getErrorMessage } from '@/lib/api';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { notify } from '@/lib/notify';
-import { Patient, PATIENT_COMPLETENESS_STATUS_LABELS, PatientCompletenessStatus } from '@/types';
+import type { Patient, PatientCompletenessStatus } from '@/types';
+import { PATIENT_COMPLETENESS_STATUS_LABELS } from '@/types';
 import {
   useAuthCanCreateEncounter,
   useAuthCanCreatePatient,
   useAuthIsMedico,
   useAuthUser,
 } from '@/stores/auth-store';
-import {
-  FiPlus,
-  FiSearch,
-  FiUser,
-  FiChevronRight,
-  FiCalendar,
-  FiFileText,
-} from 'react-icons/fi';
-import { formatPatientAge, formatPatientPrevision, formatPatientSex, getPatientCompletenessMeta } from '@/lib/patient';
+import { FiFileText, FiPlus, FiSearch, FiUser } from 'react-icons/fi';
 import { COMPLETENESS_OPTIONS, TASK_WINDOW_OPTIONS, type PatientFilters } from './pacientes.constants';
 import PatientsFilterPanel from './PatientsFilterPanel';
+import {
+  NewPatientEmptyStateCta,
+  PatientCompletenessSummary,
+  PatientListRow,
+} from './pacientes.parts';
 
 interface PatientsResponse {
   data: Patient[];
@@ -79,7 +76,6 @@ function PacientesContent() {
   const [searchInput, setSearchInput] = useState(search);
   const page = Number(searchParams.get('page') || '1');
 
-  // Read filters from URL searchParams
   const filters: PatientFilters = {
     archived: searchParams.get('archived') || '',
     sexo: searchParams.get('sexo') || '',
@@ -98,13 +94,7 @@ function PacientesContent() {
     const next = new URLSearchParams();
     const merged = { search, ...filters, page: String(page), ...overrides };
     Object.entries(merged).forEach(([k, v]) => {
-      if (
-        v &&
-        v !== '' &&
-        !(k === 'page' && v === '1') &&
-        !(k === 'sortBy' && v === 'createdAt') &&
-        !(k === 'sortOrder' && v === 'desc')
-      )
+      if (v && v !== '' && !(k === 'page' && v === '1') && !(k === 'sortBy' && v === 'createdAt') && !(k === 'sortOrder' && v === 'desc'))
         next.set(k, v);
     });
     const qs = next.toString();
@@ -121,22 +111,7 @@ function PacientesContent() {
   };
 
   const clearFilters = () => {
-    router.push(
-      buildUrl({
-        archived: '',
-        sexo: '',
-        prevision: '',
-        rutExempt: '',
-        completenessStatus: '',
-        taskWindow: '',
-        edadMin: '',
-        edadMax: '',
-        clinicalSearch: '',
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-        page: '1',
-      }),
-    );
+    router.push(buildUrl({ archived: '', sexo: '', prevision: '', rutExempt: '', completenessStatus: '', taskWindow: '', edadMin: '', edadMax: '', clinicalSearch: '', sortBy: 'createdAt', sortOrder: 'desc', page: '1' }));
   };
 
   const { data, isLoading, isFetching, error } = useQuery<PatientsResponse>({
@@ -146,15 +121,9 @@ function PacientesContent() {
       if (search) params.set('search', search);
       params.set('page', page.toString());
       params.set('limit', '10');
-      if (filters.sexo) params.set('sexo', filters.sexo);
-      if (filters.prevision) params.set('prevision', filters.prevision);
-      if (filters.rutExempt) params.set('rutExempt', filters.rutExempt);
-      if (filters.archived) params.set('archived', filters.archived);
-      if (filters.completenessStatus) params.set('completenessStatus', filters.completenessStatus);
-      if (filters.taskWindow) params.set('taskWindow', filters.taskWindow);
-      if (filters.edadMin) params.set('edadMin', filters.edadMin);
-      if (filters.edadMax) params.set('edadMax', filters.edadMax);
-      if (filters.clinicalSearch) params.set('clinicalSearch', filters.clinicalSearch);
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v && k !== 'sortBy' && k !== 'sortOrder') params.set(k, v);
+      });
       if (filters.sortBy) params.set('sortBy', filters.sortBy);
       if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
       const response = await api.get(`/patients?${params}`);
@@ -165,12 +134,8 @@ function PacientesContent() {
   const restoreMutation = useMutation({
     mutationFn: async (patientId: string) => api.post(`/patients/${patientId}/restore`, {}),
     onSuccess: async (response) => {
-      const restoredEncounterCount = Number((response.data as { restoredEncounterCount?: number })?.restoredEncounterCount ?? 0);
-      notify.success(
-        restoredEncounterCount > 0
-          ? `Paciente restaurado. Se reabrieron ${restoredEncounterCount} atenciones.`
-          : 'Paciente restaurado',
-      );
+      const count = Number((response.data as { restoredEncounterCount?: number })?.restoredEncounterCount ?? 0);
+      notify.success(count > 0 ? `Paciente restaurado. Se reabrieron ${count} atenciones.` : 'Paciente restaurado');
       await queryClient.invalidateQueries({ queryKey: ['patients'] });
     },
     onError: (err) => notify.error(getErrorMessage(err)),
@@ -182,37 +147,21 @@ function PacientesContent() {
   const showEmptyCreatePatientCta = canCreate && !search && !isLoading && !error && !hasPatients;
   const showHeaderNewPatient = canCreate && !showEmptyCreatePatientCta;
   const showHeaderActions = showHeaderNewPatient || canCreateEncounterAllowed;
-  const activeCompletenessStatus = COMPLETENESS_OPTIONS.some((option) => option.value === filters.completenessStatus)
+  const activeCompletenessStatus = COMPLETENESS_OPTIONS.some((o) => o.value === filters.completenessStatus)
     ? (filters.completenessStatus as PatientCompletenessStatus)
     : undefined;
-  const activeTaskWindowLabel = TASK_WINDOW_OPTIONS.find((option) => option.value === filters.taskWindow)?.label;
+  const activeTaskWindowLabel = TASK_WINDOW_OPTIONS.find((o) => o.value === filters.taskWindow)?.label;
   const completenessSummaryCards = data
     ? [
-        {
-          status: 'INCOMPLETA' as const,
-          label: 'Fichas incompletas',
-          value: data.summary.incomplete,
-          description: 'Aún faltan datos mínimos de registro.',
-        },
-        {
-          status: 'PENDIENTE_VERIFICACION' as const,
-          label: 'Pendientes de validación',
-          value: data.summary.pendingVerification,
-          description: 'Recepción completó datos, falta validación médica.',
-        },
-        {
-          status: 'VERIFICADA' as const,
-          label: 'Verificadas',
-          value: data.summary.verified,
-          description: 'Listas para continuidad clínica sin bloqueo.',
-        },
+        { status: 'INCOMPLETA' as const, label: 'Fichas incompletas', value: data.summary.incomplete, description: 'Aún faltan datos mínimos de registro.' },
+        { status: 'PENDIENTE_VERIFICACION' as const, label: 'Pendientes de validación', value: data.summary.pendingVerification, description: 'Recepción completó datos, falta validación médica.' },
+        { status: 'VERIFICADA' as const, label: 'Verificadas', value: data.summary.verified, description: 'Listas para continuidad clínica sin bloqueo.' },
       ]
     : [];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = searchInput.trim();
-    router.push(buildUrl({ search: trimmed, page: '1' }));
+    router.push(buildUrl({ search: searchInput.trim(), page: '1' }));
   };
 
   return (
@@ -246,40 +195,23 @@ function PacientesContent() {
 
       {!isLoading && data?.summary ? (
         <section className="mb-5">
-          <div className="grid gap-3 md:grid-cols-3">
-            {completenessSummaryCards.map((card) => {
-              const isActive = filters.completenessStatus === card.status;
-
-              return (
-                <button
-                  key={card.status}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() => setFilter('completenessStatus', isActive ? '' : card.status)}
-                  className={clsx(
-                    'rounded-card border px-4 py-4 text-left transition-colors',
-                    isActive
-                      ? 'border-accent/50 bg-accent/12 shadow-soft'
-                      : 'border-surface-muted/30 bg-surface-elevated hover:bg-surface-inset/40',
-                  )}
-                >
-                  <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">{card.label}</p>
-                  <p className="mt-3 text-3xl font-extrabold tracking-tight text-ink">{card.value}</p>
-                  <p className="mt-2 text-sm text-ink-secondary">{card.description}</p>
-                </button>
-              );
-            })}
-          </div>
+          <PatientCompletenessSummary
+            cards={completenessSummaryCards}
+            activeFilter={activeCompletenessStatus}
+            onFilterChange={setFilter}
+          />
           <p className="mt-3 text-sm text-ink-secondary">
-            Universo visible: {data.summary.totalPatients} fichas. No verificadas: {data.summary.nonVerified}.
-            {filters.archived === 'ARCHIVED' ? ' Mostrando solo fichas archivadas.' : ''}
-            {filters.archived === 'ALL' ? ' Mostrando activas y archivadas.' : ''}
-            {activeCompletenessStatus
-              ? ` Mostrando ${data.pagination.total} registros dentro del filtro ${PATIENT_COMPLETENESS_STATUS_LABELS[activeCompletenessStatus].toLowerCase()}.`
-              : ''}
-            {filters.taskWindow && activeTaskWindowLabel
-              ? ` Filtro operativo activo: ${activeTaskWindowLabel.toLowerCase()}.`
-              : ''}
+            {[
+              `Universo visible: ${data.summary.totalPatients} fichas. No verificadas: ${data.summary.nonVerified}.`,
+              filters.archived === 'ARCHIVED' ? ' Mostrando solo fichas archivadas.' : '',
+              filters.archived === 'ALL' ? ' Mostrando activas y archivadas.' : '',
+              activeCompletenessStatus
+                ? ` Mostrando ${pagination?.total ?? 0} registros dentro del filtro ${PATIENT_COMPLETENESS_STATUS_LABELS[activeCompletenessStatus].toLowerCase()}.`
+                : '',
+              filters.taskWindow && activeTaskWindowLabel
+                ? ` Filtro operativo activo: ${activeTaskWindowLabel.toLowerCase()}.`
+                : '',
+            ].join('')}
           </p>
         </section>
       ) : null}
@@ -297,12 +229,7 @@ function PacientesContent() {
         </div>
       </form>
 
-      <PatientsFilterPanel
-        filters={filters}
-        isAdmin={!!user?.isAdmin}
-        onFilterChange={setFilter}
-        onClearFilters={clearFilters}
-      />
+      <PatientsFilterPanel filters={filters} isAdmin={!!user?.isAdmin} onFilterChange={setFilter} onClearFilters={clearFilters} />
 
       {error && (
         <div className="mb-6">
@@ -312,8 +239,7 @@ function PacientesContent() {
 
       {pagination?.clinicalSearchCapped && (
         <div className="card mb-4 border-status-yellow/35 bg-status-yellow/10 p-4 text-sm text-accent-text">
-          La búsqueda clínica se acotó a los primeros 500 pacientes visibles. Si falta un resultado, reduce filtros o
-          busca por nombre o RUT.
+          La búsqueda clínica se acotó a los primeros 500 pacientes visibles. Si falta un resultado, reduce filtros o busca por nombre o RUT.
         </div>
       )}
 
@@ -333,92 +259,29 @@ function PacientesContent() {
         ) : hasPatients ? (
           <>
             <div className="divide-y divide-surface-muted/30">
-              {patients.map((patient: Patient) => {
-                const completenessMeta = getPatientCompletenessMeta(patient);
-                const isArchived = Boolean(patient.archivedAt);
-                const patientHref = user?.isAdmin
-                  ? `/pacientes/${patient.id}/administrativo`
-                  : `/pacientes/${patient.id}`;
-                const rowContent = (
-                  <>
-                    <div className="list-row-icon h-12 w-12 bg-surface-inset text-ink-secondary">
-                      <FiUser className="w-6 h-6" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-medium text-ink truncate group-hover:text-ink-secondary">
-                          {patient.nombre}
-                        </h3>
-                        <span className="list-chip bg-surface-inset text-ink-secondary">
-                          {formatPatientAge(patient.edad, patient.edadMeses)}
-                        </span>
-                        {isArchived ? (
-                          <span className="list-chip bg-status-red/10 text-status-red-text">Archivado</span>
-                        ) : null}
-                        <span className={`list-chip ${completenessMeta.badgeClassName}`}>{completenessMeta.label}</span>
-                      </div>
-                      <div className="flex items-center gap-4 text-body text-ink-muted">
-                        <span>{patient.rut || 'Sin RUT'}</span>
-                        <span>{formatPatientSex(patient.sexo)}</span>
-                        <span>{formatPatientPrevision(patient.prevision)}</span>
-                        {patient._count && (
-                          <span className="flex items-center gap-1">
-                            <FiCalendar className="w-3 h-3" />
-                            {patient._count.encounters} atenciones
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                );
-
-                if (isArchived) {
-                  return (
-                    <div key={patient.id} className="list-row">
-                      {rowContent}
-                      {canRestoreArchived ? (
-                        <button
-                          type="button"
-                          className="btn btn-secondary text-sm"
-                          onClick={() => restoreMutation.mutate(patient.id)}
-                          disabled={restoreMutation.isPending}
-                        >
-                          Restaurar
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                }
-
-                return (
-                  <Link key={patient.id} href={patientHref} className="group list-row">
-                    {rowContent}
-                    <FiChevronRight className="w-5 h-5 text-ink-muted group-hover:text-ink" />
-                  </Link>
-                );
-              })}
+              {patients.map((patient: Patient) => (
+                <PatientListRow
+                  key={patient.id}
+                  patient={patient}
+                  isAdmin={!!user?.isAdmin}
+                  canRestoreArchived={canRestoreArchived}
+                  isRestoring={restoreMutation.isPending}
+                  onRestore={(id) => restoreMutation.mutate(id)}
+                />
+              ))}
             </div>
 
-            {/* Pagination */}
             {pagination && pagination.totalPages > 1 && (
               <div className="flex items-center justify-between p-4 border-t border-surface-muted/30">
                 <p className="text-body text-ink-secondary">
-                  Mostrando {(page - 1) * 10 + 1} - {Math.min(page * 10, pagination.total)} de {pagination.total}{' '}
-                  pacientes
+                  Mostrando {(page - 1) * 10 + 1} - {Math.min(page * 10, pagination.total)} de{' '}
+                  {pagination.total} pacientes
                 </p>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1 || isFetching}
-                    className="btn btn-secondary text-sm"
-                  >
+                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1 || isFetching} className="btn btn-secondary text-sm">
                     Anterior
                   </button>
-                  <button
-                    onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                    disabled={page === pagination.totalPages || isFetching}
-                    className="btn btn-secondary text-sm"
-                  >
+                  <button onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))} disabled={page === pagination.totalPages || isFetching} className="btn btn-secondary text-sm">
                     {isFetching ? 'Cargando…' : 'Siguiente'}
                   </button>
                 </div>
@@ -436,12 +299,7 @@ function PacientesContent() {
                   ? 'No hay pacientes archivados dentro de tu alcance visible.'
                   : 'Cuando registres el primer paciente, aparecerá aquí con su estado de ficha y continuidad clínica.'
             }
-            action={showEmptyCreatePatientCta ? (
-              <Link href="/pacientes/nuevo" className="empty-state-cta">
-                <FiPlus className="w-5 h-5 mr-2" />
-                Registrar primer paciente
-              </Link>
-            ) : undefined}
+            action={showEmptyCreatePatientCta ? <NewPatientEmptyStateCta /> : undefined}
           />
         )}
       </div>

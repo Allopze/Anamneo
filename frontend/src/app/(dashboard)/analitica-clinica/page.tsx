@@ -20,104 +20,8 @@ import {
   type ClinicalAnalyticsFilterState,
 } from './analytics-filters';
 import { downloadClinicalAnalyticsSummaryCsv, downloadClinicalAnalyticsSummaryMarkdown } from './summary-export';
-
-type RankedRow = {
-  label: string;
-  encounterCount: number;
-  patientCount: number;
-  badge?: string;
-  subtitle?: string;
-};
-
-type ClinicalAnalyticsResponse = {
-  filters: {
-    condition: string | null;
-    source: 'ANY' | 'AFECCION_PROBABLE' | 'SOSPECHA_DIAGNOSTICA';
-    fromDate: string;
-    toDate: string;
-    followUpDays: number;
-    limit: number;
-  };
-  caveats: string[];
-  privacy?: {
-    smallCohortSuppressed: boolean;
-    smallCohortThreshold: number;
-  };
-  summary: {
-    matchedPatients: number;
-    matchedEncounters: number;
-    structuredTreatmentCount: number;
-    structuredTreatmentCoverage: number;
-    reconsultWithinWindowCount: number;
-    reconsultWithinWindowRate: number;
-    treatmentAdjustmentCount: number;
-    treatmentAdjustmentRate: number;
-    resolvedProblemCount: number;
-    resolvedProblemRate: number;
-    alertAfterIndexCount: number;
-    alertAfterIndexRate: number;
-    adherenceDocumentedCount: number;
-    adherenceDocumentedRate: number;
-    adverseEventCount: number;
-    adverseEventRate: number;
-    demographics: {
-      averageAge: number | null;
-      bySex: Record<string, number>;
-    };
-  };
-  topConditions: RankedRow[];
-  cohortBreakdown: {
-    associatedSymptoms: RankedRow[];
-    foodRelation: RankedRow[];
-  };
-  treatmentPatterns: {
-    medications: RankedRow[];
-    exams: RankedRow[];
-    referrals: RankedRow[];
-  };
-  treatmentOutcomeProxies: {
-    medications: Array<{
-      label: string;
-      patientCount: number;
-      encounterCount: number;
-      favorableCount: number;
-      favorableRate: number;
-      adjustmentCount: number;
-      reconsultCount: number;
-      adherenceCount: number;
-      adverseEventCount: number;
-      subtitle?: string;
-    }>;
-    exams: Array<{
-      label: string;
-      patientCount: number;
-      encounterCount: number;
-      favorableCount: number;
-      favorableRate: number;
-      adjustmentCount: number;
-      reconsultCount: number;
-      adherenceCount: number;
-      adverseEventCount: number;
-      subtitle?: string;
-    }>;
-    referrals: Array<{
-      label: string;
-      patientCount: number;
-      encounterCount: number;
-      favorableCount: number;
-      favorableRate: number;
-      adjustmentCount: number;
-      reconsultCount: number;
-      adherenceCount: number;
-      adverseEventCount: number;
-      subtitle?: string;
-    }>;
-  };
-};
-
-function formatPercent(value: number) {
-  return `${Math.round(value * 100)}%`;
-}
+import { formatPercent, type ClinicalAnalyticsResponse } from './analitica-clinica.helpers';
+import { MetricCard } from './analitica-clinica.parts';
 
 export default function AnaliticaClinicaPage() {
   const router = useRouter();
@@ -389,15 +293,3 @@ export default function AnaliticaClinicaPage() {
   );
 }
 
-function MetricCard({ title, value, detail, icon }: { title: string; value: string; detail: string; icon: React.ReactNode }) {
-  return (
-    <div className="metric-card flex items-start gap-3">
-      <div className="rounded-full bg-surface-inset p-3 text-ink-secondary">{icon}</div>
-      <div>
-        <p className="text-sm font-bold text-ink-muted">{title}</p>
-        <p className="mt-2 text-3xl font-extrabold tracking-tight text-ink">{value}</p>
-        <p className="mt-2 text-sm text-ink-secondary">{detail}</p>
-      </div>
-    </div>
-  );
-}

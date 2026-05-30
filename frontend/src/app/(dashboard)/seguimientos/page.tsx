@@ -1,50 +1,33 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import {
   PatientTask,
   TASK_PRIORITY_LABELS,
-  TASK_RECURRENCE_LABELS,
   TASK_STATUS_LABELS,
   TASK_TYPE_LABELS,
 } from '@/types';
-import { FiAlertTriangle, FiCalendar, FiChevronRight, FiClipboard, FiSave, FiSearch } from 'react-icons/fi';
-import clsx from 'clsx';
-import { extractDateOnly, formatDateOnly } from '@/lib/date';
-import { useAuthUser } from '@/stores/auth-store';
-import { invalidateDashboardOverviewQueries, invalidateTaskOverviewQueries } from '@/lib/query-invalidation';
-import { notify } from '@/lib/notify';
+import { FiSearch } from 'react-icons/fi';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
-
-const STATUS_OPTIONS = ['', 'PENDIENTE', 'EN_PROCESO', 'COMPLETADA', 'CANCELADA'] as const;
-const TYPE_OPTIONS = ['', 'SEGUIMIENTO', 'EXAMEN', 'DERIVACION', 'TRAMITE'] as const;
-const PRIORITY_OPTIONS = ['', 'ALTA', 'MEDIA', 'BAJA'] as const;
-
-function addDaysToDateOnly(days: number) {
-  return extractDateOnly(new Date(Date.now() + days * 24 * 60 * 60 * 1000)) || '';
-}
-
-function priorityBadgeClassName(priority: PatientTask['priority']) {
-  if (priority === 'ALTA') return 'bg-status-red/15 text-status-red';
-  if (priority === 'MEDIA') return 'bg-status-yellow/30 text-accent-text';
-  return 'bg-surface-muted text-ink-secondary';
-}
+import { useAuthUser } from '@/stores/auth-store';
+import { invalidateDashboardOverviewQueries, invalidateTaskOverviewQueries } from '@/lib/query-invalidation';
+import { notify } from '@/lib/notify';
+import { FiClipboard } from 'react-icons/fi';
+import { STATUS_OPTIONS, TYPE_OPTIONS, PRIORITY_OPTIONS } from './seguimientos.helpers';
+import { SeguimientoTaskRow } from './SeguimientoTaskRow';
 
 export default function SeguimientosPage() {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const user = useAuthUser();
   const isOperationalAdmin = !!user?.isAdmin;
 
-  // Initialise from URL search params so SmartHeaderBar chip links work
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [status, setStatus] = useState(searchParams.get('status') || '');
   const [type, setType] = useState(searchParams.get('type') || '');
@@ -52,7 +35,6 @@ export default function SeguimientosPage() {
   const [overdueOnly, setOverdueOnly] = useState(searchParams.get('overdueOnly') === 'true');
   const [rescheduleDrafts, setRescheduleDrafts] = useState<Record<string, string>>({});
 
-  // Keep local state in sync when searchParams change (e.g. KPI chip navigation)
   useEffect(() => {
     setSearch(searchParams.get('search') || '');
     setStatus(searchParams.get('status') || '');
@@ -61,7 +43,6 @@ export default function SeguimientosPage() {
     setOverdueOnly(searchParams.get('overdueOnly') === 'true');
   }, [searchParams]);
 
-  // Keep URL in sync when filters change
   const updateUrl = useCallback(
     (s: string, st: string, t: string, pr: string, od: boolean) => {
       const params = new URLSearchParams();
@@ -107,9 +88,7 @@ export default function SeguimientosPage() {
         invalidateDashboardOverviewQueries(queryClient),
       ]);
     },
-    onError: () => {
-      notify.error('No se pudo reprogramar el seguimiento');
-    },
+    onError: () => notify.error('No se pudo reprogramar el seguimiento'),
   });
 
   const tasks = data?.data || [];
@@ -142,49 +121,21 @@ export default function SeguimientosPage() {
             <input
               className="form-input pl-10"
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                updateUrl(e.target.value, status, type, priority, overdueOnly);
-              }}
+              onChange={(e) => { setSearch(e.target.value); updateUrl(e.target.value, status, type, priority, overdueOnly); }}
               placeholder="Buscar por tarea o paciente"
             />
           </div>
-          <select className="form-input" aria-label="Filtrar por estado" value={status} onChange={(e) => {
-            setStatus(e.target.value);
-            updateUrl(search, e.target.value, type, priority, overdueOnly);
-          }}>
-            {STATUS_OPTIONS.map((value) => (
-              <option key={value} value={value}>
-                {value ? TASK_STATUS_LABELS[value] : 'Todos los estados'}
-              </option>
-            ))}
+          <select className="form-input" aria-label="Filtrar por estado" value={status} onChange={(e) => { setStatus(e.target.value); updateUrl(search, e.target.value, type, priority, overdueOnly); }}>
+            {STATUS_OPTIONS.map((v) => <option key={v} value={v}>{v ? TASK_STATUS_LABELS[v] : 'Todos los estados'}</option>)}
           </select>
-          <select className="form-input" aria-label="Filtrar por tipo" value={type} onChange={(e) => {
-            setType(e.target.value);
-            updateUrl(search, status, e.target.value, priority, overdueOnly);
-          }}>
-            {TYPE_OPTIONS.map((value) => (
-              <option key={value} value={value}>
-                {value ? TASK_TYPE_LABELS[value] : 'Todos los tipos'}
-              </option>
-            ))}
+          <select className="form-input" aria-label="Filtrar por tipo" value={type} onChange={(e) => { setType(e.target.value); updateUrl(search, status, e.target.value, priority, overdueOnly); }}>
+            {TYPE_OPTIONS.map((v) => <option key={v} value={v}>{v ? TASK_TYPE_LABELS[v] : 'Todos los tipos'}</option>)}
           </select>
-          <select className="form-input" aria-label="Filtrar por prioridad" value={priority} onChange={(e) => {
-            setPriority(e.target.value);
-            updateUrl(search, status, type, e.target.value, overdueOnly);
-          }}>
-            {PRIORITY_OPTIONS.map((value) => (
-              <option key={value} value={value}>
-                {value ? TASK_PRIORITY_LABELS[value] : 'Todas las prioridades'}
-              </option>
-            ))}
+          <select className="form-input" aria-label="Filtrar por prioridad" value={priority} onChange={(e) => { setPriority(e.target.value); updateUrl(search, status, type, e.target.value, overdueOnly); }}>
+            {PRIORITY_OPTIONS.map((v) => <option key={v} value={v}>{v ? TASK_PRIORITY_LABELS[v] : 'Todas las prioridades'}</option>)}
           </select>
           <label className="flex items-center gap-2 rounded-card border border-surface-muted/30 px-3 py-2 text-sm text-ink-secondary">
-            <input type="checkbox" checked={overdueOnly} onChange={() => {
-              const next = !overdueOnly;
-              setOverdueOnly(next);
-              updateUrl(search, status, type, priority, next);
-            }} />
+            <input type="checkbox" checked={overdueOnly} onChange={() => { const next = !overdueOnly; setOverdueOnly(next); updateUrl(search, status, type, priority, next); }} />
             Solo atrasados
           </label>
         </div>
@@ -193,119 +144,23 @@ export default function SeguimientosPage() {
       <div className="card">
         {isLoading ? (
           <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 rounded-card skeleton" />
-            ))}
+            {[...Array(5)].map((_, i) => <div key={i} className="h-16 rounded-card skeleton" />)}
           </div>
         ) : error ? (
           <ErrorAlert title="No se pudieron cargar los seguimientos" message="Revisa tu conexión o intenta nuevamente." />
         ) : tasks.length > 0 ? (
           <div className="divide-y divide-surface-muted/30">
             {tasks.map((task) => (
-              <div key={task.id} className="list-row group flex-col items-stretch gap-4 md:flex-row md:items-center">
-                <Link href={`/pacientes/${task.patient?.id}`} className="flex min-w-0 flex-1 items-start gap-3">
-                  <div
-                    className={clsx(
-                      'list-row-icon',
-                      task.isOverdue ? 'bg-status-red/15 text-status-red' : 'border border-status-yellow/60 bg-status-yellow/30 text-accent-text',
-                    )}
-                  >
-                    {task.isOverdue ? <FiAlertTriangle className="h-5 w-5" /> : <FiClipboard className="h-5 w-5" />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium text-ink-primary group-hover:text-accent-text">{task.title}</span>
-                      <span className={`list-chip ${priorityBadgeClassName(task.priority)}`}>
-                        {TASK_PRIORITY_LABELS[task.priority]}
-                      </span>
-                      <span className="list-chip bg-surface-muted text-ink-secondary">
-                        {TASK_TYPE_LABELS[task.type]}
-                      </span>
-                      <span className="list-chip bg-surface-muted text-ink-secondary">
-                        {TASK_STATUS_LABELS[task.status]}
-                      </span>
-                      {task.recurrenceRule && task.recurrenceRule !== 'NONE' && (
-                        <span className="list-chip bg-surface-muted text-ink-secondary">
-                          {TASK_RECURRENCE_LABELS[task.recurrenceRule]}
-                        </span>
-                      )}
-                      {task.isOverdue && (
-                        <span className="list-chip bg-status-red/15 text-status-red">
-                          Atrasado
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-4 text-sm text-ink-muted">
-                      <span>{task.patient?.nombre}</span>
-                      {task.dueDate && (
-                        <span className="flex items-center gap-1">
-                          <FiCalendar className="h-3 w-3" />
-                          {formatDateOnly(task.dueDate)}
-                        </span>
-                      )}
-                      {task.details && <span className="truncate">{task.details}</span>}
-                    </div>
-                  </div>
-                  <FiChevronRight className="mt-1 h-5 w-5 text-ink-muted group-hover:text-accent-text" />
-                </Link>
-
-                <div className="flex flex-col gap-2 rounded-card border border-surface-muted/25 bg-surface-inset/40 p-3 md:w-72">
-                  <p className="text-xs font-medium text-ink-muted">Reprogramación rápida</p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className="btn btn-secondary flex-1 text-xs"
-                      onClick={() => {
-                        const nextDate = addDaysToDateOnly(1);
-                        setRescheduleDrafts((current) => ({ ...current, [task.id]: nextDate }));
-                        rescheduleMutation.mutate({ taskId: task.id, dueDate: nextDate });
-                      }}
-                      disabled={rescheduleMutation.isPending}
-                    >
-                      Mañana
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary flex-1 text-xs"
-                      onClick={() => {
-                        const nextDate = addDaysToDateOnly(7);
-                        setRescheduleDrafts((current) => ({ ...current, [task.id]: nextDate }));
-                        rescheduleMutation.mutate({ taskId: task.id, dueDate: nextDate });
-                      }}
-                      disabled={rescheduleMutation.isPending}
-                    >
-                      +7 días
-                    </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={rescheduleDrafts[task.id] ?? extractDateOnly(task.dueDate) ?? ''}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setRescheduleDrafts((current) => ({ ...current, [task.id]: value }));
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-primary flex items-center gap-2 text-xs"
-                      onClick={() => {
-                        const selectedDate = rescheduleDrafts[task.id] ?? extractDateOnly(task.dueDate) ?? '';
-                        if (!selectedDate) {
-                          notify.error('Debe elegir una fecha');
-                          return;
-                        }
-                        rescheduleMutation.mutate({ taskId: task.id, dueDate: selectedDate });
-                      }}
-                      disabled={rescheduleMutation.isPending}
-                    >
-                      <FiSave className="h-3.5 w-3.5" />
-                      Guardar
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <SeguimientoTaskRow
+                key={task.id}
+                task={task}
+                rescheduleDrafts={rescheduleDrafts}
+                isPending={rescheduleMutation.isPending}
+                onRescheduleDraftChange={(id, date) =>
+                  setRescheduleDrafts((c) => ({ ...c, [id]: date }))
+                }
+                onReschedule={(id, date) => rescheduleMutation.mutate({ taskId: id, dueDate: date })}
+              />
             ))}
           </div>
         ) : (

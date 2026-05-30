@@ -1,15 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import axios from 'axios';
-import { api, getErrorMessage } from '@/lib/api';
-import {
-  clearEncounterSectionConflict,
-  writeEncounterSectionConflict,
-  type EncounterSectionConflictBackup,
-} from '@/lib/encounter-draft';
+import { api } from '@/lib/api';
 import { isNetworkError } from '@/lib/offline-queue';
-import { notify } from '@/lib/notify';
-import { invalidateAlertOverviewQueries } from '@/lib/query-invalidation';
 import { isSharedDeviceModeEnabled } from '@/stores/privacy-settings-store';
 import type { Encounter, SectionKey } from '@/types';
 import type { SaveSectionResponse } from './encounter-wizard.constants';
@@ -17,9 +9,13 @@ import {
   buildSectionUpdatedAtSnapshot,
   getPersistedSectionUpdatedAt,
   getSectionPayloadData,
+  handleSaveSectionError,
+  handleSaveSectionSuccess,
   readSavedSnapshot,
+  refreshSectionFromServer,
   type PersistSectionResult,
   type SaveSectionMutationVars,
+  type SaveSectionSuccessCtx,
   type UseEncounterSectionSaveFlowParams,
 } from './useEncounterSectionSaveFlow.helpers';
 
@@ -50,7 +46,9 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
   } = params;
 
   const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestSectionUpdatedAtRef = useRef<Partial<Record<SectionKey, string>>>(buildSectionUpdatedAtSnapshot(sections));
+  const latestSectionUpdatedAtRef = useRef<Partial<Record<SectionKey, string>>>(
+    buildSectionUpdatedAtSnapshot(sections),
+  );
 
   useEffect(() => {
     latestSectionUpdatedAtRef.current = {
@@ -59,61 +57,47 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
     };
   }, [sections]);
 
-  const refreshSectionFromServer = useCallback(
-    async (sectionKey: SectionKey, localDataForConflict?: Record<string, unknown>) => {
-      const response = await api.get<Encounter>(`/encounters/${id}`);
-      const latestEncounter = response.data;
-      const latestSection = latestEncounter.sections?.find((section) => section.sectionKey === sectionKey);
+  // Build shared context objects passed to extracted handler helpers.
+  const refreshCtx = {
+    id,
+    userId,
+    queryClient,
+    latestSectionUpdatedAtRef,
+    activeSectionKeyRef,
+    lastSavedRef,
+    setFormData,
+    setSavedSnapshotJson,
+    setHasUnsavedChanges,
+    setSavingSectionKey,
+    setSavedSectionKey,
+    setErrorSectionKey,
+    setRecoverableConflicts,
+    setRecoverableConflict,
+    setSaveStatus,
+    setLastSavedAt,
+    setLastSaveOrigin,
+  } as const;
 
-      queryClient.setQueryData(['encounter', id], latestEncounter);
+  const successCtx: SaveSectionSuccessCtx = {
+    ...refreshCtx,
+    formDataRef,
+    saveStatusTimerRef,
+  };
 
-      if (!latestSection) {
-        setSaveStatus('idle');
-        setErrorSectionKey(null);
-        return;
-      }
-
-      const normalizedServerData = (latestSection.data ?? {}) as Record<string, unknown>;
-      latestSectionUpdatedAtRef.current[sectionKey] = latestSection.updatedAt;
-      if (localDataForConflict && userId) {
-        const savedAt = new Date().toISOString();
-        const conflictBackup: EncounterSectionConflictBackup = {
-          version: 2,
-          encounterId: id,
-          userId,
-          sectionKey,
-          localData: localDataForConflict,
-          serverData: normalizedServerData,
-          serverUpdatedAt: latestSection.updatedAt,
-          savedAt,
-        };
-        await writeEncounterSectionConflict(conflictBackup);
-        setRecoverableConflicts((current) => [
-          conflictBackup,
-          ...current.filter((item) => item.sectionKey !== sectionKey),
-        ]);
-        setRecoverableConflict(conflictBackup);
-      }
-
-      setFormData((previous) => ({
-        ...previous,
-        [sectionKey]: normalizedServerData,
-      }));
-
-      const savedSnapshot = readSavedSnapshot(lastSavedRef);
-      savedSnapshot[sectionKey] = normalizedServerData;
-      lastSavedRef.current = JSON.stringify(savedSnapshot);
-      setSavedSnapshotJson(lastSavedRef.current);
-      setHasUnsavedChanges((current) => (activeSectionKeyRef.current === sectionKey ? false : current));
-      setLastSavedAt(new Date(latestSection.updatedAt));
-      setLastSaveOrigin(null);
-      setSavingSectionKey(null);
-      setSavedSectionKey(null);
-      setErrorSectionKey(localDataForConflict ? sectionKey : null);
-      setSaveStatus(localDataForConflict ? 'error' : 'idle');
-    },
-    [activeSectionKeyRef, id, lastSavedRef, queryClient, setErrorSectionKey, setFormData, setHasUnsavedChanges, setLastSavedAt, setLastSaveOrigin, setRecoverableConflicts, setRecoverableConflict, setSavedSectionKey, setSavedSnapshotJson, setSaveStatus, setSavingSectionKey, userId],
-  );
+  const errorCtx = {
+    id,
+    userId,
+    encounter,
+    sections,
+    formDataRef,
+    enqueueOfflineSave,
+    queryClient,
+    refreshCtx,
+    setErrorSectionKey,
+    setSavingSectionKey,
+    setSavedSectionKey,
+    setSaveStatus,
+  } as const;
 
   const saveSectionMutation = useMutation({
     mutationFn: async ({
@@ -139,125 +123,8 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       setErrorSectionKey(null);
       setSaveStatus('saving');
     },
-    onSuccess: async (response, variables) => {
-      const savedSnapshot = readSavedSnapshot(lastSavedRef);
-      const normalizedSectionData = response.data.data;
-      if (response.data.updatedAt) {
-        latestSectionUpdatedAtRef.current[variables.sectionKey] = response.data.updatedAt;
-      }
-      savedSnapshot[variables.sectionKey] = normalizedSectionData;
-      lastSavedRef.current = JSON.stringify(savedSnapshot);
-      setSavedSnapshotJson(lastSavedRef.current);
-      setFormData((previous) => ({
-        ...previous,
-        [variables.sectionKey]: normalizedSectionData,
-      }));
-
-      queryClient.setQueryData<Encounter | undefined>(['encounter', id], (previous) => {
-        if (!previous?.sections) return previous;
-        return {
-          ...previous,
-          sections: previous.sections.map((section) =>
-            section.sectionKey === variables.sectionKey
-              ? {
-                  ...section,
-                  data: normalizedSectionData,
-                  completed: response.data.completed,
-                  notApplicable: response.data.notApplicable,
-                  notApplicableReason: response.data.notApplicableReason,
-                  updatedAt: response.data.updatedAt,
-                }
-              : section,
-          ),
-        };
-      });
-
-      const activeSectionKey = activeSectionKeyRef.current;
-      if (activeSectionKey) {
-        const activeData = JSON.stringify(formDataRef.current[activeSectionKey]);
-        const activeSavedData = JSON.stringify(savedSnapshot[activeSectionKey]);
-        setHasUnsavedChanges(activeData !== activeSavedData);
-      } else {
-        setHasUnsavedChanges(false);
-      }
-
-      setSavingSectionKey(null);
-      setSavedSectionKey(variables.sectionKey);
-      setErrorSectionKey(null);
-      if (userId) {
-        clearEncounterSectionConflict(id, userId, variables.sectionKey);
-      }
-      setRecoverableConflicts((current) => current.filter((item) => item.sectionKey !== variables.sectionKey));
-      setRecoverableConflict((current) => (current?.sectionKey === variables.sectionKey ? null : current));
-      setSaveStatus('saved');
-      setLastSavedAt(new Date());
-      setLastSaveOrigin('direct');
-      response.data.warnings?.forEach((warning) => notify.info(warning));
-
-      if (variables.sectionKey === 'EXAMEN_FISICO') {
-        await invalidateAlertOverviewQueries(queryClient);
-      }
-
-      saveStatusTimerRef.current = setTimeout(() => {
-        setSaveStatus('idle');
-        setSavedSectionKey((current) => (current === variables.sectionKey ? null : current));
-      }, 2000);
-    },
-    onError: (error, variables) => {
-      setSavingSectionKey(null);
-      setSavedSectionKey(null);
-
-      if (isNetworkError(error) && id && userId) {
-        if (isSharedDeviceModeEnabled()) {
-          setErrorSectionKey(variables.sectionKey);
-          setSaveStatus('error');
-          notify.error('Sin conexión. El modo equipo compartido desactiva borradores y cola offline local; reconecte antes de continuar.');
-          return;
-        }
-
-        void enqueueOfflineSave({
-          encounterId: id,
-          sectionKey: variables.sectionKey,
-          data: variables.data,
-          baseUpdatedAt: variables.baseUpdatedAt,
-          completed: variables.completed,
-          notApplicable: variables.notApplicable,
-          notApplicableReason: variables.notApplicableReason,
-          queuedAt: new Date().toISOString(),
-          userId,
-        }).catch(() => {
-          setErrorSectionKey(variables.sectionKey);
-          setSaveStatus('error');
-          notify.error('No se pudo encolar el guardado offline. Reintente manualmente.');
-        });
-        setErrorSectionKey(null);
-        setSaveStatus('queued');
-        notify.info('Sin conexión. Guardado en cola local.');
-        return;
-      }
-
-      setErrorSectionKey(variables.sectionKey);
-      setSaveStatus('error');
-      if (axios.isAxiosError(error) && error.response?.status === 409) {
-        const localConflictData = (variables.data ?? getSectionPayloadData({
-          encounter,
-          sections,
-          formDataRef,
-          sectionKey: variables.sectionKey,
-        })) as Record<string, unknown>;
-
-        void refreshSectionFromServer(variables.sectionKey, localConflictData)
-          .then(() => {
-            notify.error('La sección cambió en otra sesión. Se guardó tu copia local para que puedas recuperarla.');
-          })
-          .catch(() => {
-            void queryClient.invalidateQueries({ queryKey: ['encounter', id] });
-            notify.error('La sección cambió en otra sesión. Recargue la atención y revise antes de reintentar.');
-          });
-        return;
-      }
-      notify.error('Error al guardar: ' + getErrorMessage(error));
-    },
+    onSuccess: (response, variables) => handleSaveSectionSuccess(response, variables, successCtx),
+    onError: (error, variables) => handleSaveSectionError(error, variables, errorCtx),
   });
 
   const saveSection = useCallback(
@@ -270,23 +137,28 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
     }: SaveSectionMutationVars): Promise<PersistSectionResult> => {
       if (!canEdit || !encounter?.sections || !isDraftHydrated) return 'noop';
 
-      const currentData = data ?? getSectionPayloadData({
-        encounter,
-        sections,
-        formDataRef,
-        sectionKey,
-      });
+      const currentData =
+        data ??
+        getSectionPayloadData({ encounter, sections, formDataRef, sectionKey });
       const persistedSection = sections.find((section) => section.sectionKey === sectionKey);
       const savedSnapshot = readSavedSnapshot(lastSavedRef);
       const savedSectionData = JSON.stringify(savedSnapshot[sectionKey]);
       const currentSectionData = JSON.stringify(currentData);
       const shouldSaveData = currentSectionData !== savedSectionData;
-      const shouldSaveCompletion = completed !== undefined && persistedSection?.completed !== completed;
-      const shouldSaveNotApplicable = notApplicable !== undefined && persistedSection?.notApplicable !== notApplicable;
+      const shouldSaveCompletion =
+        completed !== undefined && persistedSection?.completed !== completed;
+      const shouldSaveNotApplicable =
+        notApplicable !== undefined && persistedSection?.notApplicable !== notApplicable;
       const normalizedReason = notApplicable ? (notApplicableReason ?? null) : null;
-      const shouldSaveNotApplicableReason = notApplicable && persistedSection?.notApplicableReason !== normalizedReason;
+      const shouldSaveNotApplicableReason =
+        notApplicable && persistedSection?.notApplicableReason !== normalizedReason;
 
-      if (!shouldSaveData && !shouldSaveCompletion && !shouldSaveNotApplicable && !shouldSaveNotApplicableReason) {
+      if (
+        !shouldSaveData &&
+        !shouldSaveCompletion &&
+        !shouldSaveNotApplicable &&
+        !shouldSaveNotApplicableReason
+      ) {
         return 'noop';
       }
 
@@ -296,7 +168,8 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
           sectionKey,
           data: currentData,
           baseUpdatedAt:
-            latestSectionUpdatedAtRef.current[sectionKey] ?? getPersistedSectionUpdatedAt(sections, sectionKey),
+            latestSectionUpdatedAtRef.current[sectionKey] ??
+            getPersistedSectionUpdatedAt(sections, sectionKey),
           ...(completed !== undefined ? { completed } : {}),
           ...(notApplicable !== undefined ? { notApplicable } : {}),
           ...(normalizedReason ? { notApplicableReason: normalizedReason } : {}),
@@ -337,13 +210,7 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
       if (!targetSectionKey) return 'noop';
       return saveSection({ sectionKey: targetSectionKey, completed, data: undefined });
     },
-    [
-      activeSectionKeyRef,
-      canEdit,
-      encounter?.sections,
-      isDraftHydrated,
-      saveSection,
-    ],
+    [activeSectionKeyRef, canEdit, encounter?.sections, isDraftHydrated, saveSection],
   );
 
   const saveCurrentSection = useCallback(async () => {

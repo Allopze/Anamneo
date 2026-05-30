@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import { notify } from '@/lib/notify';
-import { FiPlus, FiTrash2, FiEdit2, FiX, FiCheck } from 'react-icons/fi';
+import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { useAuthIsMedico } from '@/stores/auth-store';
+import { MedicationCreateForm, MedicationEditRow } from './PatientMedicationsList.parts';
 
 const STATUS_CONFIG = {
   ACTIVO:     { label: 'Activo',     className: 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800/30' },
@@ -57,10 +58,7 @@ export default function PatientMedicationsList({ patientId }: Props) {
 
   const { data: medications = [], isLoading } = useQuery({
     queryKey: ['patient-medications', patientId],
-    queryFn: async () => {
-      const res = await api.get<Medication[]>(`/patient-medications/patient/${patientId}`);
-      return res.data;
-    },
+    queryFn: async () => (await api.get<Medication[]>(`/patient-medications/patient/${patientId}`)).data,
   });
 
   const invalidate = () =>
@@ -115,19 +113,7 @@ export default function PatientMedicationsList({ patientId }: Props) {
 
   const startEdit = (m: Medication) => {
     setEditingId(m.id);
-    setForm({
-      drug: m.drug,
-      dose: m.dose ?? '',
-      route: m.route ?? '',
-      frequency: m.frequency ?? '',
-      status: m.status,
-      notes: m.notes ?? '',
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setForm(DEFAULT_FORM);
+    setForm({ drug: m.drug, dose: m.dose ?? '', route: m.route ?? '', frequency: m.frequency ?? '', status: m.status, notes: m.notes ?? '' });
   };
 
   const hasMedications = medications.length > 0;
@@ -159,89 +145,14 @@ export default function PatientMedicationsList({ patientId }: Props) {
       </div>
 
       {showForm && (
-        <form
+        <MedicationCreateForm
+          form={form}
+          isPending={createMutation.isPending}
+          statusConfig={STATUS_CONFIG}
+          setForm={setForm}
+          onCancel={() => { setShowForm(false); setForm(DEFAULT_FORM); }}
           onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }}
-          className="mb-4 space-y-2 rounded-card border border-surface-muted/30 bg-surface-base/40 p-3 text-sm"
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <div className="col-span-2">
-              <label className="form-label text-xs">Medicamento *</label>
-              <input
-                value={form.drug}
-                onChange={(e) => setForm({ ...form, drug: e.target.value })}
-                className="form-input mt-0.5 text-xs"
-                placeholder="Ej: Metformina, Atorvastatina, Ibuprofeno"
-                required
-              />
-            </div>
-            <div>
-              <label className="form-label text-xs">Dosis</label>
-              <input
-                value={form.dose}
-                onChange={(e) => setForm({ ...form, dose: e.target.value })}
-                className="form-input mt-0.5 text-xs"
-                placeholder="Ej: 500 mg, 10 mg/ml"
-              />
-            </div>
-            <div>
-              <label className="form-label text-xs">Estado</label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as MedicationStatus })}
-                className="form-input mt-0.5 text-xs"
-              >
-                {Object.entries(STATUS_CONFIG).map(([v, c]) => (
-                  <option key={v} value={v}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="form-label text-xs">Vía</label>
-              <input
-                value={form.route}
-                onChange={(e) => setForm({ ...form, route: e.target.value })}
-                className="form-input mt-0.5 text-xs"
-                placeholder="Ej: Oral, IV, IM"
-              />
-            </div>
-            <div>
-              <label className="form-label text-xs">Frecuencia</label>
-              <input
-                value={form.frequency}
-                onChange={(e) => setForm({ ...form, frequency: e.target.value })}
-                className="form-input mt-0.5 text-xs"
-                placeholder="Ej: Cada 12 horas, 1 vez/día"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="form-label text-xs">Notas adicionales</label>
-            <input
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="form-input mt-0.5 text-xs"
-              placeholder="Observaciones clínicas relevantes"
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => { setShowForm(false); setForm(DEFAULT_FORM); }}
-              className="btn btn-secondary text-xs"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={createMutation.isPending}
-              className="btn btn-primary text-xs"
-            >
-              {createMutation.isPending ? 'Guardando…' : 'Registrar medicamento'}
-            </button>
-          </div>
-        </form>
+        />
       )}
 
       {isLoading ? (
@@ -254,76 +165,16 @@ export default function PatientMedicationsList({ patientId }: Props) {
         <ul className="space-y-2">
           {medications.map((m) =>
             editingId === m.id ? (
-              <li
+              <MedicationEditRow
                 key={m.id}
-                className="rounded-card border border-accent/30 bg-surface-base/40 p-3 text-sm"
-              >
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="col-span-2">
-                    <label className="form-label text-xs">Medicamento</label>
-                    <input
-                      value={form.drug}
-                      onChange={(e) => setForm({ ...form, drug: e.target.value })}
-                      className="form-input mt-0.5 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label text-xs">Dosis</label>
-                    <input
-                      value={form.dose}
-                      onChange={(e) => setForm({ ...form, dose: e.target.value })}
-                      className="form-input mt-0.5 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label text-xs">Estado</label>
-                    <select
-                      value={form.status}
-                      onChange={(e) =>
-                        setForm({ ...form, status: e.target.value as MedicationStatus })
-                      }
-                      className="form-input mt-0.5 text-xs"
-                    >
-                      {Object.entries(STATUS_CONFIG).map(([v, c]) => (
-                        <option key={v} value={v}>{c.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="form-label text-xs">Vía</label>
-                    <input
-                      value={form.route}
-                      onChange={(e) => setForm({ ...form, route: e.target.value })}
-                      className="form-input mt-0.5 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label text-xs">Frecuencia</label>
-                    <input
-                      value={form.frequency}
-                      onChange={(e) => setForm({ ...form, frequency: e.target.value })}
-                      className="form-input mt-0.5 text-xs"
-                    />
-                  </div>
-                </div>
-                <div className="mt-2 flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={cancelEdit}
-                    className="btn btn-secondary text-xs"
-                  >
-                    <FiX className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => updateMutation.mutate(m.id)}
-                    disabled={updateMutation.isPending}
-                    className="btn btn-primary text-xs"
-                  >
-                    <FiCheck className="h-3.5 w-3.5 mr-1" />Guardar
-                  </button>
-                </div>
-              </li>
+                medicationId={m.id}
+                form={form}
+                isPending={updateMutation.isPending}
+                statusConfig={STATUS_CONFIG}
+                setForm={setForm}
+                onCancel={() => { setEditingId(null); setForm(DEFAULT_FORM); }}
+                onSave={(id) => updateMutation.mutate(id)}
+              />
             ) : (
               <li
                 key={m.id}

@@ -25,26 +25,7 @@ import EncounterActiveSectionCard from './EncounterActiveSectionCard';
 import EncounterClinicalSummaryCard from './EncounterClinicalSummaryCard';
 import { EncounterClosureWorkspace, EncounterWorkspacePanel } from './EncounterWorkspaceTools';
 import EncounterWorkspaceStatusBanner from './EncounterWorkspaceStatusBanner';
-
-function EncounterWorkspaceSkeleton() {
-  return (
-    <div className="min-h-screen bg-surface-base p-4" aria-busy="true" aria-label="Cargando atención">
-      <div className="mb-4 h-16 rounded-card bg-surface-elevated shadow-soft" />
-      <div className="mb-5 h-28 rounded-card bg-surface-elevated shadow-soft" />
-      <div className="grid gap-5 xl:grid-cols-[264px_minmax(0,1fr)]">
-        <div className="hidden space-y-3 rounded-card border border-surface-muted/35 bg-surface-elevated p-4 xl:block">
-          {[...Array(7)].map((_, index) => (
-            <div key={index} className="h-10 w-full skeleton" />
-          ))}
-        </div>
-        <div className="space-y-4">
-          <div className="h-20 rounded-card bg-surface-elevated shadow-soft" />
-          <div className="h-[28rem] rounded-card bg-surface-elevated shadow-soft" />
-        </div>
-      </div>
-    </div>
-  );
-}
+import { EncounterWorkspaceSkeleton, EncounterFollowupModal } from './encounter-wizard.parts';
 
 export default function EncounterWizardPage() {
   const wiz = useEncounterWizard();
@@ -301,52 +282,14 @@ export default function EncounterWizardPage() {
         onConfirm={wiz.handleConfirmNotApplicable}
       />
 
-      {wiz.followupSuggestion && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="followup-modal-title">
-          <div className="w-full max-w-sm rounded-card border border-surface-muted/40 bg-surface-elevated p-6 shadow-xl">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/15">
-                <FiCalendar className="h-4 w-4 text-accent-text" />
-              </div>
-              <h2 id="followup-modal-title" className="text-base font-bold text-ink">
-                Crear próximo control
-              </h2>
-            </div>
-            <p className="mb-4 text-sm text-ink-secondary">
-              El diagnóstico <strong className="text-ink">{wiz.followupSuggestion.diagnosisText}</strong> sugiere un control en{' '}
-              {wiz.followupSuggestion.days} días. ¿Deseas crear un seguimiento?
-            </p>
-            <div className="mb-5">
-              <label className="form-label text-xs">Fecha del control</label>
-              <input
-                type="date"
-                value={wiz.followupDate}
-                onChange={(e) => wiz.setFollowupDate(e.target.value)}
-                className="form-input mt-0.5"
-                min={new Date().toISOString().slice(0, 10)}
-              />
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={wiz.handleFollowupSkip}
-                disabled={wiz.createFollowupTaskMutation.isPending}
-                className="btn btn-secondary text-sm"
-              >
-                Ahora no
-              </button>
-              <button
-                type="button"
-                onClick={wiz.handleFollowupConfirm}
-                disabled={wiz.createFollowupTaskMutation.isPending || !wiz.followupDate}
-                className="btn btn-primary text-sm"
-              >
-                {wiz.createFollowupTaskMutation.isPending ? 'Creando…' : 'Crear control'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EncounterFollowupModal
+        suggestion={wiz.followupSuggestion ?? null}
+        followupDate={wiz.followupDate}
+        isPending={wiz.createFollowupTaskMutation.isPending}
+        onDateChange={wiz.setFollowupDate}
+        onSkip={wiz.handleFollowupSkip}
+        onConfirm={wiz.handleFollowupConfirm}
+      />
     </div>
   );
 }
