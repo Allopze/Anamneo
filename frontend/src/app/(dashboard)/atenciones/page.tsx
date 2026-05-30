@@ -11,13 +11,13 @@ import {
   FiCalendar,
   FiChevronDown,
   FiChevronRight,
-  FiFileText,
   FiFilter,
   FiList,
   FiPlus,
   FiSearch,
   FiUser,
 } from 'react-icons/fi';
+import { FichaIcon } from '@/components/icons';
 import { api } from '@/lib/api';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
@@ -351,7 +351,7 @@ function AtencionesListContent() {
                           : 'bg-surface-base text-ink-secondary'
                     )}
                   >
-                    <FiFileText className="h-5 w-5" aria-hidden="true" />
+                    <FichaIcon className="h-5 w-5" aria-hidden="true" />
                   </div>
 
                   <div className="min-w-0 flex-1">
@@ -422,7 +422,7 @@ function AtencionesListContent() {
           </>
         ) : (
           <EmptyState
-            icon={<FiFileText className="h-6 w-6" aria-hidden="true" />}
+            icon={<FichaIcon className="h-6 w-6" />}
             title={hasActiveCriteria ? 'Sin atenciones para este criterio' : 'Sin atenciones registradas'}
             description={
               hasActiveCriteria

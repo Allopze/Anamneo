@@ -1,6 +1,6 @@
 'use client';
 
-import { FiFileText } from 'react-icons/fi';
+import { FichaIcon } from '@/components/icons';
 import { formatDateOnly } from '@/lib/date';
 import { splitHistoryField } from '@/lib/clinical';
 import type { Patient, PatientClinicalSummary } from '@/types';
@@ -39,7 +39,7 @@ export default function PatientLongitudinalSummaryCard({
             </div>
           ) : (
             <div className="mt-2 flex items-center gap-2 text-sm text-ink-muted">
-              <FiFileText className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <FichaIcon className="h-4 w-4 shrink-0" />
               <span>Todavía no hay un resumen clínico derivado.</span>
             </div>
           )}

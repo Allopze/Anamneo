@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import { notify } from '@/lib/notify';
-import { FiAlertTriangle, FiPlus, FiTrash2, FiEdit2, FiX, FiCheck } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2, FiX, FiCheck } from 'react-icons/fi';
+import { ClinicalAlertIcon } from '@/components/icons';
 import { useAuthIsMedico } from '@/stores/auth-store';
 
 const SEVERITY_CONFIG = {
@@ -122,7 +123,7 @@ export default function PatientAllergiesList({ patientId }: Props) {
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           {hasAllergies && (
-            <FiAlertTriangle className="h-4 w-4 text-status-red" aria-hidden="true" />
+            <ClinicalAlertIcon className="h-4 w-4 text-status-red" />
           )}
           <h2 className="text-lg font-bold text-ink">
             Alergias

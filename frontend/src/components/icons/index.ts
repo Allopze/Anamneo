@@ -12,3 +12,6 @@
 export { ShieldIcon } from './ShieldIcon';
 export { LockIcon } from './LockIcon';
 export { ActivityIcon } from './ActivityIcon';
+export { EncounterIcon } from './EncounterIcon';
+export { FichaIcon } from './FichaIcon';
+export { ClinicalAlertIcon } from './ClinicalAlertIcon';

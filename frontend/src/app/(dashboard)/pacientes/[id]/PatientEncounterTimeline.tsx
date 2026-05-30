@@ -6,9 +6,9 @@ import {
   FiClipboard,
   FiClock,
   FiEye,
-  FiFileText,
   FiPlus,
 } from 'react-icons/fi';
+import { FichaIcon } from '@/components/icons';
 import { EmptyState } from '@/components/common/EmptyState';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -74,7 +74,7 @@ export default function PatientEncounterTimeline({
                           : 'bg-surface-muted text-ink-secondary border-surface-muted/30',
                       )}
                     >
-                      <FiFileText className="w-4 h-4" />
+                      <FichaIcon className="w-4 h-4" />
                     </div>
 
                     <div className="rounded-card border border-surface-muted/30 bg-surface-elevated p-4 hover:bg-surface-muted/50 transition-colors">

@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
-import { FiSearch, FiX, FiUser, FiFileText, FiArrowRight } from 'react-icons/fi';
+import { FiSearch, FiX, FiUser, FiArrowRight } from 'react-icons/fi';
+import { FichaIcon } from '@/components/icons';
 import type { SearchResult } from './useDashboardSearch';
 
 interface MobileSearchOverlayProps {
@@ -114,7 +115,7 @@ export default function MobileSearchOverlay({
                       const flatIndex = searchResults.indexOf(r);
                       return (
                         <button key={r.id} onClick={() => onSearchNavigate(r.href)} className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${flatIndex === searchActiveIndex ? 'bg-surface-inset/70' : 'hover:bg-surface-inset/50'}`}>
-                          <FiFileText className="w-4 h-4 text-ink-muted shrink-0" />
+                          <FichaIcon className="w-4 h-4 text-ink-muted shrink-0" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-ink truncate">{r.title}</p>
                             <p className="text-micro text-ink-muted truncate">{r.subtitle}</p>

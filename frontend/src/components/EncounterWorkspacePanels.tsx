@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { FiActivity, FiAlertCircle, FiCheck, FiClipboard } from 'react-icons/fi';
+import { FiActivity, FiAlertCircle, FiCheck } from 'react-icons/fi';
+import { EncounterIcon } from '@/components/icons';
 import clsx from 'clsx';
 
 import FloatingQuickNotes from '@/components/FloatingQuickNotes';
@@ -186,7 +187,7 @@ export function SupportTabPanel({
           }}
         >
           <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <FiClipboard className="h-4 w-4 text-ink-secondary" />
+            <EncounterIcon className="h-4 w-4 text-ink-secondary" />
             Seguimiento Rápido
           </div>
           <input

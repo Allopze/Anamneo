@@ -22,7 +22,6 @@ import {
   FiCalendar,
   FiHome,
   FiUsers,
-  FiFileText,
   FiClipboard,
   FiList,
   FiPieChart,
@@ -30,6 +29,7 @@ import {
   FiShield,
   FiBookmark,
 } from 'react-icons/fi';
+import { FichaIcon } from '@/components/icons';
 import type { NavItem } from './DashboardSidebar';
 import { useDashboardSearch } from './useDashboardSearch';
 import { clearAuthSessionPrefill, consumeAuthSessionPrefill, toAuthUser } from '@/lib/auth-session';
@@ -44,7 +44,7 @@ const primaryNavigation: NavItem[] = [
   { name: 'Inicio', href: '/', icon: FiHome, exact: true },
   { name: 'Pacientes', href: '/pacientes', icon: FiUsers },
   { name: 'Agenda', href: '/agenda', icon: FiCalendar },
-  { name: 'Atenciones', href: '/atenciones', icon: FiFileText },
+  { name: 'Atenciones', href: '/atenciones', icon: FichaIcon },
   { name: 'Seguimientos', href: '/seguimientos', icon: FiClipboard },
   { name: 'Reportes', href: '/reportes', icon: FiPieChart },
 ];

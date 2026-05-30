@@ -2,7 +2,8 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { FiArrowRight, FiFileText, FiUser } from 'react-icons/fi';
+import { FiArrowRight, FiUser } from 'react-icons/fi';
+import { FichaIcon } from '@/components/icons';
 import clsx from 'clsx';
 import Tooltip from '@/components/common/Tooltip';
 import type { NavItem, NavItemBadge } from './DashboardSidebar';
@@ -170,7 +171,7 @@ export function SearchResultsDropdown({
                       flatIndex === activeIndex ? 'bg-surface-inset/70' : 'hover:bg-surface-inset/50',
                     )}
                   >
-                    <FiFileText className="h-4 w-4 shrink-0 text-ink-muted" />
+                    <FichaIcon className="h-4 w-4 shrink-0 text-ink-muted" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-ink">{result.title}</p>
                       <p className="truncate text-micro text-ink-muted">{result.subtitle}</p>

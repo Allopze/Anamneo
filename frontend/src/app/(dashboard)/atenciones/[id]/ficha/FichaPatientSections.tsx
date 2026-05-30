@@ -1,4 +1,4 @@
-import { FiAlertTriangle } from 'react-icons/fi';
+import { ClinicalAlertIcon } from '@/components/icons';
 import { type Encounter } from '@/types';
 import { formatHistoryFieldText } from '@/lib/clinical';
 import {
@@ -37,7 +37,7 @@ export function IdentificationSection({
       {identificationMissingFields.length > 0 ? (
         <div className="mb-4 rounded-card border border-status-red/35 bg-status-red/10 p-3 text-sm text-status-red-text">
           <div className="flex items-start gap-2">
-            <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <ClinicalAlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
               <p className="font-medium">Identificación incompleta en esta atención</p>
               <p className="mt-1">Faltan campos demográficos clave: {identificationMissingFields.join(', ')}.</p>
@@ -48,7 +48,7 @@ export function IdentificationSection({
       {encounter.identificationSnapshotStatus?.hasDifferences ? (
         <div className="mb-4 rounded-card border border-status-yellow/70 bg-status-yellow/40 p-3 text-sm text-accent-text">
           <div className="flex items-start gap-2">
-            <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <ClinicalAlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
               <p className="font-medium">Identificación distinta a la ficha del paciente</p>
               <p className="mt-1">

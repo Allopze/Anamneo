@@ -11,10 +11,10 @@ import { useAuthStore } from '@/stores/auth-store';
 import {
   FiSearch,
   FiPlus,
-  FiFileText,
   FiUsers,
   FiTag,
 } from 'react-icons/fi';
+import { FichaIcon } from '@/components/icons';
 import clsx from 'clsx';
 import Tooltip from '@/components/common/Tooltip';
 import AlertPopover from './AlertPopover';
@@ -259,7 +259,7 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
                     tabIndex={0}
                     onClick={() => setCreateOpen(false)}
                   >
-                    <FiFileText className="w-4 h-4 text-ink-secondary" />
+                    <FichaIcon className="w-4 h-4 text-ink-secondary" />
                     Nueva atención
                   </Link>
                 )}

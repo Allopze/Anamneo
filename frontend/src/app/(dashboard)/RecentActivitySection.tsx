@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import clsx from 'clsx';
-import { FiChevronRight, FiFileText } from 'react-icons/fi';
+import { FiChevronRight } from 'react-icons/fi';
+import { FichaIcon } from '@/components/icons';
 import { STATUS_LABELS } from '@/types';
 import { sectionAnimation, type DashboardData } from './dashboard.constants';
 
@@ -55,7 +56,7 @@ export default function RecentActivitySection({ encounters, isLoading }: RecentA
                           : 'bg-surface-muted/30 text-ink-secondary',
                     )}
                   >
-                    <FiFileText className="h-4 w-4" />
+                    <FichaIcon className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-ink">{encounter.patientName}</p>

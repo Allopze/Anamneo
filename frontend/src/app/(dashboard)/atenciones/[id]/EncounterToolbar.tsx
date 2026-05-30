@@ -11,9 +11,9 @@ import {
   FiMoreHorizontal,
   FiCopy,
   FiActivity,
-  FiClipboard,
   FiClock,
 } from 'react-icons/fi';
+import { EncounterIcon } from '@/components/icons';
 import { REVIEW_STATUS_LABELS } from '@/types';
 import { useHeaderBarSlot } from '@/components/layout/HeaderBarSlotContext';
 import { FichaToolbarMenu, type ToolbarMenuItem } from './ficha/FichaToolbarMenu';
@@ -101,7 +101,7 @@ export default function EncounterToolbar({
     items.push({
       key: 'support',
       label: 'Apoyo clínico',
-      icon: FiClipboard,
+      icon: EncounterIcon,
       onSelect: () => openWorkspacePanel('apoyo'),
       title: 'Abrir notas, adjuntos y seguimiento',
     });

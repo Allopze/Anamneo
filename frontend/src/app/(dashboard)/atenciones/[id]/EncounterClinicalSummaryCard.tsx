@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { FiAlertTriangle, FiClipboard, FiHeart, FiShield } from 'react-icons/fi';
+import { FiHeart, FiShield } from 'react-icons/fi';
+import { ClinicalAlertIcon, EncounterIcon } from '@/components/icons';
 
 import { api } from '@/lib/api';
 import { splitHistoryField } from '@/lib/clinical';
@@ -53,7 +54,7 @@ export default function EncounterClinicalSummaryCard({ patientId, patient }: Enc
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-card border border-surface-muted/40 bg-surface-base/65 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-              <FiAlertTriangle className="h-4 w-4 text-status-red" />
+              <ClinicalAlertIcon className="h-4 w-4 text-status-red" />
               Alergias
             </div>
             <div className="mt-3 space-y-2 text-sm text-ink-secondary">
@@ -99,7 +100,7 @@ export default function EncounterClinicalSummaryCard({ patientId, patient }: Enc
 
           <div className="rounded-card border border-surface-muted/40 bg-surface-base/65 p-4 sm:col-span-2">
             <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-              <FiClipboard className="h-4 w-4 text-accent-text" />
+              <EncounterIcon className="h-4 w-4 text-accent-text" />
               Problemas activos
             </div>
             {activeProblems.length > 0 ? (

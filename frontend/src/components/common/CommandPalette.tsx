@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchClinicalSearchResults, type SearchResult } from '@/lib/clinical-search';
-import { FiSearch, FiUser, FiFileText, FiArrowRight } from 'react-icons/fi';
+import { FiSearch, FiUser, FiArrowRight } from 'react-icons/fi';
+import { FichaIcon } from '@/components/icons';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -218,7 +219,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
                                   {result.type === 'patient' ? (
                                     <FiUser className="w-4 h-4" />
                                   ) : (
-                                    <FiFileText className="w-4 h-4" />
+                                    <FichaIcon className="w-4 h-4" />
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">

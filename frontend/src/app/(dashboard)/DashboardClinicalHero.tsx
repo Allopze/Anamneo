@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import clsx from 'clsx';
-import { FiActivity, FiAlertTriangle, FiCalendar, FiChevronRight, FiClipboard, FiFileText, FiPlus, FiUsers } from 'react-icons/fi';
+import { FiActivity, FiAlertTriangle, FiCalendar, FiChevronRight, FiClipboard, FiPlus, FiUsers } from 'react-icons/fi';
+import { FichaIcon } from '@/components/icons';
 import { getFirstName } from '@/lib/utils';
 import { type DashboardData, getGreeting, sectionAnimation } from './dashboard.constants';
 
@@ -46,7 +47,7 @@ export default function DashboardClinicalHero({
     {
       href: '/atenciones',
       label: 'Todas las atenciones',
-      icon: FiFileText,
+      icon: FichaIcon,
     },
   ].filter((item): item is NonNullable<typeof item> => Boolean(item));
 

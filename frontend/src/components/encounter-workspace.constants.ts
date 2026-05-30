@@ -1,4 +1,5 @@
-import { FiActivity, FiClipboard, FiClock, FiFileText } from 'react-icons/fi';
+import { FiActivity, FiClock } from 'react-icons/fi';
+import { EncounterIcon, FichaIcon } from '@/components/icons';
 import type { Encounter } from '@/types';
 import type { EncounterWorkflowChecklistItem } from '@/lib/encounter-completion';
 
@@ -9,8 +10,8 @@ export const INNER_PANEL_CLASS = 'rounded-card border border-surface-muted/45 bg
 /* ─── workspace tool definition ─── */
 export const WORKSPACE_TOOLS = [
   { key: 'revision' as const, label: 'Revisión', shortLabel: 'Rev.', icon: FiActivity },
-  { key: 'apoyo' as const, label: 'Apoyo', shortLabel: 'Apoyo', icon: FiClipboard },
-  { key: 'cierre' as const, label: 'Cierre', shortLabel: 'Cierre', icon: FiFileText },
+  { key: 'apoyo' as const, label: 'Apoyo', shortLabel: 'Apoyo', icon: EncounterIcon },
+  { key: 'cierre' as const, label: 'Cierre', shortLabel: 'Cierre', icon: FichaIcon },
   { key: 'historial' as const, label: 'Historial', shortLabel: 'Hist.', icon: FiClock },
 ] as const;
 
