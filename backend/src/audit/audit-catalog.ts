@@ -97,6 +97,7 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   // Ley 21.719 - bloqueo temporal (Art 8 ter)
   PATIENT_BLOCKED: 'Bloqueo temporal de tratamiento de paciente (Ley 21.719 Art 8 ter)',
   PATIENT_UNBLOCKED: 'Levantamiento de bloqueo temporal de tratamiento de paciente',
+  PATIENT_PORTAL_INVITED: 'Invitación a portal paciente creada',
   PATIENT_PORTAL_LOGIN: 'Inicio de sesión en portal paciente',
   PATIENT_PORTAL_RECORD_VIEWED: 'Ficha de paciente consultada desde portal paciente',
   PATIENT_PORTAL_ENCOUNTER_VIEWED: 'Atención consultada desde portal paciente',
@@ -211,6 +212,7 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'PatientDataRequestDownload' && action === 'READ') return 'PATIENT_DATA_REQUEST_EXPORT_DOWNLOADED';
   if (entityType === 'Patient' && action === 'UPDATE' && hasDiffKey(diff, 'blockedAt') && !hasDiffValue(diff, 'blockedAt', null)) return 'PATIENT_BLOCKED';
   if (entityType === 'Patient' && action === 'UPDATE' && hasDiffKey(diff, 'blockedAt') && hasDiffValue(diff, 'blockedAt', null)) return 'PATIENT_UNBLOCKED';
+  if (entityType === 'PatientPortalAccount' && action === 'CREATE') return 'PATIENT_PORTAL_INVITED';
   if (entityType === 'DataBreachIncident' && action === 'CREATE') return 'DATA_BREACH_DETECTED';
   if (entityType === 'DataBreachIncident' && action === 'UPDATE' && hasDiffKey(diff, 'reportedToAgencyAt')) return 'DATA_BREACH_REPORTED_TO_AGENCY';
   if (entityType === 'DataBreachIncident' && action === 'UPDATE' && hasDiffKey(diff, 'reportedToSubjectsAt')) return 'DATA_BREACH_NOTIFIED_TO_SUBJECTS';

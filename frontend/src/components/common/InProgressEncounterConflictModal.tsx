@@ -4,6 +4,7 @@ import React from 'react';
 import { api, getErrorMessage } from '@/lib/api';
 import { notify } from '@/lib/notify';
 import { Dialog } from './Dialog';
+import ConfirmModal from './ConfirmModal';
 
 export type InProgressEncounterSummary = {
   id: string;
@@ -30,8 +31,25 @@ export function InProgressEncounterConflictModal(props: {
   const { encounters, patient, onClose, onOpenEncounter, allowCancel = false, onCancelled } = props;
   const mostRecent = encounters[0];
   const [cancellingId, setCancellingId] = React.useState<string | null>(null);
+  const [cancelCandidateId, setCancelCandidateId] = React.useState<string | null>(null);
+
+  const handleCancelConfirm = async () => {
+    if (!cancelCandidateId || cancellingId) return;
+    try {
+      setCancellingId(cancelCandidateId);
+      await api.post(`/encounters/${cancelCandidateId}/cancel`, {});
+      notify.success('Atención cancelada');
+      onCancelled?.(cancelCandidateId);
+      setCancelCandidateId(null);
+    } catch (e) {
+      notify.error(getErrorMessage(e));
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   return (
+    <>
     <Dialog
       isOpen={true}
       onClose={onClose}
@@ -75,21 +93,7 @@ export function InProgressEncounterConflictModal(props: {
             <div className="mt-3 flex items-center justify-end gap-2">
               {allowCancel && (
                 <button
-                  onClick={async () => {
-                    if (cancellingId) return;
-                    const ok = confirm('¿Cancelar esta atención en progreso?');
-                    if (!ok) return;
-                    try {
-                      setCancellingId(enc.id);
-                      await api.post(`/encounters/${enc.id}/cancel`, {});
-                      notify.success('Atención cancelada');
-                      onCancelled?.(enc.id);
-                    } catch (e) {
-                      notify.error(getErrorMessage(e));
-                    } finally {
-                      setCancellingId(null);
-                    }
-                  }}
+                  onClick={() => setCancelCandidateId(enc.id)}
                   disabled={Boolean(cancellingId)}
                   className="btn btn-secondary"
                 >
@@ -119,5 +123,19 @@ export function InProgressEncounterConflictModal(props: {
         </button>
       </div>
     </Dialog>
+    <ConfirmModal
+      isOpen={Boolean(cancelCandidateId)}
+      onClose={() => {
+        if (!cancellingId) setCancelCandidateId(null);
+      }}
+      onConfirm={handleCancelConfirm}
+      title="Cancelar atención en progreso"
+      message="Esta atención quedará cancelada y no se continuará editando. Usa esta acción solo si fue creada por error."
+      confirmLabel="Cancelar atención"
+      cancelLabel="Volver"
+      variant="warning"
+      loading={Boolean(cancellingId)}
+    />
+    </>
   );
 }

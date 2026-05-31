@@ -92,6 +92,8 @@ export default function DashboardSidebar({
             <AnamneoLogo
               className={clsx(collapsed ? 'justify-center gap-0' : 'gap-2')}
               inlineIcon={true}
+              onDark={true}
+              wordmark={false}
               iconContainerClassName="text-white"
               iconClassName="h-10 w-10 transform scale-150"
               textClassName={clsx('text-2xl font-extrabold text-white tracking-tight', collapsed && 'hidden')}

@@ -28,6 +28,7 @@ describe('audit-catalog', () => {
     ['ClinicalConsent', 'READ', {}, 'CONSENT_LIST_VIEWED'],
     ['UserInvitation', 'UPDATE', { revoked: true }, 'USER_INVITATION_REVOKED'],
     ['UserInvitation', 'DELETE', {}, 'USER_INVITATION_REVOKED'],
+    ['PatientPortalAccount', 'CREATE', {}, 'PATIENT_PORTAL_INVITED'],
     ['User', 'PASSWORD_CHANGED', { reset: true }, 'USER_PASSWORD_RESET'],
     ['MedicationCatalog', 'UPDATE', { scope: 'CSV_IMPORT' }, 'MEDICATION_CSV_IMPORTED'],
     ['ClinicalAnalyticsSummary', 'READ', {}, 'CLINICAL_ANALYTICS_SUMMARY_VIEWED'],

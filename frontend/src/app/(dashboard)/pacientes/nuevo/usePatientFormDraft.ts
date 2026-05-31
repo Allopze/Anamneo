@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { isSharedDeviceModeEnabled } from '@/stores/privacy-settings-store';
 import { encryptPhiJson, decryptPhiJson, isEncryptedPhiEnvelope } from '@/lib/local-phi-crypto';
@@ -74,8 +74,13 @@ export function usePatientFormDraft(
   form: UseFormReturn<PatientForm>,
   userId: string | undefined,
   isDirty: boolean,
-): void {
+): {
+  pendingNavigationHref: string | null;
+  clearPendingNavigation: () => void;
+} {
   const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pendingNavigationHref, setPendingNavigationHref] = useState<string | null>(null);
+  const clearPendingNavigation = useCallback(() => setPendingNavigationHref(null), []);
 
   // Restore draft on mount
   useEffect(() => {
@@ -126,15 +131,13 @@ export function usePatientFormDraft(
       if (!href || href.startsWith('#')) return;
       const url = new URL(target.href, window.location.href);
       if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
-      const confirmed = window.confirm(
-        'Hay datos de paciente sin guardar. Se conservará un borrador cifrado en esta sesión. ¿Salir de todos modos?',
-      );
-      if (!confirmed) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+      event.preventDefault();
+      event.stopPropagation();
+      setPendingNavigationHref(`${url.pathname}${url.search}${url.hash}`);
     };
     document.addEventListener('click', handler, true);
     return () => document.removeEventListener('click', handler, true);
   }, [isDirty]);
+
+  return { pendingNavigationHref, clearPendingNavigation };
 }

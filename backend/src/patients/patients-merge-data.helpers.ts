@@ -1,5 +1,4 @@
 import type { PatientHistory, Prisma } from '@prisma/client';
-import { AuditService } from '../audit/audit.service';
 import { parseStoredJson } from '../common/utils/encounter-sections';
 import {
   PATIENT_HISTORY_FIELD_KEYS,
@@ -14,26 +13,10 @@ import {
   normalizeNullableString,
   resolvePatientVerificationState,
 } from './patients-format';
-import {
-  buildAnamnesisRemotaSnapshotFromHistory,
-  buildIdentificationSnapshotFromPatient,
-  serializeSectionData,
-} from '../encounters/encounters-sanitize';
 import { buildEncryptedPatientIdentifierFields, withPatientIdentifiers } from './patients-identifiers';
 
 export type LoadedPatient = NonNullable<Awaited<ReturnType<PrismaService['patient']['findUnique']>>> & {
   history: PatientHistory | null;
-};
-
-type MergeCounts = {
-  encountersMoved: number;
-  inProgressEncountersRebased: number;
-  episodesMoved: number;
-  episodeLinksReused: number;
-  problemsMoved: number;
-  tasksMoved: number;
-  consentsMoved: number;
-  alertsMoved: number;
 };
 
 export function hasText(value: string | null | undefined) {

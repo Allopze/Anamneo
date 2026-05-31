@@ -31,6 +31,7 @@ describe('SospechaDiagnosticaSection — CIE-10 timer cleanup', () => {
   let clearTimeoutSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    jest.useFakeTimers();
     jest.clearAllMocks();
     apiGetMock.mockResolvedValue({ data: [] });
     setTimeoutSpy = jest.spyOn(global, 'setTimeout');
@@ -38,8 +39,10 @@ describe('SospechaDiagnosticaSection — CIE-10 timer cleanup', () => {
   });
 
   afterEach(() => {
+    jest.clearAllTimers();
     setTimeoutSpy.mockRestore();
     clearTimeoutSpy.mockRestore();
+    jest.useRealTimers();
   });
 
   it('schedules a debounce timer when the CIE-10 query has at least 2 characters', () => {
@@ -98,6 +101,10 @@ describe('SospechaDiagnosticaSection — CIE-10 timer cleanup', () => {
 
     render(<SospechaDiagnosticaSection data={DATA_WITH_SOSPECHA} onChange={jest.fn()} />);
     fireEvent.change(getCie10Input(), { target: { value: 'ap' } });
+
+    act(() => {
+      jest.advanceTimersByTime(350);
+    });
 
     await waitFor(() => {
       expect(apiGetMock).toHaveBeenCalledWith('/cie10/search', { params: { q: 'ap', limit: 8 } });

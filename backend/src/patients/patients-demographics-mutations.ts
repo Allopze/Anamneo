@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { Patient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { validateRut } from '../common/utils/helpers';
 import { isPatientOwnedByMedico } from '../common/utils/patient-access';
 import { AuditService } from '../audit/audit.service';
@@ -9,11 +9,6 @@ import { UpdatePatientDto } from './dto/update-patient.dto';
 import { normalizeNullableEmail, normalizeNullableString, resolvePatientVerificationState } from './patients-format';
 import { applySharedDemographicFields, assignEncryptedIdentifierUpdates, findDuplicateRut } from './patients-demographics-mutations.helpers';
 import { resolvePatientIdentifiers } from './patients-identifiers';
-
-type ExistingPatient = Patient & {
-  createdBy?: { medicoId: string | null } | null;
-  history?: unknown;
-};
 
 interface UpdatePatientDemographicsMutationParams {
   prisma: PrismaService;

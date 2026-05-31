@@ -6,6 +6,7 @@ import { api, getErrorMessage } from '@/lib/api';
 import { notify } from '@/lib/notify';
 import { FiPlus, FiEdit2, FiTrash2, FiFileText } from 'react-icons/fi';
 import { EmptyState } from '@/components/common/EmptyState';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 interface Template {
   id: string;
@@ -38,6 +39,7 @@ export default function PlantillasPage() {
   const [form, setForm] = useState({ name: '', category: 'GENERAL', content: '', sectionKey: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<Template | null>(null);
 
   const { data: templates, isLoading } = useQuery<Template[]>({
     queryKey: ['templates'],
@@ -64,6 +66,7 @@ export default function PlantillasPage() {
     mutationFn: (id: string) => api.delete(`/templates/${id}`),
     onSuccess: () => {
       notify.success('Plantilla eliminada');
+      setTemplateToDelete(null);
       queryClient.invalidateQueries({ queryKey: ['templates'] });
     },
     onError: (err) => notify.error(getErrorMessage(err)),
@@ -92,6 +95,7 @@ export default function PlantillasPage() {
   };
 
   return (
+    <>
     <div className="animate-fade-in">
       <div className="page-header">
         <div>
@@ -210,7 +214,7 @@ export default function PlantillasPage() {
                   </button>
                   <button
                     className="p-2 text-ink-muted hover:text-status-red hover:bg-status-red/10 rounded-lg transition-colors"
-                    onClick={() => { if (confirm('¿Eliminar esta plantilla?')) deleteMutation.mutate(t.id); }}
+                    onClick={() => setTemplateToDelete(t)}
                   >
                     <FiTrash2 className="w-4 h-4" />
                   </button>
@@ -233,5 +237,25 @@ export default function PlantillasPage() {
         )}
       </div>
     </div>
+    <ConfirmModal
+      isOpen={Boolean(templateToDelete)}
+      onClose={() => {
+        if (!deleteMutation.isPending) setTemplateToDelete(null);
+      }}
+      onConfirm={() => {
+        if (templateToDelete) deleteMutation.mutate(templateToDelete.id);
+      }}
+      title="Eliminar plantilla"
+      message={
+        templateToDelete
+          ? `Se eliminará "${templateToDelete.name}" y dejará de estar disponible para nuevas atenciones.`
+          : 'Se eliminará esta plantilla.'
+      }
+      confirmLabel="Eliminar plantilla"
+      cancelLabel="Conservar"
+      variant="danger"
+      loading={deleteMutation.isPending}
+    />
+    </>
   );
 }

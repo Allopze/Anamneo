@@ -163,11 +163,25 @@ export function adminSuite() {
     });
 
     it('GET /api/audit → admin can filter same-day logs with inclusive dateTo', async () => {
-      const today = todayLocalDateOnly();
+      const requestId = `audit-date-filter-${Date.now()}`;
+      await req()
+        .get('/api/patients/export/csv')
+        .set('x-request-id', requestId)
+        .set('Cookie', cookieHeader(state.adminCookies))
+        .expect(200);
+
+      const auditSeed = await req()
+        .get('/api/audit')
+        .query({ page: 1, limit: 1, requestId })
+        .set('Cookie', cookieHeader(state.adminCookies))
+        .expect(200);
+
+      expect(auditSeed.body.data.length).toBeGreaterThan(0);
+      const auditDate = todayLocalDateOnly(new Date(auditSeed.body.data[0].timestamp));
 
       const res = await req()
         .get('/api/audit')
-        .query({ page: 1, limit: 30, dateFrom: today, dateTo: today })
+        .query({ page: 1, limit: 30, dateFrom: auditDate, dateTo: auditDate, requestId })
         .set('Cookie', cookieHeader(state.adminCookies))
         .expect(200);
 

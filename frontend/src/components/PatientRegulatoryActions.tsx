@@ -34,6 +34,19 @@ export default function PatientRegulatoryActions({ patient, isAdmin }: Props) {
   const [confirmText, setConfirmText] = useState('');
   const [justification, setJustification] = useState('');
 
+  const purgeMutation = useMutation({
+    mutationFn: () =>
+      api.delete(`/patients/${patient.id}/purge`, {
+        data: { confirmation: confirmText.trim(), justification: justification.trim() },
+      }),
+    onSuccess: () => {
+      notify.success('Paciente suprimido definitivamente');
+      void queryClient.invalidateQueries({ queryKey: ['patients'] });
+      router.push('/pacientes');
+    },
+    onError: (err) => notify.error(getErrorMessage(err)),
+  });
+
   if (!isAdmin) return null;
 
   const handleDownload = async () => {
@@ -47,19 +60,6 @@ export default function PatientRegulatoryActions({ patient, isAdmin }: Props) {
       setDownloadPending(false);
     }
   };
-
-  const purgeMutation = useMutation({
-    mutationFn: () =>
-      api.delete(`/patients/${patient.id}/purge`, {
-        data: { confirmation: confirmText.trim(), justification: justification.trim() },
-      }),
-    onSuccess: () => {
-      notify.success('Paciente suprimido definitivamente');
-      void queryClient.invalidateQueries({ queryKey: ['patients'] });
-      router.push('/pacientes');
-    },
-    onError: (err) => notify.error(getErrorMessage(err)),
-  });
 
   const handlePurgeConfirm = () => {
     if (confirmText.trim() !== CONFIRMATION_WORD) {

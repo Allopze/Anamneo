@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 
 import { state, req, cookieHeader } from '../../helpers/e2e-setup';
-import { MEDICO_ONLY_SECTION_KEYS, parseBinaryResponse } from './encounters-followup.helpers';
+import { MEDICO_ONLY_SECTION_KEYS } from './encounters-followup.helpers';
 
 /**
  * Output-policy, section-access, and document-export tests.

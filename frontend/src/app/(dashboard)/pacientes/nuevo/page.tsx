@@ -9,6 +9,7 @@ import { useAuthCanCreatePatient, useAuthIsMedico, useAuthUser } from '@/stores/
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import Link from 'next/link';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
+import ConfirmModal from '@/components/common/ConfirmModal';
 import PossiblePatientDuplicatesNotice from '@/components/common/PossiblePatientDuplicatesNotice';
 import { notify } from '@/lib/notify';
 import { validateRut, formatRut } from '@/lib/rut';
@@ -35,7 +36,7 @@ export default function NuevoPacientePage() {
   });
   const { register, handleSubmit, watch, formState: { errors, isDirty } } = form;
 
-  usePatientFormDraft(form, user?.id, isDirty);
+  const draftNavigationGuard = usePatientFormDraft(form, user?.id, isDirty);
 
   const rutExempt = watch('rutExempt');
   const nombre = watch('nombre');
@@ -127,6 +128,7 @@ export default function NuevoPacientePage() {
   };
 
   return (
+    <>
     <div className="max-w-2xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
@@ -257,5 +259,20 @@ export default function NuevoPacientePage() {
         </div>
       </form>
     </div>
+    <ConfirmModal
+      isOpen={Boolean(draftNavigationGuard.pendingNavigationHref)}
+      onClose={draftNavigationGuard.clearPendingNavigation}
+      onConfirm={() => {
+        const href = draftNavigationGuard.pendingNavigationHref;
+        draftNavigationGuard.clearPendingNavigation();
+        if (href) router.push(href);
+      }}
+      title="Salir con datos sin guardar"
+      message="Hay datos de paciente sin guardar. Se conservará un borrador cifrado en esta sesión para que puedas recuperarlo."
+      confirmLabel="Salir"
+      cancelLabel="Seguir editando"
+      variant="warning"
+    />
+    </>
   );
 }

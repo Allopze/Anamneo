@@ -239,8 +239,9 @@ export function useEncounterSectionSaveFlow(params: UseEncounterSectionSaveFlowP
   }, [activeSectionKeyRef, formDataRef, isDraftHydrated, lastSavedRef, saveSection]);
 
   useEffect(() => {
+    const timer = saveStatusTimerRef.current;
     return () => {
-      if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+      if (timer) clearTimeout(timer);
     };
   }, []);
 

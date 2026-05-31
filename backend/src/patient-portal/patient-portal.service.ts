@@ -81,6 +81,7 @@ export class PatientPortalService {
       entityId: account.id,
       userId: admin.id,
       action: 'CREATE',
+      reason: 'PATIENT_PORTAL_INVITED',
       diff: { patientId, relationship: dto.relationship, emailDomain: dto.email.split('@')[1] ?? null },
     });
 

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiEdit3, FiFileText, FiSend } from 'react-icons/fi';
 import { notify } from '@/lib/notify';
 import { api, getErrorMessage } from '@/lib/api';
+import ConfirmModal from '@/components/common/ConfirmModal';
 import {
   LEGAL_DOCUMENT_LABELS,
   type LegalDocumentContentJson,
@@ -51,6 +52,7 @@ export default function LegalAdminSection() {
   const [version, setVersion] = useState('');
   const [effectiveAt, setEffectiveAt] = useState('');
   const [contentJsonText, setContentJsonText] = useState('');
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
 
   const documentsQuery = useQuery({
     queryKey: ['legal-admin-documents'],
@@ -153,6 +155,7 @@ export default function LegalAdminSection() {
       return response.data as LegalDocumentPublic;
     },
     onSuccess: async (document) => {
+      setPublishConfirmOpen(false);
       setSelectedDraftId(null);
       await refreshLegalQueries();
       notify.success(`${document.title} publicado.`);
@@ -172,14 +175,11 @@ export default function LegalAdminSection() {
   };
 
   const handlePublish = () => {
-    if (!window.confirm('Publicar este borrador archivará la versión vigente del mismo tipo.')) {
-      return;
-    }
-
-    publishMutation.mutate();
+    setPublishConfirmOpen(true);
   };
 
   return (
+    <>
     <section className="rounded-2xl border border-surface-muted/40 bg-surface-elevated p-4 text-sm text-ink-secondary">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -295,5 +295,19 @@ export default function LegalAdminSection() {
         </p>
       )}
     </section>
+    <ConfirmModal
+      isOpen={publishConfirmOpen}
+      onClose={() => {
+        if (!publishMutation.isPending) setPublishConfirmOpen(false);
+      }}
+      onConfirm={() => publishMutation.mutate()}
+      title="Publicar documento legal"
+      message="Publicar este borrador archivará la versión vigente del mismo tipo. La nueva versión quedará visible para registro, términos y privacidad."
+      confirmLabel="Publicar versión"
+      cancelLabel="Revisar borrador"
+      variant="warning"
+      loading={publishMutation.isPending}
+    />
+    </>
   );
 }
