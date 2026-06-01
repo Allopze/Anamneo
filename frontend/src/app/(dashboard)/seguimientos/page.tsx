@@ -17,7 +17,7 @@ import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 import { useAuthUser } from '@/stores/auth-store';
 import { invalidateDashboardOverviewQueries, invalidateTaskOverviewQueries } from '@/lib/query-invalidation';
 import { notify } from '@/lib/notify';
-import { FiClipboard } from 'react-icons/fi';
+import { TaskIcon } from '@/components/icons';
 import { STATUS_OPTIONS, TYPE_OPTIONS, PRIORITY_OPTIONS } from './seguimientos.helpers';
 import { SeguimientoTaskRow } from './SeguimientoTaskRow';
 
@@ -165,7 +165,7 @@ export default function SeguimientosPage() {
           </div>
         ) : (
           <EmptyState
-            icon={<FiClipboard className="h-6 w-6" aria-hidden="true" />}
+            icon={<TaskIcon className="h-6 w-6" aria-hidden="true" />}
             title="Sin seguimientos visibles"
             description="No hay tareas que coincidan con los filtros actuales. Ajusta estado, tipo o prioridad para revisar otros pendientes."
           />

@@ -47,7 +47,7 @@
   .auth-kicker {
     @apply mb-4 inline-flex rounded-pill border border-white/10 px-3 py-1.5 text-micro font-semibold uppercase tracking-[0.08em];
     background: rgba(214, 221, 72, 0.18);
-    color: #d6dd48;
+    color: var(--auth-lime);
   }
 
   .auth-headline {
@@ -76,7 +76,7 @@
 
   .auth-chip-icon {
     @apply mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center;
-    color: #d6dd48;
+    color: var(--auth-lime);
   }
 
   .auth-chip-title {
@@ -147,12 +147,12 @@
 
   .auth-skeleton {
     @apply rounded-full;
-    background: linear-gradient(90deg, rgba(31, 79, 74, 0.08), rgba(31, 79, 74, 0.15), rgba(31, 79, 74, 0.08));
+    background: linear-gradient(90deg, rgba(var(--auth-teal-shade-rgb), 0.08), rgba(var(--auth-teal-shade-rgb), 0.15), rgba(var(--auth-teal-shade-rgb), 0.08));
     animation: auth-skeleton-pulse 1.5s ease-in-out infinite;
   }
 
   .auth-hero .auth-skeleton {
-    background: linear-gradient(90deg, rgba(159, 198, 189, 0.14), rgba(159, 198, 189, 0.26), rgba(159, 198, 189, 0.14));
+    background: linear-gradient(90deg, rgba(var(--auth-hero-skel-rgb), 0.14), rgba(var(--auth-hero-skel-rgb), 0.26), rgba(var(--auth-hero-skel-rgb), 0.14));
   }
 
   .auth-skeleton-kicker {
@@ -189,7 +189,7 @@
 
   .auth-skeleton-button {
     @apply h-[46px] w-full rounded-pill;
-    background: linear-gradient(90deg, rgba(47, 111, 104, 0.16), rgba(47, 111, 104, 0.28), rgba(47, 111, 104, 0.16));
+    background: linear-gradient(90deg, rgba(var(--auth-teal-deep-rgb), 0.16), rgba(var(--auth-teal-deep-rgb), 0.28), rgba(var(--auth-teal-deep-rgb), 0.16));
   }
 
   @keyframes auth-skeleton-pulse {
@@ -216,12 +216,12 @@
   }
 
   .auth-card .btn-accent {
-    background: #d6dd48;
+    background: var(--auth-lime);
     border: 1px solid rgba(43, 43, 43, 0.08);
   }
 
   .auth-card .btn-accent:hover {
-    background: #c9d43a;
+    background: var(--auth-lime-hover);
   }
 
   .auth-password-toggle {
@@ -296,5 +296,5 @@
 
   .auth-shell-login-compact {
     @apply lg:grid-cols-[0.76fr,1.24fr];
-    background: #f6f7f4;
+    background: var(--auth-bg-panel);
   }

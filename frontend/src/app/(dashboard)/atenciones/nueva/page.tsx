@@ -132,7 +132,7 @@ export default function NuevaAtencionPage() {
           <div className="mb-4 rounded-card border border-accent/25 bg-accent-soft/40 p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="text-micro uppercase tracking-wide text-ink-muted">Checklist pre-consulta</p>
+                <p className="text-micro text-ink-muted">Checklist pre-consulta</p>
                 <h2 className="text-lg font-semibold text-ink-primary">{selectedPatient.nombre}</h2>
                 <p className="text-sm text-ink-secondary">{patientRutLabel}</p>
               </div>

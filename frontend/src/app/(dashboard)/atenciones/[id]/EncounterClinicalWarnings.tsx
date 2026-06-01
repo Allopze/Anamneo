@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { FiAlertOctagon } from 'react-icons/fi';
+import { ClinicalAlertIcon } from '@/components/icons';
 
 type Allergy = { id: string; allergen: string; severity: string };
 
@@ -19,9 +19,11 @@ function AllergyBanner({ patientId }: { patientId: string }) {
   );
   if (severe.length === 0) return null;
 
+  const severity = severe.some((a) => a.severity === 'FATAL') ? 'fatal' : 'grave';
+
   return (
     <div className="flex items-start gap-2 rounded-card border border-status-red/40 bg-status-red/10 px-4 py-3 text-sm text-status-red" role="alert">
-      <FiAlertOctagon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+      <ClinicalAlertIcon severity={severity} className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
       <p>
         <strong>Alerta de alergias:</strong>{' '}
         {severe.map((a) => `${a.allergen} (${a.severity.toLowerCase()})`).join(', ')}.{' '}

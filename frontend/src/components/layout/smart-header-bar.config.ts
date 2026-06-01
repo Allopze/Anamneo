@@ -4,8 +4,8 @@ import {
   FiCheckCircle,
   FiXCircle,
   FiUsers,
-  FiClipboard,
 } from 'react-icons/fi';
+import { TaskIcon } from '@/components/icons';
 
 /* ─── Types ───────────────────────────────────────────────── */
 
@@ -93,7 +93,7 @@ export function getChipsForRoute(
         label: 'Tareas vencidas',
         value: counts.overdueTasks,
         href: '/seguimientos?overdueOnly=true',
-        icon: FiClipboard,
+        icon: TaskIcon,
         tone: 'text-ink-secondary',
         alertTone: counts.overdueTasks > 0 ? 'text-status-red-text' : undefined,
       },
@@ -175,7 +175,7 @@ export function getChipsForRoute(
         label: 'Pendientes',
         value: counts.upcomingTasks,
         href: '/seguimientos?status=PENDIENTE',
-        icon: FiClipboard,
+        icon: TaskIcon,
         tone: 'text-accent-text',
       },
       {

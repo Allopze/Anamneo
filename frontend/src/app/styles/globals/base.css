@@ -18,6 +18,24 @@
   --status-yellow: #E5D86A;
   --status-green: #96B38A;
   --auth-teal: #0d9488;
+  /* Tema auth (variante login/register): paleta teal+beige documentada.
+     No agregar nuevos hex en auth/*.css; reusar estos tokens. */
+  --auth-bg-hero: #e8e4d8;
+  --auth-bg-panel: #f6f7f4;
+  --auth-ink: #1e2826;
+  --auth-ink-muted: #4e5b58;
+  --auth-kicker: #5d6c69;
+  --auth-placeholder: #717d7a;
+  --auth-link: #235f58;
+  --auth-link-hover: #1c4944;
+  --auth-accent-strong: #1f4f4a;
+  --auth-accent-hover: #285e58;
+  --auth-lime: #d6dd48;
+  --auth-lime-hover: #c9d43a;
+  /* Triples RGB para superficies/bordes/skeleton con alpha */
+  --auth-teal-shade-rgb: 31, 79, 74;
+  --auth-teal-deep-rgb: 47, 111, 104;
+  --auth-hero-skel-rgb: 159, 198, 189;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }

@@ -134,15 +134,11 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
 
   return (
     <div className={clsx('smart-header-bar', className)} role="region" aria-label="Indicadores y acciones rápidas">
-      {/* ── Left: contextual KPI chips ────────── */}
+      {/* ── Left: contextual KPI chips (zona informativa) ────────── */}
+      <div className={clsx('smart-header-kpis', contextSlot ? 'flex-none' : 'flex-1')}>
 
       {/* Mobile compact */}
-      <div
-        className={clsx(
-          'flex md:hidden items-center gap-2 min-w-0 overflow-x-auto',
-          contextSlot ? 'flex-none' : 'flex-1',
-        )}
-      >
+      <div className="flex md:hidden items-center gap-2 min-w-0 overflow-x-auto">
         {showSkeleton ? (
           <div className="h-5 w-32 skeleton rounded-lg" />
         ) : isError && !isCatalogRoute ? (
@@ -172,12 +168,7 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
       </div>
 
       {/* Desktop KPI chips */}
-      <div
-        className={clsx(
-          'hidden md:flex items-center gap-2 min-w-0 flex-wrap',
-          contextSlot ? 'flex-none' : 'flex-1',
-        )}
-      >
+      <div className="hidden md:flex items-center gap-2 min-w-0 flex-wrap">
         {showSkeleton ? (
           <div className="h-7 w-48 skeleton rounded-pill" />
         ) : isError && !isCatalogRoute ? (
@@ -207,6 +198,8 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
           })
         )}
       </div>
+      </div>
+      {/* fin zona informativa (smart-header-kpis) */}
 
       {contextSlot ? (
         <div className="smart-header-context-slot">
@@ -214,7 +207,10 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
         </div>
       ) : null}
 
-      {/* ── Right: actions ────────────────────── */}
+      {/* Divisor: separa informacion (KPIs/context) de acciones globales */}
+      <div className="smart-header-divider" aria-hidden="true" />
+
+      {/* ── Right: actions (zona de acciones globales) ────────────── */}
       <div className="smart-header-actions">
         {/* Search trigger */}
         <Tooltip label={`Buscar (${shortcutHint})`} side="bottom">

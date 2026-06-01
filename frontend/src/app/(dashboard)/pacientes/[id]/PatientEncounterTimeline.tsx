@@ -3,12 +3,11 @@ import clsx from 'clsx';
 import {
   FiCalendar,
   FiChevronRight,
-  FiClipboard,
   FiClock,
   FiEye,
   FiPlus,
 } from 'react-icons/fi';
-import { FichaIcon } from '@/components/icons';
+import { FichaIcon, TaskIcon } from '@/components/icons';
 import { EmptyState } from '@/components/common/EmptyState';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -149,7 +148,7 @@ export default function PatientEncounterTimeline({
                               key={task.id}
                               className="rounded-full border border-status-yellow/60 bg-status-yellow/30 px-2 py-1 text-accent-text"
                             >
-                              <FiClipboard className="mr-1 inline-block h-3 w-3" />
+                              <TaskIcon className="mr-1 inline-block h-3 w-3" />
                               {task.title}
                             </span>
                           ))}

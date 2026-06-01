@@ -67,7 +67,7 @@ export default function RevokeConsentModal({
         </div>
 
         <div className="mt-4 rounded-card border border-status-red/20 bg-status-red/5 p-3 text-xs space-y-1">
-          <p className="font-semibold text-[11px] uppercase tracking-wide text-status-red">
+          <p className="font-semibold text-[11px] text-status-red">
             Acto legal que se revoca
           </p>
           <p className="text-ink-primary">

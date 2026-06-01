@@ -131,7 +131,7 @@ export default function MedicationsCatalogSection() {
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/catalogo/medicamentos/${medication.id}`}
-                          className="rounded-lg p-2 text-ink-muted opacity-0 transition-[background-color,color,opacity] hover:bg-accent/10 hover:text-accent group-hover:opacity-100"
+                          className="section-icon-button rounded-lg opacity-0 transition-[background-color,color,opacity] hover:bg-accent/10 hover:text-accent group-hover:opacity-100"
                         >
                           <FiEdit2 className="h-4 w-4" />
                         </Link>

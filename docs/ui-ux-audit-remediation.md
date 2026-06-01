@@ -595,6 +595,34 @@ git diff --check
 
 Resultado: typecheck limpio, 72 suites / 349 tests, build exitoso, diff-check limpio.
 
+## Registro de remediacion ejecutada — sexta pasada (2026-06-01)
+
+Cierre de la deuda UI/UX codeable restante. Decisiones de producto previas: incluir emails (backend acotado), crear ambos iconos, y separacion estructural del smart header.
+
+### Items cerrados
+
+1. **Auth — colores hardcoded a tokens** (P1 / P2 hardcoded auth): `frontend/src/app/styles/auth/base.css` y `auth/compact.css` ya no contienen hex de la paleta paralela ni rgba teal crudos. Se promovieron a custom properties `--auth-*` declaradas en `globals/base.css` (`:root`) y documentadas en `docs/design-tokens-anamneo.md` (sub-seccion "Tema auth"). Regla: no nuevos hex en `auth/*.css`.
+
+2. **Emails — modulo de tema compartido** (P1 portal/theming, alcance backend acotado): nuevo `backend/src/mail/mail-theme.ts` con `MAIL_COLORS` (neutral/teal/error). Reemplazados los hex inline en `mail-auth-templates.ts`, `mail-notification-templates.ts` y `mail.service.ts`. Valores identicos a los previos: sin cambio visual de los correos.
+
+3. **Smart header — separacion estructural** (P2 header sobredecorado): `SmartHeaderBar.tsx` envuelve los KPIs en `.smart-header-kpis` e introduce `.smart-header-divider` (hairline `md:` arriba) entre la zona informativa y la zona de acciones globales. CSS en `dashboard.css`.
+
+4. **Targets 44px — controles interactivos** (P2 targets tactiles): elevados los unicos clickeables que incumplian — links "Ver atencion"/"Ver paciente" en `AnalyticsCasesTable.tsx` (`min-h-11`) y botones de editar de catalogo (`ConditionsCatalogSection`, `MedicationsCatalogSection`) migrados a `.section-icon-button` (44x44). Los badges **no interactivos** (severidad, % completitud, sinonimos, scope, alert count) quedan **exentos por diseno** segun la propia guia del audit.
+
+5. **All-caps — sentence case dirigido** (P3 all-caps): convertidos en `EncounterClinicalSummaryCard`, `ficha/FichaTreatmentSections` (x2), `DashboardOperationalChecks`, `admin/auditoria/AuditIntegrityCard`, `atenciones/nueva/page`, `editar/EditarPacienteFormSections` (x3) y `RevokeConsentModal`. Conservados: codigos TOTP, weekday headers de calendario y rank badges.
+
+6. **Iconografia — ambos iconos** (P2 iconografia): nuevo `TaskIcon` (portapapeles+check) reemplaza `FiClipboard` en seguimientos/tareas (`dashboard-nav.constants`, `smart-header-bar.config` x2, `seguimientos/page`, `PatientEncounterTimeline`). `ClinicalAlertIcon` gana prop opcional `severity: 'grave' | 'fatal'` con gradiente on-palette, cableada en los banners/badges de alergia GRAVE/FATAL (`EncounterClinicalWarnings`, `PatientDetailHeader`). Doc en `docs/iconography.md`.
+
+### Validacion ejecutada
+
+```bash
+npm --prefix frontend run typecheck
+npm --prefix frontend run test -- --runInBand
+npm --prefix frontend run build
+npm --prefix backend run build
+git diff --check
+```
+
 ## Pendientes finales (2026-05-29)
 
 **Bloqueados — sin codigo posible hasta desbloquear:**
@@ -603,10 +631,10 @@ Resultado: typecheck limpio, 72 suites / 349 tests, build exitoso, diff-check li
 
 8. **Codigos de error de dominio**: bloqueado hasta que el backend exponga campo `code` estable en el body de error. Con catalogo de codigos, mapear en `frontend/src/lib/api.ts` (`getErrorMessage`) segun tabla de microcopy de este documento.
 
-**Opcionales de segunda iteracion (requieren decision de diseno antes de codificar):**
+**Opcionales de segunda iteracion (cerrados en la sexta pasada, 2026-06-01):**
 
-- Ampliar set de iconos de identidad: reemplazar `FiClipboard` en cabeceras de atencion y `FiFileText` en ficha clinica por iconos propios. Requiere crear 2 nuevos SVG y decidir el nivel de identidad deseado.
-- Decidir si `FiAlertTriangle` en alertas clinicas criticas tiene variante propia con gradiente visual de severidad. Requiere decision de diseno.
+- ~~Ampliar set de iconos de identidad: reemplazar `FiClipboard` por icono propio~~ → hecho: `TaskIcon` cableado en seguimientos/tareas. (`FiFileText` en ficha ya no aplicaba: la ficha usa `FichaIcon`.)
+- ~~Decidir si las alertas clinicas criticas tienen variante propia con gradiente de severidad~~ → hecho: `ClinicalAlertIcon` con prop `severity` en banners GRAVE/FATAL.
 
 **Manual (no codeable):**
 

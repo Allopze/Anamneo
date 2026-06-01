@@ -69,7 +69,7 @@ export default function AuditIntegrityCard() {
     <div className="rounded-card border border-surface-muted/40 bg-surface-elevated p-4 shadow-soft">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Integridad de auditoría</p>
+          <p className="text-xs font-semibold text-ink-muted">Integridad de auditoría</p>
           <h2 className="mt-2 text-lg font-bold text-ink-primary">
             {!hasSnapshot ? 'Integridad pendiente' : valid ? 'Cadena íntegra' : 'Cadena con quiebre detectado'}
           </h2>

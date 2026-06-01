@@ -14,4 +14,5 @@ export { LockIcon } from './LockIcon';
 export { ActivityIcon } from './ActivityIcon';
 export { EncounterIcon } from './EncounterIcon';
 export { FichaIcon } from './FichaIcon';
+export { TaskIcon } from './TaskIcon';
 export { ClinicalAlertIcon } from './ClinicalAlertIcon';

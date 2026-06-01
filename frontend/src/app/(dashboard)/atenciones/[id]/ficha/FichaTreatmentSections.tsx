@@ -137,7 +137,7 @@ export function TreatmentResponseSection({ respuestaTratamiento }: { respuestaTr
         {respuestaTratamiento.planSeguimiento ? <p><strong>Plan de seguimiento:</strong> {respuestaTratamiento.planSeguimiento}</p> : null}
         {respuestaTratamiento.respuestaEstructurada ? (
           <div className="rounded-card border border-surface-muted/30 bg-surface-base/50 px-4 py-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Desenlace estructurado</p>
+            <p className="mb-2 text-xs font-semibold text-ink-muted">Desenlace estructurado</p>
             {respuestaTratamiento.respuestaEstructurada.estado ? (
               <p>
                 <strong>Estado:</strong>{' '}
@@ -170,7 +170,7 @@ export function ObservationsSection({ observaciones }: { observaciones: any }) {
       <h2 className="ficha-section-heading">10. Observaciones</h2>
       {observaciones.resumenClinico ? (
         <div className="mb-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Resumen longitudinal</p>
+          <p className="text-xs font-semibold text-ink-muted">Resumen longitudinal</p>
           <p className="text-sm whitespace-pre-wrap">{observaciones.resumenClinico}</p>
         </div>
       ) : null}

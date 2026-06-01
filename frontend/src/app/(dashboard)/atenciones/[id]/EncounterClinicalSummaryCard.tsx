@@ -38,7 +38,7 @@ export default function EncounterClinicalSummaryCard({ patientId, patient }: Enc
       <div className="border-b border-surface-muted/35 px-5 py-4 sm:px-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-ink-muted">Resumen clínico fijo</h2>
+            <h2 className="text-sm font-semibold text-ink-muted">Resumen clínico fijo</h2>
             <p className="mt-1 text-sm text-ink-secondary">
               Lectura rápida del contexto más relevante antes de seguir editando la atención.
             </p>

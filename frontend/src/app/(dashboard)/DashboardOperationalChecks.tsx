@@ -79,7 +79,7 @@ export default function DashboardOperationalChecks() {
     <section className="rounded-card bg-surface-elevated p-5 shadow-soft">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Chequeos operativos</p>
+          <p className="text-xs font-semibold text-ink-muted">Chequeos operativos</p>
           <h2 className="mt-2 text-xl font-bold text-ink">Backup y restore drill</h2>
           <p className="mt-1 text-sm text-ink-secondary">
             Resumen visible de PostgreSQL para no depender sólo de scripts o del tab de sistema.

@@ -1,22 +1,22 @@
 
   @media (min-width: 1024px) {
     .auth-shell-login-compact {
-      background: linear-gradient(90deg, #e8e4d8 0 38%, #f6f7f4 38% 100%);
+      background: linear-gradient(90deg, var(--auth-bg-hero) 0 38%, var(--auth-bg-panel) 38% 100%);
     }
   }
 
   .auth-shell-login-compact::before {
     background-image:
-      linear-gradient(rgba(31, 79, 74, 0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(31, 79, 74, 0.04) 1px, transparent 1px);
+      linear-gradient(rgba(var(--auth-teal-shade-rgb), 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(var(--auth-teal-shade-rgb), 0.04) 1px, transparent 1px);
     -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.32), transparent 72%);
     mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.32), transparent 72%);
   }
 
   .auth-shell-login-compact .auth-hero {
     @apply px-5 py-5 sm:px-8 sm:py-9 lg:px-14;
-    background: #e8e4d8;
-    color: #1e2826;
+    background: var(--auth-bg-hero);
+    color: var(--auth-ink);
   }
 
   .auth-shell-login-compact .auth-hero-panel {
@@ -30,12 +30,12 @@
 
   .auth-shell-login-compact .auth-headline {
     @apply text-[1.65rem] font-bold sm:text-[2.45rem];
-    color: #1e2826;
+    color: var(--auth-ink);
   }
 
   .auth-shell-login-compact .auth-hero-description {
     @apply mt-4 hidden max-w-md text-[0.96rem] leading-7 sm:block;
-    color: #4e5b58;
+    color: var(--auth-ink-muted);
   }
 
   .auth-shell-login-compact .auth-chip-band {
@@ -45,28 +45,28 @@
   .auth-shell-login-compact .auth-chip {
     @apply rounded-2xl border px-4 py-4;
     background: rgba(255, 255, 255, 0.55);
-    border-color: rgba(31, 79, 74, 0.14);
-    color: #1e2826;
+    border-color: rgba(var(--auth-teal-shade-rgb), 0.14);
+    color: var(--auth-ink);
   }
 
   .auth-shell-login-compact .auth-chip-icon {
     @apply h-10 w-10 rounded-full;
-    background: rgba(47, 111, 104, 0.12);
+    background: rgba(var(--auth-teal-deep-rgb), 0.12);
     color: var(--auth-teal);
   }
 
   .auth-shell-login-compact .auth-chip-title {
     @apply text-sm;
-    color: #1e2826;
+    color: var(--auth-ink);
   }
 
   .auth-shell-login-compact .auth-chip-copy {
-    color: #4e5b58;
+    color: var(--auth-ink-muted);
   }
 
   .auth-shell-login-compact .auth-hero-footer {
     @apply mt-5 max-w-md border-t pt-5;
-    border-color: rgba(31, 79, 74, 0.16);
+    border-color: rgba(var(--auth-teal-shade-rgb), 0.16);
   }
 
   .auth-shell-login-compact .auth-help {
@@ -75,7 +75,7 @@
 
   .auth-shell-login-compact .auth-help-title,
   .auth-shell-login-compact .auth-help-copy {
-    color: #4e5b58;
+    color: var(--auth-ink-muted);
   }
 
   .auth-shell-login-compact .auth-panel {
@@ -84,7 +84,7 @@
 
   .auth-shell-login-compact .auth-card {
     @apply max-w-[29rem] rounded-2xl border bg-white p-5 shadow-elevated sm:p-8;
-    border-color: rgba(31, 79, 74, 0.12);
+    border-color: rgba(var(--auth-teal-shade-rgb), 0.12);
   }
 
   .auth-shell-login-compact .auth-card-header {
@@ -116,37 +116,37 @@
 
   .auth-shell-login-compact .auth-card-kicker {
     @apply text-[0.72rem];
-    color: #5d6c69;
+    color: var(--auth-kicker);
   }
 
   .auth-shell-login-compact .auth-card-title {
     @apply text-[1.75rem];
-    color: #1e2826;
+    color: var(--auth-ink);
   }
 
   .auth-shell-login-compact .auth-card-description,
   .auth-shell-login-compact .form-label,
   .auth-shell-login-compact .auth-card-footer {
-    color: #4e5b58;
+    color: var(--auth-ink-muted);
   }
 
   .auth-shell-login-compact .auth-card-footer {
     @apply border-t pt-5;
-    border-color: rgba(31, 79, 74, 0.12);
+    border-color: rgba(var(--auth-teal-shade-rgb), 0.12);
   }
 
   .auth-shell-login-compact .form-input {
     @apply border bg-white text-ink shadow-none;
-    border-color: rgba(31, 79, 74, 0.18);
+    border-color: rgba(var(--auth-teal-shade-rgb), 0.18);
   }
 
   .auth-shell-login-compact .form-input::placeholder {
-    color: #717d7a;
+    color: var(--auth-placeholder);
   }
 
   .auth-shell-login-compact .form-input:focus {
     border-color: var(--auth-teal);
-    box-shadow: 0 0 0 3px rgba(47, 111, 104, 0.18);
+    box-shadow: 0 0 0 3px rgba(var(--auth-teal-deep-rgb), 0.18);
   }
 
   .auth-shell-login-compact .btn-accent {
@@ -156,20 +156,20 @@
   }
 
   .auth-shell-login-compact .btn-accent:hover {
-    background: #285e58;
+    background: var(--auth-accent-hover);
   }
 
   .auth-shell-login-compact .btn-secondary {
     @apply bg-white;
-    border-color: rgba(31, 79, 74, 0.18);
+    border-color: rgba(var(--auth-teal-shade-rgb), 0.18);
   }
 
   .auth-shell-login-compact .auth-inline-link {
-    color: #235f58;
+    color: var(--auth-link);
   }
 
   .auth-shell-login-compact .auth-inline-link:hover {
-    color: #1c4944;
+    color: var(--auth-link-hover);
   }
 
   .auth-field-row {
@@ -186,14 +186,14 @@
 
   .auth-shell-login-compact .auth-badge-accent,
   .auth-shell-login-compact .auth-step-active {
-    border-color: rgba(47, 111, 104, 0.22);
-    background: rgba(47, 111, 104, 0.1);
-    color: #1f4f4a;
+    border-color: rgba(var(--auth-teal-deep-rgb), 0.22);
+    background: rgba(var(--auth-teal-deep-rgb), 0.1);
+    color: var(--auth-accent-strong);
   }
 
   .auth-shell-login-compact .auth-step-done {
-    border-color: rgba(47, 111, 104, 0.18);
-    background: rgba(47, 111, 104, 0.08);
+    border-color: rgba(var(--auth-teal-deep-rgb), 0.18);
+    background: rgba(var(--auth-teal-deep-rgb), 0.08);
   }
 
   .legal-checkbox {
@@ -202,7 +202,7 @@
     -moz-appearance: none;
     appearance: none;
     border-radius: 9999px;
-    border: 1.5px solid rgba(47, 111, 104, 0.45);
+    border: 1.5px solid rgba(var(--auth-teal-deep-rgb), 0.45);
     padding: 0;
     margin: 0;
   }
@@ -221,7 +221,7 @@
   }
 
   .legal-checkbox:focus-visible {
-    outline: 2px solid rgba(47, 111, 104, 0.35);
+    outline: 2px solid rgba(var(--auth-teal-deep-rgb), 0.35);
     outline-offset: 2px;
   }
 
@@ -232,9 +232,9 @@
 
   .auth-role-pill {
     @apply inline-flex items-center gap-2 rounded-pill px-4 py-2 text-sm font-semibold;
-    border: 1px solid rgba(47, 111, 104, 0.25);
-    background: rgba(47, 111, 104, 0.08);
-    color: #1c4944;
+    border: 1px solid rgba(var(--auth-teal-deep-rgb), 0.25);
+    background: rgba(var(--auth-teal-deep-rgb), 0.08);
+    color: var(--auth-link-hover);
   }
 
   .auth-role-pill-icon {

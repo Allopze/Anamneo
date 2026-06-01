@@ -45,6 +45,29 @@ status-green-text:  #1A5D38   // Texto verde para contraste
 auth-teal:          #0D9488   // Acento operativo usado por auth y portal
 ```
 
+### Tema auth (variante login/register)
+
+Las pantallas de auth usan una variante intencional teal+beige, distinta del sistema principal. Sus colores viven como custom properties en `globals/base.css` (`:root`) y se consumen desde `app/styles/auth/*.css`. **Regla: no agregar nuevos hex en `auth/*.css`; reusar estos tokens** (o `auth-teal` cuando aplique).
+
+```
+--auth-bg-hero:        #e8e4d8   // Fondo de la columna hero (beige)
+--auth-bg-panel:       #f6f7f4   // Fondo de la columna del formulario
+--auth-ink:            #1e2826   // Texto principal sobre beige
+--auth-ink-muted:      #4e5b58   // Texto secundario/descriptivo
+--auth-kicker:         #5d6c69   // Label pequeno sobre titulo
+--auth-placeholder:    #717d7a   // Placeholder de inputs
+--auth-link:           #235f58   // Links inline
+--auth-link-hover:     #1c4944   // Hover de links / texto en pills de rol
+--auth-accent-strong:  #1f4f4a   // Badges / steps activos
+--auth-accent-hover:   #285e58   // Hover del boton acento (teal)
+--auth-lime:           #d6dd48   // Acento lime de la card (hero oscuro)
+--auth-lime-hover:     #c9d43a   // Hover del acento lime
+// Triples RGB para superficies/bordes/skeleton con alpha:
+--auth-teal-shade-rgb: 31, 79, 74      // bordes y grid sutil
+--auth-teal-deep-rgb:  47, 111, 104    // focus, badges, steps, checkbox
+--auth-hero-skel-rgb:  159, 198, 189   // gradiente de skeleton del hero
+```
+
 ## Radios de Borde
 
 ```

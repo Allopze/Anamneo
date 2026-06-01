@@ -14,6 +14,7 @@ import {
   type MailSettingsOverrides,
 } from './mail-helpers';
 import { buildDefaultInvitationHtml, buildPasswordResetEmail } from './mail-auth-templates';
+import { MAIL_COLORS } from './mail-theme';
 import { resolveMailSettings as resolveConfiguredMailSettings } from './mail-settings-resolver';
 import {
   buildBreachNotificationEmail,
@@ -68,7 +69,7 @@ export class MailService {
       ? `Medico asignado: ${payload.assignedMedicoName}`
       : null;
     const assignedMedicoSection = payload.assignedMedicoName
-      ? `<p style="margin:0 0 12px; color:#475569;">Medico asignado: <strong>${escapeHtml(payload.assignedMedicoName)}</strong></p>`
+      ? `<p style="margin:0 0 12px; color:${MAIL_COLORS.neutral.body};">Medico asignado: <strong>${escapeHtml(payload.assignedMedicoName)}</strong></p>`
       : '';
     const expirationLabel = payload.expiresAt.toLocaleString('es-CL', {
       dateStyle: 'short',

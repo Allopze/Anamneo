@@ -97,7 +97,10 @@ export default function PatientDetailHeader({ patient, pd }: Props) {
                     className="inline-flex items-center gap-1 rounded-full border border-status-red/40 bg-status-red/15 px-2 py-0.5 font-semibold text-status-red"
                     title={criticalAllergies.map((a) => `${a.allergen} (${a.severity.toLowerCase()})`).join(', ')}
                   >
-                    <ClinicalAlertIcon className="h-3 w-3" />
+                    <ClinicalAlertIcon
+                      severity={criticalAllergies.some((a) => a.severity === 'FATAL') ? 'fatal' : 'grave'}
+                      className="h-3 w-3"
+                    />
                     Alergia{criticalAllergies.length > 1 ? 's' : ''} {criticalAllergies.length > 1 ? `graves (${criticalAllergies.length})` : `grave: ${criticalAllergies[0].allergen}`}
                   </span>
                 )}

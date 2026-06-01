@@ -1,4 +1,5 @@
 import { escapeHtml } from './mail-helpers';
+import { MAIL_COLORS } from './mail-theme';
 type RenderedEmail = {
   subject: string;
   text: string;
@@ -78,14 +79,14 @@ export function buildDataRequestAcknowledgementEmail(
     '',
     'Si no realizaste esta solicitud, escríbenos de inmediato.',
   ].join('\n');
-  const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+  const html = `<div style="font-family:Arial,sans-serif;color:${MAIL_COLORS.neutral.ink};line-height:1.5;">
     <h2>Acuse de recibo</h2>
     <p>Hola ${escapeHtml(payload.requesterName)},</p>
     <p>Recibimos tu solicitud de tipo <strong>${escapeHtml(payload.requestType)}</strong> bajo la Ley 21.719.</p>
     <p>Número de seguimiento interno: <code>${escapeHtml(payload.requestId)}</code></p>
     <p>Plazo legal de respuesta: <strong>${escapeHtml(formatDateCL(payload.dueDate))}</strong> (30 días corridos, Art 11).</p>
     <p>Verificaremos tu identidad y responderemos dentro del plazo.</p>
-    <p style="color:#64748b;font-size:13px;">Si no realizaste esta solicitud, escríbenos de inmediato.</p>
+    <p style="color:${MAIL_COLORS.neutral.muted};font-size:13px;">Si no realizaste esta solicitud, escríbenos de inmediato.</p>
   </div>`;
   return { subject, text, html };
 }
@@ -101,7 +102,7 @@ export function buildDataRequestResolvedEmail(payload: DataRequestResolvedPayloa
     '',
     'Si necesitas aclaraciones, responde a este correo.',
   ].join('\n');
-  const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+  const html = `<div style="font-family:Arial,sans-serif;color:${MAIL_COLORS.neutral.ink};line-height:1.5;">
     <h2>Resolución aceptada</h2>
     <p>Hola ${escapeHtml(payload.requesterName)},</p>
     <p>Hemos resuelto favorablemente tu solicitud de tipo <strong>${escapeHtml(payload.requestType)}</strong>.</p>
@@ -122,13 +123,13 @@ export function buildDataRequestRejectedEmail(payload: DataRequestRejectedPayloa
     '',
     'Puedes reclamar esta decisión ante la Agencia de Protección de Datos Personales (Art 11 inciso final, Art 41 Ley 21.719).',
   ].join('\n');
-  const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+  const html = `<div style="font-family:Arial,sans-serif;color:${MAIL_COLORS.neutral.ink};line-height:1.5;">
     <h2>Resolución no acogida</h2>
     <p>Hola ${escapeHtml(payload.requesterName)},</p>
     <p>Tras revisión, no podemos acoger tu solicitud de tipo <strong>${escapeHtml(payload.requestType)}</strong>.</p>
     <p><strong>Motivo fundado:</strong></p>
     <p style="white-space:pre-line;">${escapeHtml(payload.reason)}</p>
-    <p style="color:#64748b;font-size:13px;">Puedes reclamar esta decisión ante la Agencia de Protección de Datos Personales (Art 41 Ley 21.719).</p>
+    <p style="color:${MAIL_COLORS.neutral.muted};font-size:13px;">Puedes reclamar esta decisión ante la Agencia de Protección de Datos Personales (Art 41 Ley 21.719).</p>
   </div>`;
   return { subject, text, html };
 }
@@ -143,7 +144,7 @@ export function buildDataRequestExtendedEmail(payload: DataRequestExtendedPayloa
     'Motivo de la prórroga:',
     payload.reason,
   ].join('\n');
-  const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+  const html = `<div style="font-family:Arial,sans-serif;color:${MAIL_COLORS.neutral.ink};line-height:1.5;">
     <h2>Prórroga aplicada</h2>
     <p>Hola ${escapeHtml(payload.requesterName)},</p>
     <p>Extendemos por 30 días corridos adicionales (Art 11) el plazo para responder a tu solicitud de tipo <strong>${escapeHtml(payload.requestType)}</strong>.</p>
@@ -165,15 +166,15 @@ export function buildDataRequestExportLinkEmail(payload: DataRequestExportLinkPa
     'Por seguridad, la descarga solicitará el RUT asociado a la solicitud.',
     'Si no solicitaste esta copia, responde a este correo de inmediato.',
   ].join('\n');
-  const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+  const html = `<div style="font-family:Arial,sans-serif;color:${MAIL_COLORS.neutral.ink};line-height:1.5;">
     <h2>Descarga segura de ficha clínica</h2>
     <p>Hola ${escapeHtml(payload.requesterName)},</p>
     <p>Tu copia de ficha clínica está disponible mediante un enlace temporal.</p>
-    <p><a href="${escapeHtml(payload.downloadUrl)}" style="display:inline-block; padding:12px 20px; border-radius:999px; background:#0f766e; color:#ffffff; text-decoration:none; font-weight:600;">Descargar ficha clínica</a></p>
+    <p><a href="${escapeHtml(payload.downloadUrl)}" style="display:inline-block; padding:12px 20px; border-radius:999px; background:${MAIL_COLORS.teal.cta}; color:${MAIL_COLORS.teal.onCta}; text-decoration:none; font-weight:600;">Descargar ficha clínica</a></p>
     <p>Vence: <strong>${escapeHtml(formatDateCL(payload.expiresAt))}</strong>.</p>
     <p>Máximo de descargas: <strong>${payload.maxDownloads}</strong>.</p>
-    <p style="margin:8px 0 0; color:#0f172a; font-size:14px; word-break:break-all;">${escapeHtml(payload.downloadUrl)}</p>
-    <p style="color:#64748b;font-size:13px;">Por seguridad, la descarga solicitará el RUT asociado a la solicitud. Si no solicitaste esta copia, responde a este correo de inmediato.</p>
+    <p style="margin:8px 0 0; color:${MAIL_COLORS.neutral.ink}; font-size:14px; word-break:break-all;">${escapeHtml(payload.downloadUrl)}</p>
+    <p style="color:${MAIL_COLORS.neutral.muted};font-size:13px;">Por seguridad, la descarga solicitará el RUT asociado a la solicitud. Si no solicitaste esta copia, responde a este correo de inmediato.</p>
   </div>`;
   return { subject, text, html };
 }
@@ -188,13 +189,13 @@ export function buildPatientPortalInviteEmail(payload: PatientPortalInvitePayloa
     '',
     'Si no esperabas esta invitación, ignora este correo y avisa a la clínica.',
   ].join('\n');
-  const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+  const html = `<div style="font-family:Arial,sans-serif;color:${MAIL_COLORS.neutral.ink};line-height:1.5;">
     <h2>Invitación al portal paciente</h2>
     <p>Se creó una invitación para acceder al portal paciente de <strong>${escapeHtml(payload.patientName)}</strong>.</p>
-    <p><a href="${escapeHtml(payload.activationUrl)}" style="display:inline-block; padding:12px 20px; border-radius:999px; background:#0f766e; color:#ffffff; text-decoration:none; font-weight:600;">Activar cuenta</a></p>
+    <p><a href="${escapeHtml(payload.activationUrl)}" style="display:inline-block; padding:12px 20px; border-radius:999px; background:${MAIL_COLORS.teal.cta}; color:${MAIL_COLORS.teal.onCta}; text-decoration:none; font-weight:600;">Activar cuenta</a></p>
     <p>El enlace vence: <strong>${escapeHtml(formatDateCL(payload.expiresAt))}</strong>.</p>
     <p style="word-break:break-all;">${escapeHtml(payload.activationUrl)}</p>
-    <p style="color:#64748b;font-size:13px;">Si no esperabas esta invitación, ignora este correo y avisa a la clínica.</p>
+    <p style="color:${MAIL_COLORS.neutral.muted};font-size:13px;">Si no esperabas esta invitación, ignora este correo y avisa a la clínica.</p>
   </div>`;
   return { subject, text, html };
 }
@@ -211,10 +212,10 @@ export function buildPatientPortalPasswordResetEmail(
     '',
     'Si no solicitaste este cambio, ignora este correo.',
   ].join('\n');
-  const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">
+  const html = `<div style="font-family:Arial,sans-serif;color:${MAIL_COLORS.neutral.ink};line-height:1.5;">
     <h2>Restablecer contraseña</h2>
     <p>Recibimos una solicitud para restablecer tu contraseña del portal paciente.</p>
-    <p><a href="${escapeHtml(payload.resetUrl)}" style="display:inline-block; padding:12px 20px; border-radius:999px; background:#0f766e; color:#ffffff; text-decoration:none; font-weight:600;">Restablecer contraseña</a></p>
+    <p><a href="${escapeHtml(payload.resetUrl)}" style="display:inline-block; padding:12px 20px; border-radius:999px; background:${MAIL_COLORS.teal.cta}; color:${MAIL_COLORS.teal.onCta}; text-decoration:none; font-weight:600;">Restablecer contraseña</a></p>
     <p>Vence: <strong>${escapeHtml(formatDateCL(payload.expiresAt))}</strong>.</p>
     <p style="word-break:break-all;">${escapeHtml(payload.resetUrl)}</p>
   </div>`;
@@ -270,10 +271,10 @@ export function buildBreachNotificationEmail(payload: BreachNotificationPayload)
     '',
     followUpLine,
   ].join('\n');
-  const html = `<div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.55;">
-    <h2 style="color:#b91c1c;">Notificación obligatoria — incidente de seguridad</h2>
+  const html = `<div style="font-family:Arial,sans-serif;color:${MAIL_COLORS.neutral.ink};line-height:1.55;">
+    <h2 style="color:${MAIL_COLORS.error.heading};">Notificación obligatoria — incidente de seguridad</h2>
     <p>Estimado(a) ${escapeHtml(payload.subjectName)},</p>
-    <p style="font-size:13px;color:#475569;">${escapeHtml(responsableLine)}<br/>${escapeHtml(dpoLine)}</p>
+    <p style="font-size:13px;color:${MAIL_COLORS.neutral.body};">${escapeHtml(responsableLine)}<br/>${escapeHtml(dpoLine)}</p>
     <p>Le informamos que hemos detectado un incidente que afecta a la seguridad de sus datos personales registrados en Anamneo.</p>
     <p><strong>Fecha o período estimado:</strong> ${escapeHtml(formatDateCL(payload.detectedAt))}</p>
     <p><strong>Descripción del incidente:</strong></p>
@@ -284,8 +285,8 @@ export function buildBreachNotificationEmail(payload: BreachNotificationPayload)
     <p style="white-space:pre-line;">${escapeHtml(payload.measuresTaken)}</p>
     <p><strong>Medidas recomendadas:</strong> ${escapeHtml(payload.recommendedActions ?? 'si nota uso indebido de su información, contáctenos de inmediato. Cambie credenciales asociadas y revise comunicaciones recibidas')}</p>
     <p><strong>Canales de consulta:</strong> ${escapeHtml(payload.consultationChannels ?? 'escriba al correo del DPO o al canal de contacto formal de su clínica')}</p>
-    <p style="color:#475569;font-size:13px;">Esta notificación se realiza en cumplimiento del Art 14 sexies de la Ley 21.719. Usted tiene derecho a reclamar ante la <strong>Agencia de Protección de Datos Personales</strong> si considera que sus derechos no fueron respetados (Art 41 Ley 21.719).</p>
-    <p style="color:#475569;font-size:13px;">${escapeHtml(followUpLine)}</p>
+    <p style="color:${MAIL_COLORS.neutral.body};font-size:13px;">Esta notificación se realiza en cumplimiento del Art 14 sexies de la Ley 21.719. Usted tiene derecho a reclamar ante la <strong>Agencia de Protección de Datos Personales</strong> si considera que sus derechos no fueron respetados (Art 41 Ley 21.719).</p>
+    <p style="color:${MAIL_COLORS.neutral.body};font-size:13px;">${escapeHtml(followUpLine)}</p>
   </div>`;
   return { subject, text, html };
 }

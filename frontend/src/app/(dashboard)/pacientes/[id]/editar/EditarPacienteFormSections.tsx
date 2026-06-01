@@ -80,7 +80,7 @@ export function EditarPacienteFormSections({
 
         <div className="grid gap-3 md:grid-cols-3">
           <div className="section-block space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">Alcance</p>
+            <p className="text-xs font-semibold text-ink-muted">Alcance</p>
             <p className="text-sm font-semibold text-ink-primary">{editScopeLabel}</p>
             <p className="text-sm text-ink-secondary">
               {isDoctor
@@ -89,12 +89,12 @@ export function EditarPacienteFormSections({
             </p>
           </div>
           <div className="section-block space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">Registro actual</p>
+            <p className="text-xs font-semibold text-ink-muted">Registro actual</p>
             <p className="text-sm font-semibold text-ink-primary">{completenessLabel}</p>
             <p className="text-sm text-ink-secondary">{completenessDescription}</p>
           </div>
           <div className="section-block space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">Identificación base</p>
+            <p className="text-xs font-semibold text-ink-muted">Identificación base</p>
             <p className="text-sm font-semibold text-ink-primary">{rutStatusLabel}</p>
             <p className="text-sm text-ink-secondary">
               Nacimiento: {patient.fechaNacimiento ? patient.fechaNacimiento.slice(0, 10) : 'Sin fecha registrada'}

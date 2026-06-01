@@ -1,7 +1,7 @@
 # Iconografía Anamneo
 
-Fecha: 2026-05-29  
-Estado: vigente — segunda iteración, set de identidad clínica completo.
+Fecha: 2026-05-29 (actualizado 2026-06-01)  
+Estado: vigente — tercera iteración: `TaskIcon` y variante de severidad de `ClinicalAlertIcon`.
 
 ## Diagnóstico
 
@@ -18,7 +18,7 @@ El frontend usa `react-icons/fi` (Feather) para affordances estándar, y `@/comp
 | FiArrowLeft | 39 | Volver |
 | FiDownload | 32 | Exportar |
 | FiSearch | 31 | Buscar |
-| FiClipboard | ~20 | Seguimientos / tareas (no atenciones) |
+| TaskIcon | ~6 | Seguimientos / tareas (identidad, reemplaza FiClipboard) |
 | FiFileText | ~30 | Documentos genéricos (legal, consents, portal) |
 | FiUsers | 30 | Pacientes / usuarios |
 | FiCheck | 30 | Confirmar |
@@ -35,7 +35,6 @@ Feather comunica limpieza universal. Seguir usándolo para:
 - **Formularios**: FiSearch, FiMail, FiEye, FiEyeOff, FiFilter
 - **Warnings genéricos**: FiAlertTriangle en acciones destructivas, tareas atrasadas, validaciones de formulario — contextos NO clínicos
 - **Contexto clínico general**: FiCalendar, FiClock, FiUsers, FiUser, FiActivity (en contextos no auditados)
-- **Tareas / seguimientos**: FiClipboard para la bandeja de seguimiento de pacientes (no para atenciones)
 - **Documentos genéricos**: FiFileText para consentimientos, documentos legales, plantillas de texto, portal de paciente
 - **Layout**: FiMaximize, FiMinimize, FiGrid, FiList, FiSettings, FiSliders
 - **Adjuntos**: FiPaperclip, FiImage, FiFile
@@ -51,7 +50,9 @@ Para superficies donde el ícono comunica **identidad clínica, confianza del si
 | Quick actions de "atención clínica" | `EncounterIcon` |
 | Nav "Atenciones", lista de fichas, timeline del paciente | `FichaIcon` |
 | Búsqueda de atenciones (CommandPalette, MobileSearch, Sidebar) | `FichaIcon` |
-| Badge de alergias GRAVE/FATAL en header del paciente | `ClinicalAlertIcon` |
+| Nav "Seguimientos", KPI de tareas, empty state de seguimientos, badge de tarea en timeline | `TaskIcon` |
+| Badge de alergias GRAVE/FATAL en header del paciente | `ClinicalAlertIcon` con `severity` |
+| Banner de alergias GRAVE/FATAL en workspace de atención | `ClinicalAlertIcon` con `severity` |
 | Lista de alergias cuando hay entradas (sección crítica) | `ClinicalAlertIcon` |
 | Alergias en resumen clínico del encuentro | `ClinicalAlertIcon` |
 | Alertas clínicas en ficha clínica (sección paciente) | `ClinicalAlertIcon` |
@@ -82,12 +83,25 @@ import { FichaIcon } from '@/components/icons';
 <FichaIcon className="h-5 w-5" />
 ```
 
+### `TaskIcon`
+Portapapeles con check interior. Distingue la tarea/seguimiento de la ficha clínica (`FichaIcon`) y del encuentro (`EncounterIcon`). Reemplaza `FiClipboard` en superficies de seguimiento/tareas.
+
+```tsx
+import { TaskIcon } from '@/components/icons';
+<TaskIcon className="h-5 w-5" />
+```
+
 ### `ClinicalAlertIcon`
 Triángulo de advertencia con cruz médica interior en lugar de exclamación. Señala una alerta de seguridad clínica (alergia GRAVE/FATAL, interacción crítica) con mayor peso visual que el triángulo genérico de Feather.
 
+Acepta una prop opcional `severity: 'grave' | 'fatal'` que cambia el trazo de `currentColor` a un gradiente de severidad on-palette (grave: status-yellow→status-red; fatal: status-red→status-red-text). Sin `severity` se comporta igual que antes (hereda el color del padre). Usar el gradiente solo en banners/badges de alergia GRAVE/FATAL, no en encabezados de sección de "Alergias".
+
 ```tsx
 import { ClinicalAlertIcon } from '@/components/icons';
+// Encabezado de sección (color heredado):
 <ClinicalAlertIcon className="h-4 w-4 text-status-red" />
+// Banner crítico (gradiente de severidad):
+<ClinicalAlertIcon severity="fatal" className="h-4 w-4" />
 ```
 
 ### `ShieldIcon`

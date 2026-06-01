@@ -89,13 +89,13 @@ export function AnalyticsCasesTable({ rows }: AnalyticsCasesTableProps) {
             <div className="flex flex-wrap gap-2">
               <Link
                 href={`/atenciones/${row.encounterId}`}
-                className="inline-flex items-center justify-center rounded-pill bg-accent px-3 py-2 text-sm font-semibold text-accent-text transition-opacity hover:opacity-90"
+                className="inline-flex min-h-11 items-center justify-center rounded-pill bg-accent px-3 py-2 text-sm font-semibold text-accent-text transition-opacity hover:opacity-90"
               >
                 Ver atención
               </Link>
               <Link
                 href={`/pacientes/${row.patientId}`}
-                className="inline-flex items-center justify-center rounded-pill border border-surface-muted/35 px-3 py-2 text-sm font-semibold text-ink transition-colors hover:bg-surface-inset/40"
+                className="inline-flex min-h-11 items-center justify-center rounded-pill border border-surface-muted/35 px-3 py-2 text-sm font-semibold text-ink transition-colors hover:bg-surface-inset/40"
               >
                 Ver paciente
               </Link>

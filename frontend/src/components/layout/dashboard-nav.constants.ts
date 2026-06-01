@@ -3,13 +3,12 @@ import {
   FiCalendar,
   FiHome,
   FiUsers,
-  FiClipboard,
   FiList,
   FiPieChart,
   FiSettings,
   FiBookmark,
 } from 'react-icons/fi';
-import { FichaIcon } from '@/components/icons';
+import { FichaIcon, TaskIcon } from '@/components/icons';
 import type { NavItem } from './DashboardSidebar';
 
 export const primaryNavigation: NavItem[] = [
@@ -17,7 +16,7 @@ export const primaryNavigation: NavItem[] = [
   { name: 'Pacientes', href: '/pacientes', icon: FiUsers },
   { name: 'Agenda', href: '/agenda', icon: FiCalendar },
   { name: 'Atenciones', href: '/atenciones', icon: FichaIcon },
-  { name: 'Seguimientos', href: '/seguimientos', icon: FiClipboard },
+  { name: 'Seguimientos', href: '/seguimientos', icon: TaskIcon },
   { name: 'Reportes', href: '/reportes', icon: FiPieChart },
 ];
 
