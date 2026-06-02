@@ -2,6 +2,7 @@
 
 import type { Dispatch, SetStateAction } from 'react';
 import { FiFilter } from 'react-icons/fi';
+import LocalizedDateInput from '@/components/common/LocalizedDateInput';
 import {
   ACTION_LABELS,
   ENTITY_LABELS,
@@ -40,8 +41,8 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
         <FiFilter className="w-4 h-4 text-accent-text" />
         <h2 className="font-bold text-ink">Filtros operativos</h2>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
-        <div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12">
+        <div className="xl:col-span-2">
           <label className="text-sm text-ink-secondary" htmlFor="audit-action-filter">Acción</label>
           <select
             id="audit-action-filter"
@@ -55,7 +56,7 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
             ))}
           </select>
         </div>
-        <div>
+        <div className="xl:col-span-2">
           <label className="text-sm text-ink-secondary" htmlFor="audit-entity-filter">Entidad</label>
           <select
             id="audit-entity-filter"
@@ -69,7 +70,7 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
             ))}
           </select>
         </div>
-        <div>
+        <div className="xl:col-span-2">
           <label className="text-sm text-ink-secondary" htmlFor="audit-user-filter">Usuario</label>
           <select
             id="audit-user-filter"
@@ -83,7 +84,7 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
             ))}
           </select>
         </div>
-        <div>
+        <div className="xl:col-span-2">
           <label className="text-sm text-ink-secondary" htmlFor="audit-reason-filter">Motivo</label>
           <select
             id="audit-reason-filter"
@@ -97,7 +98,7 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
             ))}
           </select>
         </div>
-        <div>
+        <div className="xl:col-span-2">
           <label className="text-sm text-ink-secondary" htmlFor="audit-result-filter">Resultado</label>
           <select
             id="audit-result-filter"
@@ -111,34 +112,32 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
             ))}
           </select>
         </div>
-        <div>
+        <div className="xl:col-span-2">
           <label className="text-sm text-ink-secondary" htmlFor="audit-date-from-filter">Desde</label>
-          <input
+          <LocalizedDateInput
             id="audit-date-from-filter"
-            type="date"
             className="form-input"
             value={filters.dateFrom}
-            onChange={(e) => update('dateFrom', e.target.value)}
+            onChange={(value) => update('dateFrom', value)}
           />
         </div>
-        <div>
+        <div className="md:col-span-1 xl:col-span-3">
           <label className="text-sm text-ink-secondary" htmlFor="audit-request-filter">Request ID</label>
           <input
             id="audit-request-filter"
             className="form-input"
             value={filters.requestId}
             onChange={(e) => update('requestId', e.target.value)}
-            placeholder="Correlación"
+            placeholder="ID de correlación"
           />
         </div>
-        <div>
+        <div className="xl:col-span-2">
           <label className="text-sm text-ink-secondary" htmlFor="audit-date-to-filter">Hasta</label>
-          <input
+          <LocalizedDateInput
             id="audit-date-to-filter"
-            type="date"
             className="form-input"
             value={filters.dateTo}
-            onChange={(e) => update('dateTo', e.target.value)}
+            onChange={(value) => update('dateTo', value)}
           />
         </div>
       </div>

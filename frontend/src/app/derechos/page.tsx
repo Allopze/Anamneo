@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import DataRightsRequestShell from '@/components/legal/DataRightsRequestShell';
 import { DerechosForm } from './DerechosForm';
 
 export const metadata: Metadata = {
@@ -9,33 +10,24 @@ export const metadata: Metadata = {
 
 export default function DerechosPage() {
   return (
-    <main className="min-h-screen bg-surface-base px-4 py-10 text-ink">
-      <div className="mx-auto max-w-2xl rounded-card border border-surface-muted/70 bg-surface-elevated p-6 shadow-card sm:p-8">
-        <header className="mb-6">
-          <p className="text-sm font-semibold text-auth-teal">Ley 21.719, artículos 4 a 11</p>
-          <h1 className="mt-1 text-2xl font-semibold text-ink">
-            Ejercer tus derechos sobre datos personales
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-ink-secondary">
-            Como titular de datos personales tienes derecho a solicitar:
-            <strong> acceso a una copia de tu ficha clínica</strong>, <strong>rectificación</strong>,{' '}
-            <strong>supresión</strong>, <strong>oposición</strong>,{' '}
-            <strong>portabilidad</strong> y <strong>bloqueo temporal</strong> de
-            tu información. Tu solicitud será respondida dentro de 30 días
-            corridos (prorrogables por 30 días adicionales según el artículo 11).
-          </p>
-          <p className="mt-2 text-xs leading-5 text-ink-muted">
-            Si actúas como padre, madre, tutor o representante legal de un
-            paciente, indícalo en el formulario.
-          </p>
+    <DataRightsRequestShell
+      backHref="/login"
+      backLabel="Volver al acceso"
+      eyebrow="Ley 21.719, artículos 4 a 11"
+      title="Solicitudes sobre tus datos"
+      description="Solicita acceso, rectificación, supresión, oposición, portabilidad o bloqueo temporal de tu información clínica."
+      helper="La respuesta se entrega dentro de 30 días corridos, prorrogables por 30 días adicionales según el artículo 11. Si actúas como representante legal, indícalo en el formulario."
+      footer={
+        <>
+          También puedes reclamar ante la Agencia de Protección de Datos Personales de Chile si consideras que tus derechos no fueron respetados.
+        </>
+      }
+    >
+        <header className="mb-6 border-b border-surface-muted/70 pb-4">
+          <h2 className="portal-title-sm">Crear solicitud pública</h2>
+          <p className="portal-copy mt-2">No necesitas cuenta portal. Verificaremos tu identidad antes de entregar información clínica.</p>
         </header>
         <DerechosForm />
-        <footer className="mt-8 border-t border-surface-muted/70 pt-4 text-xs leading-5 text-ink-muted">
-          También puedes reclamar ante la Agencia de Protección de Datos
-          Personales de Chile si consideras que tus derechos no fueron
-          respetados (Ley 21.719 Art 41).
-        </footer>
-      </div>
-    </main>
+    </DataRightsRequestShell>
   );
 }

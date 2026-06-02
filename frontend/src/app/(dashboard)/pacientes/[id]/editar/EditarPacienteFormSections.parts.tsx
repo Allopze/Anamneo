@@ -6,6 +6,7 @@
 
 import clsx from 'clsx';
 import type { UseFormReturn } from 'react-hook-form';
+import LocalizedDateInput from '@/components/common/LocalizedDateInput';
 import { todayLocalDateString } from '@/lib/date';
 import { formatRut } from '@/lib/rut';
 import type { EditForm } from './editar.constants';
@@ -131,16 +132,22 @@ export function DemograficosSection({ editForm, edadCalculada }: DemograficosSec
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label htmlFor="fechaNacimiento" className="form-label">Fecha de nacimiento</label>
-          <input
+          <input type="hidden" {...editForm.register('fechaNacimiento')} />
+          <LocalizedDateInput
             id="fechaNacimiento"
-            type="date"
+            value={editForm.watch('fechaNacimiento')}
+            onChange={(value) => editForm.setValue('fechaNacimiento', value, {
+              shouldDirty: true,
+              shouldValidate: true,
+            })}
             max={todayLocalDateString()}
             autoComplete="bday"
             className={clsx('form-input', editForm.formState.errors.fechaNacimiento && 'form-input-error')}
-            {...editForm.register('fechaNacimiento')}
+            aria-invalid={Boolean(editForm.formState.errors.fechaNacimiento)}
+            aria-describedby={editForm.formState.errors.fechaNacimiento ? 'fechaNacimiento-error' : undefined}
           />
           {editForm.formState.errors.fechaNacimiento ? (
-            <p className="form-error">{String(editForm.formState.errors.fechaNacimiento.message || '')}</p>
+            <p id="fechaNacimiento-error" className="form-error">{String(editForm.formState.errors.fechaNacimiento.message || '')}</p>
           ) : null}
         </div>
 

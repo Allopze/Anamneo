@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FiDownload } from 'react-icons/fi';
+import LocalizedDateInput from '@/components/common/LocalizedDateInput';
 import { api } from '@/lib/api';
 import { todayLocalDateString } from '@/lib/date';
 import { notify } from '@/lib/notify';
@@ -66,24 +67,22 @@ export default function PatientsOperationalExportPanel() {
           <label htmlFor="operational-export-from" className="block text-micro text-ink-muted mb-1">
             Desde
           </label>
-          <input
+          <LocalizedDateInput
             id="operational-export-from"
-            type="date"
             className="input w-full text-sm"
             value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
+            onChange={setFromDate}
           />
         </div>
         <div>
           <label htmlFor="operational-export-to" className="block text-micro text-ink-muted mb-1">
             Hasta
           </label>
-          <input
+          <LocalizedDateInput
             id="operational-export-to"
-            type="date"
             className="input w-full text-sm"
             value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
+            onChange={setToDate}
           />
         </div>
         <div>

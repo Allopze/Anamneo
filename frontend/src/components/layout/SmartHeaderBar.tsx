@@ -9,6 +9,7 @@ import { DASHBOARD_HEADER_COUNTS_QUERY_KEY, fetchDashboardHeaderCounts } from '@
 import { canCreateEncounter as canCreateEncounterPermission, canCreatePatient as canCreatePatientPermission } from '@/lib/permissions';
 import { useAuthStore } from '@/stores/auth-store';
 import {
+  FiPackage,
   FiSearch,
   FiPlus,
   FiUsers,
@@ -39,6 +40,7 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
   const searchParams = useSearchParams();
   const user = useAuthStore((state) => state.user);
   const isCatalogRoute = pathname.startsWith('/catalogo');
+  const catalogCategory = searchParams.get('categoria') === 'medicamentos' ? 'medicamentos' : 'afecciones';
   const isNonClinical = NON_CLINICAL_PREFIXES.some((p) => pathname.startsWith(p));
   const shouldHideHeader = isNonClinical && !isCatalogRoute;
 
@@ -103,8 +105,13 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
   });
 
   const { data: catalogCount, isLoading: isCatalogCountLoading } = useQuery<{ count: number }>({
-    queryKey: ['conditions', 'count'],
+    queryKey: ['catalog', catalogCategory, 'count'],
     queryFn: async () => {
+      if (catalogCategory === 'medicamentos') {
+        const response = await api.get('/medications');
+        return { count: Array.isArray(response.data) ? response.data.length : 0 };
+      }
+
       const response = await api.get('/conditions/count');
       return response.data as { count: number };
     },
@@ -118,11 +125,11 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
   const chips: KpiChip[] = isCatalogRoute
     ? [
         {
-          key: 'afecciones',
-          label: 'Afecciones',
+          key: catalogCategory,
+          label: catalogCategory === 'medicamentos' ? 'Medicamentos' : 'Afecciones',
           value: catalogCount?.count,
-          href: '/catalogo',
-          icon: FiTag,
+          href: catalogCategory === 'medicamentos' ? '/catalogo?categoria=medicamentos' : '/catalogo',
+          icon: catalogCategory === 'medicamentos' ? FiPackage : FiTag,
           tone: 'text-accent-text',
         },
       ]

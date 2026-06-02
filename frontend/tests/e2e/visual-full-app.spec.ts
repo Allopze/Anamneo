@@ -52,6 +52,7 @@ function shotPath(name: string) {
 }
 
 async function shot(page: Page, name: string) {
+  await page.locator('.skeleton').first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
   await page.screenshot({ path: shotPath(name), fullPage: true });
 }
 

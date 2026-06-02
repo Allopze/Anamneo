@@ -15,6 +15,25 @@ export default function LegalDocumentPage({ document }: LegalDocumentPageProps) 
   const content = document.contentJson;
   const contactEmail = content.contactEmail ?? 'soporte@anamneo.cl';
   const references = content.references?.length ? content.references : DEFAULT_LEGAL_REFERENCES;
+  const structuredRows = content.dataCategories?.length
+    ? content.dataCategories
+    : [
+        {
+          label: 'Documento',
+          examples: document.title,
+          purpose: document.description,
+        },
+        {
+          label: 'Vigencia',
+          examples: formatLegalEffectiveDate(document.effectiveAt),
+          purpose: 'Define la versión aplicable para registro, acceso y operación del espacio clínico.',
+        },
+        {
+          label: 'Contacto',
+          examples: contactEmail,
+          purpose: 'Canal disponible para consultas o solicitudes relacionadas con este documento.',
+        },
+      ];
 
   return (
     <main className="legal-shell">
@@ -81,17 +100,15 @@ export default function LegalDocumentPage({ document }: LegalDocumentPageProps) 
             ))}
           </section>
 
-          {content.dataCategories ? (
-            <section className="legal-data-table" aria-label="Categorías de datos">
-              {content.dataCategories.map((category) => (
-                <div key={category.label} className="legal-data-row">
-                  <h2>{category.label}</h2>
-                  <p>{category.examples}</p>
-                  <p>{category.purpose}</p>
-                </div>
-              ))}
-            </section>
-          ) : null}
+          <section className="legal-data-table" aria-label={content.dataCategories?.length ? 'Categorías de datos' : 'Resumen estructurado'}>
+            {structuredRows.map((category) => (
+              <div key={category.label} className="legal-data-row">
+                <h2>{category.label}</h2>
+                <p>{category.examples}</p>
+                <p>{category.purpose}</p>
+              </div>
+            ))}
+          </section>
 
           <div className="legal-section-stack">
             {content.sections.map((section) => (

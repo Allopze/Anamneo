@@ -81,12 +81,14 @@ export default function SystemTab({
       <section>
         <div className="panel-header">
           <div>
-            <h2 className="panel-title">Información del sistema</h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="panel-title">Información del sistema</h2>
+              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${status === 'ok' ? 'bg-status-green/20 text-status-green' : 'bg-status-yellow/40 text-accent-text'}`}>
+                {status === 'ok' ? 'Operativo' : 'Con alertas'}
+              </span>
+            </div>
             <p className="text-sm text-ink-secondary">Visibilidad rápida de base, backup y restore drill.</p>
           </div>
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${status === 'ok' ? 'bg-status-green/20 text-status-green' : 'bg-status-yellow/40 text-accent-text'}`}>
-            {status === 'ok' ? 'Operativo' : 'Con alertas'}
-          </span>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">

@@ -102,13 +102,13 @@ export default function PlantillasPage() {
           <h1 className="page-header-title">Plantillas</h1>
           <p className="page-header-description">Bloques reutilizables para acelerar el registro clínico.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button className="btn btn-primary flex items-center gap-2" onClick={() => { resetForm(); setShowForm(true); }}>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+          <button className="btn btn-primary flex min-w-[11rem] items-center justify-center gap-2" onClick={() => { resetForm(); setShowForm(true); }}>
             <FiPlus className="w-4 h-4" />
             Nueva plantilla
           </button>
           <button
-            className="btn btn-secondary"
+            className="btn btn-secondary min-w-[11rem]"
             onClick={() => installDefaultsMutation.mutate()}
             disabled={installDefaultsMutation.isPending}
           >

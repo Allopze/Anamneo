@@ -57,7 +57,7 @@ export default function MedicationsCatalogSection() {
           </p>
         </div>
         {isAdminUser && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             <Link
               href="/catalogo/medicamentos/nueva"
               className="btn btn-primary flex items-center gap-2"

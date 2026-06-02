@@ -50,7 +50,9 @@ export function SidebarNavItem({
             <span
               className={clsx(
                 'ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-bold',
-                BADGE_COLORS[item.badge.variant],
+                !isActive && item.badge.variant === 'red'
+                  ? 'bg-status-red/25 text-status-red-text'
+                  : BADGE_COLORS[item.badge.variant],
               )}
             >
               {item.badge.label}
@@ -72,7 +74,7 @@ export function SidebarNavItem({
             className={clsx(
               'absolute right-0 top-0 h-2.5 w-2.5 rounded-full border-2 border-frame',
               item.badge.variant === 'green' ? 'bg-status-green' :
-              item.badge.variant === 'yellow' ? 'bg-status-yellow' : 'bg-status-red',
+              item.badge.variant === 'yellow' ? 'bg-status-yellow' : 'bg-status-red/70',
             )}
             aria-label={item.badge.label}
           />

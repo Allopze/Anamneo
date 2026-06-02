@@ -111,7 +111,8 @@
   }
 
   .smart-header-context-slot {
-    @apply flex min-w-0 flex-1 items-center justify-end;
+    @apply flex min-w-0 flex-1 items-center justify-start overflow-x-auto md:justify-end md:overflow-visible;
+    scrollbar-width: thin;
   }
 
   .smart-header-action-btn {

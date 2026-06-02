@@ -1,35 +1,44 @@
 import type { FieldErrors, UseFormRegister } from 'react-hook-form';
 import type { CalculatedAge } from '@/lib/date';
+import LocalizedDateInput from '@/components/common/LocalizedDateInput';
 import type { PatientForm } from './nuevo.constants';
 
 type Props = {
   register: UseFormRegister<PatientForm>;
   errors: FieldErrors<PatientForm>;
   todayDateValue: string;
+  fechaNacimiento: string | undefined;
   edadCalculada: CalculatedAge | null;
+  onFechaNacimientoChange: (value: string) => void;
 };
 
 export default function NuevoPacienteDoctorFields({
   register,
   errors,
   todayDateValue,
+  fechaNacimiento,
   edadCalculada,
+  onFechaNacimientoChange,
 }: Props) {
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(12rem,1fr)_minmax(16rem,1.25fr)_minmax(12rem,1fr)]">
         <div>
           <label htmlFor="fechaNacimiento" className="form-label">
             Fecha de nacimiento *
           </label>
-          <input
+          <input type="hidden" {...register('fechaNacimiento')} />
+          <LocalizedDateInput
             id="fechaNacimiento"
-            type="date"
+            value={fechaNacimiento}
+            onChange={onFechaNacimientoChange}
             max={todayDateValue}
             className={`form-input ${errors.fechaNacimiento ? 'form-input-error' : ''}`}
-            {...register('fechaNacimiento')}
+            autoComplete="bday"
+            aria-invalid={Boolean(errors.fechaNacimiento)}
+            aria-describedby={errors.fechaNacimiento ? 'fechaNacimiento-error' : undefined}
           />
-          {errors.fechaNacimiento && <p className="form-error">{errors.fechaNacimiento.message}</p>}
+          {errors.fechaNacimiento && <p id="fechaNacimiento-error" className="form-error">{errors.fechaNacimiento.message}</p>}
         </div>
         <div>
           <label htmlFor="edadCalculada" className="form-label">
@@ -43,7 +52,7 @@ export default function NuevoPacienteDoctorFields({
             value={
               edadCalculada
                 ? `${edadCalculada.edad} años ${edadCalculada.edadMeses} meses`
-                : 'Completa la fecha de nacimiento'
+                : 'Pendiente de fecha de nacimiento'
             }
           />
         </div>

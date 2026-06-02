@@ -34,7 +34,7 @@ export default function NuevoPacientePage() {
       rutExempt: false,
     },
   });
-  const { register, handleSubmit, watch, formState: { errors, isDirty } } = form;
+  const { register, handleSubmit, watch, setValue, formState: { errors, isDirty } } = form;
 
   const draftNavigationGuard = usePatientFormDraft(form, user?.id, isDirty);
 
@@ -234,7 +234,12 @@ export default function NuevoPacientePage() {
             register={register}
             errors={errors}
             todayDateValue={todayDateValue}
+            fechaNacimiento={fechaNacimiento}
             edadCalculada={edadCalculada}
+            onFechaNacimientoChange={(value) => setValue('fechaNacimiento', value, {
+              shouldDirty: true,
+              shouldValidate: true,
+            })}
           />
         )}
 

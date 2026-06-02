@@ -59,7 +59,7 @@ export const SEVERITY_LABEL: Record<string, string> = {
   BAJA: 'Baja',
 };
 
-export const NON_CLINICAL_PREFIXES = ['/ajustes', '/admin', '/plantillas', '/catalogo'];
+export const NON_CLINICAL_PREFIXES: string[] = [];
 
 /* ─── Route config ────────────────────────────────────────── */
 

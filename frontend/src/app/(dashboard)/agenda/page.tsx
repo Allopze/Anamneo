@@ -118,12 +118,20 @@ export default function AgendaPage() {
 
   if (!medicoId) {
     return (
-      <div className="animate-fade-in flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
-        <FiCalendar className="h-12 w-12 text-ink-muted/50" aria-hidden="true" />
-        <h2 className="text-xl font-bold text-ink">Sin médico asignado</h2>
-        <p className="max-w-sm text-sm text-ink-secondary">
-          Tu cuenta de asistente no tiene un médico asignado. Solicita al administrador que configure la asignación en los ajustes del sistema.
-        </p>
+      <div className="animate-fade-in">
+        <div className="page-header">
+          <div>
+            <h1 className="page-header-title">Agenda</h1>
+            <p className="page-header-description">Calendario clínico y coordinación de citas.</p>
+          </div>
+        </div>
+        <div className="card flex min-h-[42vh] flex-col items-center justify-center gap-4 text-center">
+          <FiCalendar className="h-12 w-12 text-ink-muted/50" aria-hidden="true" />
+          <h2 className="text-xl font-bold text-ink">Sin médico asignado</h2>
+          <p className="max-w-sm text-sm text-ink-secondary">
+            Tu cuenta de asistente no tiene un médico asignado. Solicita al administrador que configure la asignación en los ajustes del sistema.
+          </p>
+        </div>
       </div>
     );
   }

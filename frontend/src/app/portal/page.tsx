@@ -82,14 +82,14 @@ export default function PortalHomePage() {
             <h1 className="portal-title">Portal paciente</h1>
             <p className="portal-copy">{patient ? patient.nombre : '—'}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 sm:justify-end">
             <Link href="/portal/solicitudes" className="portal-button-secondary">
               Solicitudes
             </Link>
             <Link href="/portal/historial-acceso" className="portal-button-secondary">
               Historial de accesos
             </Link>
-            <button onClick={handleLogout} className="portal-button-primary">
+            <button onClick={handleLogout} className="portal-button-secondary">
               Salir
             </button>
           </div>

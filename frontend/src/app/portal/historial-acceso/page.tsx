@@ -136,8 +136,8 @@ export default function PortalAuditLogPage() {
 
         {data && !loading && (
           <>
-            <div className="portal-table-shell">
-              <table className="w-full text-sm">
+            <div className="portal-table-shell" role="region" aria-label="Historial de accesos con desplazamiento horizontal" tabIndex={0}>
+              <table className="min-w-[760px] w-full text-sm">
                 <thead className="bg-surface-inset text-left">
                   <tr>
                     <th className="px-4 py-3 font-semibold text-ink-secondary">Fecha y hora</th>

@@ -59,9 +59,9 @@ export default function EncounterHeader({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-ink-secondary">
                   <span>Atención</span>
-                  <span className="h-1 w-1 rounded-full bg-surface-muted" aria-hidden="true" />
+                  <span className="hidden h-1 w-1 rounded-full bg-surface-muted sm:block" aria-hidden="true" />
                   <span>{encounter.patient?.rut || 'Sin RUT'}</span>
-                  <span className="h-1 w-1 rounded-full bg-surface-muted" aria-hidden="true" />
+                  <span className="hidden h-1 w-1 rounded-full bg-surface-muted sm:block" aria-hidden="true" />
                   <span>{formatDateTime(encounter.createdAt)}</span>
                   <span className="inline-flex items-center gap-1.5">
                     <FiClock className="h-3.5 w-3.5" />

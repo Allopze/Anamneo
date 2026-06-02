@@ -65,7 +65,7 @@ function AjustesContent() {
             onClick={() => aj.setActiveTab(tab.key)}
             onKeyDown={aj.handleTabKeyDown}
             tabIndex={aj.activeTab === tab.key ? 0 : -1}
-            className={`whitespace-nowrap px-4 py-2.5 text-sm font-bold rounded-t-xl transition-colors -mb-px ${
+            className={`min-w-[9.75rem] whitespace-nowrap rounded-t-xl px-4 py-2.5 text-center text-sm font-bold transition-colors -mb-px ${
               aj.activeTab === tab.key
                 ? 'border-b-2 border-frame-dark text-ink bg-surface-elevated'
                 : 'text-ink-muted hover:text-ink hover:bg-surface-inset/60'

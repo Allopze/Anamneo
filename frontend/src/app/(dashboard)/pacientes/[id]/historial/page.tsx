@@ -15,7 +15,7 @@ import { ErrorAlert } from '@/components/common/ErrorAlert';
 import PatientMedicationHistoryField, { type PatientMedicationHistoryValue } from '../PatientMedicationHistoryField';
 
 const HISTORY_FIELDS = [
-  { key: 'antecedentesMedicos', label: 'Antecedentes médicos', placeholder: 'Selecciona o escribe afecciones médicas...', type: 'tags' },
+  { key: 'antecedentesMedicos', label: 'Antecedentes médicos', placeholder: 'Buscar o agregar afección...', type: 'tags' },
   { key: 'antecedentesQuirurgicos', label: 'Antecedentes quirúrgicos', placeholder: 'Cirugías previas, fechas aproximadas...', type: 'text' },
   { key: 'antecedentesGinecoobstetricos', label: 'Antecedentes ginecoobstétricos', placeholder: 'Menarquia, embarazos, menopausia...', type: 'text' },
   { key: 'antecedentesFamiliares', label: 'Antecedentes familiares', placeholder: 'Enfermedades hereditarias...', type: 'text' },

@@ -1,6 +1,7 @@
 'use client';
 
 import { FiX } from 'react-icons/fi';
+import LocalizedDateInput from '@/components/common/LocalizedDateInput';
 import type { AppointmentForm, PatientSearchResult } from './agenda-types';
 
 interface CreateAppointmentModalProps {
@@ -92,12 +93,11 @@ function DateTimeFields({ form, setForm }: Pick<CreateAppointmentModalProps, 'fo
     <>
       <div>
         <label className="form-label text-xs">Fecha</label>
-        <input
-          type="date"
+        <LocalizedDateInput
+          id="appointment-start-date"
           value={form.startDate}
-          onChange={(event) => setForm({ ...form, startDate: event.target.value })}
+          onChange={(value) => setForm({ ...form, startDate: value })}
           className="form-input mt-0.5"
-          required
         />
       </div>
       <div className="grid grid-cols-2 gap-3">

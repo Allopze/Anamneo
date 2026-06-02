@@ -17,6 +17,7 @@ import {
   TASK_STATUS_LABELS,
   TASK_TYPE_LABELS,
 } from '@/types';
+import LocalizedDateInput from '@/components/common/LocalizedDateInput';
 import { extractDateOnly, formatDateOnly } from '@/lib/date';
 import { notify } from '@/lib/notify';
 import { addDaysToDateOnly, priorityBadgeClassName } from './seguimientos.helpers';
@@ -130,11 +131,11 @@ export function SeguimientoTaskRow({
           </button>
         </div>
         <div className="flex gap-2">
-          <input
-            type="date"
+          <LocalizedDateInput
+            id={`reschedule-${task.id}`}
             className="form-input"
             value={rescheduleDrafts[task.id] ?? extractDateOnly(task.dueDate) ?? ''}
-            onChange={(event) => onRescheduleDraftChange(task.id, event.target.value)}
+            onChange={(value) => onRescheduleDraftChange(task.id, value)}
           />
           <button
             type="button"

@@ -64,18 +64,19 @@ export function AuditLogTable({
         </div>
       ) : logs.length > 0 ? (
         <>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-lg border border-surface-muted/25" role="region" aria-label="Registros de auditoría con desplazamiento horizontal">
+            <table className="min-w-[1120px] w-full text-sm">
               <thead>
-                <tr className="border-b border-surface-muted/30 text-left">
-                  <th className="pb-3 font-medium text-ink-secondary">Fecha</th>
-                  <th className="pb-3 font-medium text-ink-secondary">Usuario</th>
-                  <th className="pb-3 font-medium text-ink-secondary">Acción</th>
-                  <th className="pb-3 font-medium text-ink-secondary">Motivo</th>
-                  <th className="pb-3 font-medium text-ink-secondary">Resultado</th>
-                  <th className="pb-3 font-medium text-ink-secondary">Entidad</th>
-                  <th className="pb-3 font-medium text-ink-secondary">Request ID</th>
-                  <th className="pb-3 font-medium text-ink-secondary">ID Entidad</th>
+                <tr className="border-b border-surface-muted/30 bg-surface-inset text-left">
+                  <th className="px-3 py-3 font-medium text-ink-secondary">Fecha</th>
+                  <th className="px-3 py-3 font-medium text-ink-secondary">Usuario</th>
+                  <th className="px-3 py-3 font-medium text-ink-secondary">Acción</th>
+                  <th className="px-3 py-3 font-medium text-ink-secondary">Motivo</th>
+                  <th className="px-3 py-3 font-medium text-ink-secondary">Resultado</th>
+                  <th className="px-3 py-3 font-medium text-ink-secondary">Entidad</th>
+                  <th className="px-3 py-3 font-medium text-ink-secondary">Request ID</th>
+                  <th className="px-3 py-3 font-medium text-ink-secondary">ID Entidad</th>
+                  <th className="px-3 py-3 font-medium text-ink-secondary">Detalle</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-muted/30">
@@ -87,10 +88,10 @@ export function AuditLogTable({
                   };
                   return (
                     <tr key={log.id} className="hover:bg-surface-base/40">
-                      <td className="py-3 pr-4 whitespace-nowrap text-ink-secondary">
+                      <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">
                         {format(new Date(log.timestamp), 'dd MMM yyyy HH:mm', { locale: es })}
                       </td>
-                      <td className="py-3 pr-4">
+                      <td className="px-3 py-3">
                         <span className="text-ink-primary font-medium">
                           {logUser?.nombre || 'Desconocido'}
                         </span>
@@ -98,35 +99,35 @@ export function AuditLogTable({
                           <span className="block text-xs text-ink-muted">{logUser.email}</span>
                         )}
                       </td>
-                      <td className="py-3 pr-4">
+                      <td className="px-3 py-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${actionInfo.color}`}>
                           {actionInfo.label}
                         </span>
                       </td>
-                      <td className="py-3 pr-4 text-ink-secondary">
+                      <td className="px-3 py-3 text-ink-secondary">
                         {REASON_LABELS[log.reason || 'AUDIT_UNSPECIFIED'] || log.reason || 'Sin clasificar'}
                       </td>
-                      <td className="py-3 pr-4">
+                      <td className="px-3 py-3">
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full font-medium ${(RESULT_LABELS[log.result] || RESULT_LABELS.SUCCESS).color}`}
                         >
                           {(RESULT_LABELS[log.result] || RESULT_LABELS.SUCCESS).label}
                         </span>
                       </td>
-                      <td className="py-3 pr-4 text-ink-secondary">
+                      <td className="px-3 py-3 text-ink-secondary">
                         {ENTITY_LABELS[log.entityType] || log.entityType}
                       </td>
-                      <td className="py-3 pr-4">
+                      <td className="px-3 py-3">
                         <span className="text-xs font-mono text-ink-muted">
                           {log.requestId ? `${log.requestId.slice(0, 8)}…` : '—'}
                         </span>
                       </td>
-                      <td className="py-3 pr-4">
+                      <td className="px-3 py-3">
                         <span className="text-xs font-mono text-ink-muted">
                           {log.entityId.slice(0, 8)}…
                         </span>
                       </td>
-                      <td className="py-3">
+                      <td className="px-3 py-3">
                         <button
                           className="btn btn-secondary text-xs"
                           onClick={() => onSelectLog(log)}

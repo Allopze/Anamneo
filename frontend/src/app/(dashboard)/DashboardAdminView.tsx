@@ -18,10 +18,10 @@ export default function DashboardAdminView({ user }: DashboardAdminViewProps) {
   return (
     <div className="space-y-6 pb-2">
       <section
-        className="animate-fade-in rounded-card bg-surface-elevated px-6 py-8 shadow-soft lg:px-10 lg:py-10"
+        className="animate-fade-in rounded-card bg-surface-elevated px-6 py-7 shadow-soft lg:px-10 lg:py-8"
         style={sectionAnimation(0)}
       >
-        <h1 className="text-[2rem] font-extrabold tracking-tight text-ink sm:text-[2.4rem]">
+        <h1 className="max-w-3xl text-[1.85rem] font-extrabold tracking-tight text-ink sm:text-[2.15rem]">
           {getGreeting()}, {getFirstName(user?.nombre)}
         </h1>
         <p className="mt-2 max-w-2xl text-base text-ink-secondary">

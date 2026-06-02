@@ -150,7 +150,7 @@ export function EditarPacienteFormSections({
         <DemograficosSection editForm={editForm} edadCalculada={edadCalculada} />
         <ContextoAdministrativoSection editForm={editForm} />
 
-        <div className="sticky bottom-4 z-10 rounded-card border border-surface-muted/40 bg-surface-elevated/95 p-4 shadow-soft backdrop-blur-sm">
+        <div className="rounded-card border border-surface-muted/40 bg-surface-elevated/95 p-4 shadow-soft">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-ink-primary">{formStatusLabel}</p>

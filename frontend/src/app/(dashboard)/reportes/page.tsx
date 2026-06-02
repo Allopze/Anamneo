@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FiActivity, FiCalendar, FiClipboard, FiUsers } from 'react-icons/fi';
 import { EmptyState } from '@/components/common/EmptyState';
+import LocalizedDateInput from '@/components/common/LocalizedDateInput';
 import { api } from '@/lib/api';
 import { todayLocalDateString } from '@/lib/date';
 
@@ -72,10 +73,10 @@ export default function ReportesPage() {
         </div>
         <label className="block text-sm">
           <span className="form-label text-xs">Día</span>
-          <input
-            type="date"
+          <LocalizedDateInput
+            id="report-date"
             value={date}
-            onChange={(event) => setDate(event.target.value)}
+            onChange={setDate}
             className="form-input mt-1"
           />
         </label>

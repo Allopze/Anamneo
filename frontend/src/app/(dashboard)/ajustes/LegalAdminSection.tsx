@@ -6,6 +6,7 @@ import { FiEdit3, FiFileText, FiSend } from 'react-icons/fi';
 import { notify } from '@/lib/notify';
 import { api, getErrorMessage } from '@/lib/api';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import LocalizedDateInput from '@/components/common/LocalizedDateInput';
 import {
   LEGAL_DOCUMENT_LABELS,
   type LegalDocumentContentJson,
@@ -250,7 +251,7 @@ export default function LegalAdminSection() {
             </div>
             <div>
               <label htmlFor="legal-effective-at" className="form-label">Fecha de vigencia</label>
-              <input id="legal-effective-at" type="date" className="form-input" value={effectiveAt} onChange={(event) => setEffectiveAt(event.target.value)} />
+              <LocalizedDateInput id="legal-effective-at" className="form-input" value={effectiveAt} onChange={setEffectiveAt} />
             </div>
             <div>
               <label htmlFor="legal-description" className="form-label">Descripción</label>

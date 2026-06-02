@@ -40,7 +40,7 @@ export default function DescargarFichaPage() {
   };
 
   return (
-    <main className="min-h-screen bg-surface-base px-4 py-10 text-ink">
+    <main className="flex min-h-screen items-center bg-surface-base px-4 py-10 text-ink">
       <section className="mx-auto max-w-xl rounded-card border border-surface-muted/70 bg-surface-elevated p-6 shadow-card sm:p-8">
         <div className="mb-6 flex items-start gap-3">
           <div className="rounded-full border border-surface-muted/60 bg-surface-inset p-3 text-auth-teal">

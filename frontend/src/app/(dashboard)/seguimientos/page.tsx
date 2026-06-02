@@ -115,8 +115,8 @@ export default function SeguimientosPage() {
       </div>
 
       <div className="filter-surface">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
-          <div className="relative">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(17rem,1.4fr)_minmax(11rem,1fr)_minmax(11rem,1fr)_minmax(13rem,1.15fr)_minmax(10rem,.9fr)]">
+          <div className="relative min-w-0">
             <FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
             <input
               className="form-input pl-10"
@@ -125,13 +125,13 @@ export default function SeguimientosPage() {
               placeholder="Buscar por tarea o paciente"
             />
           </div>
-          <select className="form-input" aria-label="Filtrar por estado" value={status} onChange={(e) => { setStatus(e.target.value); updateUrl(search, e.target.value, type, priority, overdueOnly); }}>
+          <select className="form-input min-w-0" aria-label="Filtrar por estado" value={status} onChange={(e) => { setStatus(e.target.value); updateUrl(search, e.target.value, type, priority, overdueOnly); }}>
             {STATUS_OPTIONS.map((v) => <option key={v} value={v}>{v ? TASK_STATUS_LABELS[v] : 'Todos los estados'}</option>)}
           </select>
-          <select className="form-input" aria-label="Filtrar por tipo" value={type} onChange={(e) => { setType(e.target.value); updateUrl(search, status, e.target.value, priority, overdueOnly); }}>
+          <select className="form-input min-w-0" aria-label="Filtrar por tipo" value={type} onChange={(e) => { setType(e.target.value); updateUrl(search, status, e.target.value, priority, overdueOnly); }}>
             {TYPE_OPTIONS.map((v) => <option key={v} value={v}>{v ? TASK_TYPE_LABELS[v] : 'Todos los tipos'}</option>)}
           </select>
-          <select className="form-input" aria-label="Filtrar por prioridad" value={priority} onChange={(e) => { setPriority(e.target.value); updateUrl(search, status, type, e.target.value, overdueOnly); }}>
+          <select className="form-input min-w-0" aria-label="Filtrar por prioridad" value={priority} onChange={(e) => { setPriority(e.target.value); updateUrl(search, status, type, e.target.value, overdueOnly); }}>
             {PRIORITY_OPTIONS.map((v) => <option key={v} value={v}>{v ? TASK_PRIORITY_LABELS[v] : 'Todas las prioridades'}</option>)}
           </select>
           <label className="flex items-center gap-2 rounded-card border border-surface-muted/30 px-3 py-2 text-sm text-ink-secondary">

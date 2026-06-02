@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { FiActivity } from 'react-icons/fi';
+import LocalizedDateInput from '@/components/common/LocalizedDateInput';
 import { EncounterIcon } from '@/components/icons';
 import FloatingQuickNotes from '@/components/FloatingQuickNotes';
 import { REVIEW_STATUS_LABELS, TASK_TYPE_LABELS } from '@/types';
@@ -200,12 +201,12 @@ export function SupportTabPanel({
                 </option>
               ))}
             </select>
-            <input
-              type="date"
+            <LocalizedDateInput
+              id="quick-task-due-date"
               name="quick_task_due_date"
               className="form-input"
               value={quickTask.dueDate}
-              onChange={(e) => onQuickTaskChange({ ...quickTask, dueDate: e.target.value })}
+              onChange={(value) => onQuickTaskChange({ ...quickTask, dueDate: value })}
             />
           </div>
           <button

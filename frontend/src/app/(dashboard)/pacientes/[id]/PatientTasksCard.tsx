@@ -7,6 +7,7 @@ import {
   TASK_TYPE_LABELS,
   type PatientTask,
 } from '@/types';
+import LocalizedDateInput from '@/components/common/LocalizedDateInput';
 import { extractDateOnly, formatDateOnly } from '@/lib/date';
 import type { PatientDetailHook } from './usePatientDetail';
 import { TASK_PRIORITIES } from './patient-detail.constants';
@@ -152,7 +153,17 @@ export default function PatientTasksCard({
           </select>
         </div>
         <div>
-          <input type="date" className="form-input" aria-label="Fecha de vencimiento" {...taskForm.register('dueDate')} />
+          <input type="hidden" {...taskForm.register('dueDate')} />
+          <LocalizedDateInput
+            id="patient-task-due-date"
+            className="form-input"
+            aria-label="Fecha de vencimiento"
+            value={taskForm.watch('dueDate')}
+            onChange={(value) => taskForm.setValue('dueDate', value, {
+              shouldDirty: true,
+              shouldValidate: true,
+            })}
+          />
           {taskForm.formState.errors.dueDate && (
             <p className="mt-1 text-xs text-status-red">{taskForm.formState.errors.dueDate.message}</p>
           )}

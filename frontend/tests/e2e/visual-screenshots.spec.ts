@@ -37,7 +37,22 @@ function shotPath(name: string) {
 }
 
 async function shot(page: Page, name: string) {
+  await page.locator('.skeleton').first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
   await page.screenshot({ path: shotPath(name), fullPage: true });
+}
+
+async function dismissOptionalOnboarding(page: Page) {
+  const exploreSolo = page.getByRole('button', { name: /Explorar solo/i });
+  if (await exploreSolo.isVisible().catch(() => false)) {
+    await exploreSolo.click();
+    await expect(exploreSolo).toBeHidden({ timeout: 5_000 });
+    return;
+  }
+
+  const closeButton = page.getByRole('button', { name: /Cerrar/i });
+  if (await closeButton.isVisible().catch(() => false)) {
+    await closeButton.click();
+  }
 }
 
 async function waitForAppShell(page: Page) {
@@ -152,7 +167,7 @@ test.describe('Visual QA — screenshots', () => {
           nombre: 'Paciente Visual E2E',
           apellido: 'Apellido Test',
           fechaNacimiento: '1985-06-15',
-          sexo: 'M',
+          sexo: 'MASCULINO',
         },
       });
       if (patientResp.ok()) {
@@ -220,6 +235,7 @@ test.describe('Visual QA — screenshots', () => {
     await gotoApp(page, '/');
     await waitForAppShell(page);
     await page.waitForLoadState('networkidle');
+    await dismissOptionalOnboarding(page);
     await shot(page, 'dashboard__medico--desktop');
     await ctx.close();
   });
@@ -254,7 +270,7 @@ test.describe('Visual QA — screenshots', () => {
     test.setTimeout(40_000);
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const page = await ctx.newPage();
-    await ctx.addCookies(adminCookies);
+    await ctx.addCookies(medicoCookies.length > 0 ? medicoCookies : adminCookies);
     await gotoApp(page, '/atenciones');
     await page.waitForLoadState('networkidle');
     await shot(page, 'atenciones__list--desktop');

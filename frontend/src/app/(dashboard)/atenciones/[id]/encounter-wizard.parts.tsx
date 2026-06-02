@@ -5,6 +5,7 @@
  */
 
 import { FiCalendar } from 'react-icons/fi';
+import LocalizedDateInput from '@/components/common/LocalizedDateInput';
 
 // ── Loading skeleton ─────────────────────────────────────────────
 
@@ -71,10 +72,10 @@ export function EncounterFollowupModal({
         </p>
         <div className="mb-5">
           <label className="form-label text-xs">Fecha del control</label>
-          <input
-            type="date"
+          <LocalizedDateInput
+            id="followup-date"
             value={followupDate}
-            onChange={(e) => onDateChange(e.target.value)}
+            onChange={onDateChange}
             className="form-input mt-0.5"
             min={new Date().toISOString().slice(0, 10)}
           />

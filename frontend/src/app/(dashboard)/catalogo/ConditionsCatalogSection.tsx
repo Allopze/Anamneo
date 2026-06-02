@@ -118,7 +118,7 @@ export default function ConditionsCatalogSection() {
           </p>
         </div>
         {isAdminUser ? (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             <Link href="/catalogo/nueva" className="btn btn-primary flex items-center gap-2">
               <FiPlus className="w-4 h-4" />
               Nueva afección

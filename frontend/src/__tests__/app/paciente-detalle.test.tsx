@@ -498,7 +498,7 @@ describe('PatientDetailPage', () => {
     const selects = scoped.getAllByRole('combobox');
     await userEvent.selectOptions(selects[2], 'NONE');
 
-    const dueDateInput = scoped.getByDisplayValue('2026-05-10');
+    const dueDateInput = scoped.getByDisplayValue('10-05-2026');
     fireEvent.change(dueDateInput, { target: { value: '' } });
 
     await userEvent.selectOptions(selects[1], 'BAJA');

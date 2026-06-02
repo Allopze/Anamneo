@@ -39,7 +39,7 @@ export default function EncounterSectionRail({
         className={clsx(
           RAIL_PANEL_CLASS,
           railCollapsed ? 'rounded-xl' : 'rounded-card',
-          'motion-safe:transition-[width,border-radius,border-color,background-color] motion-safe:duration-200 motion-safe:ease-out motion-reduce:transition-none',
+          'max-h-[calc(100vh-18rem)] overflow-y-auto motion-safe:transition-[width,border-radius,border-color,background-color] motion-safe:duration-200 motion-safe:ease-out motion-reduce:transition-none',
         )}
       >
         {/* Header — hidden when collapsed */}

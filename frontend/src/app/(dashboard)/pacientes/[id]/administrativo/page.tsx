@@ -151,8 +151,8 @@ export default function PatientAdministrativeDetailPage() {
         </Link>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-        <section className="card space-y-4">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.8fr)_minmax(260px,0.85fr)]">
+        <section className="card space-y-3 p-5">
           <div className="flex items-center gap-3">
             <div className="list-row-icon h-12 w-12 bg-surface-base text-ink-secondary">
               <FiUser className="w-5 h-5" />
@@ -193,7 +193,7 @@ export default function PatientAdministrativeDetailPage() {
             </p>
           </div>
 
-          <div className="rounded-card border border-surface-muted/35 bg-surface-elevated px-4 py-3">
+          <div className="rounded-card border border-surface-muted/35 bg-surface-elevated px-4 py-2.5">
             <div className="flex items-center gap-2 text-sm font-medium text-ink">
               <FiFileText className="w-4 h-4 text-ink-secondary" />
               Atenciones registradas
@@ -202,7 +202,7 @@ export default function PatientAdministrativeDetailPage() {
             <p className="mt-1 text-xs text-ink-muted">Última atención: {formatDateTime(data.metrics.lastEncounterAt)}</p>
           </div>
 
-          <div className="rounded-card border border-surface-muted/35 bg-surface-elevated px-4 py-3">
+          <div className="rounded-card border border-surface-muted/35 bg-surface-elevated px-4 py-2.5">
             <div className="flex items-center gap-2 text-sm font-medium text-ink">
               <FiCalendar className="w-4 h-4 text-ink-secondary" />
               Alta del registro
@@ -210,7 +210,7 @@ export default function PatientAdministrativeDetailPage() {
             <p className="mt-2 text-sm text-ink">{formatDateTime(data.createdAt)}</p>
           </div>
 
-          <div className="rounded-card border border-surface-muted/35 bg-surface-elevated px-4 py-3">
+          <div className="rounded-card border border-surface-muted/35 bg-surface-elevated px-4 py-2.5">
             <div className="flex items-center gap-2 text-sm font-medium text-ink">
               <FiClock className="w-4 h-4 text-ink-secondary" />
               Última actualización administrativa
@@ -218,7 +218,7 @@ export default function PatientAdministrativeDetailPage() {
             <p className="mt-2 text-sm text-ink">{formatDateTime(data.updatedAt)}</p>
           </div>
 
-          <div className="rounded-card border border-surface-muted/35 bg-surface-elevated px-4 py-3">
+          <div className="rounded-card border border-surface-muted/35 bg-surface-elevated px-4 py-2.5">
             <div className="flex items-center gap-2 text-sm font-medium text-ink">
               <FiMapPin className="w-4 h-4 text-ink-secondary" />
               Registro creado por
@@ -227,7 +227,7 @@ export default function PatientAdministrativeDetailPage() {
             <p className="mt-1 text-xs text-ink-muted">{data.createdBy?.email || 'Sin correo visible'}</p>
           </div>
 
-          <div className="rounded-card border border-surface-muted/35 bg-surface-elevated px-4 py-3">
+          <div className="rounded-card border border-surface-muted/35 bg-surface-elevated px-4 py-2.5">
             <div className="flex items-center gap-2 text-sm font-medium text-ink">
               <FiShield className="w-4 h-4 text-ink-secondary" />
               Portal paciente

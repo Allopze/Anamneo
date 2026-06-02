@@ -41,7 +41,7 @@ export default function SolicitudesAdminPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <header className="flex items-center justify-between">
+      <header>
         <div>
           <p className="text-sm font-semibold text-auth-teal">
             Ley 21.719, artículos 4 a 11
@@ -50,18 +50,32 @@ export default function SolicitudesAdminPage() {
             Solicitudes de derechos de titulares
           </h1>
         </div>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="form-input w-auto min-w-52 py-2"
-        >
-          {STATUS_FILTERS.map((f) => (
-            <option key={f.value} value={f.value}>
-              {f.label}
-            </option>
-          ))}
-        </select>
       </header>
+
+      <section className="filter-surface">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(13rem,16rem)] sm:items-end">
+          <div>
+            <h2 className="text-sm font-semibold text-ink-primary">Filtros operativos</h2>
+            <p className="mt-1 text-sm text-ink-secondary">
+              Revisa solicitudes por estado sin separar el control del listado.
+            </p>
+          </div>
+          <label className="block">
+            <span className="form-label">Estado</span>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="form-input"
+            >
+              {STATUS_FILTERS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </section>
 
       {error && <AlertBanner variant="error" message={error} />}
 

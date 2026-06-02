@@ -7,6 +7,7 @@ import { notify } from '@/lib/notify';
 import { FiAlertTriangle, FiBarChart2, FiFileText, FiFilter, FiRefreshCw, FiUsers } from 'react-icons/fi';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
+import LocalizedDateInput from '@/components/common/LocalizedDateInput';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthUser } from '@/stores/auth-store';
@@ -182,20 +183,20 @@ export default function AnaliticaClinicaPage() {
           </label>
           <label className="block">
             <span className="sr-only">Fecha desde</span>
-            <input
-              type="date"
+            <LocalizedDateInput
+              id="analytics-from-date"
               className="form-input"
               value={filters.fromDate}
-              onChange={(event) => setFilters((current) => ({ ...current, fromDate: event.target.value }))}
+              onChange={(value) => setFilters((current) => ({ ...current, fromDate: value }))}
             />
           </label>
           <label className="block">
             <span className="sr-only">Fecha hasta</span>
-            <input
-              type="date"
+            <LocalizedDateInput
+              id="analytics-to-date"
               className="form-input"
               value={filters.toDate}
-              onChange={(event) => setFilters((current) => ({ ...current, toDate: event.target.value }))}
+              onChange={(value) => setFilters((current) => ({ ...current, toDate: value }))}
             />
           </label>
           <label className="block">
@@ -292,4 +293,3 @@ export default function AnaliticaClinicaPage() {
     </div>
   );
 }
-

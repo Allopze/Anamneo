@@ -152,7 +152,7 @@ export function FichaToolbar({
     ];
 
     return (
-      <div className="flex min-w-0 items-center justify-end gap-2 py-0.5">
+      <div className="flex max-w-full min-w-0 flex-nowrap items-center justify-start gap-2 overflow-x-auto py-0.5 pr-1 md:flex-wrap md:justify-end md:overflow-visible">
         <Link
           href={`/atenciones/${id}`}
           className="btn btn-secondary flex shrink-0 items-center gap-2 px-3 py-2 sm:px-4"
@@ -181,10 +181,11 @@ export function FichaToolbar({
           <button
             onClick={onSign}
             disabled={signIsPending}
+            aria-label="Firmar"
             className="btn flex shrink-0 items-center gap-2 border-status-red/40 bg-status-red/15 px-3 py-2 font-semibold text-status-red-text hover:bg-status-red/25 sm:px-4"
           >
             <FiShield className="h-4 w-4" />
-            {signIsPending ? 'Firmando…' : 'Firmar'}
+            <span className="hidden sm:inline">{signIsPending ? 'Firmando…' : 'Firmar'}</span>
           </button>
         ) : null}
 
@@ -192,10 +193,11 @@ export function FichaToolbar({
           <button
             onClick={onReopen}
             disabled={reopenIsPending}
+            aria-label="Reabrir"
             className="btn btn-secondary flex shrink-0 items-center gap-2 px-3 py-2 sm:px-4"
           >
             <FiEdit3 className="h-4 w-4" />
-            {reopenIsPending ? 'Reabriendo…' : 'Reabrir'}
+            <span className="hidden sm:inline">{reopenIsPending ? 'Reabriendo…' : 'Reabrir'}</span>
           </button>
         ) : null}
 
