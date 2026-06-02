@@ -595,6 +595,31 @@ git diff --check
 
 Resultado: typecheck limpio, 72 suites / 349 tests, build exitoso, diff-check limpio.
 
+## Registro de remediacion ejecutada — septima pasada (2026-06-01)
+
+Hallazgos del QA visual real (Playwright: 42 screenshots desktop+mobile, accesibilidad 6/6, entorno
+desbloqueado: browsers + Postgres OK). Tras analizar las capturas se detectaron y corrigieron:
+
+1. **Solape KPIs ↔ toolbar de atencion (defecto)**: en `/atenciones/[id]` los KPIs globales se
+   solapaban con el `EncounterToolbar` inyectado en el `contextSlot`. `SmartHeaderBar.tsx` ahora
+   **oculta el bloque de KPIs cuando hay `contextSlot`** (irrelevantes en una atencion enfocada); el
+   toolbar usa todo el ancho y el divisor sigue separandolo de las acciones globales.
+2. **Microcopy del diff de firma**: `formatDiffPathLabel()` en `encounter-completion.helpers.ts`
+   consulta un mapa `DIFF_FIELD_LABELS` antes del transform algoritmico → "Edad (meses)" y
+   "Previsión" (antes "Edad Meses" / "Prevision" sin tilde).
+3. **Campo "Rol" huerfano en registro**: `RegisterRoleField.tsx` agrega estado vacio (sin invitacion)
+   con hint "Se asignará automáticamente según tu invitación" en vez de un grid vacio bajo el label.
+4. **All-caps en superficies de pacientes**: `administrativo/page.tsx` (DetailField de 12 campos + 2
+   labels de portal) y la card-filtro de `pacientes.parts.tsx` pasan a sentence case.
+5. **Densidad de cards-filtro de pacientes**: numero `text-3xl`→`text-2xl` manteniendo la affordance
+   de filtro (`<button aria-pressed>`).
+6. **Skeleton del header**: tamano de carga ajustado (`h-9 w-64` / `h-8 w-40`) para reducir el salto
+   al resolver los KPIs (era timing del screenshot, no defecto).
+
+Deuda opcional remanente (mismo patron, fuera de las capturas analizadas): all-caps en
+`PatientVitalsCard` (chart/mini-trends), `PatientMedicationHistoryField` y eyebrow legal de
+`NuevoPacienteDoctorFields` (este ultimo posiblemente a conservar como enfasis legal deliberado).
+
 ## Registro de remediacion ejecutada — sexta pasada (2026-06-01)
 
 Cierre de la deuda UI/UX codeable restante. Decisiones de producto previas: incluir emails (backend acotado), crear ambos iconos, y separacion estructural del smart header.

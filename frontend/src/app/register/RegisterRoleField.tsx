@@ -24,6 +24,8 @@ export default function RegisterRoleField({
       <label className="form-label">Rol</label>
       {isLoadingRoles ? (
         <p className="text-micro text-ink-muted">Cargando opciones disponibles…</p>
+      ) : availableRoles.length === 0 ? (
+        <p className="text-micro text-ink-muted">Se asignará automáticamente según tu invitación.</p>
       ) : onlyOneRole ? (
         <>
           <input type="hidden" value={availableRoles[0]} {...register('role')} />

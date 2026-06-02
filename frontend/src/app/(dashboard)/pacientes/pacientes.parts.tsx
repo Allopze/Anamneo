@@ -47,8 +47,8 @@ export function PatientCompletenessSummary({
                   : 'border-surface-muted/30 bg-surface-elevated hover:bg-surface-inset/40',
               )}
             >
-              <p className="text-sm font-bold uppercase tracking-wide text-ink-muted">{card.label}</p>
-              <p className="mt-3 text-3xl font-extrabold tracking-tight text-ink">{card.value}</p>
+              <p className="text-sm font-bold text-ink-muted">{card.label}</p>
+              <p className="mt-2 text-2xl font-extrabold tracking-tight text-ink">{card.value}</p>
               <p className="mt-2 text-sm text-ink-secondary">{card.description}</p>
             </button>
           );

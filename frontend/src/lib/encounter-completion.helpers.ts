@@ -68,12 +68,41 @@ export function formatSectionKeyList(sectionKeys: SectionKey[]) {
   return sectionKeys.map((key) => ENCOUNTER_WORKFLOW_SECTION_LABELS[key]).join(', ');
 }
 
+/**
+ * Labels legibles (con tildes y formato) para campos del diff de firma, por
+ * nombre de segmento. Lo que no esté aquí cae al transform camelCase de abajo.
+ */
+const DIFF_FIELD_LABELS: Record<string, string> = {
+  // Identificación
+  rut: 'RUT',
+  rutExempt: 'Exención de RUT',
+  rutExemptReason: 'Motivo de exención de RUT',
+  nombre: 'Nombre',
+  edad: 'Edad',
+  edadMeses: 'Edad (meses)',
+  sexo: 'Sexo',
+  trabajo: 'Trabajo',
+  prevision: 'Previsión',
+  domicilio: 'Domicilio',
+  fechaNacimiento: 'Fecha de nacimiento',
+  completenessStatus: 'Estado de la ficha',
+  registrationMode: 'Modo de registro',
+  // Secciones clínicas comunes
+  motivoConsulta: 'Motivo de consulta',
+  sospechaDiagnostica: 'Sospecha diagnóstica',
+  examenFisico: 'Examen físico',
+};
+
 export function formatDiffPathLabel(path: string) {
   return path
     .split('.')
     .map((segment) => {
       if (/^\d+$/.test(segment)) {
         return `#${segment}`;
+      }
+
+      if (DIFF_FIELD_LABELS[segment]) {
+        return DIFF_FIELD_LABELS[segment];
       }
 
       const normalized = segment

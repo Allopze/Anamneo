@@ -134,13 +134,17 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
 
   return (
     <div className={clsx('smart-header-bar', className)} role="region" aria-label="Indicadores y acciones rápidas">
-      {/* ── Left: contextual KPI chips (zona informativa) ────────── */}
-      <div className={clsx('smart-header-kpis', contextSlot ? 'flex-none' : 'flex-1')}>
+      {/* ── Left: contextual KPI chips (zona informativa) ──────────
+          Se ocultan cuando hay contextSlot (workspace de atención): los KPIs
+          globales no aplican dentro de una atención y competían/solapaban con
+          el toolbar inyectado. Sin contextSlot ocupan el espacio (flex-1). */}
+      {!contextSlot && (
+      <div className="smart-header-kpis flex-1">
 
       {/* Mobile compact */}
       <div className="flex md:hidden items-center gap-2 min-w-0 overflow-x-auto">
         {showSkeleton ? (
-          <div className="h-5 w-32 skeleton rounded-lg" />
+          <div className="h-8 w-40 skeleton rounded-lg" />
         ) : isError && !isCatalogRoute ? (
           <span className="text-xs text-ink-muted">Sin datos</span>
         ) : (
@@ -170,7 +174,7 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
       {/* Desktop KPI chips */}
       <div className="hidden md:flex items-center gap-2 min-w-0 flex-wrap">
         {showSkeleton ? (
-          <div className="h-7 w-48 skeleton rounded-pill" />
+          <div className="h-9 w-64 skeleton rounded-pill" />
         ) : isError && !isCatalogRoute ? (
           <span className="text-sm text-ink-muted">Sin datos</span>
         ) : (
@@ -199,6 +203,7 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
         )}
       </div>
       </div>
+      )}
       {/* fin zona informativa (smart-header-kpis) */}
 
       {contextSlot ? (

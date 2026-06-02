@@ -37,7 +37,7 @@ function formatDateTime(value?: string | null) {
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-card border border-surface-muted/35 bg-surface-elevated px-4 py-3">
-      <dt className="text-xs font-medium uppercase tracking-wide text-ink-muted">{label}</dt>
+      <dt className="text-xs font-medium text-ink-muted">{label}</dt>
       <dd className="mt-2 text-sm text-ink">{value}</dd>
     </div>
   );
@@ -233,7 +233,7 @@ export default function PatientAdministrativeDetailPage() {
               Portal paciente
             </div>
             <div className="mt-3 space-y-3">
-              <label className="block text-xs font-medium uppercase tracking-wide text-ink-muted">
+              <label className="block text-xs font-medium text-ink-muted">
                 Correo de invitación
                 <input
                   value={inviteEmail}
@@ -242,7 +242,7 @@ export default function PatientAdministrativeDetailPage() {
                   className="mt-1 w-full rounded-card border border-surface-muted/50 bg-surface-base px-3 py-2 text-sm normal-case tracking-normal text-ink"
                 />
               </label>
-              <label className="block text-xs font-medium uppercase tracking-wide text-ink-muted">
+              <label className="block text-xs font-medium text-ink-muted">
                 Relación
                 <select
                   value={inviteRelationship}
