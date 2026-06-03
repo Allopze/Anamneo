@@ -2,6 +2,7 @@
 
 import { FiChevronLeft, FiChevronRight, FiShield } from 'react-icons/fi';
 import { EmptyState } from '@/components/common/EmptyState';
+import { ScrollableTable } from '@/components/common/ScrollableTable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -64,7 +65,7 @@ export function AuditLogTable({
         </div>
       ) : logs.length > 0 ? (
         <>
-          <div className="overflow-x-auto rounded-lg border border-surface-muted/25" role="region" aria-label="Registros de auditoría con desplazamiento horizontal">
+          <ScrollableTable aria-label="Registros de auditoría con desplazamiento horizontal" className="rounded-lg border border-surface-muted/25">
             <table className="min-w-[1120px] w-full text-sm">
               <thead>
                 <tr className="border-b border-surface-muted/30 bg-surface-inset text-left">
@@ -140,7 +141,7 @@ export function AuditLogTable({
                 })}
               </tbody>
             </table>
-          </div>
+          </ScrollableTable>
 
           {pagination && pagination.totalPages > 1 && (
             <div className="flex items-center justify-between pt-4 mt-4 border-t border-surface-muted/30">

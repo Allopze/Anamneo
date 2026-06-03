@@ -176,7 +176,13 @@ export default function PortalEncounterPage() {
                 <article key={section.id} className="portal-clinical-section">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-ink">{getSectionLabel(section.sectionKey)}</h3>
-                    <span className="rounded-pill bg-surface-inset px-2.5 py-1 text-xs font-semibold text-ink-muted">
+                    <span
+                      className={`rounded-pill px-2.5 py-1 text-xs font-semibold ${
+                        section.completed && !section.notApplicable
+                          ? 'bg-status-green/20 text-status-green-text'
+                          : 'bg-surface-inset text-ink-muted'
+                      }`}
+                    >
                       {section.notApplicable ? 'No aplica' : section.completed ? 'Completa' : 'Pendiente'}
                     </span>
                   </div>

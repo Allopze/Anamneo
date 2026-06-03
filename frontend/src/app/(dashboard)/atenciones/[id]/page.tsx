@@ -172,6 +172,7 @@ export default function EncounterWizardPage() {
                 description="Transfiere esta atención junto a sus problemas y seguimientos asociados."
                 endpoint={`/encounters/${wiz.id}/reassign`}
                 allowClosedOverrideOption
+                defaultCollapsed
                 onSuccess={() => void wiz.handleReassignmentSuccess()}
               />
             ) : null}

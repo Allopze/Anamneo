@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { FiArrowLeft, FiChevronLeft, FiChevronRight, FiDownload, FiShield } from 'react-icons/fi';
 import { AlertBanner } from '@/components/common/AlertBanner';
+import { ScrollableTable } from '@/components/common/ScrollableTable';
 import { portalApi, getErrorMessage } from '@/lib/portal-api';
 
 const ACTION_LABELS: Record<string, string> = {
@@ -136,7 +137,7 @@ export default function PortalAuditLogPage() {
 
         {data && !loading && (
           <>
-            <div className="portal-table-shell" role="region" aria-label="Historial de accesos con desplazamiento horizontal" tabIndex={0}>
+            <ScrollableTable aria-label="Historial de accesos con desplazamiento horizontal" className="portal-table-shell">
               <table className="min-w-[760px] w-full text-sm">
                 <thead className="bg-surface-inset text-left">
                   <tr>
@@ -155,44 +156,47 @@ export default function PortalAuditLogPage() {
                       </td>
                     </tr>
                   )}
-                  {data.items.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-surface-inset">
-                      <td className="whitespace-nowrap px-4 py-3 text-ink">
-                        {new Date(entry.timestamp).toLocaleDateString('es-CL')}{' '}
-                        <span className="text-ink-muted">
-                          {new Date(entry.timestamp).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-ink-secondary">
-                        {ENTITY_LABELS[entry.entityType] ?? entry.entityType}
-                      </td>
-                      <td className="px-4 py-3 text-ink-secondary">
-                        {ACTION_LABELS[entry.action] ?? entry.action}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-muted text-[10px] font-bold text-ink-secondary">
-                            {entry.actorInitials}
+                  {data.items.map((entry) => {
+                    const actorInitials = entry.actorInitials?.trim() || '?';
+                    return (
+                      <tr key={entry.id} className="hover:bg-surface-inset">
+                        <td className="whitespace-nowrap px-4 py-3 text-ink">
+                          {new Date(entry.timestamp).toLocaleDateString('es-CL')}{' '}
+                          <span className="text-ink-muted">
+                            {new Date(entry.timestamp).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
                           </span>
-                          <span className="text-ink-secondary">
-                            {ROLE_LABELS[entry.actorRole] ?? entry.actorRole}
+                        </td>
+                        <td className="px-4 py-3 text-ink-secondary">
+                          {ENTITY_LABELS[entry.entityType] ?? entry.entityType}
+                        </td>
+                        <td className="px-4 py-3 text-ink-secondary">
+                          {ACTION_LABELS[entry.action] ?? entry.action}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full border border-surface-muted/60 bg-surface-inset text-[10px] font-bold text-ink-secondary">
+                              {actorInitials}
+                            </span>
+                            <span className="text-ink-secondary">
+                              {ROLE_LABELS[entry.actorRole] ?? entry.actorRole}
+                            </span>
                           </span>
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          entry.result === 'SUCCESS'
-                            ? 'bg-status-green/20 text-status-green-text'
-                            : 'bg-status-red/15 text-status-red-text'
-                        }`}>
-                          {entry.result === 'SUCCESS' ? 'Exitoso' : 'Fallido'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            entry.result === 'SUCCESS'
+                              ? 'bg-status-green/20 text-status-green-text'
+                              : 'bg-status-red/15 text-status-red-text'
+                          }`}>
+                            {entry.result === 'SUCCESS' ? 'Exitoso' : 'Fallido'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
-            </div>
+            </ScrollableTable>
 
             {totalPages > 1 && (
               <div className="flex items-center justify-between">

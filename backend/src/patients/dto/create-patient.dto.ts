@@ -26,8 +26,10 @@ import {
   PATIENT_NAME_MIN_LENGTH,
   PATIENT_PHONE_MAX_LENGTH,
   PATIENT_RUT_EXEMPT_REASON_MAX_LENGTH,
+  PATIENT_RUT_EXEMPT_REASON_MIN_LENGTH,
   PATIENT_RUT_MAX_LENGTH,
 } from '../../../../shared/patient-field-constraints';
+import { CHILEAN_PHONE_REGEX, normalizeChileanPhone } from '../../../../shared/chilean-phone';
 
 export class CreatePatientDto {
   @IsString()
@@ -43,6 +45,9 @@ export class CreatePatientDto {
   rutExempt?: boolean;
 
   @IsString()
+  @MinLength(PATIENT_RUT_EXEMPT_REASON_MIN_LENGTH, {
+    message: `El motivo debe tener al menos ${PATIENT_RUT_EXEMPT_REASON_MIN_LENGTH} caracteres`,
+  })
   @MaxLength(PATIENT_RUT_EXEMPT_REASON_MAX_LENGTH, {
     message: `El motivo no puede exceder ${PATIENT_RUT_EXEMPT_REASON_MAX_LENGTH} caracteres`,
   })
@@ -99,7 +104,10 @@ export class CreatePatientDto {
   @MaxLength(PATIENT_PHONE_MAX_LENGTH, {
     message: `El teléfono no puede exceder ${PATIENT_PHONE_MAX_LENGTH} caracteres`,
   })
-  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  @Matches(CHILEAN_PHONE_REGEX, {
+    message: 'El teléfono debe ser un número chileno válido (ej: +56 9 1234 5678)',
+  })
+  @Transform(({ value }) => typeof value === 'string' ? normalizeChileanPhone(value) : value)
   @IsOptional()
   telefono?: string;
 
@@ -123,7 +131,10 @@ export class CreatePatientDto {
   @MaxLength(PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH, {
     message: `El teléfono de emergencia no puede exceder ${PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH} caracteres`,
   })
-  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  @Matches(CHILEAN_PHONE_REGEX, {
+    message: 'El teléfono de emergencia debe ser un número chileno válido (ej: +56 9 1234 5678)',
+  })
+  @Transform(({ value }) => typeof value === 'string' ? normalizeChileanPhone(value) : value)
   @IsOptional()
   contactoEmergenciaTelefono?: string;
 

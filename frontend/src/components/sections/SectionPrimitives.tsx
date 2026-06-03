@@ -2,6 +2,7 @@
 
 import { ReactNode } from 'react';
 import clsx from 'clsx';
+import { IconButton } from '@/components/common/IconButton';
 
 interface SectionIntroProps {
   description: ReactNode;
@@ -135,17 +136,13 @@ export function SectionIconButton({
   ariaLabel,
 }: SectionIconButtonProps) {
   return (
-    <button
-      type="button"
+    <IconButton
+      ariaLabel={ariaLabel ?? ''}
       onClick={onClick}
       disabled={disabled}
-      aria-label={ariaLabel}
-      className={clsx(
-        'section-icon-button',
-        tone === 'danger' && 'section-icon-button-danger',
-      )}
+      className={clsx(tone === 'danger' && 'section-icon-button-danger')}
     >
       {children}
-    </button>
+    </IconButton>
   );
 }

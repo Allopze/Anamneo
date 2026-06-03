@@ -107,9 +107,12 @@ export default function ProfileSecurityTab({
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-3 pt-1">
+            <div>
+              <span className="block text-sm font-medium text-ink-secondary mb-1">
+                Rol
+              </span>
               <span className="inline-flex items-center rounded-pill bg-surface-inset px-3 py-1 text-xs font-bold text-ink-secondary">
-                {userRole}
+                {userRole ?? 'Sin rol asignado'}
               </span>
             </div>
             <button

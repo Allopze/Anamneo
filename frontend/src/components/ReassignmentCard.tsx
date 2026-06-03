@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { notify } from '@/lib/notify';
-import { FiRefreshCw, FiUserCheck } from 'react-icons/fi';
+import { FiChevronDown, FiRefreshCw, FiUserCheck } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
 
 interface ReassignmentCardProps {
@@ -13,6 +13,7 @@ interface ReassignmentCardProps {
   targetLabel?: string;
   includeOpenEncountersOption?: boolean;
   allowClosedOverrideOption?: boolean;
+  defaultCollapsed?: boolean;
   onSuccess?: () => void | Promise<void>;
 }
 
@@ -36,8 +37,10 @@ export default function ReassignmentCard({
   targetLabel = 'ID del médico destino',
   includeOpenEncountersOption = false,
   allowClosedOverrideOption = false,
+  defaultCollapsed = false,
   onSuccess,
 }: ReassignmentCardProps) {
+  const [expanded, setExpanded] = useState(!defaultCollapsed);
   const [targetMedicoId, setTargetMedicoId] = useState('');
   const [reason, setReason] = useState('');
   const [includeOpenEncounters, setIncludeOpenEncounters] = useState(false);
@@ -74,96 +77,111 @@ export default function ReassignmentCard({
 
   return (
     <section className="rounded-card border border-surface-muted/40 bg-surface-elevated p-4 text-sm text-ink-secondary">
-      <div>
-        <div className="flex items-center gap-2">
-          <FiUserCheck className="h-4 w-4 text-accent" />
-          <h2 className="font-semibold text-ink-primary">{title}</h2>
-        </div>
-        <p className="mt-1">{description}</p>
-      </div>
-
-      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <label className="form-label" htmlFor={`${endpoint}-target`}>
-            {targetLabel}
-          </label>
-          {medicosQuery.data && medicosQuery.data.length > 0 ? (
-            <select
-              id={`${endpoint}-target`}
-              value={targetMedicoId}
-              onChange={(event) => setTargetMedicoId(event.target.value)}
-              className="form-input"
-            >
-              <option value="">Seleccionar médico</option>
-              {medicosQuery.data.map((medico) => (
-                <option key={medico.id} value={medico.id}>
-                  {medico.nombre}{medico.email ? ` (${medico.email})` : ''}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              id={`${endpoint}-target`}
-              value={targetMedicoId}
-              onChange={(event) => setTargetMedicoId(event.target.value)}
-              className="form-input font-mono text-xs"
-              placeholder={medicosQuery.isLoading ? 'Cargando médicos...' : 'UUID del médico'}
-            />
-          )}
+          <div className="flex items-center gap-2">
+            <FiUserCheck className="h-4 w-4 text-accent" />
+            <h2 className="font-semibold text-ink-primary">{title}</h2>
+          </div>
+          <p className="mt-1">{description}</p>
         </div>
-        <div>
-          <label className="form-label" htmlFor={`${endpoint}-reason`}>
-            Motivo operativo
-          </label>
-          <input
-            id={`${endpoint}-reason`}
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            className="form-input"
-            placeholder="Ej: cobertura por agenda clínica"
-          />
-        </div>
-      </div>
-
-      {(includeOpenEncountersOption || allowClosedOverrideOption) && (
-        <div className="mt-3 flex flex-wrap gap-3">
-          {includeOpenEncountersOption && (
-            <label className="inline-flex items-center gap-2 text-xs text-ink-secondary">
-              <input
-                type="checkbox"
-                checked={includeOpenEncounters}
-                onChange={(event) => setIncludeOpenEncounters(event.target.checked)}
-                className="h-4 w-4 rounded border-surface-muted"
-              />
-              Mover también atenciones abiertas
-            </label>
-          )}
-          {allowClosedOverrideOption && (
-            <label className="inline-flex items-center gap-2 text-xs text-ink-secondary">
-              <input
-                type="checkbox"
-                checked={allowClosedOverride}
-                onChange={(event) => setAllowClosedOverride(event.target.checked)}
-                className="h-4 w-4 rounded border-surface-muted"
-              />
-              Permitir cerradas si soy admin
-            </label>
-          )}
-        </div>
-      )}
-
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-ink-muted">El cambio queda auditado con el motivo ingresado.</p>
         <button
           type="button"
-          onClick={() => mutation.mutate()}
-          disabled={!canSubmit || mutation.isPending}
-          className="btn btn-secondary flex items-center gap-2"
+          onClick={() => setExpanded((value) => !value)}
+          className="btn btn-secondary h-9 shrink-0 gap-2 px-3 text-xs"
+          aria-expanded={expanded}
         >
-          <FiRefreshCw className={mutation.isPending ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
-          {mutation.isPending ? 'Reasignando...' : 'Reasignar'}
+          {expanded ? 'Ocultar formulario' : 'Mostrar formulario'}
+          <FiChevronDown className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </button>
       </div>
+
+      {expanded ? (
+        <>
+          <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+            <div>
+              <label className="form-label" htmlFor={`${endpoint}-target`}>
+                {targetLabel}
+              </label>
+              {medicosQuery.data && medicosQuery.data.length > 0 ? (
+                <select
+                  id={`${endpoint}-target`}
+                  value={targetMedicoId}
+                  onChange={(event) => setTargetMedicoId(event.target.value)}
+                  className="form-input"
+                >
+                  <option value="">Seleccionar médico</option>
+                  {medicosQuery.data.map((medico) => (
+                    <option key={medico.id} value={medico.id}>
+                      {medico.nombre}{medico.email ? ` (${medico.email})` : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  id={`${endpoint}-target`}
+                  value={targetMedicoId}
+                  onChange={(event) => setTargetMedicoId(event.target.value)}
+                  className="form-input font-mono text-xs"
+                  placeholder={medicosQuery.isLoading ? 'Cargando médicos...' : 'UUID del médico'}
+                />
+              )}
+            </div>
+            <div>
+              <label className="form-label" htmlFor={`${endpoint}-reason`}>
+                Motivo operativo
+              </label>
+              <input
+                id={`${endpoint}-reason`}
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                className="form-input"
+                placeholder="Ej: cobertura por agenda clínica"
+              />
+            </div>
+          </div>
+
+          {(includeOpenEncountersOption || allowClosedOverrideOption) && (
+            <div className="mt-3 flex flex-wrap gap-3">
+              {includeOpenEncountersOption && (
+                <label className="inline-flex items-center gap-2 text-xs text-ink-secondary">
+                  <input
+                    type="checkbox"
+                    checked={includeOpenEncounters}
+                    onChange={(event) => setIncludeOpenEncounters(event.target.checked)}
+                    className="h-4 w-4 rounded border-surface-muted"
+                  />
+                  Mover también atenciones abiertas
+                </label>
+              )}
+              {allowClosedOverrideOption && (
+                <label className="inline-flex items-center gap-2 text-xs text-ink-secondary">
+                  <input
+                    type="checkbox"
+                    checked={allowClosedOverride}
+                    onChange={(event) => setAllowClosedOverride(event.target.checked)}
+                    className="h-4 w-4 rounded border-surface-muted"
+                  />
+                  Permitir cerradas si soy admin
+                </label>
+              )}
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-ink-muted">El cambio queda auditado con el motivo ingresado.</p>
+            <button
+              type="button"
+              onClick={() => mutation.mutate()}
+              disabled={!canSubmit || mutation.isPending}
+              className="btn btn-secondary flex items-center gap-2"
+            >
+              <FiRefreshCw className={mutation.isPending ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+              {mutation.isPending ? 'Reasignando...' : 'Reasignar'}
+            </button>
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }

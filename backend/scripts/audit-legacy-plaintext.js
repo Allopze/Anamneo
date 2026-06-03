@@ -35,7 +35,8 @@ const checks = [
     ],
   },
   {
-    file: 'patient-portal/patient-portal.service.ts',
+    // Logic moved to helpers during patient-portal refactor
+    file: 'patient-portal/patient-portal-records.helpers.ts',
     required: [
       'requesterNameEnc: encryptField(patientIdentifiers.nombre)',
       'requesterEmailEnc: encryptField(user.email)',

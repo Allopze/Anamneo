@@ -10,6 +10,7 @@ import { api, getErrorMessage } from '@/lib/api';
 import { Patient } from '@/types';
 import { useAuthCanEditPatientAdmin, useAuthIsMedico, useAuthUser } from '@/stores/auth-store';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
+import ConfirmModal from '@/components/common/ConfirmModal';
 import { FiArrowLeft } from 'react-icons/fi';
 import { notify } from '@/lib/notify';
 import { getPatientCompletenessMeta } from '@/lib/patient';
@@ -19,6 +20,7 @@ import type { PatientPrevision, PatientSexo } from '@/types';
 import { type EditForm, buildEditSchema } from './editar.constants';
 import { RouteAccessGate } from '@/components/common/RouteAccessGate';
 import { EditarPacienteFormSections } from './EditarPacienteFormSections';
+import { useUnsavedChangesGuard } from '../../useUnsavedChangesGuard';
 
 export default function EditarPacientePage() {
   const { id } = useParams<{ id: string }>();
@@ -187,6 +189,9 @@ export default function EditarPacientePage() {
     [watchedFechaNacimiento],
   );
 
+  // Guard must be declared before any conditional returns (Rules of Hooks)
+  const navigationGuard = useUnsavedChangesGuard(editForm.formState.isDirty);
+
   if (user && !canEditAdminFields) {
     return (
       <RouteAccessGate
@@ -259,27 +264,43 @@ export default function EditarPacientePage() {
   const rutStatusLabel = patient.rutExempt ? 'Paciente sin RUT' : patient.rut || 'Sin RUT registrado';
 
   return (
-    <EditarPacienteFormSections
-      id={id}
-      patient={patient}
-      isDoctor={isDoctor}
-      errorMsg={errorMsg}
-      editForm={editForm}
-      rutExempt={Boolean(rutExempt)}
-      watchedNombre={watchedNombre ?? ''}
-      watchedRut={watchedRut ?? ''}
-      watchedFechaNacimiento={watchedFechaNacimiento ?? ''}
-      edadCalculada={edadCalculada}
-      completenessLabel={completenessMeta.label}
-      completenessDescription={completenessMeta.description}
-      editScopeLabel={editScopeLabel}
-      rutStatusLabel={rutStatusLabel}
-      formStatusLabel={formStatusLabel}
-      formStatusTone={formStatusTone}
-      isSaving={isSaving}
-      isDirty={isDirty}
-      errorCount={errorCount}
-      onSubmit={onSubmit}
-    />
+    <>
+      <EditarPacienteFormSections
+        id={id}
+        patient={patient}
+        isDoctor={isDoctor}
+        errorMsg={errorMsg}
+        editForm={editForm}
+        rutExempt={Boolean(rutExempt)}
+        watchedNombre={watchedNombre ?? ''}
+        watchedRut={watchedRut ?? ''}
+        watchedFechaNacimiento={watchedFechaNacimiento ?? ''}
+        edadCalculada={edadCalculada}
+        completenessLabel={completenessMeta.label}
+        completenessDescription={completenessMeta.description}
+        editScopeLabel={editScopeLabel}
+        rutStatusLabel={rutStatusLabel}
+        formStatusLabel={formStatusLabel}
+        formStatusTone={formStatusTone}
+        isSaving={isSaving}
+        isDirty={isDirty}
+        errorCount={errorCount}
+        onSubmit={onSubmit}
+      />
+      <ConfirmModal
+        isOpen={Boolean(navigationGuard.pendingNavigationHref)}
+        onClose={navigationGuard.clearPendingNavigation}
+        onConfirm={() => {
+          const href = navigationGuard.pendingNavigationHref;
+          navigationGuard.clearPendingNavigation();
+          if (href) router.push(href);
+        }}
+        title="Salir con cambios sin guardar"
+        message="Hay cambios en la ficha sin guardar. Si sales ahora se perderán."
+        confirmLabel="Salir"
+        cancelLabel="Seguir editando"
+        variant="warning"
+      />
+    </>
   );
 }

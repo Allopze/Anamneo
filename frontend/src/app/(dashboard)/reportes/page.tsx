@@ -60,6 +60,7 @@ export default function ReportesPage() {
       });
       return res.data;
     },
+    retry: false,
   });
 
   return (

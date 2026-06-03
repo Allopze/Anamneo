@@ -8,12 +8,22 @@ import { z } from 'zod';
 import { FiArrowLeft, FiMail } from 'react-icons/fi';
 import { api, getErrorMessage } from '@/lib/api';
 import { ErrorAlert } from '@/components/common/ErrorAlert';
+import { AuthFrame } from '@/components/auth/AuthFrame';
+import { LockIcon, ShieldIcon } from '@/components/icons';
 
 const schema = z.object({
   email: z.string().email('Ingresa un correo electrónico válido'),
 });
 
 type FormValues = z.infer<typeof schema>;
+
+const RECOVERY_CHIPS = [
+  {
+    icon: <ShieldIcon className="h-7 w-7" aria-hidden="true" />,
+    label: 'Trazabilidad clínica',
+    description: 'Cada solicitud queda registrada para auditoría.',
+  },
+];
 
 export default function ForgotPasswordPage() {
   const [submitted, setSubmitted] = useState(false);
@@ -40,29 +50,42 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-base p-4">
-      <div className="card max-w-md w-full space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-ink-primary">¿Olvidaste tu contraseña?</h1>
-          <p className="text-ink-secondary mt-1">
-            Ingresa tu correo y te enviaremos un enlace para restablecerla. El enlace caduca rápido y solo puede usarse una vez.
-          </p>
+    <AuthFrame
+      variant="loginCompact"
+      eyebrow="Acceso clínico"
+      title="Recupera el acceso a tu espacio clínico."
+      description="Te enviaremos un enlace de un solo uso al correo asociado a tu cuenta."
+      chips={RECOVERY_CHIPS}
+      cardEyebrow="Recuperación"
+      cardTitle="Recuperar contraseña"
+      cardDescription="Ingresa tu correo y enviaremos un enlace para restablecerla. El enlace caduca rápido y solo puede usarse una vez."
+      logoIconClassName="!h-14 !w-14 lg:!h-20 lg:!w-20"
+      logoTextClassName="!text-3xl lg:!text-4xl"
+      heroFooter={
+        <div className="auth-help">
+          <LockIcon className="h-7 w-7" aria-hidden="true" />
+          <span>
+            <span className="auth-help-title">Cifrado de extremo a extremo</span>
+            <span className="auth-help-copy">Tus datos viajan y se almacenan cifrados.</span>
+          </span>
         </div>
-
+      }
+      footer={
+        <Link href="/login" className="auth-inline-link justify-center">
+          <FiArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Volver a inicio de sesión
+        </Link>
+      }
+    >
+      <div className="space-y-6">
         {submitted ? (
-          <div className="space-y-4">
-            <div
-              className="rounded-md border border-status-green/30 bg-status-green/10 px-4 py-3 text-sm text-ink-primary"
-              role="status"
-              aria-live="polite"
-            >
-              Si el correo está registrado, recibirás un enlace para restablecer tu contraseña en los próximos minutos.
-              Revisa también la carpeta de spam.
-            </div>
-            <Link href="/login" className="btn btn-primary w-full text-center">
-              <FiArrowLeft className="h-4 w-4 inline mr-2" aria-hidden="true" />
-              Volver a inicio de sesión
-            </Link>
+          <div
+            className="rounded-md border border-status-green/30 bg-status-green/10 px-4 py-3 text-sm text-ink-primary"
+            role="status"
+            aria-live="polite"
+          >
+            Si el correo está registrado, recibirás un enlace para restablecer tu contraseña en los próximos minutos.
+            Revisa también la carpeta de spam.
           </div>
         ) : (
           <>
@@ -97,16 +120,9 @@ export default function ForgotPasswordPage() {
                 {isLoading ? 'Enviando…' : 'Enviar enlace de recuperación'}
               </button>
             </form>
-
-            <p className="text-center text-ink-secondary text-sm">
-              <Link href="/login" className="auth-inline-link">
-                <FiArrowLeft className="h-4 w-4 inline mr-1" aria-hidden="true" />
-                Volver a inicio de sesión
-              </Link>
-            </p>
           </>
         )}
       </div>
-    </div>
+    </AuthFrame>
   );
 }

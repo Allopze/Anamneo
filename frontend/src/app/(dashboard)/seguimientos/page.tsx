@@ -115,7 +115,7 @@ export default function SeguimientosPage() {
       </div>
 
       <div className="filter-surface">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(17rem,1.4fr)_minmax(11rem,1fr)_minmax(11rem,1fr)_minmax(13rem,1.15fr)_minmax(10rem,.9fr)]">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(14rem,1.4fr)_minmax(9rem,1fr)_minmax(9rem,1fr)_minmax(10rem,1.15fr)_minmax(9rem,.9fr)]">
           <div className="relative min-w-0">
             <FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
             <input
@@ -134,7 +134,7 @@ export default function SeguimientosPage() {
           <select className="form-input min-w-0" aria-label="Filtrar por prioridad" value={priority} onChange={(e) => { setPriority(e.target.value); updateUrl(search, status, type, e.target.value, overdueOnly); }}>
             {PRIORITY_OPTIONS.map((v) => <option key={v} value={v}>{v ? TASK_PRIORITY_LABELS[v] : 'Todas las prioridades'}</option>)}
           </select>
-          <label className="flex items-center gap-2 rounded-card border border-surface-muted/30 px-3 py-2 text-sm text-ink-secondary">
+          <label className="flex items-center gap-2 rounded-card border border-surface-muted/30 px-3 py-2 text-sm text-ink-secondary whitespace-nowrap">
             <input type="checkbox" checked={overdueOnly} onChange={() => { const next = !overdueOnly; setOverdueOnly(next); updateUrl(search, status, type, priority, next); }} />
             Solo atrasados
           </label>

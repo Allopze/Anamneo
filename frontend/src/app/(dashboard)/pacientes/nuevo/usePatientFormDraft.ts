@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { isSharedDeviceModeEnabled } from '@/stores/privacy-settings-store';
 import { encryptPhiJson, decryptPhiJson, isEncryptedPhiEnvelope } from '@/lib/local-phi-crypto';
+import { useUnsavedChangesGuard } from '../useUnsavedChangesGuard';
 import type { PatientForm } from './nuevo.constants';
 
 const DRAFT_KEY_PREFIX = 'anamneo:patient-new-draft';
@@ -79,8 +80,9 @@ export function usePatientFormDraft(
   clearPendingNavigation: () => void;
 } {
   const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [pendingNavigationHref, setPendingNavigationHref] = useState<string | null>(null);
-  const clearPendingNavigation = useCallback(() => setPendingNavigationHref(null), []);
+
+  // Delegate beforeunload + in-app link interception to the shared guard
+  const guard = useUnsavedChangesGuard(isDirty);
 
   // Restore draft on mount
   useEffect(() => {
@@ -95,7 +97,7 @@ export function usePatientFormDraft(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  // Autosave on change (debounced)
+  // Autosave on change (debounced); the encrypted draft remains recoverable after navigation.
   useEffect(() => {
     if (!userId || !isDirty) return;
 
@@ -110,34 +112,5 @@ export function usePatientFormDraft(
     };
   }, [userId, isDirty, form]);
 
-  // beforeunload warning
-  useEffect(() => {
-    if (!isDirty) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [isDirty]);
-
-  // Guard in-app link navigation; the encrypted draft still remains recoverable.
-  useEffect(() => {
-    if (!isDirty) return;
-    const handler = (event: MouseEvent) => {
-      const target = event.target instanceof Element ? event.target.closest('a[href]') : null;
-      if (!target || !(target instanceof HTMLAnchorElement)) return;
-      if (target.target && target.target !== '_self') return;
-      const href = target.getAttribute('href');
-      if (!href || href.startsWith('#')) return;
-      const url = new URL(target.href, window.location.href);
-      if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
-      event.preventDefault();
-      event.stopPropagation();
-      setPendingNavigationHref(`${url.pathname}${url.search}${url.hash}`);
-    };
-    document.addEventListener('click', handler, true);
-    return () => document.removeEventListener('click', handler, true);
-  }, [isDirty]);
-
-  return { pendingNavigationHref, clearPendingNavigation };
+  return guard;
 }

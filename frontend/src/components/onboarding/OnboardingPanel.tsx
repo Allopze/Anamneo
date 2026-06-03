@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import clsx from 'clsx';
-import { FiCheck, FiCheckCircle, FiCircle, FiX } from 'react-icons/fi';
+import { FiCheck, FiCheckCircle, FiChevronRight, FiCircle, FiX } from 'react-icons/fi';
 import { useOnboarding } from '@/lib/onboarding';
 
 export default function OnboardingPanel() {
@@ -116,9 +116,10 @@ export default function OnboardingPanel() {
               </div>
               <Link
                 href={step.href}
-                className="inline-flex h-9 items-center justify-center rounded-pill border border-surface-muted/60 bg-surface-elevated px-3.5 text-sm font-semibold text-ink-secondary transition-colors hover:border-frame/25 hover:text-ink sm:justify-self-end"
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-pill border border-surface-muted/60 bg-surface-elevated px-3.5 text-sm font-semibold text-ink-secondary transition-colors hover:border-frame/25 hover:text-ink sm:justify-self-end"
               >
                 {step.actionLabel}
+                <FiChevronRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </div>
           );

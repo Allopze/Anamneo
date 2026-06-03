@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useQueries } from '@tanstack/react-query';
-import { FiDownload, FiFileText } from 'react-icons/fi';
+import { FiClock, FiDownload, FiFileText, FiShield } from 'react-icons/fi';
 import { AlertBanner } from '@/components/common/AlertBanner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { portalApi, getErrorMessage } from '@/lib/portal-api';
@@ -97,45 +97,67 @@ export default function PortalHomePage() {
 
         {error && <AlertBanner variant="error" message={getErrorMessage(error)} />}
 
-        {patient && (
-          <section className="portal-card">
-            <h2 className="text-lg font-semibold text-ink">Datos generales</h2>
-            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-              <div><dt className="text-ink-muted">RUT</dt><dd>{patient.rut ?? 'Sin RUT'}</dd></div>
-              <div><dt className="text-ink-muted">Nacimiento</dt><dd>{patient.fechaNacimiento ? new Date(patient.fechaNacimiento).toLocaleDateString('es-CL') : '—'}</dd></div>
-              <div><dt className="text-ink-muted">Sexo</dt><dd>{patient.sexo ?? '—'}</dd></div>
-              <div><dt className="text-ink-muted">Previsión</dt><dd>{patient.prevision ?? '—'}</dd></div>
-            </dl>
-          </section>
-        )}
-
-        <section className="portal-card">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-ink">Atenciones finalizadas</h2>
-            <FiFileText className="h-5 w-5 text-ink-muted" />
-          </div>
-          <div className="divide-y divide-surface-muted/70">
-            {encounters.map((encounter) => (
-              <Link key={encounter.id} href={`/portal/atenciones/${encounter.id}`} className="flex items-center justify-between gap-4 rounded-lg py-3 transition-colors hover:bg-surface-inset">
-                <div>
-                  <p className="font-medium text-ink">{encounter.motivoConsulta || encounter.tipoAtencion || 'Atención clínica'}</p>
-                  <p className="text-xs text-ink-muted">
-                    {new Date(encounter.fecha).toLocaleDateString('es-CL')} · {encounter.medico?.nombre ?? 'Equipo clínico'} · {encounter.status}
-                  </p>
-                </div>
-                <FiDownload className="h-4 w-4 text-ink-muted" />
-              </Link>
-            ))}
-            {encounters.length === 0 && (
-              <EmptyState
-                className="my-4"
-                icon={<FiFileText className="h-6 w-6" aria-hidden="true" />}
-                title="Sin atenciones finalizadas"
-                description="Cuando el equipo clínico cierre una atención, podrás revisarla y descargarla desde aquí."
-              />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+          <div className="space-y-6">
+            {patient && (
+              <section className="portal-card">
+                <h2 className="text-lg font-semibold text-ink">Datos generales</h2>
+                <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-1">
+                  <div><dt className="text-ink-muted">RUT</dt><dd>{patient.rut ?? 'Sin RUT'}</dd></div>
+                  <div><dt className="text-ink-muted">Nacimiento</dt><dd>{patient.fechaNacimiento ? new Date(patient.fechaNacimiento).toLocaleDateString('es-CL') : '—'}</dd></div>
+                  <div><dt className="text-ink-muted">Sexo</dt><dd>{patient.sexo ?? '—'}</dd></div>
+                  <div><dt className="text-ink-muted">Previsión</dt><dd>{patient.prevision ?? '—'}</dd></div>
+                </dl>
+              </section>
             )}
+
+            <section className="portal-card">
+              <h2 className="text-lg font-semibold text-ink">Accesos y solicitudes</h2>
+              <div className="mt-4 grid gap-3">
+                <Link href="/portal/historial-acceso" className="portal-button-secondary justify-between">
+                  <span className="inline-flex items-center gap-2">
+                    <FiClock className="h-4 w-4" />
+                    Historial de accesos
+                  </span>
+                </Link>
+                <Link href="/portal/solicitudes" className="portal-button-secondary justify-between">
+                  <span className="inline-flex items-center gap-2">
+                    <FiShield className="h-4 w-4" />
+                    Solicitudes de datos
+                  </span>
+                </Link>
+              </div>
+            </section>
           </div>
-        </section>
+
+          <section className="portal-card">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-ink">Atenciones finalizadas</h2>
+              <FiFileText className="h-5 w-5 text-ink-muted" />
+            </div>
+            <div className="divide-y divide-surface-muted/70">
+              {encounters.map((encounter) => (
+                <Link key={encounter.id} href={`/portal/atenciones/${encounter.id}`} className="flex items-center justify-between gap-4 rounded-lg py-3 transition-colors hover:bg-surface-inset">
+                  <div>
+                    <p className="font-medium text-ink">{encounter.motivoConsulta || encounter.tipoAtencion || 'Atención clínica'}</p>
+                    <p className="text-xs text-ink-muted">
+                      {new Date(encounter.fecha).toLocaleDateString('es-CL')} · {encounter.medico?.nombre ?? 'Equipo clínico'} · {encounter.status}
+                    </p>
+                  </div>
+                  <FiDownload className="h-4 w-4 text-ink-muted" />
+                </Link>
+              ))}
+              {encounters.length === 0 && (
+                <EmptyState
+                  className="my-4"
+                  icon={<FiFileText className="h-6 w-6" aria-hidden="true" />}
+                  title="Sin atenciones finalizadas"
+                  description="Cuando el equipo clínico cierre una atención, podrás revisarla y descargarla desde aquí."
+                />
+              )}
+            </div>
+          </section>
+        </div>
         </>
         )}
       </div>

@@ -132,6 +132,10 @@ export default function PatientAdministrativeDetailPage() {
     <div className="animate-fade-in pb-10">
       <div className="page-header">
         <div>
+          <Link href="/pacientes" className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-ink-secondary transition-colors hover:text-ink">
+            <FiArrowLeft className="w-4 h-4" />
+            Volver a pacientes
+          </Link>
           <div className="flex items-center gap-3 text-sm text-ink-secondary">
             <FiShield className="w-4 h-4" />
             <span>Ficha administrativa</span>
@@ -145,10 +149,6 @@ export default function PatientAdministrativeDetailPage() {
             <span className="list-chip bg-surface-inset text-ink-secondary">{completenessMeta.registrationLabel}</span>
           </div>
         </div>
-        <Link href="/pacientes" className="btn btn-secondary inline-flex items-center gap-2">
-          <FiArrowLeft className="w-4 h-4" />
-          Volver a pacientes
-        </Link>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.8fr)_minmax(260px,0.85fr)]">

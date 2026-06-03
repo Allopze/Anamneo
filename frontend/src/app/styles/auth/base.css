@@ -89,13 +89,14 @@
   }
 
   .auth-hero-footer {
-    @apply mt-6 hidden max-w-lg border-t pt-5 sm:block;
-    border-color: rgba(255, 255, 255, 0.14);
+    @apply mt-4 hidden max-w-lg sm:block;
   }
 
   .auth-help {
-    @apply flex items-center gap-4 px-1;
+    @apply flex items-center gap-4 rounded-2xl border px-4 py-4;
     color: rgba(214, 221, 72, 0.82);
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
   }
 
   .auth-help-title {

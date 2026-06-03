@@ -64,7 +64,12 @@ export default function NuevoMedicamentoPage() {
       <div className="card space-y-4">
         <div>
           <label className="text-sm text-ink-secondary">Nombre</label>
-          <input className="form-input" value={name} onChange={(event) => setName(event.target.value)} />
+          <input
+            className="form-input"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Ej: Losartán"
+          />
         </div>
         <div>
           <label className="text-sm text-ink-secondary">Principio activo</label>

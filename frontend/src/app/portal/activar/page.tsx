@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { portalApi, getErrorMessage } from '@/lib/portal-api';
+import { AnamneoLogo } from '@/components/branding/AnamneoLogo';
 
 export default function PortalActivarPage() {
   const searchParams = useSearchParams();
@@ -30,6 +31,16 @@ export default function PortalActivarPage() {
   return (
     <main className="portal-page-auth">
       <section className="portal-container-form portal-card-form">
+        <div className="mb-6 space-y-3">
+          <AnamneoLogo
+            className="justify-center"
+            iconClassName="h-12 w-12 text-ink-primary"
+            textClassName="auth-logo-text-on-light text-2xl"
+            priority
+            inlineIcon
+          />
+          <p className="text-center text-sm font-semibold text-ink-muted">Portal paciente</p>
+        </div>
         <h1 className="portal-title">Activar portal paciente</h1>
         <p className="portal-copy mt-2">Define una contraseña para acceder a tus fichas finalizadas.</p>
 

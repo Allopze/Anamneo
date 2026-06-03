@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { validateRut } from '@/lib/rut';
 import { calculateAgeFromBirthDate } from '@/lib/date';
+import { isValidChileanPhone } from '../../../../../../shared/chilean-phone';
 import {
   PATIENT_ADDRESS_MAX_LENGTH,
   PATIENT_EMAIL_MAX_LENGTH,
@@ -12,6 +13,7 @@ import {
   PATIENT_NAME_MIN_LENGTH,
   PATIENT_PHONE_MAX_LENGTH,
   PATIENT_RUT_EXEMPT_REASON_MAX_LENGTH,
+  PATIENT_RUT_EXEMPT_REASON_MIN_LENGTH,
   PATIENT_RUT_MAX_LENGTH,
 } from '../../../../../../shared/patient-field-constraints';
 
@@ -37,7 +39,7 @@ const basePatientObject = z.object({
   telefono: z.string()
     .max(PATIENT_PHONE_MAX_LENGTH, `El teléfono no puede exceder ${PATIENT_PHONE_MAX_LENGTH} caracteres`)
     .optional()
-    .refine((value) => !value || value.trim().length > 0, 'El teléfono no puede estar vacío'),
+    .refine((value) => isValidChileanPhone(value), 'El teléfono debe ser un número chileno válido (ej: +56 9 1234 5678)'),
   email: z.string()
     .max(PATIENT_EMAIL_MAX_LENGTH, `El email no puede exceder ${PATIENT_EMAIL_MAX_LENGTH} caracteres`)
     .optional()
@@ -53,7 +55,8 @@ const basePatientObject = z.object({
       PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH,
       `El teléfono de emergencia no puede exceder ${PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH} caracteres`,
     )
-    .optional(),
+    .optional()
+    .refine((value) => isValidChileanPhone(value), 'El teléfono de emergencia debe ser un número chileno válido (ej: +56 9 1234 5678)'),
   centroMedico: z.string()
     .max(
       PATIENT_MEDICAL_CENTER_MAX_LENGTH,
@@ -71,11 +74,11 @@ const basePatientObject = z.object({
 });
 
 const rutExemptRefine = (val: z.infer<typeof basePatientObject>, ctx: z.RefinementCtx) => {
-  if (val.rutExempt && (!val.rutExemptReason || val.rutExemptReason.trim().length === 0)) {
+  if (val.rutExempt && (!val.rutExemptReason || val.rutExemptReason.trim().length < PATIENT_RUT_EXEMPT_REASON_MIN_LENGTH)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['rutExemptReason'],
-      message: 'Debe indicar el motivo de exencion de RUT',
+      message: `Debe indicar el motivo de exención de RUT (mín. ${PATIENT_RUT_EXEMPT_REASON_MIN_LENGTH} caracteres)`,
     });
   }
   if (!val.rutExempt && val.rut && val.rut.trim().length > 0 && !validateRut(val.rut).valid) {

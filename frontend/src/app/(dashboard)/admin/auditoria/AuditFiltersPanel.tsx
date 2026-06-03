@@ -113,15 +113,6 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
           </select>
         </div>
         <div className="xl:col-span-2">
-          <label className="text-sm text-ink-secondary" htmlFor="audit-date-from-filter">Desde</label>
-          <LocalizedDateInput
-            id="audit-date-from-filter"
-            className="form-input"
-            value={filters.dateFrom}
-            onChange={(value) => update('dateFrom', value)}
-          />
-        </div>
-        <div className="md:col-span-1 xl:col-span-3">
           <label className="text-sm text-ink-secondary" htmlFor="audit-request-filter">Request ID</label>
           <input
             id="audit-request-filter"
@@ -131,14 +122,27 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
             placeholder="ID de correlación"
           />
         </div>
-        <div className="xl:col-span-2">
-          <label className="text-sm text-ink-secondary" htmlFor="audit-date-to-filter">Hasta</label>
-          <LocalizedDateInput
-            id="audit-date-to-filter"
-            className="form-input"
-            value={filters.dateTo}
-            onChange={(value) => update('dateTo', value)}
-          />
+        <div className="md:col-span-2 xl:col-span-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="text-sm text-ink-secondary" htmlFor="audit-date-from-filter">Desde</label>
+              <LocalizedDateInput
+                id="audit-date-from-filter"
+                className="form-input"
+                value={filters.dateFrom}
+                onChange={(value) => update('dateFrom', value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm text-ink-secondary" htmlFor="audit-date-to-filter">Hasta</label>
+              <LocalizedDateInput
+                id="audit-date-to-filter"
+                className="form-input"
+                value={filters.dateTo}
+                onChange={(value) => update('dateTo', value)}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

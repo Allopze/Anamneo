@@ -65,7 +65,12 @@ export default function NuevaAfeccionPage() {
       <div className="card space-y-4">
         <div>
           <label className="text-sm text-ink-secondary">Nombre</label>
-          <input className="form-input" value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            className="form-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ej: Hipertensión arterial"
+          />
         </div>
         <div>
           <label className="text-sm text-ink-secondary">Sinónimos (separados por coma)</label>

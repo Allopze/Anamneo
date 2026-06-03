@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsDateString, IsEmail, IsInt, IsIn, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsDateString, IsEmail, IsInt, IsIn, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { Prevision, PREVISIONES, Sexo, SEXOS } from '../../common/types';
 import {
   PATIENT_ADDRESS_MAX_LENGTH,
@@ -10,6 +10,7 @@ import {
   PATIENT_MEDICAL_CENTER_MAX_LENGTH,
   PATIENT_PHONE_MAX_LENGTH,
 } from '../../../../shared/patient-field-constraints';
+import { CHILEAN_PHONE_REGEX, normalizeChileanPhone } from '../../../../shared/chilean-phone';
 
 export class UpdatePatientAdminDto {
   @IsDateString({}, { message: 'La fecha de nacimiento debe ser una fecha válida' })
@@ -50,7 +51,10 @@ export class UpdatePatientAdminDto {
 
   @IsString()
   @MaxLength(PATIENT_PHONE_MAX_LENGTH, { message: `El teléfono no puede exceder ${PATIENT_PHONE_MAX_LENGTH} caracteres` })
-  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  @Matches(CHILEAN_PHONE_REGEX, {
+    message: 'El teléfono debe ser un número chileno válido (ej: +56 9 1234 5678)',
+  })
+  @Transform(({ value }) => typeof value === 'string' ? normalizeChileanPhone(value) : value)
   @IsOptional()
   telefono?: string | null;
 
@@ -72,7 +76,10 @@ export class UpdatePatientAdminDto {
   @MaxLength(PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH, {
     message: `El teléfono de emergencia no puede exceder ${PATIENT_EMERGENCY_CONTACT_PHONE_MAX_LENGTH} caracteres`,
   })
-  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  @Matches(CHILEAN_PHONE_REGEX, {
+    message: 'El teléfono de emergencia debe ser un número chileno válido (ej: +56 9 1234 5678)',
+  })
+  @Transform(({ value }) => typeof value === 'string' ? normalizeChileanPhone(value) : value)
   @IsOptional()
   contactoEmergenciaTelefono?: string | null;
 

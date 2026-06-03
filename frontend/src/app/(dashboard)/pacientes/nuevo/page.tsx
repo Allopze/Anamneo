@@ -180,46 +180,57 @@ export default function NuevoPacientePage() {
           <label htmlFor="rut" className="form-label">
             RUT
           </label>
-          <div className="space-y-2">
-            <input
-              id="rut"
-              type="text"
-              disabled={rutExempt}
-              className={`form-input ${errors.rut ? 'form-input-error' : ''}`}
-              placeholder="Ej: 12.345.678-9"
-              {...register('rut', {
-                onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-                  const raw = e.target.value;
-                  const cleaned = raw.replace(/[.\-\s]/g, '');
-                  if (cleaned.length >= 2) {
-                    e.target.value = formatRut(raw);
-                  }
-                },
-              })}
-            />
-            <label className="flex items-center gap-2">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+            <div>
               <input
-                type="checkbox"
-                className="rounded border-surface-muted/30 text-accent focus:ring-accent"
-                {...register('rutExempt')}
+                id="rut"
+                type="text"
+                disabled={rutExempt}
+                className={`form-input ${errors.rut ? 'form-input-error' : ''}`}
+                placeholder="Ej: 12.345.678-9"
+                {...register('rut', {
+                  onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                    const raw = e.target.value;
+                    const cleaned = raw.replace(/[.\-\s]/g, '');
+                    if (cleaned.length >= 2) {
+                      e.target.value = formatRut(raw);
+                    }
+                  },
+                })}
               />
-              <span className="text-sm text-ink-secondary">Paciente sin RUT</span>
-            </label>
-            {rutExempt && (
-              <div>
+              {errors.rut && <p className="form-error">{errors.rut.message}</p>}
+            </div>
+            <div className="section-block-muted flex items-center">
+              <label className="flex items-start gap-3">
                 <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Motivo de exencion (ej: extranjero, recien nacido)"
-                  {...register('rutExemptReason')}
+                  type="checkbox"
+                  className="mt-0.5 rounded border-surface-muted/30 text-accent focus:ring-accent"
+                  {...register('rutExempt')}
                 />
-                {errors.rutExemptReason && (
-                  <p className="form-error">{errors.rutExemptReason.message}</p>
-                )}
-              </div>
-            )}
+                <span>
+                  <span className="block text-sm font-medium text-ink-primary">Paciente sin RUT</span>
+                  <span className="mt-1 block text-sm text-ink-secondary">
+                    Úsalo solo cuando la identificación formal todavía no exista.
+                  </span>
+                </span>
+              </label>
+            </div>
           </div>
-          {errors.rut && <p className="form-error">{errors.rut.message}</p>}
+          {rutExempt && (
+            <div className="section-callout section-callout-subtle mt-4">
+              <label htmlFor="rutExemptReason" className="form-label">Motivo de exención</label>
+              <input
+                id="rutExemptReason"
+                type="text"
+                className={`form-input ${errors.rutExemptReason ? 'form-input-error' : ''}`}
+                placeholder="Ej: extranjero o recién nacido"
+                {...register('rutExemptReason')}
+              />
+              {errors.rutExemptReason && (
+                <p className="form-error">{errors.rutExemptReason.message}</p>
+              )}
+            </div>
+          )}
         </div>
 
         <PossiblePatientDuplicatesNotice

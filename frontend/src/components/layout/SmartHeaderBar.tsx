@@ -6,7 +6,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DASHBOARD_HEADER_COUNTS_QUERY_KEY, fetchDashboardHeaderCounts } from '@/lib/dashboard-stats';
-import { canCreateEncounter as canCreateEncounterPermission, canCreatePatient as canCreatePatientPermission } from '@/lib/permissions';
+import { canCreateEncounter as canCreateEncounterPermission, canCreatePatient as canCreatePatientPermission, isAdminUser } from '@/lib/permissions';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   FiPackage,
@@ -43,6 +43,7 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
   const catalogCategory = searchParams.get('categoria') === 'medicamentos' ? 'medicamentos' : 'afecciones';
   const isNonClinical = NON_CLINICAL_PREFIXES.some((p) => pathname.startsWith(p));
   const shouldHideHeader = isNonClinical && !isCatalogRoute;
+  const isAdmin = isAdminUser(user);
 
   const [createOpen, setCreateOpen] = useState(false);
   const createRef = useRef<HTMLDivElement>(null);
@@ -101,7 +102,7 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
     retry: 2,
-    enabled: !shouldHideHeader && !isCatalogRoute,
+    enabled: !shouldHideHeader && !isCatalogRoute && !isAdmin,
   });
 
   const { data: catalogCount, isLoading: isCatalogCountLoading } = useQuery<{ count: number }>({
@@ -134,7 +135,7 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
         },
       ]
     : getChipsForRoute(pathname, counts);
-  const showSkeleton = isCatalogRoute ? isCatalogCountLoading && !catalogCount : isLoading && !counts;
+  const showSkeleton = isCatalogRoute ? isCatalogCountLoading && !catalogCount : !isAdmin && isLoading && !counts;
   const canCreateEncounter = canCreateEncounterPermission(user);
   const canCreatePatient = canCreatePatientPermission(user);
   const showCreate = canCreateEncounter || canCreatePatient;
