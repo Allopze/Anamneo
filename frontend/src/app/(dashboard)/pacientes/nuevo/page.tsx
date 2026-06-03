@@ -122,6 +122,10 @@ export default function NuevoPacientePage() {
       router.push(`/pacientes/${response.data.id}`);
     } catch (err) {
       setError(getErrorMessage(err));
+      // Draft contains data from a failed attempt; clear it so the user
+      // starts fresh if they navigate away and return. In-memory form
+      // state is still intact for an immediate retry.
+      if (user?.id) clearPatientFormDraft(user.id);
     } finally {
       setIsLoading(false);
     }

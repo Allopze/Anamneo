@@ -195,7 +195,7 @@ export default function PatientMedicationHistoryField({ value, onChange, readOnl
             {suggestions.length > 0 ? (
               <>
                 <div className="dropdown-header py-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                  <p className="text-xs font-semibold text-ink-muted">
                     Catálogo de medicamentos
                   </p>
                 </div>

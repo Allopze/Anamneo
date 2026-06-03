@@ -214,7 +214,7 @@ export default function PatientVitalsCard({
               )}
               {showFullVitals ? (
                 <div>
-                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-muted">
+                  <p className="mb-1 text-xs font-medium text-ink-muted">
                     {chartLabel[selectedVitalKey]} ·{' '}
                     {vitalTrend.filter((item) => item[selectedVitalKey] !== null).length} registros
                   </p>
@@ -229,14 +229,14 @@ export default function PatientVitalsCard({
               ) : (
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-muted">Peso</p>
+                    <p className="mb-1 text-xs font-medium text-ink-muted">Peso</p>
                     <MiniTrendChart
                       values={vitalTrend.map((item) => item.peso).filter((value): value is number => value !== null)}
                       stroke="#0f766e"
                     />
                   </div>
                   <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-muted">IMC</p>
+                    <p className="mb-1 text-xs font-medium text-ink-muted">IMC</p>
                     <MiniTrendChart
                       values={vitalTrend.map((item) => item.imc).filter((value): value is number => value !== null)}
                       stroke="#7c3aed"

@@ -39,11 +39,11 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const user = useAuthStore((state) => state.user);
+  const isAdmin = isAdminUser(user);
   const isCatalogRoute = pathname.startsWith('/catalogo');
   const catalogCategory = searchParams.get('categoria') === 'medicamentos' ? 'medicamentos' : 'afecciones';
   const isNonClinical = NON_CLINICAL_PREFIXES.some((p) => pathname.startsWith(p));
   const shouldHideHeader = isNonClinical && !isCatalogRoute;
-  const isAdmin = isAdminUser(user);
 
   const [createOpen, setCreateOpen] = useState(false);
   const createRef = useRef<HTMLDivElement>(null);

@@ -199,8 +199,8 @@ export default function NuevoPacienteDoctorFields({
       {edadCalculada && edadCalculada.edad < 18 && (
         <section className="rounded-md border border-amber-200 bg-amber-50 p-4">
           <header className="mb-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
-              Ley 21.719 Art 16 quáter — Representante legal del NNA
+            <p className="text-xs font-semibold text-amber-800">
+              Ley 21.719 Art. 16 quáter — Representante legal del NNA
             </p>
             <p className="mt-1 text-xs text-amber-900">
               Paciente menor de 18 años. Para tratamientos sobre datos sensibles
