@@ -135,7 +135,7 @@ export function PossiblePatientDuplicatesNotice(props: PossiblePatientDuplicates
       </div>
 
       {props.resolutionAction && (
-        <div className="mt-3 rounded-xl border border-status-yellow/80 bg-white/70 px-4 py-3">
+        <div className="mt-3 rounded-xl border border-status-yellow/80 bg-surface-elevated/70 px-4 py-3">
           <p className="font-medium text-ink-primary">Si confirmas que esta ficha sobra, archívala desde aquí.</p>
           {props.resolutionAction.helperText && (
             <p className="mt-1 text-xs text-ink-secondary">{props.resolutionAction.helperText}</p>
@@ -150,7 +150,7 @@ export function PossiblePatientDuplicatesNotice(props: PossiblePatientDuplicates
         {duplicates.map((duplicate) => (
           <div
             key={duplicate.id}
-            className="rounded-xl border border-status-yellow/80 bg-white/80 px-4 py-3 shadow-sm"
+            className="rounded-xl border border-status-yellow/80 bg-surface-elevated/80 px-4 py-3 shadow-sm"
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>

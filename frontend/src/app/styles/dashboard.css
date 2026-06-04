@@ -17,7 +17,7 @@
   .header-shell {
     @apply sticky top-0 z-40 overflow-hidden;
     background: var(--surface-elevated);
-    box-shadow: 0 2px 12px rgba(43,43,43,0.04);
+    box-shadow: 0 2px 12px rgba(var(--frame-dark-rgb), 0.06);
     border-radius: 0 0 2rem 2rem;
   }
 
@@ -108,6 +108,23 @@
 
   .smart-header-actions {
     @apply flex items-center gap-1 shrink-0;
+  }
+
+  .theme-selector {
+    @apply inline-flex min-h-11 items-center rounded-lg border border-surface-muted/45 bg-surface-inset/70 p-0.5;
+  }
+
+  .theme-selector-option {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-md
+           text-ink-muted transition-[background-color,border-color,color,transform] duration-150
+           hover:bg-surface-elevated hover:text-ink
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20
+           active:scale-[0.97];
+    transition-timing-function: var(--ease-out);
+  }
+
+  .theme-selector-option-active {
+    @apply bg-surface-elevated text-ink shadow-soft;
   }
 
   .smart-header-context-slot {

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent } from '@testing-library/react';
 import SmartHeaderBar from '@/components/layout/SmartHeaderBar';
+import { DashboardThemeProvider } from '@/components/layout/DashboardThemeProvider';
 
 const apiGetMock = jest.fn();
 
@@ -41,7 +42,11 @@ function createWrapper() {
   });
 
   return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <QueryClientProvider client={queryClient}>
+        <DashboardThemeProvider>{children}</DashboardThemeProvider>
+      </QueryClientProvider>
+    );
   };
 }
 

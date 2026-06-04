@@ -63,7 +63,7 @@ export default function MaintenanceActionsCard() {
           const form = forms[action.key] || { confirmation: '', reason: '' };
           const canSubmit = form.confirmation === action.confirmation && form.reason.trim().length >= 10;
           return (
-            <div key={action.key} className="rounded-xl border border-surface-muted/30 bg-white/70 px-4 py-3">
+            <div key={action.key} className="rounded-xl border border-surface-muted/30 bg-surface-elevated/70 px-4 py-3">
               <p className="font-medium text-ink-primary">{action.title}</p>
               <p className="mt-2 font-mono text-[11px] text-ink-muted">{action.confirmation}</p>
               <div className="mt-3 space-y-2">

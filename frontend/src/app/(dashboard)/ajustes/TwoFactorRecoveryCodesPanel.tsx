@@ -48,7 +48,7 @@ export default function TwoFactorRecoveryCodesPanel({
         {codes.map((code) => (
           <div
             key={code}
-            className="rounded-xl border border-surface-muted/40 bg-white/80 px-3 py-2 font-mono text-sm tracking-[0.18em] text-ink-primary"
+            className="rounded-xl border border-surface-muted/40 bg-surface-elevated/80 px-3 py-2 font-mono text-sm tracking-[0.18em] text-ink-primary"
           >
             {code}
           </div>

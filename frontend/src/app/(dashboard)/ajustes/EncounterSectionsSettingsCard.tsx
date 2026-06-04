@@ -61,7 +61,7 @@ export default function EncounterSectionsSettingsCard() {
         {config.sections.map((section, index) => (
           <div
             key={section.key}
-            className="grid gap-3 rounded-xl border border-surface-muted/30 bg-white/70 px-3 py-3 md:grid-cols-[84px_minmax(0,1fr)_auto_auto]"
+            className="grid gap-3 rounded-xl border border-surface-muted/30 bg-surface-elevated/70 px-3 py-3 md:grid-cols-[84px_minmax(0,1fr)_auto_auto]"
           >
             <div>
               <label className="form-label" htmlFor={`${section.key}-order`}>Orden</label>

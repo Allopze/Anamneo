@@ -36,14 +36,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
           style: {
             background: 'var(--surface-elevated)',
             color: 'var(--ink)',
-            border: '1px solid rgba(64, 64, 64, 0.12)',
+            border: '1px solid rgba(var(--frame-rgb), 0.12)',
             borderRadius: '16px',
             fontSize: '0.875rem',
             fontWeight: 600,
             lineHeight: 1.45,
             maxWidth: 'min(420px, calc(100vw - 2rem))',
             padding: '0.875rem 1rem',
-            boxShadow: '0 18px 45px rgba(43, 43, 43, 0.12)',
+            boxShadow: '0 18px 45px rgba(var(--frame-dark-rgb), 0.14)',
           },
           success: {
             iconTheme: {

@@ -92,7 +92,7 @@ export default function DashboardOperationalChecks() {
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-surface-muted/30 bg-white/70 p-4">
+        <div className="rounded-2xl border border-surface-muted/30 bg-surface-elevated/70 p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-ink-primary">Backup reciente</p>
             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${operational.backups.isFresh ? 'bg-status-green/20 text-status-green-text' : 'bg-status-red/15 text-status-red-text'}`}>
@@ -108,7 +108,7 @@ export default function DashboardOperationalChecks() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-surface-muted/30 bg-white/70 p-4">
+        <div className="rounded-2xl border border-surface-muted/30 bg-surface-elevated/70 p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-ink-primary">Restore drill</p>
             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${operational.restoreDrill.isDue ? 'bg-status-red/15 text-status-red-text' : 'bg-status-green/20 text-status-green-text'}`}>

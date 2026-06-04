@@ -12,6 +12,7 @@ import SmartHeaderBar from './SmartHeaderBar';
 import { HeaderBarSlotContext } from './HeaderBarSlotContext';
 import DashboardSidebar, { type NavItem } from './DashboardSidebar';
 import MobileSearchOverlay from './MobileSearchOverlay';
+import { useDashboardTheme } from './DashboardThemeProvider';
 import type { SearchResult } from './useDashboardSearch';
 
 interface DashboardLayoutShellProps {
@@ -78,9 +79,10 @@ export default function DashboardLayoutShell({
   onLogout,
 }: DashboardLayoutShellProps) {
   const headerBarSlotContextValue = useMemo(() => ({ setHeaderBarSlot }), [setHeaderBarSlot]);
+  const { theme } = useDashboardTheme();
 
   return (
-    <div className="min-h-screen bg-surface-base">
+    <div className="min-h-screen bg-surface-base" data-dashboard-theme={theme}>
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-pill focus:bg-frame-dark focus:text-white focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:shadow-elevated"

@@ -215,7 +215,7 @@ export default function SystemTab({
         </div>
         <ol className="mt-4 space-y-3">
           {OPERATIONAL_CHECKLIST.map((item, index) => (
-            <li key={item.title} className="rounded-xl border border-surface-muted/30 bg-white/70 px-4 py-3">
+            <li key={item.title} className="rounded-xl border border-surface-muted/30 bg-surface-elevated/70 px-4 py-3">
               <p className="font-medium text-ink-primary">{index + 1}. {item.title}</p>
               <p className="mt-1 text-sm text-ink-secondary">{item.detail}</p>
             </li>
@@ -225,7 +225,7 @@ export default function SystemTab({
           <p className="text-xs font-medium text-ink-muted">Comandos útiles</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {RUNBOOK_COMMANDS.map((cmd) => (
-              <span key={cmd} className="rounded-full border border-surface-muted/40 bg-white/80 px-3 py-1 font-mono text-xs text-ink-primary">{cmd}</span>
+              <span key={cmd} className="rounded-full border border-surface-muted/40 bg-surface-elevated/80 px-3 py-1 font-mono text-xs text-ink-primary">{cmd}</span>
             ))}
           </div>
         </div>

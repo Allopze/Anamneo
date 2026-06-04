@@ -1,3 +1,5 @@
+const colorVar = (name) => `rgba(var(${name}), <alpha-value>)`;
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -10,58 +12,59 @@ module.exports = {
       colors: {
         /* ── Warm-cream surface system ────────────────── */
         surface: {
-          base:     '#ebe9e4',
-          elevated: '#fdfcfb',
-          muted:    '#e5e4e0',
-          inset:    '#f5f4f0',
+          base:     colorVar('--surface-base-rgb'),
+          elevated: colorVar('--surface-elevated-rgb'),
+          muted:    colorVar('--surface-muted-rgb'),
+          inset:    colorVar('--surface-inset-rgb'),
         },
         frame: {
-          DEFAULT:  '#404040',
-          dark:     '#2b2b2b',
+          DEFAULT:  colorVar('--frame-rgb'),
+          dark:     colorVar('--frame-dark-rgb'),
         },
         /* ── Lime accent ──────────────────────────────── */
         accent: {
-          DEFAULT:  '#eaf832',
-          bright:   '#f3fe48',
-          text:     '#2b2b2b',
+          DEFAULT:  colorVar('--accent-rgb'),
+          bright:   colorVar('--accent-bright-rgb'),
+          text:     colorVar('--accent-text-rgb'),
         },
         /* ── Semantic text ────────────────────────────── */
         ink: {
-          DEFAULT:  '#2b2b2b',
-          primary:  '#2b2b2b',
-          secondary:'#555555',
-          muted:    '#666666',
-          onDark:   '#ffffff',
+          DEFAULT:  colorVar('--ink-rgb'),
+          primary:  colorVar('--ink-rgb'),
+          secondary:colorVar('--ink-secondary-rgb'),
+          muted:    colorVar('--ink-muted-rgb'),
+          onDark:   colorVar('--ink-on-dark-rgb'),
         },
         /* ── Chips & chart ────────────────────────────── */
         chip: {
-          DEFAULT:  '#555555',
-          hover:    '#404040',
+          DEFAULT:  colorVar('--chip-rgb'),
+          hover:    colorVar('--chip-hover-rgb'),
         },
-        chartGray:  '#666666',
+        chartGray:  colorVar('--chart-gray-rgb'),
         /* ── Soft status ──────────────────────────────── */
         status: {
-          red:        '#D08C84',
-          'red-text': '#7f1d1d',
-          yellow:     '#E5D86A',
-          green:      '#96B38A',
-          'green-text':'#1a5d38',
+          red:        colorVar('--status-red-rgb'),
+          'red-text': colorVar('--status-red-text-rgb'),
+          yellow:     colorVar('--status-yellow-rgb'),
+          'yellow-text': colorVar('--status-yellow-text-rgb'),
+          green:      colorVar('--status-green-rgb'),
+          'green-text': colorVar('--status-green-text-rgb'),
         },
         /* ── Legacy alias (keep until all refs migrated) */
         primary: {
-          50:  '#fdfcfb',
-          100: '#f5f4f0',
-          200: '#ebe9e4',
-          300: '#e5e4e0',
-          400: '#767676',
-          500: '#555555',
-          600: '#404040',
-          700: '#2b2b2b',
-          800: '#1a1a1a',
-          900: '#111111',
-          950: '#0a0a0a',
+          50:  colorVar('--primary-50-rgb'),
+          100: colorVar('--primary-100-rgb'),
+          200: colorVar('--primary-200-rgb'),
+          300: colorVar('--primary-300-rgb'),
+          400: colorVar('--primary-400-rgb'),
+          500: colorVar('--primary-500-rgb'),
+          600: colorVar('--primary-600-rgb'),
+          700: colorVar('--primary-700-rgb'),
+          800: colorVar('--primary-800-rgb'),
+          900: colorVar('--primary-900-rgb'),
+          950: colorVar('--primary-950-rgb'),
         },
-        'auth-teal': 'var(--auth-teal)',
+        'auth-teal': colorVar('--auth-teal-rgb'),
         clinical: {
           50:  '#f0faf1',
           100: '#d1f4e0',
@@ -90,10 +93,10 @@ module.exports = {
         'md':     '1rem',
       },
       boxShadow: {
-        'soft':     '0 1px 4px rgba(43,43,43,0.04)',
-        'card':     '0 4px 14px rgba(43,43,43,0.05)',
-        'elevated': '0 8px 22px rgba(43,43,43,0.07)',
-        'dropdown': '0 14px 32px rgba(43,43,43,0.10)',
+        'soft':     '0 1px 4px rgba(var(--frame-dark-rgb), 0.06)',
+        'card':     '0 4px 14px rgba(var(--frame-dark-rgb), 0.08)',
+        'elevated': '0 8px 22px rgba(var(--frame-dark-rgb), 0.12)',
+        'dropdown': '0 14px 32px rgba(var(--frame-dark-rgb), 0.16)',
       },
       fontSize: {
         'hero':    ['2rem',    { lineHeight: '1.2', fontWeight: '800' }],

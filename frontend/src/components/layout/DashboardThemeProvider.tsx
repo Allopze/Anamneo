@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { IconType } from 'react-icons';
 import { FiBookOpen, FiMoon, FiSun } from 'react-icons/fi';
 
@@ -28,7 +29,7 @@ function isDashboardTheme(value: string | null): value is DashboardTheme {
   return value === 'light' || value === 'editorial' || value === 'dark';
 }
 
-export function DashboardThemeProvider({ children }: { children: React.ReactNode }) {
+export function DashboardThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<DashboardTheme>(DEFAULT_DASHBOARD_THEME);
 
   useEffect(() => {
@@ -44,10 +45,10 @@ export function DashboardThemeProvider({ children }: { children: React.ReactNode
     }
   }, []);
 
-  const setTheme = (nextTheme: DashboardTheme) => {
+  const setTheme = useCallback((nextTheme: DashboardTheme) => {
     setThemeState(nextTheme);
     window.localStorage.setItem(DASHBOARD_THEME_STORAGE_KEY, nextTheme);
-  };
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -55,7 +56,7 @@ export function DashboardThemeProvider({ children }: { children: React.ReactNode
       setTheme,
       options: DASHBOARD_THEME_OPTIONS,
     }),
-    [theme],
+    [setTheme, theme],
   );
 
   return (

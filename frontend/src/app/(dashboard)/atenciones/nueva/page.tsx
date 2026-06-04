@@ -147,14 +147,14 @@ export default function NuevaAtencionPage() {
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <div className="flex gap-3 rounded-card border border-surface-muted/50 bg-white/70 p-3">
+              <div className="flex gap-3 rounded-card border border-surface-muted/50 bg-surface-elevated/70 p-3">
                 <FiCheckCircle className="mt-0.5 h-4 w-4 text-status-green" />
                 <div>
                   <p className="text-sm font-medium text-ink-primary">Identidad</p>
                   <p className="text-xs text-ink-secondary">{patientRutLabel}</p>
                 </div>
               </div>
-              <div className="flex gap-3 rounded-card border border-surface-muted/50 bg-white/70 p-3">
+              <div className="flex gap-3 rounded-card border border-surface-muted/50 bg-surface-elevated/70 p-3">
                 {selectedPatient.completenessStatus === 'VERIFICADA' ? (
                   <FiCheckCircle className="mt-0.5 h-4 w-4 text-status-green" />
                 ) : (
@@ -165,7 +165,7 @@ export default function NuevaAtencionPage() {
                   <p className="text-xs text-ink-secondary">{selectedCompletenessMeta.label}</p>
                 </div>
               </div>
-              <div className="flex gap-3 rounded-card border border-surface-muted/50 bg-white/70 p-3">
+              <div className="flex gap-3 rounded-card border border-surface-muted/50 bg-surface-elevated/70 p-3">
                 <FiCheckCircle className="mt-0.5 h-4 w-4 text-status-green" />
                 <div>
                   <p className="text-sm font-medium text-ink-primary">Contexto previo</p>

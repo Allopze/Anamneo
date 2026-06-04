@@ -31,8 +31,8 @@
   select.form-select {
     @apply appearance-none cursor-pointer pr-10;
     background-image:
-      linear-gradient(45deg, transparent 50%, #8A8A84 50%),
-      linear-gradient(135deg, #8A8A84 50%, transparent 50%);
+      linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%),
+      linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%);
     background-position:
       calc(100% - 18px) calc(50% + 1px),
       calc(100% - 13px) calc(50% + 1px);

@@ -105,14 +105,14 @@ export default function DashboardSidebar({
           {collapsed ? (
             <div className="flex justify-center">
               <Tooltip label={`${user?.nombre ?? 'Usuario'} · ${userRoleLabel}`} side="right">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-inset text-base font-bold text-frame">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-base font-bold text-frame">
                   {getNameInitial(user?.nombre)}
                 </div>
               </Tooltip>
             </div>
           ) : (
             <div className="flex items-center gap-3 rounded-card bg-frame-dark p-3">
-              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-surface-inset text-lg font-bold text-frame">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-white text-lg font-bold text-frame">
                 {getNameInitial(user?.nombre)}
               </div>
               <div className="min-w-0 overflow-hidden">

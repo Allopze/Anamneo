@@ -114,7 +114,7 @@ export default function TwoFactorSection() {
       {!isEnabled && qrCodeDataUrl && (
         <div className="space-y-4">
           <div className="flex items-start gap-4">
-            <div className="rounded-card border border-surface-muted/40 bg-white p-2">
+            <div className="rounded-card border border-surface-muted/40 bg-surface-elevated p-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={qrCodeDataUrl} alt="Código QR para 2FA" width={180} height={180} />
             </div>

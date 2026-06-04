@@ -24,6 +24,7 @@ import { clearAuthSessionPrefill, consumeAuthSessionPrefill, toAuthUser } from '
 import { buildLoginRedirectPath, getCurrentAppPath } from '@/lib/login-redirect';
 import DashboardLayoutShell from './DashboardLayoutShell';
 import { DashboardBootstrapShell } from './DashboardBootstrapShell';
+import { DashboardThemeProvider } from './DashboardThemeProvider';
 import {
   primaryNavigation,
   clinicalAnalyticsNavigation,
@@ -230,37 +231,39 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <DashboardLayoutShell
-      user={user}
-      pathname={pathname}
-      primaryItems={primaryItems}
-      secondaryItems={secondaryItems}
-      isOperationalAdmin={isOperationalAdmin}
-      isEncounterWorkspace={isEncounterWorkspace}
-      sidebarCollapsed={sidebarCollapsed}
-      shortcutHint={shortcutHint}
-      mobileMenuOpen={mobileMenuOpen}
-      headerBarSlot={headerBarSlot}
-      setHeaderBarSlot={setHeaderBarSlot}
-      searchQuery={search.searchQuery}
-      searchOpen={search.searchOpen}
-      searchResults={search.searchResults}
-      searchLoading={search.searchLoading}
-      searchActiveIndex={search.searchActiveIndex}
-      showCollapseToggle={false}
-      searchInputRef={searchInputRef}
-      mobileSearchInputRef={mobileSearchInputRef}
-      onCollapsedChange={updateSidebarCollapsed}
-      onMobileMenuToggle={setMobileMenuOpen}
-      onSearchChange={search.handleSearchChange}
-      onSearchOpen={openDashboardSearch}
-      onSearchFocus={() => search.setSearchOpen(true)}
-      onSearchNavigate={search.handleSearchNavigate}
-      onSearchActiveIndexChange={search.setSearchActiveIndex}
-      onSearchClose={search.closeSearch}
-      onLogout={handleLogout}
-    >
-      {children}
-    </DashboardLayoutShell>
+    <DashboardThemeProvider>
+      <DashboardLayoutShell
+        user={user}
+        pathname={pathname}
+        primaryItems={primaryItems}
+        secondaryItems={secondaryItems}
+        isOperationalAdmin={isOperationalAdmin}
+        isEncounterWorkspace={isEncounterWorkspace}
+        sidebarCollapsed={sidebarCollapsed}
+        shortcutHint={shortcutHint}
+        mobileMenuOpen={mobileMenuOpen}
+        headerBarSlot={headerBarSlot}
+        setHeaderBarSlot={setHeaderBarSlot}
+        searchQuery={search.searchQuery}
+        searchOpen={search.searchOpen}
+        searchResults={search.searchResults}
+        searchLoading={search.searchLoading}
+        searchActiveIndex={search.searchActiveIndex}
+        showCollapseToggle={false}
+        searchInputRef={searchInputRef}
+        mobileSearchInputRef={mobileSearchInputRef}
+        onCollapsedChange={updateSidebarCollapsed}
+        onMobileMenuToggle={setMobileMenuOpen}
+        onSearchChange={search.handleSearchChange}
+        onSearchOpen={openDashboardSearch}
+        onSearchFocus={() => search.setSearchOpen(true)}
+        onSearchNavigate={search.handleSearchNavigate}
+        onSearchActiveIndexChange={search.setSearchActiveIndex}
+        onSearchClose={search.closeSearch}
+        onLogout={handleLogout}
+      >
+        {children}
+      </DashboardLayoutShell>
+    </DashboardThemeProvider>
   );
 }

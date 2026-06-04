@@ -198,7 +198,7 @@ export default function LegalAdminSection() {
         {DOCUMENT_TYPES.map((type) => {
           const state = groupedDocuments[type];
           return (
-            <div key={type} className="rounded-xl border border-surface-muted/30 bg-white/70 p-4">
+            <div key={type} className="rounded-xl border border-surface-muted/30 bg-surface-elevated/70 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-medium text-ink-primary">{LEGAL_DOCUMENT_LABELS[type]}</p>

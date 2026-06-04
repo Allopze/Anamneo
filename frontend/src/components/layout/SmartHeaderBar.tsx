@@ -19,6 +19,7 @@ import { FichaIcon } from '@/components/icons';
 import clsx from 'clsx';
 import Tooltip from '@/components/common/Tooltip';
 import AlertPopover from './AlertPopover';
+import { ThemeSelector } from './ThemeSelector';
 import {
   type DashboardCounts,
   type KpiChip,
@@ -289,6 +290,8 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
             )}
           </div>
         )}
+
+        <ThemeSelector />
 
         {/* Alert badge + popover — only for roles that can read clinical alerts */}
         {canViewClinicalAlerts(user) && <AlertPopover isNonClinical={isNonClinical} />}
