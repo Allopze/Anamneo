@@ -17,6 +17,7 @@
     "db:seed": "npm --prefix backend run prisma:seed",
     "db:reset": "npm --prefix backend run db:reset",
     "db:backup": "npm --prefix backend run db:pg:backup",
+    "db:backup:mirror": "npm --prefix backend run db:pg:backup:mirror",
     "db:restore:drill": "npm --prefix backend run db:pg:restore:drill",
     "db:monitor": "npm --prefix backend run db:pg:monitor",
     "db:ops": "npm --prefix backend run db:pg:ops",

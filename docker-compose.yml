@@ -145,9 +145,17 @@ services:
       UPLOAD_DEST: /app/uploads
       ATTACHMENT_SOFT_DELETE_RETENTION_DAYS: ${ATTACHMENT_SOFT_DELETE_RETENTION_DAYS:-30}
       BACKUP_CRON_SCHEDULE: ${BACKUP_CRON_SCHEDULE:-0 */6 * * *}
+      # Copia off-machine (opcional). Vacío = desactivada. Para activarla: define
+      # PG_BACKUP_MIRROR_DIR=/app/data/backups-mirror y apunta PG_BACKUP_MIRROR_HOST_DIR
+      # (abajo) a un disco externo o carpeta sincronizada a nube.
+      PG_BACKUP_MIRROR_DIR: ${PG_BACKUP_MIRROR_DIR:-}
+      PG_BACKUP_MIRROR_RETENTION_DAYS: ${PG_BACKUP_MIRROR_RETENTION_DAYS:-14}
     volumes:
       - ./runtime/data:/app/data
       - ./runtime/uploads:/app/uploads
+      # Destino de la copia off-machine. Por defecto apunta al mismo disco (placeholder);
+      # cambia PG_BACKUP_MIRROR_HOST_DIR a la ruta de tu disco externo / carpeta nube.
+      - ${PG_BACKUP_MIRROR_HOST_DIR:-./runtime/data/backups-mirror}:/app/data/backups-mirror
     entrypoint: ["sh", "-c"]
     command:
       - |

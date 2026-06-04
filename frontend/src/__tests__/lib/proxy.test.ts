@@ -185,7 +185,11 @@ describe('proxy security headers', () => {
     const csp = buildCsp('nonce-test', true);
 
     expect(csp).toContain("script-src 'self' 'nonce-nonce-test' 'strict-dynamic'");
-    expect(csp).not.toContain("'unsafe-inline'");
+    // script-src must stay strict (no unsafe-inline); style-src intentionally allows
+    // 'unsafe-inline' because inline style attributes can't carry a nonce.
+    const scriptSrc = csp.split('; ').find((directive) => directive.startsWith('script-src')) ?? '';
+    expect(scriptSrc).not.toContain("'unsafe-inline'");
+    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
   });
 
   it('keeps microphone enabled for self unless voice dictation is explicitly disabled', () => {

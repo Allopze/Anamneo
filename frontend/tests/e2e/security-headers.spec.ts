@@ -25,6 +25,9 @@ test('frontend emits security headers compatible with active browser features', 
 
   if (process.env.NEXT_PUBLIC_STRICT_CSP === 'true') {
     expect(csp).toContain("'strict-dynamic'");
-    expect(csp).not.toContain("'unsafe-inline'");
+    // Only script-src must be free of 'unsafe-inline'; style-src allows it by design
+    // (inline style attributes cannot carry a nonce).
+    const scriptSrc = csp.split('; ').find((directive) => directive.startsWith('script-src')) ?? '';
+    expect(scriptSrc).not.toContain("'unsafe-inline'");
   }
 });

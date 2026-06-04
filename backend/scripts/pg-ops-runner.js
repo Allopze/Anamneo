@@ -70,6 +70,7 @@ function buildClinicalSearchArgs() {
 
 function getScriptsByMode(mode, shouldRunDrill, auditIntegrityArgs, clinicalSearchArgs) {
   if (mode === 'backup') return [{ script: 'pg-backup.js', stateField: 'lastBackupAt' }];
+  if (mode === 'mirror') return [{ script: 'pg-backup-mirror.js', stateField: 'lastBackupMirrorAt' }];
   if (mode === 'restore-drill') return [{ script: 'pg-restore-drill.js', stateField: 'lastRestoreDrillAt' }];
   if (mode === 'monitor') return [{ script: 'pg-monitor.js', args: ['--strict'], stateField: 'lastMonitorAt' }];
   if (mode === 'integrity') return [{ script: 'verify-audit-integrity.js', args: auditIntegrityArgs, stateField: 'lastAuditIntegrityAt' }];
@@ -85,6 +86,9 @@ function getScriptsByMode(mode, shouldRunDrill, auditIntegrityArgs, clinicalSear
 
   return [
     { script: 'pg-backup.js', stateField: 'lastBackupAt' },
+    // Off-machine mirror (no-op unless PG_BACKUP_MIRROR_DIR is set) — runs right after the
+    // fresh dump so the latest backup is copied off-host on every cycle.
+    { script: 'pg-backup-mirror.js', stateField: 'lastBackupMirrorAt' },
     ...(shouldRunDrill ? [{ script: 'pg-restore-drill.js', stateField: 'lastRestoreDrillAt' }] : []),
     { script: 'pg-monitor.js', args: ['--strict'], stateField: 'lastMonitorAt' },
     { script: 'verify-audit-integrity.js', args: auditIntegrityArgs, stateField: 'lastAuditIntegrityAt' },
@@ -134,8 +138,8 @@ async function main() {
   const mode = (readArg('mode', 'all') || 'all').toLowerCase();
   const notifyPolicy = (readArg('notify', process.env.PG_NOTIFY_POLICY || 'on-failure') || 'on-failure').toLowerCase();
   const forceRestoreDrill = toBoolean(readArg('force-restore-drill', process.env.PG_FORCE_RESTORE_DRILL));
-  if (!['all', 'backup', 'restore-drill', 'monitor', 'integrity', 'clinical-search'].includes(mode)) {
-    throw new Error('Modo invalido. Usa --mode=all|backup|restore-drill|monitor|integrity|clinical-search');
+  if (!['all', 'backup', 'mirror', 'restore-drill', 'monitor', 'integrity', 'clinical-search'].includes(mode)) {
+    throw new Error('Modo invalido. Usa --mode=all|backup|mirror|restore-drill|monitor|integrity|clinical-search');
   }
 
   const backupDir = resolveBackupDir(process.env.PG_BACKUP_DIR);

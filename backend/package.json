@@ -34,6 +34,7 @@
     "db:reset": "prisma migrate reset --force --skip-seed",
     "db:purge-users": "node scripts/purge-users.js",
     "db:pg:backup": "node scripts/pg-backup.js",
+    "db:pg:backup:mirror": "node scripts/pg-backup-mirror.js",
     "db:pg:restore:drill": "node scripts/pg-restore-drill.js",
     "db:pg:monitor": "node scripts/pg-monitor.js --strict",
     "db:pg:ops": "node scripts/pg-ops-runner.js --mode=all --notify=on-failure",

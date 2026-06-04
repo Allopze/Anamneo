@@ -22,7 +22,11 @@ export function buildCsp(nonce: string, isProd: boolean): string {
   const directives = [
     `default-src 'self'`,
     `script-src ${scriptSrc}`,
-    `style-src 'self' 'nonce-${nonce}'`,
+    // El nonce no aplica a atributos `style=` (solo a elementos <style nonce>), y la app usa
+    // estilos inline para valores dinámicos (anchos de barras, overflow, grilla de agenda) más los
+    // que inyecta Next. 'unsafe-inline' en style-src es necesario y de bajo riesgo: la seguridad
+    // anti-XSS vive en script-src, que se mantiene estricto (nonce + strict-dynamic en modo strict).
+    `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob:`,
     `connect-src ${connectSrc}`,
     `font-src 'self'`,
