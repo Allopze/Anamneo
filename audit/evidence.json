@@ -1,0 +1,220 @@
+{
+  "audit__login-error--desktop": {
+    "screenshot": "audit__login-error--desktop.png",
+    "url": "http://127.0.0.1:5556/login",
+    "viewport": "1280x900",
+    "auth": "unauthenticated",
+    "action": "Submit login with wrong credentials",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "consoleWarnings": [],
+    "networkErrors": [
+      "401 POST http://127.0.0.1:5556/api/auth/login"
+    ]
+  },
+  "audit__login-error--mobile": {
+    "screenshot": "audit__login-error--mobile.png",
+    "url": "http://127.0.0.1:5556/login",
+    "viewport": "390x844",
+    "auth": "unauthenticated",
+    "action": "Submit login with wrong credentials (mobile)",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "consoleWarnings": [],
+    "networkErrors": [
+      "401 POST http://127.0.0.1:5556/api/auth/login"
+    ]
+  },
+  "audit__protected-route-unauth--desktop": {
+    "screenshot": "audit__protected-route-unauth--desktop.png",
+    "url": "http://127.0.0.1:5556/login?from=%2Fpacientes",
+    "viewport": "1280x900",
+    "auth": "unauthenticated",
+    "action": "Navigate to /pacientes without session",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__patient-form-blank--desktop": {
+    "screenshot": "audit__patient-form-blank--desktop.png",
+    "url": "http://127.0.0.1:5556/pacientes/nuevo",
+    "viewport": "1280x900",
+    "auth": "authenticated (medico/admin)",
+    "action": "Patient new form — blank state before any input",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__patient-form-validation-errors--desktop": {
+    "screenshot": "audit__patient-form-validation-errors--desktop.png",
+    "url": "http://127.0.0.1:5556/pacientes/nuevo",
+    "viewport": "1280x900",
+    "auth": "authenticated (medico/admin)",
+    "action": "Click save on empty patient form → validation errors",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__patient-form-blank--mobile": {
+    "screenshot": "audit__patient-form-blank--mobile.png",
+    "url": "http://127.0.0.1:5556/pacientes/nuevo",
+    "viewport": "390x844",
+    "auth": "authenticated (medico/admin)",
+    "action": "Patient new form — blank state (mobile)",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__patient-form-validation-errors--mobile": {
+    "screenshot": "audit__patient-form-validation-errors--mobile.png",
+    "url": "http://127.0.0.1:5556/pacientes/nuevo",
+    "viewport": "390x844",
+    "auth": "authenticated (medico/admin)",
+    "action": "Click save on empty patient form → validation errors (mobile)",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__search-no-results--desktop": {
+    "screenshot": "audit__search-no-results--desktop.png",
+    "url": "http://127.0.0.1:5556/pacientes?search=ZZZXXX_NO_EXISTE_99999",
+    "viewport": "1280x900",
+    "auth": "authenticated",
+    "action": "Patient search with term that yields no results",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__search-special-chars--desktop": {
+    "screenshot": "audit__search-special-chars--desktop.png",
+    "url": "http://127.0.0.1:5556/pacientes?search=%3Cscript%3Ealert(%27xss%27)%3C/script%3E",
+    "viewport": "1280x900",
+    "auth": "authenticated",
+    "action": "Patient search with special characters / XSS-like payload",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__monitor--dashboard-admin": {
+    "screenshot": "audit__monitor--dashboard-admin.png",
+    "url": "http://127.0.0.1:5556/",
+    "viewport": "1280x900",
+    "auth": "admin",
+    "action": "Console/network monitor for /",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__monitor--pacientes-list": {
+    "screenshot": "audit__monitor--pacientes-list.png",
+    "url": "http://127.0.0.1:5556/pacientes",
+    "viewport": "1280x900",
+    "auth": "admin",
+    "action": "Console/network monitor for /pacientes",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__monitor--atenciones-list": {
+    "screenshot": "audit__monitor--atenciones-list.png",
+    "url": "http://127.0.0.1:5556/",
+    "viewport": "1280x900",
+    "auth": "admin",
+    "action": "Console/network monitor for /atenciones",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__monitor--agenda": {
+    "screenshot": "audit__monitor--agenda.png",
+    "url": "http://127.0.0.1:5556/agenda",
+    "viewport": "1280x900",
+    "auth": "admin",
+    "action": "Console/network monitor for /agenda",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__monitor--ajustes": {
+    "screenshot": "audit__monitor--ajustes.png",
+    "url": "http://127.0.0.1:5556/ajustes",
+    "viewport": "1280x900",
+    "auth": "admin",
+    "action": "Console/network monitor for /ajustes",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__monitor--analitica": {
+    "screenshot": "audit__monitor--analitica.png",
+    "url": "http://127.0.0.1:5556/",
+    "viewport": "1280x900",
+    "auth": "admin",
+    "action": "Console/network monitor for /analitica-clinica",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__monitor--admin-usuarios": {
+    "screenshot": "audit__monitor--admin-usuarios.png",
+    "url": "http://127.0.0.1:5556/admin/usuarios",
+    "viewport": "1280x900",
+    "auth": "admin",
+    "action": "Console/network monitor for /admin/usuarios",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__monitor--admin-auditoria": {
+    "screenshot": "audit__monitor--admin-auditoria.png",
+    "url": "http://127.0.0.1:5556/admin/auditoria",
+    "viewport": "1280x900",
+    "auth": "admin",
+    "action": "Console/network monitor for /admin/auditoria",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__monitor--reportes": {
+    "screenshot": "audit__monitor--reportes.png",
+    "url": "http://127.0.0.1:5556/reportes",
+    "viewport": "1280x900",
+    "auth": "admin",
+    "action": "Console/network monitor for /reportes",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__monitor--catalogo": {
+    "screenshot": "audit__monitor--catalogo.png",
+    "url": "http://127.0.0.1:5556/catalogo",
+    "viewport": "1280x900",
+    "auth": "admin",
+    "action": "Console/network monitor for /catalogo",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__monitor--plantillas": {
+    "screenshot": "audit__monitor--plantillas.png",
+    "url": "http://127.0.0.1:5556/plantillas",
+    "viewport": "1280x900",
+    "auth": "medico",
+    "action": "Console/network monitor for /plantillas",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  },
+  "audit__monitor--seguimientos": {
+    "screenshot": "audit__monitor--seguimientos.png",
+    "url": "http://127.0.0.1:5556/seguimientos",
+    "viewport": "1280x900",
+    "auth": "medico",
+    "action": "Console/network monitor for /seguimientos",
+    "consoleErrors": [],
+    "consoleWarnings": [],
+    "networkErrors": []
+  }
+}
