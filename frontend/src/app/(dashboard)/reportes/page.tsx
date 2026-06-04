@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FiActivity, FiCalendar, FiClipboard, FiUsers } from 'react-icons/fi';
+import { FiActivity, FiCalendar, FiClipboard, FiPieChart, FiUsers } from 'react-icons/fi';
 import { EmptyState } from '@/components/common/EmptyState';
 import LocalizedDateInput from '@/components/common/LocalizedDateInput';
 import { api } from '@/lib/api';
 import { todayLocalDateString } from '@/lib/date';
+import { useAuthUser } from '@/stores/auth-store';
+import { canViewOperationalReports } from '@/lib/permissions';
+import { STATUS_LABELS } from '@/types/encounter.types';
 
 interface OperationalDailySummary {
   date: string;
@@ -51,6 +54,8 @@ function MetricTile({
 }
 
 export default function ReportesPage() {
+  const user = useAuthUser();
+  const canView = canViewOperationalReports(user);
   const [date, setDate] = useState(todayLocalDateString());
   const { data, isLoading, error } = useQuery({
     queryKey: ['operational-daily-summary', date],
@@ -60,6 +65,7 @@ export default function ReportesPage() {
       });
       return res.data;
     },
+    enabled: canView,
     retry: false,
   });
 
@@ -83,13 +89,19 @@ export default function ReportesPage() {
         </label>
       </div>
 
-      {error && (
+      {!canView ? (
+        <EmptyState
+          icon={<FiPieChart className="h-6 w-6" aria-hidden="true" />}
+          title="Reportes disponibles para el rol clínico"
+          description="Los reportes operacionales (agenda, atenciones y asistencia) están disponibles para los perfiles Médico o Asistente. Tu cuenta no tiene acceso a estos datos clínicos."
+        />
+      ) : error ? (
         <div className="rounded-card border border-status-red/30 bg-status-red/10 p-4 text-sm text-status-red">
           No se pudo cargar el reporte.
         </div>
-      )}
+      ) : null}
 
-      {isLoading ? (
+      {canView && (isLoading ? (
         <div className="grid gap-4 md:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <div key={index} className="h-32 rounded-card skeleton" />
@@ -147,7 +159,7 @@ export default function ReportesPage() {
                 </div>
                 {Object.entries(data.encounterStatusCounts).map(([status, count]) => (
                   <div key={status} className="flex justify-between gap-4">
-                    <dt className="text-ink-secondary">{status}</dt>
+                    <dt className="text-ink-secondary">{STATUS_LABELS[status] ?? status}</dt>
                     <dd className="font-semibold text-ink-primary">{count}</dd>
                   </div>
                 ))}
@@ -155,7 +167,7 @@ export default function ReportesPage() {
             </div>
           </section>
         </>
-      ) : null}
+      ) : null)}
     </div>
   );
 }

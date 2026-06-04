@@ -38,8 +38,12 @@ export type EditForm = {
 export function buildEditSchema(isDoctor: boolean) {
   const base = z.object({
     fechaNacimiento: z.string().optional().default(''),
-    sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR']).nullable(),
-    prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA']).nullable(),
+    sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR'], {
+      errorMap: () => ({ message: 'Selecciona el sexo del paciente' }),
+    }).nullable(),
+    prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA'], {
+      errorMap: () => ({ message: 'Selecciona la previsión de salud' }),
+    }).nullable(),
     trabajo: z.string()
       .max(PATIENT_JOB_MAX_LENGTH, `El trabajo no puede exceder ${PATIENT_JOB_MAX_LENGTH} caracteres`)
       .nullable()

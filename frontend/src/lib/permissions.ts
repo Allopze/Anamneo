@@ -40,6 +40,24 @@ export function hasAssignedMedico(user: PermissionUser | null | undefined) {
   return Boolean(user && isAssistantUser(user) && user.medicoId);
 }
 
+/**
+ * Whether the user can read clinical alerts. Mirrors the backend
+ * `@Roles('MEDICO', 'ASISTENTE')` guard on `/alerts/*`; operational admins
+ * (role ADMIN) get 403, so they must not trigger the alert queries.
+ */
+export function canViewClinicalAlerts(user: PermissionUser | null | undefined) {
+  return user?.role === 'MEDICO' || user?.role === 'ASISTENTE';
+}
+
+/**
+ * Whether the user can read operational reports. Mirrors the backend
+ * `@Roles('MEDICO', 'ASISTENTE')` guard on `/analytics/operational/*`;
+ * operational admins (role ADMIN) get 403.
+ */
+export function canViewOperationalReports(user: PermissionUser | null | undefined) {
+  return user?.role === 'MEDICO' || user?.role === 'ASISTENTE';
+}
+
 export function canCreatePatient(user: PermissionUser | null | undefined) {
   return Boolean(
     canPerformFineGrainedAction(user, 'patient.create')

@@ -6,7 +6,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DASHBOARD_HEADER_COUNTS_QUERY_KEY, fetchDashboardHeaderCounts } from '@/lib/dashboard-stats';
-import { canCreateEncounter as canCreateEncounterPermission, canCreatePatient as canCreatePatientPermission, isAdminUser } from '@/lib/permissions';
+import { canCreateEncounter as canCreateEncounterPermission, canCreatePatient as canCreatePatientPermission, canViewClinicalAlerts, isAdminUser } from '@/lib/permissions';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   FiPackage,
@@ -290,8 +290,8 @@ export default function SmartHeaderBar({ onSearchOpen, contextSlot, className }:
           </div>
         )}
 
-        {/* Alert badge + popover */}
-        <AlertPopover isNonClinical={isNonClinical} />
+        {/* Alert badge + popover — only for roles that can read clinical alerts */}
+        {canViewClinicalAlerts(user) && <AlertPopover isNonClinical={isNonClinical} />}
       </div>
     </div>
   );

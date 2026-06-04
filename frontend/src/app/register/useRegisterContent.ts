@@ -137,10 +137,13 @@ export function useRegisterContent() {
     const hasAdmin = bootstrapQuery.data?.hasAdmin;
 
     if (hasAdmin) {
-      setIsInvitationMode(true);
       setRequiresBootstrapToken(false);
 
+      // Only confirm "invitation mode" (and show the "Invitación validada" badges)
+      // once a valid invitation is actually loaded — otherwise the badges would
+      // contradict the "Necesita una invitación válida" warning.
       if (!invitationTokenFromQuery) {
+        setIsInvitationMode(false);
         setInvitationError('Necesita una invitación válida para crear una cuenta.');
         setAvailableRoles([]);
         return;
@@ -149,6 +152,7 @@ export function useRegisterContent() {
       if (invitationQuery.isLoading) return;
 
       if (invitationQuery.isError) {
+        setIsInvitationMode(false);
         setAvailableRoles([]);
         setInvitationError('La invitación es inválida o expiró.');
         return;
@@ -156,6 +160,7 @@ export function useRegisterContent() {
 
       if (invitationQuery.data) {
         const { role, email } = invitationQuery.data;
+        setIsInvitationMode(true);
         setInvitationToken(invitationTokenFromQuery);
         setInvitationEmail(email);
         setAvailableRoles([role]);

@@ -22,8 +22,12 @@ const basePatientObject = z.object({
     .min(PATIENT_NAME_MIN_LENGTH, `El nombre debe tener al menos ${PATIENT_NAME_MIN_LENGTH} caracteres`)
     .max(PATIENT_NAME_MAX_LENGTH, `El nombre no puede exceder ${PATIENT_NAME_MAX_LENGTH} caracteres`),
   fechaNacimiento: z.string().optional(),
-  sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR']).optional(),
-  prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA']).optional(),
+  sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR'], {
+    errorMap: () => ({ message: 'Selecciona el sexo del paciente' }),
+  }).optional(),
+  prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA'], {
+    errorMap: () => ({ message: 'Selecciona la previsión de salud' }),
+  }).optional(),
   rut: z.string().max(PATIENT_RUT_MAX_LENGTH, `El RUT no puede exceder ${PATIENT_RUT_MAX_LENGTH} caracteres`).optional(),
   rutExempt: z.boolean().default(false),
   rutExemptReason: z.string()
@@ -94,8 +98,12 @@ export const basePatientSchema = basePatientObject.superRefine(rutExemptRefine);
 
 export const fullPatientSchema = basePatientObject.extend({
   fechaNacimiento: z.string().min(1, 'La fecha de nacimiento es obligatoria'),
-  sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR']),
-  prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA']),
+  sexo: z.enum(['MASCULINO', 'FEMENINO', 'OTRO', 'PREFIERE_NO_DECIR'], {
+    errorMap: () => ({ message: 'Selecciona el sexo del paciente' }),
+  }),
+  prevision: z.enum(['FONASA', 'ISAPRE', 'OTRA', 'DESCONOCIDA'], {
+    errorMap: () => ({ message: 'Selecciona la previsión de salud' }),
+  }),
 }).superRefine((val, ctx) => {
   rutExemptRefine(val, ctx);
 

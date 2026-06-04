@@ -50,10 +50,12 @@ export default function PatientCompletenessWidget({ patient }: Props) {
   const pct = Math.round((filled / total) * 100);
   const missing = fields.filter((f) => !f.filled);
 
+  // Accessible tints (WCAG AA) — solid status fills with white text fail contrast
+  // on the soft brand palette. Mirrors PATIENT_COMPLETENESS_BADGE_CLASSNAMES in lib/patient.ts.
   const color =
-    pct >= 90 ? 'bg-status-green text-status-green-text' :
-    pct >= 60 ? 'bg-status-yellow text-accent-text' :
-    'bg-status-red text-white';
+    pct >= 90 ? 'border border-status-green/35 bg-status-green/10 text-status-green-text' :
+    pct >= 60 ? 'border border-status-yellow/70 bg-status-yellow/40 text-accent-text' :
+    'border border-status-red/35 bg-status-red/10 text-status-red-text';
 
   const barColor =
     pct >= 90 ? 'bg-status-green' :

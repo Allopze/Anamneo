@@ -10,6 +10,12 @@ import OnboardingSettingsSection from './OnboardingSettingsSection';
 import SessionManagementSection from './SessionManagementSection';
 import TwoFactorSection from './TwoFactorSection';
 
+const USER_ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Administrador',
+  MEDICO: 'Médico',
+  ASISTENTE: 'Asistente',
+};
+
 type Props = Pick<
   AjustesHook,
   'profileForm' | 'profileMutation' | 'showPassword' | 'setShowPassword' | 'passwordForm' | 'passwordMutation'
@@ -112,7 +118,7 @@ export default function ProfileSecurityTab({
                 Rol
               </span>
               <span className="inline-flex items-center rounded-pill bg-surface-inset px-3 py-1 text-xs font-bold text-ink-secondary">
-                {userRole ?? 'Sin rol asignado'}
+                {userRole ? (USER_ROLE_LABELS[userRole] ?? userRole) : 'Sin rol asignado'}
               </span>
             </div>
             <button

@@ -6,6 +6,8 @@ import { FiClock, FiDownload, FiFileText, FiShield } from 'react-icons/fi';
 import { AlertBanner } from '@/components/common/AlertBanner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { portalApi, getErrorMessage } from '@/lib/portal-api';
+import { SEXO_LABELS, PREVISION_LABELS } from '@/types/patient-labels';
+import { STATUS_LABELS } from '@/types/encounter.types';
 
 type PortalPatient = {
   id: string;
@@ -105,8 +107,8 @@ export default function PortalHomePage() {
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-1">
                   <div><dt className="text-ink-muted">RUT</dt><dd>{patient.rut ?? 'Sin RUT'}</dd></div>
                   <div><dt className="text-ink-muted">Nacimiento</dt><dd>{patient.fechaNacimiento ? new Date(patient.fechaNacimiento).toLocaleDateString('es-CL') : '—'}</dd></div>
-                  <div><dt className="text-ink-muted">Sexo</dt><dd>{patient.sexo ?? '—'}</dd></div>
-                  <div><dt className="text-ink-muted">Previsión</dt><dd>{patient.prevision ?? '—'}</dd></div>
+                  <div><dt className="text-ink-muted">Sexo</dt><dd>{patient.sexo ? (SEXO_LABELS[patient.sexo] ?? patient.sexo) : '—'}</dd></div>
+                  <div><dt className="text-ink-muted">Previsión</dt><dd>{patient.prevision ? (PREVISION_LABELS[patient.prevision] ?? patient.prevision) : '—'}</dd></div>
                 </dl>
               </section>
             )}
@@ -141,7 +143,7 @@ export default function PortalHomePage() {
                   <div>
                     <p className="font-medium text-ink">{encounter.motivoConsulta || encounter.tipoAtencion || 'Atención clínica'}</p>
                     <p className="text-xs text-ink-muted">
-                      {new Date(encounter.fecha).toLocaleDateString('es-CL')} · {encounter.medico?.nombre ?? 'Equipo clínico'} · {encounter.status}
+                      {new Date(encounter.fecha).toLocaleDateString('es-CL')} · {encounter.medico?.nombre ?? 'Equipo clínico'} · {STATUS_LABELS[encounter.status] ?? encounter.status}
                     </p>
                   </div>
                   <FiDownload className="h-4 w-4 text-ink-muted" />

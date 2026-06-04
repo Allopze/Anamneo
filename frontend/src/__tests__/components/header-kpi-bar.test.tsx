@@ -16,15 +16,20 @@ jest.mock('@/lib/api', () => ({
   },
 }));
 
-jest.mock('@/stores/auth-store', () => ({
-  useAuthUser: () => ({ id: 'med-1', role: 'MEDICO', isAdmin: false }),
-  useAuthCanCreateEncounter: () => true,
-  useAuthCanCreatePatient: () => true,
-  useAuthStore: () => ({
+jest.mock('@/stores/auth-store', () => {
+  const state = {
+    user: { id: 'med-1', role: 'MEDICO', isAdmin: false },
     canCreateEncounter: () => true,
     canCreatePatient: () => true,
-  }),
-}));
+  };
+  return {
+    useAuthUser: () => state.user,
+    useAuthCanCreateEncounter: () => true,
+    useAuthCanCreatePatient: () => true,
+    useAuthStore: (selector?: (s: typeof state) => unknown) =>
+      selector ? selector(state) : state,
+  };
+});
 
 function createWrapper() {
   const queryClient = new QueryClient({
