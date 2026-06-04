@@ -20,11 +20,11 @@
   }
 
   .portal-card {
-    @apply rounded-card border border-surface-muted/70 bg-surface-elevated p-5 shadow-soft;
+    @apply rounded-card border border-surface-muted/55 bg-surface-elevated p-5 shadow-soft;
   }
 
   .portal-card-form {
-    @apply rounded-card border border-surface-muted/70 bg-surface-elevated p-8 shadow-card;
+    @apply rounded-card border border-surface-muted/55 bg-surface-elevated p-8 shadow-card;
   }
 
   .portal-header {
@@ -32,7 +32,7 @@
   }
 
   .portal-external-topbar {
-    @apply flex items-center justify-between rounded-shell bg-surface-elevated px-4 py-3 shadow-soft sm:px-5;
+    @apply flex items-center justify-between rounded-shell border border-surface-muted/40 bg-surface-elevated px-4 py-3 shadow-soft sm:px-5;
   }
 
   .portal-title {
@@ -56,9 +56,9 @@
   }
 
   .portal-input {
-    @apply mt-1 w-full rounded-input border border-surface-muted bg-surface-inset px-4 py-3 text-sm text-ink
+    @apply mt-1 w-full rounded-input border border-surface-muted/70 bg-surface-elevated px-4 py-3 text-sm text-ink
            outline-none transition-[border-color,box-shadow,background-color] duration-200
-           focus:border-frame focus:ring-2 focus:ring-frame/25;
+           focus:border-frame/45 focus:ring-2 focus:ring-frame/20;
   }
 
   .portal-textarea {
@@ -66,8 +66,8 @@
   }
 
   .portal-button-primary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-frame-dark px-4 py-2.5
-           text-sm font-bold text-ink-onDark shadow-soft transition-[background-color,box-shadow,transform] duration-150
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-btn border border-frame-dark bg-frame-dark px-4 py-2.5
+           text-sm font-semibold text-ink-onDark shadow-none transition-[background-color,box-shadow,transform] duration-150
            hover:bg-frame focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame
            focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base active:scale-[0.97]
            disabled:pointer-events-none disabled:opacity-50;
@@ -75,8 +75,8 @@
   }
 
   .portal-button-secondary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-pill border border-surface-muted bg-surface-elevated px-4 py-2.5
-           text-sm font-bold text-ink-secondary transition-[background-color,border-color,color,transform] duration-150
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-btn border border-surface-muted/70 bg-surface-elevated px-4 py-2.5
+           text-sm font-semibold text-ink-secondary transition-[background-color,border-color,color,transform] duration-150
            hover:border-ink-muted/40 hover:bg-surface-inset hover:text-ink focus-visible:outline-none
            focus-visible:ring-2 focus-visible:ring-frame/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base
            active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50;
@@ -84,7 +84,7 @@
   }
 
   .portal-icon-button {
-    @apply inline-flex h-11 w-11 items-center justify-center rounded-pill border border-surface-muted bg-surface-elevated
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-btn border border-surface-muted/70 bg-surface-elevated
            text-ink-secondary transition-[background-color,border-color,color,transform] duration-150 hover:bg-surface-inset
            hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/40
            focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base active:scale-[0.97]
@@ -107,16 +107,16 @@
   }
 
   .portal-table-shell {
-    @apply overflow-x-auto rounded-card border border-surface-muted/70 bg-surface-elevated shadow-soft;
+    @apply overflow-x-auto rounded-card border border-surface-muted/55 bg-surface-elevated shadow-soft;
     scrollbar-width: thin;
   }
 
   .portal-clinical-section {
-    @apply rounded-lg border border-surface-muted/70 bg-surface-elevated p-3 sm:p-4;
+    @apply rounded-card border border-surface-muted/55 bg-surface-elevated p-3 sm:p-4;
   }
 
   .portal-clinical-data {
-    @apply mt-3 rounded-lg bg-surface-inset/70 p-3 text-sm leading-6 text-ink-secondary;
+    @apply mt-3 rounded-card bg-surface-inset/70 p-3 text-sm leading-6 text-ink-secondary;
   }
 
   .portal-clinical-data dl {

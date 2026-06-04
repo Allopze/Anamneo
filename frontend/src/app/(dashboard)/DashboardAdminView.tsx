@@ -18,10 +18,10 @@ export default function DashboardAdminView({ user }: DashboardAdminViewProps) {
   return (
     <div className="space-y-6 pb-2">
       <section
-        className="animate-fade-in rounded-card bg-surface-elevated px-6 py-7 shadow-soft lg:px-10 lg:py-8"
+        className="animate-fade-in rounded-card border border-surface-muted/45 bg-surface-elevated px-6 py-7 shadow-soft lg:px-10 lg:py-8"
         style={sectionAnimation(0)}
       >
-        <h1 className="max-w-3xl text-[1.85rem] font-extrabold tracking-tight text-ink sm:text-[2.15rem]">
+        <h1 className="max-w-3xl text-[1.85rem] font-bold tracking-tight text-ink sm:text-[2.15rem]">
           {getGreeting()}, {getFirstName(user?.nombre)}
         </h1>
         <p className="mt-2 max-w-2xl text-base text-ink-secondary">
@@ -42,9 +42,9 @@ export default function DashboardAdminView({ user }: DashboardAdminViewProps) {
                 <Link
                   key={card.href}
                   href={card.href}
-                  className="group flex items-start gap-4 rounded-card bg-surface-elevated p-5 shadow-soft transition-[background-color,box-shadow] hover:bg-surface-inset/50 hover:shadow-md"
+                  className="group flex items-start gap-4 rounded-card border border-surface-muted/45 bg-surface-elevated p-5 shadow-soft transition-[background-color,border-color,box-shadow] hover:border-frame/15 hover:bg-surface-inset/50 hover:shadow-card"
                 >
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-inset text-ink-secondary transition-colors group-hover:bg-accent/20 group-hover:text-accent-text">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-card border border-surface-muted/35 bg-surface-inset text-ink-secondary transition-colors group-hover:bg-accent/20 group-hover:text-accent-text">
                     <card.icon className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <div className="min-w-0 flex-1">

@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { FiCalendar, FiChevronLeft, FiChevronRight, FiGrid, FiList, FiPlus } from 'react-icons/fi';
+import { FiCalendar, FiChevronLeft, FiChevronRight, FiGrid, FiList, FiPlus, FiSettings, FiUserCheck } from 'react-icons/fi';
 import { useAuthUser } from '@/stores/auth-store';
 import {
   DEFAULT_FORM,
@@ -125,12 +125,44 @@ export default function AgendaPage() {
             <p className="page-header-description">Calendario clínico y coordinación de citas.</p>
           </div>
         </div>
-        <div className="card flex min-h-[42vh] flex-col items-center justify-center gap-4 text-center">
-          <FiCalendar className="h-12 w-12 text-ink-muted/50" aria-hidden="true" />
-          <h2 className="text-xl font-bold text-ink">Sin médico asignado</h2>
-          <p className="max-w-sm text-sm text-ink-secondary">
-            Tu cuenta de asistente no tiene un médico asignado. Solicita al administrador que configure la asignación en los ajustes del sistema.
-          </p>
+        <div className="card grid min-h-[42vh] gap-8 p-6 text-left lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:p-8">
+          <div className="flex flex-col justify-center">
+            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-card border border-surface-muted/45 bg-surface-inset text-ink-muted">
+              <FiCalendar className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight text-ink">Sin médico asignado</h2>
+            <p className="mt-3 max-w-md text-sm leading-6 text-ink-secondary">
+              Tu cuenta de asistente aún no está vinculada a un médico. La agenda se activará cuando un administrador complete esa asignación.
+            </p>
+          </div>
+          <div className="grid content-center gap-3">
+            <div className="rounded-card border border-surface-muted/45 bg-surface-inset/60 p-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-btn bg-surface-elevated text-ink-secondary">
+                  <FiUserCheck className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="font-semibold text-ink">Asignación médica requerida</p>
+                  <p className="mt-1 text-sm leading-6 text-ink-secondary">
+                    Pide que vinculen tu usuario al médico responsable antes de coordinar citas.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-card border border-surface-muted/45 bg-surface-inset/60 p-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-btn bg-surface-elevated text-ink-secondary">
+                  <FiSettings className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="font-semibold text-ink">Ruta administrativa</p>
+                  <p className="mt-1 text-sm leading-6 text-ink-secondary">
+                    La configuración se realiza en ajustes del sistema por un administrador del espacio clínico.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -144,7 +176,7 @@ export default function AgendaPage() {
           <p className="capitalize text-sm text-ink-secondary">{headerTitle}</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex overflow-hidden rounded-xl border border-surface-muted/50 bg-surface-base text-sm font-semibold">
+          <div className="flex overflow-hidden rounded-btn border border-surface-muted/50 bg-surface-base text-sm font-semibold">
             <button
               type="button"
               onClick={() => setViewMode('week')}

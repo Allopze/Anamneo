@@ -51,7 +51,7 @@ export default function EncounterHeader({
               <Link
                 href={`/pacientes/${encounter.patientId}`}
                 aria-label="Volver al paciente"
-                className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg border border-surface-muted/60 bg-surface-base text-ink-secondary transition-colors hover:border-frame/20 hover:bg-surface-muted/20 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20"
+                className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-btn border border-surface-muted/60 bg-surface-base text-ink-secondary transition-colors hover:border-frame/20 hover:bg-surface-muted/20 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20"
               >
                 <FiArrowLeft className="h-4 w-4" />
               </Link>
@@ -68,7 +68,7 @@ export default function EncounterHeader({
                     {elapsedLabel}
                   </span>
                 </div>
-                <h1 className="mt-2 break-words text-[1.65rem] font-extrabold leading-tight tracking-tight text-ink sm:truncate sm:text-[1.9rem] lg:text-[2.15rem]">
+                <h1 className="mt-2 break-words text-[1.65rem] font-bold leading-tight tracking-tight text-ink sm:truncate sm:text-[1.9rem] lg:text-[2.15rem]">
                   {encounter.patient?.nombre}
                 </h1>
                 {patientMeta.length > 0 && (
@@ -77,7 +77,7 @@ export default function EncounterHeader({
                       <span
                         key={`${item}-${index}`}
                         className={clsx(
-                          'inline-flex min-h-7 items-center rounded-lg border border-surface-muted/40 bg-surface-inset/50 px-3',
+                          'inline-flex min-h-7 items-center rounded-btn border border-surface-muted/40 bg-surface-inset/50 px-3',
                           index === 0 && 'tabular-nums',
                         )}
                       >
@@ -90,7 +90,7 @@ export default function EncounterHeader({
             </div>
           </div>
 
-          <div className="min-w-0 rounded-xl border border-surface-muted/40 bg-surface-inset/50 p-4 xl:justify-self-end">
+          <div className="min-w-0 rounded-card border border-surface-muted/40 bg-surface-inset/50 p-4 xl:justify-self-end">
             <div className="flex items-center justify-between gap-4 text-sm">
               <span className="font-medium text-ink-secondary">Progreso de la atención</span>
               <span className="shrink-0 font-medium text-ink">
@@ -117,7 +117,7 @@ export default function EncounterHeader({
               {(!isOnline || pendingSaveCount > 0) && (
                 <div
                   className={clsx(
-                    'inline-flex min-h-7 items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium',
+                    'inline-flex min-h-7 items-center gap-1.5 rounded-btn border px-2 py-1 text-xs font-medium',
                     !isOnline
                       ? 'border-status-yellow/60 bg-status-yellow/20 text-accent-text'
                       : 'border-accent/40 bg-accent/10 text-accent-text',

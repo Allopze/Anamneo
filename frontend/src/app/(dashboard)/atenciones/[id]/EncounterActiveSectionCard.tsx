@@ -162,7 +162,7 @@ export default function EncounterActiveSectionCard({
         </div>
       </div>
 
-      <div className="border-t border-frame/12 bg-surface-base/25 px-5 py-4 sm:px-6">
+      <div className="border-t border-frame/10 bg-surface-base/25 px-5 py-4 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <button
             onClick={() => wiz.handleNavigate('prev')}

@@ -60,7 +60,7 @@ export default function EncounterMobileSectionNav({
       </label>
       <select
         id="encounter-mobile-section-select"
-        className="form-input mt-3 min-h-11 rounded-lg py-2 text-sm"
+        className="form-input mt-3 min-h-11 rounded-input py-2 text-sm"
         value={currentSectionIndex}
         onChange={(event) => moveToSection(Number(event.target.value))}
         aria-label="Cambiar sección de la atención"

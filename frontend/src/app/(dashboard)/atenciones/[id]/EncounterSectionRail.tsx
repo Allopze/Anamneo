@@ -38,7 +38,7 @@ export default function EncounterSectionRail({
       <div
         className={clsx(
           RAIL_PANEL_CLASS,
-          railCollapsed ? 'rounded-xl' : 'rounded-card',
+          railCollapsed ? 'rounded-card' : 'rounded-card',
           'max-h-[calc(100vh-18rem)] overflow-y-auto motion-safe:transition-[width,border-radius,border-color,background-color] motion-safe:duration-200 motion-safe:ease-out motion-reduce:transition-none',
         )}
       >
@@ -92,7 +92,7 @@ export default function EncounterSectionRail({
                 return next;
               })
             }
-            className="flex w-full items-center justify-center gap-2 rounded-card border border-transparent px-2 py-2 text-xs font-medium text-ink-secondary transition-colors hover:border-surface-muted/40 hover:bg-surface-base/45"
+            className="flex w-full items-center justify-center gap-2 rounded-btn border border-transparent px-2 py-2 text-xs font-medium text-ink-secondary transition-colors hover:border-surface-muted/40 hover:bg-surface-base/45"
             aria-label={railCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
           >
             {railCollapsed ? (

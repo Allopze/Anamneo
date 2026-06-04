@@ -80,7 +80,7 @@ export function DashboardSidebarSearch({
             <button
               type="button"
               onClick={onSearchOpen}
-              className="flex h-11 w-11 items-center justify-center rounded-card border border-white/[0.12] bg-white/[0.08] text-white/70 transition-colors hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+              className="flex h-11 w-11 items-center justify-center rounded-btn border border-white/[0.12] bg-white/[0.08] text-white/70 transition-colors hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
               aria-label={`Buscar pacientes y atenciones (${shortcutHint})`}
             >
               <FiSearch className="h-4 w-4" />
@@ -105,7 +105,7 @@ export function DashboardSidebarSearch({
             aria-activedescendant={searchActiveIndex >= 0 && searchResults[searchActiveIndex] ? `search-result-${searchResults[searchActiveIndex].id}` : undefined}
             aria-label="Buscar pacientes y atenciones"
             aria-busy={searchLoading}
-            className="w-full rounded-pill border border-white/[0.1] bg-white/[0.08] py-2.5 pl-10 pr-4 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-accent/50 focus:bg-white/[0.12]"
+            className="w-full rounded-input border border-white/[0.1] bg-white/[0.08] py-2.5 pl-10 pr-4 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-accent/50 focus:bg-white/[0.12]"
           />
 
           {searchOpen && searchQuery.trim() ? (

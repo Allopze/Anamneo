@@ -33,11 +33,11 @@
 
   /* ── Empty State ──────────────── */
   .empty-state {
-    @apply p-12 text-center;
+    @apply rounded-card border border-surface-muted/45 bg-surface-elevated/70 p-12 text-center shadow-none;
   }
 
   .empty-state-icon {
-    @apply w-20 h-20 rounded-full border border-status-yellow/60 bg-status-yellow/35 flex items-center justify-center mx-auto mb-6 transition-transform hover:scale-105;
+    @apply mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-card border border-status-yellow/60 bg-status-yellow/30 transition-transform hover:scale-[1.02];
   }
 
   .empty-state-title {
@@ -49,7 +49,7 @@
   }
 
   .empty-state-cta {
-    @apply inline-flex min-h-11 items-center justify-center rounded-pill bg-frame-dark px-5 py-3 text-sm font-bold text-white shadow-soft transition-[background-color,border-color,color,box-shadow,transform] duration-200 hover:bg-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base active:scale-[0.97];
+    @apply inline-flex min-h-11 items-center justify-center rounded-btn border border-frame-dark bg-frame-dark px-5 py-3 text-sm font-semibold text-white shadow-none transition-[background-color,border-color,color,box-shadow,transform] duration-200 hover:bg-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base active:scale-[0.97];
     transition-timing-function: var(--ease-out);
   }
 
@@ -59,7 +59,7 @@
   }
 
   .page-header-title {
-    @apply text-hero text-ink font-extrabold;
+    @apply text-hero font-bold tracking-tight text-ink;
   }
 
   .page-header-description {
@@ -68,16 +68,16 @@
 
   /* ── Filters ──────────────────── */
   .filter-surface {
-    @apply mb-6 rounded-card border border-surface-muted/30 bg-surface-inset p-4 shadow-soft;
+    @apply mb-6 rounded-card border border-surface-muted/45 bg-surface-inset/80 p-4 shadow-soft;
   }
 
   /* ── Metrics ──────────────────── */
   .metric-card {
-    @apply rounded-card bg-surface-elevated p-5 shadow-soft;
+    @apply rounded-card border border-surface-muted/45 bg-surface-elevated p-5 shadow-soft;
   }
 
   .metric-icon {
-    @apply flex h-10 w-10 items-center justify-center rounded-full;
+    @apply flex h-10 w-10 items-center justify-center rounded-btn;
   }
 
   .metric-value {

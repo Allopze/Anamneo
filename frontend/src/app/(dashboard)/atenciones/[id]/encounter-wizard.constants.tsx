@@ -134,11 +134,11 @@ export type SectionUiState = keyof typeof SECTION_STATUS_META;
 
 // ─── CSS class tokens ───────────────────────────────────────────
 
-export const SURFACE_PANEL_CLASS = 'overflow-hidden rounded-lg border border-frame/10 bg-surface-elevated';
+export const SURFACE_PANEL_CLASS = 'overflow-hidden rounded-card border border-frame/10 bg-surface-elevated shadow-soft';
 
-export const INNER_PANEL_CLASS = 'rounded-lg border border-surface-muted/45 bg-surface-base/55';
+export const INNER_PANEL_CLASS = 'rounded-card border border-surface-muted/45 bg-surface-base/55';
 
-export const RAIL_PANEL_CLASS = 'w-full overflow-hidden border border-frame/10 bg-surface-elevated/90';
+export const RAIL_PANEL_CLASS = 'w-full overflow-hidden border border-frame/10 bg-surface-elevated/95 shadow-soft';
 
 export const WORKSPACE_STICKY_OFFSET_CLASS = 'top-[24px]';
 

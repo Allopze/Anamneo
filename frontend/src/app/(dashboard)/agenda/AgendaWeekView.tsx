@@ -123,7 +123,7 @@ export function AgendaWeekView({
                     <button
                       key={appt.id}
                       type="button"
-                      className={`absolute left-0.5 right-0.5 overflow-hidden rounded border px-1.5 py-0.5 text-left text-xs font-medium shadow-sm transition-opacity hover:opacity-90 ${STATUS_COLORS[appt.status] ?? STATUS_COLORS.PROGRAMADA}`}
+                      className={`absolute left-0.5 right-0.5 overflow-hidden rounded-input border px-1.5 py-0.5 text-left text-xs font-medium shadow-sm transition-opacity hover:opacity-90 ${STATUS_COLORS[appt.status] ?? STATUS_COLORS.PROGRAMADA}`}
                       style={{ top: `${top}px`, height: `${height}px`, zIndex: 10 }}
                       onClick={(e) => { e.stopPropagation(); onApptClick(appt); }}
                     >

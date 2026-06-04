@@ -2,7 +2,7 @@
   .auth-shell {
     @apply relative min-h-[100dvh] w-full max-w-full overflow-x-hidden overflow-y-auto lg:grid lg:grid-cols-[0.94fr,1.06fr];
     background:
-      linear-gradient(180deg, rgba(253, 252, 251, 0.96), rgba(239, 237, 232, 0.98));
+      linear-gradient(180deg, rgba(255, 254, 250, 0.97), rgba(236, 234, 228, 0.98));
   }
 
   .auth-shell::before {
@@ -93,7 +93,7 @@
   }
 
   .auth-help {
-    @apply flex items-center gap-4 rounded-2xl border px-4 py-4;
+    @apply flex items-center gap-4 rounded-card border px-4 py-4;
     color: rgba(214, 221, 72, 0.82);
     border-color: rgba(255, 255, 255, 0.14);
     background: rgba(255, 255, 255, 0.06);
@@ -205,7 +205,7 @@
   }
 
   .auth-card .form-input {
-    @apply rounded-input bg-white px-4 py-3 shadow-none;
+    @apply rounded-input bg-surface-elevated px-4 py-3 shadow-none;
   }
 
   .auth-card .form-input.pl-10 {
@@ -213,7 +213,7 @@
   }
 
   .auth-card .btn {
-    @apply rounded-pill shadow-none active:scale-100;
+    @apply rounded-btn shadow-none active:scale-[0.98];
   }
 
   .auth-card .btn-accent {
@@ -226,7 +226,7 @@
   }
 
   .auth-password-toggle {
-    @apply absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 touch-manipulation items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-muted/45 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20;
+    @apply absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 touch-manipulation items-center justify-center rounded-btn text-ink-muted transition-colors hover:bg-surface-muted/45 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20;
   }
 
   .auth-forgot-password {

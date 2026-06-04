@@ -3,7 +3,7 @@
 /* ── Tooltip ────────────────────── */
   .tooltip-bubble {
     @apply px-2.5 py-1.5 text-[11px] font-medium leading-tight tracking-wide
-           rounded-lg bg-frame-dark text-ink-onDark shadow-dropdown
+           rounded-input bg-frame-dark text-ink-onDark shadow-dropdown
            pointer-events-none select-none;
     animation: tooltip-in 0.12s var(--ease-out);
   }
@@ -17,7 +17,7 @@
   .header-shell {
     @apply sticky top-0 z-40 overflow-hidden;
     background: var(--surface-elevated);
-    box-shadow: 0 2px 12px rgba(var(--frame-dark-rgb), 0.06);
+    box-shadow: 0 1px 2px rgba(var(--frame-dark-rgb), 0.035);
     border-radius: 0 0 2rem 2rem;
   }
 
@@ -42,9 +42,9 @@
   }
 
   .header-nav-item-active {
-    @apply bg-accent text-accent-text
+    @apply bg-accent/90 text-accent-text
            hover:bg-accent-bright hover:text-accent-text
-           shadow-soft;
+           shadow-none;
   }
 
   .header-nav-item-secondary {
@@ -67,7 +67,7 @@
   }
 
   .smart-header-bar {
-    @apply mx-3 mt-3 mb-2 flex items-center gap-3 rounded-lg border border-surface-muted/45 bg-surface-elevated px-3 py-2 shadow-none lg:mx-6 lg:px-4;
+    @apply mx-3 mt-3 mb-2 flex items-center gap-3 rounded-shell border border-surface-muted/45 bg-surface-elevated/95 px-3 py-2 shadow-soft lg:mx-6 lg:px-4;
   }
 
   /* Zona informativa (KPIs) — agrupa los chips y crece para empujar las acciones */
@@ -81,14 +81,14 @@
   }
 
   .smart-header-chip {
-    @apply inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 py-1
-           text-xs font-semibold text-ink transition-[background-color,color,transform] duration-150 active:scale-[0.97]
+    @apply inline-flex min-h-11 items-center gap-1.5 rounded-btn px-2.5 py-1
+           text-xs font-medium text-ink transition-[background-color,color,transform] duration-150 active:scale-[0.97]
            hover:bg-surface-inset/70;
     transition-timing-function: var(--ease-out);
   }
 
   .smart-header-chip-active {
-    @apply bg-accent/10 text-accent-text ring-1 ring-accent/30;
+    @apply bg-accent/15 text-accent-text ring-1 ring-accent/35;
   }
 
   .smart-header-chip-value {
@@ -100,8 +100,8 @@
   }
 
   .smart-header-chip-mobile {
-    @apply inline-flex min-h-11 items-center gap-1 rounded-lg px-2.5 py-1
-           text-xs font-semibold text-ink transition-[background-color,color,transform] duration-150 active:scale-[0.97]
+    @apply inline-flex min-h-11 items-center gap-1 rounded-btn px-2.5 py-1
+           text-xs font-medium text-ink transition-[background-color,color,transform] duration-150 active:scale-[0.97]
            hover:bg-surface-inset/70 whitespace-nowrap;
     transition-timing-function: var(--ease-out);
   }
@@ -111,11 +111,11 @@
   }
 
   .theme-selector {
-    @apply inline-flex min-h-11 items-center rounded-lg border border-surface-muted/45 bg-surface-inset/70 p-0.5;
+    @apply inline-flex min-h-11 items-center rounded-btn border border-surface-muted/45 bg-surface-inset/70 p-0.5;
   }
 
   .theme-selector-option {
-    @apply inline-flex h-9 w-9 items-center justify-center rounded-md
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-input
            text-ink-muted transition-[background-color,border-color,color,transform] duration-150
            hover:bg-surface-elevated hover:text-ink
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20
@@ -133,7 +133,7 @@
   }
 
   .smart-header-action-btn {
-    @apply inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5
+    @apply inline-flex min-h-11 items-center gap-1.5 rounded-btn px-3 py-1.5
            text-ink-secondary transition-[background-color,color,transform] duration-150 active:scale-[0.97]
            hover:bg-surface-inset hover:text-ink;
     transition-timing-function: var(--ease-out);
@@ -141,7 +141,7 @@
 
   .smart-header-dropdown {
     @apply absolute right-0 top-full mt-1.5 z-50
-           w-52 rounded-lg bg-surface-elevated py-1
+           w-52 rounded-card bg-surface-elevated py-1
            shadow-dropdown border border-surface-muted/50;
     animation: fadeIn 0.12s var(--ease-out);
   }
@@ -161,7 +161,7 @@
 
   .smart-header-alert-popover {
     @apply absolute right-0 top-full mt-1.5 z-50
-           w-80 rounded-lg bg-surface-elevated
+           w-80 rounded-card bg-surface-elevated
            shadow-dropdown border border-surface-muted/50;
     animation: fadeIn 0.12s var(--ease-out);
   }
@@ -173,7 +173,7 @@
   }
 
   .header-module-title {
-    @apply text-[1.35rem] font-extrabold tracking-tight text-ink leading-tight;
+    @apply text-[1.35rem] font-bold tracking-tight text-ink leading-tight;
   }
 
   /* ── Ficha Clínica ─────── */

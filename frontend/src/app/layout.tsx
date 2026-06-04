@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import { Inter, Fraunces } from 'next/font/google';
+import { Geist, Fraunces } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers/Providers';
 
-const inter = Inter({
+const geist = Geist({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-inter',
+  variable: '--font-geist',
 });
 
 const fraunces = Fraunces({
@@ -31,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={`${inter.variable} ${fraunces.variable}`}>
+    <html lang="es" className={`${geist.variable} ${fraunces.variable}`}>
       <body className="font-sans antialiased">
         <Providers>{children}</Providers>
       </body>

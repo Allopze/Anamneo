@@ -33,11 +33,11 @@ export function SidebarNavItem({
         'transition-[background-color,color,box-shadow]',
         collapsed
           ? isActive
-            ? 'flex h-11 w-11 items-center justify-center rounded-card bg-accent text-accent-text shadow-soft'
-            : 'flex h-11 w-11 items-center justify-center rounded-card text-white/70 hover:bg-frame-dark hover:text-white'
+            ? 'flex h-11 w-11 items-center justify-center rounded-btn bg-accent text-accent-text shadow-none'
+            : 'flex h-11 w-11 items-center justify-center rounded-btn text-white/70 hover:bg-frame-dark hover:text-white'
           : isActive
-            ? 'flex w-full items-center rounded-pill bg-accent px-4 py-3.5 text-sm font-bold text-accent-text'
-            : 'flex w-full items-center rounded-pill px-4 py-3.5 text-sm font-bold text-white/70 hover:bg-frame-dark hover:text-white',
+            ? 'flex w-full items-center rounded-btn bg-accent px-4 py-3.5 text-sm font-semibold text-accent-text'
+            : 'flex w-full items-center rounded-btn px-4 py-3.5 text-sm font-semibold text-white/70 hover:bg-frame-dark hover:text-white',
       )}
     >
       <span className={clsx(collapsed ? 'flex h-5 w-5 items-center justify-center' : 'mr-4 flex h-5 w-5 items-center justify-center')}>
@@ -202,7 +202,7 @@ export function SidebarCollapseButton({
       <button
         type="button"
         onClick={onToggle}
-        className="absolute left-0 top-10 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-surface-muted/35 bg-surface-elevated text-ink-secondary shadow-soft transition-colors hover:border-frame/18 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20"
+        className="absolute left-0 top-10 z-20 flex h-11 w-11 items-center justify-center rounded-btn border border-surface-muted/35 bg-surface-elevated text-ink-secondary shadow-soft transition-colors hover:border-frame/20 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20"
         aria-label={collapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'}
         aria-expanded={!collapsed}
       >

@@ -83,7 +83,7 @@ export function SectionRow({
       type="button"
       onClick={onClick}
       className={clsx(
-        'group grid w-full grid-cols-[28px_minmax(0,1fr)] items-start gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20',
+        'group grid w-full grid-cols-[28px_minmax(0,1fr)] items-start gap-2.5 rounded-card border px-3 py-2.5 text-left transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20',
         isActive
           ? 'border-frame/30 bg-surface-base'
           : 'border-transparent shadow-none hover:border-surface-muted/40 hover:bg-surface-base/45',

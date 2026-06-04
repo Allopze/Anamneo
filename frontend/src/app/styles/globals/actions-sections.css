@@ -1,15 +1,15 @@
   /* ── Buttons ──────────────────── */
   .btn {
-    @apply inline-flex items-center justify-center rounded-pill px-5 py-3
-           text-sm font-bold transition-[background-color,border-color,color,box-shadow,transform] duration-200
+    @apply inline-flex items-center justify-center rounded-btn px-5 py-3
+           text-sm font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-200
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base
            active:scale-[0.97] min-h-11;
     transition-timing-function: var(--ease-out);
   }
 
   .btn-primary {
-    @apply bg-frame-dark text-white hover:bg-ink
-           focus-visible:ring-frame shadow-soft;
+    @apply border border-frame-dark bg-frame-dark text-white shadow-none hover:bg-ink
+           focus-visible:ring-frame;
   }
 
   .btn:disabled {
@@ -17,14 +17,14 @@
   }
 
   .btn-secondary {
-    @apply bg-surface-elevated text-ink-secondary border border-surface-muted
-           hover:bg-surface-inset hover:text-ink hover:border-ink-muted/40
+    @apply border border-surface-muted/70 bg-surface-elevated text-ink-secondary shadow-none
+           hover:border-frame/20 hover:bg-surface-inset/70 hover:text-ink
            focus-visible:ring-surface-muted;
   }
 
   .btn-accent {
-    @apply bg-accent text-accent-text hover:bg-accent-bright
-           focus-visible:ring-accent shadow-soft font-bold;
+    @apply border border-accent/80 bg-accent text-accent-text shadow-none hover:bg-accent-bright
+           focus-visible:ring-accent font-semibold;
   }
 
   .btn-success {
@@ -40,9 +40,9 @@
   /* ── Toolbar Buttons ─────────── */
   .toolbar-btn {
     @apply inline-flex min-h-11 touch-manipulation items-center justify-center gap-2
-           rounded-lg border border-frame/15 bg-surface-elevated px-3 py-2
+           rounded-btn border border-frame/10 bg-surface-elevated px-3.5 py-2
            text-sm font-medium text-ink shadow-none transition-[background-color,border-color,color,transform]
-           hover:border-frame/30 hover:bg-surface-base
+           hover:border-frame/25 hover:bg-surface-base/70
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20
            active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
     transition-timing-function: var(--ease-out);
@@ -50,7 +50,7 @@
 
   .toolbar-btn-primary {
     @apply inline-flex min-h-11 touch-manipulation items-center justify-center gap-2
-           rounded-lg border border-accent/70 bg-accent px-3 py-2
+           rounded-btn border border-accent/70 bg-accent px-3.5 py-2
            text-sm font-semibold text-accent-text shadow-none transition-[background-color,border-color,color,transform]
            hover:bg-accent-bright
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45
@@ -60,7 +60,7 @@
 
   .toolbar-btn-success {
     @apply inline-flex min-h-11 touch-manipulation items-center justify-center gap-2
-           rounded-lg bg-status-green px-3 py-2
+           rounded-btn border border-status-green/45 bg-status-green/85 px-3.5 py-2
            text-sm font-medium text-status-green-text transition-[filter,transform]
            hover:brightness-95
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-green/40
@@ -70,24 +70,24 @@
 
   /* ── Cards ────────────────────── */
   .card {
-    @apply rounded-card border border-surface-muted/30 bg-surface-elevated p-6 shadow-soft;
+    @apply rounded-card border border-surface-muted/45 bg-surface-elevated p-6 shadow-soft;
   }
 
   .card-hover {
-    @apply hover:shadow-card cursor-pointer;
+    @apply cursor-pointer hover:border-frame/15 hover:shadow-card;
   }
 
   /* ── Sections ─────────────────── */
   .section-intro {
-    @apply rounded-lg border border-surface-muted/35 bg-surface-inset/70 px-4 py-3 text-sm leading-6 text-ink-secondary;
+    @apply rounded-card border border-surface-muted/35 bg-surface-inset/70 px-4 py-3 text-sm leading-6 text-ink-secondary;
   }
 
   .section-block {
-    @apply rounded-lg border border-surface-muted/35 bg-surface-elevated p-4 sm:p-5;
+    @apply rounded-card border border-surface-muted/35 bg-surface-elevated p-4 sm:p-5;
   }
 
   .section-block-muted {
-    @apply rounded-lg border border-surface-muted/30 bg-surface-inset/50 p-4 sm:p-5;
+    @apply rounded-card border border-surface-muted/30 bg-surface-inset/50 p-4 sm:p-5;
   }
 
   .section-block-title {
@@ -99,7 +99,7 @@
   }
 
   .section-callout {
-    @apply rounded-card px-5 py-4;
+    @apply rounded-card px-5 py-4 shadow-none;
   }
 
   .section-callout-info {

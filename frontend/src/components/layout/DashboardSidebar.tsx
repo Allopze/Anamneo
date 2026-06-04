@@ -82,7 +82,7 @@ export default function DashboardSidebar({
 
       <aside
         className={clsx(
-          'z-10 flex flex-col rounded-shell bg-frame shadow-elevated transition-[width] duration-200',
+          'z-10 flex flex-col rounded-shell border border-white/[0.08] bg-frame shadow-elevated transition-[width] duration-200',
           collapsed ? 'w-[76px]' : 'w-[236px]',
         )}
         style={{ overflow: 'clip' }}
@@ -174,7 +174,7 @@ export default function DashboardSidebar({
               <Tooltip label="Salir" side="right">
                 <button
                   onClick={onLogout}
-                  className="flex h-11 w-11 items-center justify-center rounded-card bg-frame-dark text-white/70 transition-colors hover:bg-status-red hover:text-white"
+                  className="flex h-11 w-11 items-center justify-center rounded-btn bg-frame-dark text-white/70 transition-colors hover:bg-status-red hover:text-white"
                   aria-label="Salir"
                 >
                   <FiLogOut className="h-4.5 w-4.5" />
@@ -184,7 +184,7 @@ export default function DashboardSidebar({
           ) : (
             <button
               onClick={onLogout}
-              className="flex w-full items-center justify-center rounded-pill bg-frame-dark px-4 py-3 text-sm font-bold text-white/70 transition-colors hover:bg-status-red hover:text-white"
+              className="flex w-full items-center justify-center rounded-btn bg-frame-dark px-4 py-3 text-sm font-semibold text-white/70 transition-colors hover:bg-status-red hover:text-white"
             >
               <FiLogOut className="mr-3 h-5 w-5" />
               Salir

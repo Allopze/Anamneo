@@ -43,14 +43,14 @@
   }
 
   .auth-shell-login-compact .auth-chip {
-    @apply rounded-2xl border px-4 py-4;
+    @apply rounded-card border px-4 py-4;
     background: rgba(255, 255, 255, 0.55);
     border-color: rgba(var(--auth-teal-shade-rgb), 0.14);
     color: var(--auth-ink);
   }
 
   .auth-shell-login-compact .auth-chip-icon {
-    @apply h-10 w-10 rounded-full;
+    @apply h-10 w-10 rounded-btn;
     background: rgba(var(--auth-teal-deep-rgb), 0.12);
     color: var(--auth-teal);
   }
@@ -87,8 +87,8 @@
   }
 
   .auth-shell-login-compact .auth-card {
-    @apply max-w-[29rem] rounded-2xl border bg-white p-5 shadow-elevated sm:p-8;
-    border-color: rgba(var(--auth-teal-shade-rgb), 0.12);
+    @apply max-w-[29rem] rounded-card border bg-surface-elevated p-5 shadow-elevated sm:p-8;
+    border-color: rgba(var(--auth-teal-shade-rgb), 0.14);
   }
 
   .auth-shell-login-compact .auth-card-header {
@@ -140,7 +140,7 @@
   }
 
   .auth-shell-login-compact .form-input {
-    @apply border bg-white text-ink shadow-none;
+    @apply border bg-surface-elevated text-ink shadow-none;
     border-color: rgba(var(--auth-teal-shade-rgb), 0.18);
   }
 
@@ -150,17 +150,17 @@
 
   .auth-shell-login-compact .form-input:focus {
     border-color: var(--auth-teal);
-    box-shadow: 0 0 0 3px rgba(var(--auth-teal-deep-rgb), 0.18);
+    box-shadow: 0 0 0 3px rgba(var(--auth-teal-deep-rgb), 0.13);
   }
 
   .auth-shell-login-compact .btn-accent {
-    background: var(--auth-teal);
-    border-color: var(--auth-teal);
-    color: #ffffff;
+    background: var(--frame-dark);
+    border-color: var(--frame-dark);
+    color: var(--ink-on-dark);
   }
 
   .auth-shell-login-compact .btn-accent:hover {
-    background: var(--auth-accent-hover);
+    background: var(--frame);
   }
 
   .auth-shell-login-compact .btn-secondary {

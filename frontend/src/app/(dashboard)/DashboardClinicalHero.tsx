@@ -77,10 +77,10 @@ export default function DashboardClinicalHero({
               key={action.href}
               href={action.href}
               className={clsx(
-                'inline-flex h-11 shrink-0 items-center gap-2 rounded-pill border px-4 text-sm font-semibold transition-colors',
+                'inline-flex h-11 shrink-0 items-center gap-2 rounded-btn border px-4 text-sm font-semibold transition-[background-color,border-color,color,transform] active:scale-[0.98]',
                 index === 0
                   ? 'border-frame-dark bg-frame-dark text-white hover:bg-ink'
-                  : 'border-surface-muted/60 bg-surface-elevated text-ink-secondary hover:border-frame/25 hover:text-ink',
+                  : 'border-surface-muted/60 bg-surface-elevated text-ink-secondary hover:border-frame/25 hover:bg-surface-inset/70 hover:text-ink',
               )}
             >
               <action.icon className="h-4 w-4" />
@@ -102,9 +102,9 @@ export default function DashboardClinicalHero({
             <Link
               key={signal.label}
               href={signal.href}
-              className="group flex min-h-[84px] items-center gap-3 rounded-card border border-surface-muted/50 bg-surface-elevated px-4 py-3 shadow-soft transition-colors hover:bg-surface-inset/55"
+              className="group flex min-h-[84px] items-center gap-3 rounded-card border border-surface-muted/50 bg-surface-elevated px-4 py-3 shadow-soft transition-[background-color,border-color,box-shadow] hover:border-frame/15 hover:bg-surface-inset/55 hover:shadow-card"
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-surface-muted/45 bg-surface-inset text-ink-secondary">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-btn border border-surface-muted/45 bg-surface-inset text-ink-secondary">
                 <signal.icon className="h-4 w-4" />
               </span>
               <span className="min-w-0 flex-1">
