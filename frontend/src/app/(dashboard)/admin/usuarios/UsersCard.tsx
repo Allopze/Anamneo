@@ -87,7 +87,7 @@ export function UsersCard({
         ) : users && users.length > 0 ? (
           <div className="divide-y divide-surface-muted/30">
             {users.map((u) => (
-              <div key={u.id} className="group list-row flex-col sm:flex-row sm:items-center">
+              <div key={u.id} className="group list-row flex-col items-stretch sm:flex-row sm:items-center">
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-ink-primary truncate">
                     {u.nombre}
@@ -107,11 +107,13 @@ export function UsersCard({
                     </span>
                   </div>
                   {u.role === 'ASISTENTE' && u.medicoId && (
-                    <div className="text-xs text-ink-muted">Asignado a médico: {users?.find(m => m.id === u.medicoId)?.nombre || u.medicoId}</div>
+                    <div className="mt-1 truncate text-xs text-ink-muted">
+                      Asignado a médico: {users?.find(m => m.id === u.medicoId)?.nombre || u.medicoId}
+                    </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
                   <button className="btn btn-secondary" onClick={() => startEdit(u)}>
                     Editar
                   </button>

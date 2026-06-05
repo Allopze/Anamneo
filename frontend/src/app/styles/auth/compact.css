@@ -234,6 +234,14 @@
     opacity: 0.55;
   }
 
+  .auth-legal-compact {
+    @apply rounded-card border border-surface-muted/35 bg-surface-base/45 px-4 py-3;
+  }
+
+  .auth-legal-compact-error {
+    @apply border-status-red/45 bg-status-red/10;
+  }
+
   .auth-role-pill {
     @apply inline-flex items-center gap-2 rounded-pill px-4 py-2 text-sm font-semibold;
     border: 1px solid rgba(var(--auth-teal-deep-rgb), 0.25);

@@ -41,8 +41,8 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
         <FiFilter className="w-4 h-4 text-accent-text" />
         <h2 className="font-bold text-ink">Filtros operativos</h2>
       </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12">
-        <div className="xl:col-span-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <div>
           <label className="text-sm text-ink-secondary" htmlFor="audit-action-filter">Acción</label>
           <select
             id="audit-action-filter"
@@ -56,7 +56,7 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
             ))}
           </select>
         </div>
-        <div className="xl:col-span-2">
+        <div>
           <label className="text-sm text-ink-secondary" htmlFor="audit-entity-filter">Entidad</label>
           <select
             id="audit-entity-filter"
@@ -70,7 +70,7 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
             ))}
           </select>
         </div>
-        <div className="xl:col-span-2">
+        <div>
           <label className="text-sm text-ink-secondary" htmlFor="audit-user-filter">Usuario</label>
           <select
             id="audit-user-filter"
@@ -84,7 +84,7 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
             ))}
           </select>
         </div>
-        <div className="xl:col-span-2">
+        <div>
           <label className="text-sm text-ink-secondary" htmlFor="audit-reason-filter">Motivo</label>
           <select
             id="audit-reason-filter"
@@ -98,7 +98,7 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
             ))}
           </select>
         </div>
-        <div className="xl:col-span-2">
+        <div>
           <label className="text-sm text-ink-secondary" htmlFor="audit-result-filter">Resultado</label>
           <select
             id="audit-result-filter"
@@ -112,7 +112,7 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
             ))}
           </select>
         </div>
-        <div className="xl:col-span-2">
+        <div>
           <label className="text-sm text-ink-secondary" htmlFor="audit-request-filter">Request ID</label>
           <input
             id="audit-request-filter"
@@ -122,7 +122,7 @@ export function AuditFiltersPanel({ filters, users, setPage, setFilters }: Audit
             placeholder="ID de correlación"
           />
         </div>
-        <div className="md:col-span-2 xl:col-span-4">
+        <div className="md:col-span-2 xl:col-span-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="text-sm text-ink-secondary" htmlFor="audit-date-from-filter">Desde</label>

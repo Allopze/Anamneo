@@ -129,11 +129,11 @@ export default function MedicationImportPanel() {
   );
 
   return (
-    <div id="import-medications-csv" className="card space-y-4">
-      <div className="panel-header flex-col items-start gap-6 lg:flex-row lg:items-center">
+    <div id="import-medications-csv" className="section-block space-y-4 bg-surface-elevated/80">
+      <div className="panel-header flex-col items-start gap-4 lg:flex-row lg:items-center">
         <div>
-          <h3 className="text-lg font-semibold text-ink-primary">Importar CSV global</h3>
-          <p className="text-sm text-ink-secondary">
+          <h3 className="text-base font-semibold text-ink-primary">Importar CSV global</h3>
+          <p className="max-w-3xl text-sm leading-6 text-ink-secondary">
             Formato recomendado: <strong>nombre</strong>, <strong>principioactivo</strong>.
             También se aceptan <strong>name</strong> y <strong>activeIngredient</strong>. Opcionalmente: <strong>dosis</strong>, <strong>via</strong> y <strong>frecuencia</strong>.
           </p>
@@ -152,11 +152,11 @@ export default function MedicationImportPanel() {
         </button>
       </div>
 
-      <label className="block rounded-xl border border-dashed border-surface-muted/30 bg-surface-base/40 p-5 transition-colors hover:border-status-yellow/70 hover:bg-status-yellow/10">
+      <label className="block rounded-card border border-dashed border-surface-muted/30 bg-surface-base/30 p-4 transition-colors hover:border-status-yellow/70 hover:bg-status-yellow/10">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-status-yellow/60 bg-status-yellow/40">
-              <FiUpload className="h-5 w-5 text-accent-text" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-btn border border-status-yellow/60 bg-status-yellow/35">
+              <FiUpload className="h-4 w-4 text-accent-text" />
             </div>
             <div>
               <p className="text-sm font-medium text-ink-primary">Selecciona un CSV</p>

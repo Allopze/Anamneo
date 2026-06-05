@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { FiArrowLeft, FiDownload } from 'react-icons/fi';
 import { portalApi, getErrorMessage } from '@/lib/portal-api';
+import { STATUS_LABELS } from '@/types/encounter.types';
 
 type PortalEncounter = {
   id: string;
@@ -170,7 +171,9 @@ export default function PortalEncounterPage() {
             <h2 className="text-lg font-semibold text-ink">
               {encounter.motivoConsulta || encounter.tipoAtencion || 'Atención clínica'}
             </h2>
-            <p className="mt-1 text-sm text-ink-muted">{encounter.medico?.nombre ?? 'Equipo clínico'} · {encounter.status}</p>
+            <p className="mt-1 text-sm text-ink-muted">
+              {encounter.medico?.nombre ?? 'Equipo clínico'} · {STATUS_LABELS[encounter.status] ?? encounter.status}
+            </p>
             <div className="mt-5 space-y-4">
               {encounter.sections.map((section) => (
                 <article key={section.id} className="portal-clinical-section">

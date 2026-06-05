@@ -49,6 +49,15 @@ export async function createPatientMutation(params: CreatePatientMutationParams)
     trimmedRutExemptReason,
   });
 
+  if (createPatientDto.fechaNacimiento && isDateOnlyAfterToday(createPatientDto.fechaNacimiento)) {
+    throw new BadRequestException('La fecha de nacimiento no puede ser futura');
+  }
+
+  // La edad se deriva de fechaNacimiento (fuente de verdad); cualquier edad enviada se ignora.
+  const resolvedAge = createPatientDto.fechaNacimiento
+    ? calculateAgeFromBirthDate(createPatientDto.fechaNacimiento)
+    : { edad: createPatientDto.edad ?? null, edadMeses: createPatientDto.edadMeses ?? null };
+
   const verificationState = resolvePatientVerificationState({
     actorId: userId,
     actorRole: 'MEDICO',
@@ -58,19 +67,11 @@ export async function createPatientMutation(params: CreatePatientMutationParams)
       rutExempt: resolvedRut.rutExempt,
       rutExemptReason: resolvedRut.rutExemptReason,
       fechaNacimiento: createPatientDto.fechaNacimiento,
-      edad: createPatientDto.edad,
+      edad: resolvedAge.edad,
       sexo: createPatientDto.sexo,
       prevision: createPatientDto.prevision,
     },
   });
-
-  if (createPatientDto.fechaNacimiento && isDateOnlyAfterToday(createPatientDto.fechaNacimiento)) {
-    throw new BadRequestException('La fecha de nacimiento no puede ser futura');
-  }
-
-  const resolvedAge = createPatientDto.fechaNacimiento
-    ? calculateAgeFromBirthDate(createPatientDto.fechaNacimiento)
-    : { edad: createPatientDto.edad, edadMeses: createPatientDto.edadMeses ?? null };
   const plaintextIdentifiers = {
     rut: resolvedRut.rut,
     nombre: createPatientDto.nombre,

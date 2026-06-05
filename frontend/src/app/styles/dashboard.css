@@ -67,7 +67,7 @@
   }
 
   .smart-header-bar {
-    @apply mx-3 mt-3 mb-2 flex items-center gap-3 rounded-shell border border-surface-muted/45 bg-surface-elevated/95 px-3 py-2 shadow-soft lg:mx-6 lg:px-4;
+    @apply mx-3 mt-3 mb-2 flex h-12 items-center gap-3 rounded-shell border border-surface-muted/45 bg-surface-elevated/95 px-3 py-0 shadow-soft lg:mx-6 lg:px-4;
   }
 
   /* Zona informativa (KPIs) — agrupa los chips y crece para empujar las acciones */
@@ -81,7 +81,7 @@
   }
 
   .smart-header-chip {
-    @apply inline-flex min-h-11 items-center gap-1.5 rounded-btn px-2.5 py-1
+    @apply inline-flex min-h-10 items-center gap-1.5 rounded-btn px-2.5 py-1
            text-xs font-medium text-ink transition-[background-color,color,transform] duration-150 active:scale-[0.97]
            hover:bg-surface-inset/70;
     transition-timing-function: var(--ease-out);
@@ -100,7 +100,7 @@
   }
 
   .smart-header-chip-mobile {
-    @apply inline-flex min-h-11 items-center gap-1 rounded-btn px-2.5 py-1
+    @apply inline-flex min-h-10 items-center gap-1 rounded-btn px-2.5 py-1
            text-xs font-medium text-ink transition-[background-color,color,transform] duration-150 active:scale-[0.97]
            hover:bg-surface-inset/70 whitespace-nowrap;
     transition-timing-function: var(--ease-out);
@@ -111,11 +111,11 @@
   }
 
   .theme-selector {
-    @apply inline-flex min-h-11 items-center rounded-btn border border-surface-muted/45 bg-surface-inset/70 p-0.5;
+    @apply inline-flex min-h-10 items-center rounded-btn border border-surface-muted/45 bg-surface-inset/70 p-0.5;
   }
 
   .theme-selector-option {
-    @apply inline-flex h-9 w-9 items-center justify-center rounded-input
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-input
            text-ink-muted transition-[background-color,border-color,color,transform] duration-150
            hover:bg-surface-elevated hover:text-ink
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20
@@ -133,7 +133,7 @@
   }
 
   .smart-header-action-btn {
-    @apply inline-flex min-h-11 items-center gap-1.5 rounded-btn px-3 py-1.5
+    @apply inline-flex min-h-10 items-center gap-1.5 rounded-btn px-2.5 py-1.5
            text-ink-secondary transition-[background-color,color,transform] duration-150 active:scale-[0.97]
            hover:bg-surface-inset hover:text-ink;
     transition-timing-function: var(--ease-out);

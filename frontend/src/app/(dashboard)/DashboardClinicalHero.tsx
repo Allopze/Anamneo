@@ -63,27 +63,27 @@ export default function DashboardClinicalHero({
 
   return (
     <section className="animate-fade-in space-y-3" style={sectionAnimation(0)}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0 flex-1 text-left">
+      <div className="grid gap-3 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)] xl:items-start">
+        <div className="min-w-0 text-left">
           <h1 className="text-xl font-extrabold tracking-tight text-ink sm:text-2xl">
             {getGreeting()}
             {firstName ? `, ${firstName}.` : ''}
           </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:justify-end">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
           {quickActions.map((action, index) => (
             <Link
               key={action.href}
               href={action.href}
               className={clsx(
-                'inline-flex h-11 shrink-0 items-center gap-2 rounded-btn border px-4 text-sm font-semibold transition-[background-color,border-color,color,transform] active:scale-[0.98]',
+                'inline-flex h-11 min-w-0 items-center justify-center gap-2 rounded-btn border px-4 text-sm font-semibold transition-[background-color,border-color,color,transform] active:scale-[0.98]',
                 index === 0
                   ? 'border-frame-dark bg-frame-dark text-white hover:bg-ink'
                   : 'border-surface-muted/60 bg-surface-elevated text-ink-secondary hover:border-frame/25 hover:bg-surface-inset/70 hover:text-ink',
               )}
             >
-              <action.icon className="h-4 w-4" />
+              <action.icon className="h-4 w-4 shrink-0" />
               <span className="truncate">{action.label}</span>
             </Link>
           ))}

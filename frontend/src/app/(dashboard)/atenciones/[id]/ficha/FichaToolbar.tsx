@@ -159,7 +159,7 @@ export function FichaToolbar({
           aria-label={encounter.status === 'COMPLETADO' ? 'Volver al resumen' : 'Volver a edición'}
         >
           <FiArrowLeft className="h-4 w-4" />
-          <span className="hidden sm:inline">{encounter.status === 'COMPLETADO' ? 'Resumen' : 'Edición'}</span>
+          <span>{encounter.status === 'COMPLETADO' ? 'Resumen' : 'Edición'}</span>
         </Link>
 
         {encounter.status === 'FIRMADO' ? (
@@ -174,7 +174,6 @@ export function FichaToolbar({
           ariaLabel="Exportar documentos"
           icon={FiDownload}
           items={outputActions}
-          compactLabel
         />
 
         {canSign ? (
@@ -185,7 +184,7 @@ export function FichaToolbar({
             className="btn flex shrink-0 items-center gap-2 border-status-red/40 bg-status-red/15 px-3 py-2 font-semibold text-status-red-text hover:bg-status-red/25 sm:px-4"
           >
             <FiShield className="h-4 w-4" />
-            <span className="hidden sm:inline">{signIsPending ? 'Firmando…' : 'Firmar'}</span>
+            <span>{signIsPending ? 'Firmando…' : 'Firmar'}</span>
           </button>
         ) : null}
 
@@ -197,7 +196,7 @@ export function FichaToolbar({
             className="btn btn-secondary flex shrink-0 items-center gap-2 px-3 py-2 sm:px-4"
           >
             <FiEdit3 className="h-4 w-4" />
-            <span className="hidden sm:inline">{reopenIsPending ? 'Reabriendo…' : 'Reabrir'}</span>
+            <span>{reopenIsPending ? 'Reabriendo…' : 'Reabrir'}</span>
           </button>
         ) : null}
 

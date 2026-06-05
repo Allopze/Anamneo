@@ -23,7 +23,7 @@ Avoid hardcoded `slate-*`, `gray-*`, decorative gradients, and full-saturation i
 
 ## Typography
 
-Use the product sans stack from Tailwind (`var(--font-inter), system-ui, sans-serif`). Keep headings compact, labels readable, and body copy within comfortable line lengths. Reserve all-caps for rare metadata, not routine field or card labels.
+Use the product sans stack from Tailwind (`var(--font-geist), system-ui, sans-serif`). Keep headings compact, labels readable, and body copy within comfortable line lengths. Reserve all-caps for rare metadata, not routine field or card labels.
 
 ## Components
 
@@ -32,10 +32,17 @@ Use the product sans stack from Tailwind (`var(--font-inter), system-ui, sans-se
 - Use `ErrorAlert` only as compatibility wrapper for `AlertBanner`.
 - Use skeletons for page, table, and section loading states. Keep spinners inside short button actions only.
 - Use `btn`, `toolbar-btn`, and `portal-button-*` for actions. Interactive controls should target at least 44px height where practical.
+- Destructive actions should stay visually secondary in repeated rows until hover, focus, or touch context makes them relevant.
+- Mobile clinical toolbars should expose the primary workflow action with text and move secondary actions into a labeled overflow menu.
+- Long identifiers such as emails, invitation URLs, request IDs, and assignment labels need explicit truncation, wrapping, or scroll containment.
 
 ## Layout
 
 Use predictable product layouts: page header, filters, data region, detail modal or inline panel, pagination. Cards are appropriate for repeated clinical records, state panels, and modal surfaces. Avoid nested cards and decorative side-stripe borders.
+
+Forms must use bounded grid tracks (`minmax(0, ...)`) when multiple controls share a row. Derived read-only values should wrap or use display surfaces instead of truncating clinically relevant text.
+
+On mobile, prefer native stacked summaries over horizontally scrollable tables for patient-facing portal views. Keep desktop tables for dense operational review.
 
 ## Motion
 

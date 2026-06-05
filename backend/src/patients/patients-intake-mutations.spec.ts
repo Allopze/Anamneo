@@ -4,6 +4,7 @@ import {
   createQuickPatientMutation,
 } from './patients-intake-mutations';
 import { RequestUser } from '../common/utils/medico-id';
+import { calculateAgeFromBirthDate } from '../common/utils/local-date';
 
 describe('patients-intake-mutations', () => {
   const auditService = {
@@ -146,6 +147,74 @@ describe('patients-intake-mutations', () => {
     );
     expect(result.id).toBe('patient-1');
     expect(result.registrationMode).toBe('COMPLETO');
+  });
+
+  it('derives edad from fechaNacimiento when edad is omitted', async () => {
+    const expectedAge = calculateAgeFromBirthDate('1990-05-10');
+    const createdPatient = {
+      id: 'patient-2',
+      nombre: 'Paciente Sin Edad',
+      rut: null,
+      rutExempt: true,
+      rutExemptReason: 'Sin documento',
+      fechaNacimiento: new Date('1990-05-10T12:00:00.000Z'),
+      edad: expectedAge.edad,
+      edadMeses: expectedAge.edadMeses,
+      sexo: 'FEMENINO',
+      trabajo: null,
+      prevision: 'FONASA',
+      domicilio: null,
+      centroMedico: null,
+      registrationMode: 'COMPLETO',
+      completenessStatus: 'VERIFICADA',
+      demographicsVerifiedAt: new Date('2026-04-16T06:00:00.000Z'),
+      demographicsVerifiedById: 'med-1',
+      createdAt: new Date('2026-04-16T06:00:00.000Z'),
+      updatedAt: new Date('2026-04-16T06:00:00.000Z'),
+      history: { id: 'history-2' },
+    };
+
+    const tx = {
+      patient: {
+        create: jest.fn().mockResolvedValue(createdPatient),
+      },
+    };
+
+    const prisma = {
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+      patient: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+    };
+
+    const result = await createPatientMutation({
+      prisma: prisma as never,
+      auditService: auditService as never,
+      // edad intentionally omitted — it must be derived from fechaNacimiento.
+      createPatientDto: {
+        nombre: 'Paciente Sin Edad',
+        sexo: 'FEMENINO',
+        prevision: 'FONASA',
+        fechaNacimiento: '1990-05-10',
+        rutExempt: true,
+        rutExemptReason: 'Sin documento',
+      } as never,
+      userId: 'med-1',
+    });
+
+    // The derived age is persisted AND drives demographic completeness (VERIFICADA),
+    // so omitting edad does not leave the ficha blocked on a missing-edad field.
+    expect(tx.patient.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          edad: expectedAge.edad,
+          edadMeses: expectedAge.edadMeses,
+          registrationMode: 'COMPLETO',
+          completenessStatus: 'VERIFICADA',
+        }),
+      }),
+    );
+    expect(result.id).toBe('patient-2');
   });
 
   it('stores patient birth dates using the shared date-only convention', async () => {

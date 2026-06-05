@@ -63,7 +63,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
       await adminPage.getByLabel('Contraseña', { exact: true }).fill(ADMIN_PASSWORD);
       await adminPage.getByLabel('Confirmar contraseña').fill(ADMIN_PASSWORD);
       await bootstrapTokenInput.fill(BOOTSTRAP_TOKEN);
-      await adminPage.getByRole('checkbox', { name: /Acepto los/i }).check();
+      await adminPage.getByRole('checkbox', { name: /Acepto/i }).check();
 
       const registerPromise = adminPage.waitForResponse(
         (r) => r.url().includes('/auth/register') && r.request().method() === 'POST',
@@ -99,7 +99,7 @@ test.describe('Clinical flow: patient → encounter → sections', () => {
     // Email is pre-filled from invitation (read-only)
     await medicoPage.getByLabel('Contraseña', { exact: true }).fill(MEDICO_PASSWORD);
     await medicoPage.getByLabel('Confirmar contraseña').fill(MEDICO_PASSWORD);
-    await medicoPage.getByRole('checkbox', { name: /Acepto los/i }).check();
+    await medicoPage.getByRole('checkbox', { name: /Acepto/i }).check();
 
     const medicoRegPromise = medicoPage.waitForResponse(
       (r) => r.url().includes('/auth/register') && r.request().method() === 'POST',

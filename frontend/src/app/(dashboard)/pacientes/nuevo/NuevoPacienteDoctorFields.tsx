@@ -22,7 +22,7 @@ export default function NuevoPacienteDoctorFields({
 }: Props) {
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(12rem,1fr)_minmax(16rem,1.25fr)_minmax(12rem,1fr)]">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)_minmax(0,0.95fr)]">
         <div>
           <label htmlFor="fechaNacimiento" className="form-label">
             Fecha de nacimiento *
@@ -44,17 +44,15 @@ export default function NuevoPacienteDoctorFields({
           <label htmlFor="edadCalculada" className="form-label">
             Edad calculada
           </label>
-          <input
+          <div
             id="edadCalculada"
-            type="text"
-            readOnly
-            className="form-input bg-surface-muted/30"
-            value={
-              edadCalculada
-                ? `${edadCalculada.edad} años ${edadCalculada.edadMeses} meses`
-                : 'Pendiente de fecha de nacimiento'
-            }
-          />
+            role="status"
+            className="form-input flex min-h-[50px] items-center bg-surface-muted/30 leading-5 text-ink-secondary"
+          >
+            {edadCalculada
+              ? `${edadCalculada.edad} años ${edadCalculada.edadMeses} meses`
+              : 'Pendiente de fecha de nacimiento'}
+          </div>
         </div>
         <div>
           <label htmlFor="sexo" className="form-label">

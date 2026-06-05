@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useQueries } from '@tanstack/react-query';
-import { FiClock, FiDownload, FiFileText, FiShield } from 'react-icons/fi';
+import { FiClock, FiFileText, FiShield } from 'react-icons/fi';
 import { AlertBanner } from '@/components/common/AlertBanner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { portalApi, getErrorMessage } from '@/lib/portal-api';
@@ -132,21 +132,28 @@ export default function PortalHomePage() {
             </section>
           </div>
 
-          <section className="portal-card">
+          <section className="portal-card self-start">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-ink">Atenciones finalizadas</h2>
               <FiFileText className="h-5 w-5 text-ink-muted" />
             </div>
-            <div className="divide-y divide-surface-muted/70">
+            <div className="grid gap-3">
               {encounters.map((encounter) => (
-                <Link key={encounter.id} href={`/portal/atenciones/${encounter.id}`} className="flex items-center justify-between gap-4 rounded-lg py-3 transition-colors hover:bg-surface-inset">
-                  <div>
+                <Link
+                  key={encounter.id}
+                  href={`/portal/atenciones/${encounter.id}`}
+                  className="group grid gap-3 rounded-card border border-surface-muted/45 bg-surface-inset/45 p-4 transition-[background-color,border-color,transform] hover:border-frame/20 hover:bg-surface-inset active:scale-[0.99] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                >
+                  <div className="min-w-0">
                     <p className="font-medium text-ink">{encounter.motivoConsulta || encounter.tipoAtencion || 'Atención clínica'}</p>
-                    <p className="text-xs text-ink-muted">
+                    <p className="mt-1 text-xs leading-5 text-ink-muted">
                       {new Date(encounter.fecha).toLocaleDateString('es-CL')} · {encounter.medico?.nombre ?? 'Equipo clínico'} · {STATUS_LABELS[encounter.status] ?? encounter.status}
                     </p>
                   </div>
-                  <FiDownload className="h-4 w-4 text-ink-muted" />
+                  <span className="inline-flex h-10 items-center justify-center gap-2 rounded-btn border border-surface-muted/60 bg-surface-elevated px-3 text-sm font-semibold text-ink-secondary transition-colors group-hover:border-frame/25 group-hover:text-ink">
+                    <FiFileText className="h-4 w-4" />
+                    Ver ficha
+                  </span>
                 </Link>
               ))}
               {encounters.length === 0 && (

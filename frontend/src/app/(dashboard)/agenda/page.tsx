@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { FiCalendar, FiChevronLeft, FiChevronRight, FiGrid, FiList, FiPlus, FiSettings, FiUserCheck } from 'react-icons/fi';
+import { FiCalendar, FiChevronLeft, FiChevronRight, FiGrid, FiList, FiMail, FiPlus, FiSettings, FiUserCheck } from 'react-icons/fi';
 import { useAuthUser } from '@/stores/auth-store';
 import {
   DEFAULT_FORM,
@@ -115,6 +115,9 @@ export default function AgendaPage() {
   };
 
   const isTodayActive = viewMode === 'week' ? weekOffset === 0 : monthOffset === 0;
+  const assignmentRequestHref = `mailto:?subject=${encodeURIComponent('Asignación médica para agenda Anamneo')}&body=${encodeURIComponent(
+    `Hola, necesito que mi usuario${user?.email ? ` (${user.email})` : ''} sea vinculado a un médico responsable para activar la agenda en Anamneo.`,
+  )}`;
 
   if (!medicoId) {
     return (
@@ -134,6 +137,12 @@ export default function AgendaPage() {
             <p className="mt-3 max-w-md text-sm leading-6 text-ink-secondary">
               Tu cuenta de asistente aún no está vinculada a un médico. La agenda se activará cuando un administrador complete esa asignación.
             </p>
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+              <a href={assignmentRequestHref} className="btn btn-primary inline-flex items-center gap-2">
+                <FiMail className="h-4 w-4" aria-hidden="true" />
+                Solicitar asignación
+              </a>
+            </div>
           </div>
           <div className="grid content-center gap-3">
             <div className="rounded-card border border-surface-muted/45 bg-surface-inset/60 p-4">
@@ -157,7 +166,7 @@ export default function AgendaPage() {
                 <div>
                   <p className="font-semibold text-ink">Ruta administrativa</p>
                   <p className="mt-1 text-sm leading-6 text-ink-secondary">
-                    La configuración se realiza en ajustes del sistema por un administrador del espacio clínico.
+                    Un administrador debe entrar a Admin, Usuarios, editar tu usuario asistente y seleccionar el médico responsable.
                   </p>
                 </div>
               </div>

@@ -8,7 +8,7 @@ import { ErrorAlert } from '@/components/common/ErrorAlert';
 import { notify } from '@/lib/notify';
 function PasswordPageSkeleton() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-base p-4" aria-busy="true" aria-label="Preparando cambio de contraseña">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-surface-base p-4" aria-busy="true" aria-label="Preparando cambio de contraseña">
       <div className="card w-full max-w-md space-y-5">
         <div className="space-y-2">
           <div className="h-7 w-64 skeleton" />
@@ -134,7 +134,7 @@ function CambiarContrasenaContent() {
   }
   if (isResetMode && tokenState === 'invalid') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-base p-4">
+      <div className="flex min-h-[100dvh] items-start justify-center bg-surface-base p-4 pt-[18dvh] sm:items-center sm:pt-4">
         <div className="card max-w-md w-full space-y-4">
           <h1 className="text-2xl font-bold text-ink-primary">Enlace no válido</h1>
           <p className="text-ink-secondary">
@@ -150,7 +150,7 @@ function CambiarContrasenaContent() {
   }
   if (isResetMode) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-base p-4">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-surface-base p-4">
         <div className="card max-w-md w-full space-y-6">
           <div>
             <h1 className="text-2xl font-bold text-ink-primary">Restablecer contraseña</h1>
@@ -220,7 +220,7 @@ function CambiarContrasenaContent() {
     );
   }
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-base p-4">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-surface-base p-4">
       <div className="card max-w-md w-full space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-ink-primary">Cambio de contraseña obligatorio</h1>

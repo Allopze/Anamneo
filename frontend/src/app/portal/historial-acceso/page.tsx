@@ -51,6 +51,33 @@ interface AuditLogResponse {
   pageSize: number;
 }
 
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+function formatDateGroupLabel(date: Date) {
+  const diffDays = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86_400_000);
+  if (diffDays === 0) return 'Hoy';
+  if (diffDays === 1) return 'Ayer';
+  return date.toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+/** Groups audit entries into consecutive day buckets so long histories stay scannable. */
+function groupEntriesByDay(items: AuditEntry[]) {
+  const groups: { key: string; label: string; items: AuditEntry[] }[] = [];
+  for (const entry of items) {
+    const date = new Date(entry.timestamp);
+    const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) {
+      last.items.push(entry);
+    } else {
+      groups.push({ key, label: formatDateGroupLabel(date), items: [entry] });
+    }
+  }
+  return groups;
+}
+
 export default function PortalAuditLogPage() {
   const [data, setData] = useState<AuditLogResponse | null>(null);
   const [page, setPage] = useState(1);
@@ -71,6 +98,10 @@ export default function PortalAuditLogPage() {
   }, [page]);
 
   const totalPages = data ? Math.ceil(data.total / data.pageSize) : 1;
+  const formatAuditDate = (timestamp: string) => ({
+    date: new Date(timestamp).toLocaleDateString('es-CL'),
+    time: new Date(timestamp).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+  });
 
   const handleExportCsv = async () => {
     setExporting(true);
@@ -137,7 +168,59 @@ export default function PortalAuditLogPage() {
 
         {data && !loading && (
           <>
-            <ScrollableTable aria-label="Historial de accesos con desplazamiento horizontal" className="portal-table-shell">
+            <div className="space-y-5 sm:hidden">
+              {data.items.length === 0 ? (
+                <div className="portal-card text-center text-sm text-ink-muted">
+                  Todavía no hay registros de acceso disponibles.
+                </div>
+              ) : (
+                groupEntriesByDay(data.items).map((group) => (
+                  <section key={group.key} className="space-y-3">
+                    <h2 className="sticky top-0 z-10 -mx-1 rounded-pill bg-surface-base/85 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-ink-muted backdrop-blur supports-[backdrop-filter]:bg-surface-base/70">
+                      {group.label}
+                    </h2>
+                    {group.items.map((entry) => {
+                      const actorInitials = entry.actorInitials?.trim() || '?';
+                      const formatted = formatAuditDate(entry.timestamp);
+                      return (
+                        <article key={entry.id} className="portal-card space-y-3 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-ink">
+                                {ENTITY_LABELS[entry.entityType] ?? entry.entityType}
+                              </p>
+                              <p className="mt-1 text-xs text-ink-muted">
+                                {formatted.time}
+                              </p>
+                            </div>
+                            <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              entry.result === 'SUCCESS'
+                                ? 'bg-status-green/20 text-status-green-text'
+                                : 'bg-status-red/15 text-status-red-text'
+                            }`}>
+                              {entry.result === 'SUCCESS' ? 'Exitoso' : 'Fallido'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3 border-t border-surface-muted/45 pt-3">
+                            <span className="text-sm text-ink-secondary">
+                              {ACTION_LABELS[entry.action] ?? entry.action}
+                            </span>
+                            <span className="inline-flex min-w-0 items-center gap-1.5 text-sm text-ink-secondary">
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-surface-muted/60 bg-surface-inset text-[10px] font-bold">
+                                {actorInitials}
+                              </span>
+                              <span className="truncate">{ROLE_LABELS[entry.actorRole] ?? entry.actorRole}</span>
+                            </span>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </section>
+                ))
+              )}
+            </div>
+
+            <ScrollableTable aria-label="Historial de accesos con desplazamiento horizontal" className="portal-table-shell hidden sm:block">
               <table className="min-w-[760px] w-full text-sm">
                 <thead className="bg-surface-inset text-left">
                   <tr>
@@ -158,12 +241,13 @@ export default function PortalAuditLogPage() {
                   )}
                   {data.items.map((entry) => {
                     const actorInitials = entry.actorInitials?.trim() || '?';
+                    const formatted = formatAuditDate(entry.timestamp);
                     return (
                       <tr key={entry.id} className="hover:bg-surface-inset">
                         <td className="whitespace-nowrap px-4 py-3 text-ink">
-                          {new Date(entry.timestamp).toLocaleDateString('es-CL')}{' '}
+                          {formatted.date}{' '}
                           <span className="text-ink-muted">
-                            {new Date(entry.timestamp).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                            {formatted.time}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-ink-secondary">

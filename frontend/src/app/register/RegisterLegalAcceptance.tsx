@@ -22,7 +22,7 @@ export default function RegisterLegalAcceptance({
     : 'Cargando versiones legales vigentes.';
 
   return (
-    <div className="space-y-1.5">
+    <div className={`auth-legal-compact ${error ? 'auth-legal-compact-error' : ''}`}>
       <label className="flex items-start gap-2.5 text-sm leading-6 text-ink-secondary">
         <input
           type="checkbox"
@@ -31,33 +31,33 @@ export default function RegisterLegalAcceptance({
           disabled={disabled}
           aria-describedby={error ? 'accepted-legal-error' : 'accepted-legal-help'}
         />
-        <span>
-          Acepto los{' '}
+        <span className="min-w-0">
+          Acepto{' '}
           <Link
             href="/terminos-y-condiciones"
             className="font-semibold text-ink underline decoration-ink/25 underline-offset-2 transition-colors hover:text-frame hover:decoration-frame"
             target="_blank"
             rel="noreferrer"
           >
-            Términos y Condiciones
+            términos
           </Link>{' '}
-          y la{' '}
+          y{' '}
           <Link
             href="/politica-de-privacidad"
             className="font-semibold text-ink underline decoration-ink/25 underline-offset-2 transition-colors hover:text-frame hover:decoration-frame"
             target="_blank"
             rel="noreferrer"
           >
-            Política de Privacidad
+            privacidad
           </Link>{' '}
           vigentes de Anamneo.
         </span>
       </label>
-      <p id="accepted-legal-help" className="pl-[1.75rem] text-micro text-ink-muted">
+      <p id="accepted-legal-help" className="mt-2 pl-[1.75rem] text-micro text-ink-muted">
         {versionLabel}
       </p>
       {error ? (
-        <p id="accepted-legal-error" className="pl-[1.75rem] form-error" role="alert">
+        <p id="accepted-legal-error" className="mt-2 pl-[1.75rem] form-error" role="alert">
           {error.message}
         </p>
       ) : null}

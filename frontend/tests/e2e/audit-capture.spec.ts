@@ -170,36 +170,33 @@ test.describe('Audit — edge cases & console/network evidence', () => {
 
     adminCookies = await loginViaAPI(adminCtx, adminPage, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-    // Register medico via invitation
+    // Register medico via invitation. Capture its session cookies straight from the
+    // context jar (set by the register response) — deterministic, no manual Set-Cookie parsing.
     const auditMedicoEmail = `medico+audit+${RUN_ID}@e2e-test.local`;
     const invite = await adminPage.request.post('/api/users/invitations', {
       data: { email: auditMedicoEmail, role: 'MEDICO' },
     });
-    if (invite.ok()) {
-      const { token } = await invite.json() as { token: string };
-      const medicoCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-      const medicoPage = await medicoCtx.newPage();
-      const regResp = await medicoPage.request.post('/api/auth/register', {
-        data: {
-          email: auditMedicoEmail, password: MEDICO_PASSWORD,
-          nombre: 'Dra. Audit E2E', role: 'MEDICO', invitationToken: token, ...LEGAL,
-        },
-      });
-      if (regResp.status() === 201) {
-        medicoCookies = await loginViaAPI(medicoCtx, medicoPage, auditMedicoEmail, MEDICO_PASSWORD);
-      }
-      await medicoCtx.close();
-    }
+    expect(invite.ok(), await invite.text()).toBeTruthy();
+    const { token } = await invite.json() as { token: string };
 
-    // Create a sample patient (via admin API)
-    const cookies = adminCookies.length > 0 ? adminCookies : medicoCookies;
-    const adminCtx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-    await adminCtx2.addCookies(cookies);
-    const apiPage = await adminCtx2.newPage();
-    await gotoApp(apiPage, '/login');
-    const patResp = await apiPage.request.post('/api/patients', {
+    const medicoCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const medicoPage = await medicoCtx.newPage();
+    await gotoApp(medicoPage, '/login');
+    const regResp = await medicoPage.request.post('/api/auth/register', {
+      data: {
+        email: auditMedicoEmail, password: MEDICO_PASSWORD,
+        nombre: 'Dra. Audit E2E', role: 'MEDICO', invitationToken: token, ...LEGAL,
+      },
+    });
+    expect(regResp.status(), await regResp.text()).toBe(201);
+    medicoCookies = await medicoCtx.cookies();
+    expect(medicoCookies.length, 'Medico auth cookies should be captured after registration').toBeGreaterThan(0);
+
+    // Deterministic sample patient fixture — created by the medico (admin lacks patient.create).
+    const patResp = await medicoPage.request.post('/api/patients', {
       data: {
         nombre: 'Paciente Audit Edge',
+        // edad omitida a propósito — debe derivarse de fechaNacimiento en el servidor.
         fechaNacimiento: '1990-05-10',
         sexo: 'FEMENINO',
         prevision: 'FONASA',
@@ -207,11 +204,11 @@ test.describe('Audit — edge cases & console/network evidence', () => {
         rutExemptReason: 'Fixture auditoría edge cases',
       },
     });
-    if (patResp.ok()) {
-      const p = await patResp.json() as { id: string };
-      samplePatientId = p.id;
-    }
-    await adminCtx2.close();
+    expect(patResp.ok(), await patResp.text()).toBeTruthy();
+    samplePatientId = (await patResp.json() as { id: string }).id;
+    expect(samplePatientId, 'Sample patient id should be set for edge-case tests').toBeTruthy();
+
+    await medicoCtx.close();
     await adminCtx.close();
   });
 
@@ -404,8 +401,6 @@ test.describe('Audit — edge cases & console/network evidence', () => {
 
   test('audit: reload-internal-route', async ({ browser }) => {
     test.setTimeout(40_000);
-    if (adminCookies.length === 0 && medicoCookies.length === 0) test.skip(true, 'No auth cookies');
-    if (!samplePatientId) test.skip(true, 'No sample patient');
 
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const page = await ctx.newPage();
@@ -433,9 +428,7 @@ test.describe('Audit — edge cases & console/network evidence', () => {
 
   test('audit: unsaved-changes-guard', async ({ browser }) => {
     test.setTimeout(40_000);
-    if (!samplePatientId) test.skip(true, 'No sample patient');
     const cookies = medicoCookies.length > 0 ? medicoCookies : adminCookies;
-    if (cookies.length === 0) test.skip(true, 'No auth cookies');
 
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const page = await ctx.newPage();
@@ -525,7 +518,6 @@ test.describe('Audit — edge cases & console/network evidence', () => {
 
   test('audit: console-monitor-patient-detail', async ({ browser }) => {
     test.setTimeout(40_000);
-    if (!samplePatientId || adminCookies.length === 0) test.skip(true, 'No patient or cookies');
 
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const page = await ctx.newPage();

@@ -123,7 +123,7 @@ test.describe('Visual QA — screenshots', () => {
       await adminPage.getByLabel('Contraseña', { exact: true }).fill(ADMIN_PASSWORD);
       await adminPage.getByLabel('Confirmar contraseña').fill(ADMIN_PASSWORD);
       await adminPage.getByLabel('Token de instalación').fill(BOOTSTRAP_TOKEN);
-      await adminPage.getByRole('checkbox', { name: /Acepto los/i }).check();
+      await adminPage.getByRole('checkbox', { name: /Acepto/i }).check();
       await adminPage.getByRole('button', { name: /Crear cuenta/i }).click();
       await waitForAppShell(adminPage);
     } else {
@@ -142,6 +142,7 @@ test.describe('Visual QA — screenshots', () => {
     const inviteResp = await adminPage.request.post('/api/users/invitations', {
       data: { email: MEDICO_EMAIL, role: 'MEDICO' },
     });
+    expect(inviteResp.ok(), await inviteResp.text()).toBeTruthy();
     if (inviteResp.ok()) {
       const { token: inviteToken } = await inviteResp.json() as { token: string };
       const medicoCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -151,23 +152,44 @@ test.describe('Visual QA — screenshots', () => {
       await medicoPage.getByLabel('Nombre completo').fill('Dra. Prueba Visual');
       await medicoPage.getByLabel('Contraseña', { exact: true }).fill(MEDICO_PASSWORD);
       await medicoPage.getByLabel('Confirmar contraseña').fill(MEDICO_PASSWORD);
-      await medicoPage.getByRole('checkbox', { name: /Acepto los/i }).check();
+      await medicoPage.getByRole('checkbox', { name: /Acepto/i }).check();
       await medicoPage.getByRole('button', { name: /Crear cuenta/i }).click();
       await waitForAppShell(medicoPage);
+
+      const medicoLoginOk = await loginViaAPI(medicoCtx, medicoPage, MEDICO_EMAIL, MEDICO_PASSWORD);
+      expect(medicoLoginOk).toBeTruthy();
       medicoCookies = (await medicoCtx.cookies()).map((c) => ({
         name: c.name, value: c.value, domain: c.domain, path: c.path,
       }));
+
+      const patientResp = await medicoPage.request.post('/api/patients', {
+        data: {
+          nombre: 'Paciente Visual E2E',
+          fechaNacimiento: '1985-06-15',
+          edad: 40,
+          sexo: 'MASCULINO',
+          prevision: 'FONASA',
+          rutExempt: true,
+          rutExemptReason: 'Fixture de cobertura visual',
+        },
+      });
+      expect(patientResp.ok(), await patientResp.text()).toBeTruthy();
+      const patient = await patientResp.json() as { id: string };
+      samplePatientPath = `/pacientes/${patient.id}`;
       await medicoCtx.close();
     }
 
-    // ── Create a sample patient for detail/encounter pages ─────────────────────
-    try {
+    // ── Fallback sample patient for environments where medico setup is skipped ──
+    if (samplePatientPath === '/pacientes') try {
       const patientResp = await adminPage.request.post('/api/patients', {
         data: {
           nombre: 'Paciente Visual E2E',
-          apellido: 'Apellido Test',
           fechaNacimiento: '1985-06-15',
+          edad: 40,
           sexo: 'MASCULINO',
+          prevision: 'FONASA',
+          rutExempt: true,
+          rutExemptReason: 'Fixture de cobertura visual',
         },
       });
       if (patientResp.ok()) {
@@ -255,11 +277,16 @@ test.describe('Visual QA — screenshots', () => {
 
   test('pacientes: detail', async ({ browser }) => {
     test.setTimeout(40_000);
+    if (medicoCookies.length === 0 || samplePatientPath === '/pacientes') {
+      test.skip(true, 'Medico fixture patient not available');
+    }
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const page = await ctx.newPage();
-    await ctx.addCookies(adminCookies);
+    await ctx.addCookies(medicoCookies);
     await gotoApp(page, samplePatientPath);
     await page.waitForLoadState('networkidle');
+    await expect(page).toHaveURL(/\/pacientes\/[^/]+$/);
+    await expect(page.getByText(/Paciente Visual E2E/i).first()).toBeVisible({ timeout: 10_000 });
     await shot(page, 'pacientes__detail--desktop');
     await ctx.close();
   });
@@ -336,11 +363,14 @@ test.describe('Visual QA — screenshots', () => {
 
   test('analitica: overview', async ({ browser }) => {
     test.setTimeout(40_000);
+    if (medicoCookies.length === 0) test.skip(true, 'Medico cookies not set up');
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const page = await ctx.newPage();
-    await ctx.addCookies(adminCookies);
+    await ctx.addCookies(medicoCookies);
     await gotoApp(page, '/analitica-clinica');
     await page.waitForLoadState('networkidle');
+    await expect(page).toHaveURL(/\/analitica-clinica/);
+    await expect(page.getByRole('heading', { name: /Analítica clínica/i })).toBeVisible({ timeout: 10_000 });
     await shot(page, 'analitica__overview--desktop');
     await ctx.close();
   });

@@ -104,6 +104,10 @@ function PacientesContent() {
   const clearFilters = () => {
     router.push(buildUrl({ archived: '', sexo: '', prevision: '', rutExempt: '', completenessStatus: '', taskWindow: '', edadMin: '', edadMax: '', clinicalSearch: '', sortBy: 'createdAt', sortOrder: 'desc', page: '1' }));
   };
+  const resetSearchAndFilters = () => {
+    setSearchInput('');
+    router.push('/pacientes');
+  };
   const { data, isLoading, isFetching, error } = useQuery<PatientsResponse>({
     queryKey: ['patients', search, page, filters],
     queryFn: async () => {
@@ -132,7 +136,19 @@ function PacientesContent() {
   const patients = data?.data ?? [];
   const pagination = data?.pagination;
   const hasPatients = patients.length > 0;
+  const hasActiveFilters = Boolean(
+    filters.archived
+      || filters.sexo
+      || filters.prevision
+      || filters.rutExempt
+      || filters.completenessStatus
+      || filters.taskWindow
+      || filters.edadMin
+      || filters.edadMax
+      || filters.clinicalSearch,
+  );
   const showEmptyCreatePatientCta = canCreate && !search && !isLoading && !error && !hasPatients;
+  const showEmptyResetCta = !isLoading && !error && !hasPatients && (Boolean(search) || hasActiveFilters);
   const showHeaderNewPatient = canCreate && !showEmptyCreatePatientCta;
   const showHeaderActions = showHeaderNewPatient || canCreateEncounterAllowed;
   const activeCompletenessStatus = COMPLETENESS_OPTIONS.some((o) => o.value === filters.completenessStatus)
@@ -278,7 +294,15 @@ function PacientesContent() {
                   ? 'No hay pacientes archivados dentro de tu alcance visible.'
                   : 'Cuando registres el primer paciente, aparecerá aquí con su estado de ficha y continuidad clínica.'
             }
-            action={showEmptyCreatePatientCta ? <NewPatientEmptyStateCta /> : undefined}
+            action={
+              showEmptyResetCta ? (
+                <button type="button" className="btn btn-secondary" onClick={resetSearchAndFilters}>
+                  Limpiar búsqueda y filtros
+                </button>
+              ) : showEmptyCreatePatientCta ? (
+                <NewPatientEmptyStateCta />
+              ) : undefined
+            }
           />
         )}
       </div>

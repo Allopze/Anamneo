@@ -87,6 +87,33 @@ export default function EncounterToolbar({
   const moreMenuItems = useMemo<ToolbarMenuItem[]>(() => {
     const items: ToolbarMenuItem[] = [];
 
+    if (canEdit) {
+      items.push({
+        key: 'save',
+        label: saveSectionMutation.isPending ? 'Guardando sección' : 'Guardar ahora',
+        icon: FiSave,
+        onSelect: saveCurrentSection,
+        disabled: !hasUnsavedChanges || saveSectionMutation.isPending,
+        title: hasUnsavedChanges ? 'Guardar la sección actual' : 'No hay cambios pendientes',
+      });
+    }
+
+    items.push({
+      key: 'ficha',
+      label: 'Ficha clínica',
+      icon: FiEye,
+      onSelect: handleViewFicha,
+      title: 'Ver ficha clínica de la atención',
+    });
+
+    items.push({
+      key: 'revision',
+      label: `Revisión: ${reviewStatusLabel}`,
+      icon: FiActivity,
+      onSelect: () => openWorkspacePanel('revision'),
+      title: `Estado de revisión: ${reviewStatusLabel}`,
+    });
+
     if (canDuplicateEncounter) {
       items.push({
         key: 'duplicate',
@@ -120,9 +147,15 @@ export default function EncounterToolbar({
   }, [
     canDuplicateEncounter,
     canViewAudit,
+    canEdit,
     duplicateEncounterMutation.isPending,
+    handleViewFicha,
     handleDuplicateEncounter,
+    hasUnsavedChanges,
     openWorkspacePanel,
+    reviewStatusLabel,
+    saveCurrentSection,
+    saveSectionMutation.isPending,
   ]);
 
   const toolbarActions = useMemo(() => {
@@ -176,6 +209,7 @@ export default function EncounterToolbar({
             aria-label="Guardar ahora"
             className={clsx(
               hasUnsavedChanges ? COMPACT_BTN_PRIMARY : COMPACT_BTN,
+              'hidden sm:inline-flex',
               !hasUnsavedChanges && 'bg-surface-inset text-ink-muted hover:bg-surface-inset',
             )}
           >
@@ -185,7 +219,7 @@ export default function EncounterToolbar({
         ) : null}
 
         {/* ── Navigation buttons ─ */}
-        <button onClick={handleViewFicha} aria-label="Ficha clínica" className={COMPACT_BTN}>
+        <button onClick={handleViewFicha} aria-label="Ficha clínica" className={clsx(COMPACT_BTN, 'hidden sm:inline-flex')}>
           <FiEye className="h-3.5 w-3.5" />
           <span className="hidden lg:inline">Ficha clínica</span>
         </button>
@@ -193,7 +227,7 @@ export default function EncounterToolbar({
         <button
           type="button"
           onClick={() => openWorkspacePanel('revision')}
-          className={clsx(COMPACT_BTN, reviewButtonClass)}
+          className={clsx(COMPACT_BTN, 'hidden sm:inline-flex', reviewButtonClass)}
           aria-label={`Estado de revisión: ${reviewStatusLabel}`}
           title={`Estado de revisión: ${reviewStatusLabel}`}
         >
@@ -203,11 +237,10 @@ export default function EncounterToolbar({
 
         {/* ── More menu ────────── */}
         <FichaToolbarMenu
-          label="Más"
+          label="Acciones"
           ariaLabel="Más acciones de atención"
           icon={FiMoreHorizontal}
           items={moreMenuItems}
-          compactLabel
         />
 
         {/* ── Workflow CTA ─────── */}
@@ -220,7 +253,7 @@ export default function EncounterToolbar({
             title={completionBlockedReason ?? undefined}
           >
             <FiCheck className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">Finalizar atención</span>
+            <span className="inline">Finalizar</span>
           </button>
         ) : null}
 
@@ -232,7 +265,7 @@ export default function EncounterToolbar({
             className={COMPACT_BTN_PRIMARY}
           >
             <FiShield className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">Firmar atención</span>
+            <span className="inline">Firmar</span>
           </button>
         ) : null}
       </div>

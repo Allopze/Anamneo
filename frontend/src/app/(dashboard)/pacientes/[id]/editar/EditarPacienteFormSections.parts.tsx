@@ -153,18 +153,15 @@ export function DemograficosSection({ editForm, edadCalculada }: DemograficosSec
 
         <div>
           <label htmlFor="edadCalculada" className="form-label">Edad calculada</label>
-          <input
+          <div
             id="edadCalculada"
-            type="text"
-            readOnly
-            tabIndex={-1}
-            className="form-input bg-surface-inset text-ink-secondary cursor-default"
-            value={
-              edadCalculada
-                ? `${edadCalculada.edad} años ${edadCalculada.edadMeses} meses`
-                : 'Ingrese fecha de nacimiento'
-            }
-          />
+            role="status"
+            className="form-input flex min-h-[50px] cursor-default items-center bg-surface-inset leading-5 text-ink-secondary"
+          >
+            {edadCalculada
+              ? `${edadCalculada.edad} años ${edadCalculada.edadMeses} meses`
+              : 'Ingrese fecha de nacimiento'}
+          </div>
         </div>
       </div>
 

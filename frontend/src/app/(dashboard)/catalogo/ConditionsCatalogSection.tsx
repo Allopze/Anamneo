@@ -259,7 +259,7 @@ export default function ConditionsCatalogSection() {
                       Editar
                     </button>
                     <button
-                      className="btn btn-danger"
+                      className="rounded-pill border border-transparent px-3 py-2 text-sm font-semibold text-status-red-text opacity-100 transition-[background-color,border-color,opacity,transform] hover:border-status-red/30 hover:bg-status-red/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-red/35 active:scale-[0.97] md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
                       onClick={() => deleteLocalMutation.mutate(condition)}
                       disabled={deleteLocalMutation.isPending}
                     >

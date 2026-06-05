@@ -10,10 +10,10 @@ export const INVITATION_STATUS_LABELS: Record<InvitationStatus, string> = {
 };
 
 export const INVITATION_STATUS_STYLES: Record<InvitationStatus, string> = {
-  PENDIENTE: 'border border-status-yellow/60 bg-status-yellow/30 text-accent-text',
-  ACEPTADA: 'bg-status-green/20 text-status-green',
-  REVOCADA: 'bg-surface-muted text-ink-secondary',
-  EXPIRADA: 'border border-status-yellow/70 bg-status-yellow/40 text-accent-text',
+  PENDIENTE: 'border border-status-yellow/45 bg-status-yellow/15 text-accent-text',
+  ACEPTADA: 'border border-status-green/25 bg-status-green/15 text-status-green-text',
+  REVOCADA: 'border border-surface-muted/45 bg-surface-muted/55 text-ink-secondary',
+  EXPIRADA: 'border border-status-yellow/45 bg-status-yellow/20 text-accent-text',
 };
 
 export function formatInvitationDate(value: string) {

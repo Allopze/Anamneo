@@ -89,7 +89,7 @@ export function CreateInvitationCard({
         )}
       </div>
 
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <button
           className="btn btn-primary flex items-center gap-2"
           onClick={() => createInvitationMutation.mutate()}
@@ -104,11 +104,11 @@ export function CreateInvitationCard({
 
       {createdInvitation && (
         <div
-          className={`mt-4 rounded-card border p-4 ${
+          className={`mt-4 min-w-0 rounded-card border p-4 ${
             createdInvitation.emailSent ? 'border-status-green/30 bg-status-green/10' : 'border-accent/20 bg-accent/10'
           }`}
         >
-          <p className="text-sm font-medium text-ink-primary">
+          <p className="truncate text-sm font-medium text-ink-primary">
             {createdInvitation.emailSent
               ? `Invitación enviada a ${createdInvitation.email}`
               : 'Enlace de invitación listo'}
@@ -121,7 +121,9 @@ export function CreateInvitationCard({
           {createdInvitation.emailError && (
             <p className="mt-2 text-xs text-accent-text">{createdInvitation.emailError}</p>
           )}
-          <p className="mt-2 break-all text-sm text-ink-secondary">{createdInvitation.inviteUrl}</p>
+          <p className="mt-2 max-h-20 overflow-auto break-all rounded-btn bg-surface-elevated/70 px-3 py-2 font-mono text-xs leading-5 text-ink-secondary">
+            {createdInvitation.inviteUrl}
+          </p>
         </div>
       )}
     </div>
@@ -179,14 +181,14 @@ export function InvitationsListCard({
             const canRevoke = status === 'PENDIENTE';
 
             return (
-              <div key={invitation.id} className="group list-row flex-col gap-3 sm:flex-row sm:items-center">
+              <div key={invitation.id} className="group list-row flex-col items-stretch gap-3 py-2.5 sm:flex-row sm:items-center">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-ink-primary truncate">{invitation.email}</span>
-                    <span className="list-chip bg-surface-muted text-ink-secondary">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2 align-middle">
+                    <span className="min-w-0 max-w-full flex-[1_1_14rem] truncate font-medium text-ink-primary">{invitation.email}</span>
+                    <span className="inline-flex h-7 items-center rounded-full bg-surface-muted/70 px-3 text-xs font-semibold leading-none text-ink-secondary">
                       {invitation.role === 'MEDICO' ? 'Médico' : invitation.role === 'ADMIN' ? 'Administrador' : 'Asistente'}
                     </span>
-                    <span className={`list-chip ${INVITATION_STATUS_STYLES[status as keyof typeof INVITATION_STATUS_STYLES]}`}>
+                    <span className={`inline-flex h-7 items-center rounded-full px-3 text-xs font-semibold leading-none ${INVITATION_STATUS_STYLES[status as keyof typeof INVITATION_STATUS_STYLES]}`}>
                       {INVITATION_STATUS_LABELS[status as keyof typeof INVITATION_STATUS_LABELS]}
                     </span>
                   </div>
@@ -194,16 +196,16 @@ export function InvitationsListCard({
                     Creada: {formatInvitationDate(invitation.createdAt)} · Expira: {formatInvitationDate(invitation.expiresAt)}
                   </div>
                   {assignedMedico && (
-                    <div className="text-xs text-ink-muted mt-1">
+                    <div className="mt-1 truncate text-xs text-ink-muted">
                       Asignada a médico: {assignedMedico.nombre} ({assignedMedico.email})
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
                   {canRevoke && (
                     <button
-                      className="btn btn-secondary"
+                      className="inline-flex h-9 items-center justify-center rounded-full border border-status-red/25 bg-transparent px-4 text-xs font-semibold leading-none text-status-red-text transition-[background-color,border-color,color,transform] duration-150 hover:border-status-red/45 hover:bg-status-red/10 hover:text-status-red-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-red/35 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base active:scale-[0.97]"
                       onClick={() => revokeInvitationMutation.mutate(invitation.id)}
                       disabled={revokeInvitationMutation.isPending}
                     >

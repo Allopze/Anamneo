@@ -112,11 +112,11 @@
   }
 
   .portal-clinical-section {
-    @apply rounded-card border border-surface-muted/55 bg-surface-elevated p-3 sm:p-4;
+    @apply rounded-card border border-surface-muted/45 bg-surface-elevated p-3 sm:p-4;
   }
 
   .portal-clinical-data {
-    @apply mt-3 rounded-card bg-surface-inset/70 p-3 text-sm leading-6 text-ink-secondary;
+    @apply mt-3 border-t border-surface-muted/45 pt-3 text-sm leading-6 text-ink-secondary;
   }
 
   .portal-clinical-data dl {
@@ -129,4 +129,8 @@
 
   .portal-clinical-data dd {
     @apply break-words text-ink;
+  }
+
+  .portal-clinical-data li {
+    @apply border-b border-surface-muted/35 bg-transparent px-0 py-2 last:border-b-0;
   }

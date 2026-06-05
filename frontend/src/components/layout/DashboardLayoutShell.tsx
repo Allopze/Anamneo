@@ -117,7 +117,7 @@ export default function DashboardLayoutShell({
         />
 
         <div className="relative flex h-full flex-1 flex-col overflow-hidden">
-          <header className="z-20 mx-2 mt-2 flex h-16 flex-shrink-0 items-center justify-between rounded-b-card border border-surface-muted/40 bg-surface-elevated px-5 shadow-soft lg:hidden">
+          <header className="z-20 mx-2 mt-1 flex h-14 flex-shrink-0 items-center justify-between rounded-b-card border border-surface-muted/40 bg-surface-elevated px-5 shadow-soft lg:hidden">
             <Link href="/" className="flex items-center gap-2">
               <AnamneoLogo className="gap-2" iconClassName="h-8 w-8" textClassName="text-xl font-extrabold text-ink" />
             </Link>
@@ -167,13 +167,13 @@ export default function DashboardLayoutShell({
 
           <HeaderBarSlotContext.Provider value={headerBarSlotContextValue}>
             <div className="flex-1 overflow-auto">
-              <div className={clsx('px-3 pt-4 lg:px-6', isEncounterWorkspace ? 'pb-0' : 'pb-2')}>
-                <div className="flex items-stretch gap-3">
+              <div className={clsx('px-3 pt-2 lg:px-6 lg:pt-4', isEncounterWorkspace ? 'pb-0' : 'pb-2')}>
+                <div className="flex items-center gap-3">
                   <Tooltip label={sidebarCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'} side="bottom">
                     <button
                       type="button"
                       onClick={() => onCollapsedChange(!sidebarCollapsed)}
-                      className="hidden h-14 w-14 flex-none items-center justify-center rounded-btn border border-surface-muted/35 bg-surface-elevated p-0 text-ink-secondary shadow-soft transition-colors hover:border-frame/20 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20 lg:flex"
+                      className="hidden h-12 w-12 flex-none items-center justify-center rounded-full border border-surface-muted/35 bg-surface-elevated p-0 text-ink-secondary shadow-soft transition-[border-color,color,transform] duration-150 hover:border-frame/20 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-frame/20 active:scale-[0.97] lg:flex"
                       aria-label={sidebarCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'}
                       aria-expanded={!sidebarCollapsed}
                     >
@@ -181,7 +181,7 @@ export default function DashboardLayoutShell({
                     </button>
                   </Tooltip>
 
-                  <SmartHeaderBar className="mx-0 mt-0 mb-0 min-h-[56px] min-w-0 flex-1" onSearchOpen={onSearchOpen} contextSlot={headerBarSlot} />
+                  <SmartHeaderBar className="mx-0 mt-0 mb-0 h-12 min-w-0 flex-1" onSearchOpen={onSearchOpen} contextSlot={headerBarSlot} />
                 </div>
               </div>
 
