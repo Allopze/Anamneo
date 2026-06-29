@@ -16,7 +16,7 @@ interface DashboardAdminViewProps {
 
 export default function DashboardAdminView({ user }: DashboardAdminViewProps) {
   return (
-    <div className="space-y-6 pb-2">
+    <div className="space-y-3 pb-2">
       <section
         className="animate-fade-in rounded-card border border-surface-muted/45 bg-surface-elevated px-6 py-7 shadow-soft lg:px-10 lg:py-8"
         style={sectionAnimation(0)}

@@ -36,6 +36,7 @@ describe('audit-catalog', () => {
     ['ClinicalAnalyticsCasesExport', 'EXPORT', { export: { format: 'csv' } }, 'CLINICAL_ANALYTICS_CSV_EXPORTED'],
     ['ClinicalAnalyticsSummaryExport', 'EXPORT', { export: { format: 'csv' } }, 'CLINICAL_ANALYTICS_SUMMARY_CSV_EXPORTED'],
     ['ClinicalAnalyticsSummaryReportExport', 'EXPORT', { export: { format: 'md' } }, 'CLINICAL_ANALYTICS_SUMMARY_REPORT_EXPORTED'],
+    ['OperationalDailySummary', 'READ', {}, 'OPERATIONAL_DAILY_SUMMARY_VIEWED'],
     ['Setting', 'UPDATE', {}, 'SETTINGS_UPDATED'],
   ])('maps %s/%s to %s', (entityType, action, diff, expected) => {
     expect(inferAuditReason(entityType as any, action as any, diff)).toBe(expected);

@@ -126,6 +126,7 @@ export class AnalyticsService {
       entityId: user.id,
       userId: user.id,
       action: 'READ',
+      reason: 'OPERATIONAL_DAILY_SUMMARY_VIEWED',
       diff: { scope: 'OPERATIONAL_DAILY_SUMMARY', date: summary.date },
     });
     return summary;

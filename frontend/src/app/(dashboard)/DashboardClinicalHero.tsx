@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import clsx from 'clsx';
 import { FiActivity, FiAlertTriangle, FiCalendar, FiChevronRight, FiClipboard, FiPlus, FiUsers } from 'react-icons/fi';
 import { FichaIcon } from '@/components/icons';
 import { getFirstName } from '@/lib/utils';
@@ -24,15 +23,22 @@ export default function DashboardClinicalHero({
   canNewPatient,
   recentPatientsCount,
 }: DashboardClinicalHeroProps) {
-  const quickActions = [
-    canNewEncounter
+  const primaryAction = canNewEncounter
+    ? {
+        href: '/atenciones/nueva',
+        label: 'Nueva atención',
+        icon: FiPlus,
+      }
+    : canNewPatient
       ? {
-          href: '/atenciones/nueva',
-          label: 'Nueva atención',
-          icon: FiPlus,
+          href: '/pacientes/nuevo',
+          label: 'Nuevo paciente',
+          icon: FiUsers,
         }
-      : null,
-    canNewPatient
+      : null;
+
+  const secondaryActions = [
+    canNewPatient && primaryAction?.href !== '/pacientes/nuevo'
       ? {
           href: '/pacientes/nuevo',
           label: 'Nuevo paciente',
@@ -41,12 +47,12 @@ export default function DashboardClinicalHero({
       : null,
     {
       href: '/seguimientos',
-      label: 'Bandeja de seguimientos',
+      label: 'Seguimientos',
       icon: FiClipboard,
     },
     {
       href: '/atenciones',
-      label: 'Todas las atenciones',
+      label: 'Atenciones',
       icon: FichaIcon,
     },
   ].filter((item): item is NonNullable<typeof item> => Boolean(item));
@@ -63,7 +69,7 @@ export default function DashboardClinicalHero({
 
   return (
     <section className="animate-fade-in space-y-3" style={sectionAnimation(0)}>
-      <div className="grid gap-3 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)] xl:items-start">
+      <div className="grid gap-3 xl:grid-cols-[minmax(18rem,1fr)_auto] xl:items-start">
         <div className="min-w-0 text-left">
           <h1 className="text-xl font-extrabold tracking-tight text-ink sm:text-2xl">
             {getGreeting()}
@@ -71,22 +77,29 @@ export default function DashboardClinicalHero({
           </h1>
         </div>
 
-        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-          {quickActions.map((action, index) => (
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-start xl:justify-end">
+          {primaryAction && (
             <Link
-              key={action.href}
-              href={action.href}
-              className={clsx(
-                'inline-flex h-11 min-w-0 items-center justify-center gap-2 rounded-btn border px-4 text-sm font-semibold transition-[background-color,border-color,color,transform] active:scale-[0.98]',
-                index === 0
-                  ? 'border-frame-dark bg-frame-dark text-white hover:bg-ink'
-                  : 'border-surface-muted/60 bg-surface-elevated text-ink-secondary hover:border-frame/25 hover:bg-surface-inset/70 hover:text-ink',
-              )}
+              href={primaryAction.href}
+              className="inline-flex h-11 min-w-[13.5rem] items-center justify-center gap-2 rounded-btn border border-frame-dark bg-frame-dark px-5 text-sm font-semibold text-white transition-[background-color,border-color,color,transform] hover:bg-ink active:scale-[0.98] sm:w-auto"
             >
-              <action.icon className="h-4 w-4 shrink-0" />
-              <span className="truncate">{action.label}</span>
+              <primaryAction.icon className="h-4 w-4 shrink-0" />
+              <span className="truncate">{primaryAction.label}</span>
             </Link>
-          ))}
+          )}
+
+          <div className="flex min-w-0 flex-wrap gap-1 rounded-btn border border-surface-muted/45 bg-surface-elevated/75 p-1 shadow-soft">
+            {secondaryActions.map((action) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-input px-3 text-sm font-semibold text-ink-secondary transition-[background-color,color,transform] hover:bg-surface-inset hover:text-ink active:scale-[0.98] sm:flex-none"
+              >
+                <action.icon className="h-4 w-4 shrink-0" />
+                <span className="truncate">{action.label}</span>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 

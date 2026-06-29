@@ -35,6 +35,7 @@ export const AUDIT_REASON_LABELS: Record<AuditReason, string> = {
   CLINICAL_ANALYTICS_CASES_VIEWED: 'Consulta de casos analíticos clínicos',
   CLINICAL_ANALYTICS_SUMMARY_CSV_EXPORTED: 'Exportación CSV del resumen clínico analítico',
   CLINICAL_ANALYTICS_SUMMARY_REPORT_EXPORTED: 'Exportación de reporte Markdown del resumen clínico analítico',
+  OPERATIONAL_DAILY_SUMMARY_VIEWED: 'Consulta de resumen operacional diario',
   ENCOUNTER_CREATED: 'Creación de atención',
   ENCOUNTER_SECTION_UPDATED: 'Actualización de sección clínica',
   ENCOUNTER_COMPLETED: 'Cierre de atención',
@@ -157,6 +158,7 @@ export function inferAuditReason(entityType: string, action: AuditAction, diff: 
   if (entityType === 'ClinicalAnalyticsCases' && action === 'READ') return 'CLINICAL_ANALYTICS_CASES_VIEWED';
   if (entityType === 'ClinicalAnalyticsSummaryExport' && action === 'EXPORT') return 'CLINICAL_ANALYTICS_SUMMARY_CSV_EXPORTED';
   if (entityType === 'ClinicalAnalyticsSummaryReportExport' && action === 'EXPORT') return 'CLINICAL_ANALYTICS_SUMMARY_REPORT_EXPORTED';
+  if (entityType === 'OperationalDailySummary' && action === 'READ') return 'OPERATIONAL_DAILY_SUMMARY_VIEWED';
   if (entityType === 'Encounter' && action === 'CREATE') return 'ENCOUNTER_CREATED';
   if (entityType === 'Encounter' && action === 'READ' && hasDiffScope(diff, 'TIMELINE')) return 'ENCOUNTER_TIMELINE_VIEWED';
   if (entityType === 'Encounter' && action === 'READ') return 'ENCOUNTER_RECORD_VIEWED';

@@ -18,6 +18,13 @@ jest.mock('./clinical-analytics.summary.report', () => ({
   exportClinicalAnalyticsSummaryMarkdownReadModel: jest.fn(() => 'summary-md-content'),
 }));
 
+jest.mock('./operational-daily-summary.read-model', () => ({
+  getOperationalDailySummaryReadModel: jest.fn(() => ({
+    date: '2026-05-27',
+    summary: { appointmentsTotal: 0 },
+  })),
+}));
+
 import { ForbiddenException } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
 import { getClinicalAnalyticsSummaryReadModel } from './clinical-analytics.read-model';
@@ -25,6 +32,7 @@ import { getClinicalAnalyticsCasesReadModel } from './clinical-analytics.cases.r
 import { exportClinicalAnalyticsCasesCsvReadModel } from './clinical-analytics.cases.export';
 import { exportClinicalAnalyticsSummaryCsvReadModel } from './clinical-analytics.summary.export';
 import { exportClinicalAnalyticsSummaryMarkdownReadModel } from './clinical-analytics.summary.report';
+import { getOperationalDailySummaryReadModel } from './operational-daily-summary.read-model';
 
 describe('AnalyticsService', () => {
   it('rejects MEDICO users flagged as admin to match frontend access rules', async () => {
@@ -227,5 +235,47 @@ describe('AnalyticsService', () => {
       query: { source: 'ANY', followUpDays: 30, limit: 10 },
     });
     expect(result).toEqual('summary-md-content');
+  });
+
+  it('audits operational daily summary reads with an explicit catalog reason', async () => {
+    const auditService = { log: jest.fn().mockResolvedValue(undefined) };
+    const service = new AnalyticsService({} as any, auditService as any);
+
+    const result = await service.getOperationalDailySummary(
+      {
+        id: 'med-1',
+        email: 'med@test.com',
+        nombre: 'Medico Demo',
+        role: 'MEDICO',
+        isAdmin: false,
+      },
+      '2026-05-27',
+    );
+
+    expect(getOperationalDailySummaryReadModel).toHaveBeenCalledWith({
+      prisma: {},
+      user: {
+        id: 'med-1',
+        email: 'med@test.com',
+        nombre: 'Medico Demo',
+        role: 'MEDICO',
+        isAdmin: false,
+      },
+      date: '2026-05-27',
+    });
+    expect(result).toEqual({
+      date: '2026-05-27',
+      summary: { appointmentsTotal: 0 },
+    });
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: 'OperationalDailySummary',
+        entityId: 'med-1',
+        userId: 'med-1',
+        action: 'READ',
+        reason: 'OPERATIONAL_DAILY_SUMMARY_VIEWED',
+        diff: { scope: 'OPERATIONAL_DAILY_SUMMARY', date: '2026-05-27' },
+      }),
+    );
   });
 });
