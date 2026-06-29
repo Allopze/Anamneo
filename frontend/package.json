@@ -24,7 +24,7 @@
     "test:e2e:visual": "playwright test --workers=1 tests/e2e/visual-screenshots.spec.ts tests/e2e/visual-full-app.spec.ts"
   },
   "dependencies": {
-    "@hookform/resolvers": "^3.3.4",
+    "@hookform/resolvers": "^5.4.0",
     "@sentry/nextjs": "^10.50.0",
     "@tanstack/react-query": "^5.17.9",
     "axios": "^1.15.2",
