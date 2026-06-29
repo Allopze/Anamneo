@@ -50,6 +50,12 @@ Este directorio concentra la documentacion viva del proyecto. Si un tema aparece
 6. `security-and-permissions.md`
 7. `postgres-operations.md` y `deployment-and-release.md`
 
+## Orden Recomendado Para Coding Agents
+
+1. `../CONTEXT.md` — dump denso para no recorrer todo el repo
+2. `../AGENTS.md` — comandos canónicos, límites por archivo y matriz de validación
+3. Este `index.md` y luego los docs del área que vas a tocar
+
 ## Archivo Historico
 
 Los documentos de refactor UI de marzo/abril 2026 se movieron a `docs/archive/ui/`. Se conservan por contexto historico, no porque alguien deba consultarlos antes de abrir una PR.

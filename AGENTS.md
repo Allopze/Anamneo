@@ -3,6 +3,10 @@
 Quick guidance for coding agents working in this repository.
 Keep this file short and actionable; use linked docs for details.
 
+## Quick Context Dump
+
+For a dense AI-oriented context dump (stack, modules, patterns, gotchas, key files, conventions), see [`CONTEXT.md`](CONTEXT.md). Use it as the first read so you do not need to crawl the whole repo to understand it.
+
 ## Product Direction
 
 - Prefer low-friction workflows and low-maintenance implementations.
